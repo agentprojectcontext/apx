@@ -222,3 +222,50 @@ test("a daemon refuses the shared port when another home is already serving it",
   // A digest, not the path: /api/health is the one route served without a token.
   assert.doesNotMatch(homeId("/Users/someone/.apx"), /Users|someone/);
 });
+
+test("a thread is named after words somebody said, not after a file marker", () => {
+  const CH = "titles";
+  // What a turn carrying a file STORES is a marker written for the model. Left
+  // raw, a Telegram thread was called "[audio] me parece que ahí hay un error"
+  // in the sidebar and in its own header.
+  writeDay(CH, [
+    row({
+      channel: CH,
+      author: "Manu",
+      body: "[audio] me parece que hay un error acá",
+      meta: { local_path: "/tmp/v.oga", media_kind: "audio", transcription_backend: "local" },
+    }),
+  ]);
+  const [voice] = listGlobalThreads({ channels: [CH], _globalMessagesDir: DIR });
+  assert.equal(voice.title, "🎤 me parece que hay un error acá");
+
+  // A voice note we could not transcribe stores a note about OUR failure. It is
+  // not what the person said and it cannot name their conversation — the next
+  // turn with words does.
+  writeDay(CH, [
+    row({
+      channel: CH,
+      body: "[audio] (transcription unavailable: fetch failed)",
+      meta: { local_path: "/tmp/v.oga", transcription_error: "fetch failed" },
+    }),
+    row({ channel: CH, ts: `${DAY}T12:01:00Z`, body: "che, se cortó el audio" }),
+  ]);
+  const [failed] = listGlobalThreads({ channels: [CH], _globalMessagesDir: DIR });
+  assert.equal(failed.title, "che, se cortó el audio");
+
+  // A day where nobody typed anything: a channel with no user turns at all
+  // (`log`) must keep a title rather than fall back to "channel · date".
+  writeDay(CH, [
+    row({ channel: CH, type: "agent", direction: "out", author: "Roby", body: "Son las 22:00, arranca el silencio" }),
+  ]);
+  const [agentOnly] = listGlobalThreads({ channels: [CH], _globalMessagesDir: DIR });
+  assert.equal(agentOnly.title, "Son las 22:00, arranca el silencio");
+
+  // And when there really is nothing but a caption-less photo, the channel and
+  // the date are less informative but true.
+  writeDay(CH, [
+    row({ channel: CH, body: "[image attached — saved to /tmp/p.jpg]", meta: { local_path: "/tmp/p.jpg", media_kind: "photo" } }),
+  ]);
+  const [silent] = listGlobalThreads({ channels: [CH], _globalMessagesDir: DIR });
+  assert.equal(silent.title, `${CH} · ${DAY}`);
+});
