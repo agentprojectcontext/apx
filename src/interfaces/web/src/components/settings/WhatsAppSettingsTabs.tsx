@@ -735,6 +735,106 @@ function StickerImage({ sticker }: { sticker: WhatsAppSticker }) {
   );
 }
 
+/**
+ * One sticker: the picture, what it means, and the two things you can do to it.
+ *
+ * The meaning is TEXT until you click it, not a permanently open input. A card
+ * is ~12rem wide and these descriptions are a dozen words, so an input showed
+ * "Hyped Lionel Messi h" and hid the rest behind a scroll nobody would find.
+ * Clamped to two lines with the full wording in a tooltip, it reads; clicking
+ * turns it into the editor it always was.
+ */
+function StickerCard({
+  sticker: s,
+  onChanged,
+  onDelete,
+}: {
+  sticker: WhatsAppSticker;
+  onChanged: (fn: () => Promise<unknown>) => void;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+      <StickerImage sticker={s} />
+
+      {editing ? (
+        <Textarea
+          autoFocus
+          rows={3}
+          className="text-xs leading-snug"
+          defaultValue={s.meaning}
+          onBlur={(e) => {
+            const v = e.currentTarget.value.trim();
+            setEditing(false);
+            if (!v || v === s.meaning) return;
+            onChanged(() => WhatsApp.stickers.rename(s.key, v));
+          }}
+          // Enter saves, Escape abandons — a three-line box for one phrase does
+          // not need a newline more than it needs a way out.
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === "Escape") { e.currentTarget.value = s.meaning; e.currentTarget.blur(); }
+          }}
+        />
+      ) : (
+        <Tip content={s.meaning}>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            aria-label={t("settings.whatsapp.sticker_edit_meaning")}
+            className="line-clamp-2 min-h-[2.25rem] rounded text-left text-xs leading-snug text-foreground [overflow-wrap:anywhere] hover:text-brand"
+          >
+            {s.meaning}
+          </button>
+        </Tip>
+      )}
+
+      {/* Both facts shrink rather than push each other out of the card: the
+          count was sitting outside the border, over the next card along. */}
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Badge tone={s.meaning_source === "owner" ? "success" : "muted"} className="min-w-0 truncate">
+          {s.meaning_source === "owner"
+            ? t("settings.whatsapp.sticker_owner_source")
+            : t("settings.whatsapp.sticker_vision_source")}
+        </Badge>
+        {s.blocked && <Badge tone="warning" className="shrink-0">{t("settings.whatsapp.sticker_blocked")}</Badge>}
+        <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+          {t("settings.whatsapp.seen", { count: s.count ?? 1 })}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {/* Blocking is reversible and keeps the meaning; deleting is neither.
+            They sit side by side so the softer one is the obvious first reach. */}
+        <Tip content={t(s.blocked ? "settings.whatsapp.sticker_unblock_hint" : "settings.whatsapp.sticker_block_hint")}>
+          <Button
+            variant="ghost"
+            className="h-7 min-w-0 flex-1 gap-1.5 px-2 text-xs"
+            onClick={() => onChanged(() => WhatsApp.stickers.setBlocked(s.key, !s.blocked))}
+          >
+            {s.blocked ? <Check size={13} className="shrink-0" /> : <Ban size={13} className="shrink-0" />}
+            <span className="truncate">
+              {t(s.blocked ? "settings.whatsapp.sticker_unblock" : "settings.whatsapp.sticker_block")}
+            </span>
+          </Button>
+        </Tip>
+        <Tip content={t("settings.whatsapp.sticker_delete_hint")}>
+          <Button
+            variant="ghost"
+            className="size-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+            aria-label={t("settings.whatsapp.sticker_delete")}
+            onClick={onDelete}
+          >
+            <Trash2 size={13} />
+          </Button>
+        </Tip>
+      </div>
+    </div>
+  );
+}
+
 function StickersPanel() {
   const toast = useToast();
   const [stickers, setStickers] = useState<WhatsAppSticker[]>([]);
@@ -747,10 +847,10 @@ function StickersPanel() {
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const act = async (fn: () => Promise<unknown>) => {
+  const act = useCallback(async (fn: () => Promise<unknown>) => {
     try { await fn(); await refresh(); }
     catch (err) { toast.error((err as Error).message); }
-  };
+  }, [refresh, toast]);
 
   if (loading) return <Loading />;
 
@@ -763,59 +863,14 @@ function StickersPanel() {
         // sentence, which is a table of descriptions — and you do not recognise
         // a sticker from its description, you recognise it on sight. Columns of
         // square cards put the picture first and let the words sit under it.
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] gap-3">
           {stickers.map((s) => (
-            <div
+            <StickerCard
               key={s.key}
-              className="flex flex-col gap-2 rounded-lg border border-border p-3"
-            >
-              <StickerImage sticker={s} />
-              <Input
-                className="text-xs"
-                defaultValue={s.meaning}
-                onBlur={(e) => {
-                  const v = e.currentTarget.value.trim();
-                  if (!v || v === s.meaning) return;
-                  void act(() => WhatsApp.stickers.rename(s.key, v));
-                }}
-              />
-              <div className="flex items-center gap-1.5">
-                <Badge tone={s.meaning_source === "owner" ? "success" : "muted"}>
-                  {s.meaning_source === "owner"
-                    ? t("settings.whatsapp.sticker_owner_source")
-                    : t("settings.whatsapp.sticker_vision_source")}
-                </Badge>
-                {s.blocked && <Badge tone="warning">{t("settings.whatsapp.sticker_blocked")}</Badge>}
-                <span className="ml-auto text-[11px] text-muted-foreground">
-                  {t("settings.whatsapp.seen", { count: s.count ?? 1 })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {/* Blocking is reversible and keeps the meaning; deleting is
-                    neither. They sit side by side so the softer one is the
-                    obvious first reach. */}
-                <Tip content={t(s.blocked ? "settings.whatsapp.sticker_unblock_hint" : "settings.whatsapp.sticker_block_hint")}>
-                  <Button
-                    variant="ghost"
-                    className="h-7 flex-1 gap-1.5 px-2 text-xs"
-                    onClick={() => void act(() => WhatsApp.stickers.setBlocked(s.key, !s.blocked))}
-                  >
-                    {s.blocked ? <Check size={13} /> : <Ban size={13} />}
-                    {t(s.blocked ? "settings.whatsapp.sticker_unblock" : "settings.whatsapp.sticker_block")}
-                  </Button>
-                </Tip>
-                <Tip content={t("settings.whatsapp.sticker_delete_hint")}>
-                  <Button
-                    variant="ghost"
-                    className="size-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
-                    aria-label={t("settings.whatsapp.sticker_delete")}
-                    onClick={() => setConfirmDelete(s)}
-                  >
-                    <Trash2 size={13} />
-                  </Button>
-                </Tip>
-              </div>
-            </div>
+              sticker={s}
+              onChanged={(fn) => void act(fn)}
+              onDelete={() => setConfirmDelete(s)}
+            />
           ))}
         </div>
       )}
