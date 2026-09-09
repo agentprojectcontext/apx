@@ -1,3 +1,10 @@
+## [1.93.2](https://github.com/agentprojectcontext/apx/compare/v1.93.1...v1.93.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **whatsapp:** photos, stickers and voice notes render, instead of naming a file path ([c191c38](https://github.com/agentprojectcontext/apx/commit/c191c38d945241d58bd2ff0667752f1fcc7ea51e))
+
 ## [1.93.1](https://github.com/agentprojectcontext/apx/compare/v1.93.0...v1.93.1) (2026-09-09)
 
 
