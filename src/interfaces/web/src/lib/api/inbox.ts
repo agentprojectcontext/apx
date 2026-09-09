@@ -24,6 +24,10 @@ export interface InboxRow {
   contact?: string;
   contact_name?: string | null;
   contact_face?: AgentFace;
+  /** WHICH PERSON, resolved against the roster as it stands today — stable
+   *  across days and across the addresses one human writes from, so it is what
+   *  identifies the row (see rowKey) rather than the key the ledger recorded. */
+  contact_person?: string | null;
   pinned: boolean;
   conversation_id: string | null;
   channel: string | null;

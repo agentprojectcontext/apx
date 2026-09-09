@@ -89,6 +89,17 @@ test("the phone keys rows by channel too, like the desktop rail", () => {
   const list = webSrc("components", "inbox", "InboxList.tsx");
   assert.match(list, /export function rowKey/);
   assert.match(list, /row\.channel \?\? ""/, "the channel is part of a row's identity");
+  // And so is the PERSON. On a channel that talks to several of them every row
+  // is the super-agent's on the same channel, so without this Manu, Magui and
+  // Carlos shared one key: all three lit up as selected at once, and clicking
+  // any of them opened whichever the list happened to find first.
+  assert.match(list, /row\.contact_person \?\? ""/, "the person is part of it too");
+  // The person, not the conversation id — the id is a day of the ledger and
+  // rolls at midnight, which is the move `threadMoved` exists to follow.
+  assert.doesNotMatch(
+    list.slice(list.indexOf("export function rowKey")),
+    /^\s*return `\$\{row\.project_id[^`]*conversation_id/m,
+  );
 });
 
 test("tapping a row opens THAT thread, not the agent's newest one", () => {
