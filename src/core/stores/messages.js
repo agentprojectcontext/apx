@@ -1326,7 +1326,7 @@ export function appendGlobalMessage({ channel, direction, type, actor_id, actor_
   emitMessageEvent({
     scope: "global",
     channel,
-    thread: threadId(ts.slice(0, 10), rowContact(record)),
+    thread: threadId(ts.slice(0, 10), rowContact(record, channel)),
     project_id: fullMeta.project_id ?? null,
     agent_slug: agent_slug || null,
     direction,
@@ -1430,9 +1430,19 @@ export function threadId(date, contact) {
  * is less accurate than the roster but far better than one undifferentiated
  * pile — and it means history separates too, not just new messages.
  */
-export function rowContact(r) {
+export function rowContact(r, channel = r?.channel) {
   const key = r?.meta?.contact_key;
   if (typeof key === "string" && key.trim()) return key.trim();
+  // Past this line everything is a LEGACY shim for rows written before
+  // `contact_key` existed, and it applies to WhatsApp alone.
+  //
+  // The distinction is not pedantry. On WhatsApp a `sender_jid` names who the
+  // conversation is WITH; on Telegram it names who a message is ABOUT — the
+  // secretary reports ("WhatsApp · Margarita Nudemberg: …") carry the jid of the
+  // person being reported on. Reading those as Telegram conversations turned
+  // five of Roby's own reports to Manu into threads titled "Magui" and "Manu",
+  // sitting in the inbox next to the real ones.
+  if (channel !== CHANNELS.WHATSAPP) return null;
   // The owner, from what the row already says about itself. Rows written before
   // `contact_key` existed would otherwise fall to the address branch below and
   // land in a DIFFERENT thread from the ones written after — splitting one
@@ -1604,7 +1614,7 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
       // is the same loop it always was, run once.
       const groups = new Map();
       for (const r of msgs) {
-        const key = rowContact(r);
+        const key = rowContact(r, ch);
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(r);
       }
@@ -1789,7 +1799,7 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
     parseDayJsonl(fs.readFileSync(file, "utf8"))
       .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
     project,
-  ).filter((r) => (contact ? rowContact(r) === contact : true));
+  ).filter((r) => (contact ? rowContact(r, channel) === contact : true));
   // A person's thread that holds nothing is not a thread. Without this an id
   // for a contact who never wrote on that day opened an empty pane instead of
   // 404ing, which is the difference between "gone" and "broken".
@@ -1840,7 +1850,7 @@ export function deleteGlobalThread({ channel, date, project, _globalMessagesDir 
     const rows = parseDayJsonl(fs.readFileSync(file, "utf8"));
     const drop = (r) =>
       (!scoped || rowBelongsTo(r, String(project))) &&
-      (!parsed.contact || rowContact(r) === parsed.contact);
+      (!parsed.contact || rowContact(r, channel) === parsed.contact);
     const keep = rows.filter((r) => !drop(r));
     if (keep.length === rows.length) return false;
     if (keep.length === 0) fs.unlinkSync(file);
