@@ -1,3 +1,10 @@
+## [1.94.1](https://github.com/agentprojectcontext/apx/compare/v1.94.0...v1.94.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **chat:** asking again deletes an answer, so it asks first ([fec4165](https://github.com/agentprojectcontext/apx/commit/fec416541e27badfc3031ce98e76ddabe8750c7b))
+
 # [1.94.0](https://github.com/agentprojectcontext/apx/compare/v1.93.3...v1.94.0) (2026-09-09)
 
 
