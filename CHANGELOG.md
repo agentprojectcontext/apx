@@ -1,3 +1,10 @@
+## [1.92.3](https://github.com/agentprojectcontext/apx/compare/v1.92.2...v1.92.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **inbox:** one row per person, and stop reading reports as conversations ([4675f72](https://github.com/agentprojectcontext/apx/commit/4675f72275039d07e943375d3c4953f4dda90609))
+
 ## [1.92.2](https://github.com/agentprojectcontext/apx/compare/v1.92.1...v1.92.2) (2026-09-08)
 
 
