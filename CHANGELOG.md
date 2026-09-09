@@ -1,3 +1,10 @@
+# [1.93.0](https://github.com/agentprojectcontext/apx/compare/v1.92.4...v1.93.0) (2026-09-09)
+
+
+### Features
+
+* **whatsapp:** sticker cards you can block or delete, and one place that says what to ignore ([01b8098](https://github.com/agentprojectcontext/apx/commit/01b80988abba1ab1e97e9098b74da0543e72fc60))
+
 ## [1.92.4](https://github.com/agentprojectcontext/apx/compare/v1.92.3...v1.92.4) (2026-09-09)
 
 
