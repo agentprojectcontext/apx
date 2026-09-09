@@ -347,3 +347,32 @@ test("naming a conversation that is not there says so instead of writing one", (
   seedConversation(storagePath);
   assert.equal(setConversationMeta(storagePath, "april", "2099-01-01-99", { title: "x" }), false);
 });
+
+test("mediaFromMeta reads a file whichever shape the channel wrote it in", async () => {
+  const { mediaFromMeta } = await import("#core/stores/messages.js");
+
+  // Flat, the way telegram and the web write it.
+  assert.deepEqual(mediaFromMeta({ local_path: "/tmp/a.jpg", media_kind: "photo" })?.kind, "photo");
+
+  // Nested, the way WhatsApp wrote it until this was found. The bytes were on
+  // disk the whole time; the reader looked for `local_path` at the top level,
+  // found nothing, and the thread rendered the marker text instead of the photo
+  // — "[image attached — saved to /Users/…]" as the message.
+  const legacy = mediaFromMeta({
+    media: { kind: "photo", meta: { local_path: "/tmp/wa.jpg", width: 736, height: 981 } },
+  });
+  assert.equal(legacy?.kind, "photo");
+  assert.equal(legacy?.path, "/tmp/wa.jpg");
+
+  // A channel's own words for a kind map onto the ones the viewer can render:
+  // a voice note is an audio player, a sticker is a picture. Falling through to
+  // the generic file card is how a sticker becomes a paperclip.
+  assert.equal(mediaFromMeta({ local_path: "/tmp/a.ogg", media_kind: "voice" })?.kind, "audio");
+  assert.equal(mediaFromMeta({ local_path: "/tmp/s.webp", media_kind: "sticker" })?.kind, "photo");
+  assert.equal(mediaFromMeta({ local_path: "/tmp/g.mp4", media_kind: "gif" })?.kind, "animation");
+
+  // `media` as an ARRAY is a list of attachments (media_list), not one nested
+  // file — unwrapping it here would be reading a different feature's key.
+  assert.equal(mediaFromMeta({ media: [{ kind: "photo" }] }), null);
+  assert.equal(mediaFromMeta({ chat_id: 1 }), null);
+});

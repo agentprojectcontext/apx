@@ -179,7 +179,10 @@ test("a reaction is logged but never answered", async () => {
   const day = new Date().toISOString().slice(0, 10);
   const rows = fs.readFileSync(path.join(GLOBAL_MESSAGES_DIR, "whatsapp", `${day}.jsonl`), "utf8")
     .trim().split("\n").map((l) => JSON.parse(l));
-  const row = rows.find((r) => r.meta?.media?.kind === "reaction");
+  // Flat, like every other channel: the attachment's own fields at the top of
+  // meta plus `media_kind`. It used to nest under `meta.media`, where the one
+  // function that turns a row back into an attachment could not see it.
+  const row = rows.find((r) => r.meta?.media_kind === "reaction");
   assert.ok(row, "…but it IS in the thread, or the conversation reads wrong");
   assert.match(row.body, /❤️/);
 });
