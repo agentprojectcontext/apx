@@ -7,7 +7,7 @@ import { listAgentInbox } from "#core/stores/agent-inbox.js";
 import { listProjectA2AThreads, listProjectGroupThreads } from "#core/stores/messages.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { faceResolverFor, readAgentsSafe, contactFaceFor } from "./thread-faces.js";
+import { faceResolverFor, readAgentsSafe, contactFaceFor, resolveContact } from "./thread-faces.js";
 import { pageEnvelope, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
 import { convTurnKey, threadTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
 
@@ -149,6 +149,7 @@ export function register(api, { projects }) {
       // The badge under the name still says it was Roby who answered.
       const named = rows.map((r) => {
         if (r.kind !== "super_agent") return r;
+        const who = resolveContact(r, cfg);
         const face = contactFaceFor(r, cfg);
         if (!face) return { ...r, agent_name: r.agent_name || superName };
         return {
@@ -159,8 +160,33 @@ export function register(api, { projects }) {
           // assistant's face on a row named after somebody else.
           agent_icon: face.icon || null,
           contact_face: face,
+          contact_person: who?.key || null,
         };
       });
+
+      // One row per PERSON, not per identity the ledger happened to record.
+      //
+      // The store groups by the key on the row, which is what was true when the
+      // message arrived. Those keys drift apart whenever an identity is
+      // corrected afterwards: Manu's first two WhatsApp messages were logged as
+      // a guest's, because at that moment nothing knew the LID writing in was
+      // the owner's — so the inbox showed two rows both called "Manu", one of
+      // them a dead end. The ledger is right and stays as it is; this is the
+      // reader deciding that a person appears once.
+      //
+      // The most recent wins. Sorted here rather than trusted from upstream:
+      // which row survives is the whole point of this pass, and it must not
+      // depend on the order a store happens to return.
+      const seenPerson = new Set();
+      const deduped = [...named]
+        .sort((a, b) => String(b.last_activity_at || "").localeCompare(String(a.last_activity_at || "")))
+        .filter((r) => {
+          if (!r.contact_person) return true;
+          const key = `${r.channel}\u0000${r.contact_person}`;
+          if (seenPerson.has(key)) return false;
+          seenPerson.add(key);
+          return true;
+        });
 
       // Faces and titles for the multi-agent rows: one resolver for the request,
       // shared with the Chats sidebar and the thread header (thread-faces.js).
@@ -171,7 +197,7 @@ export function register(api, { projects }) {
       // Merge a2a group chats in and re-sort so the newest conversation wins
       // regardless of whether it was an individual or a group one.
       const activeTurns = listActiveTurns();
-      const merged = [...named, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces)]
+      const merged = [...deduped, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces)]
         .map((row) => ({ ...row, active_turn: activeTurnForRow(row, activeTurns) }))
         .sort(
         (a, b) => new Date(b.last_activity_at || 0).getTime() - new Date(a.last_activity_at || 0).getTime()

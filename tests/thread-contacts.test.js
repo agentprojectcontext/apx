@@ -64,17 +64,30 @@ test("rowContact prefers the stamped key and falls back to the address", () => {
   assert.equal(rowContact({ meta: { contact_key: "owner", sender_jid: "1@lid" } }), "owner");
   // Device suffixes vary per linked device; they cannot be part of the key.
   assert.equal(
-    rowContact({ meta: { sender_jid: "5491155555555:12@s.whatsapp.net" } }),
+    rowContact({ channel: "whatsapp", meta: { sender_jid: "5491155555555:12@s.whatsapp.net" } }),
     "5491155555555@s.whatsapp.net",
   );
   // The owner, from what the row already recorded — so a conversation written
   // before the key existed is the same thread as the one written after, and the
   // owner's two lines do not become two threads.
-  assert.equal(rowContact({ meta: { role: "owner", sender_jid: "111@lid" } }), "owner");
-  assert.equal(rowContact({ meta: { policy: "full", sender_jid: "222@s.whatsapp.net" } }), "owner");
+  assert.equal(rowContact({ channel: "whatsapp", meta: { role: "owner", sender_jid: "111@lid" } }), "owner");
+  assert.equal(rowContact({ channel: "whatsapp", meta: { policy: "full", sender_jid: "222@s.whatsapp.net" } }), "owner");
   // Every other channel: no contact, one thread for the day.
   assert.equal(rowContact({ meta: { chat_id: 42 } }), null);
   assert.equal(rowContact({}), null);
+
+  // A `sender_jid` on ANOTHER channel names who a message is ABOUT, not who it
+  // is with. Roby's secretary reports to Manu on Telegram carry the WhatsApp jid
+  // of the person being reported on — reading those as conversations turned five
+  // of Roby's own messages into Telegram threads titled "Magui" and "Manu".
+  assert.equal(
+    rowContact({ channel: "telegram", meta: { sender_jid: "222@lid" } }, "telegram"),
+    null,
+  );
+  assert.equal(
+    rowContact({ channel: "whatsapp", meta: { sender_jid: "222@lid" } }, "whatsapp"),
+    "222@lid",
+  );
 });
 
 test("a whatsapp day lists one thread per person, titled by the person", () => {

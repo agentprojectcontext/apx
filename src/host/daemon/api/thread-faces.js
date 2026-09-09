@@ -167,25 +167,52 @@ export function createFaceResolver(projectPaths = []) {
  * neither still renders as an initial, which is better than nothing.
  */
 export function contactFaceFor(thread, cfg) {
-  if (!thread?.contact) return null;
-  const wa = cfg?.whatsapp || {};
-  const contacts = Array.isArray(wa.contacts) ? wa.contacts : [];
-  // The owner's key is a constant, not an address: find their row by any of the
-  // addresses the config records for them.
-  const owned = thread.contact === "owner"
-    ? [wa.owner_jid, ...(Array.isArray(wa.owner_alts) ? wa.owner_alts : []), wa.self_jid]
-        .filter(Boolean).map((a) => String(a).toLowerCase())
-    : [String(thread.contact).toLowerCase()];
-  const row = contacts.find((c) =>
-    [c?.jid, ...(Array.isArray(c?.alts) ? c.alts : [])]
-      .filter(Boolean)
-      .some((a) => owned.includes(String(a).toLowerCase())),
-  );
-  const name = thread.contact_name || row?.nickname || row?.name || null;
+  const who = resolveContact(thread, cfg);
+  if (!who) return null;
+  const { row, name } = who;
   if (!name && !row?.avatar_url) return null;
   // `icon` rather than a field of its own: AgentAvatar is the one renderer
   // every surface calls, and it takes a URL here.
   return { name, icon: row?.avatar_url || null, emoji: null };
+}
+
+/**
+ * WHICH PERSON a thread's contact key names, today.
+ *
+ * A key is what the ledger recorded when the message arrived; the roster is who
+ * that turned out to be. Those differ whenever an identity is corrected after
+ * the fact — Manu's first two WhatsApp messages were logged under `role: guest`,
+ * because at that moment the system genuinely did not know the LID writing to it
+ * was the owner's. The ledger is not wrong and must not be rewritten: it says
+ * what was true then. It is the READER that should show one person once.
+ *
+ * Returns `{ key, row, name }` where `key` is stable per person, so a surface
+ * can group by it.
+ */
+export function resolveContact(thread, cfg) {
+  if (!thread?.contact) return null;
+  const wa = cfg?.whatsapp || {};
+  const contacts = Array.isArray(wa.contacts) ? wa.contacts : [];
+  const ownerAddrs = [wa.owner_jid, ...(Array.isArray(wa.owner_alts) ? wa.owner_alts : []), wa.self_jid]
+    .filter(Boolean)
+    .map((a) => String(a).toLowerCase());
+  // The owner's key is a constant, not an address: find their row by any of the
+  // addresses the config records for them.
+  const isOwner =
+    thread.contact === "owner" || ownerAddrs.includes(String(thread.contact).toLowerCase());
+  const wanted = isOwner ? ownerAddrs : [String(thread.contact).toLowerCase()];
+  const row = contacts.find((c) =>
+    [c?.jid, ...(Array.isArray(c?.alts) ? c.alts : [])]
+      .filter(Boolean)
+      .some((a) => wanted.includes(String(a).toLowerCase())),
+  );
+  return {
+    // One key per person: the owner is always "owner" whichever line they wrote
+    // from, and a contact is their roster jid whichever alias reached us.
+    key: isOwner ? "owner" : String(row?.jid || thread.contact).toLowerCase(),
+    row: row || null,
+    name: thread.contact_name || row?.nickname || row?.name || null,
+  };
 }
 
 /** The same resolver, built from a ProjectManager-style list of entries. */
