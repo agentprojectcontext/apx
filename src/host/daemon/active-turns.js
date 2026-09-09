@@ -62,6 +62,15 @@ export function superAgentTurnKey(projectId, channel) {
   return `${projectId}:sa:${channel}`;
 }
 
+/** Key for a code-session turn. A code session is addressed by (project, id)
+ *  and by nothing else — the SAME session is driven from the web panel
+ *  (`web_code`) and from `apx exec --code` (`code`), so keying it by channel
+ *  would let the panel's Stop miss a turn the terminal started, and vice
+ *  versa. The session id is the thread here. */
+export function codeTurnKey(projectId, sessionId) {
+  return `${projectId}:code:${sessionId}`;
+}
+
 /** Begin tracking a turn. `meta` is echoed to clients (agent_slug, model, …),
  *  except `abort`: a function that stops the run, kept private to this module
  *  and to abortActiveTurn. */

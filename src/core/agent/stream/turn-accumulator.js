@@ -22,7 +22,17 @@ export function makeTurnAccumulator() {
           if (ev.from_fallback) notes.push(`routing fell back → ${ev.model}`);
           break;
         case "engine_failed":
-          notes.push(`engine ${ev.model || "?"} failed → ${ev.retry_with || "retry"}`);
+          // With the reason, because "failed" on its own is unreadable: the
+          // note is the ONLY place a reader learns that the model they asked
+          // for is not the one that answered, and "why" is the whole question
+          // it raises. A rate limit, a provider outage and a request the
+          // gateway rejected all need different reactions from the person
+          // watching, and they were all rendered as the same word.
+          notes.push(
+            `engine ${ev.model || "?"} failed${ev.reason ? ` (${ev.reason})` : ""} → ${
+              ev.retry_with || "retry"
+            }`,
+          );
           break;
         case "model_retry":
           notes.push(`retry (${ev.reason || "?"})`);

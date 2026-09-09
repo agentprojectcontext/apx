@@ -674,6 +674,10 @@ export interface ChatStreamEvent {
   conversation_id?: string;
   channel?: string;
   thread_id?: string;
+  /** A code session's turn names the session: the panel and `apx exec --code`
+   *  drive the same one under different channels, so the channel does not
+   *  identify it and the session id does. */
+  code_session_id?: string;
   agent_slug?: string;
   // final — and `aborted`, which carries the same shape for the partial the
   // turn had produced when it was stopped. Deliberately not an `error`.

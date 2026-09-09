@@ -159,6 +159,37 @@ export function appendTurn(storagePath, id, turn) {
   return session;
 }
 
+/**
+ * Rewind a session to its first `keepVisible` turns and drop the rest.
+ *
+ * What "Regenerate" and "Edit & resend" stand on. The pane rewinds to a turn
+ * and the TRANSCRIPT has to rewind with it: the daemon rebuilds a coding turn's
+ * history from this file (codeSessionHistory below), so without it the dropped
+ * turns would still be in the prompt and the "regenerated" answer would be
+ * written with the answer it was replacing still in view.
+ *
+ * The cutoff is a COUNT, not a timestamp: a just-sent turn's on-screen ts is
+ * stamped in the browser and differs from the one appendTurn writes here, so a
+ * ts cutoff could misalign by a turn. A count lines up exactly with the pane,
+ * because a code session's stored messages ARE its bubbles, in order — there
+ * are no system or compact turns interleaved the way a conversation has them.
+ *
+ * This DELETES work — the tool rows of every dropped turn go with it, and there
+ * is no undo — so the surfaces that offer it ask first.
+ *
+ * Returns the updated session, or null if the session is gone.
+ */
+export function truncateCodeSession(storagePath, id, keepVisible) {
+  const session = getCodeSession(storagePath, id);
+  if (!session) return null;
+  const k = Math.max(0, Number(keepVisible) || 0);
+  if (k >= session.messages.length) return session; // nothing to drop
+  session.messages = session.messages.slice(0, k);
+  session.updatedAt = nowIso();
+  writeJson(sessionFile(storagePath, id), session);
+  return session;
+}
+
 // ---------------------------------------------------------------------------
 // Transcript → engine history
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@
 //   DELETE /projects/:pid/code/sessions/:sid
 //   POST   /projects/:pid/code/sessions/:sid/chat/stream                    NDJSON
 //                        { prompt, channel?, cwd?, confirm? }
+//   POST   /projects/:pid/code/sessions/:sid/truncate    { keep_visible }
 //   GET    /projects/:pid/code/sessions/:sid/changes
 //
 // Unlike the stateless super-agent endpoint, these sessions are server-side
@@ -21,6 +22,16 @@
 // find. See resolveCodeChannel().
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
+import {
+  startActiveTurn,
+  appendActiveTurn,
+  recordActiveTurnEvent,
+  endActiveTurn,
+  getActiveTurnByKey,
+  codeTurnKey,
+} from "../active-turns.js";
+import { broadcastTurn } from "../events-ws.js";
+import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { CODE_MODES, DEFAULT_CODE_MODE } from "#core/constants/code-modes.js";
@@ -32,6 +43,7 @@ import {
   updateCodeSession,
   removeCodeSession,
   appendTurn,
+  truncateCodeSession,
   codeSessionHistory,
 } from "#core/stores/code-sessions.js";
 import { makeTurnAccumulator } from "#core/agent/stream/turn-accumulator.js";
@@ -123,12 +135,18 @@ export function register(api, { projects, project, config, registries, plugins }
   });
 
   // ---- Get full transcript -------------------------------------------------
+  // `active_turn` is what the transcript alone cannot say: a turn is written to
+  // the session only once it ENDS, so a panel opened (or refreshed) while one is
+  // running read a finished-looking conversation and drew no activity at all —
+  // the work was happening on the daemon with nothing on screen to show it. The
+  // daemon's own copy of the turn in flight rides along, and the client paints
+  // it and then follows the live frames.
   api.get("/projects/:pid/code/sessions/:sid", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);
     if (!session) return res.status(404).json({ error: "session not found" });
-    res.json(session);
+    res.json({ ...session, active_turn: getActiveTurnByKey(codeTurnKey(p.id, session.id)) });
   });
 
   // ---- Patch (rename / model / mode) ---------------------------------------
@@ -147,6 +165,26 @@ export function register(api, { projects, project, config, registries, plugins }
     const ok = removeCodeSession(p.storagePath, req.params.sid);
     if (!ok) return res.status(404).json({ error: "session not found" });
     res.json({ ok: true });
+  });
+
+  // ---- Rewind (what Regenerate and Edit & resend stand on) -----------------
+  // The pane rewinds to a turn and the transcript has to rewind with it, or the
+  // next turn is prompted with the very answer it is replacing. Not while one
+  // is running: the turn in flight appends when it ends, and it would append
+  // onto a transcript that had moved under it.
+  api.post("/projects/:pid/code/sessions/:sid/truncate", (req, res) => {
+    const p = findProject(req, res);
+    if (!p) return;
+    const keepVisible = Number(req.body?.keep_visible);
+    if (!Number.isInteger(keepVisible) || keepVisible < 0) {
+      return res.status(400).json({ error: "keep_visible must be a non-negative integer" });
+    }
+    if (getActiveTurnByKey(codeTurnKey(p.id, req.params.sid))) {
+      return res.status(409).json({ error: "a turn is running on this session" });
+    }
+    const session = truncateCodeSession(p.storagePath, req.params.sid, keepVisible);
+    if (!session) return res.status(404).json({ error: "session not found" });
+    res.json({ ok: true, messages: session.messages.length });
   });
 
   // ---- Changes (diff vs baseline) ------------------------------------------
@@ -200,11 +238,82 @@ export function register(api, { projects, project, config, registries, plugins }
     res.setHeader("x-accel-buffering", "no");
     res.flushHeaders?.();
 
-    const send = (event) => res.write(JSON.stringify(event) + "\n");
+    // The socket belongs to whoever started the turn, and the turn deliberately
+    // outlives it — closing the stream has never stopped a run, which is what
+    // lets a refresh or a second surface catch up. So writing to a socket that
+    // has gone away is a normal event, not a failure.
+    const send = (event) => {
+      try { res.write(JSON.stringify(event) + "\n"); } catch { /* nobody is reading any more */ }
+    };
     const acc = makeTurnAccumulator();
+
+    // The run's kill switch plus the registry entry that lets ANY surface find
+    // it: the panel's Stop, a message that interrupts, and a tab that arrives
+    // mid-turn all reach this record. Keyed by (project, session) because that
+    // is the whole identity of a code session — the web panel and
+    // `apx exec --code` drive the same one under different channel names.
+    const turnAbort = new AbortController();
+    const active = startActiveTurn(codeTurnKey(p.id, session.id), {
+      project_id: p.id,
+      channel,
+      thread_id: session.id,
+      model: session.model || null,
+      abort: () => turnAbort.abort(),
+    });
+    const turnFrame = (phase, extra = {}) => broadcastTurn({
+      phase,
+      project_id: p.id,
+      agent_slug: session.agentSlug || null,
+      conversation_id: null,
+      channel,
+      thread_id: session.id,
+      turn_id: active.id,
+      ...extra,
+    });
+
     const onEvent = (event) => {
       acc.apply(event);
+      recordActiveTurnEvent(active.id, event);
+      // A rotation off the asked-for model is the difference between "the model
+      // you chose answered" and "something else did", and on this route it was
+      // invisible: the note reached the panel and nothing reached the log, so
+      // "I asked for big-pickle and got Gemini" had no recorded why.
+      if (event?.type === "engine_failed") {
+        log.warn(
+          `engine ${event.model || "?"} failed → retrying with ${event.retry_with || "?"}`,
+          { trace_id: req.apxTraceId, channel, sid: session.id, reason: event.reason },
+        );
+      }
       send(event);
+    };
+
+    // The turn names itself before it does any work, so it can be stopped from
+    // the first token rather than only once it is over.
+    turnFrame("start");
+    send({ type: "start", turn_id: active.id, channel, code_session_id: session.id });
+
+    /** Persist what the turn produced. Shared by the finished and the
+     *  interrupted path: an interrupted turn did real work the user watched
+     *  happen, and the message that interrupts it reads this as its history. */
+    const persist = (extra = {}) => {
+      const turn = acc.build();
+      const text = typeof extra.text === "string" ? extra.text : "";
+      if (text && !turn.parts.some((p2) => p2.kind === "text" && p2.text === text)) {
+        turn.parts.push({ kind: "text", text });
+      }
+      // A finished turn is recorded even when it said nothing (that empty row
+      // is itself the evidence); an interrupted one that never got a word out
+      // has nothing to record.
+      if (extra.skipEmpty && !turn.parts.length) return turn;
+      appendTurn(p.storagePath, session.id, {
+        role: "assistant",
+        parts: turn.parts,
+        notes: turn.notes,
+        model: turn.model || extra.name || null,
+        mode,
+        usage: extra.usage || turn.usage,
+      });
+      return turn;
     };
 
     try {
@@ -242,6 +351,20 @@ export function register(api, { projects, project, config, registries, plugins }
         // it keeps the normal "text ends the turn" behavior.
         completionContract: mode === CODE_MODES.BUILD,
         onEvent,
+        // What Stop and "send this instead" actually pull. Without a signal the
+        // run had no way to end early: the browser's fetch was all that closed,
+        // and the loop kept calling tools against a pane nobody was watching.
+        signal: turnAbort.signal,
+        // Token-by-token text, so a surface that joins mid-turn (or the one
+        // that started it, after a refresh) sees the answer being written
+        // rather than a still frame. `assistant_text` still closes each segment
+        // with the cleaned version, so a client that ignores deltas reads
+        // exactly what it read before.
+        onToken: (chunk) => {
+          send({ type: "assistant_delta", delta: chunk });
+          appendActiveTurn(active.id, chunk);
+          turnFrame("delta", { delta: chunk });
+        },
         // The confirmation round-trip needs a client that can answer it (the
         // panel POSTs to /super-agent/confirm/:id). `apx exec --code` streams
         // only to draw a spinner, so it sends `confirm: false` and falls back
@@ -251,37 +374,40 @@ export function register(api, { projects, project, config, registries, plugins }
       });
       projects.rebuild(p.id);
 
-      const turn = acc.build();
-      // Persist the final text unless it's already the last text part we
-      // streamed. Previously this only appended when there was NO text part at
-      // all, so a trailing summary that came AFTER a tool call (the model's
-      // closing words) was silently dropped from the stored transcript.
-      if (
-        saResult.text &&
-        !turn.parts.some((p2) => p2.kind === "text" && p2.text === saResult.text)
-      ) {
-        turn.parts.push({ kind: "text", text: saResult.text });
-      }
-      appendTurn(p.storagePath, session.id, {
-        role: "assistant",
-        parts: turn.parts,
-        notes: turn.notes,
-        model: turn.model || saResult.name,
-        mode,
-        usage: saResult.usage || turn.usage,
-      });
+      // Persist the final text unless it's already one of the parts we
+      // streamed. This used to only append when there was NO text part at all,
+      // so a trailing summary that came AFTER a tool call (the model's closing
+      // words) was silently dropped from the stored transcript.
+      persist({ text: saResult.text, name: saResult.name, usage: saResult.usage });
 
-      send({
-        type: "final",
-        result: {
-          text: saResult.text,
-          usage: saResult.usage,
-          name: saResult.name,
-          trace: saResult.trace,
-        },
-      });
+      const finalResult = {
+        text: saResult.text,
+        usage: saResult.usage,
+        name: saResult.name,
+        trace: saResult.trace,
+      };
+      turnFrame("final", { result: finalResult });
+      send({ type: "final", result: finalResult });
       res.end();
     } catch (e) {
+      // Interrupted, not broken. Everything that streamed is work the user
+      // watched happen, so it lands in the session the way a finished turn
+      // does — the message that interrupted this one opens the next turn and
+      // reads this as its history. It ends on `aborted` and deliberately not
+      // `error`: a panel that paints errors red must not accuse the daemon
+      // every time you press Stop.
+      if (wasAborted(e, turnAbort)) {
+        const turn = persist({ skipEmpty: true });
+        projects.rebuild(p.id);
+        const ev = abortedTurnEvent({
+          text: (active.text || "").trim(),
+          trace: turn.parts.filter((part) => part.kind === "tool"),
+        });
+        turnFrame("aborted", { result: ev.result });
+        send(ev);
+        res.end();
+        return;
+      }
       log.warn(`code session turn failed: ${e.message}`, {
         trace_id: req.apxTraceId,
         sid: session.id,
@@ -293,12 +419,15 @@ export function register(api, { projects, project, config, registries, plugins }
         model: session.model,
         stream: true,
       });
+      turnFrame("error", { error: e.message });
       send({
         type: "error",
         trace_id: req.apxTraceId,
         error: `${e.message} (trace: ${req.apxTraceId})`,
       });
       res.end();
+    } finally {
+      endActiveTurn(active.id);
     }
   }));
 }

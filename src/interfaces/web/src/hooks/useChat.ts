@@ -116,7 +116,9 @@ export interface QueuedTurn {
   msg: ChatMsg;
   /** What actually goes out when its turn comes. */
   text: string;
-  opts: SendOptions;
+  /** How to send it. Optional because a queue is not only a chat's: the code
+   *  module parks turns the same way and has no per-send options to carry. */
+  opts?: SendOptions;
 }
 
 // Queue ownership follows the CHAT, not the mounted pane. Navigating away
@@ -1279,7 +1281,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     const key = queueKeyRef.current;
     if (!key) return;
     const next = takeBackgroundQueue(key);
-    if (next) void sendRef.current(next.text, next.opts);
+    if (next) void sendRef.current(next.text, next.opts || {});
   }, []);
   drainQueueRef.current = drainQueue;
   useEffect(() => {
