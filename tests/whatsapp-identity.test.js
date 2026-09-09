@@ -227,3 +227,30 @@ test("a roster row claiming role owner is downgraded, not obeyed", () => {
   assert.ok(!s.isOwner);
   assert.equal(s.role, "contact", "demoted to the strongest thing a roster CAN grant");
 });
+
+test("status stories, Channels and WhatsApp's own numbers are not people writing", async () => {
+  const { isIgnorableJid } = await import("#core/identity/whatsapp.js");
+
+  // The feed, not a conversation: every contact's story arrives here all day.
+  assert.equal(isIgnorableJid("status@broadcast"), true);
+  assert.equal(isIgnorableJid("1234567@broadcast"), true);
+  // WhatsApp Channels.
+  assert.equal(isIgnorableJid("120363000000000000@newsletter"), true);
+  // The null address protocol messages carry.
+  assert.equal(isIgnorableJid("0@s.whatsapp.net"), true);
+  assert.equal(isIgnorableJid("0@c.us"), true);
+  // WhatsApp's own service numbers (verification codes, product tips).
+  assert.equal(isIgnorableJid("16505361212@s.whatsapp.net"), true);
+  assert.equal(isIgnorableJid("16508638904@s.whatsapp.net"), true);
+  // Nobody to answer, nobody to tell.
+  assert.equal(isIgnorableJid(""), true);
+  assert.equal(isIgnorableJid(null), true);
+
+  // And everything that IS a person or a room stays. A number that merely
+  // starts with the service prefix is somebody else entirely.
+  assert.equal(isIgnorableJid("5491155555555@s.whatsapp.net"), false);
+  assert.equal(isIgnorableJid("5491155555555:12@s.whatsapp.net"), false);
+  assert.equal(isIgnorableJid("101666238013462@lid"), false);
+  assert.equal(isIgnorableJid("120363000000000000@g.us"), false);
+  assert.equal(isIgnorableJid("165053612120@s.whatsapp.net"), false);
+});

@@ -101,8 +101,10 @@ export default {
           ok: false,
           sent: false,
           error: `no learned sticker matches "${wantSticker}"`,
+          // Blocked ones are left out: offering one as an alternative would be
+          // suggesting the exact sticker the owner said never to send.
           available: (await import("#core/channels/whatsapp/stickers.js"))
-            .listStickers().slice(0, 12).map((x) => x.meaning),
+            .listStickers().filter((x) => !x.blocked).slice(0, 12).map((x) => x.meaning),
         };
       }
       await whatsapp.sendSticker(jid, file);

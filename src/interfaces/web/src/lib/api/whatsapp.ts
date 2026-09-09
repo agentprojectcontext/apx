@@ -74,6 +74,8 @@ export interface WhatsAppSticker {
   senders?: string[];
   /** Whether the WebP was kept, and so whether it can be re-sent or shown. */
   has_image?: boolean;
+  /** Understood on arrival as always, but never picked to send. */
+  blocked?: boolean;
 }
 
 export interface WhatsAppPairResult {
@@ -142,5 +144,10 @@ export const WhatsApp = {
     },
     rename: (key: string, meaning: string) =>
       http.patch<WhatsAppSticker>(`/api/whatsapp/stickers/${encodeURIComponent(key)}`, { meaning }),
+    /** Keep the meaning, never pick it to send. */
+    setBlocked: (key: string, blocked: boolean) =>
+      http.patch<WhatsAppSticker>(`/api/whatsapp/stickers/${encodeURIComponent(key)}`, { blocked }),
+    remove: (key: string) =>
+      http.del<{ ok: boolean }>(`/api/whatsapp/stickers/${encodeURIComponent(key)}`),
   },
 };

@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Section } from "../Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../ui";
-import { Check, Star, X } from "lucide-react";
+import { Ban, Check, Star, Trash2, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tip } from "../ui/tip";
@@ -17,6 +17,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { WhatsApp } from "../../lib/api/whatsapp";
 import type { WhatsAppContact, WhatsAppStatus, WhatsAppSticker, WhatsAppSuggestion } from "../../lib/api/whatsapp";
+import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
 type Tab = "session" | "contacts" | "pending" | "stickers";
@@ -710,9 +711,25 @@ function StickerImage({ sticker }: { sticker: WhatsAppSticker }) {
     return () => { dead = true; if (made) URL.revokeObjectURL(made); };
   }, [sticker.key, sticker.has_image]);
 
-  if (url) return <img src={url} alt={sticker.meaning} className="size-12 shrink-0 object-contain" />;
+  // A square tile, because that is what a sticker IS — the card is built around
+  // the picture, and a picture you have to squint at defeats the point of a
+  // library you pick from on sight.
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={sticker.meaning}
+        className={cn(
+          "aspect-square w-full rounded-md object-contain p-2 transition-opacity",
+          // A blocked sticker is still shown — the owner has to see which one
+          // they blocked — but it reads as set aside rather than available.
+          sticker.blocked && "opacity-35 grayscale",
+        )}
+      />
+    );
+  }
   return (
-    <span className="grid size-12 shrink-0 place-items-center rounded bg-muted text-center text-[10px] leading-tight text-muted-foreground">
+    <span className="grid aspect-square w-full place-items-center rounded-md bg-muted p-2 text-center text-[10px] leading-tight text-muted-foreground">
       {sticker.has_image ? "…" : t("settings.whatsapp.no_sticker_image")}
     </span>
   );
@@ -722,12 +739,18 @@ function StickersPanel() {
   const toast = useToast();
   const [stickers, setStickers] = useState<WhatsAppSticker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState<WhatsAppSticker | null>(null);
 
   const refresh = useCallback(async () => {
     try { setStickers((await WhatsApp.stickers.list()).stickers || []); }
     catch { /* daemon down */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const act = async (fn: () => Promise<unknown>) => {
+    try { await fn(); await refresh(); }
+    catch (err) { toast.error((err as Error).message); }
+  };
 
   if (loading) return <Loading />;
 
@@ -736,32 +759,83 @@ function StickersPanel() {
       {stickers.length === 0 ? (
         <Empty>{t("settings.whatsapp.no_stickers")}</Empty>
       ) : (
-        <div className="space-y-2">
+        // A grid, not a list. Every row was a 48px thumbnail beside a long
+        // sentence, which is a table of descriptions — and you do not recognise
+        // a sticker from its description, you recognise it on sight. Columns of
+        // square cards put the picture first and let the words sit under it.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-3">
           {stickers.map((s) => (
-            <div key={s.key} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
+            <div
+              key={s.key}
+              className="flex flex-col gap-2 rounded-lg border border-border p-3"
+            >
               <StickerImage sticker={s} />
               <Input
-                className="min-w-[16rem] flex-1"
+                className="text-xs"
                 defaultValue={s.meaning}
-                onBlur={async (e) => {
+                onBlur={(e) => {
                   const v = e.currentTarget.value.trim();
                   if (!v || v === s.meaning) return;
-                  try { await WhatsApp.stickers.rename(s.key, v); await refresh(); }
-                  catch (err) { toast.error((err as Error).message); }
+                  void act(() => WhatsApp.stickers.rename(s.key, v));
                 }}
               />
-              <Badge tone={s.meaning_source === "owner" ? "success" : "muted"}>
-                {s.meaning_source === "owner"
-                  ? t("settings.whatsapp.sticker_owner_source")
-                  : t("settings.whatsapp.sticker_vision_source")}
-              </Badge>
-              <span className="text-[11px] text-muted-foreground">
-                {t("settings.whatsapp.seen", { count: s.count ?? 1 })}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <Badge tone={s.meaning_source === "owner" ? "success" : "muted"}>
+                  {s.meaning_source === "owner"
+                    ? t("settings.whatsapp.sticker_owner_source")
+                    : t("settings.whatsapp.sticker_vision_source")}
+                </Badge>
+                {s.blocked && <Badge tone="warning">{t("settings.whatsapp.sticker_blocked")}</Badge>}
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {t("settings.whatsapp.seen", { count: s.count ?? 1 })}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {/* Blocking is reversible and keeps the meaning; deleting is
+                    neither. They sit side by side so the softer one is the
+                    obvious first reach. */}
+                <Tip content={t(s.blocked ? "settings.whatsapp.sticker_unblock_hint" : "settings.whatsapp.sticker_block_hint")}>
+                  <Button
+                    variant="ghost"
+                    className="h-7 flex-1 gap-1.5 px-2 text-xs"
+                    onClick={() => void act(() => WhatsApp.stickers.setBlocked(s.key, !s.blocked))}
+                  >
+                    {s.blocked ? <Check size={13} /> : <Ban size={13} />}
+                    {t(s.blocked ? "settings.whatsapp.sticker_unblock" : "settings.whatsapp.sticker_block")}
+                  </Button>
+                </Tip>
+                <Tip content={t("settings.whatsapp.sticker_delete_hint")}>
+                  <Button
+                    variant="ghost"
+                    className="size-7 shrink-0 p-0 text-muted-foreground hover:text-destructive"
+                    aria-label={t("settings.whatsapp.sticker_delete")}
+                    onClick={() => setConfirmDelete(s)}
+                  >
+                    <Trash2 size={13} />
+                  </Button>
+                </Tip>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Asked for, always. A sticker is somebody's bytes and there is no undo —
+          and a delete that fires on the click that reached for block is exactly
+          the mistake this page has already made once. */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title={t("settings.whatsapp.sticker_delete")}
+        description={t("settings.whatsapp.sticker_delete_confirm", { meaning: confirmDelete?.meaning || "" })}
+        confirmLabel={t("settings.whatsapp.sticker_delete")}
+        destructive
+        onConfirm={async () => {
+          const s = confirmDelete;
+          setConfirmDelete(null);
+          if (s) await act(() => WhatsApp.stickers.remove(s.key));
+        }}
+      />
     </Section>
   );
 }
