@@ -36,6 +36,7 @@ import {
   REPLY_POLICIES,
   normalizeJid,
   contactKeyFor,
+  isIgnorableJid,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
 import { describeSticker } from "./stickers.js";
@@ -112,13 +113,20 @@ export async function handleWhatsAppMessage(m, ctx) {
   const { session, globalConfig, log = () => {}, notifyOwner = async () => {} } = ctx;
 
   const chatJid = m.key?.remoteJid || "";
+  // Status stories, Channels and WhatsApp's own service numbers are not people
+  // writing, so they are dropped before anything logs or answers — the one
+  // deliberate exception to "every message is logged". See isIgnorableJid.
+  //
+  // Checked HERE and not only at the socket: this function is the channel's
+  // entry point, reached by the tests and by anything that replays a message.
+  if (isIgnorableJid(chatJid)) return;
   // One sender, possibly two addresses (phone JID and LID) — see
   // senderAddresses. In a group `participant` is the person and `remoteJid` is
   // the group, so using the chat as the identity would give every member the
   // role of whoever the group matched.
   const addresses = senderAddresses(m.key || {});
   const senderJid = addresses[0] || null;
-  if (!senderJid) return;
+  if (!senderJid || isIgnorableJid(senderJid)) return;
 
   registerWhatsAppSender({ cfg: globalConfig, addresses, pushName: m.pushName || "" });
   // A face for the thread. Fetched at most once a day per person and stored on

@@ -106,6 +106,45 @@ export function isGroupJid(jid) {
   return String(jid || "").toLowerCase().endsWith(GROUP_SUFFIX);
 }
 
+// WhatsApp delivers more than conversations down the same socket, and none of
+// the rest is somebody talking to you:
+//
+//   status@broadcast   every contact's status/story, all day
+//   …@newsletter       WhatsApp Channels you follow
+//   …@broadcast        a broadcast list (only ever the sender's own address —
+//                      a broadcast you RECEIVE arrives as an ordinary chat)
+//   0@…                the null address protocol messages carry
+//
+// plus WhatsApp's own service numbers, which send verification codes and
+// product tips: +1 (650) 536-1212 is the account/verification sender and
+// +1 (650) 863-8904 is "WhatsApp" itself. Written out because a bare number in
+// a predicate is unreadable a month later.
+const WHATSAPP_SERVICE_NUMBERS = ["16505361212", "16508638904"];
+
+/**
+ * Is this address something we should never treat as a message?
+ *
+ * A deliberate exception to this channel's rule that every message is logged
+ * whether or not it is answered. That rule is about PEOPLE — the owner must be
+ * able to see that a stranger wrote even when nobody replied. A status story is
+ * not a person writing: it is a feed, it arrives dozens of times a day, and
+ * logging it would bury the messages that are.
+ *
+ * An absent address counts as ignorable: there is nobody to answer and nobody
+ * to tell about it.
+ */
+export function isIgnorableJid(jid) {
+  if (!jid) return true;
+  const s = String(jid).toLowerCase();
+  const user = s.split("@")[0];
+  return (
+    s.endsWith("@broadcast") ||
+    s.endsWith("@newsletter") ||
+    user === "0" ||
+    WHATSAPP_SERVICE_NUMBERS.includes(user)
+  );
+}
+
 function whatsappConfig(cfg) {
   return (cfg && cfg.whatsapp) || {};
 }

@@ -92,7 +92,11 @@ export function stickerFile(key) {
 export function findStickerByMeaning(query) {
   const q = String(query || "").trim().toLowerCase();
   if (!q) return null;
-  const all = listStickers().filter((s) => stickerFile(s.key));
+  // Blocked stickers stay in the lexicon and stay legible — the agent must go on
+  // UNDERSTANDING one when it arrives — but they can never be picked to send.
+  // The two halves of this feature were always separate; blocking is the owner
+  // saying "know what this means, do not put it in my name".
+  const all = listStickers().filter((s) => stickerFile(s.key) && !s.blocked);
   const exact = all.find((s) => s.meaning.toLowerCase().includes(q));
   if (exact) return exact;
 
@@ -187,6 +191,9 @@ export function learnSticker(sha, meaning, { source = "vision", from = "" } = {}
   const entry = {
     meaning: text,
     meaning_source: source,
+    // A block is the owner's decision about the sticker, not a fact about this
+    // sighting: re-learning must never quietly unblock one.
+    ...(prev?.blocked ? { blocked: true } : {}),
     ...(prev?.has_file ? { has_file: true } : {}),
     first_seen: prev?.first_seen || now,
     last_seen: now,
@@ -222,6 +229,46 @@ export function listStickers() {
   return Object.entries(lex)
     .map(([key, v]) => ({ key, ...v }))
     .sort((a, b) => String(b.last_seen || "").localeCompare(String(a.last_seen || "")));
+}
+
+/**
+ * Block or unblock a sticker for SENDING.
+ *
+ * Not a delete, and deliberately not one. A sticker somebody sends you is part
+ * of how they talk; forgetting it would make their next message unreadable
+ * ("[sticker]" says nothing). Blocking keeps the meaning and removes it from
+ * everything that picks one to send.
+ */
+export function setStickerBlocked(sha, blocked) {
+  const key = stickerKey(sha);
+  if (!key) return null;
+  const lex = readStickerLexicon();
+  const entry = lex[key];
+  if (!entry) return null;
+  if (blocked) entry.blocked = true;
+  else delete entry.blocked;
+  writeStickerLexicon(lex);
+  return { key, ...entry };
+}
+
+/**
+ * Forget a sticker completely: its meaning and its bytes.
+ *
+ * Irreversible on purpose — this is the "I never want to see this again" door,
+ * and leaving the file behind would mean the next arrival silently re-learns it
+ * from the copy we kept. Blocking is the reversible one.
+ */
+export function deleteSticker(sha) {
+  const key = stickerKey(sha);
+  if (!key) return false;
+  const lex = readStickerLexicon();
+  const existed = Object.prototype.hasOwnProperty.call(lex, key);
+  const file = fileFor(key);
+  try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch { /* the entry still goes */ }
+  if (!existed) return false;
+  delete lex[key];
+  writeStickerLexicon(lex);
+  return true;
 }
 
 // ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@
 //   GET    /whatsapp/stickers                   — the learned lexicon
 //   GET    /whatsapp/stickers/:key/image        — the WebP itself
 //   PATCH  /whatsapp/stickers/:key { meaning }  — the owner's own words
+//   PATCH  /whatsapp/stickers/:key { blocked }  — keep the meaning, never send it
+//   DELETE /whatsapp/stickers/:key             — forget the words and the bytes
 //
 // The QR is returned ONLY by POST /pair, never by GET /status. A QR is a live
 // credential: anyone who scans it owns the account for as long as it lasts. It
@@ -32,7 +34,7 @@ import {
   setWhatsAppRole,
   removeWhatsAppRole,
 } from "#core/channels/whatsapp/config.js";
-import { listStickers, learnSticker, stickerFile } from "#core/channels/whatsapp/stickers.js";
+import { listStickers, learnSticker, stickerFile, setStickerBlocked, deleteSticker } from "#core/channels/whatsapp/stickers.js";
 import { listSuggestions, findSuggestion, setSuggestionStatus } from "#core/channels/whatsapp/capture.js";
 import { CAPABILITIES } from "#core/channels/whatsapp/config.js";
 import { readConfig } from "#core/config/index.js";
@@ -194,13 +196,32 @@ export function register(api, { plugins }) {
   });
 
   api.patch("/whatsapp/stickers/:key", (req, res) => {
+    const key = decodeURIComponent(req.params.key);
+
+    // Blocking is its own edit and can arrive without a meaning: the owner is
+    // not renaming anything, they are saying "never send this one".
+    if (req.body?.blocked !== undefined) {
+      const entry = setStickerBlocked(key, req.body.blocked === true);
+      if (!entry) return res.status(404).json({ error: "unknown sticker" });
+      return res.json({ ...entry, has_image: !!stickerFile(entry.key) });
+    }
+
     const meaning = String(req.body?.meaning || "").trim();
     if (!meaning) return res.status(400).json({ error: "meaning is required" });
     // source "owner": from here on the model may count sightings but never
     // rewrite the words.
-    const entry = learnSticker(decodeURIComponent(req.params.key), meaning, { source: "owner" });
+    const entry = learnSticker(key, meaning, { source: "owner" });
     if (!entry) return res.status(400).json({ error: "unknown sticker" });
     res.json(entry);
+  });
+
+  // Forget it entirely — words and bytes. The panel asks first; this does not,
+  // because an API that second-guesses its caller is an API nobody can script.
+  api.delete("/whatsapp/stickers/:key", (req, res) => {
+    if (!deleteSticker(decodeURIComponent(req.params.key))) {
+      return res.status(404).json({ error: "unknown sticker" });
+    }
+    res.json({ ok: true });
   });
 }
 

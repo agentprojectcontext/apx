@@ -255,3 +255,24 @@ test("a turn that hangs is cut, and nobody is left on read", async () => {
 
   patchWhatsAppConfig({ turn_deadline_ms: 0, third_party_deadline_ms: 0 });
 });
+
+test("a status story is dropped before anything logs or answers", async () => {
+  _resetReportThrottle();
+  const h = harness();
+  const { GLOBAL_MESSAGES_DIR: DIR } = await import("#core/config/index.js");
+  const day = `${new Date().toISOString().slice(0, 10)}.jsonl`;
+  const file = path.join(DIR, "whatsapp", day);
+  const before = fs.existsSync(file) ? fs.readFileSync(file, "utf8").length : 0;
+
+  // Someone's story, addressed to the status feed with the person as participant.
+  await handleWhatsAppMessage({
+    key: { remoteJid: "status@broadcast", participant: CARLA, id: "st-1", fromMe: false },
+    message: { conversation: "mirá mis vacaciones" },
+    pushName: "Carla",
+  }, h.ctx);
+
+  const after = fs.existsSync(file) ? fs.readFileSync(file, "utf8").length : 0;
+  assert.equal(after, before, "a story must not reach the ledger");
+  assert.equal(h.sent.length, 0, "and must not be answered");
+  assert.equal(h.reports.length, 0, "and must not become a Telegram");
+});

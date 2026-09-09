@@ -17,6 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME } from "#core/config/paths.js";
+import { isIgnorableJid } from "#core/identity/whatsapp.js";
 
 export const SESSION_STATES = Object.freeze({
   OFF: "off",                 // disabled in config, or the library is missing
@@ -252,6 +253,7 @@ export function createWhatsAppSession({
         try {
           if (!m.message) continue;          // receipts, reactions, protocol noise
           if (m.key?.fromMe) continue;       // our own sends echo back
+          if (isIgnorableJid(m.key?.remoteJid)) continue;  // status stories, Channels, service numbers
           await onMessage(m);
         } catch (e) {
           log(`whatsapp inbound handler failed: ${e.message}`);

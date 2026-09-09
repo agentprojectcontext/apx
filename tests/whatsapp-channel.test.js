@@ -380,3 +380,40 @@ test("the Tasker bridge is refused while the native session is connected", () =>
   // socket down the bridge is the transport again and must keep working.
   assert.match(src, /state === "connected"/);
 });
+
+test("a blocked sticker is still understood, and never picked to send", async () => {
+  const { learnSticker, keepStickerFile, setStickerBlocked, deleteSticker, recallSticker, findStickerByMeaning, stickerFile } =
+    await import("#core/channels/whatsapp/stickers.js");
+
+  const KEY = "block-me-please=";
+  const src = path.join(os.tmpdir(), `apx-sticker-${Date.now()}.webp`);
+  fs.writeFileSync(src, "not really a webp, but bytes are bytes");
+  learnSticker(KEY, "a cartoon bear waving hello", { source: "vision" });
+  keepStickerFile(KEY, src);
+
+  assert.ok(findStickerByMeaning("bear waving"), "sendable before it is blocked");
+
+  setStickerBlocked(KEY, true);
+  // Understanding and sending are separate features, and only the second is
+  // blocked: an inbound sticker must still read as words, or the next message
+  // from that person becomes "[sticker]" and says nothing.
+  assert.equal(recallSticker(KEY)?.meaning, "a cartoon bear waving hello");
+  assert.equal(findStickerByMeaning("bear waving"), null, "blocked must not be sendable");
+
+  // Re-learning counts the sighting but must not quietly lift the block: the
+  // block is the owner's decision, not a fact about this arrival.
+  learnSticker(KEY, "a bear, waving", { source: "vision" });
+  assert.equal(recallSticker(KEY)?.blocked, true);
+  assert.equal(findStickerByMeaning("bear"), null);
+
+  setStickerBlocked(KEY, false);
+  assert.ok(findStickerByMeaning("bear waving"), "unblocking gives it back");
+
+  // Delete takes the bytes too — otherwise the next arrival silently re-learns
+  // it from the copy we kept.
+  assert.equal(deleteSticker(KEY), true);
+  assert.equal(recallSticker(KEY), null);
+  assert.equal(stickerFile(KEY), null);
+  assert.equal(deleteSticker(KEY), false, "deleting what is gone is not a delete");
+  fs.rmSync(src, { force: true });
+});
