@@ -197,10 +197,20 @@ export function ChatTab({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  // A pending group rewind awaiting confirmation (there are messages after the
-  // target that the regenerate/edit would overwrite).
-  const [groupRewind, setGroupRewind] = useState<
-    { kind: "edit" | "regen"; keepVisible: number; drop: number; text?: string; media?: UploadedMedia[]; from?: string; reason?: string | null } | null
+  // A pending rewind awaiting confirmation.
+  //
+  // Regenerate and Edit & resend both DELETE turns — the target and everything
+  // under it — and there is no undo. The group asked only when there were newer
+  // messages to lose; a 1:1 chat did not ask at all, so re-rolling the last
+  // answer threw it away on one click, and a long answer is exactly the kind you
+  // want back. Now every rewind asks, in both, and says what goes.
+  //
+  // `drop` is how many messages come AFTER the target (0 = it is the last one).
+  // `run` is the rewind itself: the group truncates its ledger and resumes the
+  // cascade, a 1:1 chat rewinds its conversation file — two different jobs
+  // behind one question.
+  const [rewind, setRewind] = useState<
+    { kind: "edit" | "regen"; drop: number; run: () => void } | null
   >(null);
 
   // Select a chat and mirror its id into the URL query so the current chat is
@@ -748,11 +758,22 @@ export function ChatTab({
   const canRewind = !activeIsRoby && !!activeAgent && !isMultiThread && !streaming;
   const afterRewind = () =>
     void mutate(`/api/projects/${pid}/agents/${activeAgent?.slug}/conversations`);
+  const rewindOpts = () => ({ model: model || undefined, agentSlug: activeAgent!.slug });
   const onRegenerate = canRewind
-    ? (index: number) => { void regenerate(index, { model: model || undefined, agentSlug: activeAgent!.slug }); afterRewind(); }
+    ? (index: number) =>
+        setRewind({
+          kind: "regen",
+          drop: msgs.length - 1 - index,
+          run: () => { void regenerate(index, rewindOpts()); afterRewind(); },
+        })
     : undefined;
   const onEditResend = canRewind
-    ? (index: number, text: string) => { void editAndResend(index, text, { model: model || undefined, agentSlug: activeAgent!.slug }); afterRewind(); }
+    ? (index: number, text: string) =>
+        setRewind({
+          kind: "edit",
+          drop: msgs.length - 1 - index,
+          run: () => { void editAndResend(index, text, rewindOpts()); afterRewind(); },
+        })
     : undefined;
 
   // ── Group rewind (regenerate / edit & resend) ─────────────────────────────
@@ -789,8 +810,11 @@ export function ChatTab({
     const keepVisible = groupKeepVisible(index);
     const from = target.agentId;
     const reason = target.reason || null;
-    if (index < msgs.length - 1) setGroupRewind({ kind: "regen", keepVisible, drop: msgs.length - 1 - index, from, reason });
-    else void runGroupRegen(keepVisible, from, reason);
+    setRewind({
+      kind: "regen",
+      drop: msgs.length - 1 - index,
+      run: () => void runGroupRegen(keepVisible, from, reason),
+    });
   };
   const groupEdit = (index: number, text: string) => {
     const target = msgs[index];
@@ -798,8 +822,11 @@ export function ChatTab({
     const keepVisible = groupKeepVisible(index); // drop the edited owner line + everything after
     // Keep the photo/file on the edited turn — only the caption changes.
     const media = attachmentsOf(target);
-    if (index < msgs.length - 1) setGroupRewind({ kind: "edit", keepVisible, text, media, drop: msgs.length - 1 - index });
-    else void runGroupEdit(keepVisible, text, media);
+    setRewind({
+      kind: "edit",
+      drop: msgs.length - 1 - index,
+      run: () => void runGroupEdit(keepVisible, text, media),
+    });
   };
   // In a group, the same affordances rewind the ledger instead of a file.
   const regenerateHandler = isGroup ? (streaming ? undefined : groupRegenerate) : onRegenerate;
@@ -1315,27 +1342,31 @@ export function ChatTab({
         <p className="text-sm text-muted-fg">{headerTitle}</p>
       </Dialog>
 
-      {/* Group regenerate / edit overwrites the messages after the target. */}
+      {/* Asking again deletes the target and everything under it, in a group and
+          in a 1:1 alike. The dialog closes on the click, not on the answer: the
+          rewind runs behind it and the new turn is watched in the thread. */}
       <Dialog
-        open={!!groupRewind}
-        onClose={() => setGroupRewind(null)}
-        title={groupRewind?.kind === "edit" ? t("project.chat.group_edit_title") : t("project.chat.group_regen_title")}
-        description={t("project.chat.group_rewind_desc", { n: groupRewind?.drop ?? 0 })}
+        open={!!rewind}
+        onClose={() => setRewind(null)}
+        title={rewind?.kind === "edit" ? t("project.chat.rewind_edit_title") : t("project.chat.rewind_regen_title")}
+        description={
+          rewind?.drop
+            ? t("project.chat.rewind_desc_newer", { n: rewind.drop })
+            : t("project.chat.rewind_desc_last")
+        }
         size="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setGroupRewind(null)}>{t("common.cancel")}</Button>
+            <Button variant="ghost" onClick={() => setRewind(null)}>{t("common.cancel")}</Button>
             <Button
               variant="primary"
               onClick={() => {
-                const r = groupRewind;
-                setGroupRewind(null);
-                if (!r) return;
-                if (r.kind === "edit") void runGroupEdit(r.keepVisible, r.text || "", r.media);
-                else void runGroupRegen(r.keepVisible, r.from, r.reason);
+                const r = rewind;
+                setRewind(null);
+                r?.run();
               }}
             >
-              {groupRewind?.kind === "edit" ? t("project.chat.group_edit_confirm") : t("project.chat.group_regen_confirm")}
+              {rewind?.kind === "edit" ? t("project.chat.rewind_edit_confirm") : t("project.chat.rewind_regen_confirm")}
             </Button>
           </>
         }

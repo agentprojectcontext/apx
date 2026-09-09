@@ -297,6 +297,32 @@ test("asking a code turn again says what it is about to delete", () => {
   assert.match(screen, /void sendRef\.current\(text\);/);
 });
 
+test("asking again in a chat asks first too, group or not", () => {
+  const tab = web("screens", "project", "ChatTab.tsx");
+  // A 1:1 chat did not ask at all — re-rolling the last answer threw it away on
+  // one click — and the group asked only when there were NEWER messages to
+  // lose, which left the same one-click delete on its last bubble. One rule
+  // now: every rewind asks, in both.
+  assert.doesNotMatch(tab, /if \(index < msgs\.length - 1\) setGroupRewind/);
+  assert.match(tab, /const \[rewind, setRewind\] = useState</);
+  assert.match(tab, /open=\{!!rewind\}/);
+  // Both paths go through the one dialog, each carrying its own rewind: the
+  // group truncates its ledger, a 1:1 chat rewinds its conversation file.
+  assert.match(tab, /run: \(\) => \{ void regenerate\(index, rewindOpts\(\)\); afterRewind\(\); \}/);
+  assert.match(tab, /run: \(\) => \{ void editAndResend\(index, text, rewindOpts\(\)\); afterRewind\(\); \}/);
+  assert.match(tab, /run: \(\) => void runGroupRegen\(keepVisible, from, reason\)/);
+  assert.match(tab, /run: \(\) => void runGroupEdit\(keepVisible, text, media\)/);
+  // Losing the last answer and losing five messages are different warnings.
+  assert.match(tab, /rewind\?\.drop\s*\n?\s*\? t\("project\.chat\.rewind_desc_newer", \{ n: rewind\.drop \}\)/);
+  assert.match(tab, /: t\("project\.chat\.rewind_desc_last"\)/);
+  for (const lang of ["en", "es"]) {
+    const dict = web("i18n", `${lang}.ts`);
+    assert.match(dict, /rewind_desc_newer:[^\n]*\{n\}/, `${lang} says how many go`);
+    assert.match(dict, /rewind_desc_last:\s+"/, `${lang} covers the newest-answer case`);
+    assert.doesNotMatch(dict, /group_rewind_desc:/, `${lang} no longer calls it a group-only thing`);
+  }
+});
+
 test("every chat rail reuses one running/unread indicator", () => {
   const activity = web("lib", "chat-activity.ts");
   const indicator = web("components", "chat", "ChatRowActivity.tsx");
