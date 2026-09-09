@@ -1,3 +1,10 @@
+## [1.92.4](https://github.com/agentprojectcontext/apx/compare/v1.92.3...v1.92.4) (2026-09-09)
+
+
+### Bug Fixes
+
+* **inbox:** the person is part of a row's identity ([2a6ab21](https://github.com/agentprojectcontext/apx/commit/2a6ab210838f291c49f7f2c71681b6cc2978acc7))
+
 ## [1.92.3](https://github.com/agentprojectcontext/apx/compare/v1.92.2...v1.92.3) (2026-09-09)
 
 
