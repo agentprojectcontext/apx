@@ -418,6 +418,7 @@ export const es = {
       sticker_owner_source: "Tus palabras",
       sticker_vision_source: "Descrito autom\u00e1ticamente",
       sticker_blocked: "Bloqueado",
+      sticker_edit_meaning: "Editar el texto",
       sticker_block: "Bloquear",
       sticker_unblock: "Desbloquear",
       sticker_block_hint: "Lo sigue entendiendo cuando llega, pero no lo manda nunca",

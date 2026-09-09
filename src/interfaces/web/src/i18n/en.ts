@@ -421,6 +421,7 @@ export const en = {
       sticker_owner_source: "Your words",
       sticker_vision_source: "Described automatically",
       sticker_blocked: "Blocked",
+      sticker_edit_meaning: "Edit the wording",
       sticker_block: "Block",
       sticker_unblock: "Unblock",
       sticker_block_hint: "Keep understanding it when it arrives, but never send it",
