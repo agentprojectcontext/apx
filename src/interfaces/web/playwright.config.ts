@@ -22,6 +22,24 @@ export default defineConfig({
   workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
+  // Retries on CI, none locally.
+  //
+  // This suite drives a real browser against a real daemon, single-worker, and
+  // the heaviest spec (16-task-workspace) runs last — so on a runner ~2.5x
+  // slower than a laptop it loses races a developer never sees: a `fill` that
+  // React overwrites mid-render, a click on a button that is re-rendering
+  // underneath it. Three consecutive CI runs failed at three DIFFERENT points
+  // of the same spec while the whole suite passed 77/77 locally, which is the
+  // signature of a timing margin, not of a broken screen.
+  //
+  // A retry does not hide a real break: a genuine one fails all three attempts.
+  // What it does fix is the diagnostic gap — `trace: "on-first-retry"` below was
+  // already written as if retries existed, so with none configured NO trace was
+  // ever captured on CI and every failure arrived as a bare screenshot.
+  //
+  // Zero locally on purpose: a flake in front of the person who wrote it should
+  // be visible, not smoothed over.
+  retries: process.env.CI ? 2 : 0,
   reporter: [
     ["list"],
     ["html", { open: "never", outputFolder: "e2e/.playwright-report" }],

@@ -1569,16 +1569,50 @@ function contactName(rows) {
   return null;
 }
 
+/** Does this stored body carry words somebody typed or said, once the media
+ *  marker is removed? A caption-less photo and an untranscribable voice note
+ *  both leave nothing behind, and neither can name a conversation. */
+function hasWords(body) {
+  const rest = String(body || "").replace(/^\[[^\]]*\]\s*/, "").trim();
+  return !!rest && !/^\(.*\)$/.test(rest);
+}
+
 // A thread's derived name. A whole-day thread is titled by the first thing said
 // in it; a person's thread is titled by the person, because "hola" is not what
 // distinguishes Magui's conversation from Carlos's — she is.
+//
+// The first thing said may have been a voice note or a photo, and what is
+// STORED for those is a marker written for the model to read: "[audio] …", or
+// "[image attached — saved to /Users/…]". Printing it raw is how a Telegram
+// thread ended up called "[audio] me parece que ahí hay un error" in the
+// sidebar and in its own header. previewText is the rule for exactly this — the
+// one line that stands in for a turn — so the title asks it rather than
+// inventing a second answer.
 function threadTitle(channel, id, contact, rows) {
   if (contact) return contactName(rows) || contact;
-  const firstUser = rows.find((r) => r.type === "user");
-  const derived = String((firstUser || rows[0]).body || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
+  // Name it after something a PERSON said.
+  //
+  // A turn that carried a file stores a marker written for the model — "[audio]
+  // …", "[image attached — saved to /Users/…]" — and when the voice note could
+  // not be transcribed, what follows the marker is a note about our own
+  // failure: "(transcription unavailable: fetch failed)". Three Telegram
+  // threads were named that. It says nothing about the conversation and it is
+  // not even the person's words.
+  //
+  // So a candidate has to have words of its own once the marker is off, and not
+  // be a bare parenthetical. No error strings are matched — a note in brackets
+  // followed by a note in parentheses is machine-written whatever it says.
+  // The person first — a conversation is named by what was ASKED, not by the
+  // answer. Then any row with words, because a channel like `log` has no user
+  // turns at all and losing its title would be a worse bug than the one this
+  // fixes.
+  const spoken =
+    rows.find((r) => r.type === "user" && hasWords(r.body)) || rows.find((r) => hasWords(r.body));
+  const derived = spoken
+    ? previewText(spoken.body, mediaFromMeta(spoken.meta)).replace(/\s+/g, " ").trim().slice(0, 80)
+    : "";
+  // Nothing was said in words all day (a thread of photos, or of failures): the
+  // channel and the date are less informative but they are true.
   return derived || `${channel} · ${id}`;
 }
 
