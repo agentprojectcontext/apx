@@ -1,3 +1,10 @@
+## [1.93.1](https://github.com/agentprojectcontext/apx/compare/v1.93.0...v1.93.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **whatsapp:** the sticker's wording is text until you click it ([e8c21f1](https://github.com/agentprojectcontext/apx/commit/e8c21f1af55ef7257a9942fc60e35637a07c5ef3))
+
 # [1.93.0](https://github.com/agentprojectcontext/apx/compare/v1.92.4...v1.93.0) (2026-09-09)
 
 
