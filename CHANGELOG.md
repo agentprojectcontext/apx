@@ -1,3 +1,10 @@
+# [1.94.0](https://github.com/agentprojectcontext/apx/compare/v1.93.3...v1.94.0) (2026-09-09)
+
+
+### Features
+
+* **code:** a coding turn you can stop, interrupt, re-ask and walk back into ([61389ed](https://github.com/agentprojectcontext/apx/commit/61389ed8c88130b4b1cd9bae3dff6db435f32e64))
+
 ## [1.93.3](https://github.com/agentprojectcontext/apx/compare/v1.93.2...v1.93.3) (2026-09-09)
 
 
