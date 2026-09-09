@@ -1,3 +1,10 @@
+## [1.93.3](https://github.com/agentprojectcontext/apx/compare/v1.93.2...v1.93.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **threads:** a thread is named after words somebody said, not after a file marker ([2151d9b](https://github.com/agentprojectcontext/apx/commit/2151d9b47a6338ddc0c5161dd84271f1bef09d73))
+
 ## [1.93.2](https://github.com/agentprojectcontext/apx/compare/v1.93.1...v1.93.2) (2026-09-09)
 
 
