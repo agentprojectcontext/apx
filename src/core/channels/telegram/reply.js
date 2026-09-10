@@ -20,6 +20,12 @@ import { t, resolveLang } from "#core/i18n/index.js";
 import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
 import { createProgressGate, progressEveryMs } from "./progress-gate.js";
 import { deliverVoiceReply, mobilityVoiceActive } from "./voice-note.js";
+import { voiceRepliesActive } from "#core/voice/reply-mode.js";
+
+// How much of a reply gets read aloud when it was not written for the road.
+// About twenty seconds of speech: long enough to carry the answer's point,
+// short enough that the rest is worth looking at.
+const SPOKEN_PREVIEW_CHARS = 320;
 
 /**
  * Build the streaming event handler for a Telegram super-agent turn. ONE notice
@@ -195,7 +201,15 @@ export function runTelegramSuperAgent(self, {
       // the reply short (prompts/modes/voice.md + mobility.md). Doing it here
       // rather than at send time is the whole point: you cannot shorten a
       // paragraph after the model has written it, you can only truncate it.
-      ...(mobilityVoiceActive(self.globalConfig) ? { voice: true, mobility: true } : {}),
+      ...(mobilityVoiceActive(self.globalConfig)
+        ? { voice: true, mobility: true }
+        // Asked for at a desk: the opening will be read aloud, but the answer
+        // is not shortened. `voice: true` is deliberately NOT set — that is the
+        // switch that makes the model write two sentences, and answering a
+        // request to listen by saying less is not what was asked.
+        : voiceRepliesActive(self.globalConfig, { key: `telegram:${chat_id}` })
+          ? { spoken: true }
+          : {}),
     },
     signal,
     onEvent,
@@ -361,7 +375,17 @@ export async function sendFinalReply(self, {
     // Driving: the answer goes out spoken first, then as its own transcript.
     // A failed voice attempt falls through to the plain send below — the
     // upgrade is allowed to fail, the message is not.
-    const spoken = mobilityVoiceActive(self.globalConfig)
+    // Driving, or asked for — by the toggle in settings, or out loud in this
+    // very turn. Spoken delivery only: outside a car the reply was written at
+    // full length on purpose, and all of it still arrives as text. What is
+    // spoken is its opening, capped at a sentence so a page-long paragraph
+    // becomes a preview rather than a lecture.
+    const driving = mobilityVoiceActive(self.globalConfig);
+    const wantVoice = voiceRepliesActive(self.globalConfig, {
+      key: `telegram:${chat_id}`,
+      driving,
+    });
+    const spoken = wantVoice
       ? await deliverVoiceReply({
           io: {
             send: (args) => self._send(args),
@@ -370,11 +394,14 @@ export async function sendFinalReply(self, {
           chat_id,
           text: toSend,
           globalConfig: self.globalConfig,
+          // Driving leaves the model's own two sentences alone; asked for at a
+          // desk, the reply is full length and only its opening is read out.
+          maxSpokenChars: driving ? 0 : SPOKEN_PREVIEW_CHARS,
           log: (line) => self.log(`telegram[${self.channel.name}] ${line}`),
         })
-      : { voice: false, reason: "not-driving" };
+      : { voice: false, reason: "voice-off" };
     if (!spoken.voice) {
-      if (spoken.reason !== "not-driving") {
+      if (spoken.reason !== "voice-off") {
         self.log(`telegram[${self.channel.name}] voice reply unavailable (${spoken.reason}) — sending text`);
       }
       await self._send({ chat_id, text: toSend });

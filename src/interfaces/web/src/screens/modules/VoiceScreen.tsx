@@ -8,6 +8,7 @@ import { VoiceProviderList } from "../../components/voice/VoiceProviderList";
 import { VoiceProviderModal, type VoiceProviderSave } from "../../components/voice/VoiceProviderModal";
 import { VoiceTestCard } from "../../components/voice/VoiceTestCard";
 import { VoiceSttCard } from "../../components/voice/VoiceSttCard";
+import { VoiceDeliveryCard } from "../../components/voice/VoiceDeliveryCard";
 import { VoiceQvoxStatusCard } from "../../components/voice/VoiceQvoxStatusCard";
 import { VoiceQvoxInstallCard } from "../../components/voice/VoiceQvoxInstallCard";
 import { shouldSuggestQvox } from "../../lib/qvox";
@@ -39,7 +40,7 @@ export function VoiceScreen() {
   // config.voice is typed as Record<string,unknown> and transcription isn't on
   // GlobalConfig (owned by another agent) — read both off a local view.
   const cfgView = config as unknown as {
-    voice?: { tts?: VoiceTtsConfig };
+    voice?: { tts?: VoiceTtsConfig; voice_replies?: boolean };
     transcription?: TranscriptionConfig;
   };
   const voiceCfg = (cfgView.voice?.tts || {}) as VoiceTtsConfig;
@@ -192,6 +193,23 @@ export function VoiceScreen() {
         <div className="space-y-6">
           <Section title={t("voice_screen.test_title")} description={t("voice_ui.test_desc")}>
             <VoiceTestCard engines={engines} defaultProvider={configuredProvider} mode={mode} />
+          </Section>
+
+          <Section
+            title={t("voice_screen.delivery_title")}
+            description={t("voice_ui.delivery_desc")}
+          >
+            {cfgLoading ? <Loading /> : (
+              <VoiceDeliveryCard
+                voiceReplies={cfgView.voice?.voice_replies === true}
+                stream={(voiceCfg as { stream?: boolean }).stream === true}
+                // Offered only when something can actually do it, so the switch
+                // is never a promise the engines cannot keep.
+                streamSupported={engines.some((e) => e.streams)}
+                onPatch={patchStt}
+                busy={busyDefault}
+              />
+            )}
           </Section>
 
           <Section

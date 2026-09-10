@@ -73,6 +73,7 @@ const TWO_SEGMENT_CHANNELS = new Set([
 
 const VOICE_MODE_FILE = "modes/voice.md";
 const MOBILITY_MODE_FILE = "modes/mobility.md";
+const SPOKEN_MODE_FILE = "modes/spoken.md";
 
 // ---------------------------------------------------------------------------
 // Prompt loading
@@ -140,6 +141,25 @@ export function buildMobilityModeBlock(active) {
   if (!active) return "";
   try {
     return loadPrompt(MOBILITY_MODE_FILE);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Spoken delivery without mobility: the reply will be read aloud from the top,
+ * but the owner is at a desk and asked for audio rather than for brevity.
+ *
+ * Mobility mode says "two sentences, you are driving" and would be wrong here —
+ * it would answer a request to listen by saying less. What this needs instead
+ * is the one thing the model cannot know: that its opening lines are about to
+ * be heard, so a path or a URL in the first paragraph is a mistake it has no
+ * other reason to avoid.
+ */
+export function buildSpokenModeBlock(active) {
+  if (!active) return "";
+  try {
+    return loadPrompt(SPOKEN_MODE_FILE);
   } catch {
     return "";
   }
@@ -492,6 +512,8 @@ export function buildSuperAgentSystem({
     emotion ? buildEmotionGuide(emotion.tags) : ""
   );
   const mobilityBlock = buildMobilityModeBlock(!!channelMeta?.mobility);
+  // Only one of the two: mobility already covers being spoken, and stricter.
+  const spokenBlock = buildSpokenModeBlock(!!channelMeta?.spoken && !channelMeta?.mobility);
   const segmentDiscipline = buildSegmentDiscipline({ channel: channelLow, voice });
 
   return [
@@ -514,6 +536,7 @@ export function buildSuperAgentSystem({
     lazyToolsBlock,
     voiceBlock,
     mobilityBlock,
+    spokenBlock,
     ACTION_DISCIPLINE,
     segmentDiscipline,
     systemSuffix,
