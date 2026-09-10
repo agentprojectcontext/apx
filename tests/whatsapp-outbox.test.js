@@ -270,3 +270,79 @@ test("no menu, or no match, comes back as words rather than a thrown error", asy
   assert.deepEqual(miss.available, ["1. Autos", "2. Hogar"], "so it can say the choices without a second call");
   assert.equal(session.sent.length, 0, "nothing was tapped on anybody's behalf");
 });
+
+// --- writing to somebody vouches for them ---------------------------------
+//
+// The roster was fed only by people writing IN, so APX could open a
+// conversation and then be structurally unable to continue it: it introduced
+// itself to a new collaborator, he answered within the minute, and the reply
+// resolved as a stranger's and got silence. Every test here fails against that.
+
+const { resolveReplyPolicy, resolveWhatsAppSender, findWhatsAppContact, REPLY_POLICIES } =
+  await import("#core/identity/whatsapp.js");
+const { readConfig } = await import("#core/config/index.js");
+
+const NEW_GUY = "5491155550777@s.whatsapp.net";
+const GROUP = "120363000000000000@g.us";
+
+/** What would happen if this person answered right now? */
+const policyFor = (jid) => {
+  const cfg = readConfig();
+  return resolveReplyPolicy(cfg, resolveWhatsAppSender({ cfg, addresses: [jid], chatJid: jid }));
+};
+
+test("a person APX wrote to first can answer, and is answered", async () => {
+  _resetOwnSends();
+  const cfg = readConfig();
+  assert.equal(policyFor(NEW_GUY), REPLY_POLICIES.SILENT, "a stranger before we write to them");
+
+  await sendWhatsApp({ session: fakeSession(), globalConfig: cfg, to: NEW_GUY, text: "hola, te presento a Roby" });
+
+  assert.equal(
+    policyFor(NEW_GUY),
+    REPLY_POLICIES.TEXT_ONLY,
+    "opening a conversation you cannot continue is the bug this closes"
+  );
+  const row = findWhatsAppContact(readConfig(), NEW_GUY);
+  assert.equal(row.role, "contact");
+  assert.ok(row.vouched_by_send, "the roster records WHY this row exists");
+});
+
+test("a role the owner set by hand is never overwritten by a send", async () => {
+  _resetOwnSends();
+  const muted = "5491155550888@s.whatsapp.net";
+  const { upsertWhatsAppContact } = await import("#core/channels/whatsapp/config.js");
+  upsertWhatsAppContact(muted, { name: "Acme soporte", role: "contact", auto_reply: false });
+
+  await sendWhatsApp({ session: fakeSession(), globalConfig: readConfig(), to: muted, text: "una sola cosa" });
+
+  const row = findWhatsAppContact(readConfig(), muted);
+  assert.equal(row.auto_reply, false, "re-granting a mute on the next send undoes a decision silently");
+  assert.equal(policyFor(muted), REPLY_POLICIES.SILENT);
+});
+
+test("a group is never vouched for by writing into it", async () => {
+  _resetOwnSends();
+  await sendWhatsApp({ session: fakeSession(), globalConfig: readConfig(), to: GROUP, text: "buenas" });
+  assert.ok(!findWhatsAppContact(readConfig(), GROUP), "one recipient is not consent from the rest");
+});
+
+test("a reaction vouches for nobody — it is a mark, not a word", async () => {
+  _resetOwnSends();
+  const reacted = "5491155550999@s.whatsapp.net";
+  await sendWhatsApp({
+    session: fakeSession(),
+    globalConfig: readConfig(),
+    to: reacted,
+    reactTo: { id: "ABC", remoteJid: reacted },
+    text: "👍",
+  });
+  assert.equal(policyFor(reacted), REPLY_POLICIES.SILENT);
+});
+
+test("choosing an option on a menu vouches too — it is a message we sent", async () => {
+  _resetOwnSends();
+  offer("buttons");
+  await chooseWhatsAppOption({ session: fakeSession(), globalConfig: readConfig(), to: BOT, option: "1" });
+  assert.equal(policyFor(BOT), REPLY_POLICIES.TEXT_ONLY);
+});

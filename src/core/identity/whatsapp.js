@@ -375,7 +375,7 @@ export function learnOwnerAliases(cfg, addresses = []) {
   return true;
 }
 
-export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushName = "" }) {
+export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushName = "", business = false }) {
   const addrs = (addresses && addresses.length ? addresses : [senderJid])
     .map(normalizeJid)
     .filter(Boolean);
@@ -402,6 +402,10 @@ export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushN
       // guest, each one silently unanswered.
       ...(addrs.length > 1 ? { alts: addrs.slice(1) } : {}),
       name: pushName || "",
+      // A verified business, not a person. Worth writing down: it is why this
+      // row is addressed by an opaque LID with no phone number behind it, and
+      // the panel has no other way to tell a company from a contact.
+      ...(business ? { business: true } : {}),
       role: SENDER_ROLES.GUEST,
       auto_reply: false,
       first_seen: now,
@@ -428,9 +432,96 @@ export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushN
   // A name the owner wrote themselves outranks whatever the sender calls
   // themselves this week.
   if (!existing.name && pushName) existing.name = pushName;
+  if (business && !existing.business) existing.business = true;
   writeConfig(disk);
   cfg.whatsapp = disk.whatsapp;
   return { mutated: true, created: false };
+}
+
+/**
+ * Writing to somebody IS vouching for them.
+ *
+ * The roster is an allowlist for people who write to US, and it was only ever
+ * fed from that direction — so APX could OPEN a conversation and then be unable
+ * to continue it. That is not hypothetical: the agent introduced itself to a
+ * new collaborator, he answered within the minute, and the reply resolved as a
+ * stranger's and was met with silence. The agent had started a conversation it
+ * was structurally incapable of having.
+ *
+ * The asymmetry was the bug. A send is not something that happens TO the owner;
+ * they asked for it, through a tool marked dangerous that stops for permission
+ * first. Somebody the owner deliberately messaged is not a stranger, and the
+ * allowlist has to hear about it.
+ *
+ * Three things are deliberately left alone:
+ *   - the OWNER, whose thread is not a roster row;
+ *   - GROUPS, where a reply is read by everyone in it and one recipient is not
+ *     consent from the rest;
+ *   - anyone ALREADY carrying a role, including one the owner muted on purpose.
+ *     Re-granting that on the next send would quietly undo their decision.
+ *
+ * @returns {{ vouched: boolean, promoted?: boolean, created?: boolean }}
+ */
+export function vouchWhatsAppRecipient(cfg, jid, { name = "" } = {}) {
+  const key = normalizeJid(jid);
+  if (!key || isGroupJid(key)) return { vouched: false };
+  if (ownerAddresses(cfg).includes(key)) return { vouched: false };
+
+  const disk = readConfig();
+  disk.whatsapp = disk.whatsapp || {};
+  if (!Array.isArray(disk.whatsapp.contacts)) disk.whatsapp.contacts = [];
+
+  const now = new Date().toISOString();
+  const existing = findWhatsAppContact(disk, key);
+
+  // Already somebody. A guest is the one state that means "seen, never
+  // decided", so it is the only one a send is allowed to settle.
+  if (existing) {
+    if (existing.role && existing.role !== SENDER_ROLES.GUEST) return { vouched: false };
+    existing.role = SENDER_ROLES.CONTACT;
+    existing.auto_reply = true;
+    existing.vouched_by_send = now;
+    existing.pending_review = true;
+    if (!existing.name && name) existing.name = String(name);
+    writeConfig(disk);
+    syncContacts(cfg, disk);
+    return { vouched: true, promoted: true };
+  }
+
+  disk.whatsapp.contacts.push({
+    jid: key,
+    name: String(name || ""),
+    role: SENDER_ROLES.CONTACT,
+    auto_reply: true,
+    first_seen: now,
+    last_seen: now,
+    // Why this row exists, for whoever reads the roster later. A contact the
+    // owner added by hand and one APX added because it was told to write are
+    // the same permission but not the same decision.
+    vouched_by_send: now,
+    // Answerable, but NOT vetted. The owner never said who this is or what may
+    // be done with them — only "write to them" — so the row carries the
+    // difference instead of looking like a contact they curated by hand.
+    pending_review: true,
+  });
+  writeConfig(disk);
+  syncContacts(cfg, disk);
+  return { vouched: true, created: true };
+}
+
+/**
+ * Refresh the caller's roster from disk — the CONTACTS only.
+ *
+ * Assigning `cfg.whatsapp = disk.whatsapp` wholesale is what the inbound
+ * registration does, and doing it here dropped `owner_jid` off any config whose
+ * in-memory copy was ahead of disk: the very next send then filed the owner's
+ * own thread under their phone number instead of the owner thread. Only the
+ * contacts array changed, so only the contacts array is copied back.
+ */
+function syncContacts(cfg, disk) {
+  if (!cfg) return;
+  if (cfg.whatsapp && typeof cfg.whatsapp === "object") cfg.whatsapp.contacts = disk.whatsapp.contacts;
+  else cfg.whatsapp = disk.whatsapp;
 }
 
 /** The owner's own thread. A constant so it cannot collide with a real jid,

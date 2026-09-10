@@ -25,6 +25,7 @@ import {
   findWhatsAppContact,
   isGroupJid,
   ownerAddresses,
+  vouchWhatsAppRecipient,
   CONTACT_KEY_OWNER,
 } from "#core/identity/whatsapp.js";
 import { rememberOwnSend } from "./echo.js";
@@ -139,6 +140,7 @@ export async function sendWhatsApp({
 
   if (stickerFile) {
     const res = await session.sendSticker(jid, stickerFile);
+    vouch(globalConfig, jid);
     const id = res?.key?.id || null;
     if (id) rememberOwnSend(id);
     // A sticker IS something said, so the thread has to show it. The row
@@ -173,6 +175,7 @@ export async function sendWhatsApp({
       : await session.sendText(jid, label);
     const id = res?.key?.id || null;
     if (id) rememberOwnSend(id);
+    vouch(globalConfig, jid);
     logOutgoingWhatsApp({
       globalConfig,
       chatJid: jid,
@@ -194,8 +197,29 @@ export async function sendWhatsApp({
   // recognises the message as ours and does not file a second copy.
   const id = res?.key?.id || null;
   if (id) rememberOwnSend(id);
+  vouch(globalConfig, jid);
   logOutgoingWhatsApp({ globalConfig, chatJid: jid, body, externalId: id, meta });
   return { ok: true, sent: true, to: jid, id, chars: body.length };
+}
+
+/**
+ * Somebody we just wrote to is not a stranger any more.
+ *
+ * Runs AFTER the send, never before: a message that failed to leave vouches for
+ * nobody. Never throws into the send path either — the message is already on
+ * the other person's phone by this point, and losing the caller's result over a
+ * config write would report a delivered message as a failure.
+ *
+ * A REACTION deliberately does not come through here. It is a mark on a
+ * conversation that already exists, so it says nothing new about who this
+ * person is, and it is the one send that can happen without a word being typed.
+ */
+function vouch(globalConfig, jid) {
+  try {
+    vouchWhatsAppRecipient(globalConfig, jid);
+  } catch {
+    /* the message is sent; the roster catches up on the next one */
+  }
 }
 
 /**

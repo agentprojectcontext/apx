@@ -134,7 +134,21 @@ export async function handleWhatsAppMessage(m, ctx) {
   const senderJid = addresses[0] || null;
   if (!senderJid || isIgnorableJid(senderJid)) return;
 
-  registerWhatsAppSender({ cfg: globalConfig, addresses, pushName: m.pushName || "" });
+  // What to CALL them.
+  //
+  // A verified business does not send `pushName` — it sends `verifiedBizName`,
+  // which Baileys lifts onto the message. Reading only pushName left every
+  // company with an empty name on its roster row, so the panel fell back to
+  // printing the raw address: a thread headed "104900000000000@lid" instead of
+  // the name on the account. Nothing was broken; nobody had asked for the name.
+  const bizName = String(m.verifiedBizName || "").trim();
+  const displayName = bizName || m.pushName || "";
+  registerWhatsAppSender({
+    cfg: globalConfig,
+    addresses,
+    pushName: displayName,
+    business: Boolean(bizName),
+  });
   // A face for the thread. Fetched at most once a day per person and stored on
   // the roster row, because the alternative is a network round-trip on every
   // inbound message for something that changes twice a year.
@@ -143,7 +157,7 @@ export async function handleWhatsAppMessage(m, ctx) {
     cfg: globalConfig,
     addresses,
     chatJid,
-    pushName: m.pushName || "",
+    pushName: displayName,
   });
   // Recognised as the owner through one address? Then the others are theirs
   // too, and remembering that is what makes the NEXT message work when it

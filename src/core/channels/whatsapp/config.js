@@ -169,6 +169,16 @@ export function upsertWhatsAppContact(jid, patch = {}) {
   if (patch.note !== undefined) entry.note = String(patch.note || "");
   if (patch.auto_reply !== undefined) entry.auto_reply = patch.auto_reply !== false;
   if (patch.role !== undefined) entry.role = String(patch.role || "").trim() || SENDER_ROLES.GUEST;
+  // Editing a row IS reviewing it.
+  //
+  // `pending_review` is set by vouchWhatsAppRecipient on somebody APX added
+  // because the owner told it to write to them — answerable, but nobody has
+  // said who they are or what may be done with them. The moment a human (or an
+  // agent acting for one) touches the row, that question has been answered, so
+  // the flag is cleared HERE rather than in each caller: the panel, the API and
+  // the whatsapp_contacts tool all come through this one door, and a rule that
+  // lives in one of them is a rule the other two do not have.
+  delete entry.pending_review;
   writeConfig(cfg);
   return entry;
 }

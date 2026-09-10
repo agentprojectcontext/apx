@@ -32,6 +32,7 @@ import callRuntime from "./handlers/call-runtime.js";
 import runSubagent from "./handlers/run-subagent.js";
 import sendTelegram from "./handlers/send-telegram.js";
 import sendWhatsapp from "./handlers/send-whatsapp.js";
+import whatsappContacts from "./handlers/whatsapp-contacts.js";
 import setIdentity from "./handlers/set-identity.js";
 import setPermissionMode from "./handlers/set-permission-mode.js";
 import searchFiles from "./handlers/search-files.js";
@@ -107,6 +108,7 @@ const NATIVE_TOOLS = [
   runSubagent,
   sendTelegram,
   sendWhatsapp,
+  whatsappContacts,
   setIdentity,
   setPermissionMode,
   searchFiles,
@@ -297,6 +299,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.TAIL_MESSAGES]:       "messages",
   [TOOLS.SEND_TELEGRAM]:       "messages",
   [TOOLS.SEND_WHATSAPP]:       "messages",
+  [TOOLS.WHATSAPP_CONTACTS]:   "messages",
   [TOOLS.ASK_QUESTIONS]:       "conversation",
   [TOOLS.CREATE_TASK]:         "tasks",
   [TOOLS.LIST_TASKS]:          "tasks",
