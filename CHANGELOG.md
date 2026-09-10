@@ -1,3 +1,10 @@
+# [1.101.0](https://github.com/agentprojectcontext/apx/compare/v1.100.0...v1.101.0) (2026-09-10)
+
+
+### Features
+
+* **whatsapp:** send a file, not a paragraph describing one ([2daa6be](https://github.com/agentprojectcontext/apx/commit/2daa6bec4e5eab835cf9f927afb7c995a7f02a72))
+
 # [1.100.0](https://github.com/agentprojectcontext/apx/compare/v1.99.1...v1.100.0) (2026-09-10)
 
 
