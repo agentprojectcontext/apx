@@ -25,6 +25,7 @@ import { transcribe } from "#core/voice/transcription.js";
 import { envWithPath } from "#core/util/path-env.js";
 import { APX_HOME } from "#core/config/paths.js";
 import { recallSticker, learnSticker, touchSticker, keepStickerFile } from "./stickers.js";
+import { documentPolicy, humanSize, readDocumentText } from "./documents.js";
 
 const run = promisify(execFile);
 
@@ -172,13 +173,7 @@ export async function resolveInboundMedia(message, deps = {}) {
   }
 
   if (kind === "document") {
-    const name = node.fileName || "file";
-    return {
-      kind,
-      attachment: null,
-      media: { kind: "document", meta: { file_name: name, mime_type: node.mimetype || null } },
-      text: join(`[document: ${name} — not opened]`, caption),
-    };
+    return resolveDocument(node, { download, log, caption, showPaths });
   }
 
   let localPath = null;
@@ -319,6 +314,91 @@ async function resolveSticker({ node, localPath, describeImage, log, from }) {
     attachment: null,
     text: "[sticker — I can't tell what this one shows]",
     media: { kind: "sticker", meta: { local_path: localPath, learned: false } },
+  };
+}
+
+/**
+ * A file somebody attached: kept, read when we can read it, refused when we
+ * should not keep it at all.
+ *
+ * The old branch wrote `[document: … — not opened]` and downloaded nothing, so
+ * a quote sent as a PDF reached the turn as the sentence "a file arrived" and
+ * the agent had to answer around it. Three outcomes now, and each one says
+ * plainly which it is:
+ *
+ *   refused   a program or a script, or past the size limit. No bytes, and the
+ *             marker says why — see ./documents.js for what that list is FOR.
+ *   read      a PDF or a text-ish file: the words go into the turn, so the
+ *             agent answers what the file says rather than that it exists.
+ *   kept      everything else. Saved with its own name and offered in the
+ *             panel; the marker names it and its size.
+ *
+ * The extracted text is fenced and labelled as the file's content on purpose.
+ * It is somebody else's words arriving through an attachment, exactly like the
+ * message body — a turn must be able to tell "the sender wrote this" from
+ * "a file the sender attached says this".
+ */
+async function resolveDocument(node, { download, log, caption, showPaths }) {
+  const size = Number(node.fileLength) || null;
+  const policy = documentPolicy({ fileName: node.fileName, mimeType: node.mimetype, size });
+  const pretty = humanSize(size);
+
+  if (!policy.keep) {
+    return {
+      kind: "document",
+      attachment: null,
+      media: {
+        kind: "document",
+        meta: { file_name: policy.name, mime_type: node.mimetype || null, file_size: size, refused: policy.refusal },
+      },
+      text: join(`[file: ${policy.name} — ${policy.refusal}]`, caption),
+    };
+  }
+
+  let localPath = null;
+  try {
+    // The name matters past cosmetics: the extension is what makes the panel
+    // offer the right thing and what pdftotext keys off, and the session's
+    // default for a document is a nameless `.bin`.
+    localPath = await download(node, "document", { fileName: policy.name });
+  } catch (e) {
+    log(`whatsapp document download failed (${policy.name}): ${e.message}`);
+  }
+
+  if (!localPath) {
+    return {
+      kind: "document",
+      attachment: null,
+      media: { kind: "document", meta: { file_name: policy.name, mime_type: node.mimetype || null, file_size: size } },
+      text: join(`[file: ${policy.name} — the download failed, there is no local copy]`, caption),
+    };
+  }
+
+  const text = await readDocumentText(localPath, policy.read);
+  const where = showPaths ? ` — saved to ${localPath}` : "";
+  const head = `[file: ${policy.name}${pretty ? `, ${pretty}` : ""}${where}]`;
+  const body = text
+    ? `${head}\nThe file says:\n"""\n${text}\n"""`
+    : policy.read
+    ? `${head} — I could not read the text out of this one`
+    : head;
+
+  return {
+    kind: "document",
+    attachment: null,
+    text: join(body, caption),
+    media: {
+      kind: "document",
+      meta: {
+        local_path: localPath,
+        file_name: policy.name,
+        mime_type: node.mimetype || null,
+        file_size: size,
+        // Whether the turn was given the words, so a reader of the thread knows
+        // if the agent had actually seen inside the file.
+        text_extracted: Boolean(text),
+      },
+    },
   };
 }
 

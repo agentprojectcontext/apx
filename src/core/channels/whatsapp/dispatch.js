@@ -199,7 +199,7 @@ export async function handleWhatsAppMessage(m, ctx) {
   // people we never answer: "someone unknown sent a photo" is exactly the kind
   // of thing the owner wants to see.
   const media = await resolveInboundMedia(m.message || {}, {
-    download: (node, kind) => session.download(m, kind),
+    download: (node, kind, opts) => session.download(m, kind, opts),
     describeImage: (p) => describeSticker(p, globalConfig),
     log,
     from: senderJid,
@@ -419,7 +419,7 @@ export async function handleOwnWhatsAppMessage(m, ctx) {
   // Resolved as `owner`, because that is who wrote it: an image the owner sent
   // from their phone should read as a picture in the thread, not as a marker.
   const media = await resolveInboundMedia(m.message || {}, {
-    download: (node, kind) => session.download(m, kind),
+    download: (node, kind, opts) => session.download(m, kind, opts),
     describeImage: (p) => describeSticker(p, globalConfig),
     log,
     from: chatJid,

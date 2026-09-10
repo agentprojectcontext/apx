@@ -141,6 +141,21 @@ conversation that happened.
 
 ## Media
 
+### Files
+
+A file somebody sends is **kept**. A PDF or a text-ish file is also **read**: its words go into the
+turn, so the agent answers what the quote says rather than that a quote arrived. Everything else is
+saved with its own name and offered in the panel.
+
+Two things are never downloaded, and the thread says which: **programs and scripts**
+(`.exe .msi .sh .apk .dmg .ps1 .jar` …, matched on the last extension so `quote.pdf.exe` is an exe)
+and anything **over 25 MB**. Nothing here ever executes an attachment — the refusal exists because
+the file would otherwise land in your own media folder under a name a stranger chose. Archives
+(zip, rar, 7z) are kept and never opened.
+
+A file that arrived before this existed can be fetched afterwards: `apx whatsapp repair` asks the
+phone for the message again and downloads it then.
+
 Inbound media is resolved before the turn runs, so the log is complete even for people who are
 never answered.
 

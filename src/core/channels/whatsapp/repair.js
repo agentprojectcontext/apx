@@ -47,6 +47,7 @@ import {
 } from "#core/identity/whatsapp.js";
 import { otherAddressFor } from "./aliases.js";
 import { messageText, readInteractive } from "./interactive.js";
+import { resolveInboundMedia } from "./media.js";
 
 /**
  * What the dispatch writes when it could not read the message.
@@ -81,6 +82,7 @@ function scanLedger(limit) {
   const wroteTo = new Set();      // addresses APX has SENT to
   const heard = new Map();        // address → the last name they arrived under
   const blank = [];               // inbound rows whose body says nothing
+  const unfetched = [];           // files that arrived and were never downloaded
   // Per conversation, the last thing said in each direction. What makes a chat
   // "left hanging" is not a message but an ORDER: they spoke last, and the turn
   // that should have answered never wrote anything.
@@ -101,6 +103,15 @@ function scanLedger(limit) {
 
     const name = String(r.author || "").trim();
     if (!NOT_A_NAME.has(name.toLowerCase())) heard.set(jid, name);
+
+    // A file that arrived before documents were handled at all: the row names
+    // it ("[document: quote.pdf — not opened]") and there are no bytes behind
+    // it. The phone still has the message, and asking again is the same trick
+    // that heals an unreadable one — this time the download runs too.
+    if (r?.meta?.media_kind === "document" && !r?.meta?.local_path && !r?.meta?.refused && r?.meta?.external_id) {
+      unfetched.push(r);
+      continue;
+    }
 
     const body = String(r.body || "").trim();
     if (body && body !== EMPTY_MARKER) continue;
@@ -129,7 +140,7 @@ function scanLedger(limit) {
     unanswered.push({ chat, row: r });
   }
 
-  return { wroteTo, heard, blank, unanswered };
+  return { wroteTo, heard, blank, unfetched, unanswered };
 }
 
 /**
@@ -145,7 +156,7 @@ export function inspectWhatsAppChats({ cfg = readConfig(), limit = 20_000 } = {}
   const wa = cfg?.whatsapp || {};
   const contacts = Array.isArray(wa.contacts) ? wa.contacts : [];
   const owners = ownerAddresses(cfg);
-  const { wroteTo, heard, blank, unanswered } = scanLedger(limit);
+  const { wroteTo, heard, blank, unfetched, unanswered } = scanLedger(limit);
 
   const findings = [];
   const seen = new Map();   // address → the row that claimed it first
@@ -208,8 +219,23 @@ export function inspectWhatsAppChats({ cfg = readConfig(), limit = 20_000 } = {}
     ts: r.ts,
     external_id: r.meta.external_id,
     attempts: Number(r.meta.recover_attempts) || 0,
+    // What the row was written under, so a repair writes the marker for the
+    // same audience the message was for.
+    policy: r.meta.policy || null,
     detail: "arrived as an empty message — the phone may still have it",
   }));
+
+  for (const r of unfetched) {
+    messages.push({
+      kind: "unfetched",
+      jid: normalizeJid(r?.meta?.chat_jid) || "",
+      ts: r.ts,
+      external_id: r.meta.external_id,
+      attempts: Number(r.meta.recover_attempts) || 0,
+      policy: r.meta.policy || null,
+      detail: `${r.meta.file_name || "a file"} arrived and was never downloaded`,
+    });
+  }
 
   // Reported, never answered automatically. Writing to somebody is the one
   // thing this module must not decide on its own: the message is hours old, the
@@ -394,7 +420,27 @@ async function askPhoneAgain({ session, row, log }) {
     return null;
   }
 
-  const text = String(messageText(message.message) || "").trim();
+  // A file gets its bytes NOW. The row we are repairing was written when
+  // documents were not downloaded at all, so the message names a PDF that never
+  // existed on this machine; the phone sent the message back with its media
+  // keys intact, and resolving it here is what turns the name into the file.
+  //
+  // The audience is the one the row was written under: a third party's thread
+  // must not gain a local path in its text just because the repair ran as the
+  // owner.
+  let media = { text: "", media: null };
+  try {
+    media = await resolveInboundMedia(message.message || {}, {
+      download: (_node, kind, opts) => session.download(message, kind, opts),
+      log,
+      audience: row.policy === "text_only" ? "third_party" : "owner",
+    });
+  } catch (e) {
+    log(`whatsapp repair: media for ${row.external_id} could not be resolved: ${e.message}`);
+  }
+
+  const typed = String(messageText(message.message) || "").trim();
+  const text = [media.text, typed].filter(Boolean).join(" ").trim();
   const interactive = readInteractive(message.message);
   // Nothing readable even now. Some messages genuinely carry no text — a
   // shape we still do not know, or a media message whose bytes are a separate
@@ -416,6 +462,7 @@ async function askPhoneAgain({ session, row, log }) {
     external_id: row.external_id,
     body: text,
     meta: {
+      ...(media.media ? { ...media.media.meta, media_kind: media.media.kind } : {}),
       ...(interactive?.options?.length
         ? { interactive_kind: interactive.kind, interactive_options: interactive.options }
         : {}),

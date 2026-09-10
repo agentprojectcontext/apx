@@ -146,6 +146,21 @@ la conversación que pasó.
 
 ## Multimedia
 
+### Archivos
+
+Un archivo que te mandan **se guarda**. Si es un PDF o algo de texto, además **se lee**: sus palabras
+entran en el turno, así el agente contesta lo que dice el presupuesto y no que llegó un presupuesto.
+El resto se guarda con su propio nombre y se ofrece en el panel.
+
+Dos cosas no se descargan nunca, y el hilo dice cuál de las dos fue: **programas y scripts**
+(`.exe .msi .sh .apk .dmg .ps1 .jar` …, mirando la ÚLTIMA extensión, así que `cotizacion.pdf.exe` es
+un exe) y cualquier cosa de **más de 25 MB**. Acá nada ejecuta un adjunto — la negativa existe porque
+si no el archivo queda en tu carpeta de medios con un nombre que eligió un desconocido. Los
+comprimidos (zip, rar, 7z) se guardan y no se abren.
+
+Un archivo que llegó antes de que esto existiera se puede traer después: `apx whatsapp repair` le
+pide el mensaje al teléfono y ahí sí lo baja.
+
 Lo que entra se resuelve antes de que corra el turno, así el registro queda completo incluso para
 gente a la que nunca se le contesta.
 
