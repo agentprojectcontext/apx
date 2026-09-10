@@ -1,3 +1,10 @@
+# [1.98.0](https://github.com/agentprojectcontext/apx/compare/v1.97.1...v1.98.0) (2026-09-10)
+
+
+### Features
+
+* **voice:** show which engines stream, instead of asking ([e7b25b2](https://github.com/agentprojectcontext/apx/commit/e7b25b263db907bfb297a891d0a126ec30b91c54))
+
 ## [1.97.1](https://github.com/agentprojectcontext/apx/compare/v1.97.0...v1.97.1) (2026-09-10)
 
 
