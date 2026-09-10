@@ -19,6 +19,43 @@ const DEFAULT_TOP_K = 5;
 const BULLET_CAP = 160; // chars per bullet line
 const MIN_SCORE = { ollama: 0.35, tf: 0.08 }; // floor per embedder family
 
+// Sources that were WRITTEN DOWN on purpose, as opposed to said in passing.
+const NOTE_SOURCES = new Set(["memory", "project-memory", "agent-memory"]);
+// How many of topK are held for them. Three of five: enough that a curated fact
+// cannot be crowded out, few enough that a genuinely conversational question
+// still gets conversation back.
+const NOTE_QUOTA = 3;
+
+/**
+ * Give the notebook its own slots instead of making it win a popularity contest.
+ *
+ * The index is ~460 curated notes against ~11,600 raw conversation chunks — 25
+ * to 1. Ranked in one pool by cosine alone, the notes lose to chat fragments
+ * that sit closer to the centre of ordinary language, and they lose by nothing:
+ * asked where the ROMs live, the top hit was a chat line about a browser at
+ * 0.764 and the note that actually answers it sat at 0.762. A thousandth of a
+ * point decided between a fact and a fragment, eleven thousand times over.
+ *
+ * That is not a ranking that needs tuning, it is two different kinds of thing
+ * being asked to compete. A note is something the owner decided was worth
+ * keeping; a message is raw material. So the notes get reserved slots, and
+ * chat fills what is left.
+ *
+ * The quota is a FLOOR, not a cap: with no notes above the floor, chat takes
+ * every slot, and a question whose answer really is in a conversation still
+ * gets it.
+ */
+export function reserveForNotes(passing, topK) {
+  const notes = [];
+  const chat = [];
+  for (const r of passing) (NOTE_SOURCES.has(r.source) ? notes : chat).push(r);
+  const keptNotes = notes.slice(0, Math.min(NOTE_QUOTA, topK));
+  const keptChat = chat.slice(0, Math.max(0, topK - keptNotes.length));
+  // Merged back into one score order: the block reads as one list, and a note
+  // that beat everything still appears first.
+  return [...keptNotes, ...keptChat].sort((a, b) => b.score - a.score);
+}
+
 function withTimeout(promise, ms, fallback) {
   return new Promise((resolve) => {
     let done = false;
@@ -122,8 +159,11 @@ export async function buildMemoryBlock(message, opts = {}) {
       const { vector, embedder, dim } = await embedOne(query, opts.embed || {});
       const family = embedder.startsWith("ollama") ? "ollama" : "tf";
       const floor = MIN_SCORE[family] ?? 0;
-      const results = store.search(vector, { embedder, k: topK + 3, scope });
-      return results.filter((r) => r.score >= floor && (r.dim ?? dim) === dim);
+      // Ask for more than we need, because the pool is about to be split and a
+      // top-K taken before the split would already have thrown the notes away.
+      const results = store.search(vector, { embedder, k: topK * 4, scope });
+      const passing = results.filter((r) => r.score >= floor && (r.dim ?? dim) === dim);
+      return reserveForNotes(passing, topK);
     })();
     hits = await withTimeout(rag, budgetMs, []);
   }
