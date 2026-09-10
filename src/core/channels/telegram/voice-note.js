@@ -74,10 +74,30 @@ export function spokenPart(text, { maxChars = 0 } = {}) {
  */
 function capAtSentence(text, maxChars) {
   if (text.length <= maxChars) return text;
-  const window = text.slice(0, maxChars);
-  let cut = -1;
-  for (const m of window.matchAll(/[.!?…](?:["'”’)\]]+)?(?=\s|$)/g)) cut = m.index + m[0].length;
-  return cut > 0 ? window.slice(0, cut).trim() : text;
+
+  const ends = [...text.matchAll(/[.!?…](?:["'”’)\]]+)?(?=\s|$)/g)].map((m) => m.index + m[0].length);
+  if (!ends.length) return text;
+
+  const before = ends.filter((at) => at <= maxChars).pop() ?? 0;
+  // A cut this early is not a preview, it is a greeting.
+  //
+  // Measured on a real reply: "…de punta a punta, Manu!" ends a sentence at 45
+  // characters and the next one does not end until past 330, so taking the last
+  // ending inside the window spoke the salutation and nothing else — three
+  // seconds of audio that said less than the notification did.
+  //
+  // When the only ending in reach leaves less than half the budget, overshoot
+  // to the next one instead. A sentence somewhat over the cap still gets the
+  // point across; a greeting never does.
+  if (before >= maxChars * 0.5) return text.slice(0, before).trim();
+  // Overshoot, however far. One sentence is one thought, and the model wrote it
+  // that way; the cap is here to stop a page of them, not to police the length
+  // of a single one. A sentence somewhat over budget still answers the
+  // question, and a greeting never does — which is the whole reason this
+  // branch exists.
+  const after = ends.find((at) => at > maxChars);
+  if (after) return text.slice(0, after).trim();
+  return before > 0 ? text.slice(0, before).trim() : text;
 }
 
 /**
