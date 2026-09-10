@@ -44,7 +44,7 @@ export default {
     // means the FIRST turn decides what the thread may touch for its whole life.
     const sandbox = mode === "chat" ? "read-only" : "workspace-write";
     const args = resumeSessionId
-      ? ["exec", "resume", resumeSessionId, "--skip-git-repo-check", "--json", fullPrompt]
+      ? ["exec", "resume", "--skip-git-repo-check", "--json", resumeSessionId, fullPrompt]
       : ["exec", "--sandbox", sandbox, "--skip-git-repo-check", "--json", fullPrompt];
 
     const r = await runProcess({ command: "codex", args, cwd, env, timeoutMs });

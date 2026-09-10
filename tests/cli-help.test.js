@@ -4,6 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
+import { RUNTIME_IDS, RUNTIME_ALIASES } from "#core/runtimes/index.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CLI = path.join(__dirname, "..", "src", "interfaces", "cli", "index.js");
@@ -108,4 +110,31 @@ test("code help is the terminal assistant help", () => {
   assert.equal(result.status, 0);
   assert.match(out, /apx code/);
   assert.match(out, /terminal coding assistant/);
+});
+
+// `<to>` was documented in five Notes lines; `<from>` in none. So a coding CLI
+// re-deriving the syntax from `--help` had nowhere to learn its own name, went
+// looking for a roster of valid senders, found `apx agent list` — which is who
+// can RECEIVE — and sent as somebody else. The daemon cannot catch that: the
+// name it was handed belongs to a real agent, so it is honoured, filed in that
+// agent's project, and stamped with that agent's model. Only the help can.
+test("send help says who the SENDER is, with the names that reach an adapter", () => {
+  const result = runHelp(["send", "--help"]);
+  const out = stripAnsi(result.stdout);
+
+  assert.equal(result.status, 0);
+  assert.match(out, /<from> is YOU/);
+  // Both halves of the answer: a CLI is its runtime id, an agent is its slug.
+  assert.match(out, /runtime id/);
+  assert.match(out, /slug/);
+  // Every id the registry will actually accept, so the list cannot go stale
+  // while a new runtime is added.
+  for (const id of RUNTIME_IDS) assert.match(out, new RegExp(id));
+  // And the spellings that fold in, so nobody opens a second thread under a
+  // second name for the same CLI.
+  for (const short of Object.keys(RUNTIME_ALIASES)) {
+    assert.match(out, new RegExp(`\\b${short}\\b`), short);
+  }
+  // The mistake itself, named: `apx agent list` is a list of recipients.
+  assert.match(out, /Never borrow a name off `apx agent list`/);
 });

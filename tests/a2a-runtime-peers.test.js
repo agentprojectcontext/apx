@@ -169,9 +169,17 @@ process.stdout.write(JSON.stringify({ type: "item.completed", item: { type: "age
       resumeSessionId: "th_1",
     });
     assert.equal(second.sessionId, "th_1");
-    assert.deepEqual(calls()[1].slice(0, 3), ["exec", "resume", "th_1"]);
+    // `codex exec resume [OPTIONS] [SESSION_ID] [PROMPT]` — the id and the
+    // prompt are POSITIONAL and in that order, after the flags. Asserting the
+    // exact index of the id instead pinned an argv layout the CLI never
+    // promised, and broke the moment the flags moved in front of it.
+    const resumed = calls()[1];
+    assert.deepEqual(resumed.slice(0, 2), ["exec", "resume"]);
+    assert.ok(resumed.indexOf("th_1") > 1, "the session id is a positional, after the subcommand");
+    assert.equal(resumed.at(-1), "again", "…and the prompt is the last positional");
+    assert.ok(resumed.indexOf("th_1") < resumed.length - 1, "id before prompt");
     // `exec resume` rejects --sandbox: it inherits the thread's own sandbox.
-    assert.ok(!calls()[1].includes("--sandbox"));
+    assert.ok(!resumed.includes("--sandbox"));
   });
 });
 

@@ -11,6 +11,10 @@
 // The agent typology and avatar vocabularies are owned by core, so `apx help`
 // can't list a type the daemon would reject or a blob the web can't draw.
 import { AGENT_TYPE_VALUES, BLOB_KEYS } from "#core/apc/agent-identity.js";
+// Same reason, for who you can BE and who you can talk to: the runtime registry
+// is the only place that knows which names reach an adapter, so help reads them
+// from there rather than keeping a copy that drifts every time one is added.
+import { RUNTIME_IDS, RUNTIME_ALIASES } from "#core/runtimes/index.js";
 
 // ── ANSI helpers (help only) ─────────────────────────────────────────────────
 const H = {
@@ -31,6 +35,22 @@ const hFlag = (f,   pad, desc) => `    ${H.YE}${f.padEnd(pad)}${H.R}  ${H.DI}${d
 // Every file-editing command answers to the same selector, so the flag reads
 // the same everywhere it appears.
 const PROJECT_FLAG = ["--project <name|id|path>", "Act on that project instead of the one cwd is inside."];
+
+// The canonical runtime ids — what a coding CLI should call ITSELF, and the
+// peers it can address.
+const RUNTIME_LIST = RUNTIME_IDS.join(", ");
+
+// The same ids with the short spellings that fold into them: `claude-code
+// (claude, claude-cli, claudecode)`. Both halves earn their place — the id is
+// what to type, and finding your own habit in the brackets is what tells you it
+// already lands there, instead of leaving you to guess and open a second thread
+// under a second name.
+const RUNTIME_SPELLINGS = RUNTIME_IDS
+  .map((id) => {
+    const shorts = Object.entries(RUNTIME_ALIASES).filter(([, to]) => to === id).map(([from]) => from);
+    return shorts.length ? `${id} (${shorts.join(", ")})` : id;
+  })
+  .join(", ");
 
 const topic = ({ title, summary, usage = [], commands = [], options = [], examples = [], notes = [] }) => ({
   title,
@@ -1202,10 +1222,14 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx send claude-code opencode \"Take a look at src/auth and tell me what you'd change\" --deliver",
       "apx send claude-code opencode:review \"Second thread, separate history\" --deliver",
       "apx send claude-code opencode \"Add the retry to the fetch helper\" --deliver --code --background",
+      "apx send claude-code:acme-web roby \"Branch is green, 436 tests\" --severity status",
       "apx send magui roby \"Postiz API is down, daily post failed\" --severity blocker --deliver",
     ],
     notes: [
-      "<to> is a PEER: an agent slug from AGENTS.md, the configured super-agent name (for example Roby; runs the real orchestrator), or a runtime id (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) answered by spawning that CLI.",
+      `<from> is YOU, and only you: a coding CLI sends as its own runtime id (${RUNTIME_LIST}), an agent as its slug from \`apx agent list\`, the orchestrator as its own name. Append :<session> to say WHICH conversation with you this is — apx send claude-code:acme-web roby "…".`,
+      `Never borrow a name off \`apx agent list\` because the role sounds like your job — that list is who can RECEIVE, not who you are. Whoever you name is who the exchange is filed under, in THAT agent's project, with THAT agent's configured model stamped on your words. And a name nothing claims is kept exactly as written, so a bare session name becomes a correspondent nobody can place.`,
+      `Short spellings fold into one identity, so \`claude\` and \`claude-code\` are one peer with one history instead of two: ${RUNTIME_SPELLINGS}.`,
+      `<to> is a PEER: an agent slug from AGENTS.md, the configured super-agent name (for example Roby; runs the real orchestrator), or a runtime id (${RUNTIME_LIST}) answered by spawning that CLI.`,
       "Append :<thread> for a second, independent exchange with the same peer (opencode:review). Separate history, separate session.",
       "A runtime peer continues its OWN session between turns, and runs in your current directory rather than the project's.",
       "Read-only is the default on purpose: being messaged is not consent to have your checkout edited. --code is what opens write access, and it is enforced by the runtime itself (opencode --agent), not just asked for in the prompt.",

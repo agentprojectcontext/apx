@@ -61,7 +61,7 @@ export const RUNTIME_IDS = Object.keys(REGISTRY);
  * histories, and an inbox showing "Claude · Roby" twice. The canonical id is
  * the one that reaches the adapter; every spelling folds into it.
  */
-const RUNTIME_ALIASES = Object.freeze({
+export const RUNTIME_ALIASES = Object.freeze({
   claude: "claude-code",
   "claude-cli": "claude-code",
   claudecode: "claude-code",

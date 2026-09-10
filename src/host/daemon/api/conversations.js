@@ -458,7 +458,7 @@ export function register(api, { projects, project, config, plugins, registries }
     const fromAgent = agents.find((a) => a.slug === from) || { slug: from, fields: {}, synthetic: true };
     // The RECIPIENT is a PEER, not necessarily an agent: `to` may name an
     // AGENTS.md agent or an external coding runtime (opencode, codex,
-    // claude-code, …), optionally with a `#thread` suffix that keeps two
+    // claude-code, …), optionally with a `:thread` suffix that keeps two
     // exchanges with the same peer from reading each other's mail. A name that
     // nothing claims still fails loudly rather than vanishing.
     const peer = resolvePeer(toRaw, agents, p.config || config);

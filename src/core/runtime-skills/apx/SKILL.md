@@ -46,8 +46,19 @@ message them on the **a2a channel** — NOT `apx exec` (that posts as the user):
 apx send <you> <peer> "<message>" --deliver [--project <name>]
 ```
 
-- `<you>`: your own identity as sender — a coding CLI passes its runtime name
-  (`claude-code`, `codex`, `opencode`). It need NOT be a registered agent.
+- `<you>`: your own identity as sender, and never anybody else's. A coding CLI
+  passes its **runtime id** (`claude-code`, `codex`, `opencode`, `aider`,
+  `cursor-agent`, `gemini-cli`, `qwen-code`, `antigravity`); an agent passes its
+  **slug**. It need NOT be a registered agent. Short spellings fold into the
+  canonical id (`claude` → `claude-code`, `gemini` → `gemini-cli`, `qwen` →
+  `qwen-code`, `cursor` → `cursor-agent`), so one CLI stays one peer with one
+  history. Append `:<session>` for WHICH conversation with you this is —
+  `claude-code:acme-web`; a bare session name is kept as written and becomes a
+  correspondent nobody can place.
+  Do NOT take a name out of `apx agent list` because the role sounds like the
+  work you are doing — that list is who can RECEIVE. Whoever you name is who the
+  exchange is filed under, in THAT agent's project, with THAT agent's model
+  stamped on your words.
 - `<peer>`: whoever answers. Either:
   - an **agent slug** from AGENTS.md — answered by that agent's model; or
   - a **runtime id** (`claude-code`, `codex`, `opencode`, `aider`, `cursor-agent`,

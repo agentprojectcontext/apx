@@ -62,8 +62,13 @@ it as an a2a peer:
 
 ```bash
 apx send <you> opencode "<message>" --deliver
-apx send <you> "opencode#review" "<message>" --deliver   # a second, separate thread
+apx send <you> opencode:review "<message>" --deliver   # a second, separate thread
 ```
+
+`<you>` is your own runtime id — `claude-code`, `codex`, `opencode`, … — never a
+name borrowed from `apx agent list`. The separator for a second thread is `:`,
+not `#`: these addresses end up in a URL, and a browser cuts a `#` off before the
+request leaves.
 
 The peer answers on the a2a channel and CONTINUES ITS OWN SESSION between turns
 (`claude -p --resume`, `codex exec resume`, `opencode run --session`); APX keeps
@@ -146,8 +151,12 @@ agent sees it as agent-to-agent, not as the user typing:
 apx send <engine> <agent> "…question… engine=claude session=<id>" --deliver --project <name>
 ```
 
-The sender does not need to be a registered agent — a coding CLI passes its
-engine name (`claude`, `codex`). If the recipient slug exists in several projects,
+The sender does not need to be a registered agent — a coding CLI passes its own
+engine id (`claude-code`, `codex`, `opencode`, …; `claude` folds into
+`claude-code`, `gemini` into `gemini-cli`), optionally with `:<session>` for
+which conversation with it this is. Never send as another agent's slug: the
+exchange is filed under that agent, in that agent's project, with that agent's
+model stamped on it. If the recipient slug exists in several projects,
 `apx send` lists them; pass `--project`. `apx agent list --all` shows every agent
 with its project. Do NOT use `apx exec` for the hand-off — that posts on the user
 channel (the agent reads it as if the user spoke). `--msg` headless delivery on
