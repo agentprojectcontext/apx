@@ -18,6 +18,7 @@
 // pass what only they know (the model that wrote the reply, the audience of a
 // sealed turn); everything about ADDRESSING and THREADING is settled here so a
 // row written for the tool is indistinguishable from a row written for a reply.
+import path from "node:path";
 import { CHANNELS } from "#core/constants/channels.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import {
@@ -118,11 +119,28 @@ export function logOutgoingWhatsApp({ globalConfig, chatJid, body, externalId, m
  * @param {object=} a.meta          extra meta stamped on the row
  * @returns {Promise<{ ok: true, sent: boolean, to: string, id: string|null }>}
  */
+// Our storage prefix, off the name the RECIPIENT sees.
+//
+// An inbound file is saved as `wa-<ts>-<rand>-<their name>` so two people
+// sending `presupuesto.pdf` do not overwrite each other. That prefix is
+// bookkeeping — it belongs to this machine — and forwarding the file put it on
+// somebody else's phone: the first thing the owner got back was a quote called
+// `wa-1789059795089-oglgdk-Cotizacion….pdf`.
+const STORAGE_PREFIX = /^wa-\d{10,}-[a-z0-9]{4,8}-/i;
+
+function outgoingName(file) {
+  const base = path.basename(String(file || ""));
+  const clean = base.replace(STORAGE_PREFIX, "");
+  return clean || base;
+}
+
 export async function sendWhatsApp({
   session,
   globalConfig,
   to,
   text = "",
+  file = null,
+  fileName = "",
   stickerFile = null,
   reactTo = null,
   stickerLabel = "",
@@ -136,6 +154,27 @@ export async function sendWhatsApp({
   if (reactTo) {
     await session.sendReaction(jid, reactTo, text);
     return { ok: true, sent: false, reacted: text || "(removed)", to: jid, id: null };
+  }
+
+  if (file) {
+    // A file leaves the same way a sentence does — through here — so it lands
+    // in the ledger with the rest of the conversation. The row carries the
+    // path, which is what lets the panel draw the file instead of a line of
+    // text about one, and the marker names it for anyone reading the thread
+    // back (previewText turns that into "📄 quote.pdf").
+    const name = fileName || outgoingName(file);
+    const res = await session.sendFile(jid, file, { caption: text, fileName: name });
+    vouch(globalConfig, jid);
+    const id = res?.key?.id || null;
+    if (id) rememberOwnSend(id);
+    logOutgoingWhatsApp({
+      globalConfig,
+      chatJid: jid,
+      body: text ? `[file: ${name}] ${text}` : `[file: ${name}]`,
+      externalId: id,
+      meta: { ...meta, media_kind: "document", local_path: file, file_name: name },
+    });
+    return { ok: true, sent: true, file: name, to: jid, id };
   }
 
   if (stickerFile) {

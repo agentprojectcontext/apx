@@ -388,6 +388,33 @@ export function createWhatsAppSession({
     },
 
     /**
+     * Send a file: a document, a photo, a video, an audio.
+     *
+     * WhatsApp does not have one "attachment" field — it has four, and which
+     * one you use decides what the recipient SEES. A PDF on the `document`
+     * field is a file with a name and a download button; the same bytes on
+     * `image` are a broken picture. So the node is chosen from the media type,
+     * and anything we cannot place goes out as a document, which is the field
+     * that accepts everything and is honest about what it is.
+     *
+     * The name matters to the person receiving it: `document` carries its own
+     * `fileName`, and without one WhatsApp shows the recipient a nameless blob.
+     */
+    async sendFile(jid, filePath, { caption = "", fileName = "", mimeType = "" } = {}) {
+      if (!sock) throw new Error("whatsapp is not connected");
+      if (!filePath || !fs.existsSync(filePath)) throw new Error(`sendFile: no such file: ${filePath}`);
+      const name = fileName || path.basename(filePath);
+      const mime = String(mimeType || mimeFor(name)).toLowerCase();
+      const text = String(caption || "").trim();
+      const node =
+        mime.startsWith("image/") ? { image: { url: filePath }, ...(text ? { caption: text } : {}) }
+        : mime.startsWith("video/") ? { video: { url: filePath }, ...(text ? { caption: text } : {}) }
+        : mime.startsWith("audio/") ? { audio: { url: filePath }, mimetype: mime }
+        : { document: { url: filePath }, fileName: name, mimetype: mime, ...(text ? { caption: text } : {}) };
+      return sock.sendMessage(jid, node);
+    },
+
+    /**
      * Tap a button somebody offered.
      *
      * Three of WhatsApp's four menu generations have a real reply proto, and
@@ -537,6 +564,24 @@ export function createWhatsAppSession({
       return file;
     },
   };
+}
+
+// Enough of a type table to pick the right field. Not a full mime database:
+// what matters here is the FIELD (image vs document), and everything unknown
+// lands on document, which is correct rather than merely safe.
+const MIME_BY_EXT = {
+  ".pdf": "application/pdf", ".txt": "text/plain", ".md": "text/markdown", ".csv": "text/csv",
+  ".json": "application/json", ".xml": "application/xml", ".zip": "application/zip",
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+  ".gif": "image/gif", ".heic": "image/heic",
+  ".mp4": "video/mp4", ".mov": "video/quicktime",
+  ".ogg": "audio/ogg", ".oga": "audio/ogg", ".mp3": "audio/mpeg", ".m4a": "audio/mp4",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+
+function mimeFor(name) {
+  return MIME_BY_EXT[path.extname(String(name || "")).toLowerCase()] || "application/octet-stream";
 }
 
 function extFor(kind) {

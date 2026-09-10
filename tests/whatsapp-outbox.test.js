@@ -39,6 +39,10 @@ function fakeSession() {
   let n = 0;
   return {
     sent,
+    async sendFile(jid, filePath, opts = {}) {
+      sent.push({ kind: "file", jid, path: filePath, opts });
+      return { key: { id: `MSG${++n}`, remoteJid: jid, fromMe: true } };
+    },
     async sendText(jid, text) {
       sent.push({ kind: "text", jid, text });
       return { key: { id: `MSG${++n}`, remoteJid: jid, fromMe: true } };
@@ -345,4 +349,59 @@ test("choosing an option on a menu vouches too — it is a message we sent", asy
   offer("buttons");
   await chooseWhatsAppOption({ session: fakeSession(), globalConfig: readConfig(), to: BOT, option: "1" });
   assert.equal(policyFor(BOT), REPLY_POLICIES.TEXT_ONLY);
+});
+
+test("a file goes out as a real attachment, and the thread says so", async () => {
+  // WhatsApp had no way to SEND a file at all: text, stickers, reactions and
+  // button taps. A quote that arrived as a PDF could be read and never passed
+  // on — the owner asked for it on their own phone and the answer was a
+  // paragraph describing it.
+  const s = fakeSession();
+  const file = path.join(process.env.APX_HOME, "presupuesto.pdf");
+  fs.writeFileSync(file, "%PDF-1.4 fake");
+
+  const r = await sendWhatsApp({
+    session: s, globalConfig: config, to: CONTACT, file, text: "acá va",
+  });
+
+  assert.equal(r.ok, true);
+  assert.equal(r.file, "presupuesto.pdf");
+  assert.deepEqual(s.sent.at(-1), {
+    kind: "file", jid: CONTACT, path: file,
+    opts: { caption: "acá va", fileName: "presupuesto.pdf" },
+  });
+
+  // On the ledger like anything else that left, with the path — that is what
+  // lets the panel draw the file instead of a line of text about one.
+  const row = readGlobalMessages({ channel: CHANNELS.WHATSAPP }).at(-1);
+  assert.equal(row.direction, "out");
+  assert.match(row.body, /\[file: presupuesto\.pdf\] acá va/);
+  assert.equal(row.meta.local_path, file);
+  assert.equal(row.meta.media_kind, "document");
+});
+
+test("a file with no words is still a message", async () => {
+  const s = fakeSession();
+  const file = path.join(process.env.APX_HOME, "solo.pdf");
+  fs.writeFileSync(file, "%PDF-1.4");
+  const r = await sendWhatsApp({ session: s, globalConfig: config, to: CONTACT, file });
+  assert.equal(r.sent, true);
+  assert.equal(readGlobalMessages({ channel: CHANNELS.WHATSAPP }).at(-1).body, "[file: solo.pdf]");
+});
+
+test("forwarding a file does not put our storage prefix on somebody's phone", async () => {
+  // An inbound file is saved as `wa-<ts>-<rand>-<their name>` so two people
+  // sending "presupuesto.pdf" do not overwrite each other. That is bookkeeping,
+  // and it went out on the wire: the owner got their own quote back called
+  // `wa-1789059795089-oglgdk-Cotizacion….pdf`.
+  const s = fakeSession();
+  const file = path.join(process.env.APX_HOME, "wa-1789059795089-oglgdk-Cotizacion.pdf");
+  fs.writeFileSync(file, "%PDF-1.4");
+
+  const r = await sendWhatsApp({ session: s, globalConfig: config, to: CONTACT, file });
+  assert.equal(r.file, "Cotizacion.pdf");
+  assert.equal(s.sent.at(-1).opts.fileName, "Cotizacion.pdf");
+  // The PATH is untouched — the file on disk keeps the name that makes it
+  // unique; only what the recipient reads is cleaned.
+  assert.equal(s.sent.at(-1).path, file);
 });
