@@ -1,6 +1,6 @@
 ---
 name: apx-commitment
-description: Promises made to a named person — counterparty, the date you gave them, the channel you said it on. Sibling of apx-task, deliberately NOT the same thing. Load whenever someone else is waiting on something. Triggers: 'I told X I would…', 'le dije a X que…', 'I promised…', 'quedé en…', 'me comprometí a…', 'what do I owe X', 'qué le debo a X', 'overdue promises', 'mark it kept', 'push the date'.
+description: A promise you made to a named person and still owe them — "me comprometí a", "quedé en", "le dije a", "avisarle a", "compromisos pendientes" — with the counterparty, the date you gave them and the channel you said it on. Sibling of apx-task, deliberately NOT the same thing. Load whenever someone else is waiting on something. Triggers: 'I told X I would…', 'le dije a X que…', 'I promised…', 'quedé en…', 'me comprometí a…', 'what do I owe X', 'qué le debo a X', 'overdue promises', 'mark it kept', 'push the date'.
 ---
 
 # apx-commitment
