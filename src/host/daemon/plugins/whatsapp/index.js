@@ -14,7 +14,7 @@ import { createWhatsAppSession, SESSION_STATES, hasWhatsAppCredentials } from "#
 import { handleWhatsAppMessage, handleOwnWhatsAppMessage } from "#core/channels/whatsapp/dispatch.js";
 import { readWhatsAppConfig, patchWhatsAppConfig } from "#core/channels/whatsapp/config.js";
 import { normalizeJid } from "#core/identity/whatsapp.js";
-import { sendWhatsApp } from "#core/channels/whatsapp/outbox.js";
+import { sendWhatsApp, chooseWhatsAppOption } from "#core/channels/whatsapp/outbox.js";
 
 export default {
   id: "whatsapp",
@@ -159,6 +159,11 @@ export default {
         return sendWhatsApp({
           session, globalConfig: config, to: jid, stickerFile: filePath, stickerLabel: label, meta,
         });
+      },
+      /** Tap an option on the last menu that chat offered. */
+      async chooseOption(jid, option, { asText = false, meta = {} } = {}) {
+        if (!session) throw new Error("whatsapp is not connected");
+        return chooseWhatsAppOption({ session, globalConfig: config, to: jid, option, asText, meta });
       },
       async react(jid, key, emoji) {
         if (!session) throw new Error("whatsapp is not connected");

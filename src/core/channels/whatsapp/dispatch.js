@@ -39,6 +39,7 @@ import {
   isIgnorableJid,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
+import { messageText, readInteractive } from "./interactive.js";
 import { describeSticker } from "./stickers.js";
 import { captureRequest } from "./capture.js";
 import { resolveCapabilities } from "./config.js";
@@ -100,10 +101,14 @@ function shouldReport(kind, jid) {
   return true;
 }
 
-const textOf = (m) =>
-  m.message?.conversation ||
-  m.message?.extendedTextMessage?.text ||
-  "";
+// What this message SAYS — plain text, or a menu, or the button somebody tapped.
+//
+// This read `conversation` and `extendedTextMessage.text` and nothing else,
+// which is two of the dozen shapes a WhatsApp message can carry. A corporate
+// bot answering with three quick-reply buttons matched neither, so the body
+// fell through to "[empty message]" and the owner was told a bot had written
+// them nothing. See ./interactive.js for the shapes and why there are so many.
+const textOf = (m) => messageText(m.message || {});
 
 /**
  * @param {object} m    Baileys message
@@ -166,6 +171,12 @@ export async function handleWhatsAppMessage(m, ctx) {
 
   const typed = textOf(m).trim();
   const body = [media.text, typed].filter(Boolean).join(" ").trim() || "[empty message]";
+  // The menu itself, kept on the row rather than only in the rendered text.
+  // The turn that ANSWERS a menu is usually not the turn that received it — the
+  // owner reads the report on Telegram and says "decile que autos" an hour
+  // later — so the options have to outlive this call and a daemon restart. See
+  // lastOfferFor() in ./interactive.js, which reads them straight back off here.
+  const interactive = readInteractive(m.message || {});
 
   // A reaction is a mark on something already said, not something said. It gets
   // logged — the thread should read the way the conversation went — but it does
@@ -201,6 +212,10 @@ export async function handleWhatsAppMessage(m, ctx) {
       // (shapeLedgerMessage reads it as `media_list`), so one object sitting
       // there was overloading the key as well as hiding from the reader.
       ...(media.media ? { ...media.media.meta, media_kind: media.media.kind } : {}),
+      ...(interactive?.options?.length
+        ? { interactive_kind: interactive.kind, interactive_options: interactive.options }
+        : {}),
+      ...(interactive?.selection ? { interactive_selection: interactive.selection } : {}),
     },
   });
 

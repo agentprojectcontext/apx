@@ -39,6 +39,20 @@ export default {
               "and it is matched against the stickers this account has learned. Only stickers somebody has already " +
               "sent here exist — you cannot invent one. `text` is ignored when this is set.",
           },
+          option: {
+            type: "string",
+            description:
+              "answer a MENU somebody sent (buttons, a list, a template) instead of typing: give the option's " +
+              "NUMBER as it was shown (\"2\"), its exact title (\"Autos\") or its id. APX looks up the last menu in " +
+              "that chat and sends the real button/list selection, so the bot sees the button pressed rather than a " +
+              "sentence. `text` is ignored when this is set.",
+          },
+          as_text: {
+            type: "boolean",
+            description:
+              "with `option`: type the option's label instead of sending a real button press. Use it when a tap " +
+              "went unanswered — some menus only accept a typed answer.",
+          },
           react_to: {
             type: "string",
             description:
@@ -58,10 +72,13 @@ export default {
     if (!jid) throw new Error(`send_whatsapp: "${to}" is not a usable phone number or JID`);
     const reactTo = String(args.react_to || "").trim();
     const wantSticker = String(args.sticker || "").trim();
+    const wantOption = String(args.option ?? "").trim();
     const body = String(text || "").trim();
     // An empty body is a refusal for a message and a legitimate "remove the
     // reaction" for a reaction, so the check only applies to the former.
-    if (!body && !reactTo && !wantSticker) throw new Error("send_whatsapp: refusing to send an empty message");
+    if (!body && !reactTo && !wantSticker && !wantOption) {
+      throw new Error("send_whatsapp: refusing to send an empty message");
+    }
 
     // The confirmation names the recipient, not just the text: the failure mode
     // worth catching here is the right message to the wrong person.
@@ -69,7 +86,12 @@ export default {
     await requirePermission("send_whatsapp", {
       dangerous: true,
       confirmed,
-      args: { to: known?.name ? `${known.name} <${jid}>` : jid, text: body },
+      // What the human approving this will actually see happen on the other
+      // phone. For an option that is the tap, not the (ignored) `text`.
+      args: {
+        to: known?.name ? `${known.name} <${jid}>` : jid,
+        text: wantOption ? `elegir la opción "${wantOption}"` : body,
+      },
     });
 
     if (!plugins) throw new Error("plugins unavailable");
@@ -109,6 +131,14 @@ export default {
       }
       await whatsapp.sendSticker(jid, file, hit.meaning);
       return { ok: true, sent: true, sticker: hit.meaning, to: jid, name: known?.name || null };
+    }
+
+    if (wantOption) {
+      // Resolution lives in core (which menu, which option, can it be tapped at
+      // all) — this handler only says who and what. A miss comes back as data
+      // rather than an exception on purpose: "that chat has no menu" is
+      // something to tell the owner, not something to retry.
+      return whatsapp.chooseOption(jid, wantOption, { asText: args.as_text === true });
     }
 
     if (reactTo) {

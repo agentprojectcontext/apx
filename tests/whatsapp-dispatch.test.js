@@ -279,3 +279,76 @@ test("a status story is dropped before anything logs or answers", async () => {
   assert.equal(h.sent.length, 0, "and must not be answered");
   assert.equal(h.reports.length, 0, "and must not become a Telegram");
 });
+
+test("a bot's button menu is not an empty message", async () => {
+  _resetReportThrottle();
+  const h = harness();
+  const BOT = "104900000000000@lid";
+  await handleWhatsAppMessage(
+    {
+      key: { remoteJid: BOT, id: "menu-1", fromMe: false },
+      // Business accounts ship interactive messages inside viewOnce, and the
+      // labels live in a JSON string inside each button. Reading the top level
+      // only — which is all `textOf` used to do — sees no text anywhere.
+      message: {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: {
+              body: { text: "Hola! Con qué te ayudo?" },
+              nativeFlowMessage: {
+                buttons: [
+                  { name: "quick_reply", buttonParamsJson: '{"display_text":"Autos","id":"auto"}' },
+                  { name: "quick_reply", buttonParamsJson: '{"display_text":"Hogar","id":"hogar"}' },
+                ],
+              },
+            },
+          },
+        },
+      },
+      pushName: "Northwind Seguros",
+    },
+    h.ctx
+  );
+
+  const day = new Date().toISOString().slice(0, 10);
+  const rows = fs.readFileSync(path.join(GLOBAL_MESSAGES_DIR, "whatsapp", `${day}.jsonl`), "utf8")
+    .trim().split("\n").map((l) => JSON.parse(l));
+  const row = rows.filter((r) => r.meta?.sender_jid === BOT).pop();
+
+  assert.ok(row, "the menu is on the ledger");
+  assert.notEqual(row.body, "[empty message]", "this is the bug: a whole menu read as nothing");
+  assert.match(row.body, /Con qué te ayudo\?/);
+  assert.match(row.body, /\[Opciones: 1\. Autos \| 2\. Hogar\]/);
+
+  // The options are kept as data too, so the menu can be answered later by a
+  // turn that never saw the proto.
+  assert.equal(row.meta.interactive_kind, "interactive");
+  assert.deepEqual(row.meta.interactive_options.map((o) => o.title), ["Autos", "Hogar"]);
+
+  // And the owner is told what the choices ARE — a report saying a bot sent an
+  // empty message is the symptom this whole path exists to remove.
+  assert.equal(h.reports.length, 1);
+  assert.match(h.reports[0].text, /1\. Autos \| 2\. Hogar/);
+});
+
+test("the button a contact tapped reads as the choice it was", async () => {
+  _resetReportThrottle();
+  const h = harness();
+  await handleWhatsAppMessage(
+    {
+      key: { remoteJid: CARLA, id: "tap-1", fromMe: false },
+      message: { buttonsResponseMessage: { selectedButtonId: "si", selectedDisplayText: "Sí, confirmo" } },
+      pushName: "Carla",
+    },
+    h.ctx
+  );
+  const day = new Date().toISOString().slice(0, 10);
+  const rows = fs.readFileSync(path.join(GLOBAL_MESSAGES_DIR, "whatsapp", `${day}.jsonl`), "utf8")
+    .trim().split("\n").map((l) => JSON.parse(l));
+  const row = rows.filter((r) => r.meta?.sender_jid === CARLA && r.direction === "in").pop();
+  assert.equal(row.body, "[eligió: Sí, confirmo]");
+  assert.equal(row.meta.interactive_selection.id, "si");
+  assert.ok(!row.meta.interactive_options, "a tap offers nothing to tap back");
+  // Unlike a reaction, a choice IS something said — it gets an answer.
+  assert.equal(h.sent.length, 1);
+});
