@@ -43,7 +43,7 @@ import { resolveInboundMedia } from "./media.js";
 import { messageText, readInteractive } from "./interactive.js";
 import { describeSticker } from "./stickers.js";
 import { captureRequest } from "./capture.js";
-import { resolveCapabilities } from "./config.js";
+import { DEFAULT_REPLY_DELAY_MS, resolveCapabilities } from "./config.js";
 import { sendWhatsApp, logOutgoingWhatsApp } from "./outbox.js";
 
 // How much of one conversation a sealed turn is allowed to see. Enough to hold
@@ -112,6 +112,39 @@ const SILENCE_NOTE = {
   group: "un grupo, y los grupos están apagados",
   auto_reply_off: "con las respuestas automáticas apagadas",
 };
+
+// The last message seen per chat, and the wait that lets a burst finish.
+//
+// In memory on purpose: it is about the next two seconds, not about history,
+// and a restart in the middle of somebody's sentence is not a state worth
+// persisting.
+const latestPerChat = new Map();
+
+/**
+ * Hold for `reply_delay_ms`, and report whether this message is still the one
+ * to answer.
+ *
+ * Returns false when a newer message arrived in the same chat while we waited —
+ * the caller returns and the newer turn answers both.
+ */
+export async function settleDelay({ chatJid, messageId, cfg, sleep = defaultSleep }) {
+  const ms = Number(cfg?.whatsapp?.reply_delay_ms);
+  const wait = Number.isFinite(ms) ? Math.max(0, Math.min(ms, 30_000)) : DEFAULT_REPLY_DELAY_MS;
+  const key = String(chatJid || "");
+  const id = String(messageId || "");
+  if (!key || !id) return true;              // nothing to compare against
+  latestPerChat.set(key, id);
+  if (!wait) return true;
+  await sleep(wait);
+  return latestPerChat.get(key) === id;
+}
+
+const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Tests only: forget what was said in which chat. */
+export function _resetSettle() {
+  latestPerChat.clear();
+}
 
 function shouldReport(kind, jid) {
   const window = REPORT_WINDOW_MS[kind];
@@ -281,6 +314,23 @@ export async function handleWhatsAppMessage(m, ctx) {
 
   await session.markRead(m.key);
   await session.setTyping(chatJid, true);
+
+  // Wait before answering — and drop this turn if they are still talking.
+  //
+  // Two things at once, and the second is the reason it is a debounce rather
+  // than a sleep. People write in bursts: "hola", "che", then the actual
+  // question. Answering the first one the instant it lands answers a third of a
+  // thought, and produces three replies to one message. So the newest message
+  // in a chat wins: an earlier turn that is still inside the window stands down
+  // and lets the later one answer, which it can, because the thread it reads
+  // holds everything that was said in between.
+  //
+  // The typing indicator is already on above, so the pause reads as thinking.
+  if (!(await settleDelay({ chatJid, messageId: m.key?.id, cfg: globalConfig }))) {
+    await session.setTyping(chatJid, false);
+    log(`whatsapp: ${sender.name} wrote again while we waited — the later message answers both`);
+    return;
+  }
 
   let reply = "";
   let turn = null;

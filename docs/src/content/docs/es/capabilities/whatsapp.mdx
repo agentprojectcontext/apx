@@ -144,6 +144,20 @@ el ledger de mensajes y manda la selección real, así el bot ve su botón apret
 El hilo registra la **etiqueta**, no el id del botón — una transcripción llena de ids opacos no es
 la conversación que pasó.
 
+## Dónde vive, y cuánto tarda en contestar
+
+WhatsApp tiene su propia entrada en el riel, debajo de Code: el roster, el diccionario de figuritas,
+los pedidos que te están esperando y las conversaciones de esta línea, en una sola página. Ajustes →
+WhatsApp es el mismo panel — se gana el lugar en el riel porque es un lugar al que entrás mientras
+alguien te está escribiendo, no una página que configurás una vez.
+
+Las respuestas esperan un par de segundos antes de salir (`whatsapp.reply_delay_ms`, 2500 ms por
+defecto, 0 para contestar al toque). No es pose de cortesía: la gente escribe de a tandas — "hola",
+"che", y recién ahí la pregunta — y una respuesta que llega en menos de un segundo contesta el primer
+tercio de una idea y manda tres mensajes por uno. Si llega otro mensaje del mismo chat mientras corre
+el reloj, el turno anterior se corre y el nuevo contesta todo. El "escribiendo…" está prendido
+mientras tanto, así que la espera se lee como que está pensando.
+
 ## Multimedia
 
 ### Archivos

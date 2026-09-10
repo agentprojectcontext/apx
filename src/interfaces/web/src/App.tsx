@@ -8,6 +8,7 @@ import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { DesktopScreen } from "./screens/modules/DesktopScreen";
 import { CodeScreen } from "./screens/modules/CodeScreen";
+import { WhatsAppScreen } from "./screens/modules/WhatsAppScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { MobileScreen } from "./screens/mobile/MobileScreen";
@@ -157,6 +158,7 @@ function Shell() {
               <Route path="/settings/*" element={<SettingsScreen />} />
               <Route path="/desktop/*"  element={<DesktopScreen />} />
               <Route path="/code/*"     element={<CodeScreen />} />
+              <Route path="/whatsapp"   element={<WhatsAppScreen />} />
               <Route path="/p/:pid/*"   element={<ProjectScreen />} />
               <Route path="*"           element={<NotFound />} />
             </Routes>
@@ -291,7 +293,7 @@ function LanguageMenu() {
 }
 
 /** The panel's own modules — the top-level sections that are not a project. */
-const MODULES = new Set(["inbox", "code", "desktop"]);
+const MODULES = new Set(["inbox", "code", "desktop", "whatsapp"]);
 
 function isModule(key?: string): boolean {
   return !!key && MODULES.has(key);
@@ -301,6 +303,7 @@ function moduleLabel(key?: string) {
   switch (key) {
     case "desktop": return t("nav.modules.desktop");
     case "code":    return t("nav.modules.code");
+    case "whatsapp": return t("nav.modules.whatsapp");
     // The inbox prints no heading of its own — the breadcrumb is where its
     // name lives, so it has to be the real name and not the route segment.
     case "inbox":   return t("inbox.title");
