@@ -51,11 +51,33 @@ import { mobilityContext } from "#core/mobility/state.js";
  * code block has no sayable half at all; that comes back empty, and the caller
  * sends it as plain text rather than voicing punctuation.
  */
-export function spokenPart(text) {
+export function spokenPart(text, { maxChars = 0 } = {}) {
   const clean = String(text || "").trim();
   if (!clean || clean.startsWith("```")) return "";
   const breaks = [clean.indexOf("\n```"), clean.indexOf("\n\n")].filter((at) => at > 0);
-  return breaks.length ? clean.slice(0, Math.min(...breaks)).trim() : clean;
+  const head = breaks.length ? clean.slice(0, Math.min(...breaks)).trim() : clean;
+  return maxChars > 0 ? capAtSentence(head, maxChars) : head;
+}
+
+/**
+ * Keep the opening, hand the rest to the eyes.
+ *
+ * Driving, the model was told to answer in two sentences, so the first
+ * paragraph IS short. Asked for outside a car it was told no such thing, and a
+ * first paragraph can run for a page — which read aloud is not a summary, it is
+ * a lecture you cannot skim.
+ *
+ * The cut still lands on a boundary the model drew, just a smaller one: the
+ * last sentence ending before the cap. If there is no sentence ending in reach
+ * the opening is left whole, because a cut mid-thought is worse than a long
+ * one — the same reason nothing here truncates by character count.
+ */
+function capAtSentence(text, maxChars) {
+  if (text.length <= maxChars) return text;
+  const window = text.slice(0, maxChars);
+  let cut = -1;
+  for (const m of window.matchAll(/[.!?…](?:["'”’)\]]+)?(?=\s|$)/g)) cut = m.index + m[0].length;
+  return cut > 0 ? window.slice(0, cut).trim() : text;
 }
 
 /**
@@ -94,7 +116,7 @@ export function mobilityVoiceActive(globalConfig, state = mobilityContext()) {
  * contract would be untestable.
  */
 export async function deliverVoiceReply({
-  io, chat_id, text, reply_markup, globalConfig, log = () => {},
+  io, chat_id, text, reply_markup, globalConfig, maxSpokenChars = 0, log = () => {},
   synthesizeFn = synthesize, toVoiceNoteFn = toVoiceNote,
 }) {
   const lang = resolveLang(globalConfig);
@@ -102,7 +124,7 @@ export async function deliverVoiceReply({
   if (!clean) return { voice: false, reason: "empty" };
   // The audio is the FIRST paragraph; the transcript below is the whole reply.
   // See spokenPart() — the split is the model's, made on instruction.
-  const head = spokenPart(clean);
+  const head = spokenPart(clean, { maxChars: maxSpokenChars });
   if (!head) return { voice: false, reason: "nothing-sayable" };
 
   let audio = null;

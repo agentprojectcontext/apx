@@ -40,6 +40,7 @@ import listSkills from "./handlers/list-skills.js";
 import loadSkill from "./handlers/load-skill.js";
 import readSkill from "./handlers/read-skill.js";
 import attachMedia from "./handlers/attach-media.js";
+import voiceReplies from "./handlers/voice-replies.js";
 import viewMedia from "./handlers/view-media.js";
 import transcribeAudio from "./handlers/transcribe-audio.js";
 import askQuestions from "./handlers/ask-questions.js";
@@ -116,6 +117,7 @@ const NATIVE_TOOLS = [
   loadSkill,
   readSkill,
   attachMedia,
+  voiceReplies,
   viewMedia,
   transcribeAudio,
   askQuestions,
@@ -198,6 +200,11 @@ export const BASE_TOOL_NAMES = new Set([
   // it to the base set would spend tokens on every Telegram and desktop turn for
   // a tool that returns an error on those channels.
   TOOLS.SET_IDENTITY,
+  // Asked for out loud, on the channels where it is asked: "mandame audio" has
+  // to work from the phone, and a tool the model has to discover first would
+  // answer the request a turn late — after the reply it was about had already
+  // gone out as text.
+  TOOLS.VOICE_REPLIES,
   // Sessions + messages (self-recall + channel history).
   TOOLS.SEARCH_SESSIONS,
   TOOLS.SEARCH_MESSAGES,

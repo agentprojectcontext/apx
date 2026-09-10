@@ -103,6 +103,7 @@ export const TOOLS = Object.freeze({
   SEND_WHATSAPP:       "send_whatsapp",
   WHATSAPP_CONTACTS:   "whatsapp_contacts",
   SET_IDENTITY:        "set_identity",
+  VOICE_REPLIES:       "voice_replies",
   SET_PERMISSION_MODE: "set_permission_mode",
   TRANSCRIBE_AUDIO:    "transcribe_audio",
 
@@ -174,6 +175,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.SEND_WHATSAPP,
   TOOLS.WHATSAPP_CONTACTS,
   TOOLS.SET_IDENTITY,
+  TOOLS.VOICE_REPLIES,
   TOOLS.SET_PERMISSION_MODE,
   TOOLS.READ_SELF_MEMORY,
   TOOLS.REMEMBER,

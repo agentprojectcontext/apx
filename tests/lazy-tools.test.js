@@ -22,7 +22,11 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // It went to 29 when complete_task and mark_commitment joined the halves that
   // were already hot (~+480 tokens on every lightweight turn) — the asymmetry
   // was costing more than the tokens, see BASE_TOOL_NAMES.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 30);
+  // 31 with voice_replies: "mandame audio" has to work on the turn it is asked.
+  // Discovered instead of hot, the tool answers a turn late — after the reply it
+  // was about has already gone out as text, which is the one failure the feature
+  // exists to prevent.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 31);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
