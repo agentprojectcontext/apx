@@ -13,11 +13,66 @@
 //
 // Audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. The caller (CLI,
 // Telegram plugin, overlay) is responsible for picking them up.
-import { synthesize, listProviders } from "#core/voice/tts.js";
+import { synthesize, synthesizeStream, canStreamTts, listProviders } from "#core/voice/tts.js";
 import { readConfig } from "#core/config/index.js";
 import { asyncRoute } from "./shared.js";
 
 export function register(api) {
+  // Audio while it is still being generated, for whoever is listening live.
+  //
+  // /tts/say has to finish before it can answer, because what it answers with
+  // is a path to a finished file — right for a voice note, which cannot be sent
+  // half-made, and wrong for the desktop, which spends that whole time silent.
+  // Here the bytes leave as they arrive: 16-bit little-endian mono PCM, no
+  // header, rate in X-APX-Sample-Rate.
+  //
+  // Only self-hosted engines can do it, so this answers 501 rather than quietly
+  // falling back — a caller that gets a different voice than it asked for has a
+  // harder problem to diagnose than one that gets a clear no.
+  api.post("/tts/stream", asyncRoute(async (req, res) => {
+    const { text, voice, language, provider, style, interval } = req.body || {};
+    if (typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({ error: "text required" });
+    }
+    const globalConfig = readConfig();
+    if (!(await canStreamTts({ globalConfig, provider }))) {
+      return res.status(501).json({ error: "configured TTS engine cannot stream" });
+    }
+
+    let started = false;
+    try {
+      const result = await synthesizeStream(
+        { text, voice, language, provider, style, interval, globalConfig },
+        (pcm, sampleRate) => {
+          if (!started) {
+            started = true;
+            res.writeHead(200, {
+              "content-type": "audio/L16",
+              "x-apx-sample-rate": String(sampleRate),
+              "x-apx-format": "pcm_s16le_mono",
+              "cache-control": "no-store",
+            });
+          }
+          res.write(pcm);
+        }
+      );
+      // The totals ride in trailers, which is the only place left once the body
+      // has started — a caller that wants them asks for them, and one that does
+      // not is unaffected.
+      if (!started) {
+        return res.status(500).json({ error: "engine produced no audio" });
+      }
+      res.addTrailers({
+        "x-apx-first-chunk-ms": String(result.first_chunk_ms ?? ""),
+        "x-apx-duration-s": String(result.duration_s ?? ""),
+      });
+      res.end();
+    } catch (e) {
+      if (!started) res.status(500).json({ error: e.message });
+      else res.end();   // half a sentence is better than a hang
+    }
+  }));
+
   api.post("/tts/say", asyncRoute(async (req, res) => {
     try {
       const { text, voice, language, provider, format, style } = req.body || {};

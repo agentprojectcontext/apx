@@ -147,6 +147,77 @@ export async function synthesize({
 }
 
 /**
+ * Speak, handing back the audio while it is still being made.
+ *
+ * `synthesize()` cannot answer until the last sample exists, because it returns
+ * a path to a finished file. That is the right shape for a Telegram voice note,
+ * which cannot be sent until it is complete anyway — but it is the wrong shape
+ * for anyone listening live, who spends the whole generation in silence. The
+ * same line reaches its first chunk here in about a tenth of the time.
+ *
+ * onChunk(pcmBuffer, sampleRate) is called per chunk: 16-bit little-endian
+ * mono, no header, no file on disk. Resolves with the totals.
+ *
+ * Only self-hosted engines can do this, so unlike synthesize() there is no
+ * chain to walk: an engine either streams or it does not, and quietly falling
+ * back to a different voice mid-sentence would be worse than saying so. Callers
+ * that just want audio should catch and use synthesize().
+ */
+export async function synthesizeStream({
+  text,
+  voice,
+  language,
+  provider,
+  style,
+  interval,
+  globalConfig,
+  signal,
+} = {}, onChunk) {
+  if (typeof text !== "string" || !text.trim()) {
+    throw new Error("synthesizeStream: text required");
+  }
+  if (typeof onChunk !== "function") {
+    throw new Error("synthesizeStream: onChunk required");
+  }
+  const cfg = globalConfig || readConfig() || {};
+  const candidates = await resolveTtsCandidates({ globalConfig: cfg, provider });
+  const first = candidates.find((c) => typeof c.adapter?.synthesizeStream === "function" &&
+    c.adapter.canStream?.(c.engineConfig));
+  if (!first) {
+    const names = candidates.map((c) => c.provider).join(", ") || "none";
+    throw new Error(`synthesizeStream: no streaming engine available (tried: ${names})`);
+  }
+
+  const speakText = emotionConfigFor(cfg, first.provider).enabled
+    ? text
+    : stripEmotionTags(text);
+
+  const r = await first.adapter.synthesizeStream({
+    text: speakText,
+    voice,
+    language,
+    style,
+    interval,
+    config: first.engineConfig,
+    parentEnginesCfg: cfg.engines,
+    signal,
+  }, onChunk);
+  return { ...r, provider: first.provider };
+}
+
+/** Whether the engine that would speak next can stream. */
+export async function canStreamTts({ globalConfig, provider } = {}) {
+  const cfg = globalConfig || readConfig() || {};
+  try {
+    const candidates = await resolveTtsCandidates({ globalConfig: cfg, provider });
+    return candidates.some((c) => typeof c.adapter?.synthesizeStream === "function" &&
+      c.adapter.canStream?.(c.engineConfig));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Ask whoever is about to speak to get ready, if they can.
  *
  * Only the engine that would actually handle the next synthesize() is warmed —
