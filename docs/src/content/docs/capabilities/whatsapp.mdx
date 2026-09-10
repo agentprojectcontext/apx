@@ -170,6 +170,10 @@ the file would otherwise land in your own media folder under a name a stranger c
 A file that arrived before this existed can be fetched afterwards: `apx whatsapp repair` asks the
 phone for the message again and downloads it then.
 
+Sending one works too: the agent's `send_whatsapp` takes a `file` (an absolute path on this machine),
+a document keeps its name and an image arrives as a picture, and whatever text goes with it becomes
+the caption.
+
 Inbound media is resolved before the turn runs, so the log is complete even for people who are
 never answered.
 

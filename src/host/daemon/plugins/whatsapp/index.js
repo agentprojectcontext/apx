@@ -162,6 +162,11 @@ export default {
         if (!session) throw new Error("whatsapp is not connected");
         return sendWhatsApp({ session, globalConfig: config, to: jid, text, meta });
       },
+      /** Send a file — a document, a photo, whatever they asked for. */
+      async sendFile(jid, filePath, { caption = "", fileName = "", meta = {} } = {}) {
+        if (!session) throw new Error("whatsapp is not connected");
+        return sendWhatsApp({ session, globalConfig: config, to: jid, file: filePath, fileName, text: caption, meta });
+      },
       async sendSticker(jid, filePath, label = "", meta = {}) {
         if (!session) throw new Error("whatsapp is not connected");
         return sendWhatsApp({

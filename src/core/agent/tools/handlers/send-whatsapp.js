@@ -11,6 +11,7 @@
 // phone, is read, and cannot be recalled — unlike a task or a file, the mistake
 // is instantly in another person's hands.
 import { normalizeJid, findWhatsAppContact } from "#core/identity/whatsapp.js";
+import fs from "node:fs";
 import { findStickerByMeaning, stickerFile } from "#core/channels/whatsapp/stickers.js";
 
 export default {
@@ -53,6 +54,14 @@ export default {
               "with `option`: type the option's label instead of sending a real button press. Use it when a tap " +
               "went unanswered — some menus only accept a typed answer.",
           },
+          file: {
+            type: "string",
+            description:
+              "absolute path of a FILE to send — a PDF, a photo, a spreadsheet. It goes as a real attachment " +
+              "(a document keeps its name; an image arrives as a picture), and `text` rides along as the caption. " +
+              "Only files already on this machine: you cannot invent a path, and a file somebody sent you is " +
+              "under its `local_path` in the thread.",
+          },
           react_to: {
             type: "string",
             description:
@@ -60,7 +69,7 @@ export default {
               "(an empty string removes an existing reaction). Use it when a reply would be more than the moment deserves.",
           },
         },
-        required: ["to", "text"],
+        required: ["to"],
       },
     },
   },
@@ -72,11 +81,12 @@ export default {
     if (!jid) throw new Error(`send_whatsapp: "${to}" is not a usable phone number or JID`);
     const reactTo = String(args.react_to || "").trim();
     const wantSticker = String(args.sticker || "").trim();
+    const wantFile = String(args.file || "").trim();
     const wantOption = String(args.option ?? "").trim();
     const body = String(text || "").trim();
     // An empty body is a refusal for a message and a legitimate "remove the
     // reaction" for a reaction, so the check only applies to the former.
-    if (!body && !reactTo && !wantSticker && !wantOption) {
+    if (!body && !reactTo && !wantSticker && !wantOption && !wantFile) {
       throw new Error("send_whatsapp: refusing to send an empty message");
     }
 
@@ -111,6 +121,16 @@ export default {
             ? "WhatsApp is logged out — the owner has to pair it again from Settings → WhatsApp."
             : `WhatsApp is not connected (${status.state}).`,
       };
+    }
+
+    if (wantFile) {
+      // Refused here rather than deeper: "that path does not exist" is
+      // something to tell the owner in words, and a model that invented a
+      // filename must not have that turn into a socket error three layers down.
+      if (!fs.existsSync(wantFile)) {
+        return { ok: false, sent: false, error: `no such file: ${wantFile}` };
+      }
+      return whatsapp.sendFile(jid, wantFile, { caption: body });
     }
 
     if (wantSticker) {
