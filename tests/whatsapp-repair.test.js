@@ -23,7 +23,7 @@ fs.mkdirSync(process.env.APX_HOME, { recursive: true });
 
 const { inspectWhatsAppChats, repairWhatsAppChats } = await import("#core/channels/whatsapp/repair.js");
 const { appendGlobalMessage, patchGlobalMessage, readGlobalMessages } = await import("#core/stores/messages.js");
-const { learnWhatsAppNames } = await import("#core/identity/whatsapp.js");
+const { learnWhatsAppNames, silenceReason } = await import("#core/identity/whatsapp.js");
 const { readConfig, writeConfig } = await import("#core/config/index.js");
 const { CHANNELS } = await import("#core/constants/channels.js");
 
@@ -243,4 +243,36 @@ test("WhatsApp's own names fill an empty row and never overwrite the owner's", a
   assert.equal(rows.find((c) => c.jid === COMPANY).name, "Northwind Seguros");
   assert.equal(rows.find((c) => c.jid === COMPANY).business, true);
   assert.equal(rows.find((c) => c.jid === CONTACT).name, "What Manu typed");
+});
+
+test("a silence says WHICH silence — a muted contact is not a stranger", () => {
+  // What this cost: a company the owner had vouched for was muted by an agent
+  // rewriting the config file by hand, and every message from them arrived on
+  // the owner's phone as "no está en tu lista". They went looking for a roster
+  // row that was there, with the mute two fields away on it.
+  const cfg = {
+    whatsapp: {
+      owner_jid: OWNER,
+      auto_reply: true,
+      roles: { contact: { auto_reply: true } },
+      contacts: [
+        { jid: COMPANY, name: "N", role: "contact", auto_reply: false },
+        { jid: CONTACT, name: "Sam", role: "contact", auto_reply: true },
+      ],
+    },
+  };
+  const sender = (jid, extra = {}) => ({ jid, addresses: [jid], known: true, role: "contact", ...extra });
+
+  assert.equal(silenceReason(cfg, sender(COMPANY)), "muted");
+  // A guest row is written for EVERY first-time sender, muted, so that the
+  // owner has something to allow. That is a stranger, not a decision.
+  const fresh = { whatsapp: { ...cfg.whatsapp, contacts: [{ jid: COMPANY, role: "guest", auto_reply: false }] } };
+  assert.equal(silenceReason(fresh, sender(COMPANY, { role: "guest" })), "unknown");
+  assert.equal(silenceReason(cfg, sender(CONTACT)), null, "an answered contact has no reason to give");
+  assert.equal(silenceReason(cfg, { jid: "5491155559998@s.whatsapp.net", known: false }), "unknown");
+  assert.equal(silenceReason(cfg, sender(CONTACT, { isGroup: true })), "group");
+  assert.equal(silenceReason(cfg, { jid: OWNER, isOwner: true }), null, "the owner is never silenced");
+
+  const off = { whatsapp: { ...cfg.whatsapp, auto_reply: false } };
+  assert.equal(silenceReason(off, sender(CONTACT)), "auto_reply_off");
 });
