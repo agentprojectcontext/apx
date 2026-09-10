@@ -1,3 +1,10 @@
+## [1.94.3](https://github.com/agentprojectcontext/apx/compare/v1.94.2...v1.94.3) (2026-09-10)
+
+
+### Bug Fixes
+
+* **skills:** put the words people actually type into the indexed sentence ([660fd23](https://github.com/agentprojectcontext/apx/commit/660fd236afd258c9e3d895570ed3c878dd688697))
+
 ## [1.94.2](https://github.com/agentprojectcontext/apx/compare/v1.94.1...v1.94.2) (2026-09-10)
 
 
