@@ -253,6 +253,9 @@ export async function listProviders(globalConfig) {
     configured_provider: ttsCfg.provider || "auto",
     mode: resolveMode(ttsCfg),
     order: resolveChainOrder(ttsCfg),
+    // Whether streamed speech is switched on at all. Separate from an engine's
+    // `streams`: one is what the endpoint can do, this is what we asked for.
+    stream: ttsCfg.stream === true,
     engines,
   };
 }

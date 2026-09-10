@@ -23,6 +23,7 @@ export interface TtsEngineInfo {
   available: boolean;   // probe says it can synthesize right now
   configured: boolean;  // has a non-empty voice.tts.<id> config block
   enabled: boolean;     // included in the fallback chain (voice.tts.<id>.enabled)
+  streams?: boolean;    // endpoint answers on the streaming route (probed, not declared)
   custom?: boolean;     // user-added OpenAI-compatible provider ("custom:<slug>")
   label?: string;       // display name for custom providers
   note?: string;        // e.g. the custom base_url

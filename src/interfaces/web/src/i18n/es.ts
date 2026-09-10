@@ -335,6 +335,8 @@ export const es = {
       role_owner: "Dueño",
       accept: "Contestarle",
       reject: "Seguir en silencio",
+      pending_review: "Sin revisar",
+      pending_review_hint: "APX lo agregó porque le pediste que le escribiera. Ya puede contestarle — decile quién es cuando puedas.",
       edit: "Editar",
       make_owner_confirm: "Esta persona pasa a ser vos: sus mensajes reciben el agente completo, con tools, memoria y tus proyectos. Hacelo solo con una dirección desde la que escribís vos.",
       remove_confirm: "Lo saca de la lista junto con todo lo que hayas escrito sobre él. Va a volver como invitado — sin respuesta — la próxima vez que escriba.",
@@ -1668,6 +1670,7 @@ export const es = {
     move_down:           "Bajar",
     badge_local:         "Local",
     badge_custom:        "Custom",
+    badge_streams:       "Streaming",
     not_configured:      "Sin key",
     always_on:           "Siempre activo",
     add_custom:          "Agregar proveedor custom",
@@ -1873,6 +1876,7 @@ export const es = {
   },
 
   chat_ui: {
+    menu_no_chat:        "Opciones del menú: quedaron registradas antes que la dirección del chat, así que no hay a dónde mandar la elección.",
     copy:                "Copiar",
     edit:                "Editar",
     edit_resend:         "Guardar y reenviar",
@@ -2043,6 +2047,7 @@ export const es = {
     badge_not_configured: "Sin configurar",
     badge_default:        "Default",
     badge_custom:         "Custom",
+    badge_streams:       "Streaming",
     set_as_default:       "Usar como default",
     configure:            "Configurar",
     remove:               "Quitar",
