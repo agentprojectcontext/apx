@@ -15,19 +15,33 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import {
+// APX_HOME FIRST, before any import that reaches core/config/paths.js — which
+// resolves SKILLS_INDEX_PATH once, at import time.
+//
+// Without this, `ensureIndex`/`clearIndex` below ran against the REAL
+// ~/.apx/skills/.index.json: `npm test` on any machine with a live install
+// silently destroyed the user's skill index, and the daemon then had to
+// re-embed every skill from scratch. Setting HOME alone is not enough —
+// computeHome() checks APX_HOME first (AGENTS.md rule 1).
+const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-inspector-home-"));
+process.env.APX_HOME = path.join(tmpHome, ".apx");
+process.env.HOME = tmpHome;
+process.env.USERPROFILE = tmpHome;
+fs.mkdirSync(process.env.APX_HOME, { recursive: true });
+
+const {
   inspectPromptForSkills,
   isInspectorEnabled,
   INSPECTOR_DEFAULTS,
-} from "#core/agent/skills/inspector.js";
-import {
+} = await import("#core/agent/skills/inspector.js");
+const {
   ensureIndex,
   planIndex,
   readIndex,
   clearIndex,
-} from "#core/agent/skills/index-store.js";
-import { listSkills } from "#core/agent/skills/loader.js";
-import { clearSkillVectorCache } from "#core/agent/skills/rag.js";
+} = await import("#core/agent/skills/index-store.js");
+const { listSkills } = await import("#core/agent/skills/loader.js");
+const { clearSkillVectorCache } = await import("#core/agent/skills/rag.js");
 
 // Distinctive nonsense vocabulary so neither builtin skills nor random TF
 // overlap can compete with our fixture. The slug is randomised per process

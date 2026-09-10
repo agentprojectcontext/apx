@@ -41,15 +41,22 @@ import { SKILLS_INDEX_PATH } from "#core/config/paths.js";
 import { embedOne } from "#core/memory/embeddings.js";
 import { listSkills } from "./loader.js";
 import { condenseSkillDescription } from "./catalog.js";
+import { embedBaselineCorpus, measureBaseline, BASELINE_VERSION } from "./baseline.js";
 
 const INDEX_PATH = SKILLS_INDEX_PATH;
+
+/** The stored form of a skill's baseline. */
+function measured(vector, corpusVectors) {
+  const { mu, sd } = measureBaseline(vector, corpusVectors);
+  return { base_mu: mu, base_sd: sd };
+}
 
 // ---------------------------------------------------------------------------
 // Disk I/O
 // ---------------------------------------------------------------------------
 
 function emptyIndex() {
-  return { embedder: null, dim: null, updated_at: null, items: {} };
+  return { embedder: null, dim: null, baseline_version: null, updated_at: null, items: {} };
 }
 
 export function indexPath() {
@@ -172,8 +179,17 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
     ? { ...embedOpts, forceTf: true }
     : { ...embedOpts, provider: embedder.split(":")[0] };
 
+  // The background corpus, embedded once per build in the same space as the
+  // descriptions. ~16 embeds total, not per skill.
+  const corpusVectors = await embedBaselineCorpus((text) => embedOne(text, embedPinned));
+
   const embedderChanged = !force && idxBefore.embedder && idxBefore.embedder !== embedder;
-  const items = embedderChanged || force ? {} : structuredClone(idxBefore.items || {});
+  // A baseline measured against a different corpus is on a different scale, and
+  // the inspector's thresholds are absolute numbers on that scale. Mixing two
+  // scales in one file silently re-tunes every threshold, so an old index is
+  // rebuilt rather than topped up. See baseline.js.
+  const baselineChanged = idxBefore.baseline_version !== BASELINE_VERSION;
+  const items = embedderChanged || baselineChanged || force ? {} : structuredClone(idxBefore.items || {});
 
   const added = [];
   const refreshed = [];
@@ -195,6 +211,10 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
 
     let action;
     if (upToDate) {
+      // The vector is reusable; the BASELINE is recomputed anyway. It is pure
+      // arithmetic over vectors already in hand — no embed, no network — and
+      // recomputing costs less than reasoning about when it went stale.
+      Object.assign(items[s.slug], measured(prev.desc_vector, corpusVectors));
       kept.push(s.slug);
       action = "kept";
     } else {
@@ -208,6 +228,7 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
         desc_hash: hash,
         desc,
         desc_vector: vector,
+        ...measured(vector, corpusVectors),
       };
       if (prev) {
         refreshed.push(s.slug);
@@ -229,6 +250,7 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
   const next = {
     embedder,
     dim,
+    baseline_version: BASELINE_VERSION,
     updated_at: new Date().toISOString(),
     items,
   };
