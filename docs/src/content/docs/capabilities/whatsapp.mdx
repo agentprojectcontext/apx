@@ -1,0 +1,216 @@
+---
+title: WhatsApp
+description: Pair one WhatsApp account by QR — an allowlist roster, a sealed turn for everyone who is not the owner, and menus, buttons and lists read as text.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX runs a WhatsApp plugin backed by a WhatsApp Web session: one account, paired by QR, owned by
+the daemon. Credentials live at `~/.apx/whatsapp/auth/default/` at mode `0700` — **whoever holds
+that folder is the account**.
+
+<Aside type="caution">
+  There is one WhatsApp account per APX install, not one per project. A WhatsApp Web session is a
+  device singleton, so "WhatsApp for project X" cannot exist. That is why WhatsApp is a channel and
+  not a per-project integration plugin.
+</Aside>
+
+## The three outcomes
+
+Every inbound message resolves to exactly one of these, decided **by code, before any model sees
+the message**. Whether an unknown person gets an answer is never a judgement the model makes about
+a message that is trying to persuade it.
+
+| Sender | What runs | What they get |
+|---|---|---|
+| The owner (whoever the roster names) | the full super-agent turn — tools, memory, projects | a normal reply |
+| A contact on the roster with a role | a **sealed** turn: no tools, no memory, no other channel, only that one conversation as history | a short plain-text reply |
+| Anyone else | nothing runs | **silence** — logged, and the owner is told |
+
+Silence for a stranger is the designed outcome, not a failure. Two things happen for every
+non-owner message regardless of the reply: it is logged to the `whatsapp` channel with the
+sender's JID as actor, and the owner is notified **by the daemon** rather than by the model — a
+sealed turn has no tools, so it could not escalate even if it wanted to.
+
+<Aside type="note">
+  Owner notifications are coalesced per correspondent: 6 hours for someone off the roster, 15
+  minutes for a real conversation. The report is reactive — it fires because somebody wrote — so
+  without its own limit one stranger sending a hundred messages would be a hundred notifications.
+</Aside>
+
+## Pair an account
+
+<Steps>
+
+1. Open **Settings → WhatsApp** in the web panel and press **Pair**. A QR appears.
+
+   <Screenshot
+     surface="web"
+     caption="Settings → WhatsApp — the pairing QR"
+     hint="apx web, Settings → WhatsApp, press Pair" />
+
+2. On the phone: **WhatsApp → Settings → Linked devices → Link a device**, and scan it.
+
+3. Set `owner_jid` — the number **you** write from. APX does not guess it.
+
+</Steps>
+
+<Aside type="danger">
+  The QR is a live credential with a ~20 second life. It is held in memory, handed out only on an
+  explicit `POST /pair`, and never written to disk or to the log. `GET /status` deliberately does
+  not carry it, so a polling panel cannot sweep it up.
+</Aside>
+
+The line you paired and the person who owns it are **different things**. A common deployment pairs
+a dedicated number that the assistant answers on, while the human writes to it from their own,
+different phone. Setting "owner = whoever paired" would make the line the owner of itself and leave
+the actual human a stranger on it, so `owner_jid` is asked for and never deduced.
+
+## The roster is the allowlist
+
+```json
+{
+  "whatsapp": {
+    "enabled": true,
+    "auto_reply": true,
+    "reply_to_groups": false,
+    "owner_jid": "1234567890@s.whatsapp.net",
+    "contacts": [{
+      "jid": "1234567891@s.whatsapp.net",
+      "name": "Sam",
+      "nickname": "Sammy",
+      "relationship": "my accountant",
+      "bio": "who they are, in the owner's words",
+      "rules": "what the owner wants done with this person",
+      "role": "client",
+      "auto_reply": true
+    }],
+    "roles": { "client": { "auto_reply": true } }
+  }
+}
+```
+
+- Someone who writes is recorded automatically as **guest**. That is not permission — a guest is
+  still never answered. Recording exists so the owner has something to click *allow* on.
+- `role: "owner"` cannot be granted from the roster.
+- An undefined role **fails closed** (silence), so a typo never widens access.
+- `bio` and `rules` reach only the turn that answers that person. What is written about one contact
+  is never in the prompt that answers another.
+- Groups are off by default: everything said in a group is read by people nobody vouched for.
+
+One human can hold two addresses — a phone JID and an opaque `…@lid`. Both fold into one thread.
+
+## Menus, buttons and lists
+
+A business account rarely writes sentences. It sends a **menu**, and APX unpacks it into text
+before any turn sees it:
+
+```text
+Hello! What can I help you with?
+[Opciones: 1. Cars | 2. Home | 3. Life]
+```
+
+A tap somebody made on one reads as `[eligió: Cars]`. All four generations still live in the wild
+are decoded — quick-reply buttons, lists, hydrated templates and nativeFlow (including a
+`single_select` list hidden inside one button, and carousels) — plus polls, and all of them wrapped
+in `viewOnceMessage` or `ephemeralMessage`, which is how business accounts usually send them.
+
+<Aside type="note">
+  Before this existed, those messages had no readable text at all and were logged as
+  `[empty message]`: a bot's whole menu reached the owner as a notification saying nothing had
+  been said.
+</Aside>
+
+To answer one, pass `option` to the `send_whatsapp` tool — the number as it was shown (`"2"`), the
+exact title (`"Cars"`) or the option's id. APX finds the last menu in that chat, off the message
+ledger, and sends the real selection so the bot sees its button pressed rather than a sentence.
+
+- Quick-reply buttons, lists and templates get a **real tap**.
+- nativeFlow menus and polls are answered by **typing the option's label** — there is no encoder
+  for `interactiveResponseMessage`, and inventing a protocol node would put a malformed message on
+  somebody else's server. In practice this is what a person does when a button will not open.
+- If a tap goes unanswered, retry with `as_text: true`.
+- An ambiguous fragment matches nothing rather than tapping a button on a guess: `"insurance"`
+  against *Car insurance* and *Home insurance* is refused, and the refusal carries both options.
+
+The thread records the **label**, not the button id — a transcript full of opaque ids is not the
+conversation that happened.
+
+## Media
+
+Inbound media is resolved before the turn runs, so the log is complete even for people who are
+never answered.
+
+| Arrives as | The turn sees |
+|---|---|
+| Voice note | `[audio] <transcript>` — transcribed locally |
+| Photo | pixels a vision model can actually look at |
+| Sticker | `[sticker: <meaning>]` |
+| GIF | its first frame |
+| Video | refused — say so plainly rather than guessing from the caption |
+| Document | `[document: <name> — not opened]` |
+| Reaction | logged as `[reaccionó ❤️]`, and never answered |
+
+Stickers are **learned once**: the first sighting is described by a vision model and stored by
+content hash in `~/.apx/whatsapp/stickers.json`; every later sighting reuses those exact words, so
+the history stays coherent. The owner can overwrite the wording and the model never overwrites it
+back.
+
+## Sending
+
+Use the `send_whatsapp` tool: `{ to, text }`. `to` takes a phone number in any format or a full
+JID. Plain text only — WhatsApp renders no markdown, so asterisks and backticks arrive as literal
+characters.
+
+| Field | What it does |
+|---|---|
+| `text` | the body, plain text |
+| `sticker` | describe one in words; matched against the learned library |
+| `option` | answer a menu — the number, the exact title or the id |
+| `as_text` | with `option`: type the label instead of a real button press |
+| `react_to` | put an emoji on a message instead of sending one |
+
+It is delivered the instant the call returns. There is no draft, no undo and no recall.
+
+<Aside type="tip">
+  **Every send is recorded, whichever door it came through** — the tool, `POST /send` from the
+  panel, and the channel's own auto-reply all go through one function that sends and writes the
+  ledger row in the same call. The tool used to send without recording, so a message that *had*
+  been delivered left no outgoing row; a peer agent read the ledger, correctly found nothing, and a
+  duplicate went to the same person. If you are ever told you did not send something, the ledger is
+  authoritative — check it before re-sending.
+</Aside>
+
+Messages the owner types on their own phone are recorded too (WhatsApp mirrors them to the
+companion device as `fromMe`). They are logged and never answered — replying would be answering
+yourself — and carry `meta.authored_by: "owner"` so a thread reads as the whole conversation.
+
+## API
+
+All routes are under `/api/whatsapp`. There is no `apx whatsapp` CLI command; the surface is the
+panel and the API.
+
+```text
+GET    /status                        session state + roster summary (never the QR)
+POST   /pair                          start pairing → { qr, qr_data_url }
+POST   /logout                        drop the credentials
+PATCH  /settings                      { enabled, auto_reply, reply_to_groups }
+POST   /send            { jid, text }
+GET    /contacts                      PATCH · DELETE /contacts/:jid
+POST   /contacts/:jid/owner           mark that contact as the owner
+GET    /roles                         PUT · DELETE /roles/:name
+GET    /suggestions                   POST /suggestions/:id/confirm · /dismiss
+GET    /stickers                      PATCH · DELETE /stickers/:key
+```
+
+## When something looks wrong
+
+| Symptom | Cause |
+|---|---|
+| Connected, but nobody is answered — including you | `owner_jid` is empty, so everyone resolves as a stranger |
+| `logged_out` | the credentials are dead. The plugin will **not** retry on its own — retrying dead credentials in a loop is how an account gets flagged. Pair again |
+| Idle after a restart, no session | expected when nothing was ever paired. The daemon does not open a socket or produce a QR unasked |
+| A contact's replies open a second thread | they wrote from a `…@lid` address APX has not folded in yet |

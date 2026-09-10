@@ -54,15 +54,12 @@ Abrí **Proyecto → Integraciones → Plugins**. Cada entrada es una de estas:
 | **Asana** | Personal Access Token | `asana_list_projects`, `asana_list_tasks`, `asana_create_task`, `asana_update_task` |
 | **GitHub** | Personal Access Token | `github_list_repos`, `github_create_issue` |
 
-### Próximamente
-
-| Plugin | Por qué todavía no está |
-|---|---|
-| **WhatsApp** | Necesita un puente de WhatsApp Web (emparejamiento por QR) que APX todavía no incluye |
-
 <Aside type="tip">
-  Telegram intencionalmente **no** está en este catálogo — es un canal, configurado bajo su propia
-  superficie de [Telegram](/apx/docs/es/capabilities/telegram/), no un plugin de servicio.
+  Telegram y WhatsApp intencionalmente **no** están en este catálogo — son canales, configurados
+  bajo sus propias superficies de [Telegram](/apx/docs/es/capabilities/telegram/) y
+  [WhatsApp](/apx/docs/es/capabilities/whatsapp/), no plugins de servicio. WhatsApp en particular
+  no puede serlo: una sesión de WhatsApp Web es un singleton de dispositivo, así que hay una cuenta
+  por instalación y no una por proyecto.
 </Aside>
 
 ## Conectar un plugin
