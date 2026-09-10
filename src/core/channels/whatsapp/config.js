@@ -32,6 +32,16 @@ import { RELATIONSHIPS, isRelationship } from "./relationships.js";
 // `self_jid` is the line (recorded at connect); `owner_jid` is the human who
 // owns it (typed in the panel) and `owner_alts` the other addresses that same
 // human turned out to have. Three different things — see identity/whatsapp.js.
+/**
+ * The pause before an answer leaves, and the window a burst is folded into.
+ *
+ * 2.5s: long enough that the reply does not land while the person is still
+ * typing the rest of their thought, short enough that nobody wonders whether
+ * the message arrived. WhatsApp shows the typing indicator throughout, so the
+ * wait reads as thinking rather than as lag.
+ */
+export const DEFAULT_REPLY_DELAY_MS = 2_500;
+
 const SETTABLE = [
   "enabled", "auto_reply", "reply_to_groups", "project",
   "owner_jid", "self_jid", "self_is_owner",
@@ -42,6 +52,11 @@ const SETTABLE = [
   // the failure it guards against — a chat that just stops answering — is one
   // the operator sees long before anyone here does.
   "turn_deadline_ms", "third_party_deadline_ms",
+  // How long to WAIT before answering. Not a throttle and not politeness
+  // theatre: people write in bursts ("hola" / "che" / the actual question),
+  // and an answer that lands in under a second answers the first third of a
+  // thought. See settleDelay in ./dispatch.js.
+  "reply_delay_ms",
 ];
 
 /**
@@ -94,6 +109,7 @@ export function readWhatsAppConfig(cfg = readConfig()) {
     roles: wa.roles || {},
     capabilities: wa.capabilities || {},
     facts: wa.facts || "",
+    reply_delay_ms: Number.isFinite(Number(wa.reply_delay_ms)) ? Number(wa.reply_delay_ms) : DEFAULT_REPLY_DELAY_MS,
   };
 }
 

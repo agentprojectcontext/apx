@@ -14,7 +14,7 @@
 // config, its path, unregistering it) hang off the tile itself.
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessageCircle, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -62,6 +62,11 @@ function buildModules(): ModuleItem[] {
   return [
     { id: "desktop", label: t("nav.modules.desktop"), href: "/desktop", icon: Monitor },
     { id: "code",    label: t("nav.modules.code"),    href: "/code",    icon: Terminal },
+    // WhatsApp is here rather than in Settings because of what it is used for:
+    // a roster of people who write all day, a sticker lexicon that grows, and a
+    // decision ("do we answer them?") somebody is waiting on. Three clicks deep
+    // is the wrong place for a page you open while a message is coming in.
+    { id: "whatsapp", label: t("nav.modules.whatsapp"), href: "/whatsapp", icon: MessageCircle },
   ];
 }
 

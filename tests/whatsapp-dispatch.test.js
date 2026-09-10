@@ -30,7 +30,9 @@ const STRANGER = "5491199999999@s.whatsapp.net";
 const PROJECT_SECRET = "ZZPROJECTZZ-estudio-contable";
 const TELEGRAM_SECRET = "ZZTELEGRAMZZ el lunes cobramos los 40 palos";
 
-patchWhatsAppConfig({ owner_jid: OWNER, auto_reply: true });
+// No settle delay in the tests: the debounce has its own file, and paying 2.5s
+// per case here would buy nothing and cost half a minute.
+patchWhatsAppConfig({ owner_jid: OWNER, auto_reply: true, reply_delay_ms: 0 });
 upsertWhatsAppContact(CARLA, { name: "Carla", role: "contact" });
 
 // Something recent on ANOTHER channel — the block that must never cross over.
@@ -49,6 +51,7 @@ projects.register(makeTempProject({ name: PROJECT_SECRET }));
 
 const globalConfig = {
   ...readConfig(),
+  whatsapp: { ...readConfig().whatsapp, reply_delay_ms: 0 },
   user: { language: "es" },
   super_agent: { enabled: true, model: "mock:base", name: "Roby", permission_mode: "total", model_fallback: { enabled: false } },
   engines: {},

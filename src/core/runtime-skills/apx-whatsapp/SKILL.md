@@ -142,6 +142,14 @@ The report to the owner is emitted by the daemon, not by the model — a sealed 
 
 So: do not tell a WhatsApp contact that you will "escalate" or "pass this to my owner and come back" as if you were arranging it. It already happened.
 
+## The pause before an answer
+
+A reply waits `whatsapp.reply_delay_ms` (2500 ms; 0 answers at once) and the newest message in a chat
+wins: if another one arrives while the timer runs, the earlier turn stands down and the later one
+answers both — the thread it reads holds everything said in between. People write in bursts, and an
+answer that lands in under a second answers a third of a thought. Do not work around it by sending a
+second message; the wait is per chat, and the typing indicator is on throughout.
+
 ## Repairing chats that came out wrong — `apx whatsapp`
 
 Some failures do not fix themselves on the next message: a business that landed on the roster nameless (they send no `pushName`), a conversation APX opened before a send was a vouch and so cannot continue, a menu written into the ledger as `[empty message]` by a decoder that did not know the shape, and a contact whose turn a restart killed mid-thought — WhatsApp does not deliver that message twice.

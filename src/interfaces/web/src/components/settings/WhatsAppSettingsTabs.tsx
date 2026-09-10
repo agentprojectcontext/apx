@@ -20,8 +20,13 @@ import type { WhatsAppContact, WhatsAppStatus, WhatsAppSticker, WhatsAppSuggesti
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
-type Tab = "session" | "contacts" | "pending" | "stickers";
-const TABS: Tab[] = ["session", "contacts", "pending", "stickers"];
+type Tab = "session" | "contacts" | "stickers";
+const TABS: Tab[] = ["session", "contacts", "stickers"];
+// `?tab=pending` was a tab of its own until the requests moved on top of the
+// roster, where the owner would actually see them. Links to it exist — in the
+// docs, in messages an agent has sent — so it lands on the page that now holds
+// them instead of silently falling back to Session.
+const ALIASES: Record<string, Tab> = { pending: "contacts" };
 
 /**
  * The open tab lives in the URL (`/settings/whatsapp?tab=contacts`).
@@ -31,10 +36,35 @@ const TABS: Tab[] = ["session", "contacts", "pending", "stickers"];
  * could not be linked to, could not be reloaded onto the tab you were reading,
  * and Back walked out of the whole page instead of to the previous tab.
  */
+/**
+ * How many things are waiting on the owner: contacts APX vouched for and nobody
+ * has vetted, plus requests a contact made that nobody has dealt with.
+ *
+ * Both live behind the Contacts tab now, so the badge is what says there is a
+ * reason to open it.
+ */
+function useWaitingCount(): number {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const [c, s] = await Promise.all([WhatsApp.contacts.list(), WhatsApp.suggestions.list()]);
+        if (!alive) return;
+        const review = (c.contacts || []).filter((x) => x.pending_review).length;
+        setN(review + (s.suggestions || []).length);
+      } catch { /* daemon down: no badge rather than a wrong one */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+  return n;
+}
+
 export function WhatsAppSettingsTabs() {
+  const waiting = useWaitingCount();
   const [params, setParams] = useSearchParams();
   const raw = params.get("tab") as Tab | null;
-  const tab: Tab = raw && TABS.includes(raw) ? raw : "session";
+  const tab: Tab = raw && TABS.includes(raw) ? raw : (raw && ALIASES[raw]) || "session";
   const onChange = (v: string) => {
     const next = (TABS.includes(v as Tab) ? v : "session") as Tab;
     // `replace` so flipping between tabs does not stack history entries — Back
@@ -46,13 +76,21 @@ export function WhatsAppSettingsTabs() {
     <Tabs value={tab} onValueChange={onChange} className="w-full">
       <TabsList>
         <TabsTrigger value="session">{t("settings.whatsapp.session")}</TabsTrigger>
-        <TabsTrigger value="contacts">{t("settings.whatsapp.contacts")}</TabsTrigger>
-        <TabsTrigger value="pending">{t("settings.whatsapp.pending")}</TabsTrigger>
+        <TabsTrigger value="contacts">
+          {t("settings.whatsapp.contacts")}
+          {/* How many people are waiting on a decision, on the tab itself: the
+              count is the reason to open it, and it was previously only
+              visible AFTER opening the tab that had it. */}
+          {waiting > 0 && (
+            <span className="ml-1.5 rounded-full bg-brand/15 px-1.5 text-[11px] font-medium text-brand">
+              {waiting}
+            </span>
+          )}
+        </TabsTrigger>
         <TabsTrigger value="stickers">{t("settings.whatsapp.stickers")}</TabsTrigger>
       </TabsList>
       <TabsContent value="session" className="mt-4"><SessionPanel /></TabsContent>
       <TabsContent value="contacts" className="mt-4"><ContactsPanel /></TabsContent>
-      <TabsContent value="pending" className="mt-4"><PendingPanel /></TabsContent>
       <TabsContent value="stickers" className="mt-4"><StickersPanel /></TabsContent>
     </Tabs>
   );
@@ -273,13 +311,18 @@ function ContactsPanel() {
 
   if (loading) return <Loading />;
 
-  return (
-    <Section title={t("settings.whatsapp.contacts")} description={t("settings.whatsapp.contacts_hint")}>
-      {contacts.length === 0 ? (
-        <Empty>{t("settings.whatsapp.no_contacts")}</Empty>
-      ) : (
+  // Two groups, one list. A row APX added because it was told to write to
+  // somebody is answerable and NOT vetted — nobody has said who they are — and
+  // it looks exactly like a contact the owner curated by hand. Sitting in
+  // alphabetical order among forty others, that difference is invisible, so the
+  // ones waiting on a decision come first, under their own heading, and
+  // everybody else follows.
+  const waiting = contacts.filter((c) => c.pending_review && !isOwnerRow(c));
+  const settled = contacts.filter((c) => !waiting.includes(c));
+
+  const rows = (list: WhatsAppContact[]) => (
         <div className="divide-y divide-border rounded-lg border border-border">
-          {contacts.map((c) => {
+          {list.map((c) => {
             const answered = c.role !== "guest" && c.auto_reply !== false;
             return (
               <div key={c.jid} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
@@ -353,6 +396,37 @@ function ContactsPanel() {
               </div>
             );
           })}
+        </div>
+  );
+
+  return (
+    <Section title={t("settings.whatsapp.contacts")} description={t("settings.whatsapp.contacts_hint")}>
+      {/* What somebody asked for and nobody has dealt with yet. It used to be a
+          tab of its own, one click away and therefore unread: a request only
+          matters while it is fresh, and the roster is the page the owner
+          actually opens. */}
+      <PendingRequests />
+
+      {waiting.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t("settings.whatsapp.to_review")}
+          </h3>
+          <p className="text-xs text-muted-foreground">{t("settings.whatsapp.to_review_hint")}</p>
+          {rows(waiting)}
+        </div>
+      )}
+
+      {contacts.length === 0 ? (
+        <Empty>{t("settings.whatsapp.no_contacts")}</Empty>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {waiting.length > 0 && (
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("settings.whatsapp.everyone")}
+            </h3>
+          )}
+          {rows(settled)}
         </div>
       )}
 
@@ -577,7 +651,7 @@ function ContactDialog({
 // never resolved them into a date — that resolution is made here, by a person
 // with a calendar in front of them, not by a model hours earlier.
 
-function PendingPanel() {
+function PendingRequests() {
   const toast = useToast();
   const [rows, setRows] = useState<WhatsAppSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -594,13 +668,17 @@ function PendingPanel() {
     catch (e) { toast.error((e as Error).message); }
   };
 
-  if (loading) return <Loading />;
+  // Nothing waiting is the normal state, and an empty box saying so on top of
+  // the roster is a permanent piece of furniture for an occasional event.
+  if (loading || rows.length === 0) return null;
 
   return (
-    <Section title={t("settings.whatsapp.pending")} description={t("settings.whatsapp.pending_hint")}>
-      {rows.length === 0 ? (
-        <Empty>{t("settings.whatsapp.no_pending")}</Empty>
-      ) : (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {t("settings.whatsapp.pending")}
+      </h3>
+      <p className="text-xs text-muted-foreground">{t("settings.whatsapp.pending_hint")}</p>
+      {(
         <div className="divide-y divide-border rounded-lg border border-border">
           {rows.map((r) => (
             <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
@@ -642,7 +720,7 @@ function PendingPanel() {
           onDone={async () => { await refresh(); setBooking(null); }}
         />
       )}
-    </Section>
+    </div>
   );
 }
 

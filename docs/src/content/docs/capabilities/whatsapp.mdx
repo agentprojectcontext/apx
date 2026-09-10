@@ -139,6 +139,20 @@ ledger, and sends the real selection so the bot sees its button pressed rather t
 The thread records the **label**, not the button id — a transcript full of opaque ids is not the
 conversation that happened.
 
+## Where it lives, and how fast it answers
+
+WhatsApp has its own entry in the rail, under Code: the roster, the sticker lexicon, the requests
+waiting on you and the conversations on this line, on one page. Settings → WhatsApp is the same
+panel — it earns the rail entry because it is a place you visit while somebody is writing, not a page
+you set up once.
+
+Answers wait a couple of seconds before they leave (`whatsapp.reply_delay_ms`, 2500 ms by default,
+0 to answer at once). Not politeness theatre: people write in bursts — "hola", "che", then the actual
+question — and an answer that lands in under a second answers the first third of a thought and
+produces three replies to one message. If another message arrives from the same chat while the timer
+runs, the earlier turn stands down and the later one answers everything. The typing indicator is on
+throughout, so the wait reads as thinking.
+
 ## Media
 
 ### Files
