@@ -23,6 +23,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 const DEFAULT_API_URL = "https://api.openai.com/v1/audio/speech";
+const STREAM_PROBE_TTL_MS = 60_000;
+const _streamProbe = new Map();   // stream url -> { ok, at }
 const DEFAULT_MODEL = "tts-1";
 const DEFAULT_VOICE = "alloy";          // alloy|echo|fable|onyx|nova|shimmer
 
@@ -184,6 +186,44 @@ export default {
    */
   canStream(config = {}) {
     return Boolean(config.base_url) && config.stream !== false;
+  },
+
+  /**
+   * Whether the endpoint really has the streaming route, asked rather than
+   * assumed.
+   *
+   * canStream() only says this adapter would attempt it — enough to choose a
+   * path, wrong to show a badge with. Two self-hosted servers on this machine
+   * answer differently: QVox replies 400 to an empty body because the route is
+   * there and the body is not, Pocket replies 404 because the route is not.
+   * Anything but 404/405 means something is listening at that path.
+   *
+   * Cached per endpoint: a settings page lists every engine at once, and the
+   * answer is a property of the server, not of the moment.
+   */
+  async probeStream(config = {}) {
+    if (!this.canStream(config)) return false;
+    const url = endpoint(config).replace(/\/audio\/speech$/, "/audio/speech/stream");
+    const hit = _streamProbe.get(url);
+    if (hit && Date.now() - hit.at < STREAM_PROBE_TTL_MS) return hit.ok;
+    let ok = false;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+        signal: AbortSignal.timeout(4000),
+      });
+      ok = res.status !== 404 && res.status !== 405;
+      // Nothing is read: the empty body guarantees a refusal, and the point is
+      // the status line.
+      res.body?.cancel?.();
+    } catch {
+      ok = false;   // unreachable is not the same as "cannot stream", but for a
+                    // badge it reads the same and costs nothing to be wrong about
+    }
+    _streamProbe.set(url, { ok, at: Date.now() });
+    return ok;
   },
 
   /**

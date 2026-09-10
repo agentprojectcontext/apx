@@ -98,6 +98,10 @@ export function VoiceProviderList({
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{name}</span>
                 {e.custom && <Badge tone="info">{t("voice_ui.badge_custom")}</Badge>}
+                {/* Reported, never asked: whether the endpoint answers on the
+                    streaming route. A control here would only let someone
+                    claim a capability their server does not have. */}
+                {e.streams && <Badge tone="info">{t("voice_ui.badge_streams")}</Badge>}
                 {meta?.local && <Badge tone="info">{t("voice_ui.badge_local")}</Badge>}
                 {e.available ? (
                   <Badge tone="success">{t("voice_ui.badge_available")}</Badge>

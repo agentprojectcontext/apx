@@ -220,6 +220,11 @@ export async function listAvailableTtsEngines(globalConfig) {
       // For custom engines `label` is descriptive metadata, not config either.
       configured: Object.keys(cfg).filter((k) => k !== "enabled" && k !== "label").length > 0,
       enabled: isEnabled(ttsCfg, id),
+      // Whether this engine can hand audio back while it is still being made.
+      // Reported rather than asked: the endpoint either has the route or it
+      // does not, and a setting that lets someone claim otherwise only buys a
+      // way to end up with no voice.
+      streams: typeof adapter.probeStream === "function" ? await adapter.probeStream(cfg) : false,
       ...(custom ? { custom: true, label: cfg.label || slugOf(id), note: cfg.base_url || "" } : {}),
     });
   }
