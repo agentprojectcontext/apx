@@ -27,13 +27,32 @@ import { embedOne, cosineSim } from "#core/memory/embeddings.js";
 import { listSkills, loadSkill } from "./loader.js";
 import { filterEnabledSkills, isSkillEnabled } from "./policy.js";
 import { readIndex, backgroundRefreshIfStale } from "./index-store.js";
+import { relevanceScore, embedBaselineCorpus, measureBaseline } from "./baseline.js";
 
 // Defaults — exported so the CLI/web can render them.
+// Thresholds are on the RELEVANCE score, not on raw cosine.
+//
+// Relevance is how far a skill stands above its OWN baseline, in units of its
+// own spread (see baseline.js). That is what makes one number mean the same
+// thing for every skill: raw cosine does not, because each description has a
+// different floor, and thresholding it let three loud descriptions win every
+// turn on this install while the matching skills went unnamed.
+//
+// The `*_z` names are deliberate — the old `load_threshold`/`hint_threshold`
+// were cosines, and reusing those keys for a different scale would silently
+// re-tune every install that had set them.
 export const INSPECTOR_DEFAULTS = Object.freeze({
   enabled: false,             // OPT-IN — this is a test feature.
-  load_threshold: 0.55,       // sim ≥ this → inline body
-  hint_threshold: 0.40,       // sim ≥ this → just hint
-  margin: 0.04,               // top must beat runner-up by this for confident pick
+  load_z: 3.0,                // relevance ≥ this → inline body
+  hint_z: 2.2,                // relevance ≥ this → just hint
+  margin_z: 0.4,              // top must beat runner-up by this for a confident pick
+  // A sanity floor on raw cosine, under the relevance test rather than instead
+  // of it. A skill can stand well above its own baseline and still be about
+  // nothing the prompt mentions when the baseline itself is very low; this
+  // stops that from reaching the prompt. Deliberately loose — the ranking is
+  // relevance's job, and a tight floor here would re-introduce the language
+  // bias it exists to remove.
+  raw_floor: 0.30,
   max_loaded: 1,              // how many bodies to inline at once
   max_hints: 2,               // how many additional hints to add
   prompt_floor: 8,            // skip super-short prompts ("ok", "hola")
@@ -60,15 +79,19 @@ function scoreAgainstIndex(promptVec, indexItems) {
   for (const slug of Object.keys(indexItems)) {
     const it = indexItems[slug];
     if (!Array.isArray(it.desc_vector)) continue;
+    const sim = cosineSim(promptVec, it.desc_vector);
     out.push({
       slug,
       source: it.source,
       desc: it.desc || "",
       file: it.file,
-      sim: cosineSim(promptVec, it.desc_vector),
+      // `sim` is kept for the trace and the raw floor — it is what a human
+      // reading a debug panel expects to see — but `rel` is what ranks.
+      sim,
+      rel: relevanceScore(sim, it),
     });
   }
-  out.sort((a, b) => b.sim - a.sim);
+  out.sort((a, b) => b.rel - a.rel);
   return out;
 }
 
@@ -103,7 +126,7 @@ function renderInjectedBlock({ loaded, hinted, embedder }) {
       // A description read from a block scalar carries real newlines; this is
       // one markdown list item, so collapse it back to a single line.
       const desc = String(s.desc || "").replace(/\s+/g, " ").trim();
-      lines.push(`- \`${s.slug}\` — sim ${s.sim.toFixed(2)}. ${desc}`);
+      lines.push(`- \`${s.slug}\` — relevance ${s.rel.toFixed(1)}. ${desc}`);
     }
     lines.push("");
     lines.push("Call `load_skill({slug:\"…\"})` for any of these BEFORE answering if you need its exact syntax.");
@@ -228,21 +251,32 @@ async function inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts
     return { contextNote: "", trace: { enabled: true, reason: "embed_failed" } };
   }
 
+  // The background corpus, so this path ranks on the same scale the indexed
+  // path does. It is ~16 extra embeds on a route that already pays one per
+  // skill — and a fallback that ranked differently from the real thing would be
+  // worse than slow, because it would be wrong in a way nobody would notice.
+  const corpusVectors = await embedBaselineCorpus(
+    (text) => embedOne(text, { ...(embedOpts || {}), globalConfig }),
+  );
+
   const scored = [];
   for (const s of skills) {
     const desc = (s.description || "").slice(0, 600);
     if (!desc.trim()) continue;
     const out = await embedOne(desc, { ...(embedOpts || {}), globalConfig });
     if (!out || !Array.isArray(out.vector)) continue;
+    const sim = cosineSim(probe.vector, out.vector);
+    const { mu, sd } = measureBaseline(out.vector, corpusVectors);
     scored.push({
       slug: s.slug,
       source: s.source,
       desc,
       file: s.file,
-      sim: cosineSim(probe.vector, out.vector),
+      sim,
+      rel: relevanceScore(sim, { base_mu: mu, base_sd: sd }),
     });
   }
-  scored.sort((a, b) => b.sim - a.sim);
+  scored.sort((a, b) => b.rel - a.rel);
   const result = await pickAndRender({ scored, projectPath, probe, cfg });
   return {
     contextNote: result.contextNote,
@@ -258,17 +292,23 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
   if (scored.length === 0) {
     return { contextNote: "", trace: { enabled: true, reason: "no_candidates", embedder: probe.embedder } };
   }
-  const top = scored[0];
-  const runner = scored[1] || { sim: 0 };
+  // Anything below the raw floor is not a weak match, it is an unrelated one —
+  // dropped before ranking so it cannot occupy a hint slot that a real
+  // candidate needs.
+  const eligible = scored.filter((s) => s.sim >= cfg.raw_floor);
+  const top = eligible[0];
+  const runner = eligible[1] || { rel: 0 };
 
-  if (top.sim < cfg.hint_threshold) {
+  if (!top || top.rel < cfg.hint_z) {
     return {
       contextNote: "",
       trace: {
         enabled: true,
         reason: "below_threshold",
         embedder: probe.embedder,
-        scored: scored.slice(0, 5).map((s) => ({ slug: s.slug, sim: Number(s.sim.toFixed(3)) })),
+        scored: scored.slice(0, 5).map((s) => ({
+          slug: s.slug, sim: Number(s.sim.toFixed(3)), rel: Number(s.rel.toFixed(2)),
+        })),
       },
     };
   }
@@ -276,13 +316,13 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
   const loaded = [];
   const hinted = [];
 
-  // High-confidence top picks → inline body. Bounded by max_loaded and require
-  // a margin over the runner-up so a flat tie of weak matches doesn't bloat
-  // the prompt.
-  if (top.sim >= cfg.load_threshold && top.sim - runner.sim >= cfg.margin) {
-    for (let i = 0; i < scored.length && loaded.length < cfg.max_loaded; i++) {
-      const cand = scored[i];
-      if (cand.sim < cfg.load_threshold) break;
+  // High-confidence top picks → inline body. Bounded by max_loaded and required
+  // to stand clear of the runner-up, so a flat tie of mediocre matches injects
+  // nothing rather than picking a winner out of noise.
+  if (top.rel >= cfg.load_z && top.rel - runner.rel >= cfg.margin_z) {
+    for (let i = 0; i < eligible.length && loaded.length < cfg.max_loaded; i++) {
+      const cand = eligible[i];
+      if (cand.rel < cfg.load_z) break;
       const body = readBodyCapped(cand.slug, projectPath, cfg.body_char_cap);
       if (!body) continue;
       loaded.push({ ...cand, body });
@@ -290,10 +330,10 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
   }
 
   // Mid-confidence remainder → hint.
-  for (const cand of scored) {
+  for (const cand of eligible) {
     if (loaded.some((l) => l.slug === cand.slug)) continue;
     if (hinted.length >= cfg.max_hints) break;
-    if (cand.sim < cfg.hint_threshold) break;
+    if (cand.rel < cfg.hint_z) break;
     hinted.push(cand);
   }
 
@@ -303,7 +343,9 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
     trace: {
       enabled: true,
       embedder: probe.embedder,
-      scored: scored.slice(0, 5).map((s) => ({ slug: s.slug, sim: Number(s.sim.toFixed(3)) })),
+      scored: scored.slice(0, 5).map((s) => ({
+        slug: s.slug, sim: Number(s.sim.toFixed(3)), rel: Number(s.rel.toFixed(2)),
+      })),
       loaded: loaded.map((l) => l.slug),
       hinted: hinted.map((h) => h.slug),
     },
