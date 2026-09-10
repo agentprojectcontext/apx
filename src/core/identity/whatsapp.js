@@ -297,6 +297,39 @@ export function resolveReplyPolicy(cfg, sender) {
 }
 
 /**
+ * WHY this sender was met with silence.
+ *
+ * `resolveReplyPolicy` answers "do we speak"; this answers "and what do I tell
+ * the owner about it". They are not the same question, and conflating them told
+ * the owner something false: every silence was reported as "no está en tu
+ * lista", so a contact they had MUTED — or one an agent muted by writing the
+ * config file by hand — read as a stranger. The owner went looking for a
+ * missing roster row that was there all along, with the mute two fields away.
+ *
+ * Mirrors the branches of resolveReplyPolicy in the same order, and returns
+ * null when the sender is answered.
+ */
+export function silenceReason(cfg, sender) {
+  const wa = whatsappConfig(cfg);
+  if (sender?.isOwner) return null;
+  if (wa.auto_reply === false) return "auto_reply_off";
+  if (sender?.isGroup && wa.reply_to_groups !== true) return "group";
+  if (!sender?.known) return "unknown";
+  const contact = findWhatsAppContact(cfg, sender?.jid);
+  // A guest row is not a decision. Every inbound message writes one
+  // (registerWhatsAppSender), muted, so that the owner has something to click
+  // "allow" on — which means a guest with `auto_reply: false` is a STRANGER,
+  // not somebody the owner silenced. Reading the flag first called every
+  // first-time sender "muted".
+  if (!contact?.role || contact.role === SENDER_ROLES.GUEST) return "unknown";
+  if (contact?.auto_reply === false) return "muted";
+  const roleDef = wa.roles?.[sender?.role];
+  if (roleDef?.auto_reply === false) return "role_muted";
+  if (sender?.role !== SENDER_ROLES.CONTACT && !roleDef) return "role_undefined";
+  return null;
+}
+
+/**
  * Record a sender we have not seen before, so the owner has something to click
  * "allow" on. Recording is NOT permission: a newly recorded contact lands as a
  * guest, which resolveReplyPolicy answers with silence.

@@ -30,6 +30,7 @@ import {
   isGroupJid,
   resolveWhatsAppSender,
   registerWhatsAppSender,
+  silenceReason,
   resolveReplyPolicy,
   learnOwnerAliases,
   senderAddresses,
@@ -89,6 +90,28 @@ const REPORT_WINDOW_MS = {
 // jid|kind → last report. In memory on purpose: a daemon restart SHOULD
 // re-announce, because the owner may have missed what was sent before it.
 const lastReported = new Map();
+
+// Why nobody answered, in the two places it is said: the daemon log (English,
+// like every other line in it) and the owner's own notification (their
+// language). Written out rather than composed, because each one is a sentence a
+// person reads at a glance on a phone.
+const SILENCE_LOG = {
+  unknown: "not on the roster",
+  muted: "on the roster but muted",
+  role_muted: "muted through their role",
+  role_undefined: "carries a role with no definition",
+  group: "a group, and groups are off",
+  auto_reply_off: "auto-reply is off for everyone",
+};
+
+const SILENCE_NOTE = {
+  unknown: "que no está en tu lista",
+  muted: "que tenés en silencio",
+  role_muted: "cuyo rol está en silencio",
+  role_undefined: "cuyo rol no está definido",
+  group: "un grupo, y los grupos están apagados",
+  auto_reply_off: "con las respuestas automáticas apagadas",
+};
 
 function shouldReport(kind, jid) {
   const window = REPORT_WINDOW_MS[kind];
@@ -240,12 +263,17 @@ export async function handleWhatsAppMessage(m, ctx) {
 
   if (policy === REPLY_POLICIES.SILENT) {
     // Not answered, but never invisible. The owner decides whether this person
-    // becomes someone we talk to; they can only decide if they are told.
-    log(`whatsapp: ${sender.name} <${senderJid}> not on the roster — logged, not answered`);
+    // becomes someone we talk to; they can only decide if they are told — and
+    // told the TRUTH about why nobody answered. Every silence used to be
+    // reported as "no está en tu lista", which sent the owner looking for a
+    // missing roster row while the real cause (a mute, two fields away on a row
+    // that was there) went unmentioned.
+    const reason = silenceReason(globalConfig, sender) || "unknown";
+    log(`whatsapp: ${sender.name} <${senderJid}> ${SILENCE_LOG[reason]} — logged, not answered`);
     if (shouldReport("whatsapp_unknown", senderJid)) {
       await notifyOwner(
-        `WhatsApp de ${sender.name} (${shortJid(senderJid)}), que no está en tu lista:\n${clip(body, 300)}`,
-        { kind: "whatsapp_unknown", sender_jid: senderJid }
+        `WhatsApp de ${sender.name} (${shortJid(senderJid)}), ${SILENCE_NOTE[reason]}:\n${clip(body, 300)}`,
+        { kind: "whatsapp_unknown", sender_jid: senderJid, reason }
       );
     }
     return;
