@@ -720,6 +720,12 @@ function splitForSpeech(text, { min = 12, limit = 80 } = {}) {
 const ttsAhead = new Map();   // chunk text -> Promise<{ok, audio_path, ...}>
 
 ipcMain.handle("prewarm-tts", async (_e, { text }) => {
+  // Not while streaming. Speech-ahead exists to spend the model's remaining
+  // tokens on the first sentence, which only pays off when speaking cannot
+  // start until a file is finished. Streamed, the same sentence is synthesized
+  // again moments later — and worse, QVox serialises on one lock, so the
+  // wasted synthesis is holding the engine the real request is waiting for.
+  if (streamingEnabled()) return;
   const first = splitForSpeech(text || "")[0];
   // splitForSpeech packs sentences shorter than its `min` together with the
   // next one, so a short opener would be pre-made as the wrong chunk. The
@@ -1214,6 +1220,10 @@ function daemonTtsStream(text, onPcm, { signal } = {}) {
   const token = readToken();
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ text });
+    // Timed from here, not from the response headers: the daemon writes those
+    // when the first chunk exists, so starting the clock there measures nothing
+    // and always reports ~0 ms.
+    const t0 = Date.now();
     const req = http.request(
       {
         hostname: DAEMON_HOST,
@@ -1236,7 +1246,6 @@ function daemonTtsStream(text, onPcm, { signal } = {}) {
           return;
         }
         const sampleRate = Number(res.headers["x-apx-sample-rate"] || 24000);
-        const t0 = Date.now();
         let first = null;
         let bytes = 0;
         // A socket read can end mid-sample, and half a sample played is a
