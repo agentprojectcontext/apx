@@ -1,3 +1,10 @@
+# [1.96.0](https://github.com/agentprojectcontext/apx/compare/v1.95.0...v1.96.0) (2026-09-10)
+
+
+### Features
+
+* **whatsapp:** writing to somebody vouches for them, and the agent can run the roster ([4f8f106](https://github.com/agentprojectcontext/apx/commit/4f8f106cd904d67017521b65b37f03ef83c01015))
+
 # [1.95.0](https://github.com/agentprojectcontext/apx/compare/v1.94.4...v1.95.0) (2026-09-10)
 
 
