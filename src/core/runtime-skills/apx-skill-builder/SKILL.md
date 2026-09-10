@@ -1,7 +1,7 @@
 ---
 name: apx-skill-builder
 scope: internal
-description: Author a new APX skill — file location, frontmatter (name, description, scope), body style, on-demand loader. Load when creating or adding a skill to APX.
+description: Write a new APX skill — "creá una skill", "una skill nueva", "cómo se escribe una skill" — file location, frontmatter and body style. Load when creating or adding a skill to APX.
 ---
 
 # apx-skill-builder

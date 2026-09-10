@@ -1,7 +1,7 @@
 ---
 name: apx-image
 scope: optional
-description: Generate images from a text prompt with `apx image`, routed to a local, LAN, or cloud diffusion server. Load when asked to draw, render, illustrate, or make a picture, logo sketch, thumbnail, or cover; to pick between image engines; to set image size, steps, guidance, seed, or a negative prompt; or when an image engine is unreachable or ignoring options.
+description: Generate an image from a text prompt — "generá una imagen", "creá un logo", "dibujame", "hacé una ilustración" — routed to a local, LAN or cloud engine. Load when asked to draw, render, illustrate, or make a picture, logo sketch, thumbnail, or cover; to pick between image engines; to set image size, steps, guidance, seed, or a negative prompt; or when an image engine is unreachable or ignoring options.
 ---
 
 # apx-image

@@ -1,7 +1,7 @@
 ---
 name: apx-transcribe
 scope: optional
-description: Transcribe audio and video files to text from the command line with `apx transcribe`, using the daemon's built-in Whisper. Load when asked to transcribe a voice note, an audio clip, or a video's speech, to batch-transcribe a folder, to pipe transcription into a script, or when choosing between the local, cloud, or a networked custom STT engine.
+description: Turn recorded audio or video into text — "transcribí", "pasá a texto", "la grabación", "este audio", "este video" — with `apx transcribe`. Load when asked to transcribe a voice note, an audio clip, or a video's speech, to batch-transcribe a folder, to pipe transcription into a script, or when choosing between the local, cloud, or a networked custom STT engine.
 ---
 
 # apx-transcribe

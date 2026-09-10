@@ -1,6 +1,6 @@
 ---
 name: apx-profile
-description: Agent profiles — installable lines of work for the super-agent (secretary, project manager, analyst, tutor). Load when the user wants to install, activate, configure, diagnose or remove one, or asks why the agent behaves the way it does. Triggers: 'install a profile', 'apx profile', 'what profiles are there', 'activate the secretary', 'go back to vanilla', 'change my agent's schedule', 'why does it message me'.
+description: Agent profiles: installable lines of work — "el perfil", "perfiles disponibles", "instalá un perfil" — secretary, project manager and others. Load when the user wants to install, activate, configure, diagnose or remove one, or asks why the agent behaves the way it does. Triggers: 'install a profile', 'apx profile', 'what profiles are there', 'activate the secretary', 'go back to vanilla', 'change my agent's schedule', 'why does it message me'.
 ---
 
 # apx-profile

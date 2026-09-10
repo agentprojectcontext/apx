@@ -1,7 +1,7 @@
 ---
 name: apx-voice
 scope: optional
-description: Makes APX speak and configures text-to-speech — Piper (local), ElevenLabs/OpenAI/Gemini (cloud), or a custom OpenAI-compatible server (QVox/Qwen3-TTS), with per-engine emotion tags. Load when configuring a voice engine, adding a custom TTS server, enabling emotion tags, or fixing silent output.
+description: Text-to-speech: make APX speak out loud — "la voz", "que me hable", "en voz alta", "motor de voz", "leelo" — Piper local, ElevenLabs, OpenAI or Gemini. Load when configuring a voice engine, adding a custom TTS server, enabling emotion tags, or fixing silent output.
 ---
 
 # apx-voice

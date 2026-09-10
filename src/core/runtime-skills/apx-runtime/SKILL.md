@@ -1,6 +1,6 @@
 ---
 name: apx-runtime
-description: Delegate a task to an external coding CLI (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) via `apx run`. The APX agent is optional — pass-through runs the CLI as itself, `-a <agent>` wraps it in that agent's system prompt. Load when delegating to another AI tool, or when confused about the agent argument.
+description: Hand a job to an external coding CLI — "delegá", "corré esto con", "usá claude code", "usá codex", "usá opencode" — claude-code, codex, opencode, aider. The APX agent is optional — pass-through runs the CLI as itself, `-a <agent>` wraps it in that agent's system prompt. Load when delegating to another AI tool, or when confused about the agent argument.
 ---
 
 # apx-runtime

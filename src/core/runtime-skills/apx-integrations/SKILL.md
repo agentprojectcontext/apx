@@ -1,6 +1,6 @@
 ---
 name: apx-integrations
-description: "APX connectors for Asana, Google Calendar, GitHub, Obsidian and WhatsApp — integrations, "integraciones", "conectores", "conectá", "qué integraciones tengo". Load when a connector tool says \"not connected\" / \"read-only\" / \"not authorized\", or the user wants to connect/configure/check a plugin. NOT the same as MCP servers (apx-mcp) or the Telegram channel (apx-telegram). Triggers: 'connect Asana/Calendar/GitHub', 'why can't you see my calendar', 'integration not connected', 'plugins tab', 'read-only calendar'."
+description: APX connectors and integrations — "integraciones", "conectores", "conectá", "no ves mi calendario" — Asana, Google Calendar, GitHub, Obsidian, WhatsApp. Load when a connector tool says "not connected" / "read-only" / "not authorized", or the user wants to connect/configure/check a plugin. NOT the same as MCP servers (apx-mcp) or the Telegram channel (apx-telegram). Triggers: 'connect Asana/Calendar/GitHub', 'why can't you see my calendar', 'integration not connected', 'plugins tab', 'read-only calendar'.
 ---
 
 # apx-integrations
