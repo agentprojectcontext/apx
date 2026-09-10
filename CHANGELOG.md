@@ -1,3 +1,15 @@
+# [1.99.0](https://github.com/agentprojectcontext/apx/compare/v1.98.0...v1.99.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **voice:** an early full stop must not turn the audio into a greeting ([15430a4](https://github.com/agentprojectcontext/apx/commit/15430a4f91a24e82a73adf30b394e6c762392a27))
+
+
+### Features
+
+* **voice:** spoken replies you can ask for, and turn off by asking ([7dc2d2a](https://github.com/agentprojectcontext/apx/commit/7dc2d2a7bd3c4b3c7bb3a3d681f03814466ff330))
+
 # [1.98.0](https://github.com/agentprojectcontext/apx/compare/v1.97.1...v1.98.0) (2026-09-10)
 
 
