@@ -357,6 +357,44 @@ export function createWhatsAppSession({
     },
 
     /**
+     * Tap a button somebody offered.
+     *
+     * Three of WhatsApp's four menu generations have a real reply proto, and
+     * Baileys builds all three — a `buttonsResponseMessage` for quick-reply
+     * buttons, a `templateButtonReplyMessage` for a hydrated template, a
+     * `listResponseMessage` for a list. Sending the right one is what makes the
+     * bot on the other side see a TAP rather than a person typing, which for a
+     * menu-driven flow is frequently the difference between advancing and being
+     * asked the same question again.
+     *
+     * The fourth generation — nativeFlow's `interactiveResponseMessage` — has
+     * no builder here, so it is not attempted: the caller answers those in
+     * words instead (see replyModeFor in ./interactive.js). Guessing a proto
+     * Baileys cannot encode would send a malformed node to somebody's server.
+     */
+    async sendButtonReply(jid, { id, title, index = 0, kind = "buttons" } = {}) {
+      if (!sock) throw new Error("whatsapp is not connected");
+      const displayText = String(title ?? "").trim();
+      const rowId = String(id ?? "").trim() || displayText;
+      if (!displayText && !rowId) throw new Error("sendButtonReply: the option needs an id or a title");
+      if (kind === "list") {
+        return sock.sendMessage(jid, {
+          listReply: {
+            title: displayText,
+            // 1 = SINGLE_SELECT. A list reply with no listType is read as
+            // UNKNOWN by the receiving client and quietly ignored.
+            listType: 1,
+            singleSelectReply: { selectedRowId: rowId },
+          },
+        });
+      }
+      return sock.sendMessage(jid, {
+        buttonReply: { displayText, id: rowId, index: Number(index) || 0 },
+        type: kind === "template" ? "template" : "plain",
+      });
+    },
+
+    /**
      * React to a message with a single emoji.
      *
      * Cheaper than a reply and often the honest one: a "gracias!" deserves a 👍,

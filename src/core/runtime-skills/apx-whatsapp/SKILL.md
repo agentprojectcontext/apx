@@ -80,6 +80,27 @@ Messages the OWNER types on their own phone are recorded too (WhatsApp mirrors t
 
 One person can hold two addresses — a phone JID and an opaque `…@lid`. Both fold to one thread; do not treat them as two correspondents.
 
+## Menus, buttons and lists
+
+A business account rarely writes sentences — it sends a MENU. Those arrive already unpacked into the text, numbered:
+
+```
+Hola! Con qué te ayudo?
+[Opciones: 1. Autos | 2. Hogar | 3. Vida]
+```
+
+and a tap somebody made on one reads as `[eligió: Autos]`. All four generations WhatsApp still has in the wild are decoded — quick-reply buttons, lists, hydrated templates and nativeFlow (including a `single_select` list hidden inside one button, and carousels) — plus polls, and all of them wrapped in `viewOnceMessage` or `ephemeralMessage`, which is how business accounts usually send them.
+
+Until this existed those messages had no readable text at all and were logged as `[empty message]`: a bot's whole menu reached the owner as a notification saying nothing had been said.
+
+**To answer one, pass `option` to `send_whatsapp`** — the number as it was shown (`"2"`), the exact title (`"Autos"`) or the option's id. APX finds the last menu in that chat (off the ledger, so it survives a restart and a turn that never saw the message) and sends the real selection, so the bot sees its button pressed rather than a sentence. `text` is ignored when `option` is set.
+
+- An ambiguous fragment matches nothing on purpose. `"seguro"` against *Seguro de auto* and *Seguro de hogar* is refused, with both options in the answer, rather than tapping one on a guess.
+- Quick-reply buttons, lists and templates are answered with a real tap. **nativeFlow menus and polls are answered by typing the option's label** — Baileys has no builder for `interactiveResponseMessage`, and inventing a proto it cannot encode would put a malformed node on somebody's server. This is not a downgrade in practice: typing the label is what a person does when a button will not open.
+- If a tap goes unanswered, retry with `as_text: true` to type the label instead.
+
+The thread records the LABEL (`Autos`), not the button id — a transcript full of opaque ids is not the conversation that happened.
+
 ## Media
 
 Inbound is handled before the turn: voice notes arrive transcribed as `[audio] …`, photos as pixels a vision model can see, stickers as `[sticker: <meaning>]`, GIFs as their first frame. **Video is refused** — say so plainly rather than guessing from the caption.
