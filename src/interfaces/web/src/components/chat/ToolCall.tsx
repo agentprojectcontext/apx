@@ -73,11 +73,24 @@ function pretty(value: unknown): string {
   }
 }
 
+/** What the status means, in words. A 12px glyph is the whole report on how a
+ *  step went, and on a phone — no hover, no tooltip — the colour is all a
+ *  reader gets. The label rides along as the icon's accessible name, and shows
+ *  as text for the two states that are not "it worked". */
+function statusLabel(status: ToolPart["status"]): string {
+  if (status === "running") return t("shared_ui.tool_running");
+  if (status === "error") return t("shared_ui.tool_error");
+  if (status === "deduped") return t("shared_ui.dedup");
+  return t("shared_ui.tool_done");
+}
+
 function StatusIcon({ status }: { status: ToolPart["status"] }) {
-  if (status === "running") return <Loader2 className="size-3 shrink-0 animate-spin text-sky-700 dark:text-sky-400" />;
-  if (status === "error") return <X className="size-3 shrink-0 text-rose-700 dark:text-rose-400" />;
-  if (status === "deduped") return <CornerDownRight className="size-3 shrink-0 text-amber-700 dark:text-amber-400" />;
-  return <Check className="size-3 shrink-0 text-emerald-700 dark:text-emerald-400" />;
+  const label = statusLabel(status);
+  const common = "size-3 shrink-0";
+  if (status === "running") return <Loader2 role="img" aria-label={label} className={cn(common, "animate-spin text-sky-700 dark:text-sky-400")} />;
+  if (status === "error") return <X role="img" aria-label={label} className={cn(common, "text-rose-700 dark:text-rose-400")} />;
+  if (status === "deduped") return <CornerDownRight role="img" aria-label={label} className={cn(common, "text-amber-700 dark:text-amber-400")} />;
+  return <Check role="img" aria-label={label} className={cn(common, "text-emerald-700 dark:text-emerald-400")} />;
 }
 
 export function ToolCall({ part }: { part: ToolPart }) {
@@ -89,6 +102,9 @@ export function ToolCall({ part }: { part: ToolPart }) {
 
   return (
     <div
+      data-testid="tool-call"
+      data-tool={part.tool}
+      data-status={part.status}
       className={cn(
         "rounded-lg border bg-muted/30 text-[12px]",
         part.status === "error" ? "border-rose-500/30" : "border-border",
@@ -97,7 +113,13 @@ export function ToolCall({ part }: { part: ToolPart }) {
       <button
         type="button"
         onClick={() => hasBody && setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left"
+        aria-expanded={hasBody ? open : undefined}
+        // min-w-0 on the row and on the summary, shrink-0 on everything that
+        // must survive: inside a 390px bubble this row is ~300px wide, and a
+        // flex child without min-w-0 is laid out around its whole content — so
+        // one long `path` argument pushed the status mark off the right edge
+        // instead of truncating, and the step's outcome simply vanished.
+        className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left"
       >
         {hasBody ? (
           <ChevronRight className={cn("size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
@@ -106,9 +128,20 @@ export function ToolCall({ part }: { part: ToolPart }) {
         )}
         <Icon className={cn("size-3.5 shrink-0", isFile ? "text-violet-700 dark:text-violet-400" : "text-muted-foreground")} />
         <span className="shrink-0 font-medium">{label}</span>
-        {summary && <span className="truncate font-mono text-muted-foreground">{summary}</span>}
-        <span className="ml-auto flex items-center gap-1">
-          {part.status === "deduped" && <span className="text-[10px] text-amber-700 dark:text-amber-400">{t("shared_ui.dedup")}</span>}
+        {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{summary}</span>}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {/* The two outcomes that are not "it worked" say so in words. Colour
+              alone is not a report — and it is the only one a phone gets. */}
+          {(part.status === "deduped" || part.status === "error") && (
+            <span
+              className={cn(
+                "text-[10px]",
+                part.status === "error" ? "text-rose-700 dark:text-rose-400" : "text-amber-700 dark:text-amber-400",
+              )}
+            >
+              {statusLabel(part.status)}
+            </span>
+          )}
           <StatusIcon status={part.status} />
         </span>
       </button>

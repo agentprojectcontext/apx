@@ -1,8 +1,10 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
+import { DayDivider } from "./DayDivider";
 import { pendingAskIndex } from "./InlineAskPanel";
 import { Empty } from "../ui";
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
+import { dayLabel, startsNewDay } from "../../lib/chat-dates";
 import type { AgentFace } from "../agents/AgentAvatar";
 import type { ChatMsg, QueuedTurn } from "../../hooks/useChat";
 
@@ -40,6 +42,13 @@ interface Props {
   /** Told when the reader arrives at, or leaves, the bottom of the thread — so
    *  the host can offer a way back down while they are away from it. */
   onAtBottomChange?: (atBottom: boolean) => void;
+  /** Announce each new calendar day with a sticky "Hoy / Ayer / 4 de
+   *  septiembre" line, and drop the date from the per-bubble footer (the
+   *  divider above already carries it). Default on — it is what makes a thread
+   *  spanning months readable as one. Off for nested transcripts that are a
+   *  single run by definition (a routine execution), where a lone "Hoy" at the
+   *  top is a label for something nobody wondered about. */
+  dayDividers?: boolean;
 }
 
 /** How close to the end still counts as being at it. A couple of lines of
@@ -62,6 +71,7 @@ export function MessageList({
   bottomInset = 0,
   compact,
   onAtBottomChange,
+  dayDividers = true,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   // Whether the reader is at the end. Read synchronously by the effect below,
@@ -144,41 +154,68 @@ export function MessageList({
   // Which turn's questions are still open — the one the composer is offering to
   // answer. Everything else with an ask_questions call in it has been settled.
   const askAt = pendingAskIndex(msgs);
+  // The day each row belongs to, decided in one pass over the WHOLE thread —
+  // sent turns and queued ones together, since a message written just before
+  // midnight is followed by one that lands the next day. `null` where the day
+  // has not changed, so a row only ever draws its own divider.
+  const days = dayDividers ? dividerLabels([...msgs.map((m) => m.ts), ...queued.map((q) => q.msg.ts)], compact) : [];
   return (
     <div className="space-y-4 px-3 py-4">
       {msgs.map((m, i) => (
-        <MessageBubble
-          key={i}
-          msg={m}
-          askPending={i === askAt}
-          isAskAnswer={isAnswerToAsk(msgs, i)}
-          onCopy={onCopy}
-          onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
-          onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
-          compact={compact}
-          face={m.role === "assistant" ? faceFor?.(m) : undefined}
-          showSpeaker={showSpeaker}
-          nameOf={nameOf}
-          showTools={showTools}
-        />
+        <Fragment key={i}>
+          {days[i] && <DayDivider label={days[i] as string} />}
+          <MessageBubble
+            msg={m}
+            askPending={i === askAt}
+            isAskAnswer={isAnswerToAsk(msgs, i)}
+            onCopy={onCopy}
+            onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
+            onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
+            compact={compact}
+            face={m.role === "assistant" ? faceFor?.(m) : undefined}
+            showSpeaker={showSpeaker}
+            nameOf={nameOf}
+            showTools={showTools}
+            // The divider above already says which day this is; repeating it on
+            // every bubble is noise, and on a phone it is noise that costs the
+            // model name its half of the footer line.
+            dayInDivider={dayDividers}
+          />
+        </Fragment>
       ))}
       {/* Waiting their turn, under the answer they will follow. Same bubble as
           any other — what you wrote is in the conversation the moment you send
           it, whether or not the agent has got to it yet. */}
-      {queued.map((q) => (
-        <MessageBubble
-          key={q.id}
-          msg={q.msg}
-          onCopy={onCopy}
-          compact={compact}
-          queued
-          onUnqueue={onUnqueue ? () => onUnqueue(q.id) : undefined}
-          showTools={showTools}
-        />
+      {queued.map((q, i) => (
+        <Fragment key={q.id}>
+          {days[msgs.length + i] && <DayDivider label={days[msgs.length + i] as string} />}
+          <MessageBubble
+            msg={q.msg}
+            onCopy={onCopy}
+            compact={compact}
+            queued
+            onUnqueue={onUnqueue ? () => onUnqueue(q.id) : undefined}
+            showTools={showTools}
+            dayInDivider={dayDividers}
+          />
+        </Fragment>
       ))}
       <div ref={bottomRef} style={bottomInset ? { height: bottomInset } : undefined} />
     </div>
   );
+}
+
+/** One entry per row: the divider to draw above it, or `null` when the row is
+ *  still on the same day as the one before it. */
+function dividerLabels(stamps: (string | undefined)[], compact?: boolean): (string | null)[] {
+  const locale = getLocale();
+  const now = new Date();
+  let prev: string | undefined;
+  return stamps.map((ts) => {
+    if (!startsNewDay(prev, ts)) return null;
+    prev = ts;
+    return dayLabel(ts as string, t, { now, locale, compact });
+  });
 }
 
 /** The nearest ancestor that actually scrolls. */

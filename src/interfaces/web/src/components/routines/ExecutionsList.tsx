@@ -134,7 +134,7 @@ function RunDetailPanel({ pid, run, onClose }: { pid: string; run: RoutineRun; o
         <FlowBlock title={chatMsgs.length ? t("project.routines.runs_chat") : t("project.routines.runs_output")}>
           {chatMsgs.length ? (
             <div data-testid="routine-run-chat" className="-mx-1">
-              <MessageList msgs={chatMsgs} onCopy={() => {}} autoscroll={false} />
+              <MessageList msgs={chatMsgs} onCopy={() => {}} autoscroll={false} dayDividers={false} />
             </div>
           ) : output ? <pre className={PRE_CLS}>{output}</pre>
             : err ? <pre className="whitespace-pre-wrap break-words rounded-lg bg-destructive/10 px-3 py-2 font-mono text-[11px] text-destructive">{err}</pre>
@@ -185,7 +185,7 @@ function LiveRunPanel({ pid, run, onClose }: { pid: string; run: LiveRoutineRun;
         <FlowBlock title={t("project.routines.runs_chat")}>
           {msgs.length ? (
             <div data-testid="routine-run-chat" className="-mx-1">
-              <MessageList msgs={msgs} onCopy={() => {}} autoscroll={false} />
+              <MessageList msgs={msgs} onCopy={() => {}} autoscroll={false} dayDividers={false} />
             </div>
           ) : (
             <div className="text-muted-fg">{t("project.routines.live_waiting")}</div>
