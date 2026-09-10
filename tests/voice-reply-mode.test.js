@@ -64,6 +64,30 @@ test("the spoken half stops at a sentence, and the rest stays text", () => {
   assert.ok(!heard.includes("pnpm"), "a command must never be read out");
 });
 
+test("an early full stop does not turn the audio into a greeting", () => {
+  // From a real reply: the salutation ends a sentence at 45 characters and the
+  // next ending is past 330, so cutting at the last one inside the budget spoke
+  // "…de punta a punta, Manu!" and stopped — three seconds that said less than
+  // the notification did.
+  const reply = "¡Gestionado y cotizado de punta a punta, Manu! Ya hablé con La Caja, " +
+    "le cargué los datos de la Amarok y nos pasaron el presupuesto oficial con suma " +
+    "asegurada de cuarenta y dos millones y medio de pesos y treinta por ciento de " +
+    "descuento por tres meses. Te dejé los valores abajo.\n\n**Cotización**";
+  const heard = spokenPart(reply, { maxChars: 120 });
+  assert.ok(heard.includes("cuarenta y dos millones"), "the answer has to survive the cut");
+  assert.ok(!heard.includes("**"), "nothing below the blank line is spoken");
+});
+
+test("the budget stops a page of sentences, not one long one", () => {
+  // Three short sentences run past the cap and get trimmed to whole ones…
+  const many = "Uno corto. Dos también corto. Tres igual. Cuatro y último.";
+  assert.equal(spokenPart(many, { maxChars: 30 }), "Uno corto. Dos también corto.");
+  // …while a single sentence that happens to be long is spoken whole: it is one
+  // thought, and cutting it is the mid-sentence truncation this avoids.
+  const one = "Corto. " + "palabra ".repeat(60) + "final.";
+  assert.ok(spokenPart(one, { maxChars: 100 }).endsWith("final."));
+});
+
 test("a long opening with nothing to cut on is left whole, not chopped", () => {
   // Truncating mid-thought is worse than a long sentence — the same reason
   // nothing here cuts by character count.
