@@ -1,3 +1,10 @@
+# [1.97.0](https://github.com/agentprojectcontext/apx/compare/v1.96.0...v1.97.0) (2026-09-10)
+
+
+### Features
+
+* **voice:** speak while the audio is still being made ([3b3f941](https://github.com/agentprojectcontext/apx/commit/3b3f941a8702eed0bd30d5e09619e78b195efded))
+
 # [1.96.0](https://github.com/agentprojectcontext/apx/compare/v1.95.0...v1.96.0) (2026-09-10)
 
 
