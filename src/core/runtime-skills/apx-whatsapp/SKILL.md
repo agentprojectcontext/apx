@@ -132,6 +132,8 @@ The thread records the LABEL (`Autos`), not the button id — a transcript full 
 
 Inbound is handled before the turn: voice notes arrive transcribed as `[audio] …`, photos as pixels a vision model can see, stickers as `[sticker: <meaning>]`, GIFs as their first frame. **Video is refused** — say so plainly rather than guessing from the caption.
 
+**Files are kept, read where we can, and refused where we should.** A PDF or a text-ish file (txt, md, csv, json, xml, yaml, log…) arrives with its words in the turn — `[file: presupuesto.pdf, 64 KB]` followed by the contents, fenced, because a file's text is somebody else's words arriving through an attachment and not the message body. Anything else (docx, xlsx, zip…) is saved with its own name and offered in the panel; say what arrived rather than guessing what is in it. Programs and scripts (`.exe .msi .sh .apk .dmg .ps1 .jar` …, matched on the LAST extension, so `quote.pdf.exe` is an exe) are **never downloaded**, and neither is anything over 25 MB — the marker says which of the two it was. Archives are kept and never opened.
+
 Stickers are learned once: the first sighting is described by a vision model and stored by content hash in `~/.apx/whatsapp/stickers.json`; every later sighting reuses those words. The owner can overwrite the wording and the model will never overwrite it back.
 
 ## Why the owner is always told, and only sometimes

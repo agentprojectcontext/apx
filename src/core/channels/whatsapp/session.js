@@ -514,7 +514,7 @@ export function createWhatsAppSession({
     },
 
     /** Pull the bytes of one media node to a local file. */
-    async download(message, kind) {
+    async download(message, kind, { fileName = "" } = {}) {
       const baileys = await loadBaileys();
       if (!baileys) throw new Error("baileys is not installed");
       const { downloadMediaMessage } = baileys;
@@ -526,7 +526,13 @@ export function createWhatsAppSession({
       );
       const dir = path.join(APX_HOME, "media");
       fs.mkdirSync(dir, { recursive: true });
-      const file = path.join(dir, `wa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extFor(kind)}`);
+      // A document keeps ITS OWN name (already sanitised by the caller — see
+      // documents.js `safeFileName`), prefixed to stay unique. The extension is
+      // not cosmetic: it is what makes the panel offer the right thing and what
+      // a text extractor keys off, and the default for a document was a
+      // nameless `.bin`.
+      const stamp = `wa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const file = path.join(dir, fileName ? `${stamp}-${fileName}` : `${stamp}${extFor(kind)}`);
       fs.writeFileSync(file, buf);
       return file;
     },
