@@ -11,9 +11,10 @@
 // report is emitted by the daemon, from code, after the turn, so it happens
 // whether or not the model thought of it.
 import { createWhatsAppSession, SESSION_STATES, hasWhatsAppCredentials } from "#core/channels/whatsapp/session.js";
-import { handleWhatsAppMessage } from "#core/channels/whatsapp/dispatch.js";
+import { handleWhatsAppMessage, handleOwnWhatsAppMessage } from "#core/channels/whatsapp/dispatch.js";
 import { readWhatsAppConfig, patchWhatsAppConfig } from "#core/channels/whatsapp/config.js";
 import { normalizeJid } from "#core/identity/whatsapp.js";
+import { sendWhatsApp } from "#core/channels/whatsapp/outbox.js";
 
 export default {
   id: "whatsapp",
@@ -71,6 +72,9 @@ export default {
             log(`whatsapp: could not record the line: ${e.message}`);
           }
         },
+        // The owner writing from their own phone. Logged, never answered.
+        onOwnMessage: (m) =>
+          handleOwnWhatsAppMessage(m, { session, globalConfig: config, log }),
         onMessage: (m) =>
           handleWhatsAppMessage(m, {
             session,
@@ -141,17 +145,24 @@ export default {
         await session?.logout?.();
         return session?.status?.() || { state: SESSION_STATES.OFF };
       },
-      async send(jid, text) {
+      // Sending goes through core's outbox, which sends AND records in one
+      // call. Both adapters above this — the `send_whatsapp` tool and
+      // POST /api/whatsapp/send — used to reach `session.sendText` directly and
+      // so wrote nothing to the ledger; a message somebody deliberately asked
+      // for was the only kind that left no trace. See core/channels/whatsapp/outbox.js.
+      async send(jid, text, meta = {}) {
         if (!session) throw new Error("whatsapp is not connected");
-        return session.sendText(jid, text);
+        return sendWhatsApp({ session, globalConfig: config, to: jid, text, meta });
       },
-      async sendSticker(jid, filePath) {
+      async sendSticker(jid, filePath, label = "", meta = {}) {
         if (!session) throw new Error("whatsapp is not connected");
-        return session.sendSticker(jid, filePath);
+        return sendWhatsApp({
+          session, globalConfig: config, to: jid, stickerFile: filePath, stickerLabel: label, meta,
+        });
       },
       async react(jid, key, emoji) {
         if (!session) throw new Error("whatsapp is not connected");
-        return session.sendReaction(jid, key, emoji);
+        return sendWhatsApp({ session, globalConfig: config, to: jid, reactTo: key, text: emoji });
       },
       notifyOwner,
     };

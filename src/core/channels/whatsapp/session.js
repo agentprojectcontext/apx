@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME } from "#core/config/paths.js";
 import { isIgnorableJid } from "#core/identity/whatsapp.js";
+import { claimOwnSend } from "./echo.js";
 
 export const SESSION_STATES = Object.freeze({
   OFF: "off",                 // disabled in config, or the library is missing
@@ -89,6 +90,8 @@ const safeJson = (v) => { try { return JSON.stringify(v); } catch { return Strin
  * @param {object} opts
  *   session   name of the credential folder (default "default")
  *   onMessage(m)   called per inbound message (already filtered to real ones)
+ *   onOwnMessage(m) called per message WhatsApp reports as ours that we did NOT
+ *                  send — i.e. the owner typing on their own phone. See echo.js
  *   onStatus(s)    called whenever the state changes
  *   onIdentified(jid) called on every successful connection with the account's
  *                  own JID — see the 515 note below for why it is not
@@ -98,6 +101,7 @@ const safeJson = (v) => { try { return JSON.stringify(v); } catch { return Strin
 export function createWhatsAppSession({
   session = "default",
   onMessage = () => {},
+  onOwnMessage = () => {},
   onStatus = () => {},
   onIdentified = () => {},
   log = () => {},
@@ -252,8 +256,17 @@ export function createWhatsAppSession({
       for (const m of up.messages || []) {
         try {
           if (!m.message) continue;          // receipts, reactions, protocol noise
-          if (m.key?.fromMe) continue;       // our own sends echo back
           if (isIgnorableJid(m.key?.remoteJid)) continue;  // status stories, Channels, service numbers
+          // `fromMe` is two different events wearing one flag: the echo of a
+          // message WE just sent (already in the ledger — outbox wrote it) and
+          // a message the OWNER typed on their own phone, mirrored to us
+          // because WhatsApp Web is a companion device. Dropping both, which
+          // is what this used to do, meant the owner's own half of every
+          // conversation was missing from their own record. See echo.js.
+          if (m.key?.fromMe) {
+            if (!claimOwnSend(m.key?.id)) await onOwnMessage(m);
+            continue;
+          }
           await onMessage(m);
         } catch (e) {
           log(`whatsapp inbound handler failed: ${e.message}`);

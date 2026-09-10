@@ -107,7 +107,7 @@ export default {
             .listStickers().filter((x) => !x.blocked).slice(0, 12).map((x) => x.meaning),
         };
       }
-      await whatsapp.sendSticker(jid, file);
+      await whatsapp.sendSticker(jid, file, hit.meaning);
       return { ok: true, sent: true, sticker: hit.meaning, to: jid, name: known?.name || null };
     }
 
@@ -116,7 +116,23 @@ export default {
       return { ok: true, reacted: body || "(removed)", to: jid, name: known?.name || null };
     }
 
-    await whatsapp.send(jid, body);
-    return { ok: true, sent: true, to: jid, name: known?.name || null, chars: body.length };
+    // `send` writes the ledger row itself, so the message the agent just sent is
+    // readable in the thread, the panel and `tail_messages` the moment this
+    // returns. It did not always: a peer agent once read the log, found no
+    // outgoing row for a message that HAD been delivered, called the send a lie
+    // and had a duplicate sent to the same person. Anything that reports
+    // `sent: true` must have left a record saying so.
+    const res = await whatsapp.send(jid, body);
+    return {
+      ok: true,
+      sent: true,
+      to: jid,
+      name: known?.name || null,
+      chars: body.length,
+      // The id WhatsApp gave it. Proof the send happened that outlives this
+      // turn — it is on the ledger row too, so a later reader can match them.
+      ...(res?.id ? { message_id: res.id } : {}),
+      logged: true,
+    };
   },
 };

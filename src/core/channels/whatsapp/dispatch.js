@@ -42,6 +42,7 @@ import { resolveInboundMedia } from "./media.js";
 import { describeSticker } from "./stickers.js";
 import { captureRequest } from "./capture.js";
 import { resolveCapabilities } from "./config.js";
+import { sendWhatsApp, logOutgoingWhatsApp } from "./outbox.js";
 
 // How much of one conversation a sealed turn is allowed to see. Enough to hold
 // a thread, not enough to become a dossier.
@@ -280,17 +281,16 @@ export async function handleWhatsAppMessage(m, ctx) {
   }
 
   if (reply && reply.trim()) {
-    await session.sendText(chatJid, reply);
-    appendGlobalMessage({
-      channel: CHANNELS.WHATSAPP,
-      direction: "out",
-      type: "agent",
-      actor_id: senderJid,
-      body: reply,
+    // Through the shared outbox, like every other send: it writes the ledger
+    // row itself and claims the message id so Baileys' echo of it is not filed
+    // a second time. This branch used to send and log by hand, which is
+    // precisely how the other two send paths came to have no logging at all.
+    await sendWhatsApp({
+      session,
+      globalConfig,
+      to: chatJid,
+      text: reply,
       meta: {
-        chat_jid: chatJid,
-        sender_jid: senderJid,
-        ...(contactKey ? { contact_key: contactKey } : {}),
         policy,
         // Which model answered and what it cost. The ledger already carried
         // this for every other channel, so a WhatsApp reply rendered without
@@ -340,6 +340,55 @@ export async function handleWhatsAppMessage(m, ctx) {
       { kind: "whatsapp_relay", sender_jid: senderJid, suggestion_id: suggestion?.id || null }
     );
   }
+}
+
+/**
+ * A message the OWNER typed on their own phone, mirrored to us.
+ *
+ * WhatsApp Web is a companion device, so everything the owner writes from the
+ * handset arrives here as `fromMe`. It is not a turn and must never start one —
+ * answering it would be answering ourselves — but it IS half of a real
+ * conversation, and without it the thread in the panel shows only what the
+ * other person said. Recorded, and nothing else.
+ *
+ * Our own sends never reach this function: the socket claims those by id first
+ * (see echo.js), so anything arriving here is genuinely the human's.
+ */
+export async function handleOwnWhatsAppMessage(m, ctx) {
+  const { session, globalConfig, log = () => {} } = ctx;
+  const chatJid = m.key?.remoteJid || "";
+  if (!chatJid || isIgnorableJid(chatJid)) return;
+
+  // Resolved as `owner`, because that is who wrote it: an image the owner sent
+  // from their phone should read as a picture in the thread, not as a marker.
+  const media = await resolveInboundMedia(m.message || {}, {
+    download: (node, kind) => session.download(m, kind),
+    describeImage: (p) => describeSticker(p, globalConfig),
+    log,
+    from: chatJid,
+    audience: "owner",
+  });
+  // A reaction the owner tapped is a mark on something already said. The
+  // inbound side does not log those as messages either.
+  if (media.kind === "reaction") return;
+
+  const body = [media.text, textOf(m).trim()].filter(Boolean).join(" ").trim();
+  if (!body) return;
+
+  logOutgoingWhatsApp({
+    globalConfig,
+    chatJid,
+    body,
+    externalId: m.key?.id || undefined,
+    meta: {
+      // What separates this row from one the agent wrote. The panel needs it to
+      // attribute the bubble to the human rather than to the assistant, and a
+      // reader scanning the ledger needs it to know nothing was automated here.
+      authored_by: "owner",
+      ...(media.media ? { ...media.media.meta, media_kind: media.media.kind } : {}),
+    },
+  });
+  log(`whatsapp: owner wrote to ${chatJid} from their phone — logged, no turn`);
 }
 
 /**
