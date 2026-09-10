@@ -1,3 +1,11 @@
+## [1.97.1](https://github.com/agentprojectcontext/apx/compare/v1.97.0...v1.97.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **desktop:** a streamed reply looks like a reply that spoke ([8e1266e](https://github.com/agentprojectcontext/apx/commit/8e1266ed44e8c7b3452090ee2c616af298f77eb6))
+* **desktop:** stop paying twice for the first sentence when streaming ([14d4e50](https://github.com/agentprojectcontext/apx/commit/14d4e505e1a56bbe97823bd32f4726a75e64d640))
+
 # [1.97.0](https://github.com/agentprojectcontext/apx/compare/v1.96.0...v1.97.0) (2026-09-10)
 
 
