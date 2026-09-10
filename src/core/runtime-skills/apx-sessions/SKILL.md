@@ -1,6 +1,6 @@
 ---
 name: apx-sessions
-description: "Cross-engine session ops (apx, claude, codex, opencode, antigravity): find by title, list, get transcript, summarize, ask, resume, continue. Triggers: 'apx session find/ask/summary/resume/get', 'find/resume/summarize session', 'get session transcript', 'continue session in apx'. Not for `apx run` orchestration (use apx skill)."
+description: "Coding session operations across engines (apx, claude, codex, opencode, antigravity) — a session, "una sesión", "las sesiones", "retomá la sesión", "seguir donde quedamos": find by title, list, get transcript, summarize, ask, resume, continue. Triggers: 'apx session find/ask/summary/resume/get', 'find/resume/summarize session', 'get session transcript', 'continue session in apx'. Not for `apx run` orchestration (use apx skill)."
 ---
 
 # APX Sessions — cross-engine resume, summary, continuation

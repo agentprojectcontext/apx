@@ -1,6 +1,6 @@
 ---
 name: apx-routine
-description: Create, edit, run, debug APX routines (scheduled tasks). Load BEFORE `apx routine add` — schedule grammar, kind selection, pre/post hooks, double-reply gotcha.
+description: Scheduled recurring automation — a routine, "una rutina", "rutinas", "todos los días", "cada mañana", "tarea programada": create, edit, run and debug APX routines. Load BEFORE `apx routine add` — schedule grammar, kind selection, pre/post hooks, double-reply gotcha.
 ---
 
 # apx-routine
