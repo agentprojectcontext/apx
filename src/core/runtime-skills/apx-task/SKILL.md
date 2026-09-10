@@ -1,6 +1,6 @@
 ---
 name: apx-task
-description: Per-project TODO list with subtasks, comments and a board — a task, "una tarea", "tareas pendientes", "anotá", "recordame", "qué tengo pendiente". Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, complete, split or comment on a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks', 'split this task', 'subtask', 'comment on the task', 'move it to QA'.
+description: Per-project to-do list — a task, "una tarea", "tareas pendientes", "tareas abiertas", "anotá", "marcá como terminada" — with subtasks, comments and a board. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, complete, split or comment on a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks', 'split this task', 'subtask', 'comment on the task', 'move it to QA'.
 ---
 
 # apx-task
