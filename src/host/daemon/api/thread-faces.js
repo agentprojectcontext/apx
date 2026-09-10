@@ -20,6 +20,7 @@ import { readAgents } from "#core/apc/parser.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+import { parsePeerAddress } from "#core/agent/a2a/peers.js";
 
 const LEGACY_SUPER_AGENT_SLUGS = new Set([
   "default", "superagent", "super-agent", "super_agent", "apx", "roby", "__super_agent__",
@@ -96,23 +97,37 @@ export function createFaceResolver(projectPaths = []) {
   };
 
   /** `localAgents` (the thread's own project roster) wins over every other project. */
-  const face = (slug, localAgents = []) => {
-    if (slug === SUPERAGENT_ACTOR_ID) return { ...superAgentFace() };
+  const face = (address, localAgents = []) => {
+    // An a2a peer may carry a SESSION: `claude-code:acme-web` is Claude, working
+    // in acme-web — one speaker, one of possibly several conversations with
+    // them. The
+    // identity is the part before the colon; the suffix says which thread.
+    //
+    // Resolving the whole string as if it were a slug is why the panel drew
+    // "claude-code:acme-web · APX" and a header that read like a group name: no
+    // roster and no CLI brand list has an entry called `claude-code:acme-web`, so
+    // it fell through to printing the raw address.
+    const { name: slug, thread: session } = parsePeerAddress(address);
+    const withSession = (f) => (session ? { ...f, slug: address, session } : f);
+
+    if (slug === SUPERAGENT_ACTOR_ID) return withSession({ ...superAgentFace() });
     const local = localAgents.find((a) => a.slug === slug);
     const hit = local ? faceOfAgent(local) : globalIndex().get(slug) || null;
     if (!hit && LEGACY_SUPER_AGENT_SLUGS.has(String(slug).toLowerCase())) {
-      return { ...superAgentFace() };
+      return withSession({ ...superAgentFace() });
     }
     if (!hit && String(slug).toLowerCase() === "roby-orchestrator") {
-      return {
+      return withSession({
         slug,
         name: "Roby Orchestrator",
         emoji: null,
         icon: superAgentFace().icon,
-      };
+      });
     }
-    return {
+    return withSession({
       // Physical key, so a surface can OPEN this agent and not just paint it.
+      // Keeps the session suffix when there is one: two conversations with the
+      // same peer are two threads, and a click has to land on the right one.
       slug,
       // A project agent's own name; else a coding CLI's brand name (Claude,
       // Cursor, OpenCode…) so it doesn't read as a bare lowercase slug; else
@@ -120,7 +135,7 @@ export function createFaceResolver(projectPaths = []) {
       name: hit?.name || CLI_DISPLAY_NAMES[String(slug).toLowerCase()] || slug,
       emoji: hit?.emoji || null,
       icon: hit?.icon || null,
-    };
+    });
   };
 
   /**
@@ -141,10 +156,14 @@ export function createFaceResolver(projectPaths = []) {
     const faces = participants.map((slug) => face(slug, localAgents));
     const own = String(thread.title || "");
     const isDerived = !own || own === participants.join(" · ") || own === thread.id;
+    // Two conversations with the same peer would otherwise render the same
+    // title; the session is what tells them apart, so it rides in the title
+    // when there is one. "Claude · APX" and "Claude (acme-web) · APX".
+    const label = (f) => (f.session ? `${f.name} (${f.session})` : f.name);
     return {
       ...thread,
       participant_faces: faces,
-      title: isDerived ? faces.map((f) => f.name).join(" · ") : own,
+      title: isDerived ? faces.map(label).join(" · ") : own,
     };
   };
 
