@@ -196,6 +196,36 @@ export function contactFaceFor(thread, cfg) {
 }
 
 /**
+ * A channel thread, carrying WHO it is with — the face and the name.
+ *
+ * The name matters as much as the picture and was missing for a reason worth
+ * writing down. A person-thread's title is derived by the ledger store, which
+ * knows only what the rows say: `contactName(rows) || contact`. Rows we SENT
+ * carry no author (we are not the person), so a conversation APX opened and the
+ * contact has not answered yet has nothing to be named after, and the title
+ * falls back to the raw address. That is how the owner ended up looking at a
+ * thread headed "5491155555555@s.whatsapp.net" for somebody sitting in their
+ * own roster under a name, with a photo, two lines away in the same sidebar.
+ *
+ * The store cannot fix it: it must not import a channel's identity module to
+ * read its own files back. The roster lookup belongs here, at the adapter, and
+ * the override is deliberately narrow — ONLY when the title is exactly the
+ * contact key, which is the store's own way of saying "nothing named this". A
+ * title the owner typed, or one derived from what was actually said, is left
+ * alone.
+ */
+export function withContactIdentity(thread, cfg) {
+  const face = contactFaceFor(thread, cfg);
+  if (!face) return thread;
+  const derived = String(thread.title || "") === String(thread.contact || "");
+  return {
+    ...thread,
+    contact_face: face,
+    ...(derived && face.name ? { title: face.name } : {}),
+  };
+}
+
+/**
  * WHICH PERSON a thread's contact key names, today.
  *
  * A key is what the ledger recorded when the message arrived; the roster is who

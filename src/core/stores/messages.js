@@ -1791,7 +1791,31 @@ export function shapeLedgerMessage(r) {
   }
   if (r.type === "user") {
     const media = mediaFromMeta(r.meta);
-    return { role: "user", content: r.body || "", ts: r.ts, ...(media ? { media } : {}) };
+    return {
+      role: "user",
+      content: r.body || "",
+      ts: r.ts,
+      ...(media ? { media } : {}),
+      // A menu somebody offered: buttons, a list, a template (WhatsApp). The
+      // rendered text already names the options — "[Opciones: 1. Autos | 2.
+      // Hogar]" — because a model answers a menu by writing "2". A person does
+      // not: they tap. Handed out here so the thread can draw the buttons that
+      // were actually on the message instead of a bracketed line about them.
+      ...(Array.isArray(r.meta?.interactive_options) && r.meta.interactive_options.length
+        ? {
+            interactive: {
+              kind: r.meta.interactive_kind || "buttons",
+              options: r.meta.interactive_options,
+              // WHERE the menu was offered. A tap has to be sent back to that
+              // chat, and the surface drawing the buttons only knows a thread
+              // id — which names the person, not the address a message leaves
+              // for. It rides with the menu rather than being looked up again.
+              ...(r.meta.chat_jid ? { chat: r.meta.chat_jid } : {}),
+            },
+          }
+        : {}),
+      ...(r.meta?.interactive_selection ? { chose: r.meta.interactive_selection } : {}),
+    };
   }
   const usage = r.meta?.usage;
   // Images the agent attached to its own message (attach_media → routine
@@ -1874,6 +1898,53 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
     archived: over.archived || undefined,
     messages,
   };
+}
+
+/**
+ * Rewrite ONE row of the global ledger, in place, by its channel message id.
+ *
+ * The ledger is append-only on purpose and almost nothing may touch this: what
+ * a row says is what was true when it was written, and "correcting" a role or a
+ * name after the fact would erase the record of what the system actually knew.
+ *
+ * The exception this exists for is narrower and is not about what was true. It
+ * is about a row that never held the message at all: WhatsApp delivered a menu
+ * of buttons, the decoder of the day understood none of the shapes it came in,
+ * and what got written was the marker `[empty message]`. Nobody said that. The
+ * bytes existed and can be asked for again (see channels/whatsapp/repair.js),
+ * and when they come back the row should hold what the person sent.
+ *
+ * So: matched by `external_id` — the id the CHANNEL gave the message, which is
+ * the only handle that survives a rewrite — and every caller stamps provenance
+ * in `meta` saying the row was repaired and from where. `ts`, `direction`,
+ * `author` and the rest are never touched.
+ *
+ * @returns the updated row, or null when there was nothing to update.
+ */
+export function patchGlobalMessage({ channel, date, external_id, body, meta, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
+  const day = String(date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const id = String(external_id || "").trim();
+  if (!id) return null;
+
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  const file = path.join(base, channel, `${day}.jsonl`);
+  if (!fs.existsSync(file)) return null;
+
+  const rows = parseDayJsonl(fs.readFileSync(file, "utf8"));
+  const i = rows.findIndex((r) => String(r?.meta?.external_id || "") === id);
+  if (i < 0) return null;
+
+  const row = rows[i];
+  const next = {
+    ...row,
+    ...(body === undefined ? {} : { body: String(body ?? "") }),
+    ...(meta === undefined ? {} : { meta: { ...(row.meta || {}), ...meta } }),
+  };
+  rows[i] = next;
+  fs.writeFileSync(file, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  return next;
 }
 
 // Delete one channel+day thread by removing its JSONL file. The global ledger

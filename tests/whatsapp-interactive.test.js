@@ -293,4 +293,35 @@ test("the last menu in a chat is read back off the ledger, not held in memory", 
   assert.equal(offer.message_id, "WAMSG1");
   assert.deepEqual(offer.options.map((o) => o.title), ["Autos", "Hogar"]);
   assert.equal(lastOfferFor("5491155550000@s.whatsapp.net"), null, "menus do not cross chats");
+  // Where the menu WAS, so the tap goes back into the chat that showed it.
+  assert.equal(offer.chat_jid, BOT);
+});
+
+test("the menu is found from the person's other address, not only the one it arrived on", () => {
+  // The live shape of this bug: a company's menu arrives on their LID (the
+  // address the thread is keyed by) and the agent answers the PHONE number it
+  // originally wrote to. Comparing raw addresses found no offer, so the choice
+  // left as typed text instead of a button and the bot answered "no te
+  // entendí". The rows carry the contact key the roster resolved; that is the
+  // hop that makes one person one conversation.
+  const LID = "104900000000001@lid";
+  const PHONE = "5491148570001@s.whatsapp.net";
+  appendGlobalMessage({
+    channel: CHANNELS.WHATSAPP,
+    direction: "in",
+    type: "user",
+    actor_id: LID,
+    body: "Contame el motivo\n[Opciones: 1. Venta | 2. Precio]",
+    external_id: "WAMSG9",
+    meta: {
+      chat_jid: LID, sender_jid: LID, contact_key: PHONE,
+      interactive_kind: "buttons",
+      interactive_options: [{ n: 1, id: "v", title: "Venta" }, { n: 2, id: "p", title: "Precio" }],
+    },
+  });
+
+  const offer = lastOfferFor(PHONE);
+  assert.ok(offer, "the menu is theirs whichever address you ask about");
+  assert.equal(offer.message_id, "WAMSG9");
+  assert.equal(offer.chat_jid, LID, "and the tap belongs in the chat it was offered in");
 });

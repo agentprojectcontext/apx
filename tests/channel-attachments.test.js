@@ -131,5 +131,12 @@ test("the bubble shows the files and drops the marker text", () => {
     /stripMediaMarker\(textOf\(msg\), media\.length\)/,
     "copying a media turn copies what is shown, one marker dropped per file",
   );
-  assert.match(src, /textOfPart\(part\.text, media\)/, "the machine-facing marker is not shown as the message");
+  // Every text a part renders goes through the one reader — `visibleText`,
+  // which drops the media markers (and, when the options are drawn as buttons,
+  // the menu's own inline "[Opciones: …]" line). Pinned on the reader rather
+  // than on `textOfPart(part.text, media)` literally: what must not come back
+  // is a part rendering `part.text` raw.
+  assert.match(src, /textOfPart\(raw, media\)/, "the machine-facing marker is not shown as the message");
+  assert.doesNotMatch(src, /content=\{part\.text\}/, "a part's raw text is never rendered as the message");
+  assert.doesNotMatch(src, /renderMentions\(part\.text\)/, "…and not on the user's side either");
 });

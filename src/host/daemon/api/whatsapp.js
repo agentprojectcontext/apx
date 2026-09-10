@@ -5,6 +5,9 @@
 //   POST   /whatsapp/logout                     — drop the credentials
 //   PATCH  /whatsapp/settings                   — enabled / auto_reply / groups / project
 //   POST   /whatsapp/send        { jid, text }  — explicit send
+//   POST   /whatsapp/choose  { jid, option }     — tap an option on the last menu
+//   GET    /whatsapp/repair                     — what is wrong with the chats
+//   POST   /whatsapp/repair  { dry_run, force }  — fix it
 //   GET    /whatsapp/contacts                   — the roster
 //   PATCH  /whatsapp/contacts/:jid { role, name, nickname, relationship, bio, rules, auto_reply }
 //   DELETE /whatsapp/contacts/:jid
@@ -86,6 +89,51 @@ export function register(api, { plugins }) {
     // so a message sent from the panel shows up in the thread like any other.
     const sent = await p.send(jid, text);
     res.json({ ok: true, jid, ...(sent?.id ? { message_id: sent.id } : {}) });
+  }));
+
+  // Tap a button on the last menu that chat offered.
+  //
+  // The agent can already do this (`send_whatsapp` with an option), and so can
+  // the owner by typing "2" — but a menu drawn as buttons in the panel that
+  // does nothing when clicked is worse than no buttons at all. Same core call
+  // as the tool: which option was meant, and whether a real tap or the label is
+  // what leaves, is decided in one place (channels/whatsapp/outbox.js).
+  api.post("/whatsapp/choose", asyncRoute(async (req, res) => {
+    const p = wa();
+    if (!p) return unavailable(res);
+    const jid = normalizeJid(req.body?.jid);
+    const option = req.body?.option;
+    if (!jid) return res.status(400).json({ error: "a valid jid is required" });
+    if (option === undefined || option === null || option === "") {
+      return res.status(400).json({ error: "option is required" });
+    }
+    const r = await p.chooseOption(jid, option, { asText: req.body?.as_text === true });
+    if (r?.ok === false) return res.status(400).json(r);
+    res.json({ ok: true, jid, ...(r?.id ? { message_id: r.id } : {}) });
+  }));
+
+  // ---- repair --------------------------------------------------------
+  //
+  // Two verbs on one noun, deliberately. GET says what is wrong and changes
+  // nothing, so a panel can show it and the owner can decide; POST fixes it.
+  // Both read the same list from core, so the preview cannot describe a repair
+  // different from the one that runs.
+  api.get("/whatsapp/repair", (_req, res) => {
+    const p = wa();
+    if (!p) return unavailable(res);
+    res.json(p.inspect());
+  });
+
+  api.post("/whatsapp/repair", asyncRoute(async (req, res) => {
+    const p = wa();
+    if (!p) return unavailable(res);
+    // Recovering a message means asking the phone and waiting on it, one at a
+    // time — seconds, not milliseconds. That is why this is a POST the owner
+    // asks for rather than something the daemon does on a timer.
+    res.json(await p.repair({
+      dryRun: req.body?.dry_run === true,
+      force: req.body?.force === true,
+    }));
   }));
 
   // ---- roster --------------------------------------------------------

@@ -29,6 +29,7 @@
 import { CHANNELS } from "#core/constants/channels.js";
 import { readGlobalMessages } from "#core/stores/messages.js";
 import { normalizeJid } from "#core/identity/whatsapp.js";
+import { addressesFor } from "./aliases.js";
 
 /**
  * Containers WhatsApp wraps real content in.
@@ -379,6 +380,15 @@ export function messageText(message) {
 export function lastOfferFor(chatJid, { limit = 200 } = {}) {
   const wanted = normalizeJid(chatJid);
   if (!wanted) return null;
+  // ONE person, two addresses — and the menu is almost never filed under the
+  // one you are about to answer from. Observed live: a company's menu arrived
+  // on their LID (`1049…@lid`, the row the ledger keys the thread by) and the
+  // agent answered the PHONE number it had originally written to. Comparing the
+  // raw address found no offer, the choice went out as typed text instead of a
+  // button, and the bot replied "no te entendí". The credential store knows the
+  // pair (aliases.js), and rows also carry the contact key the roster resolved,
+  // so both are accepted here.
+  const addresses = new Set(addressesFor(wanted));
   let rows = [];
   try {
     rows = readGlobalMessages({ channel: CHANNELS.WHATSAPP, limit }) || [];
@@ -388,13 +398,18 @@ export function lastOfferFor(chatJid, { limit = 200 } = {}) {
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (r.direction !== "in") continue;
-    if (normalizeJid(r.meta?.chat_jid) !== wanted) continue;
+    const chat = normalizeJid(r.meta?.chat_jid);
+    const key = normalizeJid(r.meta?.contact_key);
+    if (!addresses.has(chat) && !(key && addresses.has(key))) continue;
     const options = r.meta?.interactive_options;
     if (!Array.isArray(options) || !options.length) continue;
     return {
       kind: r.meta.interactive_kind || "buttons",
       options,
-      message_id: r.external_id || null,
+      // WHERE it was offered. A button reply belongs in the chat that showed
+      // the buttons, which is not necessarily the address the caller named.
+      chat_jid: chat || wanted,
+      message_id: r.meta?.external_id || r.external_id || null,
       ts: r.ts || null,
     };
   }

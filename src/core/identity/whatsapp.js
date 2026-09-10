@@ -439,6 +439,55 @@ export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushN
 }
 
 /**
+ * Names WhatsApp itself told us, folded into the roster.
+ *
+ * Three of them arrive on the `contacts.upsert` / `contacts.update` events and
+ * they are not equally good, which is the whole reason this function is not a
+ * one-liner:
+ *
+ *   `name`          what the OWNER has this person saved as, from their own
+ *                   address book. The best answer there is.
+ *   `verifiedName`  a verified business's registered name — the only place a
+ *                   company's name ever appears, since a business sends no
+ *                   pushName. This is why "104900000000000@lid" sat nameless on
+ *                   the roster with a photo and no way to say who it was.
+ *   `notify`        what the sender calls themselves this week. Last resort.
+ *
+ * Only ever fills a row that has NO name. A name the owner typed into the panel
+ * outranks anything the network says about a person, and an address book that
+ * happens to disagree must not quietly rewrite it.
+ *
+ * @returns the number of rows that gained a name.
+ */
+export function learnWhatsAppNames(cfg, rows = []) {
+  const wanted = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    const jid = normalizeJid(r?.id);
+    const name = String(r?.name || r?.verifiedName || r?.notify || "").trim();
+    if (jid && name) wanted.push({ jid, name, verified: Boolean(r?.verifiedName) });
+  }
+  if (!wanted.length) return 0;
+
+  const disk = readConfig();
+  if (!Array.isArray(disk.whatsapp?.contacts)) return 0;
+
+  let learned = 0;
+  for (const w of wanted) {
+    const row = findWhatsAppContact(disk, w.jid);
+    if (!row || String(row.name || "").trim()) continue;
+    row.name = w.name;
+    // Where it came from, because it did not come from the owner.
+    row.name_source = "whatsapp";
+    if (w.verified && !row.business) row.business = true;
+    learned++;
+  }
+  if (!learned) return 0;
+  writeConfig(disk);
+  if (cfg?.whatsapp) cfg.whatsapp.contacts = disk.whatsapp.contacts;
+  return learned;
+}
+
+/**
  * Writing to somebody IS vouching for them.
  *
  * The roster is an allowlist for people who write to US, and it was only ever

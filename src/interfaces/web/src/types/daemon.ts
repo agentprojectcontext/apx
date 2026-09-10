@@ -380,6 +380,28 @@ export interface ConversationMessage {
    *  delivery writes, and it mirrors its first file here. */
   media?: MessageMedia;
   media_list?: MessageMedia[];
+  /** A menu this message OFFERED — WhatsApp buttons, a list, a template. The
+   *  text already names the options (a model answers a menu by writing "2"); a
+   *  person taps, so the buttons are handed over too. */
+  interactive?: InteractiveMenu;
+  /** A menu option this message PICKED. */
+  chose?: { id?: string; title?: string; description?: string };
+}
+
+export interface InteractiveMenu {
+  kind: string;
+  options: InteractiveOption[];
+  /** The chat address the menu was offered in — where a tap has to be sent. */
+  chat?: string;
+}
+
+export interface InteractiveOption {
+  /** Its number as shown, and the handle a tap is sent as. */
+  n: number;
+  id: string;
+  title: string;
+  description?: string;
+  url?: string;
 }
 
 export interface ToolSummary {

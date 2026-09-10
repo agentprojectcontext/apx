@@ -47,6 +47,12 @@ export interface WhatsAppContact {
   /** Text this person may be answered from without checking with the owner. */
   facts?: string;
   auto_reply?: boolean;
+  /** A verified business, not a person — why the row is addressed by a LID
+   *  with no phone number behind it. */
+  business?: boolean;
+  /** Answerable because APX was told to write to them, and NOT vetted: nobody
+   *  has said who they are. Cleared the moment the row is edited. */
+  pending_review?: boolean;
   first_seen?: string;
   last_seen?: string;
 }
@@ -87,6 +93,27 @@ export interface WhatsAppPairResult {
   note?: string;
 }
 
+export interface WhatsAppFinding {
+  kind: "nameless" | "unvouched" | "alias" | "duplicate" | "unreadable";
+  jid: string;
+  name?: string;
+  detail: string;
+  ts?: string;
+  external_id?: string;
+  attempts?: number;
+  /** Set on a finding that was acted on / left alone by a repair run. */
+  action?: string;
+  why?: string;
+}
+
+export interface WhatsAppRepairReport {
+  dry_run: boolean;
+  connected: boolean;
+  checked: { contacts: number; messages: number };
+  fixed: WhatsAppFinding[];
+  left: WhatsAppFinding[];
+}
+
 export const WhatsApp = {
   status: () => http.get<WhatsAppStatus>("/api/whatsapp/status"),
   // Deliberately a POST, and deliberately not part of status(): a QR is a live
@@ -99,6 +126,21 @@ export const WhatsApp = {
     http.patch<WhatsAppStatus>("/api/whatsapp/settings", body),
   send: (jid: string, text: string) =>
     http.post<{ ok: true; jid: string }>("/api/whatsapp/send", { jid, text }),
+  /**
+   * Tap one option on the last menu that chat offered.
+   *
+   * `option` is the option's NUMBER as shown ("2"). Which button that is, and
+   * whether a real tap or the label goes out on the wire, is decided by the
+   * daemon from the menu it recorded — the panel never builds a proto.
+   */
+  choose: (jid: string, option: string | number) =>
+    http.post<{ ok: true; jid: string; message_id?: string }>("/api/whatsapp/choose", { jid, option }),
+  /** What is wrong with the chats: nameless rows, people we cannot answer,
+   *  messages that arrived unreadable. Reads, changes nothing. */
+  inspect: () => http.get<{ contacts: WhatsAppFinding[]; messages: WhatsAppFinding[] }>("/api/whatsapp/repair"),
+  /** Fix them. `dry_run` reports what it would do and touches nothing. */
+  repair: (body?: { dry_run?: boolean; force?: boolean }) =>
+    http.post<WhatsAppRepairReport>("/api/whatsapp/repair", body || {}),
 
   contacts: {
     list: () => http.get<{ contacts: WhatsAppContact[]; roles: Record<string, { auto_reply: boolean }>; relationships: string[]; capabilities: string[] }>(

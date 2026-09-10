@@ -120,6 +120,8 @@ Until this existed those messages had no readable text at all and were logged as
 
 **To answer one, pass `option` to `send_whatsapp`** — the number as it was shown (`"2"`), the exact title (`"Autos"`) or the option's id. APX finds the last menu in that chat (off the ledger, so it survives a restart and a turn that never saw the message) and sends the real selection, so the bot sees its button pressed rather than a sentence. `text` is ignored when `option` is set.
 
+The menu is found by PERSON, not by address: a company's menu usually arrives on their `@lid` while the number you wrote to is their `@s.whatsapp.net`, and matching the raw address found nothing — so the choice left as typed text and the bot answered "no te entendí". Ask about either address and you get the same menu, and the tap is sent back into the chat that showed it.
+
 - An ambiguous fragment matches nothing on purpose. `"seguro"` against *Seguro de auto* and *Seguro de hogar* is refused, with both options in the answer, rather than tapping one on a guess.
 - Quick-reply buttons, lists and templates are answered with a real tap. **nativeFlow menus and polls are answered by typing the option's label** — Baileys has no builder for `interactiveResponseMessage`, and inventing a proto it cannot encode would put a malformed node on somebody's server. This is not a downgrade in practice: typing the label is what a person does when a button will not open.
 - If a tap goes unanswered, retry with `as_text: true` to type the label instead.
@@ -138,8 +140,26 @@ The report to the owner is emitted by the daemon, not by the model — a sealed 
 
 So: do not tell a WhatsApp contact that you will "escalate" or "pass this to my owner and come back" as if you were arranging it. It already happened.
 
+## Repairing chats that came out wrong — `apx whatsapp`
+
+Some failures do not fix themselves on the next message: a business that landed on the roster nameless (they send no `pushName`), a conversation APX opened before a send was a vouch and so cannot continue, a menu written into the ledger as `[empty message]` by a decoder that did not know the shape, and a contact whose turn a restart killed mid-thought — WhatsApp does not deliver that message twice.
+
+```bash
+apx whatsapp chats             # what is wrong, changes nothing
+apx whatsapp repair            # fix it   (--dry-run to see it first, --force to retry a phone that was offline)
+apx whatsapp status
+```
+
+`repair` will: link a person's other address, name a row from what the ledger already heard, make a guest APX wrote to first answerable (`pending_review: true` — answerable, not vetted), and **ask the phone for any message that arrived unreadable** (`requestPlaceholderResend`: the phone still has it, and a resend is recognised as a repair, never re-answered or re-reported). A recovered menu comes back with its options, so the panel draws the buttons.
+
+It will NOT invent a name, promote anyone the owner has decided about, merge two rows that may each hold owner-written notes, or answer a message on its own. A chat nobody answered is **reported** — writing to somebody hours later is the owner's call, not a repair's.
+
+The same two verbs are on the API (`GET /api/whatsapp/repair` asks, `POST` fixes) and a tap on a menu drawn in the panel goes through `POST /api/whatsapp/choose`.
+
 ## When something looks wrong
 
 - **Connected but nobody is answered, including the owner** — check `owner_jid`. Empty means everyone resolves as a stranger.
 - **`logged_out`** — the credentials are dead and the plugin will NOT retry on its own (retrying dead credentials in a loop is how an account gets flagged). The owner has to pair again.
 - **Idle after a restart with no session** — expected when nothing has ever been paired; the daemon does not open a socket or produce a QR unasked.
+- **A contact wrote and got nothing back** — most often a restart landed while the turn was running; the message is delivered, so nothing will retry it. `apx whatsapp chats` lists every chat in that state, with the words, so it can be answered by hand.
+- **A thread titled by a raw address, or a message reading `[empty message]`** — `apx whatsapp repair`.
