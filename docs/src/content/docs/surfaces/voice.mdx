@@ -50,6 +50,31 @@ the path without playing it.
   ✓ whisper      local    model base   lang es`}
 </Terminal>
 
+## Streaming speech
+
+A self-hosted engine that can send audio as it is generated — QVox does — can
+speak before the audio is finished. `synthesize()` answers with a path to a
+completed file, which is what a Telegram voice note needs; `synthesizeStream()`
+hands over raw PCM as it arrives, which is what anyone listening live wants.
+Measured against the same engine and line, the first audio lands in roughly a
+tenth of the time.
+
+It is **off by default** and turned on per surface:
+
+```bash
+apx config set --global voice.tts.stream true
+```
+
+Only the desktop uses it. Telegram deliberately does not: a voice note cannot be
+sent half-made, so there is nothing to gain. An engine that cannot stream
+answers `501` and the caller falls back to the file route, so turning it on
+never costs a reply.
+
+**Warm the voice you will use.** A named speaker, a cloned reference and a bare
+instruct are three different checkpoints; warming one leaves the others cold. A
+clone warmed as a clone reached its first audio in 0.5 s against 22 s warmed as
+anything else.
+
 ## Providers
 
 | ID | Local? | Key needed | Quality | Notes |
