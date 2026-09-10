@@ -800,15 +800,40 @@
   // exactly where the previous one ends, which is the only way the seams stay
   // inaudible.
   // ---------------------------------------------------------------------
-  const streams = new Map();   // turnId -> { ctx, nextAt, sources, seconds, done }
+  const streams = new Map();   // turnId -> { ctx, nextAt, sources, seconds, done, pcm, rate }
 
   function streamFor(turnId) {
     let st = streams.get(turnId);
     if (!st) {
-      st = { ctx: new AudioContext(), nextAt: 0, sources: [], seconds: 0, done: false };
+      st = { ctx: new AudioContext(), nextAt: 0, sources: [], seconds: 0, done: false, pcm: [], rate: 24000 };
       streams.set(turnId, st);
     }
     return st;
+  }
+
+  /**
+   * The blocks kept as one WAV, so the reply ends up with a player like any
+   * other.
+   *
+   * Live playback is Web Audio and leaves nothing behind — no url, no duration,
+   * nothing the bubble can draw a scrubber from. Without this the voice comes
+   * out of the speakers and the message still looks like it never spoke, with
+   * the "audio on its way" placeholder spinning under it forever.
+   */
+  function streamedWavUrl(st) {
+    const total = st.pcm.reduce((n, c) => n + c.length, 0);
+    if (!total) return null;
+    const buf = new ArrayBuffer(44 + total * 2);
+    const v = new DataView(buf);
+    const str = (o, x) => { for (let i = 0; i < x.length; i++) v.setUint8(o + i, x.charCodeAt(i)); };
+    str(0, "RIFF"); v.setUint32(4, 36 + total * 2, true); str(8, "WAVE");
+    str(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, st.rate, true); v.setUint32(28, st.rate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, "data"); v.setUint32(40, total * 2, true);
+    let o = 44;
+    for (const c of st.pcm) for (let i = 0; i < c.length; i++, o += 2) v.setInt16(o, c[i], true);
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
   }
 
   function pushStreamedPcm(turnId, pcmBuffer, sampleRate) {
@@ -817,6 +842,13 @@
     const st = streamFor(turnId);
     const pcm = new Int16Array(pcmBuffer);
     if (!pcm.length) return;
+    if (!st.pcm.length) {
+      // Audio is here: the placeholder has done its job and must come down, or
+      // it promises for the rest of the session something that already arrived.
+      clearPendingAudio(turnId);
+    }
+    st.pcm.push(pcm);
+    st.rate = sampleRate;
 
     const f32 = new Float32Array(pcm.length);
     for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 32768;
@@ -847,7 +879,19 @@
     streams.delete(turnId);
     try { st.ctx.close(); } catch {}
     const m = messages.find((x) => x.id === turnId);
-    if (m) onSegmentEnded(m);
+    if (!m) return;
+    // Hand the finished audio to the normal player. It has already been heard,
+    // so this is for replaying and scrubbing it afterwards — the bubble should
+    // look no different for having been spoken as it was made.
+    const url = streamedWavUrl(st);
+    if (url) {
+      m.audio = url;
+      m.dur = st.seconds;
+      m._parts = [{ url, dur: st.seconds }];
+      m._partsDone = true;
+      render();
+    }
+    onSegmentEnded(m);
   }
 
   function markStreamDone(turnId) {

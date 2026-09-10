@@ -741,6 +741,24 @@ ipcMain.handle("prewarm-tts", async (_e, { text }) => {
 let streamingTts = null;   // null = unknown, true/false = settled
 
 /**
+ * Streaming is opt-in: `voice.tts.stream: true`.
+ *
+ * It is a different way of speaking, not a better setting of the same one — the
+ * audio arrives as raw blocks played through Web Audio instead of a file the
+ * player already knows how to handle. The file route is what every other
+ * surface uses and what years of this window were built around, so it stays the
+ * default and the new path has to be asked for by name.
+ */
+function streamingEnabled() {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(os.homedir(), ".apx", "config.json"), "utf8"));
+    return cfg?.voice?.tts?.stream === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Speak the whole reply as one stream.
  *
  * Sentence splitting exists to get the first words out sooner: with a route
@@ -776,7 +794,7 @@ ipcMain.handle("request-tts", async (_e, { text, seg }) => {
     return;
   }
 
-  if (streamingTts !== false) {
+  if (streamingTts !== false && streamingEnabled()) {
     try {
       await speakStreamed(text, seg, send);
       streamingTts = true;
