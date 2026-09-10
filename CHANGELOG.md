@@ -1,3 +1,10 @@
+## [1.94.4](https://github.com/agentprojectcontext/apx/compare/v1.94.3...v1.94.4) (2026-09-10)
+
+
+### Bug Fixes
+
+* **whatsapp:** read the menus, buttons and lists that arrived as nothing ([f9477ad](https://github.com/agentprojectcontext/apx/commit/f9477ad98c09ec1459545b1b481ffdf2f6c35389))
+
 ## [1.94.3](https://github.com/agentprojectcontext/apx/compare/v1.94.2...v1.94.3) (2026-09-10)
 
 
