@@ -104,6 +104,7 @@ export function createWhatsAppSession({
   onOwnMessage = () => {},
   onStatus = () => {},
   onIdentified = () => {},
+  onContacts = () => {},
   log = () => {},
 } = {}) {
   let sock = null;
@@ -115,6 +116,13 @@ export function createWhatsAppSession({
   let retryTimer = null;
   let stopped = true;
   let connectedAt = null;
+  // Messages we have ASKED THE PHONE TO SEND AGAIN, by message id.
+  //
+  // A resend arrives through the ordinary `messages.upsert` door, flagged
+  // `notify` like any live message — so without this map the repair that asked
+  // for it would re-deliver a week-old message to the owner and, worse, answer
+  // it. See recoverMessage().
+  const pendingRecoveries = new Map();
   // Everyone currently waiting for a QR (or for the socket to come up without
   // one, which is what happens when the stored credentials are still good).
   let qrWaiters = [];
@@ -248,6 +256,19 @@ export function createWhatsAppSession({
       }
     });
 
+    // Who these people ARE, as WhatsApp knows them.
+    //
+    // The address book the owner has on their phone, and the registered name of
+    // any verified business that writes — pushed by WhatsApp on connect and
+    // whenever one changes. Nothing listened to them, so a company that sends
+    // no `pushName` (all of them do not) stayed on the roster as an address
+    // with a photo. Names only ever FILL an empty field; see learnWhatsAppNames.
+    for (const ev of ["contacts.upsert", "contacts.update"]) {
+      sock.ev.on(ev, (rows) => {
+        try { onContacts(rows || []); } catch (e) { log(`whatsapp: contact update failed: ${e.message}`); }
+      });
+    }
+
     sock.ev.on("messages.upsert", async (up) => {
       // "append" is history backfill — messages we have already lived through.
       // Answering those on reconnect would replay days of conversation at
@@ -255,6 +276,16 @@ export function createWhatsAppSession({
       if (up.type !== "notify") return;
       for (const m of up.messages || []) {
         try {
+          // A message we asked for again (repair.js). It is old news by
+          // definition: hand it to whoever is waiting and stop — dispatching it
+          // would report a past message as if it had just arrived, and answer
+          // it a second time.
+          const waiter = m.key?.id ? pendingRecoveries.get(m.key.id) : null;
+          if (waiter) {
+            pendingRecoveries.delete(m.key.id);
+            waiter(m);
+            continue;
+          }
           if (!m.message) continue;          // receipts, reactions, protocol noise
           if (isIgnorableJid(m.key?.remoteJid)) continue;  // status stories, Channels, service numbers
           // `fromMe` is two different events wearing one flag: the echo of a
@@ -432,6 +463,54 @@ export function createWhatsAppSession({
       } catch {
         return null;
       }
+    },
+
+    /**
+     * Ask the phone to send ONE message again, by its key.
+     *
+     * WhatsApp keeps a message on the sender's phone long after we have taken
+     * delivery of it, and the protocol has a way to ask for it back: a peer
+     * data operation of type PLACEHOLDER_MESSAGE_RESEND, which Baileys exposes
+     * as `requestPlaceholderResend`. It exists for messages that failed to
+     * decrypt; a message that decrypted fine and was then MISREAD by a decoder
+     * that did not know the shape is the same hole from the ledger's side, and
+     * this is how it gets filled — see repair.js, and the button menus that
+     * were written down as "[empty message]" on 2026-09-10.
+     *
+     * Two things the caller must know:
+     *   - the phone has to be reachable. It is the source, not WhatsApp's
+     *     servers, so a phone that is off means null and no error.
+     *   - the answer comes back through the ordinary inbound door, which is why
+     *     `pendingRecoveries` exists: the socket hands it here instead of
+     *     treating a week-old message as news.
+     *
+     * Resolves with the Baileys message, or null on a timeout.
+     */
+    async recoverMessage(key, { timeoutMs = 20_000 } = {}) {
+      if (!sock) throw new Error("whatsapp is not connected");
+      const id = key?.id;
+      if (!id) throw new Error("recoverMessage: the message key is required");
+      if (pendingRecoveries.has(id)) return null;   // already asked; one waiter per id
+
+      return new Promise((resolve) => {
+        let timer = null;
+        const settle = (m) => {
+          if (timer) { clearTimeout(timer); timer = null; }
+          pendingRecoveries.delete(id);
+          resolve(m || null);
+        };
+        pendingRecoveries.set(id, settle);
+        timer = setTimeout(() => settle(null), timeoutMs);
+        // Baileys waits 2s of its own before sending the request (a message
+        // that arrives meanwhile makes it unnecessary), so a rejection here is
+        // the request never leaving — not the phone declining.
+        Promise.resolve()
+          .then(() => sock.requestPlaceholderResend(key))
+          .catch((e) => {
+            log(`whatsapp: could not ask for ${id} again: ${e.message}`);
+            settle(null);
+          });
+      });
     },
 
     /** Pull the bytes of one media node to a local file. */

@@ -19,6 +19,7 @@ export const ROUTES = Object.freeze({
   "daemon": () => import("./daemon.js"),
   "pair": () => import("./pair.js"),
   "telegram": () => import("./telegram.js"),
+  "whatsapp": () => import("./whatsapp.js"),
   "messages": () => import("./messages.js"),
   "log": () => import("./log.js"),
   "logs": () => import("./log.js"),

@@ -73,7 +73,7 @@ import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
-import { faceResolverFor, readAgentsSafe, contactFaceFor } from "./thread-faces.js";
+import { faceResolverFor, readAgentsSafe, withContactIdentity } from "./thread-faces.js";
 import { readConfig } from "#core/config/index.js";
 
 export function register(api, { projects, project, config, plugins, registries }) {
@@ -267,10 +267,8 @@ export function register(api, { projects, project, config, plugins, registries }
       includeArchived: req.query.include_archived === "1",
     }).map((thread) => {
       const active = getActiveTurnByKey(superAgentTurnKey(p.id, thread.channel));
-      const contactFace = contactFaceFor(thread, cfg);
       return {
-        ...thread,
-        ...(contactFace ? { contact_face: contactFace } : {}),
+        ...withContactIdentity(thread, cfg),
         active_turn: active?.thread_id === thread.id ? active : null,
       };
     });
@@ -317,8 +315,9 @@ export function register(api, { projects, project, config, plugins, registries }
     // header draws the same face whether it was opened from the sidebar, the
     // inbox or a deep link with no row behind it.
     try {
-      const contactFace = contactFaceFor(thread, readConfig());
-      if (contactFace) decorated = { ...decorated, contact_face: contactFace };
+      // Chained onto what the face resolver already decided, not onto the raw
+      // thread: an a2a title made of real names must survive this.
+      decorated = withContactIdentity(decorated, readConfig());
     } catch { /* best-effort */ }
     // a2a and group turns are keyed by THREAD, not by channel: the run belongs
     // to the pair or the room. This used to be a hard `null` because nothing

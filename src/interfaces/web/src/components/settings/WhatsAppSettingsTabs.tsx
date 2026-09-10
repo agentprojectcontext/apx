@@ -312,6 +312,16 @@ function ContactsPanel() {
                 <Badge tone={isOwnerRow(c) ? "success" : answered ? "info" : "muted"}>
                   {isOwnerRow(c) ? t("settings.whatsapp.role_owner") : roleLabel(c.role)}
                 </Badge>
+                {/* Answerable, but nobody has said who they are: APX added this
+                    row because it was told to write to them. The distinction is
+                    invisible otherwise — the row looks exactly like a contact
+                    the owner curated by hand — and it disappears the moment
+                    anyone edits the row, which is what reviewing it means. */}
+                {c.pending_review && !isOwnerRow(c) && (
+                  <Tip content={t("settings.whatsapp.pending_review_hint")}>
+                    <Badge tone="warning">{t("settings.whatsapp.pending_review")}</Badge>
+                  </Tip>
+                )}
 
                 <div className="ml-auto flex items-center gap-1">
                   {/* The everyday decision, and the only one on the row: do we

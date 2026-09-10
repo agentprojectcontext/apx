@@ -856,6 +856,22 @@ export const HELP_TOPICS = new Map(Object.entries({
     options: [["--tail N", "Number of lines to print."]],
     examples: ["apx daemon logs --tail 100"],
   }),
+  whatsapp: topic({
+    title: "apx whatsapp",
+    summary: "Look at the WhatsApp chats and repair the ones that came out wrong.",
+    usage: ["apx whatsapp <status|chats|repair> [--dry-run] [--force]"],
+    commands: [
+      ["status", "Session state, the line, the owner and how many contacts."],
+      ["chats", "What is wrong: nameless rows, people APX cannot answer, unreadable messages."],
+      ["repair", "Fix it: name them, let the agent answer, ask the phone for what never arrived."],
+    ],
+    examples: [
+      "apx whatsapp chats",
+      "apx whatsapp repair --dry-run",
+      "apx whatsapp repair",
+      "apx whatsapp repair --force",
+    ],
+  }),
   telegram: topic({
     title: "apx telegram",
     summary: "Configure, inspect, and send through the Telegram bridge.",

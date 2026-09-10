@@ -9,6 +9,7 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
+import { InteractiveOptions } from "./InteractiveOptions";
 import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
 import { textOf, type ChatMsg, type ChatPart } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
@@ -138,6 +139,16 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
     if (v || media?.length) onEdit(v);
   };
 
+  // What the READER sees of a part: the attachment markers dropped, and the
+  // menu's own "[Opciones: 1. … | 2. …]" line dropped too when the options are
+  // being drawn as buttons right below. That line is written for the model — it
+  // is how a menu is answered in words — and printing it under real buttons
+  // says the same thing twice, in the uglier of the two ways.
+  const visibleText = (raw: string | undefined) => {
+    const text = textOfPart(raw, media);
+    return msg.interactive?.options?.length ? stripMenuMarker(text) : text;
+  };
+
   // One part of the turn, outside any block: the agent's own words, its
   // thinking, or a card that must stay in the open.
   const renderPart = (part: ChatPart, i: number) =>
@@ -149,7 +160,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
       ) : (
         <ToolCall key={`${part.id}-${i}`} part={part} />
       )
-    ) : textOfPart(part.text, media) ? (
+    ) : visibleText(part.text) ? (
       <div
         key={i}
         className={cn(
@@ -179,10 +190,10 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             margins are zeroed so the block spacing does not double up with the
             bubble's own py-2. */}
         {mine ? (
-          renderMentions(textOfPart(part.text, media))
+          renderMentions(visibleText(part.text))
         ) : (
           <MarkdownPreview
-            content={textOfPart(part.text, media)}
+            content={visibleText(part.text)}
             mentions
             className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
           />
@@ -234,6 +245,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         {/* What was actually sent: the voice note plays, the photo is the photo,
             the document opens. */}
         {media?.length ? <AttachmentGroup media={media} /> : null}
+
 
         {/* Operational notes (engine fallbacks, retries, suppressed tools).
             Top-aligned and wrapping: a note now carries the REASON an engine
@@ -306,6 +318,14 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             renderPart(seg.part, si)
           ),
         )}
+
+        {/* A menu the message OFFERED — WhatsApp buttons, a list, a template.
+            UNDER the text, because that is where they are on the phone: the
+            question first, then what you can tap. The stored text also names
+            the options inline (that is how a model answers a menu, by writing
+            "2"); with real buttons on screen that line is noise, and
+            `menuText` drops it. */}
+        {msg.interactive?.options?.length ? <InteractiveOptions menu={msg.interactive} /> : null}
         {/* Still going. Not just before the first part arrives: a turn that has
             been running shell commands for two minutes shows a list of finished
             steps and nothing that says more is coming, so it reads as an answer
@@ -499,6 +519,15 @@ function Typing({ label }: { label: string }) {
       </span>
     </div>
   );
+}
+
+/** The inline options line, as `describeInteractive` writes it. Anchored to the
+ *  end because that is where it is appended, and matched loosely on the label so
+ *  a menu decoded in either language reads the same. */
+const MENU_MARKER = /\n?\[(?:Opciones|Options):[^\]]*\]\s*$/;
+
+function stripMenuMarker(text: string): string {
+  return text.replace(MENU_MARKER, "").trimEnd();
 }
 
 /** The visible text of a part: with attachments, the machine-facing markers

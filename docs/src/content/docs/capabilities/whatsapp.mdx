@@ -190,8 +190,7 @@ yourself — and carry `meta.authored_by: "owner"` so a thread reads as the whol
 
 ## API
 
-All routes are under `/api/whatsapp`. There is no `apx whatsapp` CLI command; the surface is the
-panel and the API.
+All routes are under `/api/whatsapp`.
 
 ```text
 GET    /status                        session state + roster summary (never the QR)
@@ -204,7 +203,40 @@ POST   /contacts/:jid/owner           mark that contact as the owner
 GET    /roles                         PUT · DELETE /roles/:name
 GET    /suggestions                   POST /suggestions/:id/confirm · /dismiss
 GET    /stickers                      PATCH · DELETE /stickers/:key
+GET    /repair                        what is wrong with the chats (asks, changes nothing)
+POST   /repair          { dry_run, force }
+POST   /choose          { jid, option }   tap an option on that chat's last menu
 ```
+
+## Repairing chats that came out wrong
+
+Some failures do not fix themselves on the next message. A business lands on the roster **nameless**
+(a business account sends no push name), so its thread is headed by a raw address. A conversation APX
+*opened* cannot be continued, because the roster was fed only by people writing in. A menu is written
+into the ledger as `[empty message]`, by a decoder that did not know the shape it arrived in. And a
+contact's message starts a turn that a restart kills mid-thought — WhatsApp does not deliver that
+message twice, so nothing will ever retry it.
+
+```bash
+apx whatsapp chats             # what is wrong — changes nothing
+apx whatsapp repair            # fix it
+apx whatsapp repair --dry-run  # ...or see it first
+apx whatsapp repair --force    # retry messages a phone that was offline never sent back
+apx whatsapp status
+```
+
+What `repair` does:
+
+- **links a person's other address** (their `@lid` and their number are one row, not two),
+- **names a nameless row** from what the ledger already heard them called,
+- **makes a guest APX wrote to first answerable**, flagged `pending_review` — answerable, not vetted,
+- **asks the phone for any message that arrived unreadable.** The phone still has it; the resend is
+  recognised as a repair, so it is never re-answered or re-reported to you. A recovered menu comes
+  back with its options, and the panel draws them as buttons.
+
+What it will not do: invent a name, promote anyone you have already decided about, merge two rows
+that may each hold notes you wrote, or answer a message on its own. **A chat nobody answered is
+reported, never answered automatically** — writing to somebody hours later is your call.
 
 ## When something looks wrong
 
@@ -213,4 +245,6 @@ GET    /stickers                      PATCH · DELETE /stickers/:key
 | Connected, but nobody is answered — including you | `owner_jid` is empty, so everyone resolves as a stranger |
 | `logged_out` | the credentials are dead. The plugin will **not** retry on its own — retrying dead credentials in a loop is how an account gets flagged. Pair again |
 | Idle after a restart, no session | expected when nothing was ever paired. The daemon does not open a socket or produce a QR unasked |
-| A contact's replies open a second thread | they wrote from a `…@lid` address APX has not folded in yet |
+| A contact's replies open a second thread | they wrote from a `…@lid` address APX has not folded in yet — `apx whatsapp repair` links it |
+| A contact wrote and got nothing back | a restart landed while the turn was running. The message was delivered, so nothing retries it: `apx whatsapp chats` lists every chat in that state, with the words |
+| A thread titled by a raw address, or a message reading `[empty message]` | `apx whatsapp repair` |

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations, Groups, Turns } from "../lib/api";
-import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
+import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, InteractiveMenu, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
@@ -74,6 +74,9 @@ export interface ChatMsg {
    *  Rendered as the file itself — the stored text is only the marker the
    *  agent was handed. */
   media?: MessageMedia[];
+  /** A menu this message offered (WhatsApp buttons/list/template), drawn as
+   *  buttons under the text. */
+  interactive?: InteractiveMenu;
   /** Composed HERE, in this tab, rather than read back from storage.
    *  A reply typed into a Telegram thread goes out on the `web` channel, so the
    *  Telegram thread file will never contain it — and a background refresh that
@@ -338,7 +341,13 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
       // A stored turn records ONE file (the ledger row holds a single media
       // block) — the live turn below can carry several, so the field is a list
       // either way and history just has a list of one.
-      out.push({ role: "user", parts: userPart(m.content), ts, ...(m.media ? { media: [m.media] } : {}) });
+      out.push({
+        role: "user",
+        parts: userPart(m.content),
+        ts,
+        ...(m.media ? { media: [m.media] } : {}),
+        ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
+      });
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is
       // running); only assistant rows can start a new one.

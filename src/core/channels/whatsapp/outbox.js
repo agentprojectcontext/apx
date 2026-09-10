@@ -267,7 +267,9 @@ export async function chooseWhatsAppOption({ session, globalConfig, to, option, 
   return sendWhatsApp({
     session,
     globalConfig,
-    to: jid,
+    // The chat the MENU was in. Same person either way, but a button reply sent
+    // to their other address is a reply to a menu that address never showed.
+    to: offer.chat_jid || jid,
     choice: { ...hit, kind: offer.kind, as_text: asText },
     meta: { ...meta, ...(offer.message_id ? { in_reply_to: offer.message_id } : {}) },
   });

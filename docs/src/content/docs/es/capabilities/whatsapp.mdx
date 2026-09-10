@@ -196,8 +196,7 @@ conversación entera.
 
 ## API
 
-Todas las rutas cuelgan de `/api/whatsapp`. No hay comando `apx whatsapp` en el CLI; la superficie
-es el panel y la API.
+Todas las rutas cuelgan de `/api/whatsapp`.
 
 ```text
 GET    /status                        estado de la sesión + resumen del roster (nunca el QR)
@@ -210,7 +209,42 @@ POST   /contacts/:jid/owner           marcar ese contacto como el dueño
 GET    /roles                         PUT · DELETE /roles/:name
 GET    /suggestions                   POST /suggestions/:id/confirm · /dismiss
 GET    /stickers                      PATCH · DELETE /stickers/:key
+GET    /repair                        qué está mal en los chats (pregunta, no toca nada)
+POST   /repair          { dry_run, force }
+POST   /choose          { jid, option }   tocar una opción del último menú de ese chat
 ```
+
+## Reparar chats que salieron mal
+
+Hay fallas que no se arreglan solas con el próximo mensaje. Una empresa cae en el roster **sin
+nombre** (una cuenta de negocio no manda push name), así que su hilo queda encabezado por una
+dirección cruda. Una conversación que abrió APX no se puede continuar, porque el roster se alimentaba
+sólo de quien escribía. Un menú queda escrito en el ledger como `[empty message]`, por un decodificador
+que no conocía la forma en que llegó. Y el mensaje de un contacto arranca un turno que un restart mata
+a mitad de camino: WhatsApp no entrega ese mensaje dos veces, así que nada lo reintenta.
+
+```bash
+apx whatsapp chats             # qué está mal — no toca nada
+apx whatsapp repair            # arreglarlo
+apx whatsapp repair --dry-run  # ...o verlo primero
+apx whatsapp repair --force    # reintentar mensajes que un teléfono apagado nunca devolvió
+apx whatsapp status
+```
+
+Qué hace `repair`:
+
+- **liga la otra dirección de una persona** (su `@lid` y su número son una fila, no dos),
+- **le pone nombre a una fila sin nombre**, con lo que el ledger ya le escuchó,
+- **hace contestable a un invitado al que APX le escribió primero**, marcado `pending_review`:
+  contestable, no revisado,
+- **le pide al teléfono cualquier mensaje que llegó ilegible.** El teléfono todavía lo tiene; el
+  reenvío se reconoce como una reparación, así que nunca se contesta ni se te reporta de nuevo. Un
+  menú recuperado vuelve con sus opciones, y el panel las dibuja como botones.
+
+Lo que no hace: inventar un nombre, promover a alguien sobre quien ya decidiste, fusionar dos filas
+que pueden tener notas tuyas, ni contestar un mensaje por su cuenta. **Un chat que quedó sin
+respuesta se reporta, nunca se contesta automáticamente** — escribirle a alguien horas después lo
+decidís vos.
 
 ## Cuando algo se ve mal
 
@@ -219,4 +253,6 @@ GET    /stickers                      PATCH · DELETE /stickers/:key
 | Conectado, pero no se le contesta a nadie — ni a vos | `owner_jid` está vacío, así que todos resuelven como desconocidos |
 | `logged_out` | las credenciales están muertas. El plugin **no** reintenta solo — reintentar con credenciales muertas en loop es como se te marca una cuenta. Hay que vincular de nuevo |
 | Idle después de un restart, sin sesión | esperado cuando nunca se vinculó nada. El daemon no abre un socket ni produce un QR sin que se lo pidan |
-| Las respuestas de un contacto abren un segundo hilo | escribieron desde una dirección `…@lid` que APX todavía no plegó |
+| Las respuestas de un contacto abren un segundo hilo | escribieron desde una dirección `…@lid` que APX todavía no plegó — `apx whatsapp repair` la liga |
+| Un contacto escribió y no recibió nada | cayó un restart con el turno corriendo. El mensaje ya fue entregado, así que nada lo reintenta: `apx whatsapp chats` lista todos los chats así, con el texto |
+| Un hilo titulado con una dirección cruda, o un mensaje que dice `[empty message]` | `apx whatsapp repair` |

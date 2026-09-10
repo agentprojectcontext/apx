@@ -13,8 +13,9 @@
 import { createWhatsAppSession, SESSION_STATES, hasWhatsAppCredentials } from "#core/channels/whatsapp/session.js";
 import { handleWhatsAppMessage, handleOwnWhatsAppMessage } from "#core/channels/whatsapp/dispatch.js";
 import { readWhatsAppConfig, patchWhatsAppConfig } from "#core/channels/whatsapp/config.js";
-import { normalizeJid } from "#core/identity/whatsapp.js";
+import { learnWhatsAppNames, normalizeJid } from "#core/identity/whatsapp.js";
 import { sendWhatsApp, chooseWhatsAppOption } from "#core/channels/whatsapp/outbox.js";
+import { inspectWhatsAppChats, repairWhatsAppChats } from "#core/channels/whatsapp/repair.js";
 
 export default {
   id: "whatsapp",
@@ -71,6 +72,13 @@ export default {
           } catch (e) {
             log(`whatsapp: could not record the line: ${e.message}`);
           }
+        },
+        // Names from the account itself: the owner's address book and any
+        // verified business that writes. Best-effort and quiet — a name is a
+        // nicety, and a failure here must never touch the message path.
+        onContacts: (rows) => {
+          const learned = learnWhatsAppNames(config, rows);
+          if (learned) log(`whatsapp: learned ${learned} name${learned === 1 ? "" : "s"} from the account`);
         },
         // The owner writing from their own phone. Logged, never answered.
         onOwnMessage: (m) =>
@@ -164,6 +172,18 @@ export default {
       async chooseOption(jid, option, { asText = false, meta = {} } = {}) {
         if (!session) throw new Error("whatsapp is not connected");
         return chooseWhatsAppOption({ session, globalConfig: config, to: jid, option, asText, meta });
+      },
+      /** What is wrong with the roster and the chats. Reads, changes nothing. */
+      inspect() {
+        return inspectWhatsAppChats({ cfg: config });
+      },
+      /**
+       * Fix it. The socket is passed in when there is one: names and roles are
+       * settled from disk either way, but a message that was never readable
+       * can only come back from the phone.
+       */
+      async repair({ dryRun = false, force = false } = {}) {
+        return repairWhatsAppChats({ cfg: config, session, dryRun, force, log });
       },
       async react(jid, key, emoji) {
         if (!session) throw new Error("whatsapp is not connected");
