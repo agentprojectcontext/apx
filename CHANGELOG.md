@@ -1,3 +1,17 @@
+# [1.95.0](https://github.com/agentprojectcontext/apx/compare/v1.94.4...v1.95.0) (2026-09-10)
+
+
+### Bug Fixes
+
+* **a2a:** address a peer by the id that reaches an adapter, and split threads with ':' ([1975c64](https://github.com/agentprojectcontext/apx/commit/1975c646224ec623ac0fc533702ad224099037bb))
+* **memory:** give written-down notes their own slots instead of a popularity contest ([3d68abc](https://github.com/agentprojectcontext/apx/commit/3d68abc66ecd16f353a643afb5cb101f531048b2))
+* **skills:** lead every description with the words people actually type ([4022ec9](https://github.com/agentprojectcontext/apx/commit/4022ec900d6b28589dc73f96cc3ccce57bb143a2))
+
+
+### Features
+
+* **web:** say which day a chat message was written on ([d10e595](https://github.com/agentprojectcontext/apx/commit/d10e595f956ddcec443988a9e4c10ba84b2e0dc2))
+
 ## [1.94.4](https://github.com/agentprojectcontext/apx/compare/v1.94.3...v1.94.4) (2026-09-10)
 
 
