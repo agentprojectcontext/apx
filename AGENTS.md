@@ -279,7 +279,7 @@ the same change. Index: [`rules/README.md`](rules/README.md).
 | [`repo-layout.md`](rules/repo-layout.md) | finding where a thing lives / where a new thing goes |
 | [`daemon-api.md`](rules/daemon-api.md) | HTTP routes, `asyncRoute`, plugins, WS hubs (rules 9 / 15) |
 | [`cli.md`](rules/cli.md) | CLI commands, routes, help, aliases (rule 10) |
-| [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1) |
+| [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1), reading a red CI |
 | [`recipes.md`](rules/recipes.md) | engines, external runtimes, MCP scopes, Telegram identity |
 | [`web-ui.md`](rules/web-ui.md) | the React + Vite admin panel (rules 11 / 11a / 11b) |
 | [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |
