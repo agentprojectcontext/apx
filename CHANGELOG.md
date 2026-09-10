@@ -1,3 +1,11 @@
+## [1.99.1](https://github.com/agentprojectcontext/apx/compare/v1.99.0...v1.99.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **whatsapp:** go back over the chats and repair what was written down wrong ([6c68ca8](https://github.com/agentprojectcontext/apx/commit/6c68ca8a3c2508a6fdd58ebfbd75a11294b46dd5))
+* **whatsapp:** say WHICH silence — a muted contact is not a stranger ([87616a7](https://github.com/agentprojectcontext/apx/commit/87616a7f8d9e819f978ddf7aff967a4b781bd06e))
+
 # [1.99.0](https://github.com/agentprojectcontext/apx/compare/v1.98.0...v1.99.0) (2026-09-10)
 
 
