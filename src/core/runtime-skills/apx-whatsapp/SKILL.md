@@ -21,6 +21,29 @@ Every inbound message resolves to exactly one of these, decided by code **before
 
 Silence is the designed outcome for a stranger, not a failure. Do not "fix" it by adding people to the roster on your own; that is the owner's decision.
 
+## Writing to somebody puts them ON the roster
+
+A send is a vouch. `send_whatsapp` to a number nobody has vouched for adds them as `role: contact` with `pending_review: true` — answerable, but flagged as never reviewed, because the owner said "write to them", not "here is who they are".
+
+Without this APX could OPEN a conversation and not continue it: it introduced itself to a new collaborator, he answered within the minute, and the reply resolved as a stranger's and got silence. The roster was fed only by people writing IN, so the one thing the owner explicitly authorised — a message going out — taught it nothing.
+
+Three cases are deliberately left alone: the **owner** (their thread is not a roster row), **groups** (one recipient is not consent from the rest), and anyone **already carrying a role** — including one the owner muted on purpose, which a send must never quietly undo. A **reaction** vouches for nobody either: it is a mark on a conversation that already exists.
+
+## Managing the roster yourself — `whatsapp_contacts`
+
+Do not tell the owner to go and click in Settings. This tool is the roster, and it is lazy — activate it with `discover_tools({ category: "messages" })`.
+
+| action | what it does |
+|---|---|
+| `list` | everyone; `pending: true` for the rows APX added by writing and nobody reviewed |
+| `find` | by name, nickname or a number typed any way a person types one |
+| `save` | add or update: `role` to let APX answer them, `auto_reply: false` to mute, plus `name` / `relationship` / `bio` / `rules` |
+| `forget` | off the allowlist — the conversation history stays |
+
+Every row carries a resolved `status` (`answered` / `silent` / `owner`), so you never have to reconstruct the policy from the role, the mute, the role table and the master switch. Reading is free; `save` and `forget` stop for permission, because they are standing grants rather than one message.
+
+`relationship` is a CATEGORY from a fixed list (partner, family, client, supplier, …), not a sentence — "mi contadora" is `supplier` plus a `bio`.
+
 ## The roster is the allowlist
 
 ```json
@@ -79,6 +102,8 @@ This was not always so, and the failure it caused is worth knowing about, becaus
 Messages the OWNER types on their own phone are recorded too (WhatsApp mirrors them to us as `fromMe`). They are logged and never answered — replying would be answering yourself — and they carry `meta.authored_by: "owner"`, so a thread reads as the whole conversation rather than only the half APX wrote.
 
 One person can hold two addresses — a phone JID and an opaque `…@lid`. Both fold to one thread; do not treat them as two correspondents.
+
+A `…@lid` is WhatsApp's own opaque addressing, not a bug and not something APX chose: **the phone number is not in it and cannot be recovered from it.** Businesses always arrive this way, and increasingly so does everyone else. A verified business also sends its name as `verifiedBizName` rather than `pushName`, so the roster row records that plus `business: true` — before that was read, every company sat on the roster nameless and the panel printed the raw LID as the thread title.
 
 ## Menus, buttons and lists
 

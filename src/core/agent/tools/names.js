@@ -101,6 +101,7 @@ export const TOOLS = Object.freeze({
   // Side-effects
   SEND_TELEGRAM:       "send_telegram",
   SEND_WHATSAPP:       "send_whatsapp",
+  WHATSAPP_CONTACTS:   "whatsapp_contacts",
   SET_IDENTITY:        "set_identity",
   SET_PERMISSION_MODE: "set_permission_mode",
   TRANSCRIBE_AUDIO:    "transcribe_audio",
@@ -171,6 +172,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CALENDAR_UPDATE_EVENT,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SEND_WHATSAPP,
+  TOOLS.WHATSAPP_CONTACTS,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,
   TOOLS.READ_SELF_MEMORY,
@@ -276,6 +278,7 @@ export const CODE_BUILD_TOOLS = "*";
 export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.SEND_TELEGRAM,
   TOOLS.SEND_WHATSAPP,
+  TOOLS.WHATSAPP_CONTACTS,
   TOOLS.CREATE_TASK,
   TOOLS.RECORD_COMMITMENT,
   TOOLS.REMEMBER_ROUTINE,
