@@ -89,3 +89,26 @@ appended — not on internal call order. Prefer one test per contract clause
 ratchet. The pre-push hook and PR CI both run it. The TUI stays at its frozen
 typecheck baseline (vendored fork — the ratchet only stops it getting worse).
 Docs (`docs/`) are NOT in preflight — build them explicitly when touched.
+
+## Reading a red CI
+
+`ci.yml` runs two jobs and they fail for different reasons. Before treating a
+red run as a break, read WHICH job died:
+
+- **`verify`** — lint, `lint:web`, `test:ci`, web build, web `tsc`, TUI ratchet.
+  This one is deterministic: preflight covers it, so a red `verify` means the
+  pre-push hook was bypassed. Believe it.
+- **`e2e`** — a real browser against a real daemon. Two failure shapes, and only
+  one is yours:
+  - A spec fails at a *different point* on each attempt while the suite is green
+    locally: a timing margin on a runner ~2.5x slower than a laptop. That is why
+    `playwright.config.ts` sets `retries: 2` on CI and `0` locally; a genuine
+    break fails all three attempts, so a run that goes green on retry is not a
+    break being hidden.
+  - `Install Playwright browser` fails before any spec runs — usually
+    `Hash Sum mismatch` from Google's apt repo on the runner. That is the
+    runner's network, not the panel; the step retries three times.
+
+Neither retry excuses a spec that fails *the same way* every attempt. That is a
+break, and the trace from the first retry is in the `playwright-report`
+artifact.

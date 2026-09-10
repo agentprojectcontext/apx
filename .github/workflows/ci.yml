@@ -124,8 +124,24 @@ jobs:
           done
           echo "daemon never became healthy"; cat /tmp/apx-daemon.log; exit 1
 
+      # `--with-deps` shells out to `apt-get update`, and the hosted runner
+      # ships with Google's Chrome repository configured. When that index
+      # arrives out of sync the fetch fails with `Hash Sum mismatch`, apt exits
+      # 100, and the job dies having never opened a browser — a red `e2e` that
+      # says nothing about the panel. It is the runner's network, so it is
+      # retried rather than read as a break; three attempts, and a third
+      # failure is a real outage worth stopping for.
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm exec playwright install --with-deps chromium; then
+              exit 0
+            fi
+            echo "playwright install failed (attempt ${attempt}/3); retrying in 15s"
+            sleep 15
+          done
+          echo "playwright install failed three times — treating it as a real failure"
+          exit 1
         working-directory: src/interfaces/web
 
       - name: E2E
