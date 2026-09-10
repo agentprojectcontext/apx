@@ -1,0 +1,222 @@
+---
+title: WhatsApp
+description: Vinculá una cuenta de WhatsApp por QR — lista blanca de contactos, un turno sellado para todo el que no sea el dueño, y menús, botones y listas leídos como texto.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX corre un plugin de WhatsApp sobre una sesión de WhatsApp Web: una cuenta, vinculada por QR, que
+maneja el daemon. Las credenciales viven en `~/.apx/whatsapp/auth/default/` con permisos `0700` —
+**quien tenga esa carpeta ES la cuenta**.
+
+<Aside type="caution">
+  Hay una sola cuenta de WhatsApp por instalación de APX, no una por proyecto. Una sesión de
+  WhatsApp Web es un singleton de dispositivo, así que "WhatsApp para el proyecto X" no puede
+  existir. Por eso WhatsApp es un canal y no un plugin de integración por proyecto.
+</Aside>
+
+## Los tres desenlaces
+
+Cada mensaje entrante termina en exactamente uno de estos, decidido **por código, antes de que
+ningún modelo vea el mensaje**. Si a un desconocido se le contesta o no nunca es un juicio que hace
+el modelo sobre un mensaje que está tratando de convencerlo.
+
+| Quién escribe | Qué corre | Qué recibe |
+|---|---|---|
+| El dueño (el que nombra el roster) | el turno completo del super-agent — tools, memoria, proyectos | una respuesta normal |
+| Un contacto del roster con un rol | un turno **sellado**: sin tools, sin memoria, sin ningún otro canal, con esa única conversación como historia | una respuesta corta en texto plano |
+| Cualquier otro | no corre nada | **silencio** — se registra, y se le avisa al dueño |
+
+El silencio para un desconocido es el resultado buscado, no una falla. Dos cosas pasan con todo
+mensaje que no es del dueño, conteste o no: se registra en el canal `whatsapp` con el JID del
+remitente como actor, y se le avisa al dueño **desde el daemon**, no desde el modelo — un turno
+sellado no tiene tools, así que no podría escalar aunque quisiera.
+
+<Aside type="note">
+  Los avisos al dueño se agrupan por corresponsal: 6 horas para alguien fuera del roster, 15
+  minutos para una conversación real. El aviso es reactivo — se dispara porque alguien escribió —
+  así que sin su propio tope un solo desconocido mandando cien mensajes serían cien notificaciones.
+</Aside>
+
+## Vincular una cuenta
+
+<Steps>
+
+1. Abrí **Settings → WhatsApp** en el panel web y apretá **Pair**. Aparece un QR.
+
+   <Screenshot
+     surface="web"
+     caption="Settings → WhatsApp — el QR de vinculación"
+     hint="apx web, Settings → WhatsApp, apretar Pair" />
+
+2. En el teléfono: **WhatsApp → Configuración → Dispositivos vinculados → Vincular un
+   dispositivo**, y escanealo.
+
+3. Configurá `owner_jid` — el número desde el que escribís **vos**. APX no lo adivina.
+
+</Steps>
+
+<Aside type="danger">
+  El QR es una credencial viva de unos 20 segundos. Se guarda en memoria, se entrega solo ante un
+  `POST /pair` explícito, y nunca toca el disco ni el log. `GET /status` deliberadamente no lo
+  trae, para que un panel haciendo polling no lo levante de paso.
+</Aside>
+
+La línea que vinculaste y la persona que la posee son **cosas distintas**. Un despliegue común
+vincula un número dedicado en el que contesta el asistente, mientras el humano le escribe desde su
+propio teléfono, otro. Poner "el dueño es el que vinculó" haría que la línea sea dueña de sí misma
+y dejaría al humano real como un desconocido, así que `owner_jid` se pregunta y nunca se deduce.
+
+## El roster es la lista blanca
+
+```json
+{
+  "whatsapp": {
+    "enabled": true,
+    "auto_reply": true,
+    "reply_to_groups": false,
+    "owner_jid": "1234567890@s.whatsapp.net",
+    "contacts": [{
+      "jid": "1234567891@s.whatsapp.net",
+      "name": "Sam",
+      "nickname": "Sammy",
+      "relationship": "mi contadora",
+      "bio": "quién es, en palabras del dueño",
+      "rules": "qué quiere el dueño que se haga con esta persona",
+      "role": "client",
+      "auto_reply": true
+    }],
+    "roles": { "client": { "auto_reply": true } }
+  }
+}
+```
+
+- El que escribe queda registrado automáticamente como **guest**. Eso no es permiso — a un guest
+  igual nunca se le contesta. El registro existe para que el dueño tenga algo a lo que darle
+  *permitir*.
+- `role: "owner"` no se puede otorgar desde el roster.
+- Un rol indefinido **falla cerrado** (silencio), así que un typo nunca amplía el acceso.
+- `bio` y `rules` llegan solo al turno que contesta a esa persona. Lo que está escrito sobre un
+  contacto nunca está en el prompt que le contesta a otro.
+- Los grupos vienen apagados: todo lo que se dice en un grupo lo lee gente que nadie avaló.
+
+Un mismo humano puede tener dos direcciones — un JID de teléfono y un `…@lid` opaco. Las dos caen
+en el mismo hilo.
+
+## Menús, botones y listas
+
+Una cuenta de empresa rara vez escribe oraciones. Manda un **menú**, y APX lo desarma en texto
+antes de que ningún turno lo vea:
+
+```text
+Hola! Con qué te ayudo?
+[Opciones: 1. Autos | 2. Hogar | 3. Vida]
+```
+
+Y un tap que alguien hizo sobre uno se lee como `[eligió: Autos]`. Se decodifican las cuatro
+generaciones que siguen vivas — botones de respuesta rápida, listas, templates hidratados y
+nativeFlow (incluida una lista `single_select` escondida adentro de un solo botón, y carruseles) —
+más las encuestas, y todas envueltas en `viewOnceMessage` o `ephemeralMessage`, que es como las
+mandan habitualmente las cuentas de empresa.
+
+<Aside type="note">
+  Antes de que esto existiera, esos mensajes no tenían ningún texto legible y quedaban registrados
+  como `[empty message]`: el menú entero de un bot le llegaba al dueño como una notificación
+  diciendo que no se había dicho nada.
+</Aside>
+
+Para contestar uno, pasale `option` a la herramienta `send_whatsapp` — el número tal como se mostró
+(`"2"`), el título exacto (`"Autos"`) o el id de la opción. APX busca el último menú de ese chat en
+el ledger de mensajes y manda la selección real, así el bot ve su botón apretado y no una oración.
+
+- Los botones de respuesta rápida, las listas y los templates reciben un **tap real**.
+- Los menús nativeFlow y las encuestas se contestan **tipeando la etiqueta de la opción** — no hay
+  encoder para `interactiveResponseMessage`, e inventar un nodo del protocolo sería poner un
+  mensaje malformado en el server de otro. En la práctica es lo que hace una persona cuando el
+  botón no abre.
+- Si un tap queda sin respuesta, reintentá con `as_text: true`.
+- Un fragmento ambiguo no matchea nada en vez de apretar un botón a la adivinanza: `"seguro"`
+  contra *Seguro de auto* y *Seguro de hogar* se rechaza, y el rechazo trae las dos opciones.
+
+El hilo registra la **etiqueta**, no el id del botón — una transcripción llena de ids opacos no es
+la conversación que pasó.
+
+## Multimedia
+
+Lo que entra se resuelve antes de que corra el turno, así el registro queda completo incluso para
+gente a la que nunca se le contesta.
+
+| Llega como | Lo que ve el turno |
+|---|---|
+| Audio | `[audio] <transcripción>` — transcripto localmente |
+| Foto | píxeles que un modelo de visión puede mirar de verdad |
+| Sticker | `[sticker: <significado>]` |
+| GIF | su primer frame |
+| Video | se rechaza — hay que decirlo derecho en vez de adivinar por el caption |
+| Documento | `[document: <nombre> — not opened]` |
+| Reacción | se registra como `[reaccionó ❤️]`, y nunca se contesta |
+
+Los stickers se **aprenden una sola vez**: la primera vez que aparece uno lo describe un modelo de
+visión y se guarda por hash de contenido en `~/.apx/whatsapp/stickers.json`; cada aparición
+posterior reusa esas mismas palabras, así el historial queda coherente. El dueño puede reescribir
+el texto y el modelo nunca se lo pisa de vuelta.
+
+## Mandar mensajes
+
+Usá la herramienta `send_whatsapp`: `{ to, text }`. `to` acepta un número de teléfono en cualquier
+formato o un JID completo. Solo texto plano — WhatsApp no renderiza markdown, así que los
+asteriscos y las backticks llegan como caracteres literales.
+
+| Campo | Qué hace |
+|---|---|
+| `text` | el cuerpo, en texto plano |
+| `sticker` | describí uno en palabras; se matchea contra la biblioteca aprendida |
+| `option` | contestar un menú — el número, el título exacto o el id |
+| `as_text` | con `option`: tipear la etiqueta en vez de apretar el botón de verdad |
+| `react_to` | poner un emoji sobre un mensaje en vez de mandar uno |
+
+Se entrega en el instante en que la llamada retorna. No hay borrador, no hay undo y no hay recall.
+
+<Aside type="tip">
+  **Todo envío queda registrado, por la puerta que haya salido** — la herramienta, el `POST /send`
+  del panel y la auto-respuesta del canal pasan todos por una sola función que manda y escribe la
+  fila del ledger en la misma llamada. La herramienta antes mandaba sin registrar, así que un
+  mensaje que **sí** se había entregado no dejaba fila de salida; un agente par leyó el ledger, no
+  encontró nada — correctamente — y le llegó un duplicado a la misma persona. Si alguna vez te
+  dicen que no mandaste algo, el ledger manda: chequealo antes de reenviar.
+</Aside>
+
+Los mensajes que el dueño escribe desde su propio teléfono también se registran (WhatsApp los
+espeja al dispositivo companion como `fromMe`). Se registran y nunca se contestan — contestarlos
+sería contestarse a uno mismo — y llevan `meta.authored_by: "owner"`, así el hilo se lee como la
+conversación entera.
+
+## API
+
+Todas las rutas cuelgan de `/api/whatsapp`. No hay comando `apx whatsapp` en el CLI; la superficie
+es el panel y la API.
+
+```text
+GET    /status                        estado de la sesión + resumen del roster (nunca el QR)
+POST   /pair                          arrancar la vinculación → { qr, qr_data_url }
+POST   /logout                        soltar las credenciales
+PATCH  /settings                      { enabled, auto_reply, reply_to_groups }
+POST   /send            { jid, text }
+GET    /contacts                      PATCH · DELETE /contacts/:jid
+POST   /contacts/:jid/owner           marcar ese contacto como el dueño
+GET    /roles                         PUT · DELETE /roles/:name
+GET    /suggestions                   POST /suggestions/:id/confirm · /dismiss
+GET    /stickers                      PATCH · DELETE /stickers/:key
+```
+
+## Cuando algo se ve mal
+
+| Síntoma | Causa |
+|---|---|
+| Conectado, pero no se le contesta a nadie — ni a vos | `owner_jid` está vacío, así que todos resuelven como desconocidos |
+| `logged_out` | las credenciales están muertas. El plugin **no** reintenta solo — reintentar con credenciales muertas en loop es como se te marca una cuenta. Hay que vincular de nuevo |
+| Idle después de un restart, sin sesión | esperado cuando nunca se vinculó nada. El daemon no abre un socket ni produce un QR sin que se lo pidan |
+| Las respuestas de un contacto abren un segundo hilo | escribieron desde una dirección `…@lid` que APX todavía no plegó |
