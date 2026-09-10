@@ -50,6 +50,31 @@ la ruta sin reproducirlo.
   ✓ whisper      local    model base   lang es`}
 </Terminal>
 
+## Voz en streaming
+
+Un motor propio que sepa mandar el audio mientras lo genera —QVox lo hace— puede
+empezar a hablar antes de terminarlo. `synthesize()` devuelve la ruta a un
+archivo terminado, que es lo que necesita una nota de voz de Telegram;
+`synthesizeStream()` entrega PCM a medida que llega, que es lo que quiere
+cualquiera que esté escuchando en vivo. Medido contra el mismo motor y la misma
+frase, el primer audio llega en cerca de una décima parte del tiempo.
+
+Viene **apagado** y se prende por superficie:
+
+```bash
+apx config set --global voice.tts.stream true
+```
+
+Sólo lo usa el desktop. Telegram no, a propósito: una nota de voz no se puede
+mandar a medias, así que no hay nada que ganar. Un motor que no puede streamear
+responde `501` y quien llamó vuelve al camino de archivos, así que prenderlo
+nunca cuesta una respuesta.
+
+**Calentá la voz que vas a usar.** Un hablante con nombre, una referencia clonada
+y un instruct suelto son tres checkpoints distintos; calentar uno deja a los
+otros igual de fríos. Un clon calentado como clon llegó a su primer audio en
+0,5 s contra 22 s calentado de cualquier otra forma.
+
 ## Proveedores
 
 | ID | ¿Local? | ¿Clave necesaria? | Calidad | Notas |
