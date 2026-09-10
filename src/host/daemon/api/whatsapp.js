@@ -82,8 +82,10 @@ export function register(api, { plugins }) {
     const text = String(req.body?.text || "").trim();
     if (!jid) return res.status(400).json({ error: "a valid jid or phone number is required" });
     if (!text) return res.status(400).json({ error: "text is required" });
-    await p.send(jid, text);
-    res.json({ ok: true, jid });
+    // `send` records the message on the way out (core/channels/whatsapp/outbox),
+    // so a message sent from the panel shows up in the thread like any other.
+    const sent = await p.send(jid, text);
+    res.json({ ok: true, jid, ...(sent?.id ? { message_id: sent.id } : {}) });
   }));
 
   // ---- roster --------------------------------------------------------

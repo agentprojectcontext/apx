@@ -72,6 +72,14 @@ Use the `send_whatsapp` tool: `{ to, text }`. `to` takes a phone number in any f
 
 It is delivered the instant the call returns. There is no draft, no undo, and no recall. Send when the owner asks you to write to someone; never on your own initiative, and never to "check" something with a third party.
 
+**Every send is recorded, whichever door it came through.** The tool, `POST /send` from the panel, and the channel's own auto-reply all go through one function (`core/channels/whatsapp/outbox.js`) that sends and writes the ledger row in the same call, so a message you sent is in the thread, the panel and `tail_messages` the moment the tool returns. The result carries `message_id` and `logged: true`.
+
+This was not always so, and the failure it caused is worth knowing about, because it is the kind you cannot see from inside a turn: the tool used to send without recording, so a message that HAD been delivered left no outgoing row. A peer agent read the ledger, correctly found nothing, told the super-agent it had lied about sending, and a duplicate went to the same person a minute later. If you are ever accused of not having sent something, the ledger is now authoritative — check it (`tail_messages`, channel `whatsapp`) before re-sending, because sending twice is not a free retry: it lands on somebody's phone twice.
+
+Messages the OWNER types on their own phone are recorded too (WhatsApp mirrors them to us as `fromMe`). They are logged and never answered — replying would be answering yourself — and they carry `meta.authored_by: "owner"`, so a thread reads as the whole conversation rather than only the half APX wrote.
+
+One person can hold two addresses — a phone JID and an opaque `…@lid`. Both fold to one thread; do not treat them as two correspondents.
+
 ## Media
 
 Inbound is handled before the turn: voice notes arrive transcribed as `[audio] …`, photos as pixels a vision model can see, stickers as `[sticker: <meaning>]`, GIFs as their first frame. **Video is refused** — say so plainly rather than guessing from the caption.
