@@ -1,3 +1,12 @@
+## [1.94.2](https://github.com/agentprojectcontext/apx/compare/v1.94.1...v1.94.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **a2a:** resolve who is speaking, the way the recipient always was ([3843528](https://github.com/agentprojectcontext/apx/commit/384352869df7b9266cf1839a4728f4f726a479be))
+* **skills:** rank each skill against its own baseline, not a shared threshold ([5390e3f](https://github.com/agentprojectcontext/apx/commit/5390e3f6bd8607aa89c06f13aa2e851b84ba0a65))
+* **whatsapp:** every send is recorded, from every door ([9d2296f](https://github.com/agentprojectcontext/apx/commit/9d2296f755de759704b6bfaf47db223df48f50d1))
+
 ## [1.94.1](https://github.com/agentprojectcontext/apx/compare/v1.94.0...v1.94.1) (2026-09-09)
 
 
