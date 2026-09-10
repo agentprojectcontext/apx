@@ -52,6 +52,32 @@ const REGISTRY = {
 
 export const RUNTIME_IDS = Object.keys(REGISTRY);
 
+/**
+ * Short names people (and agents) actually type for a runtime.
+ *
+ * `claude` is what a Claude Code session calls itself when it introduces
+ * itself over a2a — and because nothing resolved it, the ledger grew a
+ * `claude` peer sitting beside `claude-code`: one agent, two threads, two
+ * histories, and an inbox showing "Claude · Roby" twice. The canonical id is
+ * the one that reaches the adapter; every spelling folds into it.
+ */
+const RUNTIME_ALIASES = Object.freeze({
+  claude: "claude-code",
+  "claude-cli": "claude-code",
+  claudecode: "claude-code",
+  gemini: "gemini-cli",
+  qwen: "qwen-code",
+  cursor: "cursor-agent",
+});
+
+/** The registry id for any accepted spelling, or null when nothing claims it. */
+export function canonicalRuntimeId(name) {
+  const raw = String(name || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (REGISTRY[raw]) return raw;
+  return RUNTIME_ALIASES[raw] || null;
+}
+
 export function getRuntime(id) {
   const r = REGISTRY[id];
   if (!r) {

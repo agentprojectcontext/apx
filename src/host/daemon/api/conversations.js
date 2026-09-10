@@ -64,7 +64,7 @@ function senderCwd(raw) {
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { getActiveTurnByKey, startActiveTurn, endActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
-import { resolvePeer, peerAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
+import { resolvePeer, peerAddress, senderAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
 import { CODE_MODES } from "#core/constants/code-modes.js";
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
@@ -421,7 +421,7 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to: toRaw, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null, code = false, background = false, timeout_s = null } = req.body || {};
+    const { from: fromRaw, to: toRaw, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null, code = false, background = false, timeout_s = null } = req.body || {};
     // Two kinds of exchange, and the difference is real: a `chat` peer runs in
     // its own read-only mode, a `code` peer may write. Chat is the default
     // because receiving a message must not be enough to let the sender rewrite
@@ -430,7 +430,7 @@ export function register(api, { projects, project, config, plugins, registries }
     // A conversation answers in seconds; a coding session does not. Background
     // runs get the hour that `call_runtime` gives its own detached spawns.
     const timeoutMs = (Number(timeout_s) || (background ? 3600 : 300)) * 1000;
-    if (!from || !toRaw || !body)
+    if (!fromRaw || !toRaw || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
       return res.status(429).json({ error: "a2a depth limit (3) exceeded" });
@@ -449,6 +449,12 @@ export function register(api, { projects, project, config, plugins, registries }
     // A synthetic sender ({slug}) is enough: the reply layer only reads `from.slug`,
     // and the a2a log records the label. The RECIPIENT still has to exist, so a
     // typo'd or wrong-project target fails loudly instead of vanishing.
+    // Canonicalise the SENDER the same way the recipient is canonicalised
+    // below. Without this, `claude` and `claude-code` were two peers with two
+    // histories, `apx` and `super_agent` likewise, and a coding CLI offering
+    // its project name (`knot`) minted a correspondent that names nobody. See
+    // senderAddress.
+    const from = senderAddress(fromRaw, agents, p.config || config);
     const fromAgent = agents.find((a) => a.slug === from) || { slug: from, fields: {}, synthetic: true };
     // The RECIPIENT is a PEER, not necessarily an agent: `to` may name an
     // AGENTS.md agent or an external coding runtime (opencode, codex,

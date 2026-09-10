@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { EyeOff, Eye, Inbox } from "lucide-react";
 import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
@@ -39,11 +39,27 @@ export function InboxScreen() {
   const [selected, setSelected] = useState<InboxRow | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
-  // Open the most recent conversation on arrival. An inbox that lands on an
-  // empty pane makes you click twice to see the thing you came for.
+  // Open what the URL asked for, else the most recent conversation. An inbox
+  // that lands on an empty pane makes you click twice to see the thing you
+  // came for — but one that ignores its own deep link is worse: every
+  // `/inbox?channel=…&thread=…` anybody shares (an agent pointing at what it
+  // just wrote, a link in a report) silently opened the newest chat instead,
+  // and the reader had no way to tell they were looking at the wrong thing.
+  const [params] = useSearchParams();
+  const wantChannel = params.get("channel");
+  const wantThread = params.get("thread");
   useEffect(() => {
-    if (!selected && rows.length) setSelected(rows[0]);
-  }, [rows, selected]);
+    if (selected || !rows.length) return;
+    const asked = wantChannel || wantThread
+      ? rows.find((r) =>
+          (!wantChannel || r.channel === wantChannel) &&
+          (!wantThread || r.conversation_id === wantThread))
+      : null;
+    // Falling back to the newest row is deliberate: a link to a thread that has
+    // since rolled over to a new day should still land you IN the inbox rather
+    // than on a blank pane.
+    setSelected(asked || rows[0]);
+  }, [rows, selected, wantChannel, wantThread]);
 
   // Follow the row, not the snapshot of it. The list refreshes underneath as
   // messages arrive, and the same agent can point at a DIFFERENT thread than it

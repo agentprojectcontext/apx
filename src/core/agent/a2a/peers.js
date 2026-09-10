@@ -24,7 +24,7 @@
 // delimiter: the browser cuts the address in half before the request leaves,
 // and every thread with a suffix 404s. `:` survives the trip (encoded or not),
 // which api/conversations.js already relies on for the `a2a:` slug itself.
-import { RUNTIME_IDS } from "#core/runtimes/index.js";
+import { canonicalRuntimeId } from "#core/runtimes/index.js";
 import { resolveAgentName } from "#core/identity/self.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
@@ -43,7 +43,7 @@ export function parsePeerAddress(address) {
 }
 
 export function isRuntimeName(name) {
-  return RUNTIME_IDS.includes(String(name || ""));
+  return canonicalRuntimeId(name) !== null;
 }
 
 /** Find the real project agent claimed by an addressable name. */
@@ -85,8 +85,11 @@ export function resolvePeer(address, agents = [], config = {}) {
 
   if (agent) return { kind: "agent", address: full, name: agent.slug, thread, agent };
 
-  if (isRuntimeName(name)) {
-    return { kind: "runtime", address: full, name, thread, runtime: name };
+  const runtime = canonicalRuntimeId(name);
+  if (runtime) {
+    // The CANONICAL id, not the spelling that was typed — `claude` and
+    // `claude-code` are one peer with one history, not two.
+    return { kind: "runtime", address: full, name: runtime, thread, runtime };
   }
 
   // Super-agent fallback: aliases and configured identity all reach the same
@@ -132,6 +135,38 @@ export function resolvePeer(address, agents = [], config = {}) {
 export function peerAddress(peer) {
   if (!peer?.name) return "";
   return peer.thread ? `${peer.name}:${peer.thread}` : peer.name;
+}
+
+/**
+ * The canonical address of whoever is SENDING — the other half of peerAddress.
+ *
+ * The recipient has always been resolved (`resolvePeer` → `peerAddress`), so
+ * `Roby`, `roby`, `default` and `apx` all reach one peer with one history. The
+ * sender was taken raw, and that asymmetry wrote four identities into the
+ * ledger that name nobody:
+ *
+ *   `claude`     a second thread beside `claude-code`, same agent
+ *   `apx`        a second thread beside `super_agent`, same agent
+ *   `acme-web`   a PROJECT name, filed as if it were a person
+ *   `northwind`  likewise
+ *
+ * The last two are the interesting case. A coding CLI relaying to an agent
+ * knows the session it is working in and offers that as its name — but a
+ * session is not a speaker. The speaker is `claude-code`; `acme-web` is WHICH
+ * conversation with it. That distinction already exists in this file as the
+ * `:thread` suffix, so the right address was always `claude-code:acme-web`.
+ *
+ * A name nothing claims is kept as-is rather than rejected: an external caller
+ * that has always identified itself some other way must keep working, and a
+ * relay that 400s is a relay that silently stops reporting. It is returned
+ * unchanged so it stays visible and fixable instead of becoming an error
+ * nobody sees.
+ */
+export function senderAddress(from, agents = [], config = {}) {
+  const raw = String(from || "").trim();
+  if (!raw) return "";
+  const peer = resolvePeer(raw, agents, config);
+  return peer ? peerAddress(peer) : raw;
 }
 
 /**
