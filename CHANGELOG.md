@@ -1,3 +1,11 @@
+# [1.100.0](https://github.com/agentprojectcontext/apx/compare/v1.99.1...v1.100.0) (2026-09-10)
+
+
+### Features
+
+* **whatsapp:** a file somebody sends arrives — and a program never does ([b00b1d9](https://github.com/agentprojectcontext/apx/commit/b00b1d9cb037a0c473f38d0485e0d8f932b3e877))
+* **whatsapp:** a page of its own, one list of people, and a pause before answering ([a1d4f85](https://github.com/agentprojectcontext/apx/commit/a1d4f854868ceaa15c583b1cef9bb6bcbebbdf10))
+
 ## [1.99.1](https://github.com/agentprojectcontext/apx/compare/v1.99.0...v1.99.1) (2026-09-10)
 
 
