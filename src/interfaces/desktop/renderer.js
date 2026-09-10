@@ -790,6 +790,83 @@
 
   // Post-finalize hook: a sentence of this turn's speech just arrived. The
   // first one mounts the player; later ones extend the playlist under it.
+  // ---------------------------------------------------------------------
+  // Streamed speech.
+  //
+  // The file player swaps <audio>.src between sentences, which is fine when the
+  // parts ARE sentences: the gap lands where a speaker would breathe. Streamed
+  // audio has no such boundaries — a chunk ends mid-word — so the same approach
+  // would click every half second. Web Audio can schedule each block to start
+  // exactly where the previous one ends, which is the only way the seams stay
+  // inaudible.
+  // ---------------------------------------------------------------------
+  const streams = new Map();   // turnId -> { ctx, nextAt, sources, seconds, done }
+
+  function streamFor(turnId) {
+    let st = streams.get(turnId);
+    if (!st) {
+      st = { ctx: new AudioContext(), nextAt: 0, sources: [], seconds: 0, done: false };
+      streams.set(turnId, st);
+    }
+    return st;
+  }
+
+  function pushStreamedPcm(turnId, pcmBuffer, sampleRate) {
+    const m = messages.find((x) => x.id === turnId);
+    if (!m) return;
+    const st = streamFor(turnId);
+    const pcm = new Int16Array(pcmBuffer);
+    if (!pcm.length) return;
+
+    const f32 = new Float32Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 32768;
+    const buf = st.ctx.createBuffer(1, f32.length, sampleRate);
+    buf.copyToChannel(f32, 0);
+
+    const src = st.ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(st.ctx.destination);
+    const now = st.ctx.currentTime;
+    // A little slack on the first block only: scheduling in the past makes it
+    // play immediately and overlap whatever is still sounding.
+    const at = Math.max(now + 0.04, st.nextAt);
+    src.start(at);
+    st.nextAt = at + buf.duration;
+    st.seconds += buf.duration;
+    st.sources.push(src);
+    src.onended = () => { st.sources = st.sources.filter((x) => x !== src); finishStream(turnId); };
+
+    if (mode !== "speaking") { mode = "speaking"; render(); }
+    m.dur = st.seconds;
+    m._streamed = true;
+  }
+
+  function finishStream(turnId) {
+    const st = streams.get(turnId);
+    if (!st || !st.done || st.sources.length) return;
+    streams.delete(turnId);
+    try { st.ctx.close(); } catch {}
+    const m = messages.find((x) => x.id === turnId);
+    if (m) onSegmentEnded(m);
+  }
+
+  function markStreamDone(turnId) {
+    const st = streams.get(turnId);
+    if (!st) return;
+    st.done = true;
+    finishStream(turnId);
+  }
+
+  /** Streaming failed mid-reply: drop what was scheduled so the file route can
+   *  speak the same text without the two overlapping. */
+  function resetStream(turnId) {
+    const st = streams.get(turnId);
+    if (!st) return;
+    st.sources.forEach((x) => { try { x.stop(); } catch {} });
+    streams.delete(turnId);
+    try { st.ctx.close(); } catch {}
+  }
+
   function attachAudioPart(turnId, { url, dur }) {
     const m = messages.find((x) => x.id === turnId);
     if (!m) return;
@@ -1472,8 +1549,17 @@
         // rest queue up behind it while they are still being generated.
         if (msg.seg != null) attachAudioPart(msg.seg, { url: msg.url, dur: msg.duration });
         break;
+      case "tts-pcm":
+        // A block of streamed speech, scheduled to butt up against the last one.
+        if (msg.seg != null) pushStreamedPcm(msg.seg, msg.pcm, msg.sampleRate);
+        break;
+      case "tts-reset":
+        // Streaming gave up before saying anything useful; the file route is
+        // about to speak the same text.
+        if (msg.seg != null) resetStream(msg.seg);
+        break;
       case "tts-end":
-        if (msg.seg != null) markAudioComplete(msg.seg);
+        if (msg.seg != null) { markStreamDone(msg.seg); markAudioComplete(msg.seg); }
         break;
       case "tts-failed": {
         // No audio for this segment — skip it in the queue so playback advances.

@@ -93,7 +93,15 @@ export default {
     return await res.json().catch(() => ({ ok: true }));
   },
 
-  async synthesize({ text, voice, language, style, outDir, config = {}, format, signal, parentEnginesCfg }) {
+  /**
+   * Everything a speech request needs, built once.
+   *
+   * Streaming and non-streaming differ only in which URL they post to and what
+   * they do with the answer — the decision of WHO speaks (clone vs named voice
+   * vs instruct, language, temperature) has to come out the same either way, or
+   * the same text would be read by two different voices depending on the route.
+   */
+  _request({ text, voice, language, style, config = {}, format, parentEnginesCfg }) {
     if (!text) throw new Error("openai-tts: empty text");
     const isCustom = Boolean(config.base_url);
     const key = getKey(config, parentEnginesCfg);
@@ -101,7 +109,6 @@ export default {
       throw new Error("openai-tts: no api_key (set OPENAI_API_KEY or engines.openai.api_key)");
     }
 
-    const url = endpoint(config);
     const model = config.model || (isCustom ? undefined : DEFAULT_MODEL);
     const chosenVoice = voice || config.voice || (isCustom ? undefined : DEFAULT_VOICE);
     const responseFormat = format || config.format || (isCustom ? "wav" : "mp3");
@@ -137,8 +144,14 @@ export default {
       headers.authorization = `Bearer ${key}`;
       if (isCustom) headers["x-api-key"] = key; // QVox accepts either header.
     }
+    return { isCustom, headers, body, responseFormat };
+  },
 
-    const res = await fetch(url, {
+  async synthesize({ text, voice, language, style, outDir, config = {}, format, signal, parentEnginesCfg }) {
+    const { headers, body, responseFormat } =
+      this._request({ text, voice, language, style, config, format, parentEnginesCfg });
+
+    const res = await fetch(endpoint(config), {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -158,6 +171,73 @@ export default {
       audio_path: audioPath,
       duration_s: null,
       mime: mimeFor(responseFormat),
+      provider: "openai",
+    };
+  },
+
+  /**
+   * Whether this engine can hand back audio while it is still being made.
+   *
+   * Only a self-hosted endpoint can: stock OpenAI has no such route, and among
+   * the local ones it is QVox that grew one. Declared rather than attempted,
+   * so a caller can fall back to synthesize() instead of failing a reply.
+   */
+  canStream(config = {}) {
+    return Boolean(config.base_url) && config.stream !== false;
+  },
+
+  /**
+   * Yield raw PCM as the server produces it, via QVox's /audio/speech/stream.
+   *
+   * The wait for a spoken reply is not the audio, it is waiting for all of it:
+   * the same line takes ~3.5 s to come back as a finished WAV and puts its
+   * first chunk on the wire at ~0.3 s here. Nothing is written to disk — the
+   * point is that the caller can start playing before there is a file to write.
+   *
+   * onChunk(pcmBuffer, sampleRate) is called per chunk; the returned totals are
+   * for logging. 16-bit little-endian mono, rate from X-QVox-Sample-Rate.
+   */
+  async synthesizeStream({ text, voice, language, style, config = {}, signal, parentEnginesCfg, interval }, onChunk) {
+    const { isCustom, headers, body } =
+      this._request({ text, voice, language, style, config, format: "wav", parentEnginesCfg });
+    if (!isCustom) throw new Error("openai-tts: streaming needs a self-hosted base_url");
+
+    // response_format means nothing to a raw PCM stream, and `interval` is how
+    // much audio the server should gather before flushing each chunk.
+    delete body.response_format;
+    if (interval != null) body.interval = interval;
+
+    const url = endpoint(config).replace(/\/audio\/speech$/, "/audio/speech/stream");
+    const t0 = Date.now();
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      throw new Error(`openai-tts stream ${res.status}: ${err.slice(0, 300)}`);
+    }
+
+    const sampleRate = Number(res.headers.get("x-qvox-sample-rate") || 24000);
+    const reader = res.body.getReader();
+    let firstMs = null;
+    let bytes = 0;
+    // A network read can end mid-sample; half a sample handed to a player is a
+    // click, so the odd byte waits for the rest of itself.
+    let odd = null;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (firstMs === null) firstMs = Date.now() - t0;
+      let buf = Buffer.from(value);
+      if (odd) { buf = Buffer.concat([odd, buf]); odd = null; }
+      if (buf.length % 2) { odd = buf.subarray(buf.length - 1); buf = buf.subarray(0, buf.length - 1); }
+      if (!buf.length) continue;
+      bytes += buf.length;
+      onChunk(buf, sampleRate);
+    }
+    return {
+      sample_rate: sampleRate,
+      first_chunk_ms: firstMs,
+      duration_s: bytes / 2 / sampleRate,
+      total_ms: Date.now() - t0,
       provider: "openai",
     };
   },

@@ -735,12 +735,62 @@ ipcMain.handle("prewarm-tts", async (_e, { text }) => {
     .catch(() => ({ ok: false })));
 });
 
+// Whether the engine behind the daemon can stream. Asked once and remembered:
+// it is a property of the configured engine, not of the sentence, and a 501 on
+// every turn would cost a round trip to learn the same thing again.
+let streamingTts = null;   // null = unknown, true/false = settled
+
+/**
+ * Speak the whole reply as one stream.
+ *
+ * Sentence splitting exists to get the first words out sooner: with a route
+ * that only answers when the audio is finished, a short first sentence is the
+ * only way to start talking early. Streaming removes the reason — the first
+ * chunk arrives in about 400 ms whatever the length, and measured on the same
+ * engine a long line reaches it sooner than a short one. So the text goes over
+ * whole, which also spares the model the seams that splitting introduces.
+ */
+async function speakStreamed(text, seg, send) {
+  let parts = 0;
+  const r = await daemonTtsStream(text, (pcm, sampleRate) => {
+    if (parts === 0) console.log("desktop: streaming speech — first chunk in");
+    parts++;
+    send({
+      type: "tts-pcm",
+      seg,
+      // Buffers do not survive IPC structured-clone as Buffers; the renderer
+      // gets the bytes and rebuilds the view.
+      pcm: pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength),
+      sampleRate,
+    });
+  });
+  if (!r.ok) throw new Error("stream produced no audio");
+  console.log(`desktop: streamed ${r.duration_s.toFixed(1)}s (first chunk ${r.first_chunk_ms}ms, ${parts} chunks)`);
+  send({ type: "tts-end", seg, parts });
+}
+
 ipcMain.handle("request-tts", async (_e, { text, seg }) => {
   const send = (msg) => mainWindow?.webContents.send("daemon-event", msg);
   if (!text || !text.trim()) {
     send({ type: "tts-failed", seg });
     return;
   }
+
+  if (streamingTts !== false) {
+    try {
+      await speakStreamed(text, seg, send);
+      streamingTts = true;
+      return;
+    } catch (e) {
+      // Falling back rather than failing: an engine that cannot stream still
+      // speaks perfectly well through the file route, and the listener should
+      // never notice which one answered.
+      if (streamingTts === null) console.log(`desktop: no streaming TTS (${e.message}) — usando archivos`);
+      streamingTts = false;
+      send({ type: "tts-reset", seg });
+    }
+  }
+
   const chunks = splitForSpeech(text);
   let delivered = 0;
   try {
@@ -1125,6 +1175,76 @@ function daemonTtsSay(text) {
       return { ok: false, error: "no TTS engine answered (silent placeholder)" };
     }
     return r;
+  });
+}
+
+/**
+ * Stream one chunk of speech, calling onPcm(buffer, sampleRate) as it arrives.
+ *
+ * /api/tts/say cannot answer until the audio is finished, so the window sits
+ * silent for the whole synthesis — the longest stretch of a spoken turn once
+ * the model has started talking. /api/tts/stream sends the same audio as it is
+ * made; the first bytes land in roughly a tenth of the time.
+ *
+ * The daemon wants a bearer token and an <audio> tag cannot send one, which is
+ * why this lives in main and the PCM travels to the renderer over IPC rather
+ * than the window fetching the URL itself. Widening the daemon's auth to accept
+ * a token in the query string would put it in logs and history for the sake of
+ * one tag's convenience.
+ */
+function daemonTtsStream(text, onPcm, { signal } = {}) {
+  const token = readToken();
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ text });
+    const req = http.request(
+      {
+        hostname: DAEMON_HOST,
+        port: DAEMON_PORT,
+        path: "/api/tts/stream",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+      (res) => {
+        if (res.statusCode !== 200) {
+          // 501 is the daemon saying this engine cannot stream — a normal
+          // answer, and the caller falls back to the file route.
+          let err = "";
+          res.on("data", (c) => (err += c));
+          res.on("end", () => reject(new Error(`tts stream ${res.statusCode}: ${err.slice(0, 200)}`)));
+          return;
+        }
+        const sampleRate = Number(res.headers["x-apx-sample-rate"] || 24000);
+        const t0 = Date.now();
+        let first = null;
+        let bytes = 0;
+        // A socket read can end mid-sample, and half a sample played is a
+        // click, so the odd byte waits for the rest of itself.
+        let odd = null;
+        res.on("data", (chunk) => {
+          if (first === null) first = Date.now() - t0;
+          let buf = chunk;
+          if (odd) { buf = Buffer.concat([odd, buf]); odd = null; }
+          if (buf.length % 2) { odd = buf.subarray(buf.length - 1); buf = buf.subarray(0, buf.length - 1); }
+          if (!buf.length) return;
+          bytes += buf.length;
+          onPcm(buf, sampleRate);
+        });
+        res.on("end", () => resolve({
+          ok: bytes > 0,
+          sample_rate: sampleRate,
+          first_chunk_ms: first,
+          duration_s: bytes / 2 / sampleRate,
+        }));
+        res.on("error", reject);
+      }
+    );
+    req.on("error", reject);
+    if (signal) signal.addEventListener("abort", () => req.destroy(), { once: true });
+    req.end(body);
   });
 }
 
