@@ -47,9 +47,10 @@ export function ActionGroup({ parts, running, range }: Props) {
   if (tools.length === 0) return null;
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-border bg-muted/20">
+    <div data-testid="action-group" className="w-full overflow-hidden rounded-lg border border-border bg-muted/20">
       <button
         type="button"
+        data-testid="action-group-toggle"
         onClick={() => setManual(!open)}
         aria-expanded={open}
         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[12px]"

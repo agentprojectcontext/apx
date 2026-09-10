@@ -182,8 +182,11 @@ test("a queued turn is in the thread, and can be taken back", () => {
   const list = web("components", "chat", "MessageList.tsx");
   const bubble = web("components", "chat", "MessageBubble.tsx");
   // It is in the conversation the moment you send it — same bubble, drawn at
-  // the foot of the thread where it will land.
-  assert.match(list, /\{queued\.map\(\(q\) => \(\s*\n\s*<MessageBubble/);
+  // the foot of the thread where it will land. (Wrapped in a Fragment since the
+  // day dividers landed: a queued turn written after midnight opens its own day
+  // like any other message.)
+  assert.match(list, /\{queued\.map\(\(q, i\) => \(/);
+  assert.match(list, /<MessageBubble\s*\n\s*msg=\{q\.msg\}/);
   assert.match(list, /queued\n\s*onUnqueue=/);
   assert.match(list, /\}, \[msgs, queued, autoscroll\]\)/, "and it scrolls into view like any other turn");
   assert.match(bubble, /queued && "opacity-55"/, "half strength: it has not gone out yet");

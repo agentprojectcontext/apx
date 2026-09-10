@@ -53,9 +53,13 @@ interface Props {
    *  tools hide and the narration lines that lived inside the group render as
    *  normal bubbles in order — same parts list, different layout. Default on. */
   showTools?: boolean;
+  /** The list draws a day divider above each change of date, so the footer
+   *  prints the time alone. Without it every older bubble has to carry its own
+   *  `dd/mm`, which on a phone is what pushes the model name off the line. */
+  dayInDivider?: boolean;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
   // mid-thread ("X joined the chat") changed the hook count for that row and React
@@ -373,7 +377,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 <Clock size={10} /> {t("chat_ui.queued")}
               </span>
             ) : (
-              <span>{formatTs(msg.ts, compact)}</span>
+              <span>{formatTs(msg.ts, compact, dayInDivider)}</span>
             )}
             {queued && onUnqueue && (
               <Tip content={t("chat_ui.queued_cancel")}>
@@ -387,26 +391,46 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 </button>
               </Tip>
             )}
+            {/* The sum is what fits; the split is what you actually want when
+                a turn looks expensive. One tap/hover away rather than three
+                more numbers on a line that already wraps on a phone. */}
             {!mine && msg.usage && (msg.usage.input_tokens || msg.usage.output_tokens) ? (
-              <span className="font-mono">
-                · {fmtTok((msg.usage.input_tokens || 0) + (msg.usage.output_tokens || 0))} tok
-              </span>
+              <Tip
+                content={t("shared_ui.tokens_detail", {
+                  in: fmtTok(msg.usage.input_tokens || 0),
+                  out: fmtTok(msg.usage.output_tokens || 0),
+                })}
+              >
+                <span className="font-mono">
+                  · {fmtTok((msg.usage.input_tokens || 0) + (msg.usage.output_tokens || 0))} tok
+                </span>
+              </Tip>
             ) : null}
-            {showTools && !mine && hasTools && (
-              <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
+            {/* The COUNT stands in both views, unlike the log it counts.
+                Simple view used to hide this too, so a phone — which starts
+                pelado — showed a one-line answer with no sign that twelve
+                shell commands went into it, and nothing to suggest the header
+                switch had anything to show. The steps stay hidden; that the
+                agent took them does not. */}
+            {!mine && hasTools && (
+              <span data-testid="turn-tools-count">
+                · {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}
+              </span>
             )}
             {/* Replayed turns have no tool parts — the live events are gone —
                 but they do carry the summary recorded at the time. Show that
                 instead, so history does not look like the agent just answered
                 from nothing. Failures are named: "it tried and could not" is
-                the half worth surfacing. Hidden in simple view with the rest. */}
-            {showTools && !mine && !hasTools && msg.toolSummary?.tools?.length ? (
-              <span title={msg.toolSummary.tools.map((x) => `${x.name}×${x.count}`).join(", ")}>
-                · {t("shared_ui.tools_count", { n: msg.toolSummary.total })}
-                {msg.toolSummary.failed
-                  ? ` (${t("shared_ui.tools_failed", { n: msg.toolSummary.failed })})`
-                  : ""}
-              </span>
+                the half worth surfacing. */}
+            {!mine && !hasTools && msg.toolSummary?.tools?.length ? (
+              <Tip content={msg.toolSummary.tools.map((x) => `${x.name}×${x.count}`).join(", ")}>
+                <span>
+                  · {t("shared_ui.tools_count", { n: msg.toolSummary.total })}
+                  {msg.toolSummary.failed
+                    ? ` (${t("shared_ui.tools_failed", { n: msg.toolSummary.failed })})`
+                    : ""}
+                </span>
+              </Tip>
             ) : null}
             {onCopy && copyText && (
               <Tip content={t("chat_ui.copy")}>
@@ -493,7 +517,7 @@ function fmtTok(n: number): string {
   return String(n);
 }
 
-function formatTs(iso: string, compact?: boolean): string {
+function formatTs(iso: string, compact?: boolean, dayInDivider?: boolean): string {
   try {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
@@ -505,7 +529,10 @@ function formatTs(iso: string, compact?: boolean): string {
       ...(compact ? {} : { second: "2-digit" }),
     });
     // Today → time only. Older (or future) days keep the date so a scrolled
-    // thread is readable without opening a calendar.
+    // thread is readable without opening a calendar — UNLESS the list is
+    // drawing day dividers, in which case the day is already named above the
+    // first message of it and every footer repeating it is noise.
+    if (dayInDivider) return time;
     const now = new Date();
     const sameDay =
       d.getFullYear() === now.getFullYear() &&

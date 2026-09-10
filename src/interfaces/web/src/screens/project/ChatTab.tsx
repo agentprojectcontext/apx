@@ -977,7 +977,13 @@ export function ChatTab({
               is not. On the phone they used to be absent altogether. */}
           <div className="flex shrink-0 items-center gap-1">
             {/* Same switch as "create group": on = tools/ActionGroup, off = pelado
-                (narration as bubbles, tools hidden). Lives next to add-person. */}
+                (narration as bubbles, tools hidden). Lives next to add-person.
+
+                The wrench stays on the PHONE too. It used to be dropped there
+                for width, which left a bare unlabelled toggle in a header with
+                no hover to explain it — and since the transcript starts pelado,
+                the one control that brings the tool calls back was the one
+                control nobody could identify. It is 13px; the room exists. */}
             <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
               <div
                 className={cn(
@@ -986,7 +992,11 @@ export function ChatTab({
                 )}
                 aria-label={t("chat_ui.show_tools")}
               >
-                {!compact && <Wrench size={13} className="shrink-0 opacity-70" aria-hidden />}
+                <Wrench
+                  size={13}
+                  className={cn("shrink-0 transition-opacity", showTools ? "text-primary opacity-100" : "opacity-70")}
+                  aria-hidden
+                />
                 <Switch checked={showTools} onChange={setShowTools} />
               </div>
             </Tip>
