@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useSWRConfig } from "swr";
 import { FolderOpen, Home, Search, X } from "lucide-react";
 import { Filesystem, Projects } from "../lib/api";
-import { Button, Dialog, Empty, Field, Input, Loading } from "./ui";
+import { Button, Dialog, Empty, Field, Input, Loading, Switch } from "./ui";
+import { UiSelect } from "./UiSelect";
 import { useToast } from "./Toast";
 import { t } from "../i18n";
 
@@ -19,6 +20,12 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   const [browseError, setBrowseError] = useState("");
   const [loadingDirs, setLoadingDirs] = useState(false);
   const [busy, setBusy] = useState(false);
+  // What kind of thing this project is. It already existed end to end (the
+  // sidebar icon, the topbar, the structure tab that only a company gets) —
+  // there was just no moment at which anybody could set it.
+  const [kind, setKind] = useState("other");
+  const [initIfNeeded, setInitIfNeeded] = useState(true);
+  const [withTeam, setWithTeam] = useState(true);
 
   const loadDirs = async (nextPath: string, silent = false) => {
     setLoadingDirs(true);
@@ -71,7 +78,12 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
     if (!trimmed) { toast.error(t("add_project.path_required")); return; }
     setBusy(true);
     try {
-      const out = await Projects.register(trimmed);
+      const out = await Projects.register(trimmed, {
+        kind,
+        init: initIfNeeded,
+        team: kind === "company" && withTeam ? "company" : undefined,
+      });
+      if (out.team && "error" in out.team) toast.error(String(out.team.error));
       toast.success(t("add_project.registered", { id: out.id }));
       await mutate("/api/projects");
       onClose();
@@ -109,6 +121,42 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
             </Button>
           </div>
         </Field>
+
+        <Field label={t("add_project.kind_label")} hint={t("add_project.kind_hint")}>
+          <UiSelect
+            value={kind}
+            onChange={setKind}
+            options={[
+              { value: "other", label: t("settings_ui.kind_other") },
+              { value: "company", label: t("settings_ui.kind_company") },
+              { value: "personal", label: t("settings_ui.kind_personal") },
+              { value: "app", label: t("settings_ui.kind_app") },
+              { value: "software", label: t("settings_ui.kind_software") },
+            ]}
+          />
+        </Field>
+
+        {/* A company gets a team offered right here, because the moment you
+            declare what the project is, is the moment you know whether it
+            needs one. Explained rather than named, so the switch says what
+            will happen and not just what it is called. */}
+        {kind === "company" && (
+          <label className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3">
+            <Switch checked={withTeam} onChange={setWithTeam} />
+            <span className="text-xs">
+              <span className="font-medium">{t("add_project.team_label")}</span>
+              <span className="block text-muted-fg">{t("add_project.team_hint")}</span>
+            </span>
+          </label>
+        )}
+
+        <label className="flex items-start gap-3">
+          <Switch checked={initIfNeeded} onChange={setInitIfNeeded} />
+          <span className="text-xs">
+            <span className="font-medium">{t("add_project.init_label")}</span>
+            <span className="block text-muted-fg">{t("add_project.init_hint")}</span>
+          </span>
+        </label>
 
         {browseOpen && (
           <div className="rounded-md border border-border bg-muted/20">
