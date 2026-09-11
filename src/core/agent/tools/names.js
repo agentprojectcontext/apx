@@ -131,6 +131,8 @@ export const TOOLS = Object.freeze({
  * shadow the in-process handler with possibly different semantics.
  */
 export const NATIVE_TOOL_NAMES = new Set([
+  TOOLS.WRITE_ARTIFACT,
+  TOOLS.LIST_ARTIFACTS,
   TOOLS.LIST_PROJECTS,
   TOOLS.LIST_AGENTS,
   TOOLS.LIST_VAULT_AGENTS,
