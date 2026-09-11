@@ -196,10 +196,20 @@ una; `general` no dibuja nada, porque un ícono en todas las filas no informa.
 
 ## Cómo el super-agent alimenta las tasks
 
-El super-agent tiene las herramientas `create_task` y `list_tasks` registradas en su conjunto core de herramientas,
-disponibles en todos los canales. Cuando decís "recordame cerrar el bug de auth en myapp", el modelo
-llama a `create_task` con el proyecto correcto, el título y los campos opcionales. Cuando preguntás "qué está
+Todo el ciclo de vida son herramientas, registradas en el conjunto core del super-agent y disponibles
+en todos los canales: `create_task`, `list_tasks`, `get_task`, `update_task`, `complete_task` y
+`comment_task`. Cuando decís "recordame cerrar el bug de auth en myapp", el modelo llama a
+`create_task` con el proyecto correcto, el título y los campos opcionales. Cuando preguntás "qué está
 pendiente en myapp?", llama a `list_tasks`.
+
+Las filas de `list_tasks` son compactas a propósito — sin descripción y sin comentarios — así que
+todo lo que va más allá del título es `get_task`, que devuelve el registro completo con su hilo y sus
+subtareas. Editar es `update_task`: pasás sólo los campos que cambian, y `""` para vaciar uno. Las
+columnas del tablero y el cierre siguen en `complete_task` (`action: "status" | "done" | "drop" |
+"reopen"`), que valida la columna contra el catálogo que tiene esta instalación.
+
+Nada de una task necesita shell. Una task editada escribiendo el log JSONL se saltea todos los
+normalizadores del store y deja un estado que el fold no puede reconstruir.
 
 Ejemplo de la llamada a herramienta que emite el modelo:
 

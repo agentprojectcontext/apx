@@ -195,10 +195,20 @@ draws nothing, because an icon on every row carries no information.
 
 ## How the super-agent feeds tasks
 
-The super-agent has `create_task` and `list_tasks` tools registered in its core tool set,
-available on every channel. When you say "remind me to close the auth bug in myapp", the model
-calls `create_task` with the right project, title, and optional fields. When you ask "what's
-pending in myapp?", it calls `list_tasks`.
+The whole lifecycle is tools, registered in the super-agent's core tool set and available on
+every channel: `create_task`, `list_tasks`, `get_task`, `update_task`, `complete_task` and
+`comment_task`. When you say "remind me to close the auth bug in myapp", the model calls
+`create_task` with the right project, title, and optional fields. When you ask "what's pending
+in myapp?", it calls `list_tasks`.
+
+`list_tasks` rows are compact on purpose — no description, no comments — so anything past the
+title is `get_task`, which returns the full record plus its thread and subtasks. Editing is
+`update_task`: pass only the fields that change, and `""` to clear one. Board columns and
+closing stay on `complete_task` (`action: "status" | "done" | "drop" | "reopen"`), which
+validates the column against the catalog this install has.
+
+Nothing about a task needs a shell. A task edited by writing to the JSONL event log skips
+every normalizer in the store and leaves a state the fold cannot reconstruct.
 
 Example tool call the model emits:
 

@@ -26,7 +26,10 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // Discovered instead of hot, the tool answers a turn late — after the reply it
   // was about has already gone out as text, which is the one failure the feature
   // exists to prevent.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 31);
+  // 33 with get_task + update_task (~+660 tokens). Same asymmetry, one step
+  // further: list rows carry no description and nothing could edit a task at
+  // all, so the model read and wrote the JSONL event log with inline python.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 33);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
@@ -133,8 +136,14 @@ test("a hot half never ships without its write-back half", () => {
   // schema, it invented `complete_task({project, id})`, got "task required"
   // twice, and left the task open. Same shape for commitments, where the
   // unresolvable one had been in the watcher's signals since July 2025.
+  // And again on 2026-09-11, one level deeper: create/list/close/comment were
+  // all hot and there was no edit verb in the registry at all, so the model
+  // edited a task by running python against the JSONL event log — past every
+  // normalizer, on an append-only store whose state is the fold of its events.
   for (const [read, write] of [
     ["list_tasks", "complete_task"],
+    ["list_tasks", "get_task"],
+    ["create_task", "update_task"],
     ["list_commitments", "mark_commitment"],
   ]) {
     assert.ok(BASE_TOOL_NAMES.has(read), `${read} is hot`);
