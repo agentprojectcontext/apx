@@ -86,6 +86,9 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   const tasks = useSWR(`/api/projects/${pid}/tasks?all`, () => Tasks.list(pid, "all"));
 
   const a = detail.data;
+  const [toolsOpen, setToolsOpen] = useState(false);
+  // Falls back to the declared list for a daemon that predates effective_tools.
+  const effectiveTools = a?.effective_tools?.length ? a.effective_tools : (a?.tools || []);
   const myRoutines = routinesForAgent(routines.data || [], slug);
   const myTasks = (tasks.data || []).filter((t) => t.agent === slug);
   const children = (agents.data || []).filter((x) => x.parent === slug);
@@ -174,8 +177,34 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
             <Section title={t("agent_detail_extra.skills_title")} description="">
               <div className="flex flex-wrap gap-1">
                 {a.skills?.map((s) => <Badge key={s} tone="info"><Sparkles size={10} /> {s}</Badge>)}
-                {a.tools?.map((t) => <Badge key={t}><Wrench size={10} /> {t}</Badge>)}
-                {!a.skills?.length && !a.tools?.length && <span className="text-xs text-muted-fg">—</span>}
+                {!a.skills?.length && <span className="text-xs text-muted-fg">{t("agent_detail_extra.no_skills")}</span>}
+              </div>
+              {/* An undeclared `tools:` is the normal case and used to render as
+                  nothing, which reads as "this agent has no tools" — the exact
+                  opposite of what it means. Show the effective set either way,
+                  and say where it came from. */}
+              <div className="mt-3 border-t border-border pt-2">
+                <div className="mb-1 text-xs text-muted-fg">
+                  {a.tools_source === "declared"
+                    ? t("agent_detail_extra.tools_declared", { count: effectiveTools.length })
+                    : t("agent_detail_extra.tools_default", { count: effectiveTools.length })}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(toolsOpen ? effectiveTools : effectiveTools.slice(0, 12)).map((tool) => (
+                    <Badge key={tool}><Wrench size={10} /> {tool}</Badge>
+                  ))}
+                  {effectiveTools.length > 12 && (
+                    <button
+                      type="button"
+                      onClick={() => setToolsOpen((v) => !v)}
+                      className="text-xs text-muted-fg underline-offset-2 hover:underline"
+                    >
+                      {toolsOpen
+                        ? t("agent_detail_extra.tools_less")
+                        : t("agent_detail_extra.tools_more", { count: effectiveTools.length - 12 })}
+                    </button>
+                  )}
+                </div>
               </div>
             </Section>
             <Section title={t("project.agent_detail.threads_recent")} description="">

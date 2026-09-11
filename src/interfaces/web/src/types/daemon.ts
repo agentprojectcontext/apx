@@ -55,6 +55,9 @@ export interface AgentDetail extends AgentEntry {
   memory: string;
   system?: string;
   extra?: Record<string, unknown>;
+  /** What this agent can actually call: its declared list, or the project default. */
+  effective_tools?: string[];
+  tools_source?: "declared" | "default";
 }
 
 export interface RoutineEntry {

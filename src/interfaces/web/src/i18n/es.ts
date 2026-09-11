@@ -2011,6 +2011,11 @@ export const es = {
 
   agent_detail_extra: {
     skills_title:        "Skills & tools",
+    no_skills: "Sin skills",
+    tools_declared: "Tools · {count} (declaradas para este agente)",
+    tools_default: "Tools · {count} (default del proyecto — sin lista declarada)",
+    tools_more: "+{count} más",
+    tools_less: "Ver menos",
   },
 
   voice_ui: {

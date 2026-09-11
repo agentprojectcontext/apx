@@ -32,6 +32,7 @@ import {
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
 import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
+import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { agentToResponse, asyncRoute } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
@@ -212,7 +213,18 @@ export function register(api, { projects, project }) {
     const a = agents.find((x) => x.slug === req.params.slug);
     if (!a) return res.status(404).json({ error: "agent not found" });
     const memory = readAgentMemory(p, a.slug);
-    res.json({ ...agentToResponse(a), memory, system: a.body || "" });
+    // What this agent will ACTUALLY be able to call. An undeclared `tools:`
+    // means the broad default, and until now that read as "no tools" in the
+    // UI — the one thing somebody importing a team needs to see is which tools
+    // each member ends up with, and an empty card answered the opposite.
+    const effective = resolveAgentAllowedTools(a);
+    res.json({
+      ...agentToResponse(a),
+      memory,
+      system: a.body || "",
+      effective_tools: effective,
+      tools_source: (a.fields?.Tools || []).length ? "declared" : "default",
+    });
   });
 
   api.post("/projects/:pid/agents", (req, res) => {
