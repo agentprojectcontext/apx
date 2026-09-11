@@ -1,3 +1,17 @@
+# [1.106.0](https://github.com/agentprojectcontext/apx/compare/v1.105.0...v1.106.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **projects:** desregistrar un proyecto también lo saca del config ([be876a8](https://github.com/agentprojectcontext/apx/commit/be876a8dcbeb7cd008d8681aec340e2c980147d3))
+
+
+### Features
+
+* **agents:** importar del vault se lee antes de decidir ([c6e62f1](https://github.com/agentprojectcontext/apx/commit/c6e62f1a0faf2adb0d452860948fe745571c9f5e))
+* **inbox:** la marca de una fila va al final de lo último que dijo el agente, y ahora sabe lo que no leíste ([b56de58](https://github.com/agentprojectcontext/apx/commit/b56de584d489e6ce28666d961a00d77494a91af3))
+* **settings:** Config APX deja de ser un segundo editor de tres pantallas ([f054db7](https://github.com/agentprojectcontext/apx/commit/f054db7d0742d854fe243c049e26114ff99e45b2))
+
 # [1.105.0](https://github.com/agentprojectcontext/apx/compare/v1.104.2...v1.105.0) (2026-09-11)
 
 
