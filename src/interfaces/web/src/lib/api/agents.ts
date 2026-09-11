@@ -63,4 +63,42 @@ export const Agents = {
     ),
   import: (pid: string, slug: string) =>
     http.post<AgentEntry>(`/api/projects/${pid}/agents/import`, { slug }),
+  // Packs = a team of vault templates installed together.
+  packs: () => http.get<AgentPack[]>("/api/agents/packs"),
+  // What the install would do — the slugs each member ends up with once the
+  // project's existing agents are taken into account.
+  packPlan: (pid: string, pack: string, only?: string[]) =>
+    http.get<AgentPackPlan>(
+      `/api/projects/${pid}/agents/packs/${encodeURIComponent(pack)}/plan` +
+        (only?.length ? `?only=${encodeURIComponent(only.join(","))}` : ""),
+    ),
+  importPack: (pid: string, pack: string, slugs?: string[]) =>
+    http.post<{ installed: { slug: string; template: string; renamed: boolean }[]; agents: AgentEntry[] }>(
+      `/api/projects/${pid}/agents/import-pack`,
+      { pack, slugs },
+    ),
+};
+
+export type AgentPack = {
+  id: string;
+  name: string;
+  description?: string;
+  explain?: string;
+  agents: { slug: string; default?: boolean; parent?: string; aliases?: string[] }[];
+};
+
+export type AgentPackPlan = {
+  pack: { id: string; name: string; description?: string; explain?: string };
+  agents: {
+    template: string;
+    slug?: string;
+    selected: boolean;
+    renamed?: boolean;
+    missing?: boolean;
+    name?: string | null;
+    role?: string | null;
+    description?: string | null;
+    parent?: string | null;
+  }[];
+  areas: { slug: string; name: string; created: boolean }[];
 };

@@ -1006,6 +1006,11 @@ export const en = {
       import_empty: "No templates in the vault.",
       import_success: "Imported: {slug}",
       import_already: "Already here",
+      packs_heading: "Teams",
+      packs_single: "Single agents",
+      pack_install: "Install {count}",
+      pack_renamed: "{slug} is taken",
+      pack_success: "{count} agents installed",
       import_btn:  "Import",
     },
 
