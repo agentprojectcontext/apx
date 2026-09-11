@@ -14,6 +14,7 @@
 // `tools: false` keeps the old shape for a caller that wants one model call and
 // no side effects.
 import { callEngine } from "#core/engines/index.js";
+import { normalizeAutonomy } from "#core/constants/permissions.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { runAgent } from "#core/agent/index.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
@@ -26,6 +27,34 @@ import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#
 // truncates an agent mid-answer on the surface where the whole answer is the
 // point. Same headroom the routine runner gives itself.
 export const AGENT_TURN_MAX_TOKENS = 4096;
+
+/**
+ * Fold an agent's own autonomy over the project's permission mode.
+ *
+ * `Autonomy:` was writable from the panel, from `create_agent` and from
+ * `configure_agent`, was served by the API and rendered as a segmented control
+ * — and read by NOTHING. Every agent ran on the project's permission_mode no
+ * matter what its card said, so the control was a setting that changed nothing.
+ * That is worse than a missing one: it reads as a promise the system does not
+ * keep, and a read-only council is only read-only if this is real.
+ *
+ * The answer is written onto the config rather than threaded through as a
+ * parameter because the guard is not its only reader — run-agent.js consults
+ * the same value to decide how the security-risk gate behaves. One source, one
+ * answer.
+ *
+ * Declaring nothing inherits, which is the common case and the right default:
+ * most agents should behave like the machine they run on. A junk value also
+ * inherits — normalizeAutonomy drops it rather than inventing a mode.
+ *
+ * @param {object} cfg   the turn's config, already cloned — this MUTATES it
+ * @param {object} agent the agent, as parsed from its card
+ */
+export function applyAgentAutonomy(cfg, agent) {
+  const autonomy = normalizeAutonomy(agent?.fields?.Autonomy);
+  if (autonomy) cfg.super_agent = { ...(cfg.super_agent || {}), permission_mode: autonomy };
+  return cfg;
+}
 
 /**
  * @returns {{text, trace, usage, model, allowedTools, media, endedAwaitingUser, judge?}}
@@ -100,11 +129,13 @@ export async function runAgentTurn({
     };
   }
 
-  const cfg = structuredClone(p.config || config || {});
-  // Deliberately NOT forcing permission_mode. A routine pins it to "total"
-  // because a scheduled run has nobody to approve a dangerous tool; a chat has
-  // a person on the other end, so the configured policy stands and a blocked
-  // tool comes back to the model as an observation it can re-plan around.
+  const cfg = applyAgentAutonomy(structuredClone(p.config || config || {}), agent);
+
+  // Beyond the agent's own autonomy, deliberately NOT forcing permission_mode.
+  // A routine pins it to
+  // "total" because a scheduled run has nobody to approve a dangerous tool; a
+  // chat has a person on the other end, so the policy stands and a blocked tool
+  // comes back to the model as an observation it can re-plan around.
   const allowedTools = resolveAgentAllowedTools(agent);
   // The allowlist decides WHAT it may call; the channel decides how much of it
   // is loaded up front — a full channel gets the lot, a lightweight one starts

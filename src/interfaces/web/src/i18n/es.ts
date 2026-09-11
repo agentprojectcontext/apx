@@ -2248,10 +2248,16 @@ export const es = {
     role:            "Rol",
     no_role:         "— sin rol —",
     autonomy:        "Autonomía",
-    autonomy_hint:   "Cuánto puede hacer el agente sin pedir confirmación.",
+    autonomy_hint:   "Cuánto puede hacer el agente sin pedir confirmación. De más suelto a más atado.",
+    auto_inherit:    "Hereda",
     auto_total:      "Total",
     auto_automatico: "Auto",
     auto_permiso:    "Permiso",
+    auto_inherit_desc:    "Lo que diga el proyecto. Hoy: {mode}.",
+    auto_inherit_unknown: "Lo que diga el proyecto.",
+    auto_total_desc:      "Hace todo sin preguntar.",
+    auto_automatico_desc: "Pregunta sólo antes de lo peligroso: borrar, escribir, mandar, shell.",
+    auto_permiso_desc:    "Pregunta antes de todo, salvo lo que esté en la lista permitida.",
   },
 
   structure: {

@@ -18,19 +18,14 @@ import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemor
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { repointAgentReferences } from "./agent-rename-refs.js";
-import { PERMISSION_MODES } from "#core/constants/permissions.js";
+import { normalizeAutonomy } from "#core/constants/permissions.js";
 
 export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 
-// Autonomy mirrors the super-agent permission modes (total/automatico/permiso).
-// An invalid value is dropped rather than persisted so a typo can't silently
-// widen an agent's autonomy.
-const AUTONOMY_VALUES = new Set(Object.values(PERMISSION_MODES));
-export function normalizeAutonomy(v) {
-  if (v === undefined) return undefined;
-  if (v === null || v === "") return null;
-  return AUTONOMY_VALUES.has(v) ? v : undefined;
-}
+// Autonomy mirrors the permission modes and lives with them now, next to the
+// values it validates against. Re-exported here because this module is where
+// callers already reach for agent-frontmatter helpers.
+export { normalizeAutonomy };
 
 // Build the frontmatter fields for a NEW agent from a loose spec. Throws on an
 // invalid `type`. `roster` is the existing agent list, used to pick an avatar
