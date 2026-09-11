@@ -502,6 +502,9 @@ export const es = {
       kind_cooldown: "Espacio mínimo por tipo (minutos)",
       critical_bypass: "Lo crítico puede saltarse el presupuesto",
       critical_bypass_hint: "Los saltos quedan siempre registrados y marcados.",
+      critical_bypass_quiet: "Lo crítico también puede despertarte en horas de silencio",
+      critical_bypass_quiet_hint:
+        "Es un permiso distinto del de arriba. Apagado, nada cruza la ventana de silencio salvo que vos lo hayas pedido.",
       log_title: "Lo que mandó",
       log_subtitle: "Sólo mensajes no solicitados, del más nuevo al más viejo. Lo que marques alimenta lo que manda después.",
       log_empty: "Todavía no mandó nada sin que se lo pidieras.",

@@ -119,6 +119,18 @@ export function NudgePanel() {
           </p>
         </div>
 
+        <div className="mt-3">
+          <Switch
+            checked={draft.critical_bypasses_quiet_hours}
+            onChange={(v) => setDraft({ ...draft, critical_bypasses_quiet_hours: v })}
+            label={t("settings.nudge.critical_bypass_quiet")}
+            disabled={!draft.enabled || !draft.quiet_hours}
+          />
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {t("settings.nudge.critical_bypass_quiet_hint")}
+          </p>
+        </div>
+
         <div className="mt-4">
           <Button variant="primary" loading={busy} onClick={save}>
             {t("common.save")}
