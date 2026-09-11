@@ -1003,6 +1003,11 @@ export const es = {
       import_empty: "Sin plantillas en el vault.",
       import_success: "Importado: {slug}",
       import_already: "Ya está",
+      packs_heading: "Equipos",
+      packs_single: "Agentes sueltos",
+      pack_install: "Instalar {count}",
+      pack_renamed: "{slug} está ocupado",
+      pack_success: "{count} agentes instalados",
       import_btn:  "Importar",
     },
 

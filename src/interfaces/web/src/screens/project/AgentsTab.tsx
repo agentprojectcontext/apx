@@ -1,8 +1,9 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
-import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Wrench, Zap } from "lucide-react";
+import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Users, Wrench, Zap } from "lucide-react";
 import { Agents } from "../../lib/api";
+import type { AgentPack } from "../../lib/api/agents";
 import type { AgentEntry, AgentStats } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
@@ -186,13 +187,112 @@ export function AgentsTab({ pid }: { pid: string }) {
   );
 }
 
+function PackCard({
+  pack, pid, existing, picked, onPick, onInstalled,
+}: {
+  pack: AgentPack;
+  pid: string;
+  existing: string[];
+  picked: string[];
+  onPick: (slugs: string[]) => void;
+  onInstalled: (count: number) => void;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  // The plan is the only part the user cannot work out on their own: which slug
+  // each member ends up with once this project's existing agents are counted.
+  const plan = useSWR(
+    picked.length ? ["pack-plan", pid, pack.id, picked.join(",")] : null,
+    () => Agents.packPlan(pid, pack.id, picked),
+  );
+  const planFor = (slug: string) => plan.data?.agents.find((a) => a.template === slug);
+
+  const toggle = (slug: string) =>
+    onPick(picked.includes(slug) ? picked.filter((s) => s !== slug) : [...picked, slug]);
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      const out = await Agents.importPack(pid, pack.id, picked);
+      toast.success(t("project.agents.pack_success", { count: out.installed.length }));
+      onInstalled(out.installed.length);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3">
+      <div className="flex items-start gap-3">
+        <Users size={16} className="mt-0.5 shrink-0 text-muted-fg" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{pack.name}</div>
+          {pack.explain && <p className="mt-0.5 text-xs text-muted-fg">{pack.explain}</p>}
+        </div>
+        <Button size="sm" variant="primary" disabled={!picked.length || busy} loading={busy} onClick={install}>
+          {t("project.agents.pack_install", { count: picked.length })}
+        </Button>
+      </div>
+      <ul className="mt-3 space-y-1">
+        {pack.agents.map((m) => {
+          const row = planFor(m.slug);
+          const checked = picked.includes(m.slug);
+          const renamed = checked && row?.renamed && row.slug;
+          return (
+            <li key={m.slug} className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(m.slug)}
+                className="size-3.5 accent-[var(--primary)]"
+                data-testid={`pack-${pack.id}-${m.slug}`}
+              />
+              <span className={cn("font-medium", !checked && "text-muted-fg")}>{renamed ? row.slug : m.slug}</span>
+              {!m.parent && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
+              {renamed && (
+                <span className="text-muted-fg">{t("project.agents.pack_renamed", { slug: m.slug })}</span>
+              )}
+              {!renamed && existing.includes(m.slug) && (
+                <span className="text-muted-fg">{t("project.agents.import_already")}</span>
+              )}
+              <span className="truncate text-muted-fg">{row?.role || ""}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function ImportVaultDialog({
   open, onClose, onImported, pid, existing,
 }: { open: boolean; onClose: () => void; onImported: () => void; pid: string; existing: string[] }) {
   const toast = useToast();
   const vault = useSWR(open ? "/api/agents/vault" : null, () => Agents.vault());
+  const packs = useSWR(open ? "/api/agents/packs" : null, () => Agents.packs());
   const [busy, setBusy] = useState("");
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
   const items = vault.data || [];
+
+  // A pack ships its own idea of what a sensible default team is; the user
+  // unticks from there rather than building one from nothing.
+  //
+  // A member whose slug the project already holds starts UNTICKED. Installing
+  // it still works — it just steps aside to its alias — but a second CEO is
+  // almost never what someone wanted when they opened this dialog, and the
+  // default should be the answer that is right more often.
+  const defaults = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const p of packs.data || []) {
+      out[p.id] = p.agents
+        .filter((a) => a.default !== false && !existing.includes(a.slug))
+        .map((a) => a.slug);
+    }
+    return out;
+  }, [packs.data, existing]);
+  const pickedFor = (id: string) => picked[id] ?? defaults[id] ?? [];
 
   const doImport = async (slug: string) => {
     setBusy(slug);
@@ -210,8 +310,33 @@ function ImportVaultDialog({
       size="lg"
       footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
     >
-      {vault.isLoading && <Loading />}
+      {(vault.isLoading || packs.isLoading) && <Loading />}
       {!vault.isLoading && items.length === 0 && <Empty icon={Upload}>{t("project.agents.import_empty")}</Empty>}
+
+      {!!(packs.data || []).length && (
+        <div className="mb-5 space-y-2">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-fg">
+            {t("project.agents.packs_heading")}
+          </div>
+          {(packs.data || []).map((pack) => (
+            <PackCard
+              key={pack.id}
+              pack={pack}
+              pid={pid}
+              existing={existing}
+              picked={pickedFor(pack.id)}
+              onPick={(slugs) => setPicked((prev) => ({ ...prev, [pack.id]: slugs }))}
+              onInstalled={() => onImported()}
+            />
+          ))}
+        </div>
+      )}
+
+      {!!items.length && (
+        <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-fg">
+          {t("project.agents.packs_single")}
+        </div>
+      )}
       <ul className="space-y-2">
         {items.map((a) => {
           const already = existing.includes(a.slug);
