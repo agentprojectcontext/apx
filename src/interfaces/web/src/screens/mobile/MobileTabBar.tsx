@@ -4,6 +4,7 @@ import { Handshake, ListTodo, MessagesSquare } from "lucide-react";
 import { Commitments } from "../../lib/api/commitments";
 import { Tasks } from "../../lib/api/tasks";
 import { CHAT_ROOT, COMMITMENTS_ROOT, TASKS_ROOT } from "./routes";
+import { useUnreadChats } from "../../hooks/useChatRead";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
@@ -21,8 +22,9 @@ import { t } from "../../i18n";
  */
 export function MobileTabBar() {
   const counts = useTabCounts();
+  const unreadChats = useUnreadChats();
   const tabs = [
-    { to: CHAT_ROOT,        icon: MessagesSquare, label: t("mobile.tab_chats"),       badge: 0,               testId: "mobile-tab-chats" },
+    { to: CHAT_ROOT,        icon: MessagesSquare, label: t("mobile.tab_chats"),       badge: unreadChats, tone: "unread" as const, testId: "mobile-tab-chats" },
     { to: TASKS_ROOT,       icon: ListTodo,       label: t("mobile.tab_tasks"),       badge: counts.openTasks, testId: "mobile-tab-tasks" },
     { to: COMMITMENTS_ROOT, icon: Handshake,      label: t("mobile.tab_commitments"), badge: counts.overdue,   tone: "danger" as const, testId: "mobile-tab-commitments" },
   ];
@@ -70,12 +72,15 @@ export function MobileTabBar() {
  * count would sit there permanently and stop meaning anything — the whole point
  * of the red one is that it should normally not be there.
  */
-function Badge({ count, tone }: { count: number; tone?: "danger" }) {
+function Badge({ count, tone }: { count: number; tone?: "danger" | "unread" }) {
   return (
     <span
       className={cn(
         "absolute -right-2.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 tabular-nums",
-        tone === "danger" ? "bg-red-600 text-white" : "bg-primary text-primary-foreground",
+        tone === "danger" ? "bg-red-600 text-white"
+          // The same blue as the dot on the row it stands for.
+          : tone === "unread" ? "bg-blue-500 text-white"
+          : "bg-primary text-primary-foreground",
       )}
     >
       {count > 99 ? "99+" : count}

@@ -163,11 +163,14 @@ test("the open conversation keeps its project — except inside that project", (
 
 test("the phone keys rows by channel too, like the desktop rail", () => {
   const phone = webSrc("screens", "mobile", "MobileChatList.tsx");
-  assert.match(phone, /key=\{rowKey\(row\)\}/, "the shared, channel-aware key");
+  assert.match(phone, /key=\{inboxRowKey\(row\)\}/, "the shared, channel-aware key");
   assert.doesNotMatch(phone, /key=\{`\$\{row\.project_id\}:/, "not a hand-rolled one without the channel");
 
-  const list = webSrc("components", "inbox", "InboxList.tsx");
-  assert.match(list, /export function rowKey/);
+  // The key lives in lib/chat-read now: the module that says whether a row has
+  // been READ needs the same identity the list keys and selects by, and a
+  // second spelling of it is exactly how two rows become one.
+  const list = webSrc("lib", "chat-read.ts");
+  assert.match(list, /export function inboxRowKey/);
   assert.match(list, /row\.channel \?\? ""/, "the channel is part of a row's identity");
   // And so is the PERSON. On a channel that talks to several of them every row
   // is the super-agent's on the same channel, so without this Manu, Magui and
@@ -177,7 +180,7 @@ test("the phone keys rows by channel too, like the desktop rail", () => {
   // The person, not the conversation id — the id is a day of the ledger and
   // rolls at midnight, which is the move `threadMoved` exists to follow.
   assert.doesNotMatch(
-    list.slice(list.indexOf("export function rowKey")),
+    list.slice(list.indexOf("export function inboxRowKey")),
     /^\s*return `\$\{row\.project_id[^`]*conversation_id/m,
   );
 });

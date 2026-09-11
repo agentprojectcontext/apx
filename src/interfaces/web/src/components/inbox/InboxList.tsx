@@ -7,6 +7,9 @@ import { ChannelFilter } from "./ChannelFilter";
 import { ProjectFilter } from "./ProjectFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
 import { projectEnabledIn, projectsOf } from "../../lib/provenance";
+// Identity of a row — one definition, in the module that also remembers
+// whether the row has been read. See lib/chat-read.
+import { inboxRowKey } from "../../lib/chat-read";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { useProjectPrefs } from "../../hooks/useProjectPrefs";
 
@@ -18,29 +21,6 @@ import { useProjectPrefs } from "../../hooks/useProjectPrefs";
  * previous version was a full-width list of cards that navigated AWAY on
  * click, which meant losing the list to read one row.
  */
-
-/** Identity of a row. Channel is part of it: the same agent now appears once
- *  per channel it was talked to on, so keying by agent alone would collide —
- *  React would drop rows and selecting one would highlight its twin. */
-/**
- * What makes an inbox row ITSELF: who it belongs to, and where.
- *
- * It identifies a row for React, for "is this the selected one", and for finding
- * the same row again after the list refreshes underneath — so anything two rows
- * can differ by has to be in here, or those two rows become one.
- *
- * The person is in it because on a channel that talks to several (WhatsApp),
- * every row is the super-agent's on the same channel: without this, Manu, Magui
- * and Carlos shared one key, so all three lit up as selected together and
- * clicking any of them opened whichever the list found first.
- *
- * The PERSON and not the conversation id: the id is a day of the ledger and
- * rolls over at midnight, which is exactly the move `threadMoved` exists to
- * follow. A key that changed with it would drop the selection every night.
- */
-export function rowKey(row: InboxRow): string {
-  return `${row.project_id ?? "global"}::${row.agent_slug}::${row.channel ?? ""}::${row.contact_person ?? ""}`;
-}
 
 export function InboxList({
   rows,
@@ -170,7 +150,7 @@ export function InboxList({
             channel is still on every row (ChannelTag), where it belongs — it
             says what a conversation IS without deciding where it sits. */}
         {filtered.map((row) => {
-          const key = rowKey(row);
+          const key = inboxRowKey(row);
           return (
             <InboxRowItem
               key={key}

@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { Inbox, type InboxRow } from "../lib/api/inbox";
 import { useLiveMessages } from "./useLiveMessages";
+import { syncReadMarks } from "../lib/chat-read";
 
 /**
  * Every conversation, most recent first, super-agent pinned.
@@ -24,6 +25,12 @@ export function useInbox(includeEmpty = false, channel: string | null = null) {
     // 15s stale is a slow inbox; one that never updates is a broken one.
     { refreshInterval: 15_000 },
   );
+
+  // Every list that lands is also the answer to "what have I not read": it
+  // takes the first baseline, and it clears the mark on whatever this window is
+  // already looking at. Here rather than in a screen, because the rail counts
+  // unread rows on pages that never mount the inbox.
+  useEffect(() => { syncReadMarks(data ?? []); }, [data]);
 
   // ANY message anywhere reorders this list — a new row, a new preview, a new
   // timestamp — so there is nothing to match on: revalidate and let the daemon
