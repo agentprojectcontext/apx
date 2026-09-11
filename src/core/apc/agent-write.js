@@ -108,6 +108,34 @@ const stripNameCopy = (name) => name.replace(/\s*\(\d+\)\s*$/, "").trim();
 const stripSlugCopy = (slug) => slug.replace(/-\d+$/, "");
 
 /**
+ * The lowest free `<base>-<n>` (n from 2) against the slugs already taken, plus
+ * the index it landed on — the caller needs the number to build a matching
+ * display name.
+ */
+export function nextIndexedSlug(base, taken) {
+  const set = taken instanceof Set ? taken : new Set(taken || []);
+  const root = stripSlugCopy(base) || base;
+  let n = 2;
+  while (set.has(`${root}-${n}`)) n += 1;
+  return { slug: `${root}-${n}`, index: n };
+}
+
+/**
+ * The slug to give a NEW agent named `base` in a project that may already have
+ * one. `base` itself when it is free, then each candidate in order — a pack
+ * declares readable alternatives ("finance-lead" for a second CFO) so a team
+ * does not end up full of `-2` suffixes — and only then the numeric fallback.
+ */
+export function nextFreeSlug(base, taken, candidates = []) {
+  const set = taken instanceof Set ? taken : new Set(taken || []);
+  const root = stripSlugCopy(base) || base;
+  for (const c of [root, ...candidates]) {
+    if (c && AGENT_SLUG_RE.test(c) && !set.has(c)) return c;
+  }
+  return nextIndexedSlug(root, set).slug;
+}
+
+/**
  * Duplicate an existing agent into a fresh slug. Copies every frontmatter field
  * and the system prompt verbatim, appending " (n)" to the display Name and "-n"
  * to the slug — n being the lowest index that keeps both unique — and carries
@@ -125,10 +153,7 @@ export function cloneAgent(project, slug) {
   if (!source) throw new Error(`agent ${slug} not found`);
 
   const taken = new Set(roster.map((a) => a.slug));
-  const baseSlug = stripSlugCopy(source.slug) || source.slug;
-  let n = 2;
-  while (taken.has(`${baseSlug}-${n}`)) n += 1;
-  const newSlug = `${baseSlug}-${n}`;
+  const { slug: newSlug, index: n } = nextIndexedSlug(source.slug, taken);
   if (!AGENT_SLUG_RE.test(newSlug)) throw new Error(`cannot derive a valid slug from "${slug}"`);
 
   const fields = { ...(source.fields || {}) };

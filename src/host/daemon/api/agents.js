@@ -4,6 +4,9 @@
 //   POST /projects/:pid/agents                      — create from slug
 //   GET  /projects/:pid/agents/:slug/memory
 //   PUT  /projects/:pid/agents/:slug/memory
+//   GET  /agents/packs                              — teams of vault templates
+//   GET  /projects/:pid/agents/packs/:id/plan       — the slugs a team WOULD take
+//   POST /projects/:pid/agents/import-pack          — install a team in one shot
 import { readAgents, readVaultAgents, readVaultAgent } from "#core/apc/parser.js";
 import {
   readProjectMemory,
@@ -28,6 +31,7 @@ import {
   writeAgentMemory,
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
+import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
 import { agentToResponse, asyncRoute } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
@@ -145,6 +149,49 @@ export function register(api, { projects, project }) {
       ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
       res.status(201).json(agentToResponse(readAgents(p.path).find((a) => a.slug === slug)));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Packs = a TEAM of vault templates installed together. The manifest is
+  // global (it names templates, not projects), so listing it needs no project.
+  api.get("/agents/packs", (_req, res) => {
+    res.json(readPacks());
+  });
+
+  // What the install WOULD do, without doing it: the dialog shows the slug each
+  // member ends up with, which is the only part the user cannot predict when
+  // the project already holds some of those names.
+  api.get("/projects/:pid/agents/packs/:id/plan", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const only = typeof req.query?.only === "string" && req.query.only.trim()
+      ? req.query.only.split(",").map((x) => x.trim()).filter(Boolean)
+      : undefined;
+    try {
+      res.json(planPackInstall(p.path, req.params.id, { only }));
+    } catch (e) {
+      res.status(404).json({ error: e.message });
+    }
+  });
+
+  // One request, one rebuild. Installing N members through N calls to the
+  // single-slug route would rebuild the registry N times and, worse, leave a
+  // half-installed team behind the first collision.
+  api.post("/projects/:pid/agents/import-pack", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { pack, slugs, names } = req.body || {};
+    if (!pack) return res.status(400).json({ error: "pack required" });
+    try {
+      const out = installPack(p, pack, { only: Array.isArray(slugs) ? slugs : undefined, names: names || {} });
+      projects.rebuild(p.id);
+      const roster = readAgents(p.path);
+      res.status(201).json({
+        ...out,
+        agents: out.installed.map((i) => agentToResponse(roster.find((a) => a.slug === i.slug))),
+      });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

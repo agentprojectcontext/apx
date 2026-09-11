@@ -7,6 +7,7 @@ import {
   AGENT_TYPE_VALUES, BLOB_KEYS, isBlobKey, normalizeAgentType, pickBlob,
 } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
+import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
 import { http } from "../http.js";
 import { readStdinSync } from "../stdin.js";
 import { resolveProjectId, resolveProjectRoot } from "./project.js";
@@ -426,9 +427,83 @@ export function cmdAgentVaultRestore(args) {
   console.log(`  ${cyan("restored")}  ${bold(slug)}  ${gray("(bundled default visible again)")}`);
 }
 
+/**
+ * `apx agent packs` — the teams available to install, and who reports to whom.
+ */
+export async function cmdAgentPacks() {
+  const packs = readPacks();
+  if (!packs.length) {
+    console.log(dim("  (no packs)"));
+    return;
+  }
+  const vault = readVaultAgents();
+  console.log();
+  for (const pack of packs) {
+    console.log(`  ${bold(pack.id)}  ${gray(pack.name)}`);
+    if (pack.description) console.log(`  ${dim(pack.description)}`);
+    for (const entry of pack.agents || []) {
+      const t = vault.find((a) => a.slug === entry.slug);
+      const mark = entry.default === false ? gray("○") : cyan("●");
+      const lead = entry.parent ? gray(`↳ ${entry.parent}`) : gray("(lead)");
+      console.log(`    ${mark} ${bold(entry.slug.padEnd(18))} ${lead}  ${dim(t?.fields?.Role || "")}`);
+    }
+    console.log();
+  }
+  console.log(dim("  ● installed by default · ○ available, untick-able"));
+  console.log(dim("  install:  apx agent import --pack <id> [--only a,b] [--as a=slug]"));
+  console.log();
+}
+
+// `--only a,b` and `--as ceo=jefa,cfo=plata`: comma lists rather than repeated
+// flags, because a repeated flag collapses to its last value in this parser and
+// silently installing one member of a six-agent team is a bad failure.
+function parseList(v) {
+  return typeof v === "string" && v.trim() ? v.split(",").map((x) => x.trim()).filter(Boolean) : undefined;
+}
+function parseNames(v) {
+  const out = {};
+  for (const pair of parseList(v) || []) {
+    const [k, name] = pair.split("=").map((x) => x?.trim());
+    if (!k || !name) throw new Error(`apx agent import --as: expected <template>=<slug>, got "${pair}"`);
+    out[k] = name;
+  }
+  return out;
+}
+
+async function importPack(args, root) {
+  const packId = args.flags.pack;
+  const only = parseList(args.flags.only);
+  const names = parseNames(args.flags.as);
+  const plan = planPackInstall(root, packId, { only, names });
+  const selected = plan.agents.filter((a) => a.selected && !a.missing);
+
+  console.log(`\n  ${bold(plan.pack.name)} ${gray(`(${packId})`)}\n`);
+  for (const a of selected) {
+    const moved = a.renamed ? gray(`  ← ${a.template} (taken)`) : "";
+    const under = a.parent ? gray(`↳ ${a.parent}`) : gray("(lead)");
+    console.log(`    ${cyan(a.slug.padEnd(18))} ${under}${moved}`);
+  }
+  for (const a of plan.agents.filter((x) => x.missing)) {
+    console.log(`    ${gray(a.template.padEnd(18))} ${dim("(not in vault — skipped)")}`);
+  }
+
+  if (args.flags["dry-run"]) {
+    console.log(`\n  ${dim("dry run — nothing written")}\n`);
+    return;
+  }
+
+  const out = installPack(root, packId, { only, names });
+  console.log(`\n  ${out.installed.length} agents installed`);
+  if (out.areas.length) console.log(gray(`  areas created: ${out.areas.join(", ")}`));
+  if (out.roles.length) console.log(gray(`  roles created: ${out.roles.join(", ")}`));
+  console.log();
+  await nudgeDaemon(root);
+}
+
 export async function cmdAgentImport(args) {
   const slug = args._[0];
-  if (!slug) throw new Error("apx agent import: missing <slug>");
+  if (args.flags.pack) return importPack(args, await resolveRoot(args));
+  if (!slug) throw new Error("apx agent import: missing <slug> (or --pack <id>)");
   const root = await resolveRoot(args);
 
   // Layered lookup (user file → bundled default) — see vaultAgentFile. Reading
