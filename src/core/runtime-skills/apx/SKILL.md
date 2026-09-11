@@ -44,10 +44,42 @@ message them on the **a2a channel** — NOT `apx exec` (that posts as the user).
 
 **If you are an APX agent, use the `send_to_agent` tool, not this command.** The
 tool knows who you are, reaches any peer (an agent, the super-agent, a runtime),
-and does not block your turn. The CLI below is for a coding CLI reaching in from
-the outside — and it BLOCKS: `--deliver` holds the terminal until the peer
-answers, which on a real exchange has meant one agent frozen for ten minutes
-waiting on another.
+and can leave the work running instead of holding your turn. The CLI below is for
+a coding CLI reaching in from the outside — and it BLOCKS: `--deliver` holds the
+terminal until the peer answers, which on a real exchange has meant one agent
+frozen waiting on another until its own shell timeout killed the call.
+
+### Don't wait for an answer you don't need yet
+
+`send_to_agent` waits by default: the peer's answer is the tool's result. That is
+right only when you need that answer to write your next sentence. A peer's turn
+is a full tool loop that can run for many minutes, and waiting through one does
+nothing for you or the owner.
+
+| You want to… | Call it with |
+|---|---|
+| Ask something you need **right now** | *(nothing — the default waits)* |
+| Hand work off and **pick it up when it lands** | `background: true` |
+| Tell them something you will never need an answer to | `background: true, wake_me: false` |
+
+With `background: true` the tool returns at once with a `job_id`, and the peer
+works on its own. When it answers you are **woken**: the reply arrives as a new
+message on that same a2a thread and you carry on from there.
+
+Three things that matter when you background something:
+
+- **Your context is not kept while you wait.** You are woken in a fresh turn with
+  the reply and a recap of what you asked — nothing else. Put everything you will
+  need in order to act on the answer into the message itself.
+- **Do not poll.** Never call `send_to_agent` again for the same thing, and never
+  "check" on it. You will be woken; asking again just opens a second exchange.
+- **A failure wakes you too**, and says so in as many words. If the peer never
+  answered, the job timed out, or the daemon restarted while it ran, you are told
+  that plainly and there is no result to use. Do not report such a job as done.
+
+Each agent may leave **3** jobs running at once, and a chain of agents handing
+work to each other stops at **3** hand-offs deep. Both limits come back as a
+message you can act on, not as a crash.
 
 ```bash
 apx send <you> <peer> "<message>" --deliver [--project <name>]

@@ -19,7 +19,7 @@
 // Fan-out is per PROCESS and that is enough: the daemon owns the HTTP API, the
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
-import { onMessageEvent, onMobilityAlert, onRoutineEvent } from "#core/events/bus.js";
+import { onMessageEvent, onMobilityAlert, onRoutineEvent, onBackgroundJobEvent } from "#core/events/bus.js";
 import { mascotNoticesFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
@@ -116,6 +116,14 @@ export function broadcastMobilityAlert(card) {
 
 export function broadcastRoutineRun(frame) {
   broadcastEvents({ type: "routine", ...frame });
+}
+
+/** Push one background-job frame (start / end). Carries the record for the same
+ *  reason the routine frame does: a job is not a ledger write, so a client that
+ *  got a bare "go look" signal would have nothing to look at. This is what draws
+ *  "1 tarea en ejecución" beside a turn that is still thinking. */
+export function broadcastBackgroundJob(frame) {
+  broadcastEvents({ type: "background_job", ...frame });
 }
 
 /** Which project a write belongs to, as an id the panel can match on.
@@ -225,6 +233,16 @@ export function startEventsBridge({ projects } = {}) {
     });
   });
 
+  // A job starting or ending is its own signal, for the same reason a routine
+  // run is: it never touches the ledger, so the batch below would never carry
+  // it. The job record already names its project — it was opened with one — so
+  // there is no storage path to resolve here.
+  const unsubscribeJobs = onBackgroundJobEvent((event) => {
+    if (!_clients.size) return;
+    if (!event?.job) return;
+    broadcastBackgroundJob({ phase: event.phase, project_id: event.job.project_id ?? null, job: event.job });
+  });
+
   // Proximity alerts. Straight out, no batching: see broadcastMobilityAlert.
   const unsubscribeMobility = onMobilityAlert((card) => {
     if (!_clients.size) return;
@@ -262,6 +280,7 @@ export function startEventsBridge({ projects } = {}) {
   return function stop() {
     unsubscribe();
     unsubscribeRoutines();
+    unsubscribeJobs();
     unsubscribeMobility();
     clearInterval(pinger);
     if (flushTimer) clearTimeout(flushTimer);

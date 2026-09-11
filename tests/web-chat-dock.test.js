@@ -54,7 +54,12 @@ test("the strip is the field's top edge, and opens away from the thumb", () => {
   const header = composer.slice(composer.indexOf("header={"), composer.indexOf("value={text}"));
   assert.ok(header, "the composer passes a header to ChatInput");
   assert.match(header, /\{context\}/, "the context strip renders inside the ChatInput header");
-  assert.match(tab, /<ContextBar msgs=\{msgs\} docked onOpenChange=\{setCtxOpen\} \/>/);
+  // Docked, and reporting when it opens — the two things the dock's layout
+  // depends on. NOT the full prop list: this assertion pinned every prop in
+  // order, so adding one (`projectId`, for the background-job count) failed a
+  // test about the dock's shape over a change that did not touch it. Same
+  // over-specification the comment above describes, one line down.
+  assert.match(tab, /<ContextBar[^>]*\bdocked\b[^>]*onOpenChange=\{setCtxOpen\}[^>]*\/>/);
   // The questions ride in the same slot, right under the strip: the thing you
   // have to answer belongs in the box you would answer with.
   assert.match(tab, /<InlineAskPanel\s*\n\s*docked/);
