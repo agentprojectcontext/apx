@@ -1055,8 +1055,19 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const base = held || (following ? last : null);
       if (!base) return curr;
       const closed = { ...fn(base), local: false, pending: false };
-      if (following) copy[copy.length - 1] = { ...closed, ts: last.ts };
-      else copy.push(closed);
+      // A turn that closes with nothing in it is not a turn, it is a hole. It
+      // happens whenever a route broadcasts the LIFECYCLE of a turn without its
+      // steps — a group cascade, whose answer is several speakers' turns landing
+      // on the thread rather than one bubble here — and leaving the empty shell
+      // behind would park a blank bubble at the end of the room until the
+      // silent re-read (which this same frame releases) replaced it.
+      const empty = !closed.parts.length && !closed.media?.length;
+      if (following) {
+        if (empty) copy.pop();
+        else copy[copy.length - 1] = { ...closed, ts: last.ts };
+      } else if (!empty) {
+        copy.push(closed);
+      }
       return copy;
     });
   }, [updateMsgs]);

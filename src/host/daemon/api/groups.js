@@ -22,6 +22,7 @@ import {
 import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
 import { startActiveTurn, endActiveTurn, threadTurnKey } from "../active-turns.js";
+import { broadcastTurn } from "../events-ws.js";
 import { wasAborted } from "./turn-abort.js";
 import { asyncRoute } from "./shared.js";
 
@@ -182,6 +183,31 @@ export function register(api, { projects, project, config, plugins, registries }
     });
     send({ type: "start", turn_id: active.id, channel: GROUP_CHANNEL, thread_id: req.params.gid });
 
+    // A room that is working says so on every rail, not only down the socket of
+    // whoever pressed send. Until this existed a cascade — the longest-running
+    // turn shape the daemon has — was completely silent to the inbox, the Chats
+    // sidebar and any second tab: no spinner, no unread mark when it finished,
+    // and a follower's bubble with no closing frame to end it.
+    //
+    // LIFECYCLE ONLY, on purpose: no `event`, no `delta`. A cascade is several
+    // speakers with a bubble each, and `recordActiveTurnEvent` builds ONE flat
+    // timeline — pushing the steps through it would show a follower four agents
+    // merged into a single bubble, which is worse than showing them the room is
+    // busy and re-reading the thread when it stops. Following a cascade speaker
+    // by speaker needs the client to split on `speaker_start`; that is its own
+    // pass, and this is the part that is right either way.
+    const turnFrame = (phase, extra = {}) => broadcastTurn({
+      phase,
+      project_id: p.id,
+      agent_slug: null,
+      conversation_id: null,
+      channel: GROUP_CHANNEL,
+      thread_id: req.params.gid,
+      turn_id: active.id,
+      ...extra,
+    });
+    turnFrame("start");
+
     try {
       await runGroupTurn({
         p, gid: req.params.gid, text: turnPrompt, rerun: !!rerun,
@@ -201,11 +227,17 @@ export function register(api, { projects, project, config, plugins, registries }
       // every time the owner presses Stop.
       const stopped = turnAbort.signal.aborted;
       send(stopped ? { type: "aborted" } : { type: "final" });
+      // Same ending, to everyone else. Carries no result: the room's answer is
+      // several speakers' turns already on the thread, and the silent re-read
+      // that this frame releases is what brings them in.
+      turnFrame(stopped ? "aborted" : "final", { result: {} });
       clearInterval(keepalive);
       res.end();
     } catch (e) {
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
-      send(wasAborted(e, turnAbort) ? { type: "aborted" } : { type: "error", error: e.message });
+      const stopped = wasAborted(e, turnAbort);
+      send(stopped ? { type: "aborted" } : { type: "error", error: e.message });
+      turnFrame(stopped ? "aborted" : "error", stopped ? { result: {} } : { error: e.message });
       clearInterval(keepalive);
       res.end();
     } finally {
