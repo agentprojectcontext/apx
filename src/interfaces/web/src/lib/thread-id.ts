@@ -17,3 +17,22 @@ export function threadDate(id: string | undefined | null): string | undefined {
   const day = String(id).split("~")[0];
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
 }
+
+/**
+ * The PERSON half of a thread id, when it has one.
+ *
+ * Only for an id whose first half is a date: `andy~claude-code` is an a2a pair,
+ * not a day and a person, and reading its suffix as a contact would scope a
+ * session list to a thing that is not a contact at all.
+ *
+ * It is the raw key the ledger recorded, which is enough to ask "does this
+ * thread belong to somebody" but NOT enough to ask "to the same somebody": one
+ * human writes from several addresses, so comparing two raw keys is the
+ * daemon's `contact_person` job (api/thread-faces.js).
+ */
+export function threadContact(id: string | undefined | null): string | undefined {
+  if (!id) return undefined;
+  const cut = String(id).indexOf("~");
+  if (cut <= 0 || !threadDate(id)) return undefined;
+  return String(id).slice(cut + 1) || undefined;
+}

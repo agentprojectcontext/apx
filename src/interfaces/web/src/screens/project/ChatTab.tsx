@@ -945,9 +945,14 @@ export function ChatTab({
                 line — but the agent's face is already sitting right there, and
                 the date was standing in the one place the name should be. */}
             <div className="min-w-0 flex-1">
-              {/* A group is one room, not an agent with many sessions — so it
-                  gets a plain title, not the session switcher. */}
-              {isGroup ? (
+              {/* A group is one room and an a2a pair is one conversation —
+                  neither is an agent with many sessions, so both get a plain
+                  title rather than a switcher. A pair has exactly one thread
+                  (routes.ts says so too, where the URL's session segment is
+                  ignored for one), so the menu there could only ever offer the
+                  row you were already reading — or, unscoped, every other
+                  pair. */}
+              {isMultiThread ? (
                 <div className={cn(
                   "max-w-full truncate font-semibold text-foreground",
                   compact ? "text-[15px] leading-tight" : "text-sm",

@@ -491,6 +491,11 @@ export interface ThreadListEntry {
   /** Set only when the thread is one person's inside a shared channel: their
    *  stable key ("owner", or a jid). Absent means the whole day. */
   contact?: string;
+  /** WHICH PERSON that key turned out to be, resolved against the roster as it
+   *  stands today. One human writes from several addresses — a LID and a phone
+   *  jid can both be live on the same day — so this, and never `contact`, is
+   *  what two threads are compared by to decide they are one conversation. */
+  contact_person?: string | null;
   /** That person's display name, when the channel recorded one. */
   contact_name?: string | null;
   /** Their face — name plus, when the roster has one, their profile picture.
@@ -517,6 +522,7 @@ export interface ThreadDetail {
   channel: string;
   /** See ThreadListEntry: one person's thread inside a shared channel. */
   contact?: string;
+  contact_person?: string | null;
   contact_name?: string | null;
   contact_face?: AgentFace;
   /** What this thread is called: the reader's own name for it, the resolved
