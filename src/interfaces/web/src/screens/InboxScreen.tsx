@@ -189,6 +189,10 @@ export function InboxScreen() {
             pid={pid as string}
             hideSidebar
             bare
+            /* The inbox spans every project at once, so the header has to say
+               which one this conversation belongs to — the list row does, and
+               opening it used to lose that. */
+            showProject
             channelScope="web"
             initialSelection={selectionFor(selected)}
             /* The structural way out. The inbox is a second axis over the same

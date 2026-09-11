@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, runtime } from "./fixtures";
 
 // The inbox is a SECOND AXIS. The most important thing these specs protect is
 // that adding it did not take anything away from project-first navigation —
@@ -252,6 +252,105 @@ test.describe("agent inbox", () => {
     await expect(page.getByTestId("new-chat-sheet")).toBeVisible();
     await page.getByTestId("new-chat-mode-single").click();
     await expect(page.getByTestId("new-chat-linus")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  // ── Provenance: which project a conversation comes from ──────────────────
+  // The channel says where a conversation HAPPENED; this says where it comes
+  // FROM. Two facts about one row, so two badges — and the default workspace
+  // wears neither, because it is where everything without a project of its own
+  // already lives.
+
+  const PROJECTS = [
+    { id: 0, path: "/path/to/default", name: "default", kind: "default", agents: 0 },
+    { id: 7, path: "/path/to/northwind", name: "Northwind", kind: "other", agents: 1 },
+  ];
+
+  /** The inbox rows above, with the project list they name, so a badge can
+   *  resolve a real name instead of falling back to the bare id. */
+  const routeProvenance = async (page: import("@playwright/test").Page) => {
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: CHANNEL_ROWS }),
+    );
+    await page.route(
+      (url) => url.pathname === "/api/projects",
+      (route) => route.fulfill({ json: PROJECTS }),
+    );
+  };
+
+  test("a row from another project is badged; the default workspace is not", async ({ page, errors }) => {
+    await routeProvenance(page);
+    await page.goto("/inbox");
+
+    const list = page.getByTestId("inbox-list");
+    await expect(list.getByTestId("project-tag-7")).toHaveText(/Northwind/);
+    // The super-agent's row carries no project at all and resolves to the
+    // default one — the majority case, and a badge there would say nothing.
+    await expect(list.getByTestId("project-tag-0")).toHaveCount(0);
+    await expect(list.getByTestId("project-tag-null")).toHaveCount(0);
+    // Still its own badge, beside the channel's, never folded into it.
+    await expect(list.getByTestId("channel-tag-web")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("a project can be switched off and back on, and the choice sticks", async ({ page, errors }) => {
+    await routeProvenance(page);
+    await page.goto("/inbox");
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
+
+    await page.getByTestId("inbox-project-filter").click();
+    await page.getByTestId("inbox-project-option-7").click();
+    await expect(page.getByTestId("inbox-row-linus")).toHaveCount(0);
+    // The other project is untouched — these are switches, not one choice —
+    // and the menu stays open, which is what makes it a multi-select.
+    await expect(page.getByTestId("inbox-row-super_agent")).toBeVisible();
+    await expect(page.getByTestId("inbox-project-option-0")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await page.reload();
+    await expect(page.getByTestId("inbox-row-linus")).toHaveCount(0);
+
+    await page.getByTestId("inbox-project-filter").click();
+    await page.getByTestId("inbox-project-option-7").click();
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("opening a conversation keeps its project in the header", async ({ page, errors }) => {
+    await routeProvenance(page);
+    await page.goto("/inbox");
+
+    await page.getByTestId("inbox-row-linus").click();
+    // The whole point: the list row said which project this was, and reading
+    // the conversation used to lose it.
+    await expect(page.getByTestId("chat-header").getByTestId("project-tag-7")).toHaveText(/Northwind/);
+    expect(errors).toEqual([]);
+  });
+
+  test("a project's own chat repeats neither the badge nor the filter", async ({ page, errors }) => {
+    const rt = runtime();
+    await page.goto(`/p/${rt.projectId}/chat`);
+    await expect(page.getByTestId("chat-header")).toBeVisible();
+    // Inside a project the answer is the screen you are standing on, the rail
+    // beside it and the URL above it. A fourth copy is noise.
+    await expect(page.locator("[data-testid^='project-tag-']")).toHaveCount(0);
+    await expect(page.getByTestId("inbox-project-filter")).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test("the phone badges provenance and filters by project too", async ({ page, errors }) => {
+    await routeProvenance(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/m/chat");
+
+    await expect(page.getByTestId("project-tag-7")).toHaveText(/Northwind/);
+
+    await page.getByTestId("mobile-project-filter").click();
+    await page.getByTestId("mobile-project-option-7").click();
+    await expect(page.getByTestId("inbox-row-linus")).toHaveCount(0);
+    await page.getByTestId("mobile-project-option-7").click();
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

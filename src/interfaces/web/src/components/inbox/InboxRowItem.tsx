@@ -2,6 +2,7 @@ import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { ChannelTag } from "./ChannelFilter";
+import { ProjectTag } from "./ProjectFilter";
 import { ChatRowActivity } from "../chat/ChatRowActivity";
 import {
   activityKeyFromActiveTurn,
@@ -127,11 +128,16 @@ export function InboxRowItem({
         </span>
 
         <span className={cn("mt-0.5 flex items-center gap-1.5 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
-          {row.project_name ? <span className="truncate">{row.project_name}</span> : null}
-          {/* Where this conversation happened, as a tag on the row. On every
-              surface: both lists are now flat and sorted by recency, so this is
-              the only thing telling a WhatsApp from a contact apart from a web
-              chat with the same agent — otherwise two identical lines. */}
+          {/* Two facts, two badges, never one slot: where this agent comes
+              FROM and where the conversation HAPPENED. The project used to be
+              bare text next to the channel's tag, which read as a caption on
+              it; and it printed for the default workspace too, labelling most
+              of the list with the one place that goes without saying. */}
+          <ProjectTag projectId={row.project_id} name={row.project_name} />
+          {/* On every surface: both lists are now flat and sorted by recency,
+              so this is the only thing telling a WhatsApp from a contact apart
+              from a web chat with the same agent — otherwise two identical
+              lines. */}
           <ChannelTag channel={row.channel} />
           {row.requested_by ? (
             <span className="shrink-0 rounded bg-primary/12 px-1 text-primary">

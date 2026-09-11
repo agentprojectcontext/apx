@@ -5,8 +5,11 @@ import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { rowKey } from "../../components/inbox/InboxList";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
+import { ProjectFilter } from "../../components/inbox/ProjectFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
+import { projectEnabledIn, projectsOf } from "../../lib/provenance";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
+import { useProjectPrefs } from "../../hooks/useProjectPrefs";
 import { cn } from "../../lib/cn";
 import { isNativeShell } from "../../lib/net";
 import { t } from "../../i18n";
@@ -36,6 +39,7 @@ export function MobileChatList({
   // this header must not pay for them again (see lib/net.ts).
   const androidOptions = isNativeShell();
   const view = useChannelPrefs("view");
+  const scope = useProjectPrefs();
 
   // Off the unfiltered rows, so a channel switched off keeps its own chip to
   // come back through — and its count while it is off.
@@ -49,10 +53,15 @@ export function MobileChatList({
     return out;
   }, [rows]);
 
+  // Which projects the rows come FROM. Off the unfiltered rows too, and for the
+  // same reason as the channels above.
+  const projects = useMemo(() => projectsOf(rows), [rows]);
+
   const q = query.trim().toLowerCase();
   const match = (s: string | null | undefined) => !q || String(s || "").toLowerCase().includes(q);
   const shownRows = rows
     .filter((r) => channelEnabledIn(view.prefs, "view", r.channel))
+    .filter((r) => projectEnabledIn(scope.prefs, r.project_id))
     .filter((r) => match(r.agent_name) || match(r.agent_slug) || match(r.project_name));
 
   return (
@@ -105,11 +114,12 @@ export function MobileChatList({
             className="h-10 w-full rounded-full border border-border bg-muted/30 pl-9 pr-3 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
           />
         </div>
-        {/* Which channels this phone wants to see. Telegram starts off here —
-            the app is on this very device — and the picker says so ("6 of 11")
-            without needing a strip of chips wider than the screen. */}
-        {channels.length > 1 && (
-          <div className="mt-2 flex items-center gap-2">
+        {/* Which channels this phone wants to see, and which projects. Telegram
+            starts off here — the app is on this very device — and the picker
+            says so ("6 of 11") without needing a strip of chips wider than the
+            screen, which is exactly why there is room for the second one. */}
+        {(channels.length > 1 || projects.length > 1) && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <ChannelFilter
               channels={channels}
               counts={counts}
@@ -117,6 +127,13 @@ export function MobileChatList({
               onToggle={view.toggle}
               onSetAll={(on) => view.setAll(channels, on)}
               testIdPrefix="mobile-channel"
+            />
+            <ProjectFilter
+              projects={projects}
+              enabled={scope.enabled}
+              onToggle={scope.toggle}
+              onSetAll={(on) => scope.setAll(projects.map((p) => p.id), on)}
+              testIdPrefix="mobile-project"
             />
           </div>
         )}
@@ -147,9 +164,16 @@ export function MobileChatList({
         {!shownRows.length && (
           <p className={cn("px-4 py-10 text-center text-sm text-muted-fg")}>
             <Users size={20} className="mx-auto mb-2 opacity-50" />
-            {/* An empty list because every channel is off is not an empty
-                inbox, and saying so sends someone hunting for a bug. */}
-            {rows.length && !q ? t("channels.all_hidden") : t("mobile.empty")}
+            {/* An empty list because a filter is on is not an empty inbox, and
+                saying so sends someone hunting for a bug. Which filter did it
+                matters just as much — there are two of them now. */}
+            {!rows.length || q
+              ? t("mobile.empty")
+              : !channels.some(view.enabled)
+                ? t("channels.all_hidden")
+                : !projects.some((p) => scope.enabled(p.id))
+                  ? t("provenance.all_hidden")
+                  : t("mobile.empty")}
           </p>
         )}
       </div>

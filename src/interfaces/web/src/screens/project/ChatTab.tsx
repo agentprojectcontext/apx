@@ -992,7 +992,7 @@ export function ChatTab({
                     they answer different questions, and the default workspace
                     answers neither (ProjectTag draws nothing for it). */}
                 {showProject && (
-                  <ProjectTag projectId={pid} name={project?.name} className="shrink" />
+                  <ProjectTag projectId={pid} name={project?.name} />
                 )}
                 <span className="shrink-0">· {shownChannel}</span>
                 {createdIso && <span className="shrink-0">· {formatDate(createdIso)}</span>}

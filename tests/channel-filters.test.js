@@ -51,14 +51,24 @@ test("the filter is a picker, not a strip that runs off the edge", () => {
   // It shipped as one chip per channel. A real install has eleven, the inbox
   // rail is 288px and the phone is narrower still, so the row scrolled out of
   // sight and the filters could not be found at all.
-  const filter = webSrc("components", "inbox", "ChannelFilter.tsx");
-  assert.match(filter, /DropdownMenuCheckboxItem/, "a menu of switches");
+  //
+  // The picker itself is shared now: the inbox carries two of these side by
+  // side (channels, and the project a conversation comes from) and they differ
+  // only in vocabulary. Written twice they drift apart on the first change to
+  // either, so the layout has one home and each filter supplies its words.
+  const picker = webSrc("components", "inbox", "OptionFilter.tsx");
+  assert.match(picker, /DropdownMenuCheckboxItem/, "a menu of switches");
   // Base UI leaves a checkbox item's menu OPEN on click, which is what makes
   // this multi-select instead of one-choice-and-it-closes.
-  assert.doesNotMatch(filter, /DropdownMenuCheckboxItem[\s\S]{0,300}closeOnClick=\{true\}/);
+  assert.doesNotMatch(picker, /DropdownMenuCheckboxItem[\s\S]{0,300}closeOnClick=\{true\}/);
   // And the trigger says how many are on without being opened.
-  assert.match(filter, /t\("channels\.n_of_m", \{ n: on, total: channels\.length \}\)/);
-  assert.match(filter, /onSetAll/, "one way back from a list filtered down to nothing");
+  assert.match(picker, /t\("filters\.n_of_m", \{ n: on, total: options\.length \}\)/);
+  assert.match(picker, /onSetAll/, "one way back from a list filtered down to nothing");
+  assert.match(picker, /if \(options\.length < 2\) return null;/, "nothing to choose between");
+
+  const filter = webSrc("components", "inbox", "ChannelFilter.tsx");
+  assert.match(filter, /<OptionFilter/, "the channel filter is that picker, not a second copy");
+  assert.doesNotMatch(filter, /DropdownMenuCheckboxItem/, "one menu, not two");
 });
 
 test("a channel switched off keeps the chip that brings it back", () => {
@@ -73,6 +83,76 @@ test("a channel switched off keeps the chip that brings it back", () => {
   const chips = webSrc("components", "inbox", "ChannelFilter.tsx");
   assert.match(chips, /aria-pressed=\{on\}/, "a switch, not a link");
   assert.match(chips, /if \(channels\.length < 2\) return null;/, "nothing to choose between");
+});
+
+// ── Provenance: WHICH PROJECT a conversation comes from ────────────────────
+// The channel says where a conversation happened. On an inbox that spans every
+// project at once that leaves the other half unanswered: two projects can both
+// have an agent called Zoya, and "Zoya · Web" does not say whose. The list row
+// carried the project as bare text and the conversation it opened dropped it
+// entirely, so reading a thread meant losing track of who it belonged to.
+
+test("the project of a row, and the default rule, have ONE home", () => {
+  const lib = webSrc("lib", "provenance.ts");
+  // A super-agent row carries no project at all. It must resolve to the same
+  // project the surfaces OPEN it in (`project_id ?? 0`), or the filter and the
+  // chat pane disagree about where a row lives.
+  assert.match(lib, /export const DEFAULT_PROJECT = "0";/);
+  assert.match(lib, /export function projectKeyOf/);
+  assert.match(lib, /export function isDefaultProject/);
+  assert.match(lib, /view: "apx\.projects\.view"|const KEY = "apx\.projects\.view"/);
+  // Only EXPLICIT choices are stored, so a project registered after this was
+  // written is shown rather than silently hidden.
+  assert.match(lib, /explicit === undefined \? true : explicit/);
+});
+
+test("the default workspace is never badged", () => {
+  // It is where the super-agent lives and where everything without a project of
+  // its own lands. A badge there would mark most of the list to say "the usual
+  // place", and a badge that is always on stops being read.
+  const tag = webSrc("components", "inbox", "ProjectFilter.tsx");
+  assert.match(tag, /if \(isDefaultProject\(projectId\)\) return null;/);
+  assert.match(tag, /<OptionFilter/, "the same picker as the channel filter");
+});
+
+test("both lists filter by project through the shared predicate", () => {
+  for (const [file, where] of [
+    [webSrc("components", "inbox", "InboxList.tsx"), "the desktop rail"],
+    [webSrc("screens", "mobile", "MobileChatList.tsx"), "the phone"],
+  ]) {
+    assert.match(file, /projectEnabledIn\(scope\.prefs, r\.project_id\)/, where);
+    assert.match(file, /<ProjectFilter/, `${where} offers the switches`);
+    // Off the UNFILTERED rows, or a project would lose the switch that brings
+    // it back the moment it was used.
+    assert.match(file, /projectsOf\(rows\)/, where);
+  }
+});
+
+test("the row wears provenance and channel as two separate badges", () => {
+  const row = webSrc("components", "inbox", "InboxRowItem.tsx");
+  assert.match(row, /<ProjectTag projectId=\{row\.project_id\} name=\{row\.project_name\} \/>/);
+  assert.match(row, /<ChannelTag channel=\{row\.channel\} \/>/);
+  // The project used to be bare text beside the channel's tag, which read as a
+  // caption on it rather than a fact of its own.
+  assert.doesNotMatch(row, /\{row\.project_name \? <span/);
+});
+
+test("the open conversation keeps its project — except inside that project", () => {
+  const chat = webSrc("screens", "project", "ChatTab.tsx");
+  assert.match(chat, /showProject\?: boolean;/, "a flag, not a second header");
+  assert.match(chat, /showProject = false/, "off unless a surface asks for it");
+  assert.match(chat, /showProject && \(\s*<ProjectTag/);
+  // The name comes from the project list, not from whoever opened the chat: a
+  // deep link has no inbox row behind it (see `placeholderRow`), so a prop
+  // would be there when you tapped in and missing when you followed a link.
+  assert.match(chat, /const \{ project \} = useProject\(pid\);/);
+
+  // The screens that span every project ask for it; the project's own tab does
+  // not — there the answer is the screen you are standing on.
+  assert.match(webSrc("screens", "InboxScreen.tsx"), /\n\s*showProject\n/);
+  assert.match(webSrc("screens", "mobile", "MobileChat.tsx"), /\n\s*showProject\n/);
+  const project = webSrc("screens", "ProjectScreen.tsx");
+  assert.doesNotMatch(project, /showProject/, "a project's own chat must not repeat it");
 });
 
 // ── One row per (agent, CHANNEL) ───────────────────────────────────────────
@@ -110,13 +190,23 @@ test("tapping a row opens THAT thread, not the agent's newest one", () => {
 });
 
 test("an empty list says WHICH kind of empty it is", () => {
-  // Three silences that look identical and mean different things: nothing
-  // matched the search, every channel is off, or there is genuinely nothing.
-  // Saying the wrong one sends someone hunting for a bug that is a filter.
-  const list = webSrc("components", "inbox", "InboxList.tsx");
-  assert.match(list, /q \? t\("inbox\.no_match"\) : rows\.length \? t\("channels\.all_hidden"\) : t\("inbox\.empty"\)/);
-  const phone = webSrc("screens", "mobile", "MobileChatList.tsx");
-  assert.match(phone, /rows\.length && !q \? t\("channels\.all_hidden"\) : t\("mobile\.empty"\)/);
+  // Silences that look identical and mean different things: nothing matched the
+  // search, every channel is off, every PROJECT is off, or there is genuinely
+  // nothing. Saying the wrong one sends someone hunting for a bug that is a
+  // filter — and with two filters there are two ways to be wrong.
+  for (const [file, where] of [
+    [webSrc("components", "inbox", "InboxList.tsx"), "the desktop rail"],
+    [webSrc("screens", "mobile", "MobileChatList.tsx"), "the phone"],
+  ]) {
+    assert.match(file, /!channels\.some\(view\.enabled\)\s*\?\s*t\("channels\.all_hidden"\)/, where);
+    assert.match(
+      file,
+      /!projects\.some\(\(p\) => scope\.enabled\(p\.id\)\)\s*\?\s*t\("provenance\.all_hidden"\)/,
+      where,
+    );
+  }
+  assert.match(webSrc("components", "inbox", "InboxList.tsx"), /t\("inbox\.empty"\)/);
+  assert.match(webSrc("screens", "mobile", "MobileChatList.tsx"), /t\("mobile\.empty"\)/);
 });
 
 test("every row carries its channel, on both surfaces, and nothing groups by it", () => {
@@ -141,11 +231,23 @@ test("every row carries its channel, on both surfaces, and nothing groups by it"
   assert.match(chips, /channelLabel\(channel\)/);
 });
 
-test("both locales carry every channel string", () => {
-  const en = webSrc("i18n", "en.ts");
-  const es = webSrc("i18n", "es.ts");
-  for (const key of ["filter", "a2a", "group", "other", "all_hidden", "n_of_m", "select_all"]) {
-    assert.match(en, new RegExp(`\\b${key}:`), `en is missing channels.${key}`);
-    assert.match(es, new RegExp(`\\b${key}:`), `es is missing channels.${key}`);
+test("both locales carry every filter string, in the block that owns it", () => {
+  // Pinned per BLOCK rather than per bare key: the words the two pickers share
+  // ("All", "3 of 11") moved to `filters` when the menu became one component,
+  // and a file-wide grep for `n_of_m:` would have gone on passing while
+  // `channels.n_of_m` no longer existed.
+  const blocks = { channels: ["filter", "a2a", "group", "other", "all_hidden"],
+    provenance: ["filter", "from", "all_hidden"],
+    filters: ["all", "n_of_m", "select_all", "none"] };
+  for (const locale of ["en", "es"]) {
+    const src = webSrc("i18n", `${locale}.ts`);
+    for (const [block, keys] of Object.entries(blocks)) {
+      const body = src.slice(src.indexOf(`\n  ${block}: {`));
+      const inner = body.slice(0, body.indexOf("\n  },"));
+      assert.ok(inner.length, `${locale} is missing the ${block} block`);
+      for (const key of keys) {
+        assert.match(inner, new RegExp(`\\b${key}:`), `${locale} is missing ${block}.${key}`);
+      }
+    }
   }
 });

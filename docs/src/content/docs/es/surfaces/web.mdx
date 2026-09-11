@@ -178,12 +178,34 @@ Telegram es la misma noticia dos veces: ahí arranca apagado. En la compu es la
 donde estás; la elección vive en ese navegador (`localStorage`) y no sale de ahí.
 
 Lo mismo vale para las **listas**. La bandeja y `/m/chat` muestran todos los
-canales donde puede pasar una conversación, agrupados, y una fila de chips
-apaga y prende cada uno para ese dispositivo — de nuevo con Telegram apagado por
-defecto en el celu. Un canal apagado conserva su chip (y su contador), así que la
-vuelta está donde estaba la ida, y una lista vacía por un filtro lo dice en vez
-de hacerte creer que no hay nada. En el celular, que no tiene títulos de canal,
-cada fila lleva su canal como etiqueta.
+canales donde puede pasar una conversación, y un solo picker plegado — "Canales ·
+6 de 11" — apaga y prende cada uno para ese dispositivo, de nuevo con Telegram
+apagado por defecto en el celu. Un canal apagado conserva su switch (y su
+contador), así que la vuelta está donde estaba la ida, y una lista vacía por un
+filtro dice qué filtro la vació en vez de hacerte creer que no hay nada. Las dos
+listas son planas y ordenadas por lo más reciente, así que cada fila lleva su
+canal como etiqueta.
+
+### De qué proyecto viene una conversación
+
+La bandeja cruza todos los proyectos a la vez, y eso abre una segunda pregunta
+que el canal no contesta: dos proyectos pueden tener cada uno una agente Zoya, y
+"Zoya · Web" no dice de quién es. Por eso la procedencia tiene badge propio — el
+nombre del proyecto, al lado de la etiqueta de canal y nunca metido adentro de
+ella — en la fila de la lista y en el encabezado de la conversación que abre,
+tanto en la compu como en el celular.
+
+Solo se marcan los agentes de **otro** proyecto. En el proyecto default vive el
+super-agente y ahí cae toda conversación que no tiene proyecto propio, así que
+ponerle badge sería etiquetar casi toda la lista con el único lugar que se da
+por sentado.
+
+Al lado del picker de canales hay uno de **Proyectos** con la misma forma, con
+un contador por proyecto, para leer las conversaciones de un proyecto solo. Como
+el de canales, es una elección por dispositivo que queda en ese navegador.
+
+Adentro del tab Chat de un proyecto (`/p/:pid/chat`) no aparece ni el badge ni
+el filtro: la respuesta es la pantalla donde ya estás parado.
 
 ## Workspace de proyecto
 
