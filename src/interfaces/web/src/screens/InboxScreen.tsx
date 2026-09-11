@@ -193,7 +193,6 @@ export function InboxScreen() {
                which one this conversation belongs to — the list row does, and
                opening it used to lose that. */
             showProject
-            channelScope="web"
             initialSelection={selectionFor(selected)}
             /* The structural way out. The inbox is a second axis over the same
                data, so getting from a conversation to its project must always

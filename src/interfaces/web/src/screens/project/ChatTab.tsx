@@ -65,7 +65,6 @@ export function ChatTab({
   compact = false,
   onBack,
   onSelectionChange,
-  channelScope,
   showProject = false,
 }: {
   pid: string;
@@ -94,10 +93,6 @@ export function ChatTab({
    *  path segment rather than a query string, so picking one has to navigate
    *  instead of writing `?conv=` that a reload would not read back. */
   onSelectionChange?: (key: ChatKey) => void;
-  /** Limit the session switcher to one channel. The inbox and the phone pass
-   *  "web" so their switcher never offers a Telegram thread; project-first
-   *  navigation omits it and keeps every channel. */
-  channelScope?: string;
   /** Name the project this conversation comes from, in the header.
    *
    *  Only the screens that span every project at once ask for it — the inbox
@@ -704,12 +699,26 @@ export function ChatTab({
   // one is not anywhere yet.
   const storedSession = selected.kind === "conv" || selected.kind === "thread";
   const isArchived = !!selectedMeta?.archived;
+  // A NEW session opens on the channel you are already on, or it does not open.
+  //
+  // "New session" means `{kind:"live"}`, and a live session's first message goes
+  // out on `web` — that is the only channel this panel can start a conversation
+  // on. So standing in a Telegram day, a WhatsApp thread or an a2a pair, the
+  // button silently teleported you to a web chat with the same agent: a
+  // different conversation, on a different channel, under a header that had
+  // just changed out from under you. There is no honest "new Telegram day" to
+  // open from here — the thread id IS the day, and it is the person writing who
+  // starts the next one — and an a2a pair has exactly one thread by definition.
+  //
+  // So it is offered where it means something and disabled where it does not,
+  // saying why, instead of doing something else than what it says.
+  const startsOnWeb = shownChannel === "web";
   const newSessionAction = {
     key: "new",
     icon: RotateCcw,
-    label: t("project.chat.new_session"),
+    label: startsOnWeb ? t("project.chat.new_session") : t("project.chat.new_session_channel", { channel: shownChannel }),
     onClick: () => setConfirmNew(true),
-    disabled: streaming || msgs.length === 0,
+    disabled: streaming || msgs.length === 0 || !startsOnWeb,
   };
 
   // Go to the agent's card / project. Inbox passes `onOpenInProject` (leave the
@@ -975,7 +984,11 @@ export function ChatTab({
                   selected={selected}
                   label={convLabel || t("mobile.live_session")}
                   onPick={selectChat}
-                  channelScope={channelScope}
+                  /* The CHAT's channel, not the pane's. Every surface hands in
+                     the same thing now — the conversation's own — so the same
+                     chat offers the same sessions from the inbox, the project
+                     and the phone. See `chatScope`. */
+                  chatChannel={shownChannel}
                   className={cn(
                     "max-w-full font-semibold text-foreground",
                     compact ? "text-[15px] leading-tight" : "text-sm",

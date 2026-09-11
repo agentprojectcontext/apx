@@ -265,25 +265,17 @@ test("which thread you are in is also the way to the others", () => {
 });
 
 test("the switcher stays inside the conversation you have open", () => {
-  // It was scoped by the SURFACE, and every surface got it wrong. The inbox
-  // passed "web", so a WhatsApp thread's switcher listed web sessions and the
-  // thread being read was missing from its own menu. The phone passed nothing
-  // to escape that, so opening one person's WhatsApp offered every thread APX
-  // has: Telegram days, the log, the CLI, and four other people's conversations.
-  //
-  // A session is "the same conversation, another day", so the scope is the open
-  // thread's channel plus its person. Only with NO thread open — a live session,
-  // which is not inside anything yet — does the surface's own channel decide.
+  // The RULE itself — which channel a chat's sessions come from — moved to
+  // lib/chat-scope.ts and is exercised directly in tests/session-scope.test.js,
+  // where it can be called with a selection instead of grepped for. What stays
+  // here is what belongs to this dropdown: how it compares people, what it
+  // labels rows with, and who gets no switcher at all.
   const picker = web("components", "chat", "SessionPicker.tsx");
   const tab = web("screens", "project", "ChatTab.tsx");
-  assert.match(picker, /export function chatScope\(selected: ChatKey, surfaceChannel\?: string\)/);
-  assert.match(picker, /if \(selected\.kind !== "thread"\) return \{ channel: surfaceChannel \};/);
-  assert.match(picker, /channel: selected\.channel,[\s\S]{0,120}contact: threadContact\(selected\.threadId\)/);
 
   // People are compared by the daemon's RESOLVED key, never by the address in
   // the id: one human writes from several, and comparing the raw ones shows
   // part of a history while looking complete (see thread-faces.test.js).
-  assert.match(picker, /th\.contact_person \|\| th\.contact \|\| threadContact\(th\.id\)/);
   assert.match(picker, /personOf\(th\) === person/);
 
   // And the day, because every session of one person's thread is titled with
