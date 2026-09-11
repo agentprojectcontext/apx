@@ -341,13 +341,13 @@ export const HELP_TOPICS = new Map(Object.entries({
     title: "apx agent vault rm",
     summary: "Delete a vault template. Bundled defaults are tombstoned, not erased; restore them with `apx agent vault restore`.",
     usage: ["apx agent vault rm <slug>"],
-    examples: ["apx agent vault rm tessa-qa"],
+    examples: ["apx agent vault rm qa-engineer"],
   }),
   "agent vault restore": topic({
     title: "apx agent vault restore",
     summary: "Lift a tombstone so a previously-removed bundled default is visible again.",
     usage: ["apx agent vault restore <slug>"],
-    examples: ["apx agent vault restore tessa-qa"],
+    examples: ["apx agent vault restore qa-engineer"],
   }),
   identity: topic({
     title: "apx identity",
