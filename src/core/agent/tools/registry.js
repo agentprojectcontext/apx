@@ -19,6 +19,8 @@ import remember from "./handlers/remember.js";
 import writeProjectMemory from "./handlers/write-project-memory.js";
 import readSelfMemory from "./handlers/read-self-memory.js";
 import listFiles from "./handlers/list-files.js";
+import writeArtifact from "./handlers/write-artifact.js";
+import listArtifacts from "./handlers/list-artifacts.js";
 import readFile from "./handlers/read-file.js";
 import writeFile from "./handlers/write-file.js";
 import editFile from "./handlers/edit-file.js";
@@ -96,6 +98,8 @@ const NATIVE_TOOLS = [
   writeProjectMemory,
   readSelfMemory,
   listFiles,
+  writeArtifact,
+  listArtifacts,
   readFile,
   writeFile,
   editFile,

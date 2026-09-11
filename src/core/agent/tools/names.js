@@ -28,6 +28,10 @@ export const TOOLS = Object.freeze({
   REMEMBER:            "remember",
   WRITE_PROJECT_MEMORY: "write_project_memory",
 
+  // Artifacts — runnable files in the project's storage, not in its repo
+  WRITE_ARTIFACT:      "write_artifact",
+  LIST_ARTIFACTS:      "list_artifacts",
+
   // Filesystem / shell
   LIST_FILES:          "list_files",
   READ_FILE:           "read_file",
@@ -210,6 +214,8 @@ export const NATIVE_TOOL_NAMES = new Set([
  * the channel is a coding surface, without touching the chat base.
  */
 export const CODE_CHANNEL_TOOLS = Object.freeze([
+  TOOLS.WRITE_ARTIFACT,
+  TOOLS.LIST_ARTIFACTS,
   TOOLS.GIT_STATUS,
   TOOLS.GIT_DIFF,
   TOOLS.GIT_LOG,
@@ -278,6 +284,7 @@ export const CODE_BUILD_TOOLS = "*";
  * legitimately repeated (list_tasks before and after a change).
  */
 export const SIDE_EFFECT_TOOLS = new Set([
+  TOOLS.WRITE_ARTIFACT,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SEND_WHATSAPP,
   TOOLS.WHATSAPP_CONTACTS,

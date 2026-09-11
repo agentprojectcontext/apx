@@ -262,15 +262,32 @@ export const es = {
   // conversación quiere ver y escuchar ESTE dispositivo (lib/channels.ts).
   channels: {
     filter:      "Canales",
-    all:         "Todos",
-    n_of_m:      "{n} de {total}",
-    select_all:  "Seleccionar todos",
-    none:        "Ninguno",
     a2a:         "Agente ↔ agente",
     group:       "Grupos",
     other:       "Sin canal",
     mobility:    "Viajes y mandados",
     all_hidden:  "Acá están todos los canales apagados. Tocá uno para volver a verlo.",
+  },
+
+  // De DÓNDE viene una conversación: el proyecto al que pertenece su agente
+  // (lib/provenance.ts). Es otra pregunta que la del canal de arriba, que dice
+  // dónde PASÓ — por eso tiene badge y filtro propios en vez de compartir lugar.
+  // El proyecto default nunca lleva badge: ahí vive todo lo que no tiene
+  // proyecto propio.
+  provenance: {
+    filter:      "Proyectos",
+    from:        "De {project}",
+    all_hidden:  "Acá están todos los proyectos apagados. Tocá uno para volver a verlo.",
+  },
+
+  // El vocabulario que comparte todo filtro multi-select plegado (OptionFilter).
+  // El trigger dice cuántos están prendidos sin abrir nada — que es justamente
+  // para lo que el picker está plegado.
+  filters: {
+    all:         "Todos",
+    n_of_m:      "{n} de {total}",
+    select_all:  "Seleccionar todos",
+    none:        "Ninguno",
   },
 
   settings: {
@@ -701,6 +718,10 @@ export const es = {
     },
 
     artifacts: {
+
+      ask_btn: "Pedile a {name} que arme una",
+
+      ask_draft: "Armame una tool para este proyecto y guardala como artifact, así una rutina la puede correr. Quiero que reporte: ",
       title:    "Artifacts",
       subtitle: "Scripts y archivos reutilizables guardados en el proyecto. Los crean los agentes; podés verlos, ejecutarlos, renombrarlos o eliminarlos.",
     },

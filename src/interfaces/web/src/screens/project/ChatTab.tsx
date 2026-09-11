@@ -33,6 +33,8 @@ import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
+import { ProjectTag } from "../../components/inbox/ProjectFilter";
+import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
@@ -63,6 +65,7 @@ export function ChatTab({
   onBack,
   onSelectionChange,
   channelScope,
+  showProject = false,
 }: {
   pid: string;
   hideSidebar?: boolean;
@@ -94,6 +97,15 @@ export function ChatTab({
    *  "web" so their switcher never offers a Telegram thread; project-first
    *  navigation omits it and keeps every channel. */
   channelScope?: string;
+  /** Name the project this conversation comes from, in the header.
+   *
+   *  Only the screens that span every project at once ask for it — the inbox
+   *  and the phone — because only there is the question open. Inside
+   *  `/p/:pid/chat` the answer is the screen you are already standing on, the
+   *  rail beside it and the URL above it, and a fourth copy of it in the
+   *  thread header is noise. Same component either way: the surface decides,
+   *  not a second implementation of the header. */
+  showProject?: boolean;
 }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -657,6 +669,14 @@ export function ChatTab({
   const headerFace: AgentFace = activeIsRoby
     ? { icon: superAgentIcon, name: persona }
     : { icon: activeAgent?.icon, emoji: activeAgent?.emoji, name: agentLabel };
+  // WHOSE agent this is. Read from the project list rather than carried in by
+  // whoever opened the chat: a deep link into `/m/chat/:pid/:slug` has no inbox
+  // row behind it (see `placeholderRow`), so a name passed down as a prop would
+  // be there when you arrived by tapping and missing when you arrived by link —
+  // the header saying two different things about the same conversation. `pid`
+  // is the project id in every frame around this chat, so nothing is inferred
+  // from a slug here.
+  const { project } = useProject(pid);
 
   const faceFor = (msg: ChatMsg): AgentFace => {
     const id = msg.agentId || msg.agent;
@@ -855,6 +875,7 @@ export function ChatTab({
           reach it. Invisible on a tall desktop pane, fatal on a phone. */}
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         {hideHeader ? null : <header
+          data-testid="chat-header"
           className={cn(
             "flex shrink-0 items-center justify-between gap-3 border-b border-border",
             // The phone pays for the notch here rather than in a second header
@@ -962,6 +983,16 @@ export function ChatTab({
                   <span className={cn("shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                     {t("agents_ui.super_agent_badge")}
                   </span>
+                )}
+                {/* Where this agent comes FROM — the fact the header lost. The
+                    list row said "Zoya — Appsi · Web" and the conversation it
+                    opened said "Zoya · web", so the moment you started reading
+                    you could no longer tell whose Zoya you were reading. Its
+                    own badge beside the channel's and never folded into it:
+                    they answer different questions, and the default workspace
+                    answers neither (ProjectTag draws nothing for it). */}
+                {showProject && (
+                  <ProjectTag projectId={pid} name={project?.name} className="shrink" />
                 )}
                 <span className="shrink-0">· {shownChannel}</span>
                 {createdIso && <span className="shrink-0">· {formatDate(createdIso)}</span>}
@@ -1204,6 +1235,9 @@ export function ChatTab({
 
           <div ref={dockRef} className="absolute inset-x-0 bottom-0">
             <Composer
+              // A deep link can arrive with a message already written — a
+              // button elsewhere in the app asking this agent to do something.
+              initialText={params.get("draft") || undefined}
               onSend={send}
               onStop={stop}
               streaming={streaming}

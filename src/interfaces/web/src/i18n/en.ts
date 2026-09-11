@@ -263,17 +263,32 @@ export const en = {
   // DEVICE wants to see and be told about (lib/channels.ts).
   channels: {
     filter:      "Channels",
-    // The trigger says how many are on without opening anything — which is the
-    // whole reason the picker is collapsed.
-    all:         "All",
-    n_of_m:      "{n} of {total}",
-    select_all:  "Select all",
-    none:        "None",
     a2a:         "Agent ↔ agent",
     group:       "Groups",
     other:       "No channel",
     mobility:    "Trips and errands",
     all_hidden:  "Every channel is switched off here. Tap one to bring it back.",
+  },
+
+  // Where a conversation COMES FROM: the project its agent belongs to
+  // (lib/provenance.ts). A different question from the channel above, which is
+  // where it HAPPENED — hence a badge and a filter of its own rather than a
+  // shared slot. The default workspace is never badged; it is where everything
+  // without a project of its own already lives.
+  provenance: {
+    filter:      "Projects",
+    from:        "From {project}",
+    all_hidden:  "Every project is switched off here. Tap one to bring it back.",
+  },
+
+  // The vocabulary every collapsed multi-select filter shares (OptionFilter).
+  // The trigger says how many are on without opening anything — which is the
+  // whole reason the picker is collapsed.
+  filters: {
+    all:         "All",
+    n_of_m:      "{n} of {total}",
+    select_all:  "Select all",
+    none:        "None",
   },
 
   settings: {
@@ -704,6 +719,10 @@ export const en = {
     },
 
     artifacts: {
+
+      ask_btn: "Ask {name} to build one",
+
+      ask_draft: "Build me a tool for this project and save it as an artifact, so a routine can run it. I want it to report: ",
       title:    "Artifacts",
       subtitle: "Reusable scripts and files stored under the project. Agents create them; you can view, run, rename or delete them.",
     },
