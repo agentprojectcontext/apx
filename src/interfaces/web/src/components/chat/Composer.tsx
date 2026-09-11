@@ -474,17 +474,22 @@ export function Composer({
             ) : undefined
           }
           footer={
-            onModelChange || streaming ? (
-              <div className="flex items-center gap-2">
-                {onModelChange ? (
-                  <ModelPicker value={model || ""} onChange={onModelChange} disabled={streaming} />
-                ) : null}
-                {/* Only while something is running: what happens if you write
-                    right now is the only question this answers, and a switch
-                    for a situation you are not in is clutter. */}
-                {streaming ? <SendModeToggle /> : null}
-              </div>
-            ) : undefined
+            <div className="flex items-center gap-2">
+              {onModelChange ? (
+                <ModelPicker value={model || ""} onChange={onModelChange} disabled={streaming} />
+              ) : null}
+              {/* Always, not only mid-turn.
+                  It used to appear only while something was running, on the
+                  grounds that a switch for a situation you are not in is
+                  clutter. But that is the one moment it is too late to use: by
+                  the time the switch exists, the turn you wanted to queue
+                  behind is already burning and you are deciding the mode and
+                  writing the message at once. You set a preference BEFORE it
+                  applies, or you find out what it was by watching it happen —
+                  which is how "I set it to queue" and "it interrupted" end up
+                  being the same click, one turn apart. */}
+              <SendModeToggle />
+            </div>
           }
         />
       )}
