@@ -106,6 +106,26 @@ export const AGENT_CORE_TOOLS = Object.freeze([
   // grant, not a floor: declare it on the cards that should have it.
   TOOLS.LIST_AGENTS,
   TOOLS.CALL_AGENT,
+  // Writing work down. THE WHOLE FAMILY, read and write, because half of it is
+  // worse than none: an agent that can list tasks and not open one knows the
+  // vocabulary, sees the board, and answers "voy a abrir una task por cada uno"
+  // — with nothing to do it with. That is what happened to the COO on
+  // 2026-09-11: six real findings, a confident promise, zero tool calls, and
+  // the tasks existed only because the external session that sent the audit
+  // filed them itself a minute later.
+  //
+  // A floor, not a grant, because this is not reaching past your scope — it is
+  // bookkeeping inside it. Noticing something and writing it down is what an
+  // agent IS; a card narrowed to "observe and report" still has to be able to
+  // leave the note behind, or the noticing evaporates when the turn ends.
+  // Deciding WHO does the work is a different question, and the task's assignee
+  // is where that lives.
+  TOOLS.LIST_TASKS,
+  TOOLS.GET_TASK,
+  TOOLS.CREATE_TASK,
+  TOOLS.UPDATE_TASK,
+  TOOLS.COMPLETE_TASK,
+  TOOLS.COMMENT_TASK,
 ]);
 
 /** Everything a project agent may call by default: the registry minus the host's own. */

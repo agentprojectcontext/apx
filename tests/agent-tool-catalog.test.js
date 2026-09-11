@@ -52,7 +52,11 @@ test("the core floor is real, grantable and small", () => {
   for (const name of AGENT_CORE_TOOLS) {
     assert.ok(grantable.has(name), `${name} is in the floor but an agent can never be granted it`);
   }
-  assert.ok(AGENT_CORE_TOOLS.length <= 12, "the floor is a floor, not a default set");
+  // Still a floor, not a default set — the point of the cap is that every
+  // addition has to be argued for. It went from 8 to 14 on 2026-09-11 when the
+  // six task verbs moved in (tests/agent-task-floor.test.js says why); the
+  // catalog it is drawn from has 91.
+  assert.ok(AGENT_CORE_TOOLS.length <= 16, "the floor is a floor, not a default set");
 });
 
 test("the web picker has a label for every group the registry produces", () => {
