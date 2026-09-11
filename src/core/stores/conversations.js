@@ -278,6 +278,29 @@ export function listConversations(storagePath, agentSlug, { includeArchived = fa
     .filter((c) => includeArchived || !c.archived);
 }
 
+/**
+ * What a conversation is CALLED.
+ *
+ * A conversation file is born with no name — its id is a date and a counter
+ * (`2026-09-11-01`) — so the name is derived from the first thing the user
+ * said, exactly as a channel thread's is (`threadTitle` in stores/messages.js).
+ * A name the reader typed always wins.
+ *
+ * Exported because it had one caller and needed two. The sidebar derived it and
+ * the detail route did not, so the same conversation was "te fijas que le pedí
+ * a roby…" in the list and a bare `2026-09-11-01` in the header of the pane it
+ * opened — one question with two answers, which is the shape of this bug every
+ * time it appears here.
+ */
+export function conversationTitle(fm = {}, turns = []) {
+  const firstUser = turns.find((t) => t.role === "user");
+  return (
+    (typeof fm.title === "string" && fm.title.trim()) ||
+    (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
+    undefined
+  );
+}
+
 // Lightweight summary used by the chat list sidebar — reads frontmatter and
 // counts turns without loading the whole conversation into memory beyond what
 // `fs.readFileSync` already does. The fields match `ConversationListEntry` on
@@ -287,11 +310,7 @@ function summarizeConversation(filePath, agentSlug, filename) {
   try { text = fs.readFileSync(filePath, "utf8"); } catch { return null; }
   const { fm, turns } = parseConversation(text);
   const messages = turns.filter((t) => t.role === "user" || t.role === "assistant").length;
-  const firstUser = turns.find((t) => t.role === "user");
-  const title =
-    (typeof fm.title === "string" && fm.title.trim()) ||
-    (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
-    undefined;
+  const title = conversationTitle(fm, turns);
 
   // What the AGENT last said, not what the user last asked. An inbox row that
   // echoes your own prompt back tells you nothing; the reply is the thing you

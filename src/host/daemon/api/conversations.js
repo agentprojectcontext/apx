@@ -8,7 +8,7 @@
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
-import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
+import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage, conversationTitle } from "#core/stores/conversations.js";
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
 import { a2aPairHistory } from "#core/agent/a2a/history.js";
@@ -151,12 +151,21 @@ export function register(api, { projects, project, config, plugins, registries }
     // opening (or re-opening) this chat mid-answer shows the partial and then
     // follows the live "turn" frames, instead of a blank pane that fills all at
     // once when the turn happens to finish.
+    const title = conversationTitle(conv.fm, conv.turns);
     res.json({
       id: req.params.id,
       agent_slug: req.params.slug,
       channel: conv.fm?.channel,
       messages: (conv.turns || []).map(shapeConversationMessage),
-      meta: conv.fm || {},
+      meta: {
+        ...(conv.fm || {}),
+        // A conversation file is born unnamed: its id is a date and a counter.
+        // The sidebar has always derived a name from the first thing said; the
+        // pane it opens had raw frontmatter, so it fell back to printing the id
+        // — the same chat reading "te fijas que le pedí a roby…" in the list
+        // and "2026-09-11-01" in its own header. One derivation, one home.
+        ...(title ? { title } : {}),
+      },
       active_turn: getActiveTurnByKey(convTurnKey(p.id, req.params.id)),
     });
   });
