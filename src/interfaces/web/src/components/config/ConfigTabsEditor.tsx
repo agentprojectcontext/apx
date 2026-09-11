@@ -156,7 +156,7 @@ export function ConfigTabsEditor({
   );
 }
 
-function ConfigFieldControl({
+export function ConfigFieldControl({
   field,
   value,
   inherited,
@@ -168,7 +168,11 @@ function ConfigFieldControl({
   onChange: (value: unknown) => void;
 }) {
   const placeholder = field.placeholder || formatInherited(inherited) || (isSecretMarker(value) ? secretHint(value) : "");
-  const hint = field.hint || (inherited !== undefined ? `Heredado: ${formatInherited(inherited)}` : undefined);
+  // "Inherits: X", not "Override". A project field left empty is not an absent
+  // override, it is a question already answered somewhere else — say what the
+  // answer is instead of naming the mechanism.
+  const inheritedLabel = formatInherited(inherited);
+  const hint = field.hint || (inheritedLabel ? t("settings_ui.cfg_inherited_value", { value: inheritedLabel }) : undefined);
 
   if (field.kind === "boolean") {
     return (
@@ -184,9 +188,13 @@ function ConfigFieldControl({
         <UiSelect
           value={String(value || "")}
           onChange={onChange}
-          placeholder={placeholder || "(sin override)"}
+          // The empty option is "inherit", and it says WHAT it inherits —
+          // labelling it with the bare value made an inherited setting look
+          // like a chosen one, which is the difference between "this project
+          // decided" and "nobody decided here".
+          placeholder={inheritOptionLabel(inheritedLabel)}
           options={[
-            { value: "", label: placeholder || "(sin override)" },
+            { value: "", label: inheritOptionLabel(inheritedLabel) },
             ...(field.options || []).map((option) => ({ value: String(option.value), label: option.label, description: option.description })),
           ]}
         />
@@ -207,6 +215,10 @@ function ConfigFieldControl({
       )}
     </Field>
   );
+}
+
+function inheritOptionLabel(inheritedLabel: string) {
+  return inheritedLabel ? t("settings_ui.cfg_inherited_value", { value: inheritedLabel }) : t("settings_ui.cfg_inherit");
 }
 
 function formatInherited(value: unknown) {

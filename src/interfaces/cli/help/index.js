@@ -142,7 +142,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   "project config": topic({
     title: "apx project config",
-    summary: "Read / write the per-project config (.apc/config.json) via the daemon API.",
+    summary: "Read / write the per-project config (~/.apx/projects/<apx_id>/config.json) via the daemon API.",
     usage: ["apx project config <show|set|unset|edit> <project> [args]"],
     commands: [
       ["show <project>", "Print effective + project_only config. Use --key dotted.key for one value."],
@@ -174,13 +174,13 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   "project config set": topic({
     title: "apx project config set",
-    summary: "Set a dotted-key value in .apc/config.json (PATCH).",
+    summary: "Set a dotted-key value in the project config (PATCH).",
     usage: ["apx project config set <project> <dotted.key> <value>"],
     examples: ["apx project config set acme super_agent.model groq:llama-3.3-70b-versatile"],
   }),
   "project config unset": topic({
     title: "apx project config unset",
-    summary: "Remove a dotted-key from .apc/config.json (PATCH unset).",
+    summary: "Remove a dotted-key from the project config (PATCH unset).",
     usage: ["apx project config unset <project> <dotted.key>"],
     examples: ["apx project config unset acme super_agent.model"],
   }),
@@ -380,7 +380,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   config: topic({
     title: "apx config",
-    summary: "Read and edit configuration: the project layer (.apc/config.json) or, with --global, ~/.apx/config.json.",
+    summary: "Read and edit configuration: the project layer (~/.apx/projects/<apx_id>/config.json) or, with --global, ~/.apx/config.json.",
     usage: [
       "apx config [show] [--global] [--effective] [--only-overrides]",
       "apx config set [--global] <key.path> <value>",
@@ -419,10 +419,10 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   "config set": topic({
     title: "apx config set",
-    summary: "Set a JSON-aware value in .apc/config.json, or in ~/.apx/config.json with --global.",
+    summary: "Set a JSON-aware value in the project config, or in ~/.apx/config.json with --global.",
     usage: ["apx config set [--global] <key.path> <value>"],
     options: [
-      ["--global", "Write to ~/.apx/config.json and hot-reload the daemon. Required for credentials — .apc/config.json is committed."],
+      ["--global", "Write to ~/.apx/config.json and hot-reload the daemon, so every project and subsystem sees it."],
       ["--scope <project|global>", "Explicit scope (alias of --global)."],
     ],
     examples: [
@@ -431,13 +431,13 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx config set engines.openai.model gpt-5.2",
     ],
     notes: [
-      "Setting a key that looks like a credential WITHOUT --global prints a warning:",
-      ".apc/config.json is committed to git. The write still goes through.",
+      "Both layers are machine-local: the project layer lives in the project's",
+      "storage, never in its repo, so a credential here cannot reach git.",
     ],
   }),
   "config unset": topic({
     title: "apx config unset",
-    summary: "Remove a key from .apc/config.json, or from ~/.apx/config.json with --global.",
+    summary: "Remove a key from the project config, or from ~/.apx/config.json with --global.",
     usage: ["apx config unset [--global] <key.path>", "apx config rm <key.path>"],
     options: [
       ["--global", "Remove the key from ~/.apx/config.json and hot-reload the daemon."],
@@ -2317,7 +2317,7 @@ export function buildHelp(version) {
 
     hSec("Config"),
     hCmd("apx config show",            36, "--effective  --only-overrides"),
-    hCmd("apx config set|unset",       36, "<key> [value]  edit .apc/config.json  (JSON-aware)"),
+    hCmd("apx config set|unset",       36, "<key> [value]  edit the project config (JSON-aware)"),
     hCmd("apx model status",           36, "provider health + active model (fallback router)"),
     hCmd("apx model order",            36, "<p1> <p2> …  fallback order  e.g. ollama openrouter groq"),
     hCmd("apx model key",              36, "<groq|openrouter> <api-key>  → ~/.apx/config.json"),

@@ -77,7 +77,7 @@ test("the spare list is declared in SECRET_PATHS so the inventory is complete", 
   // The file's own header calls SECRET_PATHS the single source of truth for
   // "which keys are secrets". A secret handled only by special-case code and
   // absent from the list is one the next person will not know exists.
-  assert.ok(SECRET_PATHS.includes("engines.gemini.api_keys.*"));
+  assert.ok(SECRET_PATHS.includes("engines.*.api_keys.*"));
 });
 
 test("other engines are unaffected", () => {
@@ -87,10 +87,39 @@ test("other engines are unaffected", () => {
 });
 
 // ---------------------------------------------------------------------------
+// User-added providers.
+//
+// SECRET_PATHS used to name the five engines that shipped first, one dotted
+// path each. The web panel has let you add a provider under any slug for a long
+// time, and every one of those keys was served in CLEAR TEXT by /admin/config
+// and /projects/:pid/config — `zen` was, on this machine, for months.
+// ---------------------------------------------------------------------------
+
+test("a provider added under its own slug is redacted like a built-in", () => {
+  const out = redactConfig({ engines: { zen: { engine: "zen", api_key: "zen-live-abcde" } } });
+  assert.ok(isSecretMarker(out.engines.zen.api_key), "custom slug redacted");
+  assert.doesNotMatch(JSON.stringify(out), /zen-live-abcde/);
+});
+
+test("a custom provider's spare-key list is redacted and round-trips", () => {
+  const real = { engines: { zen: { api_keys: ["zen-one-11111", "zen-two-22222"] } } };
+  const out = redactConfig(real);
+  assert.ok(out.engines.zen.api_keys.every(isSecretMarker));
+  const back = mergeRedactedSecrets(JSON.parse(JSON.stringify(out)), real);
+  assert.deepEqual(back.engines.zen.api_keys, real.engines.zen.api_keys);
+});
+
+test("echoing a custom provider's redacted key back keeps the real one", () => {
+  const real = { engines: { zen: { api_key: "zen-live-abcde" } } };
+  const back = mergeRedactedSecrets(redactConfig(real), real);
+  assert.equal(back.engines.zen.api_key, "zen-live-abcde");
+});
+
+// ---------------------------------------------------------------------------
 // isSecretKey — the write-side question ("is this key a credential?"), asked of
-// the same SECRET_PATHS inventory the read-side redaction uses. `apx config
-// set` calls it to warn before a credential lands in a committed
-// .apc/config.json.
+// the same SECRET_PATHS inventory the read-side redaction uses. The daemon
+// calls it to refuse a credential heading for `.apc/project.json`, which IS
+// committed.
 // ---------------------------------------------------------------------------
 
 test("isSecretKey matches an exact secret path", () => {

@@ -26,7 +26,7 @@ apx project list                        # id, name, agents count, path
 apx project remove <id|path>
 apx project rebuild <id|path>           # force re-scan of .apc/
 
-# Per-project config — dotted keys, lives in <repo>/.apc/config.json
+# Per-project config — dotted keys, lives in ~/.apx/projects/<apx_id>/config.json
 apx project config show <project>                                  # effective + project_only
 apx project config show <project> --key super_agent.model          # one key
 apx project config set <project> super_agent.model groq:llama-3.3-70b-versatile
@@ -115,5 +115,5 @@ Don't ask — call `list_projects` tool or `apx project list`. Same for "which a
 ## Don't
 
 - Don't operate on the default project (id=0) as if it were the user's main work. Scratch space for super-agent state.
-- Don't put secrets in `.apc/config.json` — it's committed. Put them in `~/.apx/config.json` (machine-local) under `engines.*` or `voice.tts.*`.
+- Both config layers are machine-local, so a key in either is safe. Never put one in `.apc/project.json` — that file IS committed, and the daemon refuses credential-shaped keys there.
 - Don't move a project's `.apc/` folder without re-running `apx project rebuild` — `apxId` will be stale.

@@ -96,8 +96,8 @@ you never need to boot the daemon separately.
 | `apx project remove <id>` | Remove a project entry from daemon storage (does not delete files). |
 | `apx project rebuild [id]` | Rebuild the daemon index from the project's filesystem context. |
 | `apx project config show <project>` | Print effective + project-only config. |
-| `apx project config set <project> <key> <value>` | Set a dotted key in `.apc/config.json`. |
-| `apx project config unset <project> <key>` | Remove a dotted key from `.apc/config.json`. |
+| `apx project config set <project> <key> <value>` | Set a dotted key in the project's config. |
+| `apx project config unset <project> <key>` | Remove a dotted key from the project's config. |
 | `apx project config edit <project>` | Open project config in `$EDITOR` for a full replace on save. |
 
 See [Projects](/apx/docs/concepts/projects/) for the full `.apc/` layout.
@@ -135,7 +135,7 @@ See [Agents](/apx/docs/concepts/agents/).
 
 | Command | Description |
 |---------|-------------|
-| `apx config show [--global] [--effective] [--only-overrides]` | Print `.apc/config.json` (or, with `--global`, `~/.apx/config.json`). |
+| `apx config show [--global] [--effective] [--only-overrides]` | Print the project's config (or, with `--global`, `~/.apx/config.json`). |
 | `apx config set [--global] <key.path> <value>` | JSON-aware set. `--global` writes `~/.apx/config.json` — use it for credentials, voice, and daemon keys. |
 | `apx config unset [--global] <key.path>` | Remove a key from the project or, with `--global`, the global config. |
 | `apx model status` | Provider health check + active model from the fallback router. |

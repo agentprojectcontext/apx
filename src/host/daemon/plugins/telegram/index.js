@@ -4,7 +4,7 @@
 // to a specific project + agent. Multiple channels in one daemon = multiple
 // bots, each with its own persona, all sharing the same APC runtime.
 //
-// Config shape (in ~/.apx/config.json or .apc/config.json):
+// Config shape (in ~/.apx/config.json or a project's own config):
 //
 //   "telegram": {
 //     "enabled": true,

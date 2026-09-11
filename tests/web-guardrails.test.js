@@ -212,6 +212,10 @@ const SENTENCE_FRAGMENTS = new Set([
   // substituted into "Window model: {value}." — never a label on its own
   "modules_ui.desktop_model_inherit",
 
+  // spells out the three permission modes, whose names ARE lowercase in the
+  // config file — capitalising them here would name values that do not exist
+  "settings_ui.cfg_permission_hint",
+
   // relative time dropped mid-text (AGENTS.md 11a names `in`)
   "when.now", "when.in", "when.ago",
 

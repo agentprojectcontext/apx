@@ -2,7 +2,7 @@
 // must move its .apc/agents/<slug>.md and its runtime dir (memory) AND repoint
 // every LIVE pointer to it — child `Parent`, routine `spec.agent`, group
 // rosters (here and in rooms hosted by another project), tasks, the delivery
-// queue, code sessions, telegram routing and the project's own .apc/config.json
+// queue, code sessions, telegram routing and the project's own config file
 // — or it leaves dangling pointers: an agent that keeps its chats but silently
 // falls out of its rooms, its channel and its queue. This pins the whole move
 // through the real HTTP route.
@@ -153,7 +153,7 @@ test("rename rejects a taken slug and an invalid slug", async () => {
   }
 });
 
-test("rename repoints groups, tasks, deliveries, code sessions, telegram and .apc/config.json", async () => {
+test("rename repoints groups, tasks, deliveries, code sessions, telegram and the project config", async () => {
   const root = makeTempProject({});
   const other = makeTempProject({ name: "northwind" });
   const { app, projects } = makeApp(root, [other]);
@@ -200,8 +200,12 @@ test("rename repoints groups, tasks, deliveries, code sessions, telegram and .ap
         ],
       },
     });
-    const apcCfg = path.join(root, ".apc", "config.json");
-    fs.writeFileSync(apcCfg, JSON.stringify({
+    // The project's own config — machine-local, in the project's storage, not
+    // in the repo. Writing it at `<root>/.apc/config.json` is what this used to
+    // do and what the sweep would now miss entirely.
+    const projectCfg = path.join(store, "config.json");
+    fs.mkdirSync(path.dirname(projectCfg), { recursive: true });
+    fs.writeFileSync(projectCfg, JSON.stringify({
       telegram: { route_to_agent: "nati" },
       routines: [{ name: "morning", schedule: "0 9 * * *", agent: "nati", prompt: "hi" }],
     }, null, 2));
@@ -237,9 +241,10 @@ test("rename repoints groups, tasks, deliveries, code sessions, telegram and .ap
     assert.equal(after.telegram.channels.find((c) => c.name === "acme").route_to_agent, "vera");
     assert.equal(after.telegram.channels.find((c) => c.name === "northwind").route_to_agent, "nati");
 
-    const apc = JSON.parse(fs.readFileSync(apcCfg, "utf8"));
-    assert.equal(apc.telegram.route_to_agent, "vera");
-    assert.equal(apc.routines[0].agent, "vera");
+    const projectOnly = JSON.parse(fs.readFileSync(projectCfg, "utf8"));
+    assert.equal(projectOnly.telegram.route_to_agent, "vera");
+    assert.equal(projectOnly.routines[0].agent, "vera");
+    assert.ok(!fs.existsSync(path.join(root, ".apc", "config.json")), "nothing config-shaped in the repo");
   } finally {
     await new Promise((res) => server.close(res));
     cleanupTempProject(root);

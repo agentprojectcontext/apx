@@ -309,7 +309,7 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
 
   // 4) Repoint every other live reference — routines, group rosters, tasks,
   //    deliveries, code sessions, telegram routes, the project's own
-  //    `.apc/config.json` and the RAG scope. Best-effort per store: the files
+  //    the project's own config and the RAG scope. Best-effort per store: the files
   //    have already moved, so one unreadable store must not fail the rename.
   try { await repointAgentReferences(project, oldSlug, newSlug, opts); } catch { /* best-effort */ }
 

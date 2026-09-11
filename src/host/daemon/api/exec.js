@@ -33,7 +33,17 @@ import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 const KEEPALIVE_MS = 20_000;
 
 
-/** Resolve the agent and its model, or answer the request and return null. */
+/**
+ * Resolve the agent and its model, or answer the request and return null.
+ *
+ * The model is resolved against `p.config` — the project's config merged over
+ * the global one — and NOT against the bare global config. It used to be the
+ * global one, which meant a project could pin a model (or a routing rule, or an
+ * engine of its own) and be quietly ignored for the one decision that choice
+ * exists to make, while the turn it then ran used the project config for
+ * everything else. Two configs, one turn, and only one of them visible in the
+ * screen where you set it.
+ */
 async function resolveTarget(req, res, p, config) {
   const agents = readAgents(p.path);
   const agent = agents.find((a) => a.slug === req.params.slug);
@@ -43,7 +53,7 @@ async function resolveTarget(req, res, p, config) {
   }
   const modelId = await resolveAgentModel({
     agent,
-    config,
+    config: p.config || config,
     override: req.body?.model,
   });
   if (!modelId) {

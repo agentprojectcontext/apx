@@ -3,132 +3,26 @@ import { AlertTriangle, ArrowRight, GitBranch, GripVertical, Pencil, Plus, Trash
 import { Section } from "../Section";
 import { Badge, Button, Loading } from "../ui";
 import { Tip } from "../ui/tip";
-import { Combobox, type ComboOption } from "../Combobox";
-import { ModelCombobox } from "../ModelCombobox";
 import { useToast } from "../Toast";
 import { useGlobalConfig, useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { useOllamaModels } from "../../hooks/useOllamaModels";
-import { ENGINE_ICONS, ENGINE_PRESETS, engineStyle, type EngineType } from "./providers/typeStyles";
+import {
+  ProviderModelPicker,
+  providersFromEngines,
+  ollamaTargetsOf,
+  problemHint,
+  rowProblem,
+  splitRef,
+  type EngineEntry,
+  type ProviderInfo,
+} from "./providerPicker";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneText } from "../../lib/tone";
 
-interface ProviderInfo {
-  slug: string;
-  engine: EngineType;
-  label: string;
-  base_url?: string;
-  default_model?: string;
-  /** is_active in config.engines — the switch on the provider card below. */
-  active: boolean;
-  /** Has what it needs to answer: an api key, or a reachable Ollama server. */
-  connected: boolean;
-}
-
 /** Payload type for a chain-row drag. Its own type (not text/plain) so text
  *  dropped in from elsewhere is not mistaken for a reorder. */
 const DRAG_TYPE = "application/x-apx-chain-row";
-
-/** Why a row cannot be used, or null when it is fine. */
-type RowProblem = "missing" | "off" | "offline" | null;
-
-function splitRef(ref: string): { provider: string; model: string } {
-  const i = ref.indexOf(":");
-  if (i < 0) return { provider: ref, model: "" };
-  return { provider: ref.slice(0, i), model: ref.slice(i + 1) };
-}
-
-function problemHint(problem: RowProblem, name: string): string {
-  if (problem === "missing") return t("router_panel.provider_not_configured", { name });
-  if (problem === "off") return t("router_panel.provider_off", { name });
-  if (problem === "offline") return t("router_panel.provider_offline", { name });
-  return "";
-}
-
-// Provider combobox + model combobox. Serializes to "provider:model".
-// Both sides accept free text: providers are a fixed list you normally pick
-// from, but a slug that is not configured (yet) must stay typeable.
-function ProviderModelPicker({
-  value,
-  onChange,
-  providers,
-  ollamaModels,
-}: {
-  value: string;
-  onChange: (ref: string) => void;
-  providers: ProviderInfo[];
-  ollamaModels: Record<string, string[]>;
-}) {
-  const { provider, model } = splitRef(value);
-  const current = providers.find((p) => p.slug === provider);
-  const problem = rowProblem(provider, providers);
-
-  const providerOptions: ComboOption[] = useMemo(
-    () => providers.map((p) => ({
-      value: p.slug,
-      label: p.label,
-      // engineStyle falls back to the generic icon for an adapter this build
-      // does not know about yet.
-      icon: engineStyle(ENGINE_ICONS, p.engine),
-      // Only connected + active providers are pickable. The rest stay visible
-      // so it is obvious why they are not an option.
-      disabled: !p.active || !p.connected,
-      hint: !p.active ? t("router_panel.hint_off") : !p.connected ? t("router_panel.hint_offline") : undefined,
-    })),
-    [providers],
-  );
-
-  const isOllama = current?.engine === "ollama";
-  const modelOptions = useMemo(() => {
-    if (!current) return [];
-    // Ollama's catalog is whatever that machine pulled — always live/cached.
-    if (isOllama) return ollamaModels[current.slug] || [];
-    const known = ENGINE_PRESETS[current.engine]?.known_models || [];
-    return Array.from(new Set([...(current.default_model ? [current.default_model] : []), ...known]));
-  }, [current, isOllama, ollamaModels]);
-
-  // Pre-fill the model when a provider is picked: its own default, else the
-  // engine's. Never the engine default for Ollama — that machine only has what
-  // it pulled, so the first live model is the only honest guess.
-  const setProvider = (slug: string) => {
-    const p = providers.find((x) => x.slug === slug);
-    const m = p?.default_model
-      || (p?.engine === "ollama"
-        ? (ollamaModels[slug] || [])[0] || ""
-        : ENGINE_PRESETS[p?.engine as EngineType]?.default_model || "");
-    onChange(m ? `${slug}:${m}` : `${slug}:`);
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <Combobox
-        value={provider}
-        onChange={(slug) => onChange(`${slug}:${model}`)}
-        onPick={setProvider}
-        options={providerOptions}
-        placeholder={t("router_panel.provider_ph")}
-        invalid={!!provider && !!problem}
-        invalidHint={problemHint(problem, provider)}
-        emptyHint={t("router_panel.no_providers")}
-      />
-      <ModelCombobox
-        value={model}
-        onChange={(m) => onChange(`${provider}:${m}`)}
-        options={modelOptions}
-        emptyHint={isOllama ? t("router_panel.ollama_empty") : undefined}
-      />
-    </div>
-  );
-}
-
-function rowProblem(providerSlug: string, providers: ProviderInfo[]): RowProblem {
-  if (!providerSlug) return null;
-  const p = providers.find((x) => x.slug === providerSlug);
-  if (!p) return "missing";
-  if (!p.active) return "off";
-  if (!p.connected) return "offline";
-  return null;
-}
 
 // General model router (no per-task cases): one ordered chain where #1 is the
 // default model and the rest are tried in order when it fails. Backed by
@@ -160,42 +54,15 @@ export function DefaultRouterCard() {
   }, [superAgent]);
 
   const engines = useMemo(
-    () => (config.engines || {}) as Record<string, { engine?: string; name?: string; default_model?: string; base_url?: string; api_key?: string; is_active?: boolean }>,
+    () => (config.engines || {}) as Record<string, EngineEntry>,
     [config.engines],
   );
 
-  const ollamaTargets = useMemo(
-    () => Object.entries(engines)
-      .filter(([slug, v]) => ((v?.engine as EngineType) || (slug as EngineType)) === "ollama")
-      .map(([slug, v]) => ({ slug, base_url: v?.base_url })),
-    [engines],
+  const { models: ollamaModels, online: ollamaOnline } = useOllamaModels(useMemo(() => ollamaTargetsOf(engines), [engines]));
+  const providers: ProviderInfo[] = useMemo(
+    () => providersFromEngines(engines, ollamaOnline),
+    [engines, ollamaOnline],
   );
-  const { models: ollamaModels, online: ollamaOnline } = useOllamaModels(ollamaTargets);
-
-  const providers: ProviderInfo[] = useMemo(() => {
-    return Object.entries(engines).map(([slug, v]) => {
-      const engine = ((v?.engine as EngineType) || (slug as EngineType));
-      const name = v?.name || slug;
-      const hasKey = typeof v?.api_key === "string" && v.api_key.length > 0;
-      // Ollama/mock/custom need no key; for Ollama we know whether the server
-      // actually answered. `undefined` = still probing → assume reachable so
-      // the list does not flicker to "offline" on first paint.
-      const connected =
-        engine === "ollama" ? ollamaOnline[slug] !== false
-        : engine === "mock" ? true
-        : engine === "custom" ? hasKey || !!v?.base_url
-        : hasKey;
-      return {
-        slug,
-        engine,
-        label: name === engine ? name : `${name} (${engine})`,
-        base_url: v?.base_url,
-        default_model: v?.default_model,
-        active: v?.is_active !== false,
-        connected,
-      };
-    });
-  }, [engines, ollamaOnline]);
 
   if (isLoading || !superAgent) return <Loading />;
 
