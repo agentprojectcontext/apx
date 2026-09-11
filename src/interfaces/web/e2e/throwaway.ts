@@ -109,9 +109,13 @@ export async function dropThrowaway(rt: Runtime) {
   }
 
   // 3. The global config. Registering went through the daemon, which persists
-  //    the path to ~/.apx/config.json; unregistering does not undo that, so the
-  //    registry would otherwise grow a dead /var/folders/**/apx-e2e-* entry per
-  //    run. We remove only our own path, through the config module's own writer.
+  //    the path to ~/.apx/config.json. The DELETE above now takes it out again
+  //    (api/projects.js), so this is a BACKSTOP for the runs that never reach
+  //    that call — a suite killed mid-flight, or a daemon that died first. It
+  //    was the only cleanup for a long time, and the ~20 dead
+  //    /var/folders/**/apx-e2e-* entries left in one config are what those runs
+  //    looked like. We remove only our own path, through the config module's
+  //    own writer; removing a path that is already gone is a no-op.
   try {
     const cfgMod = await import("../../../core/config/index.js");
     const cfg = cfgMod.readConfig();

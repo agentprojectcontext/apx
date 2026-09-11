@@ -21,7 +21,7 @@ function setProjectKind(root, kind) {
 //   POST   /projects               register a project by path
 //   DELETE /projects/:id           unregister
 //   POST   /projects/:id/rebuild   force a context rebuild from disk
-export function register(api, { projects, registries, addProjectGlobally }) {
+export function register(api, { projects, registries, addProjectGlobally, removeProjectGlobally }) {
   api.get("/projects", (_req, res) => res.json(projects.list()));
 
   // Registering a project is three questions, not one: where it is, whether it
@@ -61,8 +61,22 @@ export function register(api, { projects, registries, addProjectGlobally }) {
     }
   });
 
+  // Unregister = forget it HERE and stop loading it NEXT TIME. It used to be
+  // only the first half: `projects.unregister` drops the entry from the running
+  // daemon's maps and nothing touched ~/.apx/config.json, which is what boot
+  // reads. So a project you removed came back on the next restart, and one
+  // whose folder was gone stayed in the file forever — 37 dead entries on this
+  // machine, most of them e2e temp dirs the suite had to clean up by hand (see
+  // web/e2e/throwaway.ts, which says exactly this).
+  //
+  // By PATH and never by id: the id here is the daemon's (registration order,
+  // 0 = default), while `removeProject`'s numeric branch treats a number as a
+  // 1-based INDEX into the config array. The same number means two different
+  // entries, and the difference is silent.
   api.delete("/projects/:id", (req, res) => {
+    const entry = projects.get?.(req.params.id) || null;
     const ok = projects.unregister(req.params.id);
+    if (ok && entry?.path) removeProjectGlobally(entry.path);
     res.status(ok ? 204 : 404).end();
   });
 
