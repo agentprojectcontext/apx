@@ -1,0 +1,19 @@
+{
+  "name": "weekly-review",
+  "kind": "exec_agent",
+  "schedule": "{{weekly_schedule}}",
+  "enabled_by_default": true,
+  "spec": {
+    "agent": "{{orchestrator_agent}}",
+    "prompt": "WEEKLY RUN \u2014 the review.\n\nOne question only: what moved this week, and what is now at risk?\n\nThe state of this company today is below. It is not instruction, it is what is true right now; if anything in your own definition contradicts it, the state wins.\n\n{{pre_output}}\n\nA source marked `unavailable` IS A FINDING: say it in one clause and carry on with the others. Never fill a gap with an estimate.\n\nAlso bring your tasks and commitments, scoped to THIS project, including overdue ones.\n\nLook for: commitments overdue or about to be, work parked for days, promises made to a person, and anything with no owner. Never the inventory \u2014 what moved and went fine does not need a line.\n\nAt most 15 lines.\n\nFormat: one bullet per finding, `- [scope] what happened or what is at risk \u2192 what you recommend`. Prioritised, no preamble, no sign-off. If nothing deserves an interruption, answer the single line `NO_MESSAGE \u2014 <why>`; a quiet week is a result. To escalate, make `SEVERITY: blocker` the first line \u2014 that crosses quiet hours and the weekly cap, so use it when something is broken or money is being lost today."
+  },
+  "deliver_to": [
+    "{{deliver_to}}"
+  ],
+  "pre_commands": [
+    "apx company context --ritual weekly"
+  ],
+  "post_commands": [
+    "apx company handoff --ritual weekly"
+  ]
+}
