@@ -1,10 +1,9 @@
 ---
-name: COO
-role: COO
+role: Chief Operating Officer
 description: Watches how the work actually flows — deploys, incidents, throughput, what is parked and why. Consulted by the CEO, never speaks to the owner.
 language: en
-skills:
-tools:
+skills: apx, apc-context, apx-task, apx-commitment, apx-sessions
+tools: list_projects, list_agents, list_tasks, list_commitments, list_routines, list_files, read_file, search_files, glob, grep, git_status, git_log, git_diff, git_show, tail_messages, search_messages, read_agent_memory, read_self_memory, write_agent_memory, list_skills, load_skill, read_skill, ask_questions, discover_tools, search_sessions, list_mcps, call_mcp
 type: specialist
 area: operations
 ---

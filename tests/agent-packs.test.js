@@ -86,8 +86,23 @@ test("with the alias taken too it falls back to a numeric suffix", () => {
   try {
     const plan = planPackInstall(root, "company");
     const cfo = bySlug(plan, "cfo");
-    assert.equal(cfo.slug, "cfo-2");
-    assert.equal(cfo.name, "CFO (2)", "a numeric collision marks the name instead of duplicating it");
+    assert.equal(cfo.slug, "cfo-2", "the slug steps aside");
+    // The NAME does not need a marker: it comes from the pool, so it is
+    // already unique. "CFO (2)" was the old shape, when the name was the role.
+    assert.doesNotMatch(cfo.name, /\(\d\)/);
+    assert.notEqual(cfo.name.toLowerCase(), "cfo");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("every member gets a different name, and never one already in use", () => {
+  const root = makeTempProject({ name: "names", agents: [{ slug: "someone", role: "x" }] });
+  try {
+    const plan = planPackInstall(root, "company");
+    const names = plan.agents.filter((a) => a.selected).map((a) => a.name);
+    assert.equal(new Set(names).size, names.length, "two agents with one name is the confusion this avoids");
+    assert.ok(names.every((n) => n && !/^c[a-z]o$/i.test(n)), "a name, not the acronym again");
   } finally {
     cleanupTempProject(root);
   }

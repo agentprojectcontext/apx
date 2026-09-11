@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { readAgents, readVaultAgents } from "#core/apc/parser.js";
+import { pickAgentName } from "./agent-names.js";
 import { AGENT_VAULT_DIR } from "#core/config/paths.js";
 import { ensureAgentRuntimeDir } from "#core/agent/memory.js";
 import { readOrganization, createArea, createRole } from "#core/stores/organization.js";
@@ -26,6 +27,32 @@ import { writeAgentFile, ensureAgentDir } from "./scaffold.js";
 import { buildNewAgentFields, nextFreeSlug, AGENT_SLUG_RE } from "./agent-write.js";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Every agent name in play on this machine.
+ *
+ * Machine-wide on purpose: two agents called Nora in two companies collide in
+ * the one place it matters — the owner's inbox, where both write.
+ */
+export function takenAgentNames({ apxHome = process.env.APX_HOME || path.join(process.env.HOME || "", ".apx") } = {}) {
+  const names = new Set();
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(path.join(apxHome, "config.json"), "utf8"));
+  } catch {
+    return names;
+  }
+  for (const entry of config?.projects ?? []) {
+    if (!entry?.path) continue;
+    for (const agent of readAgents(entry.path)) {
+      const name = agent.fields?.Name;
+      if (name) names.add(String(name));
+    }
+  }
+  const superName = config?.super_agent?.name;
+  if (superName) names.add(String(superName));
+  return names;
+}
 
 /** Shipped with APX, read-only — same layering as the agent vault itself. */
 export const BUNDLED_PACKS_FILE = path.resolve(__dir, "../../../assets/agent-vault-packs.json");
@@ -99,6 +126,9 @@ export function planPackInstall(projectPath, packId, { only, names = {} } = {}) 
 
   const assigned = new Map();
   const entries = [];
+  const takenNames = takenAgentNames();
+  for (const agent of roster) if (agent.fields?.Name) takenNames.add(String(agent.fields.Name));
+  const assignedNames = new Set();
 
   for (const entry of pack.agents || []) {
     const template = vault.find((a) => a.slug === entry.slug);
@@ -117,13 +147,22 @@ export function planPackInstall(projectPath, packId, { only, names = {} } = {}) 
     const slug = requested || nextFreeSlug(entry.slug, taken, entry.aliases || []);
     taken.add(slug);
     assigned.set(entry.slug, slug);
-    const baseName = template.fields?.Name || template.fields?.Role || entry.slug;
+    // A template that carries a persona keeps it. One that does not — the role
+    // templates, which are the sane way to ship a team — gets a name here, at
+    // install, and never at render time: a dialog that shows a different name
+    // each time it opens is one nobody trusts.
+    const persona = template.fields?.Name || null;
+    const baseName =
+      persona || pickAgentName([...takenNames, ...assignedNames], { seed: entry.slug });
+    assignedNames.add(baseName);
     entries.push({
       template: entry.slug,
       slug,
       selected: true,
       renamed: slug !== entry.slug,
-      name: displayNameFor(baseName, slug, entry.slug),
+      // A generated name is already unique, so it needs no "(2)" marker; only a
+      // persona the project may already have does.
+      name: persona ? displayNameFor(persona, slug, entry.slug) : baseName,
       role: template.fields?.Role || null,
       description: template.fields?.Description || null,
       area: template.fields?.Area || null,
@@ -210,6 +249,10 @@ export function installPack(project, packId, { only, names } = {}) {
       },
       roster,
     );
+    // Which template this came from, so a year from now it is possible to tell
+    // an agent that was installed from one that somebody wrote by hand — and to
+    // find every project running an old version of a template.
+    fields.Template = entry.template;
     writeAgentFile(root, entry.slug, fields, template.body || "");
     ensureAgentDir(root, entry.slug);
     ensureAgentRuntimeDir(project, entry.slug);
