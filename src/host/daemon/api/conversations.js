@@ -13,6 +13,7 @@ import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThrea
 import { shortId } from "#core/util/ids.js";
 import { a2aPairHistory } from "#core/agent/a2a/history.js";
 import { broadcastTurn } from "../events-ws.js";
+import { logTurnEvent } from "./turn-log.js";
 
 /** The sender's working directory, if it still is one. This is untrusted input
  *  naming a directory we are about to spawn a coding CLI in, so it gets checked
@@ -757,6 +758,9 @@ export function register(api, { projects, project, config, plugins, registries }
       });
       const onEvent = (ev) => {
         recordActiveTurnEvent(active.id, ev);
+        // Nobody is watching an a2a turn while it runs, so the log is the only
+        // place its run-level decisions can be read back.
+        logTurnEvent(ev, { channel: "a2a", agent: to });
         // Recorded for whoever opens the thread mid-turn, pushed for whoever is
         // already watching it — the same pair the super-agent's own stream keeps
         // in step (api/super-agent.js).

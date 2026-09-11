@@ -21,6 +21,7 @@ import { CHANNELS } from "#core/constants/channels.js";
 import { readTurnAttachments } from "./media.js";
 import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
 import { broadcastTurn } from "../events-ws.js";
+import { logTurnEvent } from "./turn-log.js";
 import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
 const log = loggerFor("super-agent");
@@ -229,22 +230,10 @@ function wrapOnEventForLog(send, { trace_id, channel, reasoning }) {
         );
       }
     }
-    if (event?.type === "engine_failed") {
-      log.warn(
-        `engine ${event.model || "?"} failed → retrying with ${event.retry_with || "?"}`,
-        { trace_id, channel, reason: event.reason }
-      );
-    } else if (event?.type === "tools_suppressed") {
-      log.info(
-        `tools suppressed: ${(event.tools || []).join(", ")} (${event.reason || "?"})`,
-        { trace_id, channel }
-      );
-    } else if (event?.type === "model_routed" && event.from_fallback) {
-      log.info(
-        `model routing fell back: ${event.model} (provider=${event.provider})`,
-        { trace_id, channel }
-      );
-    }
+    // The run-level decisions, in the one place every chat route writes them
+    // (api/turn-log.js). This used to be spelled out here, which is why only
+    // the super-agent had it.
+    logTurnEvent(event, { trace_id, channel });
     if (send) send(event);
   };
 }
