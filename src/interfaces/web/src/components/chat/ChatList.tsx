@@ -23,6 +23,7 @@ import { t } from "../../i18n";
 import type { AgentEntry, ConversationListEntry, ThreadListEntry } from "../../types/daemon";
 import type { ActiveTurn } from "../../types/daemon";
 import { conversationActivityKey, threadActivityKey } from "../../lib/chat-activity";
+import { showToolsDefault } from "../../lib/chat-prefs";
 import { ChatRowActivity } from "./ChatRowActivity";
 
 // Channel taxonomy — same channels the daemon writes ("web", "voice",
@@ -160,9 +161,12 @@ export function ChatList({
   const [groupPick, setGroupPick] = useState<string[]>([]);
   // Initial transcript layout for the new room — same switch that will sit in
   // the chat header after create. Off = pelado (text only); on = tools visible.
-  const [groupShowTools, setGroupShowTools] = useState(false);
-  const openPicker = () => { setPickerOpen(true); setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); };
-  const closePicker = () => { setPickerOpen(false); setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); };
+  // Seeded from what this device shows in every other chat, rather than from a
+  // hardcoded `false` that was a second copy of a default living in ChatTab.
+  // Creating a room is not a reason to start hiding the work in it.
+  const [groupShowTools, setGroupShowTools] = useState(showToolsDefault);
+  const openPicker = () => { setPickerOpen(true); setPickerMode("root"); setGroupPick([]); setGroupShowTools(showToolsDefault()); };
+  const closePicker = () => { setPickerOpen(false); setPickerMode("root"); setGroupPick([]); setGroupShowTools(showToolsDefault()); };
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
   // the global message ledger, scoped by the daemon to the project this screen
@@ -405,7 +409,7 @@ export function ChatList({
                     </div>
                     <p className="px-2 pb-1 text-[10px] text-muted-fg">{t("chat_ui.show_tools_hint")}</p>
                     <div className="flex items-center gap-1 p-1">
-                      <button type="button" onClick={() => { setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); }}
+                      <button type="button" onClick={() => { setPickerMode("root"); setGroupPick([]); setGroupShowTools(showToolsDefault()); }}
                         className="flex-1 rounded px-2 py-1 text-xs text-muted-fg hover:bg-accent/50">
                         {t("mobile.back")}
                       </button>
