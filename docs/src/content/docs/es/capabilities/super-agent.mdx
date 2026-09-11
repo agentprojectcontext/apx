@@ -109,8 +109,9 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 
 | Herramienta | Qué hace |
 |---|---|
-| `create_task` / `list_tasks` | Agregar y leer items de TODO por proyecto |
-| `call_agent` | Delegar a un agente de proyecto nombrado sin lanzar un proceso nuevo |
+| `create_task` / `list_tasks` / `get_task` | Agregar, listar y leer items de TODO por proyecto |
+| `update_task` / `complete_task` / `comment_task` | Editar una, moverla o cerrarla, anotar su hilo |
+| `call_agent` | Darle trabajo a un agente de proyecto, en el mismo proceso. Corre con sus propias tools, así que hace el trabajo en vez de describirlo, y el intercambio queda como una conversación agente-a-agente que podés leer y continuar |
 | `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
 | `call_runtime` | Delegar a un [runtime](/apx/docs/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
 | `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |

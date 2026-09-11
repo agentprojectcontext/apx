@@ -9,46 +9,10 @@
 import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readProjectMessages, readA2APeerSession, dedupA2A } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
+import { a2aPairHistory } from "#core/agent/a2a/history.js";
 
-// Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
-// LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
-// user). This is what gives an a2a reply MEMORY: without it every --deliver is a
-// stateless one-shot and the agent forgets the previous turn. Loaded BEFORE the
-// current message is logged, so it excludes it.
-function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
-  const pair = new Set([from, to]);
-  const rows = readProjectMessages(storageRoot, { channel: "a2a", limit: 300 }).filter((m) => {
-    // What was SAID, and only that. The a2a ledger also carries what a tool did
-    // on an agent's behalf (`type: "tool"` — written by the routine runner, and
-    // by this route between 6e910a0 and d06ed30), whose body is the raw result:
-    // a whole HTML file, a lint dump, a JSON blob. Those already passed through
-    // the model inside the turn that ran them; replaying them here as
-    // conversation is how the window emptied out. Measured on the magui~roby
-    // thread: 18 of the last 24 rows were tool exhaust, 84% of the characters,
-    // leaving six real lines to remember a multi-day job by — which is what an
-    // agent that had "gone stupid" was actually reading.
-    //
-    // Filtering HERE rather than trusting the writers, because the raw rows
-    // have had two authors already and the viewer (readProjectA2AThread) still
-    // wants them: it is this function, the one building an LLM context, that
-    // knows only utterances belong in it. A row with NO type is an utterance:
-    // that is how comment-turn.js mirrors an agent-to-agent handover from a
-    // task thread, and those belong in the history like anything else said.
-    if (m.type && m.type !== "agent") return false;
-    const parts = [m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean);
-    return parts.length > 0 && parts.every((s) => pair.has(s));
-  });
-  return dedupA2A(rows)
-    .sort((a, b) => (a.ts || "").localeCompare(b.ts || ""))
-    .slice(-limit)
-    .map((m) =>
-      m.author === viewer
-        ? { role: "assistant", content: m.body || "" }
-        : { role: "user", content: `From ${m.author}:\n\n${m.body || ""}` },
-    );
-}
 /** The sender's working directory, if it still is one. This is untrusted input
  *  naming a directory we are about to spawn a coding CLI in, so it gets checked
  *  rather than believed; anything else falls back to the project path. */

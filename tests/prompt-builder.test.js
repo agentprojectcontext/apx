@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import {
   loadDefaultSystemPrompt,
   buildUserContextBlock,
@@ -248,4 +249,43 @@ test("telegram channel template includes master agent block when set", async () 
   });
   assert.match(out, /Master agent/);
   assert.match(out, /reviewer/);
+});
+
+
+// ── One conversation, several places ───────────────────────────────────────
+// An agent is reachable on more than one channel and in more than one session.
+// The channel is only WHERE something was said; it does not make it a different
+// conversation, and the person does not restart when they switch.
+//
+// What this guards: told "message Rodrigo about it" on the web, an agent that
+// had settled who Rodrigo was on Telegram an hour earlier asked who Rodrigo
+// was. It had `search_messages` the whole time. Nothing told it that an
+// unresolved reference is a cue to look rather than a gap to ask about, so the
+// rule lives in agent-base — the layer EVERY agent gets, not the super-agent's.
+
+test("every agent is told to search before asking about a reference it cannot place", () => {
+  const base = loadDefaultSystemPrompt();
+  assert.match(base, /One conversation, several places/);
+  assert.match(base, /search_messages/, "the rule has to name the tool that answers it");
+  assert.match(base, /cue to look, not a gap to ask about/);
+});
+
+test("the rule reaches a project agent too, not just the super-agent", () => {
+  // agent-base is shared, but only by composition — a layer that stopped being
+  // included would take this with it silently, and the symptom (an agent asking
+  // about something it was told elsewhere) reads as a bad model, not a missing
+  // prompt.
+  const superSystem = buildSuperAgentSystem({
+    globalConfig: { super_agent: { model: "mock:mock" }, user: { language: "en" } },
+    projects: { list: () => [] },
+  });
+  assert.match(superSystem, /One conversation, several places/);
+
+  const root = tmpProjectWithAgentsMd("# northwind\n");
+  const agentSystem = buildAgentSystem(
+    { id: 1, path: root, storagePath: fs.mkdtempSync(path.join(os.tmpdir(), "apx-pb-store-")), config: {} },
+    { slug: "jaro", fields: { Name: "Jaro" } },
+    {},
+  );
+  assert.match(agentSystem, /One conversation, several places/);
 });
