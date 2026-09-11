@@ -17,7 +17,7 @@ const web = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", "interfa
 
 test("a turn carries several files, not one", () => {
   const composer = web("components", "chat", "Composer.tsx");
-  assert.match(composer, /onSend: \(text: string, media\?: UploadedMedia\[\]\)/, "the composer hands over a list");
+  assert.match(composer, /onSend: \(text: string, media\?: UploadedMedia\[\]/, "the composer hands over a list");
   assert.match(composer, /pending, setPending\] = useState<Pending\[\]>/);
 
   const chat = web("hooks", "useChat.ts");
@@ -120,7 +120,11 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // message has always done on Telegram. It is still queued either way: the
   // drain effect is what sends it, so the message survives the interruption and
   // goes out with a history that includes whatever the stopped turn wrote.
-  assert.match(duringRun, /if \(!queueOnSendRef\.current\) void stopTurn\(\)/, "interrupt is the default");
+  // …and by DEFAULT it also cuts the running turn short. The one thing that
+  // overrules it is Ctrl+Enter (`opts.queue`), which can only ever soften the
+  // send — see tests/send-mode-and-queue.test.js.
+  assert.match(duringRun, /if \(!queueOnSendRef\.current && !opts\.queue\) void stopTurn\(\)/,
+    "interrupt is the default, and only the shortcut suspends it");
 
   // The queue belongs to the chat, not the mounted pane. The worker survives a
   // route change and drains from refs that were updated by the finished turn.
