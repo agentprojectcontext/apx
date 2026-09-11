@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Section } from "../Section";
 import { Button, Empty, Field, Input, Loading, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
-import { TimezoneSelect } from "../TimezoneSelect";
+import { SearchSelect } from "../SearchSelect";
 import { useToast } from "../Toast";
 import { useIdentity } from "../../hooks/useIdentity";
 import { t } from "../../i18n";
@@ -55,7 +55,7 @@ export function IdentityPanel() {
           />
         </Field>
         <Field label={t("settings.identity.timezone")} hint={t("settings.identity.timezone_hint")}>
-          <TimezoneSelect
+          <SearchSelect
             value={draft.timezone || detectTimezone()}
             onChange={(v) => setDraft({ ...draft, timezone: v })}
             options={tzOptions}
