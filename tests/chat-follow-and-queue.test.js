@@ -62,13 +62,25 @@ test("a followed turn is rendered by the same reducer as one this tab sent", () 
 test("the daemon records and pushes the same timeline on every chat route", () => {
   // One predicate, so the client that RE-OPENS a turn and the one that FOLLOWS
   // it are never shown different work.
-  for (const route of ["exec.js", "super-agent.js", "code.js"]) {
+  //
+  // `conversations.js` is the a2a route, and it was the one left out. It pushed
+  // `event` and nothing else, which is half a turn: no `start`, so the thread
+  // stayed blank until the first tool landed and a peer that thinks before it
+  // acts was indistinguishable from a dead one; no `final`, so the follower's
+  // bubble never closed — it stayed pending, the silent catch-up refused to run
+  // behind it, and Stop sat over a turn that had ended minutes before.
+  for (const route of ["exec.js", "super-agent.js", "code.js", "conversations.js"]) {
     const src = fs.readFileSync(
       path.join(__dirname, "..", "src", "host", "daemon", "api", route),
       "utf8",
     );
     assert.match(src, /recordActiveTurnEvent\(active\.id, ev(ent)?\)/, `${route} must record the timeline`);
     assert.match(src, /isVisibleTurnEvent\(ev(ent)?\)\) turnFrame\("event"/, `${route} must push it too`);
+    // A turn is a story: it has to say when it starts and how it ends, or the
+    // surfaces following it cannot draw either edge.
+    assert.match(src, /turnFrame\("start"\)/, `${route} must announce the turn before any output`);
+    assert.match(src, /turnFrame\("final"/, `${route} must close the turn it opened`);
+    assert.match(src, /turnFrame\("error"/, `${route} must close a turn that broke`);
   }
 });
 
