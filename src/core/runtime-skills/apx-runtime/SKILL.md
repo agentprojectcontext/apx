@@ -208,7 +208,7 @@ APC_RESULT: <one-line value>
 |---|---|
 | Pair-program with file edits + shell | `claude-code` if installed, else `codex` |
 | Lightweight LLM run, no tools | `apx exec <agent> "<prompt>"` (no runtime needed) |
-| Super-agent to call other agents | `call_agent` tool (in-process, no spawn) |
+| Super-agent to hand work to a project agent | `call_agent` tool — in-process, WITH that agent's tools, filed as an a2a thread you can read and continue |
 | Persisted state across days | `apx run` with `claude-code` or `codex` (their sessions persist) |
 
 ## Don't
