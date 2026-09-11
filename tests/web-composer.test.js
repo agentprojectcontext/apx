@@ -213,12 +213,17 @@ test("interrupt-or-queue is a per-device choice, offered where it applies", () =
   assert.match(toggle, /onClick=\{\(\) => setQueueOnSend\(!queues\)\}/);
   assert.match(toggle, /aria-pressed=\{queues\}/, "it is a switch, and says so to a screen reader");
 
-  // Only while something is running: what happens if you write right now is the
-  // only question it answers, and a switch for a situation you are not in is
-  // clutter.
-  assert.match(web("components", "chat", "Composer.tsx"), /\{streaming \? <SendModeToggle \/> : null\}/);
-  // Including in the code module, where a turn runs for minutes — long enough
-  // to change your mind about it twice.
+  // Present before a turn runs, not only during one. Gating it on `streaming`
+  // read as "a switch for a situation you are not in is clutter", and that is
+  // true of most controls — but this one answers what happens to the message
+  // you are ABOUT to write, so the only moment it existed was the moment it was
+  // already too late to use. See the note in Composer.tsx.
+  const composer = web("components", "chat", "Composer.tsx");
+  assert.match(composer, /<SendModeToggle \/>/);
+  assert.doesNotMatch(composer, /\{streaming \? <SendModeToggle \/> : null\}/,
+    "the preference is set before it applies, or it is discovered by watching it go wrong");
+  // The code module still offers it mid-run only: a coding turn is started
+  // deliberately and runs for minutes, so the question arrives with the turn.
   assert.match(web("components", "code", "CodeComposer.tsx"), /\{busy \? <SendModeToggle \/> : null\}/);
 
   // Per device, like the channel view/notify choices — the phone and the desktop
