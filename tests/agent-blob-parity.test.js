@@ -98,3 +98,91 @@ test("pickBlob ignores junk in `taken` instead of shrinking the pool", () => {
   const got = pickBlob({ taken: ["not-a-blob", null, undefined, 42], rng: () => 0 });
   assert.ok(isBlobKey(got));
 });
+
+// ── The two flat outputs ───────────────────────────────────────────────────
+//
+// A blob is drawn by <BlobAvatar> as an eyeless body with animated eye rects on
+// top, which is right for the browser and useless to everything else: anything
+// that just wants a picture of an agent — another product's panel, a chat, a
+// README — got a blob with no face. So the export writes two more per blob, and
+// these guard the parts that fail quietly.
+
+function webPresets() {
+  const src = fs.readFileSync(
+    path.join(REPO, "src/interfaces/web/src/components/agents/blobPresets.ts"),
+    "utf8",
+  );
+  const out = {};
+  for (const line of src.split("\n")) {
+    const m = /^\s{2}(\w+): \{.*?src: "([^"]+)", face: "([^"]+)", svg: "([^"]+)".*eyes: \[(.*)\] \},$/.exec(line);
+    if (m) out[m[1]] = { src: m[2], face: m[3], svg: m[4], eyes: m[5] };
+  }
+  return out;
+}
+
+const publicPath = (url) => path.join(REPO, "src/interfaces/web/public", url);
+
+test("every preset declares a flat face and a standalone svg, and both exist", () => {
+  const presets = webPresets();
+  assert.deepEqual(Object.keys(presets), [...BLOB_KEYS], "a preset is missing face/svg");
+
+  for (const key of BLOB_KEYS) {
+    const { face, svg } = presets[key];
+    assert.ok(fs.existsSync(publicPath(face)), `missing composed face: ${key}`);
+    assert.ok(fs.existsSync(publicPath(svg)), `missing standalone svg: ${key}`);
+  }
+});
+
+// The failure this one exists for: writing the composed face over <key>.png.
+// <BlobAvatar> would then draw eyes on a body that already has them, and nobody
+// would notice until they looked at an avatar.
+test("the composed face never replaces the eyeless body", () => {
+  for (const [key, { src, face, eyes }] of Object.entries(webPresets())) {
+    assert.notEqual(src, face, `${key}: face and body point at the same file`);
+
+    // Only where there were eyes to add. A cyclops has its face in the render,
+    // so its composed file is the body byte for byte — that is the next test.
+    if (eyes.trim() === "") continue;
+
+    assert.notEqual(
+      fs.readFileSync(publicPath(src)).toString("base64"),
+      fs.readFileSync(publicPath(face)).toString("base64"),
+      `${key}: the body has the face baked into it`,
+    );
+  }
+});
+
+test("the svg stands on its own and carries the same eyes as the preset", () => {
+  for (const [key, { svg, eyes }] of Object.entries(webPresets())) {
+    const markup = fs.readFileSync(publicPath(svg), "utf8");
+
+    // Self-contained, or it is no better than the preset it came from: a
+    // consumer outside the web app cannot resolve a relative href.
+    assert.match(markup, /href="data:image\/png;base64,/, `${key}: svg references the body instead of carrying it`);
+    assert.match(markup, new RegExp(`viewBox="0 0 256 256"`), `${key}: svg is not in the preset's coordinate system`);
+
+    const inSvg = [...markup.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+      .map((m) => m.slice(1, 5).join(","));
+    const inPreset = [...eyes.matchAll(/x: ([\d.]+), y: ([\d.]+), w: ([\d.]+), h: ([\d.]+)/g)]
+      .map((m) => m.slice(1, 5).join(","));
+
+    assert.deepEqual(inSvg, inPreset, `${key}: the svg's eyes drifted from the preset's`);
+  }
+});
+
+// `saturno` has its face in the render and no rects at all. It still gets a
+// composed file, because a consumer asking for `face` should never have to know
+// which blobs are cyclopes.
+test("a cyclops still gets a face, it is just the body", () => {
+  const cyclopes = Object.entries(webPresets()).filter(([, p]) => p.eyes.trim() === "");
+  assert.ok(cyclopes.length > 0, "expected at least one cyclops preset");
+
+  for (const [key, { src, face }] of cyclopes) {
+    assert.ok(fs.existsSync(publicPath(face)), `missing composed face: ${key}`);
+    assert.equal(
+      fs.readFileSync(publicPath(src)).toString("base64"),
+      fs.readFileSync(publicPath(face)).toString("base64"),
+      `${key}: a cyclops's face should be its body, unchanged`,
+    );
+  }
+});

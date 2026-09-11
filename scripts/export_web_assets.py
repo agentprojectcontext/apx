@@ -3,9 +3,12 @@ Eyes are drawn animated on top in the browser; here we only compute the eye
 rects in the same 256x256 canvas the body is padded into. A preset with an
 empty eye list is a 'cyclops' whose face is baked into the render (keeps its
 ring/LED); it still bobs, it just doesn't blink."""
-from PIL import Image
+from PIL import Image, ImageDraw
+from io import BytesIO
+import base64
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -22,6 +25,10 @@ CORE_KEYS = REPO / "src/core/apc/blob-keys.js"
 SCRATCH = pathlib.Path(os.environ.get("BLOB_SRC_DIR", "."))
 SIZE = 256
 PAD = 0.06
+# The eyes are rounded rectangles, and drawn straight at 256 their corners come
+# out stepped — which shows at the size an avatar is actually used. Drawn at 4x
+# and brought down with LANCZOS, like the body already is.
+FACE_SUPERSAMPLE = 4
 
 # key: (label, eyeColor, eyes)  where eyes = (cxl, cxr, cy, ew_frac, eh_frac) | None
 BLOBS = {
@@ -77,36 +84,179 @@ def eye_rects(W, H, sc, offx, offy, e):
         out.append((round(ccx - ew / 2, 1), round(ccy - eh / 2, 1), round(ew, 1), round(eh, 1), round(r, 1)))
     return out
 
+def stored_eyes():
+    """The eye rects already in blobPresets.ts, keyed by blob.
+
+    Needed because the source crops are scratch inputs: they are read once, at
+    the time a blob is added, and none of them are on this machine any more. For
+    every blob that already exists, the rects in the generated TS are the only
+    surviving record of the crop's geometry.
+
+    They cannot be recovered from the exported body either. The crops carried
+    transparent margin of their own, so the body's own bounding box lands two or
+    three pixels off what was computed from the crop — a squint on most blobs
+    and a visibly wrong face on `quad`.
+    """
+    if not TS.exists():
+        return {}
+
+    out = {}
+    for line in TS.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\s*(\w+): \{.*eyes: \[(.*)\] \},?\s*$", line)
+        if not m:
+            continue
+        out[m.group(1)] = [
+            tuple(float(v) for v in rect)
+            for rect in re.findall(
+                r"x: ([\d.]+), y: ([\d.]+), w: ([\d.]+), h: ([\d.]+), rx: ([\d.]+)", m.group(2)
+            )
+        ]
+    return out
+
+
+def face_png(canvas, eyes, color):
+    """The body with its eyes on, flattened.
+
+    A still of the resting face — the animation only transforms these rects, so
+    drawing them where they are is what the blob looks like when it is not
+    blinking. A cyclops (no rects) already has its face in the body, so it comes
+    back unchanged.
+
+    Kept in a file of its own rather than replacing the body: <BlobAvatar> needs
+    the eyeless body to animate eyes over, and overwriting it would break the
+    web avatars in a way nobody sees until they look at one.
+    """
+    if not eyes:
+        return canvas.copy()
+
+    sup = FACE_SUPERSAMPLE
+    big = canvas.resize((SIZE * sup, SIZE * sup), Image.LANCZOS)
+    draw = ImageDraw.Draw(big)
+
+    for (x, y, w, h, rx) in eyes:
+        draw.rounded_rectangle(
+            [x * sup, y * sup, (x + w) * sup, (y + h) * sup], radius=rx * sup, fill=color
+        )
+
+    return big.resize((SIZE, SIZE), Image.LANCZOS)
+
+
+def standalone_svg(canvas, eyes, color):
+    """The same blob as an SVG somebody can animate.
+
+    Self-contained, body embedded as a data URI. That is the whole point of it:
+    an SVG that references the body beside it offers nothing `blobPresets.ts`
+    does not already give the web app, and the consumers this exists for —
+    anything outside the browser that wants an agent's face — cannot resolve a
+    relative href. It costs about 60KB a blob, which is the price of the file
+    being useful on its own.
+
+    The body is embedded already padded into the 256 canvas, so these
+    coordinates are the ones in BLOB_VIEWBOX and in `eyes` — one coordinate
+    system, no placement maths to repeat and get subtly wrong.
+    """
+    buffer = BytesIO()
+    canvas.save(buffer, format="PNG")
+    body = base64.b64encode(buffer.getvalue()).decode("ascii")
+
+    out = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {SIZE} {SIZE}" width="{SIZE}" height="{SIZE}">',
+        f'  <image href="data:image/png;base64,{body}" x="0" y="0" width="{SIZE}" height="{SIZE}"/>',
+    ]
+    for (x, y, w, h, rx) in eyes:
+        out.append(f'  <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="{color}"/>')
+    out.append("</svg>")
+
+    return "\n".join(out) + "\n"
+
+
+known_eyes = stored_eyes()
+
 presets = {}
 for k, (label, color, e) in BLOBS.items():
-    im = Image.open(SCRATCH / f"blob_{k}.png").convert("RGBA")
-    W, H = im.size
-    box = SIZE * (1 - 2 * PAD)
-    sc = min(box / W, box / H)
-    nw, nh = W * sc, H * sc
-    offx, offy = (SIZE - nw) / 2, (SIZE - nh) / 2
-    canvas = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
-    canvas.alpha_composite(im.resize((max(1, round(nw)), max(1, round(nh))), Image.LANCZOS), (round(offx), round(offy)))
-    canvas.save(PUB / f"{k}.png")
-    presets[k] = (label, f"/modules/blobs/{k}.png", color, eye_rects(W, H, sc, offx, offy, e))
-    print(f"{k}: body ok, {len(presets[k][3])} eyes")
+    crop = SCRATCH / f"blob_{k}.png"
+    body = PUB / f"{k}.png"
+
+    if crop.exists():
+        # The crop is on hand, so everything comes off it: the body, and the eye
+        # rects in the canvas it is padded into. This is the path a NEW blob
+        # takes, and it stays the only place geometry is computed.
+        im = Image.open(crop).convert("RGBA")
+        W, H = im.size
+        box = SIZE * (1 - 2 * PAD)
+        sc = min(box / W, box / H)
+        nw, nh = W * sc, H * sc
+        offx, offy = (SIZE - nw) / 2, (SIZE - nh) / 2
+        canvas = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+        canvas.alpha_composite(im.resize((max(1, round(nw)), max(1, round(nh))), Image.LANCZOS), (round(offx), round(offy)))
+        canvas.save(body)
+        eyes = eye_rects(W, H, sc, offx, offy, e)
+        origin = "crop"
+    elif body.exists():
+        # No crop, which is every existing blob: they were read once, when the
+        # blob was added, and are not kept. The exported body IS the canvas and
+        # the rects in blobPresets.ts are the geometry — see stored_eyes(). The
+        # body is left exactly as it is; re-padding it would shrink the blob by
+        # another 6% and drag the eyes with it.
+        canvas = Image.open(body).convert("RGBA")
+        eyes = known_eyes.get(k)
+        if eyes is None:
+            sys.exit(f"{k}: no crop in {SCRATCH} and no eyes in {TS.name}. Add blob_{k}.png and run again.")
+        origin = "body"
+    else:
+        sys.exit(f"{k}: nothing to build from. Put blob_{k}.png in {SCRATCH} (or set BLOB_SRC_DIR).")
+
+    # Two more outputs per blob, and both are additions: the body above is
+    # untouched by either. One is a still anything can show; the other is the
+    # same blob as something anything can animate.
+    face_png(canvas, eyes, color).save(PUB / f"{k}.face.png")
+    (PUB / f"{k}.svg").write_text(standalone_svg(canvas, eyes, color), encoding="utf-8")
+
+    presets[k] = (
+        label,
+        f"/modules/blobs/{k}.png",
+        f"/modules/blobs/{k}.face.png",
+        f"/modules/blobs/{k}.svg",
+        color,
+        eyes,
+    )
+    print(f"{k}: {origin} ok, {len(eyes)} eyes, +face +svg")
 
 lines = [
     "// AUTO-GENERATED by scripts/export_web_assets.py — do not edit by hand.",
     "// Square blob bodies live in public/modules/blobs/<key>.png; eye rects are in the",
     "// same 256x256 canvas and are drawn animated on top by <BlobAvatar>. An empty eye",
     "// list = a 'cyclops' whose face is baked into the render (it bobs but doesn't blink).",
+    "//",
+    "// `face` and `svg` are the same blob for everything that is not <BlobAvatar>: a",
+    "// flat PNG with the resting face on it, and a self-contained SVG carrying the body",
+    "// and the rects, for a consumer that wants to animate it itself. Both are written",
+    "// by the same export, so a new blob arrives with all three or with none.",
     "",
     "export type BlobEye = { x: number; y: number; w: number; h: number; rx: number };",
-    "export type BlobPreset = { key: string; label: string; src: string; eyeColor: string; eyes: BlobEye[] };",
+    "export type BlobPreset = {",
+    "  key: string;",
+    "  label: string;",
+    "  /** The eyeless body. What <BlobAvatar> draws animated eyes over. */",
+    "  src: string;",
+    "  /** The body with its eyes on, flattened. For anything that just needs a picture. */",
+    "  face: string;",
+    "  /** Body and eyes in one standalone file, for a consumer that renders SVG. */",
+    "  svg: string;",
+    "  eyeColor: string;",
+    "  eyes: BlobEye[];",
+    "};",
     "",
     "export const BLOB_VIEWBOX = 256;",
     "",
     "export const BLOB_PRESETS: Record<string, BlobPreset> = {",
 ]
-for k, (label, src, color, eyes) in presets.items():
+for k, (label, src, face, svg, color, eyes) in presets.items():
     ev = ", ".join(f"{{ x: {x}, y: {y}, w: {w}, h: {h}, rx: {r} }}" for (x, y, w, h, r) in eyes)
-    lines.append(f'  {k}: {{ key: "{k}", label: "{label}", src: "{src}", eyeColor: "{color}", eyes: [{ev}] }},')
+    lines.append(
+        f'  {k}: {{ key: "{k}", label: "{label}", src: "{src}", face: "{face}", svg: "{svg}", '
+        f'eyeColor: "{color}", eyes: [{ev}] }},'
+    )
 lines += [
     "};",
     "",
