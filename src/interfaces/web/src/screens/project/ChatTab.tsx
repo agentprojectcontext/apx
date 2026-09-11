@@ -38,6 +38,7 @@ import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
+import { showTools as readShowTools, setShowTools as writeShowTools, showToolsKey } from "../../lib/chat-prefs";
 import {
   conversationActivityKey,
   liveActivityKey,
@@ -284,15 +285,16 @@ export function ChatTab({
   // Transcript layout: tools visible (ActionGroup) vs pelado (text only).
   // Persisted per chat so the header switch and the create-group checkbox stick,
   // falling back to this device's last header flip for chats never set.
-  const showToolsKey = `${SHOW_TOOLS_PREF}.${pid}.${chatKeyToString(selected)}`;
-  const [showTools, setShowToolsState] = useState(() => readShowTools(showToolsKey));
+  const toolsKey = showToolsKey(pid, chatKeyToString(selected));
+  const [showTools, setShowToolsState] = useState(() => readShowTools(toolsKey));
   useEffect(() => {
-    setShowToolsState(readShowTools(showToolsKey));
-  }, [showToolsKey]);
+    setShowToolsState(readShowTools(toolsKey));
+  }, [toolsKey]);
   const setShowTools = (v: boolean) => {
     setShowToolsState(v);
-    writeShowTools(showToolsKey, v);
-    writeShowToolsDefault(v);
+    // The header switch moves the device fallback too: flipping it once
+    // should not have to be repeated in every conversation you open next.
+    writeShowTools(toolsKey, v, { alsoDefault: true });
   };
 
   // Whenever the user picks a stored conversation or a channel thread, reload
@@ -442,7 +444,7 @@ export function ChatTab({
     try {
       const g = await Groups.create(pid, { participants: agentSlugs });
       const key = { kind: "thread" as const, channel: "group", threadId: g.id };
-      writeShowTools(`${SHOW_TOOLS_PREF}.${pid}.${chatKeyToString(key)}`, opts?.showTools === true);
+      writeShowTools(showToolsKey(pid, chatKeyToString(key)), opts?.showTools === true);
       void mutate(`/api/projects/${pid}/super-agent/threads`);
       selectChat(key, { channel: "group", title: g.title });
     } catch (e) {
@@ -1454,42 +1456,6 @@ function formatDate(iso?: string): string {
     : new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString();
-}
-
-// Per-chat preference: show tool ActionGroups vs pelado transcript.
-// A chat you have already set keeps its own value; one you have never opened
-// starts from the last flip of the header switch, so you do not re-flip it in
-// every new conversation. Pelado the very first time. Both keys live in
-// localStorage, so each device remembers what you read on that device.
-const SHOW_TOOLS_PREF = "apx.chat.showTools";
-const SHOW_TOOLS_LAST = "apx.chat.showTools.last";
-
-function readFlag(key: string): boolean | null {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return null;
-    return raw === "1" || raw === "true";
-  } catch {
-    return null;
-  }
-}
-
-function readShowTools(key: string): boolean {
-  return readFlag(key) ?? readFlag(SHOW_TOOLS_LAST) ?? false;
-}
-
-function writeShowTools(key: string, v: boolean): void {
-  try {
-    localStorage.setItem(key, v ? "1" : "0");
-  } catch { /* quota / private mode */ }
-}
-
-/** The header switch also moves the device default. The create-group checkbox
- *  does not: that one is a choice about that one room. */
-function writeShowToolsDefault(v: boolean): void {
-  try {
-    localStorage.setItem(SHOW_TOOLS_LAST, v ? "1" : "0");
-  } catch { /* quota / private mode */ }
 }
 
 function CreateAgentDialog({

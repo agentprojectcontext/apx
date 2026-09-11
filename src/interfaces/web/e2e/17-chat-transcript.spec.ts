@@ -10,10 +10,12 @@ import { runtime } from "./fixtures";
 //  1. A conversation spanning months rendered as one uninterrupted column. Only
 //     the last bubble carried a date, so every answer above it read as having
 //     been written today.
-//  2. On a phone the transcript starts "pelado" (no tool log), and nothing in
-//     the turn said work had happened — so an answer that took twelve shell
-//     commands looked like an answer that took none, with no hint that the
-//     header switch had anything to show.
+//  2. On a phone, nothing in the turn said work had happened — so an answer
+//     that took twelve shell commands looked like an answer that took none.
+//     The count is the thing that has to survive 390px whichever layout you
+//     are in; the log itself is behind the header switch, which now starts ON
+//     (hiding an agent's work by default was lying by omission about it) and
+//     still has to work in both directions.
 //
 // Both are asserted against real DOM at a real phone width, because both are
 // layout answers: "the count is in the JSX" was already true of the second one
@@ -119,17 +121,24 @@ test.describe("chat transcript", () => {
 
     await expect(page.getByText("Listo, quedó cerrado.")).toBeVisible();
 
-    // Simple view is the default and hides the tool LOG. That the turn ran
-    // tools at all is not part of the log — it is the reason to go looking for
-    // one, and it has to survive on a 390px screen.
+    // That the turn ran tools at all is not part of the log — it is a fact
+    // about the turn, and it has to survive on a 390px screen in either layout.
     await expect(page.getByTestId("turn-tools-count")).toBeVisible();
     // The turn's spend, on the same line, at phone width.
     await expect(page.getByText(/4\.8k tok/)).toBeVisible();
 
-    // Flip the header switch and the log itself appears — a phone had no way to
-    // identify this control while its icon was desktop-only. A finished turn's
-    // block opens collapsed, naming what it holds; the steps are one tap in.
-    await page.getByRole("switch").first().click();
+    // Both directions of the header switch, because a phone had no way to even
+    // identify this control while its icon was desktop-only. Off first: pelado
+    // hides the LOG and keeps the count.
+    const layout = page.getByRole("switch").first();
+    await expect(page.getByTestId("action-group").last()).toBeVisible();
+    await layout.click();
+    await expect(page.getByTestId("action-group")).toHaveCount(0);
+    await expect(page.getByTestId("turn-tools-count")).toBeVisible();
+
+    // And back on. A finished turn's block opens collapsed, naming what it
+    // holds; the steps are one tap in.
+    await layout.click();
     const block = page.getByTestId("action-group").last();
     await expect(block).toContainText("2 actions");
     await expect(block).toContainText("1 failed");
