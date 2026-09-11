@@ -16,6 +16,7 @@ import {
   effectiveHost,
   effectivePort,
   addProject as addProjectInConfig,
+  removeProject as removeProjectInConfig,
   PID_PATH,
   APX_HOME,
   TOKEN_PATH,
@@ -251,6 +252,18 @@ async function main() {
         addProjectInConfig(fresh, absPath);
       } catch (e) {
         log(`could not persist project to global config: ${e.message}`);
+      }
+    },
+    // The other half of the same pair. Read fresh both times: another daemon
+    // action (or the config tab) may have written the file since boot, and
+    // persisting our stale copy would undo whatever that was.
+    removeProjectGlobally: (absPath) => {
+      try {
+        const fresh = readConfig();
+        const { removed } = removeProjectInConfig(fresh, absPath);
+        if (removed) log(`unregistered project ${absPath} from the global config`);
+      } catch (e) {
+        log(`could not take project out of the global config: ${e.message}`);
       }
     },
   });

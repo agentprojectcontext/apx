@@ -89,6 +89,11 @@ export function buildApi({
   version,
   startedAt,
   addProjectGlobally,
+  // Registering writes the path into ~/.apx/config.json; unregistering has to
+  // take it out again, or the panel drops a project and the next daemon boot
+  // loads it straight back. Defaulted, because several tests build the API
+  // without a config on disk to write to.
+  removeProjectGlobally = () => {},
   config,
   token,
   tokenStore,
@@ -144,6 +149,7 @@ export function buildApi({
     version,
     startedAt,
     addProjectGlobally,
+    removeProjectGlobally,
     config,
     project,
     resolveTopProject,
