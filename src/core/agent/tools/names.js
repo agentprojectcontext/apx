@@ -79,6 +79,7 @@ export const TOOLS = Object.freeze({
 
   // Delegation / external
   CALL_AGENT:          "call_agent",
+  SEND_TO_AGENT:       "send_to_agent",
   CALL_MCP:            "call_mcp",
   CALL_RUNTIME:        "call_runtime",
   RUN_SUBAGENT:        "run_subagent",
@@ -136,6 +137,7 @@ export const TOOLS = Object.freeze({
 export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.WRITE_ARTIFACT,
   TOOLS.LIST_ARTIFACTS,
+  TOOLS.SEND_TO_AGENT,
   TOOLS.LIST_PROJECTS,
   TOOLS.LIST_AGENTS,
   TOOLS.LIST_VAULT_AGENTS,

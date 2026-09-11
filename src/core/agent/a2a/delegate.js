@@ -25,7 +25,9 @@ import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
-import { replyAsAgent } from "./reply.js";
+import { replyAsAgent, replyToPeer } from "./reply.js";
+import { resolvePeer, peerAddress } from "./peers.js";
+import { readAgents } from "#core/apc/parser.js";
 import { a2aPairHistory } from "./history.js";
 
 /**
@@ -44,6 +46,9 @@ export async function delegateToAgent({
   plugins,
   registries,
   signal = null,
+  // Forwarded, not required: a caller that registers an active turn for this
+  // delegation can watch and stop it the way the a2a route does.
+  onEvent = null,
   historyLimit = 24,
   // Injected in tests, the way `replyAsAgent` takes `runAgentTurnFn` — this
   // function's job is the thread it files, and that is worth asserting without
@@ -90,6 +95,7 @@ export async function delegateToAgent({
     // describe the work.
     tools: true,
     signal,
+    onEvent,
   });
 
   const replyTs = new Date().toISOString();
@@ -132,6 +138,115 @@ export async function delegateToAgent({
     media: result.media,
     // Where the conversation lives, so the caller can say so instead of the
     // owner having to go looking for it.
+    thread,
+    channel: CHANNELS.A2A,
+  };
+}
+
+
+/**
+ * One agent writing to another — whoever the other is.
+ *
+ * The generalisation of `delegateToAgent`, and the thing that was missing:
+ * `call_agent` can only address a PROJECT agent, so an agent that wanted to
+ * reach the super-agent had no tool at all. Ansel's answer to that was to shell
+ * out — `run_shell` with `apx send orchestrator default "…" --deliver` — which
+ * works, and blocks: the CLI waits for the reply, so Ansel sat frozen for the
+ * ten minutes the super-agent took to answer, and from every surface the two of
+ * them looked dead.
+ *
+ * `resolvePeer` is what makes this general: a project agent, the super-agent, or
+ * a coding runtime all resolve from the same address, and `replyToPeer` runs
+ * whichever it turns out to be.
+ */
+export async function messagePeer({
+  project,
+  to,
+  body,
+  from,
+  config,
+  projects,
+  plugins,
+  registries,
+  signal = null,
+  onEvent = null,
+  historyLimit = 24,
+  replyFn = replyToPeer,
+}) {
+  const peer = resolvePeer(to, readAgents(project.path), config);
+  if (!peer) throw new Error(`no peer named ${to}`);
+  const address = peerAddress(peer);
+  const thread = a2aThreadId(from, address);
+  const history = a2aPairHistory(project.storagePath, from, address, address, historyLimit);
+
+  const ts = new Date().toISOString();
+  const messageId = shortId("a2a");
+  project.logMessage({
+    agent_slug: address,
+    channel: CHANNELS.A2A,
+    direction: "in",
+    author: from,
+    body,
+    meta: { from, via: "tool" },
+    ts,
+    external_id: messageId,
+  });
+
+  const result = await replyFn({
+    peer,
+    project,
+    projectPath: project.path,
+    projectName: project.name || "",
+    fromAgent: { slug: from },
+    fromAddress: from,
+    body,
+    config,
+    history,
+    projectId: project.id,
+    projects,
+    plugins,
+    registries,
+    signal,
+    onEvent,
+  });
+
+  const replyTs = new Date().toISOString();
+  const replyId = shortId("a2a");
+  project.logMessage({
+    agent_slug: address,
+    channel: CHANNELS.A2A,
+    direction: "out",
+    type: "agent",
+    actor_kind: "agent",
+    actor_id: address,
+    author: address,
+    body: result.text,
+    meta: {
+      to: from,
+      via: "tool",
+      final: true,
+      model: result.model,
+      usage: result.usage,
+      trace: result.trace,
+    },
+    ts: replyTs,
+    external_id: replyId,
+  });
+  project.logMessage({
+    agent_slug: from,
+    channel: CHANNELS.A2A,
+    direction: "in",
+    author: address,
+    body: result.text,
+    meta: { from: address, via: "tool" },
+    ts: replyTs,
+    external_id: replyId,
+  });
+
+  return {
+    text: result.text,
+    usage: result.usage,
+    model: result.model,
     thread,
     channel: CHANNELS.A2A,
   };
