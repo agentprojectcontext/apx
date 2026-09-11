@@ -19,7 +19,7 @@ import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
 import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readTurnAttachments } from "./media.js";
-import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
+import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
 import { broadcastTurn } from "../events-ws.js";
 import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
@@ -408,6 +408,11 @@ export function register(api, { projects, registries, plugins, project, config }
     let lastSaid = "";
     const onEvent = (ev) => {
       recordActiveTurnEvent(active.id, ev);
+      // Recorded for whoever re-opens this thread mid-turn, pushed for whoever
+      // is already watching it from another surface. The two used to disagree:
+      // the record kept the tools and the feed carried only tokens, so a
+      // follower watched a multi-step turn collapse into one paragraph.
+      if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
       if (ev?.type === "assistant_text" && ev.text) {
         timeline.push({ kind: "text", text: ev.text });
         if (String(ev.text).trim()) lastSaid = String(ev.text).trim();

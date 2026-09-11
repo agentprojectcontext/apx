@@ -128,17 +128,98 @@ export interface QueuedTurn {
 // destroys ChatTab but must not destroy a message already accepted from the
 // composer. The worker that started the active turn drains this map even after
 // its component unmounts; a newly mounted pane subscribes and paints it again.
+//
+// And it outlives the PAGE, not only the pane. A queue held in memory alone
+// meant a message accepted from the composer — already in the thread, dimmed,
+// waiting its turn — was thrown away by a reload, with nothing to say it had
+// ever existed. Parked turns are per-device, like the unread marks beside them
+// (lib/chat-activity.ts), so localStorage is where they wait.
 const backgroundQueues = new Map<string, QueuedTurn[]>();
 const backgroundQueueListeners = new Set<(key: string) => void>();
 let backgroundQueueSeq = 0;
+const QUEUE_STORAGE_KEY = "apx.chat.queue.v1";
+// Parked longer than this and it is not waiting, it is forgotten: firing a line
+// written two days ago into a chat the moment someone opens it would be worse
+// than losing it, because it would read as something just said.
+const QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
+let queuesHydrated = false;
+
+function queueEntryIsFresh(turn: QueuedTurn, cutoff: number): boolean {
+  const at = Date.parse(turn?.msg?.ts || "");
+  return Number.isFinite(at) ? at >= cutoff : true;
+}
+
+function loadPersistedQueues() {
+  const cutoff = Date.now() - QUEUE_TTL_MS;
+  const raw: unknown = JSON.parse(localStorage.getItem(QUEUE_STORAGE_KEY) || "{}");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  const seen = new Set<string>();
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(value)) continue;
+    const fresh = (value as QueuedTurn[]).filter(
+      (turn) => turn?.id && typeof turn.text === "string" && queueEntryIsFresh(turn, cutoff),
+    );
+    seen.add(key);
+    if (fresh.length) backgroundQueues.set(key, fresh);
+    else backgroundQueues.delete(key);
+    setChatQueued(key, fresh.length);
+  }
+  // A key the snapshot no longer holds was drained somewhere else.
+  for (const key of [...backgroundQueues.keys()]) {
+    if (seen.has(key)) continue;
+    backgroundQueues.delete(key);
+    setChatQueued(key, 0);
+  }
+}
+
+function hydrateBackgroundQueues() {
+  if (queuesHydrated || typeof window === "undefined") return;
+  queuesHydrated = true;
+  try {
+    loadPersistedQueues();
+  } catch {
+    // Private mode, or a snapshot we cannot read: the queue starts empty rather
+    // than taking chat down with it.
+  }
+  // Another TAB draining (or parking) a turn. Without this, persistence would
+  // hand the same queued line to two windows and send it twice — a bug the
+  // in-memory queue did not have, and must not acquire on the way to surviving
+  // a reload.
+  window.addEventListener("storage", (ev) => {
+    if (ev.key !== null && ev.key !== QUEUE_STORAGE_KEY) return;
+    try {
+      loadPersistedQueues();
+    } catch {
+      return;
+    }
+    for (const listener of backgroundQueueListeners) listener("*");
+  });
+}
+
+function persistBackgroundQueues() {
+  if (typeof window === "undefined") return;
+  try {
+    if (backgroundQueues.size) {
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(Object.fromEntries(backgroundQueues)));
+    } else {
+      localStorage.removeItem(QUEUE_STORAGE_KEY);
+    }
+  } catch {
+    // Storage refusal (private mode, quota) must never break sending. The turn
+    // still goes out from memory; it just would not survive a reload.
+  }
+}
 
 function readBackgroundQueue(key: string | null): QueuedTurn[] {
+  hydrateBackgroundQueues();
   return key ? backgroundQueues.get(key) || [] : [];
 }
 
 function writeBackgroundQueue(key: string, queue: QueuedTurn[]) {
+  hydrateBackgroundQueues();
   if (queue.length) backgroundQueues.set(key, queue);
   else backgroundQueues.delete(key);
+  persistBackgroundQueues();
   setChatQueued(key, queue.length);
   for (const listener of backgroundQueueListeners) listener(key);
 }
@@ -471,11 +552,13 @@ export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[
   ];
 }
 
-/** History plus a trailing streaming bubble for a turn still being written, so
- *  opening a chat mid-answer shows the partial (then the live frames fill it).
- *  Marked local so a background refetch keeps it until the real turn persists. */
-function withActiveTurn(loaded: ChatMsg[], active?: ActiveTurn | null): ChatMsg[] {
-  if (!active) return loaded;
+/** The trailing streaming bubble for a turn still being written, so opening a
+ *  chat mid-answer shows the partial — the actual tools and text the sending
+ *  pane is watching, not a summary of it — and the live frames carry on from
+ *  there. Marked local so a background refetch keeps it until the real turn
+ *  persists. */
+function activeTurnMsg(active?: ActiveTurn | null): ChatMsg | null {
+  if (!active) return null;
   const parts: ChatPart[] = active.parts?.length
     ? active.parts.map((part) => part.kind === "text"
       ? { kind: "text", text: part.text, ...(part.streaming ? { streaming: true } : {}) }
@@ -488,17 +571,20 @@ function withActiveTurn(loaded: ChatMsg[], active?: ActiveTurn | null): ChatMsg[
           status: part.status,
         })
     : active.text ? [{ kind: "text", text: active.text, streaming: true }] : [];
-  return [
-    ...loaded,
-    {
-      role: "assistant",
-      parts,
-      ts: active.started_at || new Date().toISOString(),
-      local: true,
-      pending: true,
-      ...(active.agent_slug ? { agent: active.agent_slug, agentId: active.agent_slug } : {}),
-    },
-  ];
+  return {
+    role: "assistant",
+    parts,
+    ts: active.started_at || new Date().toISOString(),
+    local: true,
+    pending: true,
+    ...(active.agent_slug ? { agent: active.agent_slug, agentId: active.agent_slug } : {}),
+  };
+}
+
+/** History plus that bubble, when there is one. */
+function withActiveTurn(loaded: ChatMsg[], active?: ActiveTurn | null): ChatMsg[] {
+  const live = activeTurnMsg(active);
+  return live ? [...loaded, live] : loaded;
 }
 
 /**
@@ -776,15 +862,26 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // rest of the stream, or be the thing a failed turn deleted.
   const [queued, setQueued] = useState<QueuedTurn[]>([]);
   const queueKeyRef = useRef<string | null>(null);
-  const bindQueue = useCallback((key: string) => {
+  // Whether the pane has finished OPENING the chat this queue belongs to.
+  //
+  // A chat is bound in two beats: the key first (synchronously, the moment one
+  // is picked) and the conversation it names one fetch later. Draining in
+  // between is what turned one queued line into two sessions — see drainQueue.
+  const queueReadyRef = useRef(false);
+  const bindQueue = useCallback((key: string, ready = true) => {
     queueKeyRef.current = key;
+    queueReadyRef.current = ready;
     const snapshot = readBackgroundQueue(key);
     setQueued(snapshot);
     setChatQueued(key, snapshot.length);
   }, []);
   useEffect(() => {
+    // "*" — another tab rewrote the whole snapshot; whatever we are bound to may
+    // have changed under us.
     const listener = (key: string) => {
-      if (key === queueKeyRef.current) setQueued(readBackgroundQueue(key));
+      if (key === "*" || key === queueKeyRef.current) {
+        setQueued(readBackgroundQueue(queueKeyRef.current));
+      }
     };
     backgroundQueueListeners.add(listener);
     return () => { backgroundQueueListeners.delete(listener); };
@@ -822,9 +919,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     return onChatPrefsChange(read);
   }, []);
   // The turn this tab is FOLLOWING from the live feed (a turn it did not start):
-  // its id and the text accumulated so far, so a frame that arrives after a
-  // background refetch wiped the bubble can repaint it whole rather than lose it.
-  const liveTurnRef = useRef<{ id: string; text: string } | null>(null);
+  // its id and the BUBBLE as it stands — tools included, not just the text — so
+  // a frame that arrives after a background refetch wiped the tail can repaint
+  // it whole, and so the partial a mid-turn reload hydrated is what the next
+  // frame builds on instead of an empty bubble that erases it.
+  const liveTurnRef = useRef<{ id: string; msg: ChatMsg } | null>(null);
   const drainQueueRef = useRef<() => void>(() => {});
   const beginViewChange = useCallback(() => {
     viewEpochRef.current++;
@@ -887,60 +986,71 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   );
 
   // ── Following a turn this tab did NOT start (live push) ──────────────────
-  // paintLive upserts a trailing STREAMING assistant bubble (local, so a
-  // background refetch keeps it) from the full accumulated text; finalizeLive
-  // turns it into a settled reply (no longer local, so the next silent reload
-  // replaces it with the identical persisted turn instead of doubling it).
-  const paintLive = useCallback((text: string, agentSlug?: string) => {
+  //
+  // A followed turn is rendered by the SAME reducer as one this tab started —
+  // applyStreamEvent — so it reads identically: interleaved text, collapsible
+  // tool calls, the work visible while it happens. It used to be repainted from
+  // the accumulated TEXT instead, which is why walking to another chat and back
+  // turned a nine-step turn into one growing paragraph with every tool erased,
+  // and why the closing frame then flattened whatever had survived.
+  //
+  // liveTurnRef holds the bubble itself, not just its text: a background
+  // refetch that replaces the tail still leaves us something to repaint whole,
+  // and the partial a reload hydrated is what the next frame builds ON rather
+  // than the empty bubble it used to start from.
+  const patchLive = useCallback((turnId: string, ev: ChatStreamEvent, agentSlug?: string) => {
+    const held = liveTurnRef.current?.id === turnId ? liveTurnRef.current.msg : null;
+    const base: ChatMsg = held || {
+      role: "assistant",
+      parts: [],
+      ts: new Date().toISOString(),
+      local: true,
+      pending: true,
+    };
+    const next = applyStreamEvent(
+      agentSlug && !base.agent ? { ...base, agent: agentSlug, agentId: agentSlug } : base,
+      ev,
+    );
+    liveTurnRef.current = { id: turnId, msg: next };
     updateMsgs((curr) => {
       const copy = [...curr];
       const last = copy[copy.length - 1];
-      const base: ChatMsg = {
-        role: "assistant",
-        parts: text ? [{ kind: "text", text, streaming: true }] : [],
-        ts: new Date().toISOString(),
-        local: true,
-        pending: true,
-        ...(agentSlug ? { agent: agentSlug, agentId: agentSlug } : {}),
-      };
-      if (last && last.role === "assistant" && (last.pending || last.local)) {
-        copy[copy.length - 1] = { ...base, ts: last.ts };
+      // PENDING, not merely local: a local turn that already settled is an
+      // answer someone has read, and taking its place with the next turn's
+      // empty bubble erased it off the screen it was still on.
+      if (last && last.role === "assistant" && last.pending) {
+        copy[copy.length - 1] = { ...next, ts: last.ts };
       } else {
-        copy.push(base);
+        copy.push(next);
       }
       return copy;
     });
   }, [updateMsgs]);
 
-  const finalizeLive = useCallback(
-    (text: string, opts: { model?: string; name?: string; usage?: ChatUsage; error?: string }) => {
-      updateMsgs((curr) => {
-        const copy = [...curr];
-        const last = copy[copy.length - 1];
-        if (!last || last.role !== "assistant") return curr;
-        copy[copy.length - 1] = {
-          ...last,
-          local: false,
-          pending: false,
-          parts: text
-            ? [{ kind: "text", text }]
-            : opts.error
-              ? [{ kind: "text", text: t("shared_ui.err_stream") }]
-              : last.parts,
-          ...(opts.model ? { model: opts.model } : {}),
-          ...(opts.name ? { agent: opts.name, agentId: opts.name } : {}),
-          ...(opts.usage ? { usage: opts.usage } : {}),
-        };
-        return copy;
-      });
-    },
-    [updateMsgs],
-  );
+  // Close the followed bubble: `fn` gets the turn as it stands (tools included)
+  // and returns how it ends. Settled means no longer local — so the next silent
+  // reload replaces it with the identical persisted turn instead of doubling it.
+  const closeLive = useCallback((turnId: string, fn: (m: ChatMsg) => ChatMsg) => {
+    const held = liveTurnRef.current?.id === turnId ? liveTurnRef.current.msg : null;
+    liveTurnRef.current = null;
+    updateMsgs((curr) => {
+      const copy = [...curr];
+      const last = copy[copy.length - 1];
+      const following = last && last.role === "assistant" && last.pending;
+      const base = held || (following ? last : null);
+      if (!base) return curr;
+      const closed = { ...fn(base), local: false, pending: false };
+      if (following) copy[copy.length - 1] = { ...closed, ts: last.ts };
+      else copy.push(closed);
+      return copy;
+    });
+  }, [updateMsgs]);
 
-  // The daemon pushes every in-progress turn's tokens over the shared feed. A
-  // tab that is NOT the sender — a second window, or this one after a refresh /
-  // switching chats and back — follows them here, so streaming survives losing
-  // the connection that started it.
+  // The daemon pushes every in-progress turn over the shared feed — its tokens
+  // as `delta`, and everything a token cannot say (a tool starting, its result,
+  // a closed segment) as `event`. A tab that is NOT the sender — a second
+  // window, or this one after a refresh / switching chats and back — follows
+  // them here, so the turn survives losing the connection that started it.
   const onTurnFrame = useCallback((f: TurnFrame) => {
     if (streamingRef.current) return;                 // the sender renders via NDJSON
     if (String(f.project_id) !== String(pid)) return;
@@ -949,48 +1059,60 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       f.channel === threadRef.current.channel &&
       f.thread_id === threadRef.current.id;
     if (!sameConversation && !sameThread) return;
-    if (f.phase === "start") {
+    const slug = f.agent_slug || undefined;
+    // How this turn is addressed, so Stop reaches the RUN and not just a socket
+    // — set from any frame, because a reconnect can make a mid-turn `event` the
+    // first thing this tab hears about a turn that started without it.
+    const follow = () => {
+      if (followingRef.current && turnTargetRef.current) return; // already bound; tokens must not re-bind per token
       updateFollowing(true);
       turnTargetRef.current = sameConversation
         ? { conversation_id: f.conversation_id || undefined }
-        : { channel: f.channel || undefined };
-      liveTurnRef.current = { id: f.turn_id, text: "" };
-      paintLive("", f.agent_slug || undefined);
+        : { channel: f.channel || undefined, thread_id: f.thread_id || undefined };
+    };
+    const done = () => {
+      updateFollowing(false);
+      turnTargetRef.current = null;
+      queueMicrotask(() => drainQueueRef.current());
+    };
+    if (f.phase === "start") {
+      follow();
+      liveTurnRef.current = null;
+      patchLive(f.turn_id, { type: "start" }, slug);
     } else if (f.phase === "delta") {
-      const cur =
-        liveTurnRef.current && liveTurnRef.current.id === f.turn_id
-          ? liveTurnRef.current
-          : (liveTurnRef.current = { id: f.turn_id, text: "" });
-      cur.text += f.delta || "";
-      paintLive(cur.text, f.agent_slug || undefined);
+      follow();
+      patchLive(f.turn_id, { type: "assistant_delta", delta: f.delta || "" }, slug);
+    } else if (f.phase === "event") {
+      if (!f.event) return;
+      follow();
+      patchLive(f.turn_id, f.event, slug);
     } else if (f.phase === "final") {
-      liveTurnRef.current = null;
-      updateFollowing(false);
-      finalizeLive(f.result?.text ?? "", {
-        model: f.result?.model,
-        name: f.result?.name || f.agent_slug || undefined,
-        usage: f.result?.usage,
-      });
-      turnTargetRef.current = null;
-      queueMicrotask(() => drainQueueRef.current());
+      closeLive(f.turn_id, (m) => applyStreamEvent(m, { type: "final", result: f.result }));
+      done();
     } else if (f.phase === "aborted") {
-      liveTurnRef.current = null;
-      updateFollowing(false);
-      finalizeLive(f.result?.text ?? "", {
-        model: f.result?.model,
-        name: f.result?.name || f.agent_slug || undefined,
-        usage: f.result?.usage,
+      // Stopped, not broken — and marked the way the sender's own path marks it
+      // (applyEvent, above), so the two routes to the same outcome read alike.
+      closeLive(f.turn_id, (m) => {
+        // A tab whose socket dropped mid-turn has the partial only in this
+        // frame; the reducer's abort case closes segments, it does not add one.
+        const seeded = m.parts.some((part) => part.kind === "text" && part.text.trim()) || !f.result?.text
+          ? m
+          : { ...m, parts: [...m.parts, { kind: "text", text: f.result.text }] as ChatPart[] };
+        const stopped = applyStreamEvent(seeded, { type: "aborted", result: f.result });
+        return { ...stopped, parts: [...stopped.parts, { kind: "text", text: t("code_module.stopped") }] };
       });
-      turnTargetRef.current = null;
-      queueMicrotask(() => drainQueueRef.current());
+      done();
     } else if (f.phase === "error") {
-      liveTurnRef.current = null;
-      updateFollowing(false);
-      finalizeLive("", { error: f.error });
-      turnTargetRef.current = null;
-      queueMicrotask(() => drainQueueRef.current());
+      // The work that really ran stays. An error at step nine does not un-run
+      // steps one to eight, and replacing them with one red line was how a
+      // failed turn came back as a bubble that said nothing had happened.
+      closeLive(f.turn_id, (m) => ({
+        ...m,
+        parts: [...m.parts, { kind: "text", text: f.error || t("shared_ui.err_stream") }],
+      }));
+      done();
     }
-  }, [pid, paintLive, finalizeLive, updateFollowing]);
+  }, [pid, patchLive, closeLive, updateFollowing]);
 
   useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
@@ -1289,13 +1411,28 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     if (streamingRef.current || followingRef.current) return;
     const key = queueKeyRef.current;
     if (!key) return;
+    // A turn queued FOR a chat only ever goes out INTO it.
+    //
+    // The pane binds its queue the moment a chat is picked — one fetch BEFORE
+    // it knows which conversation that is, and before the same reply tells it a
+    // turn is still being written there. Draining in that window sent the parked
+    // line with whatever conversation the previous selection had left behind,
+    // or with none at all: the daemon then opened a SECOND conversation and ran
+    // it beside the turn already going. One queued message, two sessions,
+    // neither of them the chat it was written in. Waiting for the pane to
+    // finish opening costs one fetch and makes "queued here" mean "sent here".
+    if (!queueReadyRef.current) return;
     const next = takeBackgroundQueue(key);
     if (next) void sendRef.current(next.text, next.opts || {});
   }, []);
   drainQueueRef.current = drainQueue;
+  // `conversationId` / `conversationMeta` are in here because the gate above
+  // reads the BINDING, and the binding lands one fetch after the queue does:
+  // without them a turn parked for a chat with nothing running would sit there
+  // until some unrelated state change happened to re-run this.
   useEffect(() => {
     if (!streaming && !following && queued.length) drainQueue();
-  }, [streaming, following, queued.length, drainQueue]);
+  }, [streaming, following, queued.length, drainQueue, conversationId, conversationMeta]);
 
   const clear = useCallback((queueKey?: string) => {
     loadSeqRef.current++; // cancel any in-flight history load
@@ -1306,8 +1443,16 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     setConversationMeta(undefined);
     updateFollowing(false);
     turnTargetRef.current = null;
+    // Bound to nothing until told otherwise: leaving the key behind would let a
+    // later drain take the PREVIOUS chat's parked turn and send it from a pane
+    // that is no longer on it — which, with no conversation bound, is how a
+    // queued line opens a session of its own.
     if (queueKey) bindQueue(queueKey);
-    else setQueued([]);
+    else {
+      queueKeyRef.current = null;
+      queueReadyRef.current = false;
+      setQueued([]);
+    }
     updateMsgs([]);
   }, [beginViewChange, bindQueue, updateFollowing, updateMsgs]);
 
@@ -1317,7 +1462,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const activityKey = conversationActivityKey(pid, conversationId);
       if (!opts?.silent) {
         beginViewChange();
-        bindQueue(activityKey);
+        bindQueue(activityKey, false); // open first; the fetch below says which conversation this is
       }
       // Blank the pane up front so it never shows the previous chat under the
       // new header while the fetch is in flight. A silent re-read is the SAME
@@ -1331,6 +1476,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         const loaded = threadToChatMsgs(detail.messages ?? []);
         convoRef.current = conversationId;
         threadRef.current = null;
+        queueReadyRef.current = true; // this pane now IS the chat its queue was written in
         setConversationId(conversationId);
         setConversationMeta(metaFromDetail(detail));
         // Opening a chat whose answer is still being written: show the partial
@@ -1341,7 +1487,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           ? detail.active_turn
           : null;
         if (active) {
-          liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
+          // Seeded with the bubble the hydration just built, so the first frame
+          // to arrive extends those tools instead of starting from nothing.
+          liveTurnRef.current = { id: active.turn_id, msg: activeTurnMsg(active)! };
           updateFollowing(true);
           turnTargetRef.current = { conversation_id: conversationId };
         } else if (!opts?.silent) {
@@ -1375,7 +1523,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const seq = ++loadSeqRef.current;
       if (!opts?.silent) {
         beginViewChange();
-        bindQueue(threadActivityKey(pid, channel, threadId));
+        bindQueue(threadActivityKey(pid, channel, threadId), false);
         updateMsgs([]);
       }
       try {
@@ -1386,6 +1534,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // web turns with this history as previousMessages.
         convoRef.current = undefined;
         threadRef.current = { channel, id: threadId };
+        queueReadyRef.current = true;
         setConversationId(undefined);
         // A thread knows its own name and channel, same as a conversation file
         // does — the header should not have to be handed them by whichever list
@@ -1401,7 +1550,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           ? detail.active_turn
           : null;
         if (active) {
-          liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
+          liveTurnRef.current = { id: active.turn_id, msg: activeTurnMsg(active)! };
           updateFollowing(true);
           turnTargetRef.current = { channel };
         } else if (!opts?.silent) {

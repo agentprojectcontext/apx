@@ -85,12 +85,13 @@ export function broadcastEvents(msg) {
   for (const ws of _clients) send(ws, msg);
 }
 
-/** Push one live-turn frame (start / delta / final / error) to every surface —
- *  the token stream that used to belong only to the sending tab. Sent straight,
- *  NOT through the 250ms message batch: tokens must arrive as they are written.
- *  Unlike a "messages" frame this DOES carry data (the delta), on purpose — it
- *  is the one thing the signal-only feed cannot express, and losing it to a
- *  dropped connection is exactly the bug this fixes. */
+/** Push one live-turn frame (start / delta / event / final / error) to every
+ *  surface — the turn that used to belong only to the sending tab. Sent
+ *  straight, NOT through the 250ms message batch: tokens must arrive as they
+ *  are written. Unlike a "messages" frame this DOES carry data (the delta, and
+ *  the step an `event` frame reports), on purpose — it is the one thing the
+ *  signal-only feed cannot express, and losing it to a dropped connection is
+ *  exactly the bug this fixes. */
 export function broadcastTurn(frame) {
   broadcastEvents({ type: "turn", ...frame });
 }

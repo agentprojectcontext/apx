@@ -25,7 +25,7 @@ import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 import { broadcastTurn } from "../events-ws.js";
-import { startActiveTurn, appendActiveTurn, endActiveTurn, convTurnKey } from "../active-turns.js";
+import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, convTurnKey } from "../active-turns.js";
 import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
 // How long a streamed turn may go silent before it writes a keepalive byte.
@@ -442,6 +442,14 @@ export function register(api, { projects, project, config, plugins, registries }
         signal: turnAbort.signal,
         onEvent: (ev) => {
           if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+          // The work, not only the words. A project agent used to register its
+          // TEXT and nothing else, so re-opening its chat mid-turn (or walking
+          // to another one and back) showed a growing paragraph with every tool
+          // erased — the same turn the sending tab was watching step by step.
+          // Recorded for whoever re-opens, pushed for whoever is already
+          // watching; one predicate decides both (isVisibleTurnEvent).
+          recordActiveTurnEvent(active.id, ev);
+          if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
           observeSaid(ev);
           send(ev);
         },
