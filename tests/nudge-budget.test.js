@@ -365,3 +365,64 @@ test("only a routine can claim scheduled — the flag defaults off", () => {
   const g = canNudge({ kind: "agent_message" }, budget());
   assert.equal(g.scheduled, false);
 });
+
+// --------------------------------------------------------------------------
+// the two critical permissions are SEPARATE (the 2026-09-11 2 AM nudge)
+//
+// `critical_bypasses_budget` used to be checked before quiet hours, so it also
+// meant "critical wakes you up" — a permission nobody granted. Spending more
+// than your share of the day and crossing a sleep window are different asks.
+// --------------------------------------------------------------------------
+
+test("quiet hours are evaluated BEFORE the critical bypass", () => {
+  // The budget is untouched here: the only thing that could let this through
+  // is the bypass, and at 02:00 it must not be consulted for that purpose.
+  const cfg = budget({ quiet_hours: "22:00-07:30", critical_bypasses_quiet_hours: false });
+  const at0200 = new Date(2026, 0, 15, 2, 0);
+  const gate = canNudge({ kind: "routine:secretary-watch", severity: "critical" }, cfg, at0200);
+  assert.equal(gate.allowed, false, "critical must not open a door the user closed");
+  assert.match(gate.reason, /quiet-hours/);
+});
+
+test("budget-bypass and quiet-hours-bypass are independently settable", () => {
+  const at0200 = new Date(2026, 0, 15, 2, 0);
+  const quiet = { quiet_hours: "22:00-07:30" };
+
+  // May shout over the budget, may NOT shout over the night.
+  const budgetOnly = budget({
+    ...quiet, critical_bypasses_budget: true, critical_bypasses_quiet_hours: false,
+  });
+  assert.equal(
+    canNudge({ kind: "signal", severity: "critical" }, budgetOnly, at0200).allowed, false,
+    "the two flags collapsed back into one",
+  );
+  // ...and the budget bypass it kept still works outside the window.
+  const noon = new Date(2026, 0, 15, 12, 0);
+  recordNudge(canNudge({ kind: "signal" }, budget({ daily_max: 1 }), noon), { preview: "spent" });
+  const crit = canNudge({ kind: "signal", severity: "critical" }, { nudge: { ...budgetOnly.nudge, daily_max: 1 } }, noon);
+  assert.equal(crit.allowed, true, "closing the night must not close the budget bypass too");
+});
+
+test("a real blocker may still cross the night when that is the setting", () => {
+  // Manu's call, 2026-09-11: the door stays open for a genuine blocker. What
+  // changed is that it is now a named key rather than a side effect of the
+  // order two ifs happened to be written in.
+  const cfg = budget({ quiet_hours: "22:00-07:30", critical_bypasses_quiet_hours: true });
+  const at0300 = new Date(2026, 0, 15, 3, 0);
+  const gate = canNudge({ kind: "routine:secretary-a2a-sweep", severity: "critical" }, cfg, at0300);
+  assert.equal(gate.allowed, true);
+  assert.equal(gate.bypassed_budget, true, "a 3 AM crossing is audited like any other");
+  assert.match(gate.reason, /quiet-hours/, "the record must say WHICH door was crossed");
+});
+
+test("a non-critical message is still held at 3 AM with the door open", () => {
+  const cfg = budget({ quiet_hours: "22:00-07:30", critical_bypasses_quiet_hours: true });
+  const at0300 = new Date(2026, 0, 15, 3, 0);
+  assert.equal(canNudge({ kind: "signal", severity: "high" }, cfg, at0300).allowed, false);
+});
+
+test("the default keeps the behaviour the owner chose", () => {
+  const p = resolveNudgePolicy(budget({ quiet_hours: "22:00-07:30" }));
+  assert.equal(p.critical_bypasses_quiet_hours, true);
+  assert.equal(p.critical_bypasses_budget, true);
+});

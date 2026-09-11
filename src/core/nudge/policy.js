@@ -24,7 +24,13 @@ export const DEFAULT_POLICY = Object.freeze({
   cooldown_minutes: 0,        // between any two nudges
   project_cooldown_minutes: 0, // between two nudges about the SAME project
   kind_cooldown_minutes: 0,   // between two nudges of the SAME kind
+  // Two DISTINCT permissions, deliberately separate keys. They used to be one
+  // flag, and the gate checked the bypass before quiet hours — so "critical may
+  // spend more than its share of the day" silently also meant "critical may
+  // wake you at 3 AM". Spending a budget and crossing a sleep window are not
+  // the same favour to ask for; a caller must ask for each by name.
   critical_bypasses_budget: true,
+  critical_bypasses_quiet_hours: true,
 });
 
 /**
@@ -95,6 +101,7 @@ export function resolveNudgePolicy(config = {}) {
   policy.kind_cooldown_minutes = toNonNegativeInt(policy.kind_cooldown_minutes);
   policy.enabled = policy.enabled === true;
   policy.critical_bypasses_budget = policy.critical_bypasses_budget !== false;
+  policy.critical_bypasses_quiet_hours = policy.critical_bypasses_quiet_hours !== false;
   policy.quiet_hours = typeof policy.quiet_hours === "string" ? policy.quiet_hours.trim() : "";
 
   return { ...policy, source };

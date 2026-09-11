@@ -80,15 +80,25 @@ export function canNudge(req = {}, config = {}, now = new Date()) {
   if (scheduled) return decision(true, "scheduled-by-user");
 
   const isCritical = severity === CRITICAL;
+
+  // QUIET HOURS ARE CHECKED BEFORE THE CRITICAL BYPASS, and that order is the
+  // whole point. The bypass used to sit above this, which made
+  // `critical_bypasses_budget` mean "and also wakes them up" — a permission
+  // nobody granted. Crossing a sleep window is now its own named key, so the
+  // answer to "may this wake them at 3 AM?" is a setting, not an accident of
+  // line order. Keep this block above the bypass.
+  if (isQuietAt(policy.quiet_hours, now)) {
+    if (isCritical && policy.critical_bypasses_quiet_hours) {
+      return decision(true, "critical-bypass (quiet-hours)", null, true);
+    }
+    const ends = quietEndsAt(policy.quiet_hours, now);
+    return decision(false, `quiet-hours (${policy.quiet_hours})`, ends ? ends - now : null);
+  }
+
   if (isCritical && policy.critical_bypasses_budget) {
     // Audited, per the spec: it goes in the ledger flagged, so an integration
     // that discovers "critical" as a way to shout cannot do it quietly.
     return decision(true, "critical-bypass", null, true);
-  }
-
-  if (isQuietAt(policy.quiet_hours, now)) {
-    const ends = quietEndsAt(policy.quiet_hours, now);
-    return decision(false, `quiet-hours (${policy.quiet_hours})`, ends ? ends - now : null);
   }
 
   const ledger = readNudgeLedger();

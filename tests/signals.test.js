@@ -14,7 +14,7 @@ process.env.HOME = TMP_HOME;
 process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const {
-  detectSignals, formatSignals, peakSeverity, thresholdsFromConfig,
+  detectSignals, formatSignals, peakSeverity, gateSeverity, thresholdsFromConfig,
   SIGNAL_TYPES, DEFAULT_THRESHOLDS,
 } = await import("#core/routines/signals.js");
 const { createTask, doneTask, setTaskStatus } = await import("#core/stores/tasks.js");
@@ -392,4 +392,39 @@ test("a permission block is told apart from an ordinary tool failure", async () 
   );
   assert.deepEqual(blockedForPermission(null), []);
   assert.deepEqual(blockedForPermission([{ tool: "x" }, {}]), []);
+});
+
+// --------------------------------------------------------------------------
+// gateSeverity — what the INTERRUPTION GATE is told, which is not what the
+// prompt is told (the 2026-09-11 2 AM nudge)
+// --------------------------------------------------------------------------
+
+test("an already-late commitment ranks critical but does not interrupt as critical", () => {
+  const signals = [{ type: "overdue_commitment", severity: "critical" }];
+  assert.equal(peakSeverity(signals), "critical", "it is still the costliest thing on the board");
+  assert.equal(
+    gateSeverity(signals), "high",
+    "a date that already passed cannot be un-missed by waking someone at 3 AM",
+  );
+});
+
+test("an a2a blocker keeps its critical at the gate", () => {
+  // The one the owner explicitly chose to let through: urgent NOW, not merely
+  // expensive. A blocker that waits until morning is not a blocker.
+  const signals = [{ type: "a2a_message", severity: "critical" }];
+  assert.equal(gateSeverity(signals), "critical");
+});
+
+test("a blocker alongside an overdue commitment still reaches the gate as critical", () => {
+  const signals = [
+    { type: "overdue_commitment", severity: "critical" },
+    { type: "a2a_message", severity: "critical" },
+  ];
+  assert.equal(gateSeverity(signals), "critical", "the downgrade must be per-signal, not per-run");
+});
+
+test("gateSeverity leaves every non-critical severity alone", () => {
+  assert.equal(gateSeverity([{ type: "commitment_due", severity: "high" }]), "high");
+  assert.equal(gateSeverity([{ type: "stale_project", severity: "low" }]), "low");
+  assert.equal(gateSeverity([]), "low");
 });
