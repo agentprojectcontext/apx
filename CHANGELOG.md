@@ -1,3 +1,35 @@
+# [1.104.0](https://github.com/agentprojectcontext/apx/compare/v1.103.0...v1.104.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **a2a:** un intercambio es un hilo, se llame como se llame al otro agente ([fc8ea94](https://github.com/agentprojectcontext/apx/commit/fc8ea94769a5dccf7c1035bbc99c6564b234ee21))
+* **a2a:** un turno dice cuándo empieza y cómo termina, no sólo lo del medio ([48c8e1a](https://github.com/agentprojectcontext/apx/commit/48c8e1aaa39e7661af2691735931a759b60318fe))
+* **agents:** la autonomía de un agente ahora gobierna su turno, y el control dice qué pasa ([21a63da](https://github.com/agentprojectcontext/apx/commit/21a63da83abf2436bb03c45535f0e785e5d0056a))
+* **chat:** las sesiones son las del canal del chat, no las de la pantalla ([69f5699](https://github.com/agentprojectcontext/apx/commit/69f5699659d0a55272d82d53447cf65ca0006315))
+* **chat:** un agente que escribe dos veces con un día de por medio son dos mensajes ([373b85c](https://github.com/agentprojectcontext/apx/commit/373b85c99b486ce04550fa1ef3865bb61f020b82))
+* **chat:** un agente se llama por su nombre en todas las listas que lo ofrecen ([639cf98](https://github.com/agentprojectcontext/apx/commit/639cf989ce85c2fc1d0d5f85eff569005f91cb0e))
+* **chat:** una tool que arranca no termina el turno ([b955e00](https://github.com/agentprojectcontext/apx/commit/b955e00e5b4744be7a2e5e945a1d39b1b5a5ef67))
+* **group:** una sala que está trabajando se ve desde afuera ([2b531e8](https://github.com/agentprojectcontext/apx/commit/2b531e8ad902c7d967191f2a0ab2df47679fa4c6))
+* **mcp:** call_mcp se gradúa por la tool que va a llamar, no en bloque ([e12a808](https://github.com/agentprojectcontext/apx/commit/e12a808679694b67ce240b4bb1bcf9be9d3bfdf7))
+* **tests:** `sin despertar` es un fragmento, no una etiqueta ([a1b0e78](https://github.com/agentprojectcontext/apx/commit/a1b0e78101fa6237b410817e70040f9803225d2b))
+* **tests:** dos aserciones que fijaban la firma anterior a ctrl+enter ([2a60eb1](https://github.com/agentprojectcontext/apx/commit/2a60eb1491601032e1926e60ca45a2da1ab14e04))
+* **web:** un daemon nuevo no deja la pantalla sorda ([599d30b](https://github.com/agentprojectcontext/apx/commit/599d30b3c9849cdeeec67e00f77ebd5dad83540a))
+
+
+### Features
+
+* **a2a:** los agentes se hablan con una tool, y el turno se ve, se para y se corta ([5653fd5](https://github.com/agentprojectcontext/apx/commit/5653fd584e3d00ff2a7a63d1dda30dd09c7145e7))
+* **a2a:** un agente deja el trabajo corriendo y lo despiertan cuando termina ([6096269](https://github.com/agentprojectcontext/apx/commit/6096269b080e0a5a82afca31c51875ea2c990b01)), closes [#2](https://github.com/agentprojectcontext/apx/issues/2)
+* **agents:** las tools de un agente se eligen contra el catálogo que el loop realmente despacha ([13ca23c](https://github.com/agentprojectcontext/apx/commit/13ca23cd3c68fea3b5edfef9afde49d6f9a54288))
+* **chat:** ctrl+enter siempre espera el turno que está corriendo ([b017338](https://github.com/agentprojectcontext/apx/commit/b01733852877fd53fac685e49b76b6f3c35c4a07))
+* **chat:** las tools se ven, salvo que vos las apagues ([5d7d5f7](https://github.com/agentprojectcontext/apx/commit/5d7d5f75f416d01c4fcb621638cd82701076d738))
+* **company:** el CEO puede construir la fuente que le falta, y anotar lo que encontró ([5abfe7a](https://github.com/agentprojectcontext/apx/commit/5abfe7a4dbaa4faa8b68583fd285d953ab9ecc6a))
+* **company:** el council reporta solo, y el escritorio ya está puesto cuando el CEO corre ([a063647](https://github.com/agentprojectcontext/apx/commit/a063647644a838e9dbc19157663957a8b2360972))
+* **daemon:** el turno que hubo que cortar se retoma solo al arrancar ([985c791](https://github.com/agentprojectcontext/apx/commit/985c791d727dd238a58824499043ee5c74ec8fc6))
+* **daemon:** un restart espera a que el turno termine antes de cortarlo ([6233d2d](https://github.com/agentprojectcontext/apx/commit/6233d2d136b3ccf2d73b61514d26a98b3616898d))
+* **jobs:** el trabajo en segundo plano se ve en el borde, y se puede cortar ([4ac1f95](https://github.com/agentprojectcontext/apx/commit/4ac1f954e47ab59c441ad4eef560580a027ea42d)), closes [#31](https://github.com/agentprojectcontext/apx/issues/31)
+
 # [1.103.0](https://github.com/agentprojectcontext/apx/compare/v1.102.0...v1.103.0) (2026-09-11)
 
 
