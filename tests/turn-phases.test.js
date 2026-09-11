@@ -87,12 +87,17 @@ test("a step inside a turn does not end it", () => {
   assert.ok(live.includes("start") && live.includes("delta"));
 });
 
-test("a2a only ever emits `event`, so it is the phase that has to keep a turn alive", () => {
-  // Not a style check: it is WHY the classification above cannot be "anything
-  // that is not start/delta is over". If this route grows a start/final pair
-  // the assertion below can go — the one above still holds either way.
+test("a2a carries a whole turn, and its steps arrive as `event`", () => {
+  // Why this route in particular: it emits no `delta` at all. An a2a reply is
+  // recorded as complete text segments plus tool calls, never token by token,
+  // so `event` is the ONLY thing between its start and its end. That is what
+  // makes "anything that is not start/delta is over" fatal here rather than
+  // merely wrong — a peer's entire turn is made of the phase that was being
+  // read as an ending.
   const src = read("src/host/daemon/api/conversations.js");
-  assert.match(src, /broadcastTurn\(\{\s*\n?\s*phase: "event"/, "a2a pushes its steps");
+  assert.match(src, /isVisibleTurnEvent\(ev\)\) turnFrame\("event"/, "a2a pushes its steps");
+  assert.match(src, /turnFrame\("start"\)/, "…and says when the turn began");
+  assert.match(src, /turnFrame\("final"/, "…and closes the bubble it opened");
 });
 
 test("the closed-turn set cannot grow without bound", () => {

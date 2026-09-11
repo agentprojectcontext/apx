@@ -646,6 +646,11 @@ export function register(api, { projects, project, config, plugins, registries }
           text: result.text,
           usage: result.usage,
           trace: result.trace,
+          // Which engine spoke. Already written to the ledger row above; handed
+          // back too so the closing turn frame can name it, the way every other
+          // chat route's `final` does — a followed turn that settles with a
+          // blank model reads as one nobody paid for.
+          ...(result.model ? { model: result.model } : {}),
           ...(result.runtime ? { runtime: result.runtime } : {}),
           ...(result.sessionId ? { session_id: result.sessionId } : {}),
           ...(result.sessionNote ? { session_note: result.sessionNote } : {}),
@@ -727,26 +732,68 @@ export function register(api, { projects, project, config, plugins, registries }
         // abort route can only answer "nothing to stop".
         abort: () => ctrl.abort(),
       });
+      // The same helper every other chat route builds (super-agent, exec, code),
+      // for the same reason: a turn is a STORY with a beginning and an end, and
+      // a surface following it needs both, not only the middle.
+      //
+      // This route used to push `event` and nothing else, which cost two things
+      // that looked like one. Without `start`, the "pensando…" bubble did not
+      // exist until the first tool landed — a peer that thinks for thirty
+      // seconds before calling anything showed the message that asked and
+      // silence under it. And without `final`, the follower's bubble never
+      // closed: `closeLive` was never reached, so it stayed `pending` forever,
+      // `following` stayed true, the silent catch-up refused to run (it skips
+      // while a turn is in flight), and Stop sat on screen over a turn that had
+      // finished minutes earlier. Leaving and coming back was the only cure.
+      const turnFrame = (phase, extra = {}) => broadcastTurn({
+        phase,
+        project_id: p.id,
+        agent_slug: to,
+        conversation_id: null,
+        channel: "a2a",
+        thread_id: a2aThreadId(from, to),
+        turn_id: active.id,
+        ...extra,
+      });
       const onEvent = (ev) => {
         recordActiveTurnEvent(active.id, ev);
         // Recorded for whoever opens the thread mid-turn, pushed for whoever is
         // already watching it — the same pair the super-agent's own stream keeps
         // in step (api/super-agent.js).
-        if (isVisibleTurnEvent(ev)) {
-          broadcastTurn({
-            phase: "event",
-            project_id: p.id,
-            agent_slug: to,
-            conversation_id: null,
-            channel: "a2a",
-            thread_id: a2aThreadId(from, to),
-            turn_id: active.id,
-            event: ev,
+        if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
+      };
+      // Announced before a single token exists. This is the frame that makes the
+      // thread say somebody is working.
+      turnFrame("start");
+      try {
+        const out = await run({ signal: ctrl.signal, onEvent });
+        // `runReply` never throws — it files its own failure on the thread and
+        // hands the error back — so the ending has to be read off what it
+        // returned rather than caught. Three endings, and they are not the same
+        // picture: stopped on purpose, broke, or answered.
+        if (out?.error) {
+          // What it managed to say before it was cut. The record is the only
+          // place that has it — the failure path files no text of its own — and
+          // `startActiveTurn` hands back the live object, so `text` is whatever
+          // the last event synced into it.
+          if (ctrl.signal.aborted) turnFrame("aborted", { result: { text: active.text || "" } });
+          else turnFrame("error", { error: out.error });
+        } else {
+          turnFrame("final", {
+            result: {
+              text: out?.text || "",
+              ...(out?.usage ? { usage: out.usage } : {}),
+              ...(out?.model ? { model: out.model } : {}),
+              name: to,
+            },
           });
         }
-      };
-      try {
-        return await run({ signal: ctrl.signal, onEvent });
+        return out;
+      } catch (e) {
+        // Nothing here is expected to throw, but a follower left with an open
+        // bubble is the worst possible outcome of a surprise — close it.
+        turnFrame("error", { error: e?.message || String(e) });
+        throw e;
       } finally {
         clearTimeout(budget);
         endActiveTurn(active.id);
