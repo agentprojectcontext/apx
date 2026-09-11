@@ -901,7 +901,14 @@ export function truncateGroupThread(projectRoot, group_id, keepVisible) {
     }
     // agent (or any other non-tool display row attributed to a speaker)
     const actor = `agent:${d.author || "agent"}`;
-    if (lastActor === actor && bubbles.length) {
+    // A new DAY breaks the bubble, exactly as it does in the pane: one agent
+    // writing twice a day apart is two messages, not one. Kept in step with
+    // threadToChatMsgs on purpose — this count decides what a rewind DELETES,
+    // so a bubble the pane draws as two and this counts as one cuts in the
+    // wrong place.
+    const sameDay = bubbles.length
+      && String(bubbles[bubbles.length - 1].at(-1)?.ts || "").slice(0, 10) === String(d.ts || "").slice(0, 10);
+    if (lastActor === actor && sameDay && bubbles.length) {
       bubbles[bubbles.length - 1].push(...pendingTools, d);
     } else {
       bubbles.push([...pendingTools, d]);
