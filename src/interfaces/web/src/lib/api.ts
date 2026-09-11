@@ -1,6 +1,6 @@
 // Backwards-compatible umbrella for existing imports. New code should
 // pull from src/lib/api/<domain>.ts directly via the named re-exports below.
-export { setToken, getToken, http, streamNdjson, HttpError } from "./http";
+export { setToken, getToken, setReauthorize, refreshToken, http, streamNdjson, HttpError } from "./http";
 
 export * from "./api/health";
 export * from "./api/projects";
