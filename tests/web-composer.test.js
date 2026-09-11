@@ -168,7 +168,10 @@ test("switching chats never leaves the previous transcript or stream in the pane
   assert.doesNotMatch(loadThread, /if \(streaming\) return/);
   assert.match(chat, /const viewEpochRef = useRef\(0\)/);
   assert.match(chat, /const beginViewChange = useCallback/);
-  assert.match(load, /beginViewChange\(\);\s*\n\s*bindQueue\(activityKey\)/);
+  // Bound to the chat being opened on the view change itself. (It binds PENDING
+  // — the conversation it names lands one fetch later, and what may not happen
+  // in between is a DRAIN, not the binding; see chat-follow-and-queue.test.js.)
+  assert.match(load, /beginViewChange\(\);\s*\n\s*bindQueue\(activityKey/);
   assert.match(loadThread, /beginViewChange\(\);\s*\n\s*bindQueue\(threadActivityKey/);
   // The old HTTP stream may finish after the new history loaded, but its late
   // frames are scoped to the view that launched it rather than patchLast(B).

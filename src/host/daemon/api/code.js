@@ -26,6 +26,7 @@ import {
   startActiveTurn,
   appendActiveTurn,
   recordActiveTurnEvent,
+  isVisibleTurnEvent,
   endActiveTurn,
   getActiveTurnByKey,
   codeTurnKey,
@@ -274,6 +275,9 @@ export function register(api, { projects, project, config, registries, plugins }
     const onEvent = (event) => {
       acc.apply(event);
       recordActiveTurnEvent(active.id, event);
+      // Same work, both ways in: recorded for a surface that re-opens this
+      // session mid-turn, pushed for one already following it over the feed.
+      if (isVisibleTurnEvent(event)) turnFrame("event", { event });
       // A rotation off the asked-for model is the difference between "the model
       // you chose answered" and "something else did", and on this route it was
       // invisible: the note reached the panel and nothing reached the log, so

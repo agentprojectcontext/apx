@@ -146,6 +146,21 @@ export function recordActiveTurnEvent(id, event) {
   }
 }
 
+/** Is this one of the events the visible timeline is made of?
+ *
+ * The same answer has to serve two surfaces or they drift: the record kept for
+ * a client that RE-OPENS a turn mid-run (recordActiveTurnEvent, above) and the
+ * frames pushed to a client that FOLLOWS one over the feed. They used to
+ * disagree — the record kept the tools, the feed carried only tokens — so
+ * walking to another chat and back turned a multi-step turn into one growing
+ * paragraph with the work erased. One predicate, both paths.
+ */
+export function isVisibleTurnEvent(event) {
+  if (!event) return false;
+  if (event.type === "assistant_text") return !!event.text;
+  return (event.type === "tool_start" || event.type === "tool_result") && !!event.trace?.id;
+}
+
 /** Stop tracking. Idempotent — the finally block and an error path both call it. */
 export function endActiveTurn(id) {
   const rec = byId.get(id);

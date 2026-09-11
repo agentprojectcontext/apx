@@ -453,7 +453,7 @@ export interface ActiveTurn {
 /** A live-feed frame carrying a turn's tokens as they are written — the stream
  *  that used to belong only to the sending tab, now pushed to every surface. */
 export interface TurnFrame {
-  phase: "start" | "delta" | "final" | "aborted" | "error";
+  phase: "start" | "delta" | "event" | "final" | "aborted" | "error";
   project_id: number | string | null;
   agent_slug: string | null;
   conversation_id: string | null;
@@ -461,6 +461,11 @@ export interface TurnFrame {
   thread_id?: string | null;
   turn_id: string;
   delta?: string;
+  /** `phase: "event"` — one step of the turn's visible work (a tool starting,
+   *  a tool's result, a closed text segment), so a surface FOLLOWING a turn
+   *  renders the same timeline as the one that started it. Tokens still travel
+   *  as `delta`; this is everything a token cannot say. */
+  event?: ChatStreamEvent;
   result?: { text?: string; usage?: ChatUsage; model?: string; name?: string; conversation_id?: string };
   error?: string;
 }
