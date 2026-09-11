@@ -6,6 +6,7 @@ import { Button, Empty, Loading } from "../../components/ui";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { AreaDialog, RoleDialog } from "../../components/structure/StructureDialogs";
 import { Org } from "../../lib/api/organization";
+import { Agents } from "../../lib/api";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
 import { toneText, toneTextHover } from "../../lib/tone";
@@ -14,6 +15,25 @@ import type { OrgArea, OrgRole } from "../../types/daemon";
 export function StructureTab({ pid }: { pid: string }) {
   const toast = useToast();
   const org = useSWR(`/api/projects/${pid}/organization`, () => Org.get(pid));
+  const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
+  const [installing, setInstalling] = useState(false);
+
+  // Areas and roles are not filled in by hand for a company that has no team
+  // yet: installing the team creates both, one role per member, in the same
+  // move. Offering the empty forms first asks somebody to invent an org chart
+  // for agents that do not exist.
+  const installTeam = async () => {
+    setInstalling(true);
+    try {
+      const out = await Agents.importPack(pid, "company");
+      toast.success(t("project.agents.pack_success", { count: out.installed.length }));
+      await Promise.all([org.mutate(), agents.mutate()]);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   const [areaDialog, setAreaDialog] = useState<{ editing?: OrgArea | null } | null>(null);
   const [roleDialog, setRoleDialog] = useState<{ editing?: OrgRole | null; presetArea?: string | null } | null>(null);
@@ -57,7 +77,16 @@ export function StructureTab({ pid }: { pid: string }) {
         {org.isLoading ? (
           <Loading />
         ) : areas.length === 0 && roles.length === 0 ? (
-          <Empty>{t("structure.empty")}</Empty>
+          <Empty>
+            <div className="space-y-3">
+              <p>{(agents.data || []).length === 0 ? t("structure.empty_no_team") : t("structure.empty")}</p>
+              {(agents.data || []).length === 0 && (
+                <Button variant="primary" loading={installing} onClick={installTeam}>
+                  <Briefcase size={14} /> {t("structure.install_team")}
+                </Button>
+              )}
+            </div>
+          </Empty>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {areas.map((area) => (

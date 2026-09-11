@@ -2258,6 +2258,8 @@ export const en = {
     subtitle:         "Company areas and roles. Areas group agents; roles define their function.",
     info:             "Areas are optional groupings. Roles define an agent's function and may belong to an area.",
     empty:            "No areas or roles yet. Create the first one above.",
+    empty_no_team:    "A company's areas and roles are created with its team — one role per member — so there is nothing to fill in by hand yet.",
+    install_team:     "Install the company team",
     new_area:         "New area",
     new_role:         "New role",
     edit_area:        "Edit area",
