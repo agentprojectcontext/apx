@@ -1,3 +1,10 @@
+## [1.104.2](https://github.com/agentprojectcontext/apx/compare/v1.104.1...v1.104.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chat:** cuando un motor se cae, decir por qué ([8448fb2](https://github.com/agentprojectcontext/apx/commit/8448fb21163ae598b2c1d6e0d869a778e1daa387))
+
 ## [1.104.1](https://github.com/agentprojectcontext/apx/compare/v1.104.0...v1.104.1) (2026-09-11)
 
 
