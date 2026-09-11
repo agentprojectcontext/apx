@@ -39,7 +39,8 @@ import { registerDesktopClient, isDesktopUpgradePath } from "./desktop-ws.js";
 import { isTerminalUpgradePath, startTerminalSession } from "./terminal-ws.js";
 import { isEventsUpgradePath, registerEventsClient, startEventsBridge } from "./events-ws.js";
 import { isWsUpgradeAuthorized } from "./ws-auth.js";
-import { abortAllActiveTurns } from "./active-turns.js";
+import { abortAllActiveTurns, drainActiveTurns } from "./active-turns.js";
+import { SHUTDOWN_GRACE_MS } from "#core/constants/shutdown.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 
@@ -429,7 +430,26 @@ async function main() {
     process.exit(1);
   });
 
+  let shuttingDown = false;
   function shutdown(signal) {
+    // A SECOND signal is a person saying "no, now".
+    //
+    // The first one waits for the work in flight (see the drain below), and
+    // that wait is the whole point — but it also means there is now a window
+    // where the daemon looks like it is ignoring you. Ctrl-C twice is the
+    // universal way out of that, so the second signal cuts the drain short by
+    // aborting every turn on the spot. That empties the drain's pending set,
+    // which resolves it early and lets the teardown proceed — no extra
+    // plumbing, and every turn still writes its partial on the way out.
+    //
+    // What it must NOT do is run the teardown again: that would re-arm the
+    // watchdog and close sockets the first pass is still using.
+    if (shuttingDown) {
+      log(`received ${signal} again — cutting the drain short`);
+      try { abortAllActiveTurns(); } catch { /* nothing left to pull */ }
+      return;
+    }
+    shuttingDown = true;
     log(`received ${signal}, shutting down...`);
     // THE WATCHDOG GOES FIRST, before any teardown can throw.
     //
@@ -446,12 +466,46 @@ async function main() {
     // Armed here, the process exits within the grace period no matter what any
     // plugin, registry or store does on the way down. `unref()` so it never
     // holds the loop open on its own — a clean shutdown still exits instantly.
+    //
+    // The grace period is now derived from the drain rather than hardcoded: it
+    // has to outlast DRAIN_MS + SETTLE_MS or the watchdog fires in the middle
+    // of the wait and kills the very turns the drain is protecting. See
+    // core/constants/shutdown.js for the ordering the three numbers keep.
     setTimeout(() => {
       log("shutdown grace period expired — exiting");
       clearPid();
       process.exit(1);
-    }, 5000).unref();
+    }, SHUTDOWN_GRACE_MS).unref();
 
+    // FIRST, before anything else is torn down: let the turns in flight
+    // FINISH. Whatever has not finished when the ceiling arrives is aborted,
+    // and each aborted turn's own catch writes what it streamed into the
+    // ledger — the same path Stop uses.
+    //
+    // It used to abort immediately, which was already a large improvement over
+    // losing the turn outright, but it answered the wrong question. `apx
+    // restart` is something you run because you changed code, not because you
+    // wanted the answer on screen to stop; a turn is usually a few seconds
+    // long; and ten seconds of patience turns "your answer stops mid-sentence"
+    // into "your answer arrives". Aborting is now the fallback for the long
+    // tail, not the first move.
+    //
+    // The teardown WAITS for this — everything below it (stores, plugins,
+    // registries) is what the running turns are using to finish. Tearing down
+    // first and draining after would just be aborting with extra steps.
+    drainActiveTurns()
+      .then(({ waited, finished, aborted }) => {
+        if (!waited) return;
+        log(`turns in flight: ${finished} finished, ${aborted} cut off at the drain ceiling`);
+      })
+      .catch((e) => log(`warn: could not drain in-flight turns: ${e.message}`))
+      .finally(teardown);
+  }
+
+  /** Everything after the drain. Split out so the drain can be awaited without
+   *  indenting the teardown into a callback — and so a failure in the drain
+   *  still reaches it (`.finally`). */
+  function teardown() {
     // A step that fails must not take the rest of the teardown with it: the
     // socket a plugin failed to close matters less than the ones after it that
     // never got asked.
@@ -459,17 +513,6 @@ async function main() {
       try { fn(); } catch (e) { log(`warn: shutdown step "${name}" failed: ${e.message}`); }
     };
 
-    // FIRST, before anything else is torn down: tell every turn in flight to
-    // stop. Each one's own catch writes what it had streamed into the ledger,
-    // the same path Stop uses — so an `apx restart` in the middle of an answer
-    // leaves a message that ends mid-sentence instead of one that was never
-    // written at all. They get the grace period below to finish that write.
-    try {
-      const aborted = abortAllActiveTurns();
-      if (aborted) log(`aborting ${aborted} turn(s) in flight so their partials reach the ledger`);
-    } catch (e) {
-      log(`warn: could not abort in-flight turns: ${e.message}`);
-    }
     step("scheduler", () => scheduler.stop());
     step("callbackReconciler", () => callbackReconciler?.stop());
     step("eventsBridge", () => eventsBridge?.());

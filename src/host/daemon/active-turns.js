@@ -13,9 +13,13 @@
 //   super-agent    → `${projectId}:thread:${channel}:${threadId}`
 // so a client on that conversation can match a frame without extra plumbing.
 
+import { DRAIN_MS, SETTLE_MS } from "#core/constants/shutdown.js";
+
 let seq = 0;
 const byId = new Map();  // turnId -> record
 const byKey = new Map(); // key -> turnId  (the latest turn on that conversation)
+// Called when a turn ends, so a drain notices immediately instead of polling.
+const drainWaiters = new Set();
 
 /** Public client shape. Abort hooks and internal keys never leave this module. */
 function publicTurn(rec) {
@@ -167,6 +171,12 @@ export function endActiveTurn(id) {
   if (!rec) return;
   byId.delete(id);
   if (byKey.get(rec.key) === id) byKey.delete(rec.key);
+  // A drain in progress is waiting on exactly this. Notified rather than
+  // polled, so a shutdown with one short turn left costs that turn's remaining
+  // milliseconds and not a poll interval.
+  for (const notify of [...drainWaiters]) {
+    try { notify(); } catch { /* a waiter that throws must not break endActiveTurn */ }
+  }
 }
 
 /**
@@ -208,6 +218,9 @@ export function abortActiveTurn(key) {
  *
  * It does NOT resume the turn after the restart. That needs the run's state on
  * disk, not just its text.
+ *
+ * Prefer drainActiveTurns() on the shutdown path: cutting a turn off is the
+ * fallback, not the first move.
  */
 export function abortAllActiveTurns() {
   let n = 0;
@@ -215,6 +228,73 @@ export function abortAllActiveTurns() {
     if (abortActiveTurn(key)) n++;
   }
   return n;
+}
+
+/**
+ * Let the turns already running finish, then cut off whatever is left.
+ *
+ * This is the shutdown path's first move, and it exists because aborting was
+ * never the goal — it was the only thing available. A turn that is cut off
+ * survives as a message ending mid-sentence, which is strictly better than one
+ * that vanishes, but it is still a turn that did not get to say what it had to
+ * say. Most turns are a few seconds long: given ten of them, they simply
+ * finish, and `apx restart` in the middle of an answer costs nothing at all.
+ *
+ * Three properties worth keeping:
+ *
+ *  - **A quiet shutdown does not wait.** Nothing in flight resolves on the
+ *    spot, so the ordinary restart is exactly as fast as it was before.
+ *  - **It waits for the turns that were running WHEN IT STARTED**, not for
+ *    whatever arrives meanwhile. The daemon is still serving while it drains,
+ *    and a steady trickle of new turns would otherwise hold the drain open for
+ *    its full ceiling every time. New arrivals still get aborted at the end —
+ *    they just do not extend the wait.
+ *  - **The stragglers get SETTLE_MS after the abort.** The abort begins a
+ *    write; each turn's catch persists what it streamed. Exiting the instant we
+ *    abort would discard the very thing the abort is for.
+ *
+ * @returns {Promise<{waited: boolean, finished: number, aborted: number}>}
+ *   `finished` ran to completion on their own, `aborted` had to be cut.
+ */
+export function drainActiveTurns({ timeoutMs = DRAIN_MS, settleMs = SETTLE_MS } = {}) {
+  const pending = new Set(byId.keys());
+  const total = pending.size;
+  if (!total) return Promise.resolve({ waited: false, finished: 0, aborted: 0 });
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const prune = () => {
+      for (const id of pending) if (!byId.has(id)) pending.delete(id);
+      return pending.size;
+    };
+
+    const finish = () => {
+      if (settled) return;
+      const left = prune();
+      settled = true;
+      clearTimeout(timer);
+      drainWaiters.delete(onTurnEnd);
+      const finished = total - left;
+      // Unconditionally, and over everything still live rather than over the
+      // snapshot: a turn that arrived mid-drain has a partial worth keeping
+      // too. Gating this on the snapshot having stragglers was a bug — the
+      // common shape (the watched turn finishes, a routine fires meanwhile)
+      // resolves with the snapshot empty, and that turn would have been
+      // dropped by the exit with nothing written.
+      const aborted = abortAllActiveTurns();
+      if (!aborted) return resolve({ waited: true, finished, aborted: 0 });
+      // Deliberately NOT unref'd: this is the wait, and a timer that does not
+      // hold the loop open is a wait the process can walk out of.
+      setTimeout(() => resolve({ waited: true, finished, aborted }), settleMs);
+    };
+
+    const onTurnEnd = () => { if (!prune()) finish(); };
+
+    const timer = setTimeout(finish, timeoutMs);
+    drainWaiters.add(onTurnEnd);
+    onTurnEnd(); // a turn may have ended between the snapshot and the wiring
+  });
 }
 
 /** The turn currently being written on that conversation, if any — the partial
