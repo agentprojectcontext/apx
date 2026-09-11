@@ -68,6 +68,8 @@ interface Props {
   onToggleTools?: () => void;
   /** Override the default placeholder (groups want the @ / /invite hint). */
   placeholder?: string;
+  /** Prefill the composer once, e.g. from a `?draft=` deep link. */
+  initialText?: string;
 }
 
 /** A file the user handed over: on screen immediately, uploading behind it. */
@@ -107,8 +109,12 @@ export function Composer({
   onNewSession,
   onToggleTools,
   placeholder,
+  initialText,
 }: Props) {
-  const [text, setText] = useState("");
+  // Seeded ONCE. A draft that re-applied on every render would fight whatever
+  // the person is typing; the point is to hand them a message to edit and send,
+  // the way "Ask Roby to continue" does.
+  const [text, setText] = useState(initialText ?? "");
   // Esc dismisses the current suggest without wiping the draft; cleared on next edit.
   const [suggestDismissed, setSuggestDismissed] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
