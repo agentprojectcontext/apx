@@ -380,6 +380,11 @@ export function register(api, { projects, registries, plugins, project, config }
     const active = startActiveTurn(turnKey, {
       project_id: p.id, channel: ctx.channel, thread_id: threadId, model: model || null,
       abort: () => turnAbort.abort(),
+      // What this turn was asked, kept so a restart that has to cut it off can
+      // hand it to the next daemon to pick up. Without the prompt a resume is a
+      // guess, so a surface that does not record one is simply never resumed.
+      prompt: turnPrompt,
+      surface: "super-agent",
     });
     const turnFrame = (phase, extra = {}) => broadcastTurn({
       phase,

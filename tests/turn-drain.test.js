@@ -23,8 +23,10 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // APX_HOME wins over HOME �
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
 const {
-  startActiveTurn, endActiveTurn, drainActiveTurns, getActiveTurnByKey, listActiveTurns,
+  startActiveTurn, endActiveTurn, drainActiveTurns, abortActiveTurn, recordActiveTurnEvent,
+  getActiveTurnByKey, listActiveTurns,
 } = await import("../src/host/daemon/active-turns.js");
+const { readResumableTurns, writeResumableTurns } = await import("#core/stores/resumable-turns.js");
 
 /** Short enough to keep the suite fast, long enough that the ordering under
  *  test is not a coin flip on a loaded machine. */
@@ -38,7 +40,7 @@ test("with nothing in flight it does not wait at all", async () => {
   // pays the drain ceiling for turns that do not exist.
   const t0 = Date.now();
   const result = await drainActiveTurns({ timeoutMs: CEILING, settleMs: SETTLE });
-  assert.deepEqual(result, { waited: false, finished: 0, aborted: 0 });
+  assert.deepEqual(result, { waited: false, finished: 0, aborted: 0, resumable: 0 });
   assert.ok(Date.now() - t0 < CEILING / 2, "a quiet shutdown must resolve on the spot, not on the ceiling");
 });
 
@@ -54,7 +56,7 @@ test("a turn that finishes in time is NOT cut off", async () => {
   const result = await drain;
 
   assert.equal(pulled, false, "the turn could have finished and was killed anyway");
-  assert.deepEqual(result, { waited: true, finished: 1, aborted: 0 });
+  assert.deepEqual(result, { waited: true, finished: 1, aborted: 0, resumable: 0 });
   assert.ok(Date.now() - t0 < CEILING,
     "it sat out the full ceiling after the last turn ended — the drain is notified, not polled");
 });
@@ -69,7 +71,7 @@ test("a turn that outlasts the ceiling is cut off, so the restart is bounded", a
   try {
     const result = await drainActiveTurns({ timeoutMs: 60, settleMs: SETTLE });
     assert.equal(pulled, true, "the ceiling arrived and nothing cut the turn off");
-    assert.deepEqual(result, { waited: true, finished: 0, aborted: 1 });
+    assert.deepEqual(result, { waited: true, finished: 0, aborted: 1, resumable: 0 });
   } finally {
     endActiveTurn(turn.id);
   }
@@ -121,7 +123,7 @@ test("a turn with no abort hook is waited for, then reported honestly", async ()
   const turn = startActiveTurn("p1:conv:hookless", {});
   try {
     const result = await drainActiveTurns({ timeoutMs: 60, settleMs: SETTLE });
-    assert.deepEqual(result, { waited: true, finished: 0, aborted: 0 }, "nothing was pulled, so nothing may be claimed");
+    assert.deepEqual(result, { waited: true, finished: 0, aborted: 0, resumable: 0 }, "nothing was pulled, so nothing may be claimed");
     assert.ok(getActiveTurnByKey("p1:conv:hookless"), "and it is still registered");
   } finally {
     endActiveTurn(turn.id);
@@ -130,4 +132,85 @@ test("a turn with no abort hook is waited for, then reported honestly", async ()
 
 test("the registry is left clean for the next drain", () => {
   assert.deepEqual(listActiveTurns(), [], "a leaked turn here would make another test's drain wait on it");
+});
+
+// ── What the cut turn leaves behind ─────────────────────────────────────────
+//
+// Aborting a turn persists its partial, which made a restart mid-answer stop
+// losing the message. It did not make the turn resumable: the text alone loses
+// which tools really ran. The drain writes that down on the way out, and these
+// are the rules about what it writes.
+
+const toolEvent = (id, tool, args, result) => [
+  { type: "tool_start", trace: { id, tool, args } },
+  ...(result === undefined ? [] : [{ type: "tool_result", trace: { id, tool, args, result } }]),
+];
+
+test("a cut turn is written down with the tools that really ran", async () => {
+  writeResumableTurns([]);
+  const turn = startActiveTurn("p1:conv:cut", {
+    abort: () => {}, prompt: "avisale a Juan", agent_slug: "magui", project_id: 1,
+    conversation_id: "conv_1", surface: "agent",
+  });
+  for (const ev of toolEvent("t1", "send_whatsapp", { to: "+54", text: "listo" }, { ok: true })) {
+    recordActiveTurnEvent(turn.id, ev);
+  }
+  try {
+    await drainActiveTurns({ timeoutMs: 40, settleMs: SETTLE });
+    const [saved] = readResumableTurns();
+    assert.ok(saved, "the cut turn left nothing for the next daemon to pick up");
+    assert.equal(saved.prompt, "avisale a Juan");
+    assert.deepEqual(saved.effects, [{ tool: "send_whatsapp", args: { to: "+54", text: "listo" }, result: { ok: true } }],
+      "without the args and the result there is nothing to seed the ledger with");
+  } finally {
+    endActiveTurn(turn.id);
+    writeResumableTurns([]);
+  }
+});
+
+test("a tool still RUNNING when we were cut is uncertain, not done", async () => {
+  // The irreducible gap: the call had left and had not come back. Recording it
+  // as done would tell the resumed turn "already sent" about a message that may
+  // never have left — a silent loss traded for a duplicate.
+  writeResumableTurns([]);
+  const turn = startActiveTurn("p1:conv:midflight", {
+    abort: () => {}, prompt: "mandá el resumen", surface: "agent", project_id: 1,
+  });
+  recordActiveTurnEvent(turn.id, toolEvent("t2", "send_telegram", { chat_id: 7, text: "ahí va" })[0]);
+  try {
+    await drainActiveTurns({ timeoutMs: 40, settleMs: SETTLE });
+    const [saved] = readResumableTurns();
+    assert.deepEqual(saved.effects, [], "an unfinished call must never be seeded as already done");
+    assert.deepEqual(saved.in_flight, [{ tool: "send_telegram", args: { chat_id: 7, text: "ahí va" } }],
+      "…but it must still be reported, so the agent can go and check");
+  } finally {
+    endActiveTurn(turn.id);
+    writeResumableTurns([]);
+  }
+});
+
+test("a turn the USER stopped is never resurrected", async () => {
+  // Stop and shutdown pull the same lever, and they mean opposite things. If
+  // this ever regresses, pressing Stop would make the turn come back by itself
+  // after the next restart — the worst possible reading of "resume".
+  writeResumableTurns([]);
+  const turn = startActiveTurn("p1:conv:stopped", {
+    abort: () => {}, prompt: "no importa", partial_text: "algo", surface: "agent", project_id: 1,
+  });
+  recordActiveTurnEvent(turn.id, { type: "assistant_text", text: "iba por la mitad" });
+  abortActiveTurn("p1:conv:stopped");  // the Stop button
+  endActiveTurn(turn.id);              // …and the run unwinding
+  assert.deepEqual(readResumableTurns(), [], "a deliberate Stop was recorded as resumable work");
+});
+
+test("a turn that did nothing leaves nothing behind", async () => {
+  writeResumableTurns([]);
+  const turn = startActiveTurn("p1:conv:empty", { abort: () => {}, prompt: "hola", surface: "agent", project_id: 1 });
+  try {
+    await drainActiveTurns({ timeoutMs: 40, settleMs: SETTLE });
+    assert.deepEqual(readResumableTurns(), [], "an empty turn is not work worth resuming");
+  } finally {
+    endActiveTurn(turn.id);
+    writeResumableTurns([]);
+  }
 });

@@ -406,6 +406,12 @@ export function register(api, { projects, project, config, plugins, registries }
     const active = startActiveTurn(turnKey, {
       project_id: p.id, agent_slug: agent.slug, conversation_id: turn.conv.id, model: modelId,
       abort: () => turnAbort.abort(),
+      // What this turn was asked, kept so a restart that has to cut it off can
+      // hand it to the next daemon to pick up. Without the prompt a resume is a
+      // guess, so a surface that does not record one is simply never resumed.
+      prompt: turnPrompt,
+      channel: channel || CHANNELS.API,
+      surface: "agent",
     });
     // The steps as they happen. runAgentTurn throws on abort and its trace goes
     // with it, so an interrupted turn would otherwise be persisted as prose with

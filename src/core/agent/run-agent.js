@@ -258,6 +258,11 @@ export async function runAgent({
   // so the model can only advance (call a tool) or stop (call finish) — it can
   // never end the turn by narrating the next step. Language-agnostic by design.
   completionContract = false,
+  // Tool calls this turn already made in an earlier life of itself, before the
+  // daemon went down mid-run: `[{ tool, args, result }]`. Only a resumed turn
+  // passes any. They seed the side-effect ledger below, which is what stops a
+  // resumed turn re-sending the WhatsApp the cut-off one already sent.
+  priorEffects = [],
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel, preferredModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
@@ -480,7 +485,9 @@ export async function runAgent({
   // short-circuit duplicates with a synthetic "already done" result
   // instead of re-running. Read-only tools are exempt (idempotent and
   // sometimes legitimately repeated, like list_tasks before/after).
-  const sideEffects = createSideEffectLedger();
+  // A resumed turn seeds it with what its previous life already did, so those
+  // calls are "already done" from the first iteration rather than re-run.
+  const sideEffects = createSideEffectLedger({ prior: priorEffects });
 
   // Stuck detection: catches the loops the side-effect dedupe can't — a
   // read-only call repeated with identical results, or the same call erroring
