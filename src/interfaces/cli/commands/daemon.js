@@ -2,9 +2,8 @@ import fs from "node:fs";
 import { PID_PATH, LOG_PATH } from "#core/config/paths.js";
 import { ensureDaemon, http } from "../http.js";
 import { installService, uninstallService, serviceStatus } from "#core/daemon/service.js";
+import { PORT_RELEASE_WAIT_MS } from "#core/constants/shutdown.js";
 
-// Wait until nothing answers on the daemon port (old process fully exited and
-// released it), so a fresh start can bind it. Resolves true when down.
 /** Is the process named by the pid file still alive? */
 function daemonPidAlive() {
   try {
@@ -28,8 +27,24 @@ function daemonPidAlive() {
 // already running" and exited — and the restart then sat waiting for a daemon
 // nobody had managed to start. Waiting on the pid too closes that window; the
 // pid file is only removed by the process that owns it.
-async function waitForPortReleased({ tries = 60, intervalMs = 150 } = {}) {
-  for (let i = 0; i < tries; i++) {
+//
+// How long to wait for the old daemon to let go of the port.
+//
+// This used to be a flat 60 × 150 ms = 9 s, which was comfortably longer than
+// the daemon's whole shutdown — until the shutdown started DRAINING the turns
+// in flight instead of killing them. A daemon with a ten-second turn running
+// now legitimately takes longer than nine seconds to exit, and this loop would
+// report "did not shut down in time" and refuse to start the new one, about a
+// daemon doing exactly what it was asked to do.
+//
+// Derived from the daemon's own hard stop rather than guessed: the watchdog
+// guarantees the process is gone by SHUTDOWN_GRACE_MS, so waiting a little
+// past that is both sufficient and bounded. The interval stays short so the
+// ordinary restart — nothing in flight, port free almost immediately — is not
+// slowed down by the higher ceiling.
+async function waitForPortReleased({ timeoutMs = PORT_RELEASE_WAIT_MS, intervalMs = 150 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
     if (!(await http.ping(200)) && !daemonPidAlive()) return true;
     await new Promise((r) => setTimeout(r, intervalMs));
   }

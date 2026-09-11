@@ -4,3 +4,4 @@ export * from "./channels.js";
 export * from "./roles.js";
 export * from "./actors.js";
 export * from "./code-modes.js";
+export * from "./shutdown.js";
