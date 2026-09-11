@@ -44,6 +44,7 @@ import {
   readProfileTombstones,
   writeProfileTombstones,
   resolvePromptFile,
+  isProjectProfile,
 } from "./store.js";
 import {
   renderProfilePrompt,
@@ -117,8 +118,15 @@ function persistConfigFor(cfg, id, values, { active }) {
   return cfg;
 }
 
-/** Where the super-agent's own routines live (they are not project-scoped). */
-function superAgentStorage() {
+/**
+ * Where the super-agent's own routines live.
+ *
+ * It is the DEFAULT of every routine function below, not a hardcoded value:
+ * a profile activated by a PROJECT installs the same specs into that project's
+ * storage instead, and the scheduler already walks every project, so nothing
+ * else has to change for its routines to fire. See core/profiles/project.js.
+ */
+export function superAgentStorage() {
   return projectStorageRoot(DEFAULT_PROJECT_ID);
 }
 
@@ -449,8 +457,7 @@ function profileOrigin(id) {
 }
 
 /** Install (or refresh) the routines a profile brings. Returns a summary. */
-export function syncProfileRoutines(profile, globalConfig, { enable = true } = {}) {
-  const storage = superAgentStorage();
+export function syncProfileRoutines(profile, globalConfig, { enable = true, storage = superAgentStorage() } = {}) {
   const specs = renderProfileRoutines(profile, globalConfig);
   const existing = listRoutines(storage);
   const origin = profileOrigin(profile.id);
@@ -512,8 +519,7 @@ export function syncProfileRoutines(profile, globalConfig, { enable = true } = {
  * @param {{ only?: string|null }} opts  one routine name, or null for all.
  * @returns {{ readopted: string[] }}
  */
-export function readoptProfileRoutines(profile, globalConfig, { only = null } = {}) {
-  const storage = superAgentStorage();
+export function readoptProfileRoutines(profile, globalConfig, { only = null, storage = superAgentStorage() } = {}) {
   const specs = renderProfileRoutines(profile, globalConfig);
   const existing = listRoutines(storage);
   const origin = profileOrigin(profile.id);
@@ -538,8 +544,7 @@ export function readoptProfileRoutines(profile, globalConfig, { only = null } = 
 }
 
 /** Disable — never delete — the routines a profile installed. */
-export function disableProfileRoutines(profileId) {
-  const storage = superAgentStorage();
+export function disableProfileRoutines(profileId, { storage = superAgentStorage() } = {}) {
   const origin = profileOrigin(profileId);
   const touched = [];
   for (const r of listRoutines(storage)) {
@@ -552,8 +557,7 @@ export function disableProfileRoutines(profileId) {
 }
 
 /** Remove the routines a profile installed, preserving any the user edited. */
-export function removeProfileRoutines(profileId) {
-  const storage = superAgentStorage();
+export function removeProfileRoutines(profileId, { storage = superAgentStorage() } = {}) {
   const origin = profileOrigin(profileId);
   const removed = [];
   const kept = [];
@@ -576,6 +580,12 @@ export function removeProfileRoutines(profileId) {
 export function useProfile(id, { confirmReplace = false } = {}) {
   const profile = readProfile(id);
   if (!profile) throw new Error(`profile "${id}" is not installed — run: apx profile install ${id}`);
+  // A project package activated here would write its routines into the
+  // super-agent's storage and its prompt into the super-agent's head — which is
+  // the mistake this whole second layer exists to prevent.
+  if (isProjectProfile(profile)) {
+    throw new Error(`profile "${id}" belongs to a project, not to the super-agent — run: apx profile use ${id} --project <name>`);
+  }
 
   const cfg = readConfig();
   const state = readProfileState(cfg);

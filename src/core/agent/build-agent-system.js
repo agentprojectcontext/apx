@@ -22,6 +22,8 @@ import {
 } from "./prompt-builder.js";
 import { readJson } from "#core/util/json-file.js";
 import { resolveAgentName } from "../identity/self.js";
+import { readIdentity } from "../identity/index.js";
+import { buildProjectProfileBlock } from "#core/profiles/project.js";
 
 // Cap the injected agent body so an over-long authored file can't blow the
 // token budget. Mirrors PROJECT_AGENTS_MAX_CHARS for AGENTS.md.
@@ -133,9 +135,21 @@ export function buildAgentSystem(project, agent, {
   // project agent gets it (the super-agent, which IS Roby, never does).
   const ownerNotice = buildOwnerNoticeProtocol(agent.slug, projectName(project));
 
+  // How THIS COMPANY operates, when the project runs a profile. It sits before
+  // the agent's own prompt on purpose: shared policy first, the agent's own
+  // words last, so recency belongs to whoever wrote that agent. "" when the
+  // project runs no profile, which keeps the vanilla prompt byte-identical.
+  let companyBlock = "";
+  try {
+    companyBlock = buildProjectProfileBlock(project?.path, readIdentity(), globalConfig);
+  } catch {
+    companyBlock = "";
+  }
+
   return [
     roleBlock,
     profileLines.join("\n"),
+    companyBlock,
     customInstructions,
     userContext,
     memoryBlock,
