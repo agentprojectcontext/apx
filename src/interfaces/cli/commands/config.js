@@ -1,8 +1,12 @@
 // `apx config` — read and edit configuration at either layer.
 //
 // APX has two config layers and this command reaches both:
-//   default            the PROJECT layer, `.apc/config.json` (committed)
-//   --global           the GLOBAL layer, `~/.apx/config.json` (machine-local)
+//   default            the PROJECT layer, `~/.apx/projects/<apx_id>/config.json`
+//   --global           the GLOBAL layer, `~/.apx/config.json`
+//
+// Both are machine-local. The project layer used to be `<repo>/.apc/config.json`
+// and therefore committed, which is why `set` used to warn about credentials;
+// it does not any more, because a key can no longer reach a tracked file.
 //
 // The global branch goes through the daemon's `/api/admin/config` route rather
 // than calling writeConfig() here. That route writes the file AND hot-reloads
@@ -15,7 +19,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { readConfig, writeConfig, CONFIG_PATH } from "#core/config/index.js";
-import { isSecretKey } from "#core/config/redact.js";
 import { DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 function parseValue(raw) {
@@ -29,9 +32,9 @@ function parseValue(raw) {
 }
 
 // `--global` (boolean) or `--scope global|project`. Anything else is a typo
-// worth failing on rather than silently treating as project scope — writing a
-// global key like engines.*.api_key into a committed .apc/config.json is the
-// exact accident this flag exists to prevent.
+// worth failing on rather than silently treating as project scope — a global
+// key like voice.tts.* written into one project's config is read by nothing,
+// and that silent no-op is the accident this flag exists to prevent.
 export function isGlobalScope(flags = {}) {
   if (flags.global) return true;
   if (flags.scope === undefined || flags.scope === null || flags.scope === "") return false;
@@ -74,14 +77,14 @@ export async function cmdConfigShow(args) {
     process.stdout.write(JSON.stringify(data.effective, null, 2) + "\n");
     return;
   }
-  // `--only-overrides` shows just .apc/config.json contents.
+  // `--only-overrides` shows just the project config file's contents.
   // (Was previously `--project` but that collided with the global --project
   // selector flag.)
   if (args.flags["only-overrides"]) {
     process.stdout.write(JSON.stringify(data.project_only, null, 2) + "\n");
     return;
   }
-  console.log(`# .apc/config.json (project-only overrides)`);
+  console.log(`# project config (this project's own values)`);
   console.log(`# path: ${data.project_config_path}`);
   console.log("");
   console.log(JSON.stringify(data.project_only, null, 2));
@@ -105,22 +108,12 @@ export async function cmdConfigSet(args) {
     console.log(`set ${key} = ${JSON.stringify(value)} (global: ${CONFIG_PATH})`);
     return;
   }
-  // Warn, don't block: a project may legitimately override a non-secret key
-  // that trips the heuristic, and refusing would strand that case. But
-  // .apc/config.json is COMMITTED (rule 3), so a credential landing there is a
-  // leak the user needs to hear about before it reaches git — not after.
-  // Never echo the value itself into the warning.
-  if (isSecretKey(key)) {
-    process.stderr.write(
-      `apx: warning: "${key}" looks like a secret, and this writes the project's ` +
-        `.apc/config.json — which is committed to git.\n` +
-        `     Write it to ${CONFIG_PATH} instead:\n` +
-        `       apx config set --global ${key} <value>\n`
-    );
-  }
   const pid = await resolveProjectId(args?.flags?.project);
   await http.patch(`/api/projects/${pid}/config`, { set: { [key]: value } });
-  console.log(`set ${key} = ${JSON.stringify(value)} (project: .apc/config.json)`);
+  // Name the file, not the layer: "project" alone is what made people think a
+  // key here would be committed.
+  const { project_config_path: where } = await http.get(`/api/projects/${pid}/config`);
+  console.log(`set ${key} = ${JSON.stringify(value)} (project: ${where})`);
 }
 
 export async function cmdConfigUnset(args) {
@@ -133,7 +126,8 @@ export async function cmdConfigUnset(args) {
   }
   const pid = await resolveProjectId(args?.flags?.project);
   await http.patch(`/api/projects/${pid}/config`, { unset: [key] });
-  console.log(`unset ${key} (project: .apc/config.json)`);
+  const { project_config_path: where } = await http.get(`/api/projects/${pid}/config`);
+  console.log(`unset ${key} (project: ${where})`);
 }
 
 export function cmdPermission(args = {}) {

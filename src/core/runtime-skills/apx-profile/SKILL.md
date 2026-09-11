@@ -15,7 +15,7 @@ Three words that are easy to confuse. Keep them apart:
 |---|---|---|
 | **profile** | an installable line of work (this skill) | `~/.apx/profiles/`, `config.profile` |
 | **persona** | the super-agent's visible NAME | `~/.apx/identity.json` → `agent_name` |
-| project config | per-project overrides | `.apc/config.json` |
+| project config | per-project overrides | `~/.apx/projects/<apx_id>/config.json` |
 
 Installing and activating are **different operations**. `install` validates a package and
 makes it reachable; `use` is the moment behaviour changes.

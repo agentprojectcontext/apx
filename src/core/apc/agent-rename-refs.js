@@ -29,7 +29,8 @@ import { renameDeliveryAgent } from "#core/stores/deliveries.js";
 import { listCodeSessions, updateCodeSession } from "#core/stores/code-sessions.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 import { readJson, writeJson } from "#core/util/json-file.js";
-import { apcProjectConfigFile } from "./paths.js";
+import { projectConfigFile } from "#core/config/paths.js";
+import { getOrCreateApxId } from "./scaffold.js";
 
 /** Registry entries reach us either as daemon entries (`storagePath`) or as the
  *  `projects.list()` shape (`storage_path`). Accept both, drop the useless. */
@@ -142,10 +143,11 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
     }
   } catch { /* config unreadable — leave it alone */ }
 
-  // 7) The project's own `.apc/config.json`: its telegram override and any
-  //    declarative routine. Project-scoped by definition, so no path matching.
+  // 7) The project's own config (~/.apx/projects/<apx_id>/config.json): its
+  //    telegram override and any declarative routine. Project-scoped by
+  //    definition, so no path matching.
   try {
-    const file = apcProjectConfigFile(project.path);
+    const file = projectConfigFile(project.path, getOrCreateApxId(project.path));
     if (fs.existsSync(file)) {
       const cfg = readJson(file, null);
       let touched = 0;

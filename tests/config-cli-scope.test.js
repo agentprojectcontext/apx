@@ -44,7 +44,7 @@ function installStub() {
       return {
         effective: { super_agent: { model: "acme:demo" } },
         project_only: { super_agent: { model: "acme:local" } },
-        project_config_path: "/path/to/acme/.apc/config.json",
+        project_config_path: "/home/u/.apx/projects/ab12cd34ef56/config.json",
       };
     }
     return {};
@@ -109,7 +109,7 @@ test("cmdConfigSet names the layer it wrote so the file is never a guess", async
   const projectOut = await capture(() =>
     cmdConfigSet({ _: ["super_agent.enabled", "true"], flags: { project: "acme" } })
   );
-  assert.match(projectOut.stdout, /\(project: \.apc\/config\.json\)/);
+  assert.match(projectOut.stdout, /\(project: \/home\/u\/\.apx\/projects\/ab12cd34ef56\/config\.json\)/);
 });
 
 test("cmdConfigSet --global parses JSON values the same way as project scope", async () => {
@@ -119,37 +119,43 @@ test("cmdConfigSet --global parses JSON values the same way as project scope", a
 });
 
 // ---------------------------------------------------------------------------
-// set — credential guard
+// set — the credential question
 //
-// .apc/config.json is committed (rule 3). `apx config set` without --global
-// writes it, so a credential typed without the flag walks into git. The command
-// warns and still proceeds: a project may legitimately override a non-secret
-// key that trips the heuristic.
+// This used to warn: the project layer was `<repo>/.apc/config.json`, so a
+// credential typed without --global walked into git. The file moved to
+// ~/.apx/projects/<apx_id>/config.json, which is machine-local, so the warning
+// is gone and these tests guard the NEW promise instead — a key written to a
+// project is written, silently and safely, and the path printed says where.
 // ---------------------------------------------------------------------------
 
-test("cmdConfigSet warns when a secret is written to the committed project config", async () => {
+test("a secret in project scope is written without a scare, because it cannot reach git", async () => {
   const calls = installStub();
-  const { stderr } = await capture(() =>
+  const { stderr, stdout } = await capture(() =>
     cmdConfigSet({ _: ["engines.openai.api_key", "sk-example"], flags: { project: "acme" } })
   );
-  assert.match(stderr, /looks like a secret/);
-  assert.match(stderr, /committed to git/);
-  assert.match(stderr, /apx config set --global engines\.openai\.api_key/);
-  // Warn-and-proceed: the write still happens.
+  assert.equal(stderr, "", "no warning: the project layer is machine-local now");
   assert.ok(calls.some(([m, p]) => m === "PATCH" && p === "/api/projects/7/config"));
+  assert.doesNotMatch(stdout, /\.apc\//, "and it never claims to have written into the repo");
 });
 
-test("the warning never echoes the secret value", async () => {
+test("the confirmation names the real file, so the layer is never a guess", async () => {
+  installStub();
+  const { stdout } = await capture(() =>
+    cmdConfigSet({ _: ["engines.openai.api_key", "sk-example"], flags: { project: "acme" } })
+  );
+  assert.match(stdout, /\.apx\/projects\/ab12cd34ef56\/config\.json/);
+});
+
+test("the confirmation never echoes the secret value", async () => {
   installStub();
   const { stdout, stderr } = await capture(() =>
     cmdConfigSet({ _: ["engines.openai.api_key", "sk-doNotLeakThis"], flags: { project: "acme" } })
   );
   assert.doesNotMatch(stderr, /doNotLeakThis/);
-  // stdout still confirms the write, and that line is the pre-existing echo.
   assert.match(stdout, /set engines\.openai\.api_key/);
 });
 
-test("cmdConfigSet --global does not warn — the global config is the right home", async () => {
+test("cmdConfigSet --global stays quiet too", async () => {
   installStub();
   const { stderr } = await capture(() =>
     cmdConfigSet({ _: ["engines.openai.api_key", "sk-example"], flags: { global: true } })
@@ -159,20 +165,10 @@ test("cmdConfigSet --global does not warn — the global config is the right hom
 
 test("cmdConfigSet stays quiet for ordinary project keys", async () => {
   installStub();
-  for (const key of ["super_agent.model", "telegram.route_to_agent", "engines.openai.model"]) {
-    const { stderr } = await capture(() => cmdConfigSet({ _: [key, "x"], flags: { project: "acme" } }));
-    assert.equal(stderr, "", `${key} should not warn`);
-  }
-});
-
-test("cmdConfigSet warns when the secret rides inside a parent object value", async () => {
-  // `apx config set engines.openai '{"api_key":"…"}'` puts the credential in
-  // the VALUE, where a leaf-name check would never see it.
-  installStub();
   const { stderr } = await capture(() =>
-    cmdConfigSet({ _: ["engines.openai", '{"api_key":"sk-example"}'], flags: { project: "acme" } })
+    cmdConfigSet({ _: ["super_agent.model", "ollama:llama3"], flags: { project: "acme" } })
   );
-  assert.match(stderr, /looks like a secret/);
+  assert.equal(stderr, "");
 });
 
 // ---------------------------------------------------------------------------
@@ -209,7 +205,7 @@ test("cmdConfigShow --global reads the global route and prints bare JSON on stdo
 test("cmdConfigShow without --global keeps the two-layer project view", async () => {
   installStub();
   const { stdout } = await capture(() => cmdConfigShow({ _: [], flags: { project: "acme" } }));
-  assert.match(stdout, /# \.apc\/config\.json \(project-only overrides\)/);
+  assert.match(stdout, /# project config \(this project's own values\)/);
   assert.match(stdout, /# effective \(global merged with project\)/);
 });
 

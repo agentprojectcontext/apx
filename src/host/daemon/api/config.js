@@ -1,4 +1,5 @@
-// Per-project config (.apc/config.json) — read, full replace, dotted patch.
+// Per-project config (~/.apx/projects/<apx_id>/config.json) — read, full
+// replace, dotted patch. It is machine-local by design: see project-config.js.
 //   GET   /projects/:pid/config        effective + project-only
 //   PUT   /projects/:pid/config        full replace of project-only file
 //   PATCH /projects/:pid/config        { set?: {dotted: value}, unset?: [dotted] }
@@ -7,11 +8,12 @@ import fs from "node:fs";
 import {
   readProjectConfig,
   writeProjectConfig,
+  projectConfigPath,
   setDottedKey,
   unsetDottedKey,
 } from "../project-config.js";
-import { apcProjectFile, apcProjectConfigFile } from "#core/apc/paths.js";
-import { redactConfig, mergeRedactedSecrets, isSecretMarker } from "#core/config/redact.js";
+import { apcProjectFile } from "#core/apc/paths.js";
+import { redactConfig, mergeRedactedSecrets, isSecretMarker, isSecretKey } from "#core/config/redact.js";
 
 const projectJsonPath = apcProjectFile;
 
@@ -27,6 +29,24 @@ function writeProjectJson(root, body) {
   fs.writeFileSync(p, JSON.stringify(body, null, 2) + "\n");
 }
 
+/**
+ * `.apc/project.json` is COMMITTED — it is the portable half of a project, the
+ * part someone else reads in a diff. Nothing that could be a credential may
+ * land there, so the write paths refuse instead of trusting the UI to have
+ * filtered. Anything key-shaped belongs in the project config, which is
+ * machine-local (see project-config.js).
+ */
+function assertNoSecrets(obj, prefix = "") {
+  if (!obj || typeof obj !== "object") return;
+  for (const [key, value] of Object.entries(obj)) {
+    const dotted = prefix ? `${prefix}.${key}` : key;
+    if (isSecretKey(dotted)) {
+      throw new Error(`"${dotted}" can carry a credential and .apc/project.json is committed — put it in the project config instead`);
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) assertNoSecrets(value, dotted);
+  }
+}
+
 export function register(api, { projects, project }) {
   api.get("/projects/:pid/config", (req, res) => {
     const p = project(req, res);
@@ -37,7 +57,7 @@ export function register(api, { projects, project }) {
     res.json({
       effective: redactConfig(p.config || {}),
       project_only: redactConfig(readProjectConfig(p.path)),
-      project_config_path: apcProjectConfigFile(p.path),
+      project_config_path: projectConfigPath(p.path),
       apc_project: readProjectJson(p.path),
       project_json_path: projectJsonPath(p.path),
     });
@@ -85,6 +105,7 @@ export function register(api, { projects, project }) {
     if (typeof body !== "object" || Array.isArray(body))
       return res.status(400).json({ error: "body must be a JSON object" });
     try {
+      assertNoSecrets(body);
       writeProjectJson(p.path, body);
       projects.rebuild(p.id);
       res.json({ ok: true, apc_project: body });
@@ -100,7 +121,13 @@ export function register(api, { projects, project }) {
       const { set, unset } = req.body || {};
       const cfg = readProjectJson(p.path);
       if (set && typeof set === "object") {
-        for (const [k, v] of Object.entries(set)) setDottedKey(cfg, k, v);
+        for (const [k, v] of Object.entries(set)) {
+          if (isSecretKey(k)) {
+            throw new Error(`"${k}" can carry a credential and .apc/project.json is committed — put it in the project config instead`);
+          }
+          assertNoSecrets(v, k);
+          setDottedKey(cfg, k, v);
+        }
       }
       if (Array.isArray(unset)) {
         for (const k of unset) unsetDottedKey(cfg, k);

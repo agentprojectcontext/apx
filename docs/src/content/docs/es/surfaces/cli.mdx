@@ -96,8 +96,8 @@ nunca necesitás iniciar el daemon por separado.
 | `apx project remove <id>` | Elimina una entrada de proyecto del almacenamiento del daemon (no borra archivos). |
 | `apx project rebuild [id]` | Reconstruye el índice del daemon a partir del contexto del sistema de archivos del proyecto. |
 | `apx project config show <project>` | Imprime la configuración efectiva + la específica del proyecto. |
-| `apx project config set <project> <key> <value>` | Establece una clave con notación de puntos en `.apc/config.json`. |
-| `apx project config unset <project> <key>` | Elimina una clave con notación de puntos de `.apc/config.json`. |
+| `apx project config set <project> <key> <value>` | Establece una clave con notación de puntos en la config del proyecto. |
+| `apx project config unset <project> <key>` | Elimina una clave con notación de puntos de la config del proyecto. |
 | `apx project config edit <project>` | Abre la config del proyecto en `$EDITOR` para un reemplazo completo al guardar. |
 
 Mirá [Proyectos](/apx/docs/es/concepts/projects/) para conocer el layout completo de `.apc/`.
@@ -135,7 +135,7 @@ Mirá [Agentes](/apx/docs/es/concepts/agents/).
 
 | Comando | Descripción |
 |---------|-------------|
-| `apx config show [--global] [--effective] [--only-overrides]` | Imprime `.apc/config.json` (o, con `--global`, `~/.apx/config.json`). |
+| `apx config show [--global] [--effective] [--only-overrides]` | Imprime la config del proyecto (o, con `--global`, `~/.apx/config.json`). |
 | `apx config set [--global] <key.path> <value>` | Set con reconocimiento de JSON. `--global` escribe `~/.apx/config.json` — usalo para credenciales, voz y claves del daemon. |
 | `apx config unset [--global] <key.path>` | Elimina una clave del proyecto o, con `--global`, de la config global. |
 | `apx model status` | Chequeo de salud del proveedor + modelo activo desde el router de fallback. |

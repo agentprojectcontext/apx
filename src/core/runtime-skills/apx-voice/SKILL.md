@@ -102,7 +102,7 @@ apx config set --global voice.mobility_replies false   # keep replies text-only 
 }
 ```
 
-`apx config set --global voice.tts.provider <name>` to switch. Voice config is read from the global config, so `--global` is required — without it the value lands in a project's `.apc/config.json` and the voice stack never sees it.
+`apx config set --global voice.tts.provider <name>` to switch. Voice config is read from the global config, so `--global` is required — without it the value lands in one project's config and the voice stack never sees it.
 
 ## Quick setup: Piper local (recommended, no internet)
 

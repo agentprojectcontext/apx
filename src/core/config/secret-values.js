@@ -7,7 +7,7 @@
 // Both layers stay on: key-based redaction catches secrets in structured meta
 // even before registration; value-based masking catches them everywhere else.
 
-import { SECRET_PATHS } from "./redact.js";
+import { concreteSecretPaths } from "./redact.js";
 
 // Never register strings shorter than this — masking "abc" would shred every
 // log line containing those three letters.
@@ -36,16 +36,17 @@ function getDotted(obj, dotted) {
 }
 
 /**
- * Walk a config object and return every secret VALUE it holds: all
- * SECRET_PATHS entries and every telegram channel bot_token. Deduped; empty
- * and too-short strings dropped.
+ * Walk a config object and return every secret VALUE it holds: every path in
+ * the SECRET_PATHS inventory (wildcards resolved against this config, so a
+ * provider the user added under their own slug counts), every telegram channel
+ * bot_token, and every spare-key list. Deduped; empty and too-short strings
+ * dropped.
  */
 export function collectSecretValues(cfg) {
   const out = new Set();
   try {
     if (!cfg || typeof cfg !== "object") return [];
-    for (const dotted of SECRET_PATHS) {
-      if (dotted.includes("*")) continue; // array paths handled below
+    for (const dotted of concreteSecretPaths(cfg)) {
       const val = getDotted(cfg, dotted);
       if (isRegistrable(val)) out.add(val);
     }
@@ -53,6 +54,13 @@ export function collectSecretValues(cfg) {
     if (Array.isArray(channels)) {
       for (const ch of channels) {
         if (isRegistrable(ch?.bot_token)) out.add(ch.bot_token);
+      }
+    }
+    // Spare keys (quota rotation) live in a LIST, which no dotted path can
+    // address — and an unmasked spare is as leaked as an unmasked primary.
+    for (const engine of Object.values(cfg?.engines || {})) {
+      for (const key of Array.isArray(engine?.api_keys) ? engine.api_keys : []) {
+        if (isRegistrable(key)) out.add(key);
       }
     }
   } catch {

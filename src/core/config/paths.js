@@ -172,3 +172,32 @@ export function ensureProjectStorage(apxId) {
   fs.mkdirSync(root, { recursive: true });
   return root;
 }
+
+// ---------------------------------------------------------------------------
+// Per-project config.
+//
+// This lives in the project's STORAGE, not in its repo. `.apc/config.json` —
+// the old home — is a committed path, so a single `apx config set
+// engines.x.api_key …` run inside a project staged the credential for the next
+// push. Keeping the file machine-local means no scope mistake can leak a key,
+// and `.apc/` stays what it claims to be: the portable, reviewable half.
+//
+// Reading and writing it (including the one-time move of a legacy file) is
+// host/daemon/project-config.js. This module only answers "where".
+// ---------------------------------------------------------------------------
+
+/** The committed location the project config used to have. Read-only now. */
+export function legacyProjectConfigFile(projectRoot) {
+  return path.join(projectRoot, ".apc", "config.json");
+}
+
+/**
+ * Where a project's config lives, given its stable storage id. A project with
+ * no id yet (not registered, or a bare directory in a test) has no storage to
+ * point at, so the legacy path stays its answer rather than inventing one.
+ */
+export function projectConfigFile(projectRoot, apxId) {
+  const id = typeof apxId === "string" ? apxId.trim() : "";
+  if (!id) return legacyProjectConfigFile(projectRoot);
+  return path.join(projectStorageRoot(id), "config.json");
+}

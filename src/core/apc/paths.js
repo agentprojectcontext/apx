@@ -11,7 +11,6 @@ import path from "node:path";
 // Raw names — exported for the rare caller that needs to glob/match by name.
 const APC_DIR = ".apc";
 const APC_PROJECT_FILE = "project.json";
-const APC_PROJECT_CONFIG_FILE = "config.json";
 const APC_PROJECT_MEMORY_FILE = "memory.md";
 const APC_AGENTS_DIR = "agents";
 const APC_SKILLS_DIR = "skills";
@@ -32,9 +31,10 @@ export function apcProjectFile(root) {
   return path.join(root, APC_DIR, APC_PROJECT_FILE);
 }
 
-export function apcProjectConfigFile(root) {
-  return path.join(root, APC_DIR, APC_PROJECT_CONFIG_FILE);
-}
+// There is deliberately NO builder for `.apc/config.json` here: the per-project
+// config is machine-local state and lives in the project's storage, not in the
+// repo (see core/config/paths.js → projectConfigFile). `.apc/` is the portable,
+// reviewable half — nothing in it may hold a credential.
 
 export function apcAgentsDir(root) {
   return path.join(root, APC_DIR, APC_AGENTS_DIR);

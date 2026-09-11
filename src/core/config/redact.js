@@ -10,11 +10,11 @@
 const SECRET_MARKER_PREFIX = "*** set ***";
 
 export const SECRET_PATHS = [
-  "engines.anthropic.api_key",
-  "engines.openai.api_key",
-  "engines.groq.api_key",
-  "engines.openrouter.api_key",
-  "engines.gemini.api_key",
+  // Every provider, not a list of the five that shipped first. Engines are an
+  // object keyed by SLUG and the web panel lets you add your own, so naming
+  // them one by one meant a user-added provider's key was served in clear text
+  // by /admin/config and /projects/:pid/config — `zen` was, for months.
+  "engines.*.api_key",
   "voice.tts.elevenlabs.api_key",
   "voice.tts.openai.api_key",
   "voice.tts.gemini.api_key",
@@ -28,11 +28,11 @@ export const SECRET_PATHS = [
   // Telegram bot tokens live inside an array — handled separately in redact()
   // because dotted paths can't address array entries.
   "telegram.channels.*.bot_token",
-  // Same problem: engines.gemini.api_keys is a LIST of spare keys (quota
+  // Same problem: engines.<slug>.api_keys is a LIST of spare keys (quota
   // rotation). A dotted path cannot reach into it, so redact() handles it
   // below. Listed here so the "which keys are secrets" question still has one
   // answer to read.
-  "engines.gemini.api_keys.*",
+  "engines.*.api_keys.*",
   // User-added providers live in an object keyed by slug, so the segment in
   // the middle is a wildcard. redact() walks these too — see expandWildcards.
   "voice.tts.custom.*.api_key",
@@ -68,8 +68,14 @@ function expandWildcards(cfg, pattern) {
   return paths.map((p) => p.join("."));
 }
 
-/** Every concrete secret path present in `cfg`, wildcards resolved. */
-function concreteSecretPaths(cfg) {
+/**
+ * Every concrete secret path present in `cfg`, wildcards resolved. Exported
+ * because the value-based log masker asks the same question of the same
+ * inventory — when it answered it on its own it simply SKIPPED every wildcard
+ * pattern, so the day `engines.*.api_key` replaced five literal paths, no
+ * engine key was registered for masking any more.
+ */
+export function concreteSecretPaths(cfg) {
   const out = [];
   for (const pattern of SECRET_PATHS) {
     if (!pattern.includes("*")) { out.push(pattern); continue; }
@@ -81,15 +87,15 @@ function concreteSecretPaths(cfg) {
 }
 
 // Leaf names that carry a secret even when the full path is not in
-// SECRET_PATHS yet — a provider added after this list was last touched still
+// SECRET_PATHS yet — a subsystem added after this list was last touched still
 // gets caught. Deliberately narrow: `base_url`, `model` and `provider` are the
-// keys that legitimately belong in a committed project config.
+// keys that legitimately belong in a committed file.
 const SECRET_LEAF_RE = /(^|_)(api_?keys?|tokens?|secrets?|passwords?|credentials?)$/;
 
 /**
- * True when a dotted config key addresses a secret — used to warn before a
- * credential is written somewhere it should not be (a committed
- * `.apc/config.json`). Three ways to match, in order of confidence:
+ * True when a dotted config key addresses a secret — used to keep a credential
+ * out of a committed file (`.apc/project.json`) and out of logs. Three ways to
+ * match, in order of confidence:
  *
  *   1. the key IS a secret path             engines.openai.api_key
  *   2. the key is an ANCESTOR of one        engines.openai  ← value holds api_key
@@ -155,11 +161,10 @@ export function redactConfig(cfg) {
       }
     }
   }
-  // Spare Gemini keys. Missing this would have served every one of them in
-  // clear text to anyone who opened Settings → Engines.
-  const spareKeys = out?.engines?.gemini?.api_keys;
-  if (Array.isArray(spareKeys)) {
-    out.engines.gemini.api_keys = spareKeys.map(mark);
+  // Spare keys (quota rotation). Missing this would have served every one of
+  // them in clear text to anyone who opened Settings → Engines.
+  for (const engine of Object.values(out?.engines || {})) {
+    if (engine && Array.isArray(engine.api_keys)) engine.api_keys = engine.api_keys.map(mark);
   }
   return out;
 }
@@ -204,15 +209,15 @@ export function mergeRedactedSecrets(next, prior) {
   if (Array.isArray(nextChannels)) {
     next.telegram.channels = mergeRedactedChannels(nextChannels, prior?.telegram?.channels);
   }
-  // Spare Gemini keys. Without this, opening Settings → Engines and pressing
-  // Save would write the redaction MARKERS over the real keys and silently
-  // empty the rotation pool. Matched by position, which is the only identity
-  // an entry in this list has.
-  const nextSpare = next?.engines?.gemini?.api_keys;
-  if (Array.isArray(nextSpare)) {
-    const priorSpare = Array.isArray(prior?.engines?.gemini?.api_keys)
-      ? prior.engines.gemini.api_keys : [];
-    next.engines.gemini.api_keys = nextSpare.map((v, i) =>
+  // Spare keys. Without this, opening Settings → Engines and pressing Save
+  // would write the redaction MARKERS over the real keys and silently empty the
+  // rotation pool. Matched by position, which is the only identity an entry in
+  // this list has.
+  for (const [slug, engine] of Object.entries(next?.engines || {})) {
+    if (!engine || !Array.isArray(engine.api_keys)) continue;
+    const priorSpare = Array.isArray(prior?.engines?.[slug]?.api_keys)
+      ? prior.engines[slug].api_keys : [];
+    engine.api_keys = engine.api_keys.map((v, i) =>
       isSecretMarker(v) && typeof priorSpare[i] === "string" && priorSpare[i] ? priorSpare[i] : v);
   }
   return next;

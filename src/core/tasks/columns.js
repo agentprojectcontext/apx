@@ -93,7 +93,7 @@ export function readColumnCatalog(globalConfig) {
  * behaviour, and a board that starts empty would look broken.
  *
  * @param {object} globalConfig
- * @param {object} projectConfig  the project's own `.apc/config.json`
+ * @param {object} projectConfig  the project's own config (see project-config.js)
  * @returns {{id: string, label: string|null}[]}
  */
 export function projectColumns(globalConfig, projectConfig) {

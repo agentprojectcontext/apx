@@ -1,19 +1,23 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { FolderLock, RefreshCw, Trash2 } from "lucide-react";
 import { Projects } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Button, Dialog, Empty, Loading, Textarea } from "../../components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { ConfigTabsEditor } from "../../components/config/ConfigTabsEditor";
-import { apcProjectSections, projectSettingsSections, projectEnginesSections } from "../../components/config/project-config-sections";
+import { ConfigFieldControl, type ConfigSection } from "../../components/config/ConfigTabsEditor";
+import { apcProjectFields, projectBehaviourFields } from "../../components/config/project-config-sections";
+import { ProjectModelsTab } from "../../components/config/ProjectModelsTab";
 import { TelegramTab } from "./TelegramTab";
 import { useToast } from "../../components/Toast";
 import { useProject } from "../../hooks/useProjects";
-import { flattenObject, parseConfigJson } from "../../lib/config-values";
+import { flattenObject, getDotted, parseConfigJson } from "../../lib/config-values";
 import { isSecretMarker } from "../../lib/secrets";
 import { t } from "../../i18n";
+
+const TABS = ["project", "models", "telegram", "json"] as const;
+type TabKey = (typeof TABS)[number];
 
 export function ConfigTab({ pid }: { pid: string }) {
   const toast = useToast();
@@ -21,6 +25,19 @@ export function ConfigTab({ pid }: { pid: string }) {
   const { project, mutate: mutateProject } = useProject(pid);
   const cfg = useSWR(`/api/projects/${pid}/config`, () => Projects.config.show(pid));
   const isBase = String(pid) === "0";
+
+  // The tab lives in the URL so a view is linkable, survives a reload, and the
+  // back button walks the tabs you actually opened.
+  const [params, setParams] = useSearchParams();
+  const raw = params.get("tab");
+  const tab: TabKey = TABS.includes(raw as TabKey) && !(isBase && raw === "telegram")
+    ? (raw as TabKey)
+    : "project";
+  const setTab = (next: string) => {
+    const p = new URLSearchParams(params);
+    p.set("tab", next);
+    setParams(p, { replace: true });
+  };
 
   if (cfg.isLoading) return <Loading />;
   if (!cfg.data) return <Empty>{t("project.config.no_data")}</Empty>;
@@ -31,14 +48,14 @@ export function ConfigTab({ pid }: { pid: string }) {
     cfg.mutate();
   };
 
-  const saveOverrideJson = async (next: Record<string, unknown>) => {
+  const saveConfigJson = async (next: Record<string, unknown>) => {
     await Projects.config.put(pid, next);
     toast.success(t("project.config.save_override"));
     cfg.mutate();
   };
 
-  const saveOverrideFields = async (set: Record<string, unknown>, unset: string[]) => {
-    await Projects.config.set(pid, set);
+  const saveConfigFields = async (set: Record<string, unknown>, unset: string[]) => {
+    if (Object.keys(set).length) await Projects.config.set(pid, set);
     if (unset.length) await Projects.config.unset(pid, unset);
     toast.success(t("project.config.save_fields_success"));
     cfg.mutate();
@@ -47,41 +64,33 @@ export function ConfigTab({ pid }: { pid: string }) {
   return (
     <div className="space-y-6">
       <Section title={t("project.config.section_title")} description={t("project.config.section_desc")}>
-        {/* Project first: it is what the project IS — its name and its type —
-            and it was buried behind three tabs of routing and provider keys,
-            which is why nobody could find where to edit a project. Then the
-            things you tune, then the raw file. */}
-        <Tabs defaultValue={isBase ? "settings" : "project"} className="space-y-4">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="flex flex-wrap">
-            {!isBase && <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>}
-            <TabsTrigger value="settings">{t("project.config.tab_settings")}</TabsTrigger>
-            <TabsTrigger value="engines">{t("settings_ui.cfg_engines_label")}</TabsTrigger>
+            <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>
+            <TabsTrigger value="models">{t("settings.tabs.engines")}</TabsTrigger>
             {!isBase && <TabsTrigger value="telegram">{t("project.nav.telegram")}</TabsTrigger>}
-            {isBase && <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>}
             <TabsTrigger value="json">JSON</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings">
-            <ConfigTabsEditor
-              sections={projectSettingsSections()}
-              source={cfg.data.project_only}
-              placeholderSource={cfg.data.effective}
-              jsonTitle={cfg.data.project_config_path}
-              onSaveFields={saveOverrideFields}
-              onSaveJson={saveOverrideJson}
-              hideJson
+          {/* Everything about the project itself: what it is, and how its agents
+              are allowed to behave. Two files behind one form — which one a
+              field lands in is our problem, not the reader's. */}
+          <TabsContent value="project">
+            <ProjectPanel
+              pid={pid}
+              isBase={isBase}
+              meta={cfg.data.apc_project || {}}
+              projectOnly={cfg.data.project_only}
+              effective={cfg.data.effective}
+              onSaved={() => cfg.mutate()}
             />
           </TabsContent>
 
-          <TabsContent value="engines">
-            <ConfigTabsEditor
-              sections={projectEnginesSections()}
-              source={cfg.data.project_only}
-              placeholderSource={cfg.data.effective}
-              jsonTitle={cfg.data.project_config_path}
-              onSaveFields={saveOverrideFields}
-              onSaveJson={saveOverrideJson}
-              hideJson
+          <TabsContent value="models">
+            <ProjectModelsTab
+              projectOnly={cfg.data.project_only}
+              effective={cfg.data.effective}
+              onSaveFields={saveConfigFields}
             />
           </TabsContent>
 
@@ -91,41 +100,20 @@ export function ConfigTab({ pid }: { pid: string }) {
             </TabsContent>
           )}
 
-          <TabsContent value="project">
-            <ConfigTabsEditor
-              sections={apcProjectSections()}
-              source={cfg.data.apc_project || {}}
-              jsonTitle={cfg.data.project_json_path}
-              onSaveFields={async (set, unset) => {
-                await Projects.apcProject.set(pid, cleanSet(set), unset);
-                toast.success(t("project.config.save_meta_success"));
-                cfg.mutate();
-              }}
-              onSaveJson={saveProjectJson}
-              hideJson
-            />
-          </TabsContent>
-
           <TabsContent value="json">
             <div className="space-y-6">
               <JsonEditor
                 title={cfg.data.project_config_path}
-                description=".apc/config.json — overrides del proyecto."
+                description={t("project.config.json_config_desc")}
                 source={cfg.data.project_only}
-                onSave={saveOverrideJson}
+                onSave={saveConfigJson}
               />
               <JsonEditor
                 title={cfg.data.project_json_path}
-                description=".apc/project.json — metadata APC portable."
+                description={t("project.config.json_meta_desc")}
                 source={cfg.data.apc_project || {}}
                 onSave={saveProjectJson}
               />
-              <div className="space-y-2">
-                <p className="text-xs text-muted-fg">{t("project.config.effective_read")}</p>
-                <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-xs">
-                  {JSON.stringify(cfg.data.effective, null, 2)}
-                </pre>
-              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -139,6 +127,113 @@ export function ConfigTab({ pid }: { pid: string }) {
           onUnregistered={() => { mutateProject(); navigate("/"); }}
         />
       ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Project panel — identity (.apc/project.json) + behaviour (project config).
+//
+// One draft, one Save. The split between a committed metadata file and a
+// machine-local config file is real and load-bearing, but it is OUR bookkeeping:
+// making someone find "permission mode" in a different tab from "name" is the
+// implementation leaking into the screen.
+// ---------------------------------------------------------------------------
+
+function ProjectPanel({
+  pid,
+  isBase,
+  meta,
+  projectOnly,
+  effective,
+  onSaved,
+}: {
+  pid: string;
+  isBase: boolean;
+  meta: Record<string, unknown>;
+  projectOnly: Record<string, unknown>;
+  effective: Record<string, unknown>;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  // The base project has no type to pick — it is the super-agent's own store,
+  // and "default" is not one of the kinds you can choose.
+  const identity: ConfigSection = useMemo(() => {
+    const s = apcProjectFields();
+    return isBase ? { ...s, fields: s.fields.filter((f) => f.path !== "kind") } : s;
+  }, [isBase]);
+  const behaviour = useMemo(() => projectBehaviourFields(), []);
+
+  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  useEffect(() => {
+    const next: Record<string, unknown> = {};
+    for (const f of identity.fields) next[`meta:${f.path}`] = getDotted(meta, f.path) ?? "";
+    for (const f of behaviour.fields) next[`cfg:${f.path}`] = getDotted(projectOnly, f.path) ?? "";
+    setDraft(next);
+  }, [meta, projectOnly, identity, behaviour]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const metaSet: Record<string, unknown> = {};
+      const metaUnset: string[] = [];
+      for (const f of identity.fields) {
+        const v = draft[`meta:${f.path}`];
+        if (isSecretMarker(v)) continue;
+        if (v === "" || v === undefined || v === null) metaUnset.push(f.path);
+        else metaSet[f.path] = v;
+      }
+      const cfgSet: Record<string, unknown> = {};
+      const cfgUnset: string[] = [];
+      for (const f of behaviour.fields) {
+        const v = draft[`cfg:${f.path}`];
+        if (isSecretMarker(v)) continue;
+        if (v === "" || v === undefined || v === null) cfgUnset.push(f.path);
+        else cfgSet[f.path] = v;
+      }
+
+      if (Object.keys(metaSet).length || metaUnset.length) {
+        await Projects.apcProject.set(pid, cleanSet(metaSet), metaUnset);
+      }
+      if (Object.keys(cfgSet).length) await Projects.config.set(pid, cfgSet);
+      if (cfgUnset.length) await Projects.config.unset(pid, cfgUnset);
+
+      toast.success(t("project.config.save_fields_success"));
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const group = (section: ConfigSection, prefix: "meta" | "cfg", inheritFrom?: Record<string, unknown>) => (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-medium">{section.label}</h3>
+        {section.description && <p className="text-xs text-muted-fg">{section.description}</p>}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {section.fields.map((field) => (
+          <ConfigFieldControl
+            key={field.path}
+            field={field}
+            value={draft[`${prefix}:${field.path}`]}
+            inherited={inheritFrom ? getDotted(inheritFrom, field.path) : undefined}
+            onChange={(value) => setDraft((prev) => ({ ...prev, [`${prefix}:${field.path}`]: value }))}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {group(identity, "meta")}
+      <div className="border-t border-border pt-5">{group(behaviour, "cfg", effective)}</div>
+      <Button variant="primary" loading={busy} onClick={save}>{t("common.save")}</Button>
     </div>
   );
 }
@@ -258,8 +353,10 @@ function DangerZone({
   );
 }
 
-// Raw JSON editor for one config file (redacted secrets echo back untouched —
-// the daemon restores real values on save).
+// Raw JSON editor for one config file. Validates on every keystroke rather than
+// on submit: a save that fails because of a trailing comma, after the textarea
+// has already been reset by a re-render, is how you lose a paragraph of typing.
+// Redacted secrets echo back untouched — the daemon restores real values on save.
 function JsonEditor({
   title,
   description,
@@ -280,6 +377,16 @@ function JsonEditor({
     setError("");
   }, [source]);
 
+  const validate = (text: string) => {
+    setRaw(text);
+    try {
+      parseConfigJson(text);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
   const save = async () => {
     setError("");
     setBusy(true);
@@ -295,12 +402,20 @@ function JsonEditor({
   return (
     <div className="space-y-2">
       <div>
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-medium">
+          <FolderLock size={13} className="text-muted-fg" />
+          <span className="font-mono">{title}</span>
+        </h3>
         {description && <p className="text-xs text-muted-fg">{description}</p>}
       </div>
-      <Textarea rows={14} className="font-mono text-xs" value={raw} onChange={(e) => setRaw(e.target.value)} />
+      <Textarea
+        rows={14}
+        className={`font-mono text-xs ${error ? "border-destructive" : ""}`}
+        value={raw}
+        onChange={(e) => validate(e.target.value)}
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      <Button variant="primary" loading={busy} onClick={save}>{t("settings_ui.save_json")}</Button>
+      <Button variant="primary" loading={busy} disabled={!!error} onClick={save}>{t("settings_ui.save_json")}</Button>
     </div>
   );
 }

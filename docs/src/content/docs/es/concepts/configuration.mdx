@@ -1,6 +1,6 @@
 ---
 title: Configuración
-description: La config global ~/.apx/config.json, identity.json, la .apc/config.json a nivel de proyecto, y los comandos para leerlas y escribirlas.
+description: La config global ~/.apx/config.json, identity.json, la config a nivel de proyecto, y los comandos para leerlas y escribirlas.
 sidebar:
   order: 6
 ---
@@ -101,10 +101,16 @@ Cambiá `name` para darle a tu asistente un nombre distinto en todas las superfi
 Desktop, Web). La clave técnica de config `super_agent.name` es algo aparte — `identity.json` es
 lo que ven los usuarios finales.
 
-## Config de proyecto — `.apc/config.json`
+## Config de proyecto — `~/.apx/projects/<apx_id>/config.json`
 
-Los overrides a nivel de proyecto se commitean junto a las definiciones de los agentes. Tienen prioridad sobre
-la config global sólo para ese proyecto. **Nunca pongas secretos acá** — este archivo se commitea.
+Los valores a nivel de proyecto tienen prioridad sobre la config global, sólo para ese proyecto.
+El archivo vive en el storage del proyecto, **no** en su repo: antes era `.apc/config.json`, que
+se commitea, así que equivocarse de scope podía dejar una api key lista para el próximo push.
+Acá las claves están seguras. Los proyectos configurados antes de la mudanza se migran la
+primera vez que el daemon los lee — el archivo viejo se mueve, no se copia.
+
+En `.apc/` queda la mitad portable — `project.json`, agentes, skills, organization — y el daemon
+se niega a escribir ahí cualquier cosa con forma de credencial.
 
 ```json
 {
@@ -134,7 +140,7 @@ la config global sólo para ese proyecto. **Nunca pongas secretos acá** — est
   </TabItem>
   <TabItem label="Project">
     ```bash
-    apx config show                   # overrides de .apc/config.json + la config efectiva
+    apx config show                   # lo propio de este proyecto + la config efectiva
     apx config show --effective       # sólo la config efectiva combinada
     apx config show --only-overrides  # sólo los overrides del proyecto
 
@@ -182,22 +188,15 @@ apx config set --global engines.openai.api_key "sk-..."
 apx config unset --global super_agent.model         # borra la clave y vuelve al default
 ```
 
-<Aside type="danger">
-  Pasá siempre `--global` para cualquier cosa secreta. Sin el flag, el valor termina en el
-  `.apc/config.json` del proyecto, que **se commitea** — y los subsistemas que leen la config
-  global (la voz, el daemon, el router de modelos) no lo van a ver.
-
-  APX avisa cuando reconoce una credencial yendo a la capa de proyecto:
+<Aside type="caution">
+  Pasá `--global` para lo que use toda la máquina. Las dos capas son locales a esta máquina, así
+  que una clave en cualquiera de las dos está a salvo de git — pero un subsistema que sólo lee la
+  global (la voz, el daemon, el router de modelos) no va a ver un valor que dejaste en un proyecto.
 
   ```
-  apx: warning: "engines.openai.api_key" looks like a secret, and this writes the
-       project's .apc/config.json — which is committed to git.
-       Write it to ~/.apx/config.json instead:
-         apx config set --global engines.openai.api_key <value>
+  apx config set --global engines.openai.api_key <value>   # todos los proyectos, todo subsistema
+  apx config set engines.openai.api_key <value>            # sólo este proyecto
   ```
-
-  La escritura igual se hace — el aviso no bloquea a un proyecto que realmente necesite esa
-  clave. Tomalo como recordatorio para volver a correrlo con `--global`.
 </Aside>
 
 Los overrides de proyecto son el caso por defecto, así que no llevan flag. Dentro del proyecto:
@@ -267,5 +266,5 @@ apx permission set permiso                          # only allowed_tools
 
 ## Próximo
 
-- [Proyectos](/apx/docs/es/concepts/projects/) — config por proyecto en `.apc/config.json`.
+- [Proyectos](/apx/docs/es/concepts/projects/) — config por proyecto y dónde vive.
 - [Instalación](/apx/docs/es/start/installation/) — dónde se crea por primera vez `~/.apx/`.

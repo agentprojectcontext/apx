@@ -122,7 +122,7 @@ apx project rebuild <id|name|path>  # re-scan .apc/ from disk (use after moving 
 
 ### Config por proyecto
 
-La configuración a nivel de proyecto vive en `.apc/config.json` y sobrescribe la global
+La configuración a nivel de proyecto vive en `~/.apx/projects/<apx_id>/config.json` y sobrescribe la global
 `~/.apx/config.json` sólo para ese proyecto. Usá sintaxis de claves con puntos:
 
 ```bash
@@ -138,8 +138,9 @@ apx project config edit <project>                          # open $EDITOR on the
 Cada escritura dispara un reload del daemon — no hace falta reiniciar.
 
 <Aside type="caution">
-  No pongas secretos en `.apc/config.json` — se commitea. Las API keys y los tokens corresponden a
-  `~/.apx/config.json` (local a la máquina) o al scope de MCP de runtime.
+  No pongas secretos en `.apc/project.json` — ese sí se commitea, y el daemon rechaza las claves
+  con forma de credencial. La config de proyecto de arriba y `~/.apx/config.json` son las dos
+  locales a la máquina, y son donde corresponde una clave.
 </Aside>
 
 ## Resolviendo el argumento `<project>`

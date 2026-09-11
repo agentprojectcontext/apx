@@ -122,8 +122,9 @@ apx project rebuild <id|name|path>  # re-scan .apc/ from disk (use after moving 
 
 ### Per-project config
 
-Project-level configuration lives in `.apc/config.json` and overrides the global
-`~/.apx/config.json` for that project only. Use dotted-key syntax:
+Project-level configuration lives in `~/.apx/projects/<apx_id>/config.json` and overrides the
+global `~/.apx/config.json` for that project only. It is machine-local — never in the repo — so
+a provider key set here cannot be committed. Use dotted-key syntax:
 
 ```bash
 apx project config show <project>                          # merged effective + project-only view
@@ -138,8 +139,9 @@ apx project config edit <project>                          # open $EDITOR on the
 Every write triggers a daemon reload — no restart needed.
 
 <Aside type="caution">
-  Do not put secrets in `.apc/config.json` — it is committed. API keys and tokens belong in
-  `~/.apx/config.json` (machine-local) or in the runtime MCP scope.
+  Do not put secrets in `.apc/project.json` — that one IS committed, and the daemon refuses
+  credential-shaped keys there. The project config above, and `~/.apx/config.json`, are both
+  machine-local and are where a key belongs.
 </Aside>
 
 ## Resolving the `<project>` argument
