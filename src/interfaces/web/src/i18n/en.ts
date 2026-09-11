@@ -505,6 +505,9 @@ export const en = {
       kind_cooldown: "Minimum gap per kind (minutes)",
       critical_bypass: "Critical messages may bypass the budget",
       critical_bypass_hint: "Bypasses are always recorded and flagged.",
+      critical_bypass_quiet: "Critical messages may also wake you during quiet hours",
+      critical_bypass_quiet_hint:
+        "A separate permission from the one above. Off means nothing crosses the quiet window unless you asked for it.",
       log_title: "What it has sent",
       log_subtitle: "Unrequested messages only, newest first. Your rating feeds back into what it sends next.",
       log_empty: "Nothing sent unprompted yet.",

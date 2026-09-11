@@ -8,6 +8,7 @@ export type NudgePolicy = {
   project_cooldown_minutes: number;
   kind_cooldown_minutes: number;
   critical_bypasses_budget: boolean;
+  critical_bypasses_quiet_hours: boolean;
 };
 
 export type NudgeEntry = {
