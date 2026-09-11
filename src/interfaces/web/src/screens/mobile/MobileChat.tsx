@@ -71,6 +71,9 @@ export function MobileChat({
         bare
         compact
         hideSidebar
+        /* Same reason as the inbox: the list this came from is every project's
+           at once, so the chat it opens has to keep saying which one. */
+        showProject
         /* No channel scope: the list this chat was opened from shows every
            channel, so scoping the session picker to `web` meant the thread you
            are actually reading — a WhatsApp one, say — was missing from its own

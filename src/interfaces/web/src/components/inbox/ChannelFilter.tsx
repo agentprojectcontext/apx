@@ -1,29 +1,14 @@
-import { ListFilter, Check } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { channelLabel } from "../../lib/channels";
-import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator,
-} from "../ui/dropdown-menu";
+import { OptionFilter } from "./OptionFilter";
 import { t } from "../../i18n";
 
 /**
  * Which channels this device wants to see — as a picker, not a strip.
  *
- * It shipped as a row of chips, one per channel, and on a real install that is
- * eleven of them: the row ran off the edge of both the inbox rail (288px) and
- * the phone, so the filters were there and could not be found. A strip only
- * works when the whole set fits, and this set grows with every surface APX
- * learns to speak on.
- *
- * So: one small trigger that says how many are on out of how many exist, and
- * a menu of switches behind it. `closeOnClick` is false on a checkbox item in
- * Base UI, which is what makes this a multi-select — tick three, see the list
- * change under the open menu, then dismiss.
- *
- * The count on the trigger is the whole point of the control being collapsed:
- * "6 of 11" says a filter is on without opening anything, which a chip row
- * only says if you can see all of it.
+ * The layout and the reasoning behind it live in `OptionFilter`, which the
+ * project filter beside this one shares: same menu, other question. All that
+ * is channel-specific is the vocabulary.
  */
 export function ChannelFilter({
   channels,
@@ -44,63 +29,20 @@ export function ChannelFilter({
   className?: string;
   testIdPrefix?: string;
 }) {
-  if (channels.length < 2) return null; // nothing to choose between
-  const on = channels.filter(enabled).length;
-  const all = on === channels.length;
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        data-testid={`${testIdPrefix}-filter`}
-        aria-label={t("channels.filter")}
-        className={cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-          // A filter that is DOING something looks different from one that is
-          // not: all-on is the resting state, anything else is a live filter.
-          all
-            ? "border-border text-muted-fg hover:bg-muted/50 hover:text-foreground"
-            : "border-primary/40 bg-primary/10 text-primary",
-          "data-[popup-open]:bg-muted data-[popup-open]:text-foreground",
-          className,
-        )}
-      >
-        <ListFilter className="size-3.5" />
-        {t("channels.filter")}
-        <span className={cn("tabular-nums", all && "opacity-60")}>
-          {all ? t("channels.all") : t("channels.n_of_m", { n: on, total: channels.length })}
-        </span>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="start" sideOffset={6} className="max-h-80 w-56 overflow-y-auto">
-        {channels.map((channel) => (
-          <DropdownMenuCheckboxItem
-            key={channel}
-            data-testid={`${testIdPrefix}-option-${channel}`}
-            checked={enabled(channel)}
-            onCheckedChange={() => onToggle(channel)}
-          >
-            <span className="truncate">{channelLabel(channel)}</span>
-            {counts?.[channel] ? (
-              <span className="ml-auto pr-4 text-xs tabular-nums text-muted-fg">{counts[channel]}</span>
-            ) : null}
-          </DropdownMenuCheckboxItem>
-        ))}
-
-        {onSetAll && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid={`${testIdPrefix}-all`}
-              closeOnClick={false}
-              onClick={() => onSetAll(!all)}
-            >
-              <Check className="size-3.5 opacity-60" />
-              {all ? t("channels.none") : t("channels.select_all")}
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <OptionFilter
+      label={t("channels.filter")}
+      options={channels.map((channel) => ({
+        value: channel,
+        label: channelLabel(channel),
+        count: counts?.[channel],
+      }))}
+      enabled={enabled}
+      onToggle={onToggle}
+      onSetAll={onSetAll}
+      className={className}
+      testIdPrefix={testIdPrefix}
+    />
   );
 }
 

@@ -4,8 +4,11 @@ import type { InboxRow } from "../../lib/api/inbox";
 import { t } from "../../i18n";
 import { InboxRowItem } from "./InboxRowItem";
 import { ChannelFilter } from "./ChannelFilter";
+import { ProjectFilter } from "./ProjectFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
+import { projectEnabledIn, projectsOf } from "../../lib/provenance";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
+import { useProjectPrefs } from "../../hooks/useProjectPrefs";
 
 /**
  * The conversation rail: every agent as a chat, most recent first.
@@ -55,6 +58,7 @@ export function InboxList({
 }) {
   const [q, setQ] = useState("");
   const view = useChannelPrefs("view");
+  const scope = useProjectPrefs();
 
   // Every channel this install actually has, and how many rows each holds —
   // computed BEFORE the filter, or a channel would vanish from its own switch
@@ -69,15 +73,21 @@ export function InboxList({
     return out;
   }, [rows]);
 
+  // Which projects the rows come FROM — same computation, other axis, and
+  // computed before the filter for the same reason.
+  const projects = useMemo(() => projectsOf(rows), [rows]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const shown = rows.filter((r) => channelEnabledIn(view.prefs, "view", r.channel));
+    const shown = rows.filter(
+      (r) => channelEnabledIn(view.prefs, "view", r.channel) && projectEnabledIn(scope.prefs, r.project_id),
+    );
     if (!needle) return shown;
     return shown.filter((r) =>
       [r.agent_name, r.agent_slug, r.project_name, r.preview, r.channel]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle)));
-  }, [rows, q, view.prefs]);
+  }, [rows, q, view.prefs, scope.prefs]);
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-r border-border sm:w-72" data-testid="inbox-list">
@@ -107,11 +117,14 @@ export function InboxList({
         {action}
       </div>
 
-      {/* Which channels this DEVICE wants to see. One picker, not a strip: on a
-          real install there are eleven channels and the rail is 288px wide, so
-          a chip row ran off the edge and the filters could not be found. */}
-      {channels.length > 1 && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
+      {/* Two pickers, not a strip: on a real install there are eleven channels
+          and the rail is 288px wide, so a chip row ran off the edge and the
+          filters could not be found. Side by side because they answer the two
+          halves of "which conversations" — where one happened, and which
+          project it came from. Each hides itself when there is only one of it
+          to choose between. */}
+      {(channels.length > 1 || projects.length > 1) && (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
           <ChannelFilter
             channels={channels}
             counts={counts}
@@ -120,16 +133,32 @@ export function InboxList({
             onSetAll={(on) => view.setAll(channels, on)}
             testIdPrefix="inbox-channel"
           />
+          <ProjectFilter
+            projects={projects}
+            enabled={scope.enabled}
+            onToggle={scope.toggle}
+            onSetAll={(on) => scope.setAll(projects.map((p) => p.id), on)}
+            testIdPrefix="inbox-project"
+          />
         </div>
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {!filtered.length ? (
           <p className="px-3 py-6 text-center text-xs text-muted-fg">
-            {/* Three different silences, and saying the wrong one sends someone
-                looking for a bug: nothing matched the search, every channel is
-                switched off, or there is genuinely nothing here yet. */}
-            {q ? t("inbox.no_match") : rows.length ? t("channels.all_hidden") : t("inbox.empty")}
+            {/* Several different silences, and saying the wrong one sends
+                someone looking for a bug: nothing matched the search, every
+                channel is off, every project is off, a combination of the two
+                left nothing, or there is genuinely nothing here yet. */}
+            {q
+              ? t("inbox.no_match")
+              : !rows.length
+                ? t("inbox.empty")
+                : !channels.some(view.enabled)
+                  ? t("channels.all_hidden")
+                  : !projects.some((p) => scope.enabled(p.id))
+                    ? t("provenance.all_hidden")
+                    : t("inbox.no_match")}
           </p>
         ) : null}
 
