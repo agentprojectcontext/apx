@@ -30,8 +30,8 @@
 // will need into the message it sends, the same discipline `run_subagent`
 // demands of its prompt.
 import {
-  openJob, closeJob, claimWake, countOpenJobs,
-  MAX_OPEN_JOBS_PER_AGENT, DEFAULT_JOB_TIMEOUT_S,
+  openJob, readJob, closeJob, claimWake, countOpenJobs,
+  MAX_OPEN_JOBS_PER_AGENT, DEFAULT_JOB_TIMEOUT_S, TERMINAL_STATUSES,
 } from "#core/stores/background-jobs.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { emitBackgroundJobEvent } from "#core/events/bus.js";
@@ -75,6 +75,22 @@ export function wakeText(job) {
       `${head}${recap}\n\nTheir answer:\n${String(job.result || "").slice(0, 6000)}\n\n` +
       `Pick up where you left off and act on this. You are not waiting on anything any more — ` +
       `if this closes the task, say so; if it opens the next step, take it.`
+    );
+  }
+
+  // Cancelled is not a failure and must not read like one. An agent told "it
+  // failed" goes looking for something to fix; an agent told "you were stopped"
+  // asks what to do instead — and the second is the truth, so it is what gets
+  // said. Retrying is explicitly off the table: somebody just decided this
+  // should not run, and starting it again is the one reaction that overrules
+  // them.
+  if (job.status === "cancelled") {
+    return (
+      `${head.replace("has finished", "was CANCELLED")}${recap}\n\n` +
+      `Why: ${job.result || "the owner stopped it"}.\n\n` +
+      `There is no result, and nothing went wrong — somebody decided this should not run. ` +
+      `Do NOT start it again and do NOT report it as done. Stop waiting on it, say plainly that it ` +
+      `was cancelled, and ask what to do instead if you cannot continue without it.`
     );
   }
 
@@ -135,6 +151,74 @@ export async function deliverWake(job, { project, config, projects, plugins, reg
     // lost except the nudge, and the thread still carries the peer's answer.
     return { delivered: false, reason: e?.message || String(e) };
   }
+}
+
+/**
+ * Stop a job somebody left running, and tell its waiter.
+ *
+ * THREE THINGS HAVE TO HAPPEN, in this order, and the order is the whole design:
+ *
+ *   1. The WORK stops. A background job's work is an ordinary a2a turn, keyed in
+ *      the live-turn registry by its thread — so the same `abort` hook the Stop
+ *      button pulls is what ends it. Without this, "cancel" would close a record
+ *      while the peer kept burning tokens for another ten minutes: the panel
+ *      would look right and the machine would be doing exactly what it was told
+ *      not to.
+ *   2. The RECORD closes as `cancelled` — not `failed`. Somebody decided this
+ *      should not run; nothing went wrong.
+ *   3. The WAITER hears it. This is the half that makes cancelling safe to
+ *      offer: an agent that asked to be woken is, by construction, sitting in no
+ *      turn at all. Cancel it silently and it waits for a result that is never
+ *      coming, forever — the exact failure this whole feature was built to
+ *      remove, reintroduced through its own stop button.
+ *
+ * `abortFn` is injected because core may not reach into the daemon's registry
+ * (rule 8): the route passes `abortActiveTurn`, tests pass a spy.
+ *
+ * Never throws. Returns what happened, so a route can say which of the two
+ * reasons it did nothing: no such job, or one that had already ended.
+ */
+export async function cancelJob(id, {
+  reason = "",
+  abortFn = null,
+  project = null,
+  config,
+  projects,
+  plugins,
+  registries,
+  messagePeerFn = messagePeer,
+} = {}) {
+  const job = readJob(id);
+  if (!job) return { ok: false, reason: "no such job" };
+  if (TERMINAL_STATUSES.includes(job.status)) {
+    return { ok: false, reason: `job already ${job.status}`, job };
+  }
+
+  // 1. The work. Best-effort and reported, never fatal: a job whose turn this
+  // daemon does not hold (it restarted, or the peer is a detached runtime) can
+  // still be closed — the record is what the waiter is waiting on.
+  let stopped = false;
+  try {
+    stopped = abortFn ? !!abortFn(job) : false;
+  } catch {
+    stopped = false;
+  }
+
+  // 2. The record. Said in the words the woken agent will read.
+  const settled = closeJob(id, {
+    status: "cancelled",
+    result: reason || (stopped ? "the owner stopped it" : "the owner stopped it (its turn was no longer running)"),
+  });
+  if (!settled) return { ok: false, reason: "could not close the job", job };
+  emitBackgroundJobEvent({ phase: "end", job: settled });
+
+  // 3. The waiter. Claimed exactly once, like any other ending — a job the
+  // reconciler and a cancel both reach must not wake anybody twice.
+  let woken = { delivered: false, reason: "job did not ask to be woken" };
+  if (settled.wake) {
+    woken = await deliverWake(settled, { project, config, projects, plugins, registries, messagePeerFn });
+  }
+  return { ok: true, stopped, woken: woken.delivered, job: settled };
 }
 
 /**

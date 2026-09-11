@@ -58,6 +58,29 @@ export interface AgentDetail extends AgentEntry {
   /** What this agent can actually call: its declared list, or the project default. */
   effective_tools?: string[];
   tools_source?: "declared" | "default";
+  /** What is actually INJECTED into its prompt. Unlike tools, an undeclared
+   *  `skills:` inherits nothing — the rest stay reachable via load_skill. */
+  effective_skills?: string[];
+  skills_source?: "declared" | "none";
+  /** How many the project exposes, i.e. what load_skill could still reach. */
+  skills_available?: number;
+}
+
+/** The tool vocabulary an agent card is written against (GET /api/agents/tools). */
+export interface AgentToolInfo {
+  name: string;
+  category: string;
+  description: string;
+}
+
+export interface AgentToolCatalog {
+  tools: AgentToolInfo[];
+  categories: string[];
+  /** Always granted on top of any declared list — shown locked, never a choice. */
+  core: string[];
+  /** Legacy card names (`memory_get`) → the canonical tool they resolve to. */
+  aliases: Record<string, string>;
+  default_count: number;
 }
 
 export interface RoutineEntry {
@@ -151,7 +174,10 @@ export interface BackgroundJob {
   body: string;
   wake: boolean;
   depth: number;
-  status: "running" | "done" | "failed" | "timed_out" | "lost";
+  /** `cancelled` is the one an OWNER causes; the rest are things that happened
+   *  to the job. Kept apart from `failed` on purpose — an agent told "it
+   *  failed" goes looking for something to fix. */
+  status: "running" | "done" | "failed" | "timed_out" | "lost" | "cancelled";
   created_at: string;
   deadline_at: string;
   timeout_s: number;

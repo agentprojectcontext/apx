@@ -1931,6 +1931,18 @@ export const es = {
     price_io:            "$ in/out (1M)",
   },
 
+  jobs: {
+    title:                "Trabajo en segundo plano",
+    tip:                  "{n} en ejecución — tocá para ver y cortar",
+    waiting:              "{from} espera a {to}",
+    no_wake:              "sin despertar",
+    cancel:               "Cortar",
+    cancel_hint:          "Cortar para el trabajo y le avisa al agente que fue cancelado, no que falló — no lo vuelve a arrancar.",
+    cancelled:            "Cortado.",
+    cancelled_woken:      "Cortado. {agent} fue avisado.",
+    cancelled_not_running: "Cortado. Su turno ya no estaba corriendo acá.",
+    cancel_failed:        "No pude cortarlo.",
+  },
   chat_ui: {
     menu_no_chat:        "Opciones del menú: quedaron registradas antes que la dirección del chat, así que no hay a dónde mandar la elección.",
     copy:                "Copiar",

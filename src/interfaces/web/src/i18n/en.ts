@@ -1930,6 +1930,18 @@ export const en = {
     price_io:            "$ in/out (1M)",
   },
 
+  jobs: {
+    title:                "Work running in the background",
+    tip:                  "{n} running — tap to see and stop",
+    waiting:              "{from} is waiting on {to}",
+    no_wake:              "no wake-up",
+    cancel:               "Stop",
+    cancel_hint:          "Stopping ends the work and tells the agent it was cancelled, not that it failed — it will not start it again.",
+    cancelled:            "Stopped.",
+    cancelled_woken:      "Stopped. {agent} was told.",
+    cancelled_not_running: "Stopped. Its turn was no longer running here.",
+    cancel_failed:        "Could not stop it.",
+  },
   chat_ui: {
     menu_no_chat:        "Menu options: recorded before the chat address was, so a tap has nowhere to go.",
     copy:                "Copy",

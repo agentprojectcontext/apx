@@ -23,6 +23,7 @@ import { Button } from "./components/ui/button";
 import { Tip } from "./components/ui/tip";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
+import { BackgroundJobsMenu } from "./components/jobs/BackgroundJobsMenu";
 import { useProjects } from "./hooks/useProjects";
 import { useTokenBootstrap } from "./hooks/useTokenBootstrap";
 import { NavCollapseProvider, useNavCollapseCtx, usePageActions, usePageLabel } from "./hooks/useNavCollapseCtx";
@@ -233,6 +234,10 @@ function TopBar({
         {subtitle && <span className="text-muted-fg"> · {subtitle}</span>}
       </span>
       {pageActions}
+      {/* Work agents left running, on the edge of every screen — see the
+          component for why it is not in a chat. Draws nothing when nothing is
+          running, so its appearance is the news. */}
+      <BackgroundJobsMenu />
       {/* Send the chat surface to a phone: one scan carries the address, the
           /m/chat path and a pairing nonce. */}
       <Tip content={t("mobile_link.title")}>
