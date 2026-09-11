@@ -22,7 +22,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { buildApi } = await import("#host/daemon/api.js");
-const { createFaceResolver } = await import("#host/daemon/api/thread-faces.js");
+const { createFaceResolver, withContactIdentity } = await import("#host/daemon/api/thread-faces.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 async function listen(app) {
@@ -214,4 +214,67 @@ test("an ordinary channel thread is left exactly as it was", async () => {
     assert.equal(tg.participant_faces, undefined, "a Telegram day has no participants to draw");
     assert.equal(tg.title, "buenas", "its title is still the first thing said");
   });
+});
+
+// ── One human, several addresses ───────────────────────────────────────────
+// A thread's `contact` is the address a message arrived FROM; a person has more
+// than one. Every roster row carries `alts` and both spellings are live at
+// once, so the same contact can own two threads on the same day under two keys.
+//
+// The ledger is right to record each as it arrived — it says what was true then
+// — so it is the READER that has to decide they are one conversation. Without a
+// resolved key on the thread, a surface can only compare the raw ones: the
+// session switcher scoped that way shows part of a person's history while
+// looking complete, which is worse than showing none of it.
+
+const ROSTER = {
+  whatsapp: {
+    owner_jid: "100000000000001@lid",
+    owner_alts: ["5550000000001@example.net"],
+    contacts: [
+      { jid: "100000000000001@lid", alts: ["5550000000001@example.net"], name: "The owner" },
+      { jid: "100000000000002@lid", alts: ["5550000000002@example.net"], name: "Ana Rivas" },
+    ],
+  },
+};
+
+const waThread = (contact, over = {}) => ({
+  id: `2026-09-10~${contact}`,
+  channel: "whatsapp",
+  contact,
+  title: contact,
+  ...over,
+});
+
+test("both of one person's addresses resolve to the same contact_person", () => {
+  const byJid = withContactIdentity(waThread("100000000000002@lid"), ROSTER);
+  const byAlt = withContactIdentity(waThread("5550000000002@example.net"), ROSTER);
+  assert.equal(byJid.contact_person, "100000000000002@lid");
+  assert.equal(byAlt.contact_person, "100000000000002@lid", "her other line is still her");
+  // And the roster still names both, which is what the field was added beside.
+  assert.equal(byJid.title, "Ana Rivas");
+  assert.equal(byAlt.title, "Ana Rivas");
+});
+
+test("the owner is one key whichever line they wrote from", () => {
+  for (const contact of ["owner", "100000000000001@lid", "5550000000001@example.net"]) {
+    assert.equal(withContactIdentity(waThread(contact), ROSTER).contact_person, "owner", contact);
+  }
+});
+
+test("a stranger is their own person, not everyone's", () => {
+  // Nobody in the roster, so there is no face to draw — and the thread must
+  // still say who it belongs to, or a switcher scoped to it falls back to
+  // listing the whole channel.
+  const out = withContactIdentity(waThread("5559999999999@example.net"), ROSTER);
+  assert.equal(out.contact_person, "5559999999999@example.net");
+  assert.equal(out.contact_face, undefined, "no roster row, no picture, no invented name");
+  assert.equal(out.title, "5559999999999@example.net", "the store's own title is left alone");
+});
+
+test("a thread that belongs to nobody is returned exactly as it was", () => {
+  // A Telegram day is the whole day. Stamping a person on it would scope its
+  // switcher to a contact that does not exist and empty the menu.
+  const day = { id: "2026-09-10", channel: "telegram", title: "buenas" };
+  assert.deepEqual(withContactIdentity(day, ROSTER), day);
 });

@@ -74,10 +74,14 @@ export function MobileChat({
         /* Same reason as the inbox: the list this came from is every project's
            at once, so the chat it opens has to keep saying which one. */
         showProject
-        /* No channel scope: the list this chat was opened from shows every
-           channel, so scoping the session picker to `web` meant the thread you
-           are actually reading — a WhatsApp one, say — was missing from its own
-           switcher. */
+        /* Only reached when no thread is open — a live session, which is not
+           inside any conversation yet and whose sends go out on `web`. Once a
+           thread IS open the thread decides (SessionPicker's `chatScope`).
+           This used to be dropped entirely, because back when it scoped the
+           switcher unconditionally the thread you were actually reading — a
+           WhatsApp one, say — was missing from its own menu. Dropping it swung
+           the other way: every thread APX has, in one list. */
+        channelScope="web"
         onOpenInProject={() => window.open(agentCardUrl(row), "_blank", "noopener")}
         onBack={onBack}
         onSelectionChange={onPickSession}

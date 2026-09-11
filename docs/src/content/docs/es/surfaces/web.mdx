@@ -235,6 +235,15 @@ mandás el primer mensaje. Cada conversación abierta tiene una acción **"New s
 (reinicia en el lugar) y una acción **"Delete"** (detrás de un diálogo de confirmación)
 que elimina permanentemente el archivo de conversación o el hilo del canal.
 
+Debajo del nombre del agente, el título del hilo es un **selector**: lista las
+otras sesiones de la conversación que estás leyendo — el mismo canal y, en un
+canal donde escriben varias personas (WhatsApp), la misma persona, una fila por
+día. No todos los hilos que tiene APX: abrir el WhatsApp de un contacto ofrece
+sus días, no el día de Telegram ni la conversación de otra persona. Alguien que
+escribió desde dos números sigue siendo una sola persona ahí, porque lo dice la
+agenda. Un par agente-a-agente y una sala de grupo son una conversación cada
+uno, así que ninguno de los dos lleva selector.
+
 Un turno de varios pasos no se imprime como un log. Todas las herramientas que
 corrió el agente se colapsan en una fila **N acciones** — abierta mientras trabaja,
 cerrada cuando termina, un clic para ver argumentos y resultados, y cualquier error

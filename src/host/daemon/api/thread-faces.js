@@ -217,13 +217,25 @@ export function contactFaceFor(thread, cfg) {
  * alone.
  */
 export function withContactIdentity(thread, cfg) {
+  const who = resolveContact(thread, cfg);
+  if (!who) return thread;
   const face = contactFaceFor(thread, cfg);
-  if (!face) return thread;
   const derived = String(thread.title || "") === String(thread.contact || "");
   return {
     ...thread,
-    contact_face: face,
-    ...(derived && face.name ? { title: face.name } : {}),
+    // WHICH PERSON, resolved against the roster as it stands today — the same
+    // key the inbox groups its rows by, now on the thread as well.
+    //
+    // One human writes from more than one address: every row in the roster has
+    // `alts`, and both spellings are live at once — "La Caja Seguros" has a
+    // thread under its LID and another under its phone jid ON THE SAME DAY. The
+    // ledger is right to record each one as it arrived, so it is the reader
+    // that has to decide they are one conversation. Without this a surface can
+    // only compare the raw keys, and a session list scoped that way shows half
+    // a person's history while looking complete.
+    contact_person: who.key,
+    ...(face ? { contact_face: face } : {}),
+    ...(derived && face?.name ? { title: face.name } : {}),
   };
 }
 
