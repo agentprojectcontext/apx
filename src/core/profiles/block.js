@@ -66,6 +66,11 @@ const NEUTRAL = NEUTRAL_BY_LANG.en;
 export const BUILTIN_VARS = Object.freeze({
   owner_name: NEUTRAL.owner_name,
   agent_name: NEUTRAL.agent_name,
+  // Same value as agent_name, under the name a PROJECT profile needs. In a
+  // project's prompt "the agent" is ambiguous — there are a dozen of them —
+  // and what its agents have to know is that there is ONE super-agent above,
+  // whose name is this machine's, not "Roby" hardcoded in a template.
+  super_agent_name: NEUTRAL.agent_name,
   owner_context: "",
   profile_name: "",
 });
@@ -139,15 +144,20 @@ export function validateTemplateVars(template, schema) {
  * `owner_name` is therefore read from identity, never duplicated into the
  * profile's config.
  */
-export function profileTemplateVars(profile, identity, globalConfig, lang = "en") {
-  const settings = effectiveProfileConfig(profile, globalConfig);
+export function profileTemplateVars(profile, identity, globalConfig, lang = "en", override = null) {
+  // `override` is how a PROJECT-scoped profile supplies its own settings: they
+  // live with that project, not in the global config's single active-profile
+  // slot, so effectiveProfileConfig would hand back the super-agent's.
+  const settings = override || effectiveProfileConfig(profile, globalConfig);
   const neutral = neutralFor(lang);
+  const agentName =
+    identity?.agent_name || globalConfig?.super_agent?.name || neutral.agent_name;
   return {
     ...settings,
     owner_name: identity?.owner_name || neutral.owner_name,
     owner_context: identity?.owner_context || "",
-    agent_name:
-      identity?.agent_name || globalConfig?.super_agent?.name || neutral.agent_name,
+    agent_name: agentName,
+    super_agent_name: agentName,
     profile_name: profile?.manifest?.name || profile?.id || "",
   };
 }
@@ -156,7 +166,7 @@ export function profileTemplateVars(profile, identity, globalConfig, lang = "en"
  * Render a profile package's prompt for a language.
  * Exported for `apx profile show --preview` and the web panel's preview pane.
  */
-export function renderProfilePrompt(profile, { identity = null, globalConfig = {}, lang = "en" } = {}) {
+export function renderProfilePrompt(profile, { identity = null, globalConfig = {}, lang = "en", settings = null } = {}) {
   if (!profile) return "";
 
   const file = resolvePromptFile(profile.dir, lang);
@@ -170,7 +180,7 @@ export function renderProfilePrompt(profile, { identity = null, globalConfig = {
   }
   if (!template) return "";
 
-  const vars = profileTemplateVars(profile, identity, globalConfig, langOfPromptFile(file));
+  const vars = profileTemplateVars(profile, identity, globalConfig, langOfPromptFile(file), settings);
   let rendered = renderPromptTemplate(template, vars);
 
   // renderPromptTemplate only understands {{word}}. Anything else — a dotted

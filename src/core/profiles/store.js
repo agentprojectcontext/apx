@@ -224,3 +224,16 @@ export function effectiveProfileConfig(profile, globalConfig) {
   const saved = readProfileState(globalConfig).config || {};
   return { ...(profile?.defaults || {}), ...saved };
 }
+
+/**
+ * Which layer a package belongs to. A package that says nothing is the old
+ * kind — the super-agent's — so every profile that shipped before this stays
+ * exactly what it was.
+ */
+export const PROJECT_SCOPE = "project";
+export function profileScope(profile) {
+  return profile?.manifest?.scope === PROJECT_SCOPE ? PROJECT_SCOPE : "super-agent";
+}
+export function isProjectProfile(profile) {
+  return profileScope(profile) === PROJECT_SCOPE;
+}

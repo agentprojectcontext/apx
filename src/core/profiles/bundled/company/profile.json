@@ -1,0 +1,13 @@
+{
+  "id": "company",
+  "name": "Company",
+  "version": "1.0.0",
+  "scope": "project",
+  "description": "How a company project operates: one orchestrator that speaks for it, a council that is consulted and does not hand out work, and nobody writing to the owner directly.",
+  "author": "apx",
+  "apx_min_version": "1.101.0",
+  "languages": ["en", "es"],
+  "provides": { "routines": [], "channels": [] },
+  "requires": { "capabilities": [], "integrations": [], "optional_integrations": [], "channels": [] },
+  "prompt_budget_tokens": 400
+}

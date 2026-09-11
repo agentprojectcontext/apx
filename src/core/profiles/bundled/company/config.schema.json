@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "quiet_hours": {
+      "type": "string",
+      "default": "22-8",
+      "title": "Quiet hours",
+      "description": "Local hours during which only a blocker may reach the owner."
+    },
+    "weekly_deliveries": {
+      "type": "integer",
+      "default": 4,
+      "title": "Deliveries per week",
+      "description": "How many times the executive layer may interrupt in a rolling 7 days. A blocker does not count."
+    },
+    "dedup_window_hours": {
+      "type": "integer",
+      "default": 168,
+      "title": "Repeat window",
+      "description": "How far back an identical finding still counts as already said."
+    },
+    "ledger_path": {
+      "type": "string",
+      "default": "work/exec/DECISIONS.md",
+      "title": "Decision ledger",
+      "description": "Where the company's decisions are kept, relative to the project root. It is the orchestrator's episodic memory."
+    }
+  }
+}
