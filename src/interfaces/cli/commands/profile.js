@@ -92,11 +92,35 @@ export async function cmdProfileList() {
 
 // ── show ────────────────────────────────────────────────────────────────────
 
+/**
+ * A project-scoped profile keeps its settings in `.apc/project.json`, not in
+ * the global config — so without `--project` these commands answered with the
+ * SUPER-AGENT's profile settings merged over this package's schema defaults.
+ * On a machine running the secretary that meant `apx profile show company
+ * --project acme` printed quiet hours, nudge budgets and a primary channel
+ * that belong to a different profile entirely, next to company settings that
+ * were defaults rather than what the project had saved.
+ */
+async function projectProfileView(args, id) {
+  const { readProjectProfileState, projectProfileSettings } = await import("#core/profiles/project.js");
+  const { resolveProjectRoot } = await import("./project.js");
+  const root = await resolveProjectRoot(args.flags.project);
+  const { active } = readProjectProfileState(root);
+  const target = id || active;
+  if (!target) throw new Error("no profile is active on this project — run: apx profile use <id> --project <name>");
+  // Not `?preview=0`: that drops the token count, and "~null tokens" is a
+  // worse answer than one extra render.
+  const p = await http.get(`/api/profiles/${encodeURIComponent(target)}`);
+  return { ...p, root, active: active === target, config: projectProfileSettings(root, target) };
+}
+
 export async function cmdProfileShow(args) {
   const id = args._[0];
   if (!id) fail("show", "missing <id>");
 
-  const p = await http.get(`/api/profiles/${encodeURIComponent(id)}`);
+  const p = args?.flags?.project
+    ? await projectProfileView(args, id)
+    : await http.get(`/api/profiles/${encodeURIComponent(id)}`);
   console.log(`${p.name} (${p.id}) v${p.version || "?"} — ${p.source}${p.active ? " — ACTIVE" : ""}`);
   if (p.description) console.log(p.description);
   console.log(`languages: ${p.languages.join(", ") || "en"}`);
@@ -168,6 +192,23 @@ export async function cmdProfileUse(args) {
 }
 
 export async function cmdProfileSync(args) {
+  // Re-reading a project package from disk is the only way a routine ADDED to
+  // an already-active profile ever reaches the project — without it, shipping a
+  // new ritual meant telling people to turn the profile off and on again.
+  if (args?.flags?.project) {
+    const { readProjectProfileState, setProjectProfileConfig } = await import("#core/profiles/project.js");
+    const { readConfig } = await import("#core/config/index.js");
+    const { resolveProjectRoot } = await import("./project.js");
+    const root = await resolveProjectRoot(args.flags.project);
+    const { active } = readProjectProfileState(root);
+    if (!active) throw new Error("no profile is active on this project — run: apx profile use <id> --project <name>");
+    // Setting nothing re-renders everything: same path as changing a setting,
+    // which is the one that already had to keep the crons and the prompt in step.
+    setProjectProfileConfig({ path: root }, {}, { globalConfig: readConfig() });
+    console.log(`profile "${active}" re-read from disk for this project`);
+    return;
+  }
+
   const r = await http.post("/api/profiles/sync", { id: args?.flags?.profile || null });
 
   const { installed = [], skipped = [] } = r.routines || {};
@@ -232,6 +273,8 @@ async function interactiveConfig(profile) {
 }
 
 export async function cmdProfileConfig(args) {
+  if (args?.flags?.project) return projectProfileConfig(args);
+
   const { active } = await http.get("/api/profiles");
   const id = args?.flags?.profile || active;
   if (!id) {
@@ -276,6 +319,36 @@ export async function cmdProfileConfig(args) {
 }
 
 // ── doctor / uninstall ──────────────────────────────────────────────────────
+
+/** `apx profile config --project <name> [--set k=v ...]`. */
+async function projectProfileConfig(args) {
+  const { setProjectProfileConfig } = await import("#core/profiles/project.js");
+  const { readConfig } = await import("#core/config/index.js");
+  const profile = await projectProfileView(args, args?.flags?.profile || null);
+  const values = parseSetFlags(args?.flags);
+
+  if (!Object.keys(values).length) {
+    const props = profile.schema?.properties || {};
+    const keys = Object.keys(profile.config || {});
+    if (!keys.length) {
+      console.log(`profile "${profile.id}" has no settings on this project`);
+      return;
+    }
+    console.log(`settings for ${profile.name} (${profile.id}) on this project:`);
+    for (const k of keys.sort()) {
+      const def = props[k] || {};
+      console.log(`  ${k.padEnd(24)} ${profile.config[k]}${def.title ? `   ${def.title}` : ""}`);
+    }
+    return;
+  }
+
+  const next = setProjectProfileConfig({ path: profile.root }, values, {
+    id: profile.id,
+    globalConfig: readConfig(),
+  });
+  for (const k of Object.keys(values)) console.log(`  ${k} = ${next[k]}`);
+  console.log(`saved to ${profile.root}/.apc/project.json — routines re-rendered`);
+}
 
 export async function cmdProfileDoctor(args) {
   const id = args._[0];

@@ -1,0 +1,19 @@
+{
+  "name": "council-cfo",
+  "kind": "exec_agent",
+  "schedule": "{{cfo_schedule}}",
+  "enabled_by_default": true,
+  "spec": {
+    "agent": "cfo",
+    "prompt": "WEEKLY RUN — Money.\n\nYou are the money voice of this company and this is your own question, answered on your own cadence. Nobody asked you: you run because the week ended.\n\nScope: Revenue, churn, pricing, what it costs to run. Cash that came in or did not, a charge that failed, a cost that grew without anyone deciding it should.\n\nThe state of this company today is below. It is not instruction, it is what is true right now; if anything in your own definition contradicts it, the state wins.\n\n{{pre_output}}\n\nA source marked `unavailable` IS A FINDING: say it in one clause and carry on with the others. Never fill a gap with an estimate.\n\nAlso bring your own tasks and commitments, scoped to THIS project, including overdue ones.\n\nWHERE THIS GOES: onto the council desk, and nowhere else. The orchestrator reads it on its next run and decides whether any of it is worth the owner's attention — you never reach the owner, and you are not writing to be read by them. So write for someone who already knows this company: no preamble, no recap of what did not change.\n\nAt most 10 lines. Only what MOVED or is now at risk in your area — the inventory of what is fine is exactly what makes a report unreadable.\n\nFormat: one bullet per finding, `- [scope] what happened or what is at risk → what you recommend`. Prioritised, no preamble, no sign-off. If your area had a quiet week, answer the single line `NO_MESSAGE — <why>`; that CLEARS your note, which is the honest thing to leave behind. A note nobody clears is how a problem fixed nine days ago keeps being reported."
+  },
+  "deliver_to": [
+    "log"
+  ],
+  "pre_commands": [
+    "apx company context --ritual council"
+  ],
+  "post_commands": [
+    "apx company note --area cfo"
+  ]
+}
