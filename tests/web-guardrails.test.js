@@ -225,6 +225,10 @@ const SENTENCE_FRAGMENTS = new Set([
   // a preposition introducing its object, like `in` / `ago` above
   "project.tasks.via", "project.threads.via",
 
+  // appended after the elapsed time on a background job row — "hace 2 min ·
+  // sin despertar". A qualifier on a sentence already underway, never a label.
+  "jobs.no_wake",
+
   // follows the file name it describes
   "chat_ui.attachment_missing", "chat_ui.attachment_failed", "chat_ui.attach_failed",
   "chat_ui.attach_too_big",
