@@ -29,7 +29,13 @@ test.describe("whatsapp module", () => {
     // A tab that no longer exists: the deep link has been handed out in docs and
     // in messages, so it opens the page that now holds them.
     await page.goto("/settings/whatsapp?tab=pending");
-    await expect(page.getByRole("tab", { name: /contacts|contactos/i })).toHaveAttribute("data-state", "active");
+    // Asserted on ARIA, not on the tab kit's own marker. `data-state="active"`
+    // was Radix's spelling and this line outlived the move to Base UI (rule 11),
+    // which marks the same tab `data-active=""` — so the assertion went on
+    // failing against a tab that was open and selected the whole time.
+    // `aria-selected` is the tab's actual contract with a reader: it is what a
+    // screen reader announces, and it survives the next kit too.
+    await expect(page.getByRole("tab", { name: /contacts|contactos/i })).toHaveAttribute("aria-selected", "true");
     expect(errors).toEqual([]);
   });
 });

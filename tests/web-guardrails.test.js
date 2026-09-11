@@ -43,6 +43,17 @@ function webSources() {
   return out;
 }
 
+/** The Playwright specs. Not under `src/`, so `webSources()` never sees them —
+ *  and they are the half that asserts on what the primitives emit. */
+function specSources() {
+  const dir = path.join(WEB, "e2e");
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".spec.ts"))
+    .map((f) => [`e2e/${f}`, fs.readFileSync(path.join(dir, f), "utf8")]);
+}
+
 /** Load a locale dictionary by transpiling it — the files are plain object
  *  literals, so this reads the REAL keys rather than regexing 2.5k lines. */
 function loadDict(file, exportName) {
@@ -113,6 +124,35 @@ test("web: the panel is Base UI, never Radix or a shadcn install (rule 11)", () 
     .filter(([, src]) => /from\s+["']@radix-ui\//.test(src))
     .map(([rel]) => rel);
   assert.deepEqual(offenders, [], `files importing Radix directly: ${offenders.join(", ")}`);
+});
+
+test("web: nothing still speaks Radix's `data-state` (rule 11)", () => {
+  // The imports went when Radix did; its VOCABULARY stayed, and it fails
+  // quietly in both directions.
+  //
+  // In a spec it fails loudly but for the wrong reason: one assertion sat on
+  // `data-state="active"` for a tab Base UI marks `data-active=""`, so the
+  // e2e job was red over a tab that was open and selected the whole time, and
+  // the message pointed at the tab rather than at the assertion.
+  //
+  // In a className it says nothing at all: `data-[state=delayed-open]:*` on
+  // the tooltip could never match, so three animation classes were dead and
+  // looked live — and nothing but reading them would ever have said so.
+  //
+  // Base UI's own spellings are `data-open` / `data-closed` / `data-active` /
+  // `data-checked`; a tab's selectedness is `aria-selected`, which is the
+  // reader's contract and outlives the next kit too.
+  const files = [
+    ...webSources().map(([rel, src]) => [`src/${rel}`, src]),
+    ...specSources(),
+  ];
+  const offenders = files
+    // The panel's OWN `data-state` on its OWN element is fine — it is a word
+    // it chose, not one a dead dependency left behind. Only the kit's
+    // vocabulary is out: the Tailwind variant, and an assertion on it.
+    .filter(([, src]) => /data-\[state[=\]]/.test(src) || /toHaveAttribute\(\s*["']data-state["']/.test(src))
+    .map(([rel]) => rel);
+  assert.deepEqual(offenders, [], `still using Radix's data-state: ${offenders.join(", ")}`);
 });
 
 test("web: requests go through lib/api, not a bare fetch (rule 11)", () => {
