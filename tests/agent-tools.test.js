@@ -46,7 +46,9 @@ test("a declared list still narrows — that is the whole point of declaring one
   // stays out.
   assert.equal(names.includes(TOOLS.SEND_TELEGRAM), false);
   assert.equal(names.includes(TOOLS.WRITE_FILE), false);
-  assert.equal(names.includes(TOOLS.CREATE_TASK), false);
+  // `create_task` used to be asserted here too. It moved INTO the floor on
+  // 2026-09-11 — see the floor test below for why — so a narrowed card has it
+  // now. Everything else about narrowing is unchanged.
   assert.ok(names.length < 20, `a declared list must stay small, got ${names.length}`);
 });
 
@@ -60,10 +62,17 @@ test("every declared list gets the core floor on top of what it declared", () =>
   for (const core of AGENT_CORE_TOOLS) {
     assert.ok(names.includes(core), `${core} must always be granted`);
   }
-  // …and the floor touches nothing in the world.
-  for (const worldly of [TOOLS.RUN_SHELL, TOOLS.WRITE_FILE, TOOLS.SEND_TELEGRAM, TOOLS.CREATE_TASK]) {
+  // …and the floor touches nothing OUTSIDE the agent's own scope. A shell, a
+  // file, a message to the owner: those reach past the card and stay grants.
+  for (const worldly of [TOOLS.RUN_SHELL, TOOLS.WRITE_FILE, TOOLS.SEND_TELEGRAM, TOOLS.LIST_PROJECTS]) {
     assert.equal(AGENT_CORE_TOOLS.includes(worldly), false, `${worldly} does not belong in the floor`);
   }
+  // The one deliberate exception, added 2026-09-11: writing work down. It does
+  // not reach past the card — it is bookkeeping inside it — and the shape it
+  // replaces (read the board, cannot add to it) is what produced a COO
+  // answering "voy a abrir una task por cada uno" with zero tool calls. Pinned
+  // in tests/agent-task-floor.test.js, which carries the whole story.
+  assert.ok(AGENT_CORE_TOOLS.includes(TOOLS.CREATE_TASK));
 });
 
 test("catalog aliases rewrite to callable native names", () => {
