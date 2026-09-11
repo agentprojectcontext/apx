@@ -523,6 +523,7 @@ export function ChatList({
               return (
                 <ChatListItem
                   key={`${c.agent_slug}-${c.id}`}
+                  testId={`chat-row-${c.agent_slug}-${c.id}`}
                   title={c.title || c.id}
                   subtitle={[c.agent_slug, `${c.messages ?? 0} msg`]
                     .filter(Boolean)
@@ -605,6 +606,7 @@ function ChatListItem({
   activeTurn,
   selected,
   onClick,
+  testId,
 }: {
   title: string;
   subtitle?: string;
@@ -619,10 +621,14 @@ function ChatListItem({
   activeTurn?: ActiveTurn | null;
   selected?: boolean;
   onClick: () => void;
+  /** Stamps the row for e2e. A conversation is identified by (agent, id) —
+   *  two agents in one project can each own a `web-main`. */
+  testId?: string;
 }) {
   return (
     <button
       type="button"
+      data-testid={testId}
       onClick={onClick}
       className={clsx(
         "relative flex w-full items-start gap-2 rounded-md border px-2 py-2 text-left transition-colors",

@@ -315,15 +315,21 @@ export function ChatTab({
           : liveActivityKey(pid, selected.agentSlug),
       );
     }
+    // Keyed on the WHOLE selection, through the one stringifier that knows what
+    // makes a chat itself (`chatKeyToString`). It used to spell the key out here
+    // and got one of the three cases wrong: a conversation was keyed by its id
+    // alone, while it is ADDRESSED by (agent, id) — `load(agentSlug, convId)`.
+    //
+    // Two agents in one project can each own a conversation called `web-main`,
+    // and in a real project they do. Clicking from Rocky to the CEO changed the
+    // URL, the sidebar row and the agent's name in the header, but not this
+    // key — so the effect never re-ran, `load("ceo", "web-main")` was never
+    // called, and Rocky's transcript stayed on screen under the CEO's name,
+    // beside the CEO's date. The same "title changes but content stays" bug the
+    // live branch above already carries a comment about, still live in the
+    // branch next to it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    selected.kind,
-    selected.kind === "conv"
-      ? selected.convId
-      : selected.kind === "thread"
-        ? `${selected.channel}:${selected.threadId}`
-        : selected.agentSlug,
-  ]);
+  }, [chatKeyToString(selected)]);
 
   // Who is in this room, straight off the loaded thread. The daemon resolves the
   // roster and the faces with the messages (api/thread-faces.js), so there is
