@@ -51,7 +51,7 @@ export const Agents = {
   // exposes a `source` per entry: "bundled" | "user" | "user-override".
   // Tombstones (deleted bundled defaults) are hidden unless includeRemoved=true.
   vault: (opts?: { includeRemoved?: boolean }) =>
-    http.get<(AgentEntry & { source?: "bundled" | "user" | "user-override" })[]>(
+    http.get<VaultAgent[]>(
       opts?.includeRemoved ? "/api/agents/vault?include_removed=1" : "/api/agents/vault",
     ),
   vaultCreate: (slug: string, fields: Record<string, unknown> = {}, body = "") =>
@@ -82,6 +82,17 @@ export const Agents = {
       `/api/projects/${pid}/agents/import-pack`,
       { pack, slugs },
     ),
+};
+
+/** A vault template as the list endpoint returns it. `system_preview` is the
+ *  head of its prompt — what the agent is actually told — capped server-side so
+ *  twenty templates stay a small response. */
+export type VaultAgent = AgentEntry & {
+  source?: "bundled" | "user" | "user-override";
+  system_preview?: string;
+  system_bytes?: number;
+  /** True when the prompt is longer than the preview shipped here. */
+  system_more?: boolean;
 };
 
 export type AgentPack = {
