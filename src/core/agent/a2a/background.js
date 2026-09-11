@@ -36,6 +36,8 @@ import {
 import { a2aThreadId } from "#core/stores/messages.js";
 import { emitBackgroundJobEvent } from "#core/events/bus.js";
 import { messagePeer } from "./delegate.js";
+import { resolvePeer, peerAddress, senderAddress } from "./peers.js";
+import { readAgents } from "#core/apc/parser.js";
 
 /**
  * How deep a chain of background hand-offs may go.
@@ -256,7 +258,23 @@ export function sendInBackground({
     };
   }
 
-  const open = countOpenJobs({ project_id: project.id ?? null, from });
+  // Canonical on the record itself, not only when the reply is filed. `to` is
+  // whatever the model typed — the tool accepts a display name on purpose — and
+  // the job is what `deliverWake` writes BACK from when the work lands. Stored
+  // raw, the wake-up came from "Zoya" rather than from `ceo`, which opened a
+  // second thread for the same pair: one with two faces and a title, one with a
+  // letter for an avatar because nothing can resolve `zoya` to an agent.
+  //
+  // Resolved BEFORE the fan-out count, not after: the count asks "how many are
+  // open for this sender", and jobs are filed under the canonical name — so a
+  // caller spelling itself any other way would count zero of its own and walk
+  // straight through the wall.
+  const agents = readAgents(project.path);
+  const peer = resolvePeer(to, agents, config);
+  const address = peer ? peerAddress(peer) : to;
+  const sender = senderAddress(from, agents, config) || from;
+
+  const open = countOpenJobs({ project_id: project.id ?? null, from: sender });
   if (open >= MAX_OPEN_JOBS_PER_AGENT) {
     return {
       error:
@@ -267,9 +285,9 @@ export function sendInBackground({
 
   const job = openJob({
     project_id: project.id ?? null,
-    from,
-    to,
-    thread: a2aThreadId(from, to),
+    from: sender,
+    to: address,
+    thread: a2aThreadId(sender, address),
     body,
     wake,
     timeout_s,
@@ -283,7 +301,7 @@ export function sendInBackground({
   // Un-awaited on purpose — this is the whole point of the module. The promise
   // is safe detached because both arms settle the job and neither rethrows.
   Promise.resolve()
-    .then(() => messagePeerFn({ project, from, to, body, config, projects, plugins, registries, depth }))
+    .then(() => messagePeerFn({ project, from: sender, to: address, body, config, projects, plugins, registries, depth }))
     .then(
       (result) => closeJob(job.id, { status: "done", result: result?.text || "" }),
       (e) => closeJob(job.id, { status: "failed", result: e?.message || String(e) }),
@@ -309,7 +327,7 @@ export function sendInBackground({
     timeout_s: job.timeout_s,
     status: "running",
     note: wake
-      ? `Left running. Do NOT wait for it and do NOT ask again — when ${to} answers you will be woken with the result as a new message on this thread. Carry on with something else, or close your turn.`
-      : `Sent. ${to} is working on it; their answer lands on thread ${job.thread}. You will NOT be woken — say so if the owner is expecting the result.`,
+      ? `Left running. Do NOT wait for it and do NOT ask again — when ${address} answers you will be woken with the result as a new message on this thread. Carry on with something else, or close your turn.`
+      : `Sent. ${address} is working on it; their answer lands on thread ${job.thread}. You will NOT be woken — say so if the owner is expecting the result.`,
   };
 }

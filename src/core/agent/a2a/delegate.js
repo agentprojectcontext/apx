@@ -26,7 +26,7 @@ import { CHANNELS } from "#core/constants/channels.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
 import { replyAsAgent, replyToPeer } from "./reply.js";
-import { resolvePeer, peerAddress } from "./peers.js";
+import { resolvePeer, peerAddress, senderAddress } from "./peers.js";
 import { readAgents } from "#core/apc/parser.js";
 import { a2aPairHistory } from "./history.js";
 
@@ -180,11 +180,28 @@ export async function messagePeer({
   depth = 0,
   replyFn = replyToPeer,
 }) {
-  const peer = resolvePeer(to, readAgents(project.path), config);
+  const agents = readAgents(project.path);
+  const peer = resolvePeer(to, agents, config);
   if (!peer) throw new Error(`no peer named ${to}`);
   const address = peerAddress(peer);
-  const thread = a2aThreadId(from, address);
-  const history = a2aPairHistory(project.storagePath, from, address, address, historyLimit);
+  // BOTH ENDS, not just the recipient.
+  //
+  // `to` has always been canonicalised here and `from` never was, so a sender
+  // named any way other than by its slug opened a thread of its own. A model may
+  // legitimately say `Zoya` — the tool's own description offers the roster, and
+  // `resolvePeer` accepts a display name precisely so it can — and the wake-up
+  // for a background job writes back with `from = job.to`, which is whatever
+  // string the model used. One exchange then lives in two threads: `ceo~cfo`
+  // with two faces and a proper title, and `cfo~zoya` with a letter for an
+  // avatar and a raw slug where a name should be, because nothing can resolve
+  // `zoya` to an agent.
+  //
+  // `POST /projects/:pid/send` fixed this at the route (1975c64) and the TOOL
+  // path was left behind. Same rule, one call: whatever spelling reaches us,
+  // the thread is named by the pair of slugs.
+  const sender = senderAddress(from, agents, config) || from;
+  const thread = a2aThreadId(sender, address);
+  const history = a2aPairHistory(project.storagePath, sender, address, address, historyLimit);
 
   const ts = new Date().toISOString();
   const messageId = shortId("a2a");
@@ -192,9 +209,9 @@ export async function messagePeer({
     agent_slug: address,
     channel: CHANNELS.A2A,
     direction: "in",
-    author: from,
+    author: sender,
     body,
-    meta: { from, via: "tool" },
+    meta: { from: sender, via: "tool" },
     ts,
     external_id: messageId,
   });
@@ -204,8 +221,11 @@ export async function messagePeer({
     project,
     projectPath: project.path,
     projectName: project.name || "",
-    fromAgent: { slug: from },
-    fromAddress: from,
+    // The peer is answering the SENDER, so it has to be told who that is in the
+    // same spelling the thread is filed under — otherwise its reply's etiquette
+    // block addresses a name the ledger has never heard of.
+    fromAgent: { slug: sender },
+    fromAddress: sender,
     body,
     config,
     history,
@@ -230,7 +250,7 @@ export async function messagePeer({
     author: address,
     body: result.text,
     meta: {
-      to: from,
+      to: sender,
       via: "tool",
       final: true,
       model: result.model,
@@ -241,7 +261,7 @@ export async function messagePeer({
     external_id: replyId,
   });
   project.logMessage({
-    agent_slug: from,
+    agent_slug: sender,
     channel: CHANNELS.A2A,
     direction: "in",
     author: address,
