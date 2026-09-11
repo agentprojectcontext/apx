@@ -1,3 +1,35 @@
+# [1.102.0](https://github.com/agentprojectcontext/apx/compare/v1.101.0...v1.102.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **agents:** delegar es una conversación, y el canal no es la conversación ([0c4fd80](https://github.com/agentprojectcontext/apx/commit/0c4fd809c5b58258e8793b19748ad09610dce504))
+* **chat:** el selector de sesiones se queda adentro de la conversación abierta ([e272f51](https://github.com/agentprojectcontext/apx/commit/e272f51dc17348c0033bfe6a24b2e696d70436cf))
+* **chat:** un turno en vuelo se ve con sus tools, y la cola no abre otra sesión ([dc8db9c](https://github.com/agentprojectcontext/apx/commit/dc8db9c124adbc2902f46e525df087a6e22cca50))
+* **chat:** una conversación se llama igual en la lista que adentro ([4d71d9e](https://github.com/agentprojectcontext/apx/commit/4d71d9e94697e43ac93fcdd342451cfcbd1e6046))
+* **nudge:** a watch with nothing to say cannot wake you at 2 AM ([bea681b](https://github.com/agentprojectcontext/apx/commit/bea681b625ca894bbfce500028c80650c55a7e46))
+* **tests:** sacar los destructurings que no se usan ([05ef6bd](https://github.com/agentprojectcontext/apx/commit/05ef6bdbd5a63f065a388af560a2fb933b962b58))
+* **tools:** las tools de artifacts faltaban en NATIVE_TOOL_NAMES ([d2e67e4](https://github.com/agentprojectcontext/apx/commit/d2e67e4856c25849def76dbb12606920732de5aa))
+* **web:** cambiar de chat cambia el chat ([7835bb1](https://github.com/agentprojectcontext/apx/commit/7835bb1721fec1f00c14e1e0c4399c1b7ef8a05f))
+* **web:** los cargos no parpadean, y el equipo se tilda entero ([019e9ff](https://github.com/agentprojectcontext/apx/commit/019e9ffded01f8f8f570d82e96fd1e29235c40b9))
+* **web:** nada habla más el `data-state` de Radix ([986f249](https://github.com/agentprojectcontext/apx/commit/986f249d9d30355c2946a4e57084dc62484fb34c))
+
+
+### Features
+
+* **agents:** instalar un equipo entero, no de a un agente por vez ([051f033](https://github.com/agentprojectcontext/apx/commit/051f0334ac92440b6c2a7855a75cb346bec27299))
+* **agents:** un equipo con nombres, y tools que se ven ([75851cd](https://github.com/agentprojectcontext/apx/commit/75851cd065f090a5b2f3e1cacbec169cc7b77e4b))
+* **artifacts:** un agente puede escribir la tool que le piden ([5a3e69c](https://github.com/agentprojectcontext/apx/commit/5a3e69c6efccb780dcb112e4d6b83311ccfe5452))
+* **company:** la capa ejecutiva es de APX, y sus fuentes son del proyecto ([5cb6aca](https://github.com/agentprojectcontext/apx/commit/5cb6aca25429d6c4b7a74e85b4dca500448b9566))
+* **config:** la config de un proyecto sale del repo, y la pantalla dice la verdad ([1bd28ca](https://github.com/agentprojectcontext/apx/commit/1bd28ca5280a2ab19592d7835156444e91ecb9e3))
+* **inbox:** una conversación dice de qué proyecto viene ([076ce9a](https://github.com/agentprojectcontext/apx/commit/076ce9a13df17533ff777fedbc3c4f2489ca50bc))
+* **profiles:** un proyecto puede correr su propio profile ([1cd46a7](https://github.com/agentprojectcontext/apx/commit/1cd46a703c0fddfa95cbb817659cac8d583aa663))
+* **projects:** al agregar un proyecto, preguntar qué es ([dbcb97e](https://github.com/agentprojectcontext/apx/commit/dbcb97e139bdea573b5262ee4c4a5be7b4c8c62b))
+* **projects:** el tipo se explica, se ordena y se puede cambiar después ([8c3300a](https://github.com/agentprojectcontext/apx/commit/8c3300a5dc50cb56faef4d125c3611617c2185be))
+* **web:** la estructura se arma con el equipo, y Proyecto es la primera solapa ([71b3282](https://github.com/agentprojectcontext/apx/commit/71b3282e68dbec28e970007a7d37c273b9742006))
+* **web:** the quiet-hours bypass is a toggle you can see ([5ccc462](https://github.com/agentprojectcontext/apx/commit/5ccc46211110ee49e837ca91ed59ff40daf0026c))
+* **web:** tildar un equipo en el diálogo de import ([7c7cd80](https://github.com/agentprojectcontext/apx/commit/7c7cd80684b572debdb779d52af020303305fa4b))
+
 # [1.101.0](https://github.com/agentprojectcontext/apx/compare/v1.100.0...v1.101.0) (2026-09-10)
 
 
