@@ -860,7 +860,7 @@ test("runRoutineNow — a real message still goes to telegram, unchanged", async
 });
 
 test("looksLikeAbstention — recognises the prose that woke Manu at 2 AM", async () => {
-  const { looksLikeAbstention, readAbstention } = await import("#core/routines/delivery.js");
+  const { looksLikeAbstention } = await import("#core/routines/delivery.js");
 
   // Verbatim from ~/.apx/nudges.json, entry ndg_hygjqn, 2026-09-11T05:01:11Z.
   const theIncident =
@@ -874,7 +874,7 @@ test("looksLikeAbstention — recognises the prose that woke Manu at 2 AM", asyn
 });
 
 test("looksLikeAbstention VETOES the bypass — it never suppresses a delivery", async () => {
-  const { looksLikeAbstention, readAbstention } = await import("#core/routines/delivery.js");
+  const { readAbstention } = await import("#core/routines/delivery.js");
   // The contract that makes a fuzzy test safe here: this function is allowed to
   // be wrong, because being wrong costs a message the wait until 07:30 and
   // never costs the message itself. readAbstention — the one that CAN silence —
