@@ -59,6 +59,55 @@ const HOST_ONLY_TOOLS = Object.freeze([
   TOOLS.IMPORT_AGENT,
 ]);
 
+/**
+ * The floor. Granted to every agent that declares a `tools:` list, on top of
+ * whatever it declared.
+ *
+ * Not a convenience: an agent missing these is not a narrower agent, it is a
+ * broken one. It cannot find the tools it was not given (`discover_tools`),
+ * cannot read its own skills or memory, cannot hand a question back to a human,
+ * and cannot answer another agent over a2a. Every one of those failures reads
+ * as "the model is bad at this" rather than as a card that forgot a line.
+ *
+ * Deliberately small: only what an agent needs to BE one. Anything that touches
+ * the world — files, shell, tasks, channels — stays opt-in.
+ */
+export const AGENT_CORE_TOOLS = Object.freeze([
+  // Find what it was not given.
+  TOOLS.DISCOVER_TOOLS,
+  // Hand a question back to a human instead of guessing.
+  TOOLS.ASK_QUESTIONS,
+  // Its own skills. read_skill is not optional next to the other two: a skill
+  // over 1800 chars is injected as a card and paged with read_skill, so without
+  // it a declared skill is a title the agent cannot open.
+  TOOLS.LIST_SKILLS,
+  TOOLS.LOAD_SKILL,
+  TOOLS.READ_SKILL,
+  // Its own memory. Reading only — writing is a side effect, and a card that
+  // was narrowed on purpose should not start writing because of a default.
+  TOOLS.READ_SELF_MEMORY,
+  // a2a: who exists, and how to answer them.
+  //
+  // `list_projects` is deliberately NOT here. Knowing every project on the
+  // install is not something an agent needs to be one — it is the install's
+  // shape, and a specialist narrowed to one project should not be handed the
+  // others because of a floor.
+  //
+  // CALL_AGENT, not SEND_TO_AGENT, and the difference is the whole point.
+  // send_to_agent is the better tool and the one every UNDECLARED agent gets
+  // (it is in defaultAgentToolNames and in the hot base set, so nobody has to
+  // discover it and shell out to `apx send`) — but it reaches the SUPER-AGENT
+  // and the runtimes, and the super-agent is the owner's channel. A floor that
+  // carried it would hand every deliberately-narrowed card a way to the owner.
+  // The CEO template is the live example: three paragraphs of its prompt say it
+  // has no channel of its own and never writes to Manu, and its declared list
+  // is what enforces that. call_agent resolves against readAgents() — project
+  // agents only — so it cannot cross that line. Reaching past the project is a
+  // grant, not a floor: declare it on the cards that should have it.
+  TOOLS.LIST_AGENTS,
+  TOOLS.CALL_AGENT,
+]);
+
 /** Everything a project agent may call by default: the registry minus the host's own. */
 export function defaultAgentToolNames() {
   const deny = new Set(HOST_ONLY_TOOLS);
@@ -76,13 +125,17 @@ export function defaultAgentToolNames() {
  * @returns {string[]}
  */
 export function resolveAgentAllowedTools(agent, { override } = {}) {
+  // An explicit override — including `[]` — is the caller saying exactly what
+  // this run may touch (routine suppression depends on `[]` meaning nothing).
+  // The floor does not apply here: it would turn "no tools" into ten.
   if (Array.isArray(override)) return resolveNames(override);
   const declared = declaredAgentTools(agent);
   if (!declared.length) return defaultAgentToolNames();
   const resolved = resolveNames(declared);
   // A card whose every name is stale would otherwise mean a silent no-tools
   // turn that dumps markup as the "answer". Capability beats a broken card.
-  return resolved.length ? resolved : defaultAgentToolNames();
+  if (!resolved.length) return defaultAgentToolNames();
+  return [...new Set([...AGENT_CORE_TOOLS, ...resolved])];
 }
 
 function resolveNames(names) {

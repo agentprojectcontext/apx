@@ -156,8 +156,14 @@ export function buildBridgedTools(opts = {}) {
     .map(entry => ({
       name: entry.name,
       // Carried through so the lazy-tools catalog can group on-demand tools by
-      // their registry category (browser/fetch/search/file) for discover_tools.
-      category: entry.category,
+      // their registry category for discover_tools.
+      //
+      // "file" is renamed to "files" on the way out: it is the HTTP catalog's
+      // name for the same thing the native handlers call "files", and carrying
+      // both meant glob and grep sat in their own one-line group next to
+      // read_file and search_files. The selector above still matches on the
+      // catalog's spelling — only the label the agent sees is normalized.
+      category: entry.category === "file" ? "files" : entry.category,
       schema: buildSchema(entry),
       makeHandler: buildHandler(entry),
     }));

@@ -13,6 +13,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
 const { runRoutineNow } = await import("#core/routines/runner.js");
+const { AGENT_CORE_TOOLS } = await import("#core/agent/agent-tools.js");
 const { listConversations, readConversation } = await import("#core/stores/conversations.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
@@ -128,7 +129,12 @@ test("exec_agent allowed_tools:[] means no override, NOT a tool-less run", async
       spec: { agent: "scout", prompt: "Just look [mock:tool:read_file]" },
     });
     assert.equal(out.status, "ok");
-    assert.deepEqual(out.allowed_tools, ["read_file"], "falls back to the agent's declared tools");
+    // The card's list, plus the core floor every declared list gets.
+    assert.deepEqual(
+      out.allowed_tools.filter((n) => !AGENT_CORE_TOOLS.includes(n)),
+      ["read_file"],
+      "falls back to the agent's declared tools",
+    );
     assert.ok(out.trace.length > 0, "the tool loop actually ran");
   } finally {
     cleanupTempProject(root);
@@ -147,7 +153,12 @@ test("exec_agent honor agent's tools: allowlist, not the full registry", async (
       spec: { agent: "scout", prompt: "Just look [mock:tool:read_file]" },
     });
     assert.equal(out.status, "ok");
-    assert.deepEqual(out.allowed_tools, ["read_file"]);
+    assert.deepEqual(
+      out.allowed_tools.filter((n) => !AGENT_CORE_TOOLS.includes(n)),
+      ["read_file"],
+    );
+    // The floor is small and reaches nothing outside the agent itself: no
+    // channel out, and no view of the other projects on this install.
     assert.equal(out.allowed_tools.includes("send_telegram"), false);
     assert.equal(out.allowed_tools.includes("list_projects"), false);
   } finally {

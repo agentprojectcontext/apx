@@ -337,6 +337,15 @@ const NATIVE_CATEGORY = {
   [TOOLS.WHATSAPP_CONTACTS]:   "messages",
   [TOOLS.ASK_QUESTIONS]:       "conversation",
   [TOOLS.CREATE_TASK]:         "tasks",
+  // These fell through to "other" — so a model asking discover_tools for the
+  // "tasks" category got the task verbs and none of the commitment ones, and
+  // the artifact pair was filed under a heading that names nothing.
+  [TOOLS.RECORD_COMMITMENT]:   "tasks",
+  [TOOLS.LIST_COMMITMENTS]:    "tasks",
+  [TOOLS.WRITE_ARTIFACT]:      "artifacts",
+  [TOOLS.LIST_ARTIFACTS]:      "artifacts",
+  [TOOLS.REMEMBER_ROUTINE]:    "routines",
+  [TOOLS.VOICE_REPLIES]:       "voice",
   [TOOLS.UPDATE_TASK]:         "tasks",
   [TOOLS.LIST_TASKS]:          "tasks",
   [TOOLS.GET_TASK]:            "tasks",
@@ -376,6 +385,21 @@ const TOOL_META = ALL_TOOLS.map((t) => ({
   description: oneLine(t.schema?.function?.description),
 }));
 const META_BY_NAME = new Map(TOOL_META.map((m) => [m.name, m]));
+
+/**
+ * Every tool an agent can be granted, with the category it belongs to.
+ *
+ * This is the catalog the agent CARD is written against — the same names the
+ * loop dispatches on. It is NOT core/http-tools/catalog.js, which is a separate
+ * 43-entry HTTP surface that happens to share a few names. The web tool picker
+ * was built on that one, so 58 of the 91 tools an agent can actually be granted
+ * (every task verb, call_agent, ask_questions, git, calendar, obsidian) were
+ * unreachable from the UI, and `session_compact` — which the picker offered and
+ * this registry has never had — was silently dropped on save.
+ */
+export function agentToolCatalog() {
+  return TOOL_META.map(({ name, category, description }) => ({ name, category, description }));
+}
 
 export const BASE_TOOL_SCHEMAS = ALL_TOOLS
   .filter((t) => BASE_TOOL_NAMES.has(t.name))

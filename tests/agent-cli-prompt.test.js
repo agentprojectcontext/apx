@@ -16,7 +16,7 @@ import path from "node:path";
 import { initApf } from "#core/apc/scaffold.js";
 import { readAgents } from "#core/apc/parser.js";
 import { cmdAgentAdd, cmdAgentSet } from "#interfaces/cli/commands/agent.js";
-import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
+import { AGENT_CORE_TOOLS, resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { SUPER_AGENT_BLOB, isBlobKey } from "#core/apc/agent-identity.js";
 
 const PROMPT = [
@@ -112,7 +112,13 @@ test("agent add leaves tools undeclared, and --tools narrows it", async () => {
     await cmdAgentAdd(args(["narrow"], { prompt: PROMPT, tools: "read_file, glob" }));
     const narrow = readAgents(root).find((a) => a.slug === "narrow").fields;
     assert.deepEqual(String(narrow.Tools).split(",").map((s) => s.trim()), ["read_file", "glob"]);
-    assert.deepEqual(resolveAgentAllowedTools({ fields: narrow }), ["read_file", "glob"]);
+    // What the card says, plus the core floor every declared list gets — the
+    // handful an agent needs to BE one (find tools, read its own skills and
+    // memory, ask a human, answer another agent).
+    assert.deepEqual(
+      resolveAgentAllowedTools({ fields: narrow }).filter((n) => !AGENT_CORE_TOOLS.includes(n)),
+      ["read_file", "glob"],
+    );
   });
 });
 

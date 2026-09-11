@@ -1,7 +1,12 @@
 import { http, streamNdjson } from "../http";
-import type { AgentDetail, AgentEntry, ChatStreamEvent, ChatUsage } from "../../types/daemon";
+import type {
+  AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
+} from "../../types/daemon";
 
 export const Agents = {
+  // The catalog an agent card is written against — NOT /api/tools, which is the
+  // daemon's own HTTP surface and only overlaps by accident.
+  toolCatalog: () => http.get<AgentToolCatalog>("/api/agents/tools"),
   list:   (pid: string, opts?: { stats?: boolean }) =>
     http.get<AgentEntry[]>(`/api/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
   get:    (pid: string, slug: string) => http.get<AgentDetail>(`/api/projects/${pid}/agents/${slug}`),

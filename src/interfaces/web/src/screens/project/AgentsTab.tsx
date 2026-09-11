@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Users, Wrench, Zap } from "lucide-react";
-import { Agents } from "../../lib/api";
+import { Agents, Projects } from "../../lib/api";
 import type { AgentPack } from "../../lib/api/agents";
 import type { AgentEntry, AgentStats } from "../../types/daemon";
 import { Section } from "../../components/Section";
@@ -731,6 +731,12 @@ function CreateAgentDialog({
   const [role, setRole] = useState("");
   const [area, setArea] = useState("");
   const [autonomy, setAutonomy] = useState<AgentAutonomy | "">("");
+  // A new agent inherits by default, so say what it will inherit rather than
+  // making someone create it first to find out.
+  const projectCfg = useSWR(`/api/projects/${pid}/config`, () => Projects.config.show(pid));
+  const inheritedAutonomy =
+    (projectCfg.data?.effective as { super_agent?: { permission_mode?: string } } | undefined)
+      ?.super_agent?.permission_mode || null;
   const [model, setModel] = useState(INHERIT_MODEL);
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
@@ -812,7 +818,7 @@ function CreateAgentDialog({
         </div>
         <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
         <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
-          <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+          <AutonomyPicker value={autonomy} onChange={setAutonomy} inherited={inheritedAutonomy} />
         </Field>
         <Field label={t("project.agents.model_label")} hint={t("project.agents.model_hint")}>
           <AgentModelSelect value={model} onChange={setModel} />

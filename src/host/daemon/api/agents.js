@@ -4,6 +4,7 @@
 //   POST /projects/:pid/agents                      — create from slug
 //   GET  /projects/:pid/agents/:slug/memory
 //   PUT  /projects/:pid/agents/:slug/memory
+//   GET  /agents/tools                              — the catalog an agent card is written against
 //   GET  /agents/packs                              — teams of vault templates
 //   GET  /projects/:pid/agents/packs/:id/plan       — the slugs a team WOULD take
 //   POST /projects/:pid/agents/import-pack          — install a team in one shot
@@ -32,7 +33,15 @@ import {
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
 import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
-import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
+import {
+  AGENT_CORE_TOOLS,
+  AGENT_TOOL_ALIASES,
+  defaultAgentToolNames,
+  resolveAgentAllowedTools,
+} from "#core/agent/agent-tools.js";
+import { agentToolCatalog } from "#core/agent/tools/registry.js";
+import { agentSkills } from "#core/agent/skills/declared.js";
+import { listSkills } from "#core/agent/skills/loader.js";
 import { agentToResponse, asyncRoute } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
@@ -155,6 +164,34 @@ export function register(api, { projects, project }) {
     }
   });
 
+  // The tool vocabulary an AGENT CARD is written against, grouped by category.
+  //
+  // NOT /api/tools, which serves core/http-tools/catalog.js — a 43-entry HTTP
+  // surface for the daemon's own routes. The web tool picker was built on that
+  // one, and the two only overlap by accident: 58 of the tools an agent can
+  // actually be granted had no chip to tick (every task verb, call_agent,
+  // ask_questions, git, calendar, obsidian), while `session_compact`, which the
+  // picker offered, does not exist here and was dropped in silence on save.
+  //
+  // `core` is the floor every declared list gets anyway — the UI shows those
+  // locked rather than pretending they are a choice. `host_only` never reaches
+  // an agent, so it is not offered at all.
+  api.get("/agents/tools", (_req, res) => {
+    const grantable = new Set(defaultAgentToolNames());
+    const tools = agentToolCatalog().filter((t) => grantable.has(t.name));
+    const categories = [...new Set(tools.map((t) => t.category))].sort();
+    res.json({
+      tools,
+      categories,
+      core: [...AGENT_CORE_TOOLS],
+      // Cards written against the old picker hold names like `memory_get` and
+      // `run_command`. They still resolve, so the UI has to normalize them to
+      // the canonical name or it would draw a granted tool as unticked.
+      aliases: { ...AGENT_TOOL_ALIASES },
+      default_count: grantable.size,
+    });
+  });
+
   // Packs = a TEAM of vault templates installed together. The manifest is
   // global (it names templates, not projects), so listing it needs no project.
   api.get("/agents/packs", (_req, res) => {
@@ -218,12 +255,28 @@ export function register(api, { projects, project }) {
     // UI — the one thing somebody importing a team needs to see is which tools
     // each member ends up with, and an empty card answered the opposite.
     const effective = resolveAgentAllowedTools(a);
+    // Skills do NOT work like tools, and the UI said they did. An undeclared
+    // `tools:` inherits the whole registry; an undeclared `skills:` inherits
+    // NOTHING — loadAgentSkills() iterates the declared list and stops. The
+    // project's other skills stay reachable at runtime through list_skills /
+    // load_skill, which is a different promise from "injected in the prompt",
+    // and the form's "use the project defaults" hint claimed the second one.
+    const declaredSkills = agentSkills(a);
+    let availableSkills = 0;
+    try {
+      availableSkills = listSkills({ projectPath: p.path }).length;
+    } catch {
+      availableSkills = 0;
+    }
     res.json({
       ...agentToResponse(a),
       memory,
       system: a.body || "",
       effective_tools: effective,
       tools_source: (a.fields?.Tools || []).length ? "declared" : "default",
+      effective_skills: declaredSkills,
+      skills_source: declaredSkills.length ? "declared" : "none",
+      skills_available: availableSkills,
     });
   });
 
