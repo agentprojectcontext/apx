@@ -1,44 +1,138 @@
 {
-  "version": 1,
-  "packs": [
+ "version": 1,
+ "packs": [
+  {
+   "id": "company",
+   "name": "Company team",
+   "description": "The executive team of a company: one orchestrator that reports to your super-agent, and the specialists it consults.",
+   "explain": "Creates these agents in the project. The CEO becomes its orchestrator and the rest hang off it; none of them can write to you directly \u2014 they go through your super-agent. Untick anything you do not want; you can remove or rename them later.",
+   "areas": [
     {
-      "id": "company",
-      "name": "Company team",
-      "description": "The executive team of a company: one orchestrator that reports to your super-agent, and the specialists it consults.",
-      "explain": "Creates these agents in the project. The CEO becomes its orchestrator and the rest hang off it; none of them can write to you directly — they go through your super-agent. Untick anything you do not want; you can remove or rename them later.",
-      "areas": [
-        { "slug": "direction", "name": "Direction" },
-        { "slug": "finance", "name": "Finance" },
-        { "slug": "operations", "name": "Operations" },
-        { "slug": "growth", "name": "Growth" },
-        { "slug": "people", "name": "People" },
-        { "slug": "legal", "name": "Legal" }
-      ],
-      "agents": [
-        { "slug": "ceo", "default": true, "aliases": ["chief"] },
-        { "slug": "cfo", "default": true, "parent": "ceo", "aliases": ["finance-lead"] },
-        { "slug": "coo", "default": true, "parent": "ceo", "aliases": ["ops-lead"] },
-        { "slug": "cmo", "default": true, "parent": "ceo", "aliases": ["growth-lead"] },
-        { "slug": "chro", "default": true, "parent": "ceo", "aliases": ["people-lead"] },
-        { "slug": "gc", "default": true, "parent": "ceo", "aliases": ["legal-lead"] }
-      ]
+     "slug": "direction",
+     "name": "Direction"
     },
     {
-      "id": "dev-team",
-      "name": "Development team",
-      "description": "The named build team: an orchestrator plus the specialists that take a requirement to production.",
-      "explain": "Creates these agents in the project, with Roby orchestrating and the rest reporting to it. Untick anything you do not want; you can remove or rename them later.",
-      "agents": [
-        { "slug": "roby-orchestrator", "default": true },
-        { "slug": "rocky-pm", "default": true, "parent": "roby-orchestrator" },
-        { "slug": "cody-developer", "default": true, "parent": "roby-orchestrator" },
-        { "slug": "arch-architect", "default": true, "parent": "roby-orchestrator" },
-        { "slug": "tessa-qa", "default": true, "parent": "roby-orchestrator" },
-        { "slug": "sid-security", "default": false, "parent": "roby-orchestrator" },
-        { "slug": "vera-ui", "default": false, "parent": "roby-orchestrator" },
-        { "slug": "max-marketing", "default": false, "parent": "roby-orchestrator" },
-        { "slug": "finn-billing", "default": false, "parent": "roby-orchestrator" }
-      ]
+     "slug": "finance",
+     "name": "Finance"
+    },
+    {
+     "slug": "operations",
+     "name": "Operations"
+    },
+    {
+     "slug": "growth",
+     "name": "Growth"
+    },
+    {
+     "slug": "people",
+     "name": "People"
+    },
+    {
+     "slug": "legal",
+     "name": "Legal"
     }
-  ]
+   ],
+   "agents": [
+    {
+     "slug": "ceo",
+     "default": true,
+     "aliases": [
+      "chief"
+     ]
+    },
+    {
+     "slug": "cfo",
+     "default": true,
+     "parent": "ceo",
+     "aliases": [
+      "finance-lead"
+     ]
+    },
+    {
+     "slug": "coo",
+     "default": true,
+     "parent": "ceo",
+     "aliases": [
+      "ops-lead"
+     ]
+    },
+    {
+     "slug": "cmo",
+     "default": true,
+     "parent": "ceo",
+     "aliases": [
+      "growth-lead"
+     ]
+    },
+    {
+     "slug": "chro",
+     "default": true,
+     "parent": "ceo",
+     "aliases": [
+      "people-lead"
+     ]
+    },
+    {
+     "slug": "gc",
+     "default": true,
+     "parent": "ceo",
+     "aliases": [
+      "legal-lead"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "dev-team",
+   "name": "Build team",
+   "description": "An orchestrator plus the specialists that take a requirement to production.",
+   "explain": "Creates these agents in the project, with the orchestrator coordinating and the rest reporting to it. Each one gets a name when you install it. Untick anything you do not want.",
+   "agents": [
+    {
+     "slug": "orchestrator",
+     "default": true
+    },
+    {
+     "slug": "pm",
+     "default": true,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "developer",
+     "default": true,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "architect",
+     "default": true,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "qa-engineer",
+     "default": true,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "security",
+     "default": false,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "designer",
+     "default": false,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "growth",
+     "default": false,
+     "parent": "orchestrator"
+    },
+    {
+     "slug": "billing",
+     "default": false,
+     "parent": "orchestrator"
+    }
+   ]
+  }
+ ]
 }

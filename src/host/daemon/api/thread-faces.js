@@ -116,7 +116,9 @@ export function createFaceResolver(projectPaths = []) {
     if (!hit && LEGACY_SUPER_AGENT_SLUGS.has(String(slug).toLowerCase())) {
       return withSession({ ...superAgentFace() });
     }
-    if (!hit && String(slug).toLowerCase() === "roby-orchestrator") {
+    // `roby-orchestrator` was this template's slug before the vault moved to
+    // role names; a project that installed it back then still uses it.
+    if (!hit && ["orchestrator", "roby-orchestrator"].includes(String(slug).toLowerCase())) {
       return withSession({
         slug,
         name: "Roby Orchestrator",

@@ -21,15 +21,15 @@ Listing returns `bundled ∪ user`, with `source: "bundled" | "user" | "user-ove
 
 | Slug | Role | Strength |
 |---|---|---|
-| `roby-orchestrator` | Pipeline orchestrator | Autonomous task routing, multi-agent coordination |
-| `arch-architect` | Software architect | System design, tradeoffs, ADRs |
-| `cody-developer` | Senior Laravel dev | Code, refactors, technical leadership |
-| `tessa-qa` | QA / beta tester | Reality checks, test plans, real-user empathy |
-| `max-marketing` | Growth hacker | Content, campaigns, SEO, copy |
-| `sid-security` | Security specialist | Audits, threat models, hardening |
-| `rocky-pm` | Senior PM | Tasklists, roadmaps, stakeholder comms |
-| `vera-ui` | UI/UX reviewer | Visual audits, usability (uses browser-use) |
-| `finn-billing` | Billing / commercial ops | Stripe, invoicing, plan logic |
+| `orchestrator` | Pipeline orchestrator | Autonomous task routing, multi-agent coordination |
+| `architect` | Software architect | System design, tradeoffs, ADRs |
+| `developer` | Senior Laravel dev | Code, refactors, technical leadership |
+| `qa-engineer` | QA / beta tester | Reality checks, test plans, real-user empathy |
+| `growth` | Growth hacker | Content, campaigns, SEO, copy |
+| `security` | Security specialist | Audits, threat models, hardening |
+| `pm` | Senior PM | Tasklists, roadmaps, stakeholder comms |
+| `designer` | UI/UX reviewer | Visual audits, usability (uses browser-use) |
+| `billing` | Billing / commercial ops | Stripe, invoicing, plan logic |
 
 ### Generic specialists (from PandaProject)
 
@@ -53,13 +53,13 @@ apx agent vault add reviewer \
   --description "Reviews PRs and pushes back on hand-wavy diffs."
 
 # Delete: user-only → physical delete; bundled → tombstone
-apx agent vault rm tessa-qa
-apx agent vault restore tessa-qa        # un-tombstone
+apx agent vault rm qa-engineer
+apx agent vault restore qa-engineer        # un-tombstone
 
 # Import into current project
-apx agent import cody-developer
-apx agent import tessa-qa --copy        # copy into .apc/agents/ for local edits
-apx agent import roby-orchestrator --force
+apx agent import developer
+apx agent import qa-engineer --copy        # copy into .apc/agents/ for local edits
+apx agent import orchestrator --force
 
 # Daemon tool API equivalents:
 list_vault_agents()
@@ -121,5 +121,5 @@ is_master: false
 ## Gotchas
 
 - **Bundled defaults are always present** — no sync step. Removing tombstones; editing copies to user layer.
-- Slug is `roby-orchestrator`, **not** `roby` — the APX super-agent persona is "Roby" via `~/.apx/identity.json`. A project agent called `roby` would shadow it.
+- The templates are named after ROLES, not personas: `orchestrator`, `pm`, `developer`. The persona is assigned when the agent is installed, from the shared name pool, so a project never ends up with an agent whose name shadows the super-agent's own.
 - The `agency-agents` skill in `~/.claude/skills/` pulls from `msitarzewski/agency-agents` on GitHub. APX bundles a snapshot in `assets/agent-vault-defaults/` so installs are offline-first. To refresh upstream, edit the bundle and re-commit; user overrides are untouched.

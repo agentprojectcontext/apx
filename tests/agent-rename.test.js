@@ -261,14 +261,14 @@ test("renaming an imported vault agent leaves no ghost under the old slug", asyn
     // same agent came back as a second card.
     const projectFile = path.join(root, ".apc", "project.json");
     const meta = JSON.parse(fs.readFileSync(projectFile, "utf8"));
-    meta.agents = { imported: ["tessa-qa"] };
+    meta.agents = { imported: ["qa-engineer"] };
     fs.writeFileSync(projectFile, JSON.stringify(meta, null, 2) + "\n");
-    assert.ok(!fs.existsSync(path.join(root, ".apc", "agents", "tessa-qa.md")));
+    assert.ok(!fs.existsSync(path.join(root, ".apc", "agents", "qa-engineer.md")));
 
     let r = await fetch(`${baseUrl}/api/projects/${pid}/agents`);
-    assert.deepEqual((await r.json()).map((a) => a.slug), ["tessa-qa"]);
+    assert.deepEqual((await r.json()).map((a) => a.slug), ["qa-engineer"]);
 
-    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/tessa-qa/rename`, {
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/qa-engineer/rename`, {
       method: "POST", headers: json, body: JSON.stringify({ slug: "nadia" }),
     });
     assert.equal(r.status, 200, JSON.stringify(await r.clone().json()));
@@ -276,7 +276,7 @@ test("renaming an imported vault agent leaves no ghost under the old slug", asyn
     // One agent, under the new slug — not two.
     const roster = await (await fetch(`${baseUrl}/api/projects/${pid}/agents`)).json();
     assert.deepEqual(roster.map((a) => a.slug), ["nadia"]);
-    assert.equal((await fetch(`${baseUrl}/api/projects/${pid}/agents/tessa-qa`)).status, 404);
+    assert.equal((await fetch(`${baseUrl}/api/projects/${pid}/agents/qa-engineer`)).status, 404);
 
     // Materialized locally, and the import entry that resurrected it is gone.
     assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "nadia.md")));
