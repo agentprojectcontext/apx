@@ -282,13 +282,31 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   "agent import": topic({
     title: "apx agent import",
-    summary: "Import a reusable agent template from the APX vault into the current project.",
-    usage: ["apx agent import <slug> [--copy] [--force]"],
+    summary: "Import a reusable agent template from the APX vault into the current project — one, or a whole team with --pack.",
+    usage: [
+      "apx agent import <slug> [--copy] [--force]",
+      "apx agent import --pack <id> [--only a,b] [--as a=slug] [--dry-run]",
+    ],
     options: [
       ["--copy", "Copy the vault markdown file into the project instead of linking it."],
       ["--force", "Overwrite an existing project-local definition when used with --copy."],
+      ["--pack <id>", "Install a whole team (see `apx agent packs`). Always copies, never links."],
+      ["--only <a,b>", "Install just these members instead of the pack's defaults."],
+      ["--as <a=slug>", "Give a member a specific slug. Comma-separated for several."],
+      ["--dry-run", "Print the slugs the team would take, write nothing."],
     ],
-    examples: ["apx agent import reviewer", "apx agent import reviewer --copy --force"],
+    examples: [
+      "apx agent import reviewer",
+      "apx agent import reviewer --copy --force",
+      "apx agent import --pack company",
+      "apx agent import --pack company --only cfo,gc --dry-run",
+    ],
+  }),
+  "agent packs": topic({
+    title: "apx agent packs",
+    summary: "List the teams of vault templates that can be installed together, and who reports to whom.",
+    usage: ["apx agent packs"],
+    examples: ["apx agent packs", "apx agent import --pack company"],
   }),
   "agent vault": topic({
     title: "apx agent vault",
