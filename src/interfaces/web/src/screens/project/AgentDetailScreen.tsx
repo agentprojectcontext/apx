@@ -5,7 +5,7 @@ import {
   ArrowDownLeft, ArrowLeft, ArrowUpRight, Bot, Brain, Copy, Crown, FileText, Gauge,
   Heart, MessagesSquare, Pencil, Save, Send, Settings, Sparkles, Trash2, Wrench, Activity,
 } from "lucide-react";
-import { Agents, Conversations, Messages, Routines, Tasks, Tools } from "../../lib/api";
+import { Agents, Conversations, Messages, Projects, Routines, Tasks } from "../../lib/api";
 import type { AgentDetail, AgentEntry, FileContent, MessageEntry, RoutineEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
@@ -15,6 +15,7 @@ import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
 import { AgentSkillsPicker } from "../../components/agents/AgentSkillsPicker";
+import { AgentToolsPicker } from "../../components/agents/AgentToolsPicker";
 import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
 import { INHERIT_MODEL, isInheritedModel } from "../../components/agents/modelCatalog";
 import { useProject } from "../../hooks/useProjects";
@@ -28,7 +29,7 @@ import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
 import { BrainGraph, type BrainNode, type BrainEdge, agentPreview, routinePreview, clipPreview } from "./AgentBrainGraph";
 
-type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "prompt" | "config";
+type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "prompt" | "tools" | "config";
 function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
   return [
     { key: "overview", label: t("agents_ui.tab_explorer"),        icon: Gauge },
@@ -37,6 +38,12 @@ function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
     { key: "sleep",    label: t("project.agent_detail.sleep_title"),   icon: Heart },
     { key: "brain",    label: t("project.agent_detail.brain_title"),   icon: Sparkles },
     { key: "prompt",   label: t("project.agent_detail.tab_prompt"),    icon: FileText },
+    // Skills and tools left Config for a tab of their own. Side by side in the
+    // form they were two cards of wildly different heights — a 55-row skill
+    // list against a chip cloud — so the row stretched to the taller one and
+    // the shorter card floated in whitespace. They are also the two fields a
+    // person comes back to edit; everything else on Config is set once.
+    { key: "tools",    label: t("project.agent_detail.tab_tools"),     icon: Wrench },
     { key: "config",   label: t("project.agent_detail.tab_config"),    icon: Settings },
   ];
 }
@@ -51,11 +58,11 @@ export function typeOptions() {
     { value: "monitor",      label: t("agents_ui.type_monitor"),      description: t("agents_ui.type_monitor_desc") },
   ];
 }
-const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
-// Height cap for the skills scroller, chosen to sit level with the tools card
-// beside it rather than stretching the row to the full skill catalog.
-const SKILLS_SCROLLER_MAX = 260;
+// Height cap for the skill / tool scrollers. They no longer sit side by side
+// (that was the constraint that set the old 260), so this is just the point
+// past which a list stops being scannable and starts being a page.
+const PICKER_SCROLLER_MAX = 420;
 
 const routinesForAgent = (rs: RoutineEntry[], slug: string) =>
   rs.filter((r) => (r.spec as any)?.agent === slug || (slug === "super-agent" && r.kind === "super_agent"));
@@ -177,7 +184,16 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
             <Section title={t("agent_detail_extra.skills_title")} description="">
               <div className="flex flex-wrap gap-1">
                 {a.skills?.map((s) => <Badge key={s} tone="info"><Sparkles size={10} /> {s}</Badge>)}
-                {!a.skills?.length && <span className="text-xs text-muted-fg">{t("agent_detail_extra.no_skills")}</span>}
+                {/* "Sin skills" was true and read as a mistake, because the
+                    card beside it said "91 (project default)" for the exact
+                    same empty field. Tools inherit everything; skills inherit
+                    nothing and stay reachable through load_skill. Say that. */}
+                {!a.skills?.length && (
+                  <span className="text-xs text-muted-fg">
+                    {t("agent_tools.skills_none")}
+                    {a.skills_available ? " " + t("agent_tools.skills_reachable", { count: a.skills_available }) : ""}
+                  </span>
+                )}
               </div>
               {/* An undeclared `tools:` is the normal case and used to render as
                   nothing, which reads as "this agent has no tools" — the exact
@@ -264,12 +280,21 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
         <SystemPromptEditor pid={pid} slug={slug} system={a.system || ""} onSaved={() => void detail.mutate()} />
       )}
 
+      {tab === "tools" && (
+        <SkillsToolsTab
+          key={a.slug}
+          pid={pid}
+          agent={a}
+          projectPath={project?.path}
+          onSaved={() => { void detail.mutate(); void agents.mutate(); }}
+        />
+      )}
+
       {tab === "config" && (
         <AgentConfigForm
           pid={pid}
           agent={a}
           agents={agents.data || []}
-          projectPath={project?.path}
           onSaved={() => { detail.mutate(); agents.mutate(); }}
           onDeleted={() => { agents.mutate(); navigate(`/p/${pid}/agents`); }}
           onRenamed={(newSlug) => { void agents.mutate(); navigate(`/p/${pid}/agents/${newSlug}?tab=config`); }}
@@ -405,12 +430,11 @@ function CloneAgentButton({
 }
 
 function AgentConfigForm({
-  pid, agent, agents, projectPath, onSaved, onDeleted, onRenamed,
+  pid, agent, agents, onSaved, onDeleted, onRenamed,
 }: {
   pid: string;
   agent: AgentDetail;
   agents: AgentEntry[];
-  projectPath?: string;
   onSaved: () => void;
   onDeleted: () => void;
   onRenamed: (newSlug: string) => void;
@@ -425,15 +449,20 @@ function AgentConfigForm({
   const [model, setModel] = useState(agent.model || "");
   const [parent, setParent] = useState(agent.parent || "");
   const [isMaster, setIsMaster] = useState(!!agent.is_master);
-  const [skills, setSkills] = useState<string[]>(agent.skills || []);
-  // No declared skills ⇒ the agent inherits whatever the project enables.
-  const [skillDefaults, setSkillDefaults] = useState((agent.skills || []).length === 0);
-  const [tools, setTools] = useState((agent.tools || []).join(", "));
   const [description, setDescription] = useState(agent.description || "");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // The prompt body is edited in its own tab; here we only report its size.
   const promptLines = (agent.system || "").trim() ? (agent.system || "").trim().split("\n").length : 0;
+
+  // What this agent falls back to when it declares no autonomy of its own —
+  // the project's effective permission_mode, which is what the turn actually
+  // runs on (see applyAgentAutonomy). Naming it turns "Hereda" from a blank
+  // into an answer.
+  const projectCfg = useSWR(`/api/projects/${pid}/config`, () => Projects.config.show(pid));
+  const inheritedAutonomy =
+    (projectCfg.data?.effective as { super_agent?: { permission_mode?: string } } | undefined)
+      ?.super_agent?.permission_mode || null;
 
   const save = async () => {
     setBusy(true);
@@ -448,8 +477,9 @@ function AgentConfigForm({
         model: isInheritedModel(model) ? INHERIT_MODEL : model,
         parent: parent || null,
         is_master: isMaster || type === "orchestrator",
-        skills: skillDefaults ? [] : skills,
-        tools: csv(tools),
+        // skills + tools are NOT sent from here: they live in their own tab and
+        // setAgentConfig only touches a field the patch actually carries, so
+        // omitting them is what keeps this form from wiping that one.
         description: description || null,
       });
       toast.success(t("project.agent_detail.update_success"));
@@ -503,7 +533,7 @@ function AgentConfigForm({
           <Section title={t("project.agent_detail.config_behavior")} description={t("project.agent_detail.config_behavior_desc")}>
             <div className="space-y-3">
               <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
-                <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+                <AutonomyPicker value={autonomy} onChange={setAutonomy} inherited={inheritedAutonomy} />
               </Field>
               <Field label={t("project.agent_detail.parent_label")}>
                 <UiSelect
@@ -520,8 +550,11 @@ function AgentConfigForm({
             </div>
           </Section>
 
-          {/* The prompt left this form for its own tab — this keeps the trail
-              visible from where people used to look for it. */}
+          {/* The prompt and the tools both left this form for their own tabs.
+              These keep the trail visible from where people used to look for
+              them — and they sit in this column because the left one is a tall
+              form and the right one used to just stop, leaving half a screen of
+              nothing under it. */}
           <Link
             to="?tab=prompt"
             className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-muted-fg/50"
@@ -535,25 +568,26 @@ function AgentConfigForm({
             </span>
             <span className={`shrink-0 text-xs ${toneText.violet}`}>{t("common.open")} →</span>
           </Link>
+
+          <Link
+            to="?tab=tools"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-muted-fg/50"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Wrench size={14} className="shrink-0 text-muted-fg" />
+              <span className="truncate text-sm font-medium">{t("project.agent_detail.tools_card_title")}</span>
+              <span className="shrink-0 text-xs text-muted-fg">
+                {t("project.agent_detail.tools_card_count", {
+                  n: (agent.effective_tools?.length ?? agent.tools?.length ?? 0),
+                  s: (agent.skills?.length ?? 0),
+                })}
+              </span>
+            </span>
+            <span className={`shrink-0 text-xs ${toneText.violet}`}>{t("common.open")} →</span>
+          </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Section title={t("agents_form.skills_title")} description={t("agents_form.skills_desc")}>
-          <AgentSkillsPicker
-            value={skills}
-            onChange={setSkills}
-            projectPath={projectPath}
-            useDefaults={skillDefaults}
-            onUseDefaults={setSkillDefaults}
-            matchHeight={SKILLS_SCROLLER_MAX}
-          />
-        </Section>
-
-        <Section title={t("agents_ui.tools_label")} description={t("project.agent_detail.tools_hint")}>
-          <ToolsPicker value={tools} onChange={setTools} />
-        </Section>
-      </div>
 
       <ConfirmDialog
         open={confirmDelete}
@@ -795,79 +829,6 @@ function Field2({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const cat = useSWR("/api/tools", () => Tools.list());
-  const [draft, setDraft] = useState("");
-  const selected = csv(value);
-  const catalog = cat.data || [];
-  const toggle = (name: string) => {
-    const set = new Set(selected);
-    if (set.has(name)) set.delete(name); else set.add(name);
-    onChange([...set].join(", "));
-  };
-  const addDraft = () => {
-    const name = draft.trim();
-    if (!name) return;
-    if (!selected.includes(name)) onChange([...selected, name].join(", "));
-    setDraft("");
-  };
-  const custom = selected.filter((s) => !catalog.some((tool) => tool.name === s));
-  // The chips ARE the editor (tap to toggle) — no redundant CSV text field.
-  // Custom tools not in the catalog are added via the small inline input.
-  return (
-    <Field label={t("agents_ui.tools_label")}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {catalog.map((tool) => {
-          const on = selected.includes(tool.name);
-          return (
-            <Tip key={tool.name} content={tool.description || tool.name}>
-              <button type="button" onClick={() => toggle(tool.name)}
-                className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors",
-                  on ? toneOutline.emerald : "border-border text-muted-fg hover:text-foreground")}>
-                {tool.name}
-              </button>
-            </Tip>
-          );
-        })}
-        {custom.map((s) => (
-          <button key={s} type="button" onClick={() => toggle(s)}
-            className={cn("rounded-md px-2 py-0.5 font-mono text-[11px]", toneOutline.sky)}>
-            {s} ✕
-          </button>
-        ))}
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDraft(); } }}
-          onBlur={addDraft}
-          placeholder={t("project.agent_detail.tools_custom_ph")}
-          className="h-[23px] w-36 rounded-md border border-dashed border-border bg-transparent px-2 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-fg/60 focus:border-muted-fg"
-        />
-      </div>
-      {/* Chip selection mirrored as CSV text so the list can be copied,
-          pasted or bulk-edited; both stay in sync. */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={t("project.agent_detail.tools_csv_ph")}
-          className="h-7 flex-1 rounded-md border border-border bg-muted/30 px-2 font-mono text-[11px] text-muted-fg outline-none focus:border-muted-fg focus:text-foreground"
-        />
-        <Tip content={t("common.copy")}>
-          <button
-            type="button"
-            onClick={() => { void navigator.clipboard.writeText(csv(value).join(", ")); }}
-            aria-label={t("common.copy")}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-fg hover:text-foreground"
-          >
-            <Copy size={12} />
-          </button>
-        </Tip>
-      </div>
-    </Field>
-  );
-}
-
 // Cross-link heuristic: two items are "related" when their titles share a
 // meaningful word (ignoring short/stop words). Used to wire tasks↔threads so
 // the brain reads as a web, not a wheel.
@@ -1023,5 +984,104 @@ function BrainTab({
         ? <p className="text-xs text-muted-fg">{t("project.agent_detail.brain_empty")}</p>
         : <BrainGraph nodes={nodes} edges={edges} />}
     </Section>
+  );
+}
+
+// Skills and tools, one tab, two inner panes.
+//
+// They are the same KIND of decision — what this agent is allowed to bring to a
+// turn — but they behave in opposite ways, and the old form drew them as twins:
+//
+//   • tools  — an undeclared list means the WHOLE registry. "All" is the real
+//     default, and narrowing is the deliberate act.
+//   • skills — an undeclared list means NOTHING is injected. The project's other
+//     skills stay reachable at runtime through load_skill, which is a different
+//     promise; the form used to call that "inherits the project defaults".
+//
+// Each pane says which of the two it is instead of leaving the reader to guess
+// from an empty box.
+function SkillsToolsTab({
+  pid, agent, projectPath, onSaved,
+}: {
+  pid: string;
+  agent: AgentDetail;
+  projectPath?: string;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [pane, setPane] = useState<"tools" | "skills">("tools");
+  const [tools, setTools] = useState<string[]>(agent.tools || []);
+  const [toolsAll, setToolsAll] = useState((agent.tools || []).length === 0);
+  const [skills, setSkills] = useState<string[]>(agent.skills || []);
+  const [skillsNone, setSkillsNone] = useState((agent.skills || []).length === 0);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await Agents.update(pid, agent.slug, {
+        tools: toolsAll ? [] : tools,
+        skills: skillsNone ? [] : skills,
+      });
+      toast.success(t("project.agent_detail.update_success"));
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const PANES: { key: "tools" | "skills"; label: string }[] = [
+    { key: "tools",  label: t("agent_tools.tab_tools") },
+    { key: "skills", label: t("agent_tools.tab_skills") },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+          {PANES.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setPane(key)}
+              className={cn(
+                "rounded-md px-3 py-1 text-xs transition-colors",
+                pane === key ? toneOutline.emerald : "text-muted-fg hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <Button onClick={save} disabled={busy} className="ml-auto">
+          <Save size={13} /> {busy ? t("common.saving") : t("common.save")}
+        </Button>
+      </div>
+
+      {pane === "tools" && (
+        <Section title={t("agent_tools.title")} description={t("agent_tools.desc")}>
+          <AgentToolsPicker
+            value={tools}
+            onChange={setTools}
+            useAll={toolsAll}
+            onUseAll={setToolsAll}
+            matchHeight={PICKER_SCROLLER_MAX}
+          />
+        </Section>
+      )}
+
+      {pane === "skills" && (
+        <Section title={t("agents_form.skills_title")} description={t("agent_tools.skills_desc")}>
+          <AgentSkillsPicker
+            value={skills}
+            onChange={setSkills}
+            projectPath={projectPath}
+            useDefaults={skillsNone}
+            onUseDefaults={setSkillsNone}
+            available={agent.skills_available}
+            matchHeight={PICKER_SCROLLER_MAX}
+          />
+        </Section>
+      )}
+    </div>
   );
 }

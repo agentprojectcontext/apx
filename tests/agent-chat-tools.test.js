@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import express from "express";
 import { apiRouter } from "./_helpers.js";
+import { AGENT_CORE_TOOLS } from "#core/agent/agent-tools.js";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-agent-chat-"));
 process.env.HOME = TMP_HOME;
@@ -140,7 +141,11 @@ test("tools:false keeps the old toolless path for callers that want one model ca
 
 test("the agent's declared allowlist is the gate, not a hint", async () => {
   // A card that declares `Tools:` is a deliberate narrowing — the endpoint must
-  // honour it exactly, or the loop would hand a specialist the whole registry.
+  // honour it, or the loop would hand a specialist the whole registry. What it
+  // gets on top is the core floor (AGENT_CORE_TOOLS): discover_tools, its own
+  // skills and memory, ask_questions, call_agent. Those are what an agent needs
+  // to BE one, and a card that forgets them produced failures that all read as
+  // "the model is bad at this".
   const narrow = makeProject({ slug: "narrow", tools: ["read_file", "list_files"] });
   const app = express();
   app.use(express.json());
@@ -165,10 +170,18 @@ test("the agent's declared allowlist is the gate, not a hint", async () => {
       }
     );
     const body = await res.json();
+    const granted = new Set(body.allowed_tools);
+    for (const declared of ["list_files", "read_file"]) {
+      assert.ok(granted.has(declared), `the card declared ${declared}`);
+    }
+    for (const core of AGENT_CORE_TOOLS) {
+      assert.ok(granted.has(core), `${core} is the floor, always granted`);
+    }
+    // Nothing else: the narrowing is still the point.
     assert.deepEqual(
-      [...body.allowed_tools].sort(),
+      body.allowed_tools.filter((n) => !AGENT_CORE_TOOLS.includes(n)).sort(),
       ["list_files", "read_file"],
-      "exactly what the card declared"
+      "no tool beyond the card and the floor",
     );
   } finally {
     s.close();

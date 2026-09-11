@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   declaredAgentTools,
   resolveAgentAllowedTools,
+  AGENT_CORE_TOOLS,
   AGENT_TOOL_ALIASES,
 } from "#core/agent/agent-tools.js";
 import { TOOLS } from "#core/agent/tools/names.js";
@@ -39,38 +40,57 @@ test("no declaration ⇒ the broad default: the registry minus what belongs to t
 
 test("a declared list still narrows — that is the whole point of declaring one", () => {
   const names = resolveAgentAllowedTools({ fields: { Tools: ["read_file", "run_command"] } });
-  assert.deepEqual(names, [TOOLS.READ_FILE, TOOLS.RUN_SHELL]);
+  assert.ok(names.includes(TOOLS.READ_FILE));
+  assert.ok(names.includes(TOOLS.RUN_SHELL));
+  // Narrow means narrow: everything NOT declared and not part of the floor
+  // stays out.
+  assert.equal(names.includes(TOOLS.SEND_TELEGRAM), false);
+  assert.equal(names.includes(TOOLS.WRITE_FILE), false);
+  assert.equal(names.includes(TOOLS.CREATE_TASK), false);
+  assert.ok(names.length < 20, `a declared list must stay small, got ${names.length}`);
+});
+
+// The floor. A card that forgets `discover_tools` used to produce an agent that
+// could not find the tools it was not given; one that forgets `ask_questions`
+// could not hand a question back to a human; one that forgets `call_agent`
+// could not answer another agent over a2a. Every one of those read as "the
+// model is bad at this" rather than as a missing line in frontmatter.
+test("every declared list gets the core floor on top of what it declared", () => {
+  const names = resolveAgentAllowedTools({ fields: { Tools: ["read_file"] } });
+  for (const core of AGENT_CORE_TOOLS) {
+    assert.ok(names.includes(core), `${core} must always be granted`);
+  }
+  // …and the floor touches nothing in the world.
+  for (const worldly of [TOOLS.RUN_SHELL, TOOLS.WRITE_FILE, TOOLS.SEND_TELEGRAM, TOOLS.CREATE_TASK]) {
+    assert.equal(AGENT_CORE_TOOLS.includes(worldly), false, `${worldly} does not belong in the floor`);
+  }
 });
 
 test("catalog aliases rewrite to callable native names", () => {
   const names = resolveAgentAllowedTools({
     fields: { Tools: ["memory_get", "agent_list", "project_info", "run_command"] },
   });
-  assert.deepEqual(names, [
-    TOOLS.READ_SELF_MEMORY,
-    TOOLS.LIST_AGENTS,
-    TOOLS.LIST_PROJECTS,
-    TOOLS.RUN_SHELL,
-  ]);
+  for (const n of [TOOLS.READ_SELF_MEMORY, TOOLS.LIST_AGENTS, TOOLS.LIST_PROJECTS, TOOLS.RUN_SHELL]) {
+    assert.ok(names.includes(n), `alias did not resolve to ${n}`);
+  }
 });
 
 test("a declared native name is kept as-is", () => {
   const names = resolveAgentAllowedTools({
     fields: { Tools: ["read_file", "write_file", "asana_list_tasks", "send_telegram"] },
   });
-  assert.deepEqual(names, [
-    TOOLS.READ_FILE,
-    TOOLS.WRITE_FILE,
-    TOOLS.ASANA_LIST_TASKS,
-    TOOLS.SEND_TELEGRAM,
-  ]);
+  for (const n of [TOOLS.READ_FILE, TOOLS.WRITE_FILE, TOOLS.ASANA_LIST_TASKS, TOOLS.SEND_TELEGRAM]) {
+    assert.ok(names.includes(n), `declared ${n} was not kept`);
+  }
 });
 
 test("unknown names are dropped; duplicates collapse", () => {
   const names = resolveAgentAllowedTools({
     fields: { Tools: ["read_file", "not_a_tool", "read_file", "memory_get"] },
   });
-  assert.deepEqual(names, [TOOLS.READ_FILE, TOOLS.READ_SELF_MEMORY]);
+  assert.equal(names.filter((n) => n === TOOLS.READ_FILE).length, 1, "duplicates must collapse");
+  assert.ok(names.includes(TOOLS.READ_SELF_MEMORY));
+  assert.equal(names.includes("not_a_tool"), false, "an unknown name must be dropped");
 });
 
 test("routine override replaces the agent card, including empty", () => {
