@@ -1,6 +1,7 @@
 import type { ConfigSection } from "./ConfigTabsEditor";
 import { PERMISSION_MODES } from "../../constants";
 import { t } from "../../i18n";
+import { projectKindOptions } from "./projectKinds";
 
 // These are functions (not module-level consts) so t() runs per-render with the
 // active locale — a frozen const would lock the strings to the locale at import.
@@ -57,6 +58,16 @@ export function apcProjectSections(): ConfigSection[] {
         { path: "apf", label: t("settings_ui.cfg_apc_spec") },
         { path: "apx", label: t("settings_ui.cfg_apx_install") },
         { path: "apx_id", label: t("settings_ui.cfg_apx_storage_id") },
+        // The type is metadata like the rest, and it belongs here rather than
+        // only in the Add-project dialog: a project you typed wrong should not
+        // have to be unregistered and re-added to be retyped.
+        {
+          path: "kind",
+          label: t("add_project.kind_label"),
+          kind: "select",
+          options: projectKindOptions(),
+          hint: t("settings_ui.cfg_kind_hint"),
+        },
       ],
     },
   ];

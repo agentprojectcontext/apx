@@ -5,6 +5,7 @@ import { FolderOpen, Home, Search, X } from "lucide-react";
 import { Filesystem, Projects } from "../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch } from "./ui";
 import { UiSelect } from "./UiSelect";
+import { projectKindOptions } from "./config/projectKinds";
 import { useToast } from "./Toast";
 import { t } from "../i18n";
 
@@ -20,10 +21,13 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   const [browseError, setBrowseError] = useState("");
   const [loadingDirs, setLoadingDirs] = useState(false);
   const [busy, setBusy] = useState(false);
+  const KINDS = projectKindOptions();
   // What kind of thing this project is. It already existed end to end (the
   // sidebar icon, the topbar, the structure tab that only a company gets) —
   // there was just no moment at which anybody could set it.
-  const [kind, setKind] = useState("other");
+  // Company is the default because it is the only type that DOES something —
+  // areas, roles, an executive team — so it is the one worth offering first.
+  const [kind, setKind] = useState("company");
   const [initIfNeeded, setInitIfNeeded] = useState(true);
   const [withTeam, setWithTeam] = useState(true);
 
@@ -49,6 +53,7 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   useEffect(() => {
     if (open) return;
     setPath("");
+      setKind("company");
     setBrowseOpen(false);
     setBrowsePath("");
     setEntries([]);
@@ -122,18 +127,13 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
           </div>
         </Field>
 
-        <Field label={t("add_project.kind_label")} hint={t("add_project.kind_hint")}>
-          <UiSelect
-            value={kind}
-            onChange={setKind}
-            options={[
-              { value: "other", label: t("settings_ui.kind_other") },
-              { value: "company", label: t("settings_ui.kind_company") },
-              { value: "personal", label: t("settings_ui.kind_personal") },
-              { value: "app", label: t("settings_ui.kind_app") },
-              { value: "software", label: t("settings_ui.kind_software") },
-            ]}
-          />
+        {/* One description per type, written once and shown twice: greyed under
+            each option while choosing, and under the field once chosen. Two
+            different sentences for the same thing is how they drift apart.
+            "Other" sits last because it is the answer you give when none of the
+            others fit, not a first option. */}
+        <Field label={t("add_project.kind_label")} hint={KINDS.find((k) => k.value === kind)?.description}>
+          <UiSelect value={kind} onChange={setKind} options={KINDS} data-testid="project-kind" />
         </Field>
 
         {/* A company gets a team offered right here, because the moment you
