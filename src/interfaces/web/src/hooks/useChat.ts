@@ -5,6 +5,7 @@ import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
 import { queueOnSend, onChatPrefsChange } from "../lib/chat-prefs";
+import { dayKey } from "../lib/chat-dates";
 import {
   conversationActivityKey,
   isChatTurnClosed,
@@ -442,7 +443,21 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
       // questions read as already answered and there was nothing to pick from.
       const actor = m.role === "assistant" ? m.agent : turnActor;
       const named = turnActor !== undefined;
-      if (!turn || (m.role === "assistant" && named && actor !== turnActor)) {
+      // A new DAY also breaks the bubble, for the same reason a new actor does.
+      //
+      // Collapsing consecutive assistant rows is right for a streamed turn —
+      // several agent rows plus its tool rows ARE one turn. It is wrong across
+      // a gap: on an a2a thread each row is a separate delivery, and one agent
+      // writing twice a day apart is two messages, not one.
+      //
+      // What it looked like: Roby answered Rocky yesterday, then today's
+      // delegation asked "Responde con la palabra 'listo'". Same actor, so the
+      // ask was absorbed into yesterday's bubble and inherited its timestamp —
+      // which put the "Hoy" divider AFTER it. The thread then read as a bare
+      // "listo" under today with nothing asking for it, and the question it
+      // answered buried at the end of a block from the day before.
+      const newDay = !!turn && dayKey(ts) !== dayKey(turn.ts);
+      if (!turn || newDay || (m.role === "assistant" && named && actor !== turnActor)) {
         turn = { role: "assistant", parts: [], ts };
         turnActor = actor;
         out.push(turn);

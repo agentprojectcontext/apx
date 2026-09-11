@@ -146,3 +146,22 @@ test("web: a reloaded thread splits turns when the answering agent changes", () 
   assert.match(USE_CHAT, /const named = turnActor !== undefined;/);
   assert.match(USE_CHAT, /\} else if \(m\.role === "assistant" && !named\) \{\s*\n\s*turnActor = actor;/);
 });
+
+test("web: a reloaded thread also splits turns when the DAY changes", () => {
+  // Collapsing consecutive assistant rows is right for a streamed turn — several
+  // agent rows plus their tool rows ARE one turn. It is wrong across a gap: on
+  // an a2a thread every row is a separate delivery, and one agent writing twice
+  // a day apart is two messages.
+  //
+  // What it looked like: Roby answered Rocky yesterday, then today's delegation
+  // asked "responde con la palabra 'listo'". Same actor, so the ask was absorbed
+  // into YESTERDAY's bubble and inherited its timestamp — which put the "Hoy"
+  // divider after it. The thread read as a bare "listo" under today with nothing
+  // asking for it, and the question buried at the end of the day before.
+  assert.match(USE_CHAT, /const newDay = !!turn && dayKey\(ts\) !== dayKey\(turn\.ts\);/);
+  assert.match(USE_CHAT, /if \(!turn \|\| newDay \|\|/, "the day break has to be in the split condition");
+  // The pane's day is the READER's local one (lib/chat-dates), never the UTC
+  // slice of the timestamp — a message sent at 22:00 in Buenos Aires is already
+  // tomorrow in UTC, so a UTC key cuts a new day in the middle of the evening.
+  assert.match(USE_CHAT, /import \{ dayKey \} from "\.\.\/lib\/chat-dates";/);
+});
