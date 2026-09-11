@@ -43,14 +43,21 @@ function source(p, name, body) {
   fs.chmodSync(file, 0o755);
 }
 
-test("every ritual's scheduled hour falls outside quiet hours", () => {
+test("every ritual that can reach the owner is scheduled outside quiet hours", () => {
   // A ritual scheduled inside the quiet window is held every single time, and
   // the layer looks like it stopped working rather than like it was muted.
+  //
+  // A `toDesk` ritual is exempt and must stay exempt: it files a note for the
+  // orchestrator and can never interrupt anybody, so the quiet window says
+  // nothing about when it may run — and running it early, before the review
+  // that reads it, is the whole point.
   const { from, to } = DEFAULT_POLICY.quietHours;
   for (const [name, r] of Object.entries(RITUALS)) {
+    if (r.toDesk) continue;
     const quiet = from > to ? r.hour >= from || r.hour < to : r.hour >= from && r.hour < to;
     assert.equal(quiet, false, `${name} runs at ${r.hour}h, inside quiet hours`);
   }
+  assert.ok(Object.values(RITUALS).some((r) => r.toDesk), "the exemption must describe a ritual that exists");
 });
 
 test("the same finding twice is dropped, but different numbers are different news", () => {

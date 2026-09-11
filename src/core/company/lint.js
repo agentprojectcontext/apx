@@ -56,6 +56,19 @@ export function lint(brief, { ritual = "weekly", maxChars = DEFAULT_POLICY.maxBr
     add("max-lines", `${content.length} lines of content; the ${ritual} ritual allows ${definition.maxLines}.`);
   }
 
+  // "No preamble" is in every ritual's contract and nothing checked it, so the
+  // first live council run opened with "Now I have a complete picture of the
+  // financial landscape. Let me deliver the report." — the model thinking out
+  // loud, filed as if it were a finding.
+  //
+  // Only for the desk, deliberately. On a brief this rule would start refusing
+  // runs that pass today, and silencing the owner-facing path is not a side
+  // effect a formatting rule gets to have. Here it is advisory, so it costs a
+  // line on the record and nothing else.
+  if (definition.toDesk && content.length && !BULLET.test(content[0])) {
+    add("no-preamble", "The note opens with prose instead of a finding: the first line is a bullet.", 1);
+  }
+
   const bullets = lines
     .map((line, index) => ({ line, number: index + 1 }))
     .filter(({ line }) => BULLET.test(line));

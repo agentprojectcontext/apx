@@ -15,7 +15,12 @@
       "daily-pulse",
       "weekly-review",
       "decision-brief",
-      "monthly-scorecard"
+      "monthly-scorecard",
+      "council-cfo",
+      "council-coo",
+      "council-cmo",
+      "council-chro",
+      "council-gc"
     ],
     "channels": []
   },

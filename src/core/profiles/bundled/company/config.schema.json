@@ -57,9 +57,39 @@
     },
     "deliver_to": {
       "type": "string",
-      "default": "web",
+      "default": "log",
       "title": "Where the run is filed",
-      "description": "The channel the run itself is archived on. NOT how the owner is reached \u2014 that is the super-agent's decision, always."
+      "description": "The channel the run itself is archived on. `log` is the readable thread nobody is sitting in — pick it unless you want the raw run in a chat. NOT how the owner is reached: that is the super-agent's decision, always."
+    },
+    "cfo_schedule": {
+      "type": "string",
+      "default": "0 7 * * 1",
+      "title": "Money report (cfo)",
+      "description": "Cron for the cfo area's weekly note. Staggered ahead of the weekly review so the desk is set when the orchestrator runs."
+    },
+    "coo_schedule": {
+      "type": "string",
+      "default": "15 7 * * 1",
+      "title": "Operations report (coo)",
+      "description": "Cron for the coo area's weekly note. Staggered ahead of the weekly review so the desk is set when the orchestrator runs."
+    },
+    "cmo_schedule": {
+      "type": "string",
+      "default": "30 7 * * 1",
+      "title": "Demand report (cmo)",
+      "description": "Cron for the cmo area's weekly note. Staggered ahead of the weekly review so the desk is set when the orchestrator runs."
+    },
+    "chro_schedule": {
+      "type": "string",
+      "default": "45 7 * * 1",
+      "title": "People report (chro)",
+      "description": "Cron for the chro area's weekly note. Staggered ahead of the weekly review so the desk is set when the orchestrator runs."
+    },
+    "gc_schedule": {
+      "type": "string",
+      "default": "0 8 * * 1",
+      "title": "Legal report (gc)",
+      "description": "Cron for the gc area's weekly note. Staggered ahead of the weekly review so the desk is set when the orchestrator runs."
     }
   }
 }

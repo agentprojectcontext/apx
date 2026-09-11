@@ -16,6 +16,10 @@
  * holds every single run and the layer looks dead.
  */
 export const RITUALS = {
+  // The council's own run. It is the only ritual that does not end at the
+  // owner: an area writes to the desk and stops there, so it has no severity
+  // that means anything and never touches the interruption budget.
+  council: { slug: "council", label: "Area report", severity: "fyi", maxLines: 10, hour: 7, toDesk: true },
   daily: { slug: "daily", label: "Daily pulse", severity: "fyi", maxLines: 8, hour: 8 },
   weekly: { slug: "weekly", label: "Weekly review", severity: "status", maxLines: 15, hour: 9 },
   biweekly: { slug: "biweekly", label: "Decision brief", severity: "status", maxLines: 15, hour: 12 },
