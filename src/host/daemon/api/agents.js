@@ -80,6 +80,21 @@ function attachAgentStats(p, agents) {
   }
 }
 
+// How much of a template's system prompt the vault list ships.
+//
+// Enough to READ in the import dialog's hover card, never the whole file: the
+// twenty bundled templates come to ~100 KB of prompt between them, and this
+// list is fetched on open by two screens. Cut on a line break when there is one
+// nearby, so the preview ends on a sentence instead of mid-word.
+const PROMPT_PREVIEW_CHARS = 900;
+function promptPreview(body) {
+  const text = String(body || "").trim();
+  if (text.length <= PROMPT_PREVIEW_CHARS) return text;
+  const cut = text.slice(0, PROMPT_PREVIEW_CHARS);
+  const nl = cut.lastIndexOf("\n");
+  return (nl > PROMPT_PREVIEW_CHARS * 0.6 ? cut.slice(0, nl) : cut).trimEnd();
+}
+
 export function register(api, { projects, project }) {
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
   // APX (assets/agent-vault-defaults/) + user overrides/new ones in
@@ -87,10 +102,21 @@ export function register(api, { projects, project }) {
   // hide bundled entries. GET merges both with `source` set per item.
   api.get("/agents/vault", (req, res) => {
     const includeRemoved = req.query?.include_removed === "1";
-    res.json(readVaultAgents({ includeRemoved }).map((a) => ({
-      ...agentToResponse(a),
-      source: a.source, // "bundled" | "user" | "user-override"
-    })));
+    res.json(readVaultAgents({ includeRemoved }).map((a) => {
+      // What the template ACTUALLY says. Slug, role and tools describe an agent
+      // from the outside; the prompt is the agent. Importing one used to be a
+      // bet on its name, because nothing short of opening the file under
+      // ~/.apx/agents (or the bundle) showed a single line of it.
+      const full = String(a.body || "").trim();
+      const preview = promptPreview(full);
+      return {
+        ...agentToResponse(a),
+        source: a.source, // "bundled" | "user" | "user-override"
+        system_preview: preview,
+        system_bytes: Buffer.byteLength(full, "utf8"),
+        system_more: preview.length < full.length,
+      };
+    }));
   });
 
   // Create or replace a vault template (user layer / copy-on-write).

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Users, Wrench, Zap } from "lucide-react";
 import { Agents, Projects } from "../../lib/api";
-import type { AgentPack } from "../../lib/api/agents";
+import type { AgentPack, VaultAgent } from "../../lib/api/agents";
 import type { AgentEntry, AgentStats } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
@@ -15,6 +15,7 @@ import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
 import { AgentModelBadge } from "../../components/agents/AgentModelBadge";
 import { INHERIT_MODEL, isInheritedModel } from "../../components/agents/modelCatalog";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
+import { AgentTemplatePeek } from "../../components/agents/AgentTemplatePeek";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
 import { slugify } from "../../lib/slug";
@@ -192,7 +193,7 @@ function PackCard({
 }: {
   pack: AgentPack;
   pid: string;
-  vault: AgentEntry[];
+  vault: VaultAgent[];
   existing: string[];
   picked: string[];
   onPick: (slugs: string[]) => void;
@@ -204,7 +205,8 @@ function PackCard({
   // It used to come from the plan, and the plan is refetched on every tick and
   // only describes the SELECTED members — so every role on the card blinked out
   // and unticked ones never had one at all.
-  const roleOf = (slug: string) => vault.find((a) => a.slug === slug)?.role || "";
+  const templateOf = (slug: string) => vault.find((a) => a.slug === slug);
+  const roleOf = (slug: string) => templateOf(slug)?.role || "";
 
   // The plan answers the one thing that cannot be worked out from the vault:
   // which slug each member ends up with once this project's existing agents are
@@ -272,6 +274,9 @@ function PackCard({
                 className="size-3.5 accent-[var(--primary)]"
                 data-testid={`pack-${pack.id}-${m.slug}`}
               />
+              {/* In front of the name, because the name is what you are deciding
+                  about — the tick box is the answer, this is the question. */}
+              <AgentTemplatePeek agent={templateOf(m.slug)} />
               <span className={cn("font-medium", !checked && "text-muted-fg")}>{renamed ? row.slug : m.slug}</span>
               {!m.parent && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
               {renamed && (
@@ -330,7 +335,7 @@ function ImportVaultDialog({
       onClose={onClose}
       title={t("project.agents.import_title")}
       description={t("project.agents.import_desc")}
-      size="lg"
+      size="xl"
       footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
     >
       {(vault.isLoading || packs.isLoading) && <Loading />}
@@ -361,23 +366,38 @@ function ImportVaultDialog({
           {t("project.agents.packs_single")}
         </div>
       )}
-      <ul className="space-y-2">
+      {/* Three across, and the button at the FOOT of each card rather than at
+          the end of a full-width row: twenty templates used to be twenty lines
+          of mostly empty row, one screen and a half of scrolling to see the
+          list at all. The description gets three lines instead of one clipped
+          one, and the eye next to Importar opens the whole template. */}
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((a) => {
           const already = existing.includes(a.slug);
           return (
-            <li key={a.slug} className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
-              <Bot size={16} className="shrink-0 text-muted-fg" />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{a.slug}</span>
+            <li key={a.slug} className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex min-w-0 items-start gap-2">
+                <Bot size={14} className="mt-0.5 shrink-0 text-muted-fg" />
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">{a.slug}</span>
                   {a.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
-                  {a.model && <Badge tone="info">{a.model}</Badge>}
+                  {a.model && <Badge tone="info" className="max-w-full truncate">{a.model}</Badge>}
                 </div>
-                {a.description && <p className="truncate text-xs text-muted-fg">{a.description}</p>}
               </div>
-              <Button size="sm" variant="primary" disabled={already || busy === a.slug} loading={busy === a.slug} onClick={() => doImport(a.slug)}>
-                {already ? t("project.agents.import_already") : t("project.agents.import_btn")}
-              </Button>
+              {a.description && <p className="line-clamp-3 text-xs leading-snug text-muted-fg">{a.description}</p>}
+              <div className="mt-auto flex items-center gap-1.5 pt-0.5">
+                <AgentTemplatePeek agent={a} side="right" label={t("project.agents.preview_btn")} />
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="flex-1"
+                  disabled={already || busy === a.slug}
+                  loading={busy === a.slug}
+                  onClick={() => doImport(a.slug)}
+                >
+                  {already ? t("project.agents.import_already") : t("project.agents.import_btn")}
+                </Button>
+              </div>
             </li>
           );
         })}

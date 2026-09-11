@@ -233,6 +233,11 @@ const SENTENCE_FRAGMENTS = new Set([
   "chat_ui.attachment_missing", "chat_ui.attachment_failed", "chat_ui.attach_failed",
   "chat_ui.attach_too_big",
 
+  // the VALUE half of a row in the import dialog's template card — read as
+  // "Modelo: default del router", "Tools: las del proyecto", never on its own
+  "project.agents.preview_model_default", "project.agents.preview_tools_default",
+  "project.agents.preview_skills_none",
+
   // follows the subject it qualifies
   "project.groups.pulled_by", "project.commitments.no_date", "settings.profile.over_budget",
   "settings.nudge.bypass", "settings.nudge.unrated", "project.agent_detail.model_unlisted",
