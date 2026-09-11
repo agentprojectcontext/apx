@@ -255,19 +255,32 @@ export function ChatList({
   // Agents offered by the "+ New" picker: the super-agent (always available,
   // listed first) followed by this project's own agents. Not affected by the
   // sidebar filter — you can always start a fresh chat with any of them.
+  //
+  // BY NAME AND BY FACE, like everywhere else. Both of these lists printed
+  // `a.slug`, so the picker read `ceo`, `cfo`, `chro`, `cmo`, `coo` while the
+  // group picker three blocks below — same array, same render — read Zoya,
+  // Blake, Kira. The bug is old and only became visible when agents whose name
+  // is not their slug arrived: before the executive layer almost every agent
+  // was `rocky`/Rocky, `magui`/Magui, and a slug WAS the name, capitalisation
+  // aside. `AgentEntry` carries `name`, `icon` and `emoji` straight from
+  // AGENTS.md; nothing had to be fetched, only not thrown away.
   const newChatAgents = useMemo(
     () => [
-      { slug: superAgentSlug, label: superAgentLabel },
-      ...agents.map((a) => ({ slug: a.slug, label: a.slug })),
+      { slug: superAgentSlug, label: superAgentLabel, face: { icon: superAgentIcon, name: superAgentLabel } },
+      ...agents.map((a) => ({
+        slug: a.slug,
+        label: a.name || a.slug,
+        face: { icon: a.icon, emoji: a.emoji, name: a.name || a.slug },
+      })),
     ],
-    [agents, superAgentSlug, superAgentLabel],
+    [agents, superAgentSlug, superAgentLabel, superAgentIcon],
   );
 
   const agentOptions = useMemo(
     () => [
       { value: "", label: t("project.chat.list.all_agents") },
       { value: superAgentSlug, label: superAgentLabel },
-      ...agents.map((a) => ({ value: a.slug, label: a.slug })),
+      ...agents.map((a) => ({ value: a.slug, label: a.name || a.slug })),
     ],
     [agents, superAgentSlug, superAgentLabel],
   );
@@ -438,7 +451,11 @@ export function ChatList({
                           onClick={() => { closePicker(); onNewChat(a.slug); }}
                           className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
                         >
-                          <Bot className="size-3 shrink-0 text-muted-fg" />
+                          {/* One AgentAvatar per agent, everywhere. A generic
+                              glyph on every row made a list of eight agents
+                              eight copies of the same picture — and it was the
+                              only place in the panel that drew one. */}
+                          <AgentAvatar {...a.face} size={18} />
                           <span className="truncate">{a.label}</span>
                         </button>
                       ))}
