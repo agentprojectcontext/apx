@@ -135,6 +135,26 @@ export async function cmdProfileUse(args) {
   const id = args._[0];
   if (!id) fail("use", "missing <id>");
 
+  // `--project` activates a PROJECT-scoped package. It goes straight to core
+  // rather than through the daemon because everything it touches is a file the
+  // CLI can reach — .apc/project.json and the project's own routine store,
+  // which the scheduler re-reads every tick.
+  if (args?.flags?.project) {
+    const { useProjectProfile } = await import("#core/profiles/project.js");
+    const { readConfig } = await import("#core/config/index.js");
+    const { resolveProjectRoot } = await import("./project.js");
+    const root = await resolveProjectRoot(args.flags.project);
+    const out = useProjectProfile({ path: root }, id, {
+      confirmReplace: !!args.flags.force,
+      globalConfig: readConfig(),
+    });
+    console.log(`active profile on this project: ${out.id}`);
+    const { installed = [], skipped = [] } = out.routines || {};
+    if (installed.length) console.log(`  routines installed: ${installed.join(", ")}`);
+    for (const s of skipped) console.log(`  routine "${s.name}" left alone (${String(s.reason).replace(/_/g, " ")})`);
+    return;
+  }
+
   const r = await http.post("/api/profiles/use", { id, force: !!args?.flags?.force });
   console.log(`active profile: ${r.profile.name} (${r.profile.id})`);
   printWarnings(r.warnings);
@@ -159,7 +179,20 @@ export async function cmdProfileSync(args) {
   }
 }
 
-export async function cmdProfileOff() {
+export async function cmdProfileOff(args = {}) {
+  if (args?.flags?.project) {
+    const { offProjectProfile } = await import("#core/profiles/project.js");
+    const { resolveProjectRoot } = await import("./project.js");
+    const root = await resolveProjectRoot(args.flags.project);
+    const out = offProjectProfile({ path: root });
+    if (!out.active) {
+      console.log("no profile was active on this project — nothing to do");
+      return;
+    }
+    console.log(`profile "${out.active}" is off on this project`);
+    if (out.disabled?.length) console.log(`  routines disabled (not deleted): ${out.disabled.join(", ")}`);
+    return;
+  }
   const r = await http.post("/api/profiles/off", {});
   if (!r.was) {
     console.log("no profile was active — nothing to do");

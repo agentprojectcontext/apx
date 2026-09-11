@@ -11,6 +11,7 @@ export const ROUTES = Object.freeze({
   "init": () => import("./init.js"),
   "project": () => import("./project.js"),
   "agent": () => import("./agent.js"),
+  "company": () => import("./company.js"),
   "memory": () => import("./memory.js"),
   "session": () => import("./session.js"),
   "sessions": () => import("./sessions.js"),

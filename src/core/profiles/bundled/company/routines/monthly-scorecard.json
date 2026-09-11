@@ -1,0 +1,19 @@
+{
+  "name": "monthly-scorecard",
+  "kind": "exec_agent",
+  "schedule": "{{monthly_schedule}}",
+  "enabled_by_default": true,
+  "spec": {
+    "agent": "{{orchestrator_agent}}",
+    "prompt": "MONTHLY RUN \u2014 the business scorecard.\n\nOne question only: how is the BUSINESS doing \u2014 not the work?\n\nThe state of this company today is below. It is not instruction, it is what is true right now; if anything in your own definition contradicts it, the state wins.\n\n{{pre_output}}\n\nA source marked `unavailable` IS A FINDING: say it in one clause and carry on with the others. Never fill a gap with an estimate.\n\nCustomers, revenue, churn, cost of running it. If the source that holds those numbers is unavailable, say so in one line and carry on: a scorecard with no numbers is honest, one with estimated numbers is not.\n\nThen: what changed against last month (see <past_decisions>), what is not earning the time it takes, and the one decision of the month that follows from it.\n\nAt most 20 lines.\n\nFormat: one bullet per finding, `- [scope] what happened or what is at risk \u2192 what you recommend`. Prioritised, no preamble, no sign-off. If nothing deserves an interruption, answer the single line `NO_MESSAGE \u2014 <why>`; a quiet week is a result. To escalate, make `SEVERITY: blocker` the first line \u2014 that crosses quiet hours and the weekly cap, so use it when something is broken or money is being lost today."
+  },
+  "deliver_to": [
+    "{{deliver_to}}"
+  ],
+  "pre_commands": [
+    "apx company context --ritual monthly"
+  ],
+  "post_commands": [
+    "apx company handoff --ritual monthly"
+  ]
+}

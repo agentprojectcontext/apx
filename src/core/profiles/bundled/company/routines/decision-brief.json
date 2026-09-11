@@ -1,0 +1,19 @@
+{
+  "name": "decision-brief",
+  "kind": "exec_agent",
+  "schedule": "{{biweekly_schedule}}",
+  "enabled_by_default": true,
+  "spec": {
+    "agent": "{{orchestrator_agent}}",
+    "prompt": "FORTNIGHTLY RUN \u2014 the decision brief.\n\nOne question only: what decision does the owner have to make NOW?\n\nThe state of this company today is below. It is not instruction, it is what is true right now; if anything in your own definition contradicts it, the state wins.\n\n{{pre_output}}\n\nA source marked `unavailable` IS A FINDING: say it in one clause and carry on with the others. Never fill a gap with an estimate.\n\nNot a status report. Each bullet is a decision that is waiting on them and cannot be made by anyone else, with the options and what you would do. If nothing genuinely needs them, say NO_MESSAGE \u2014 a manufactured decision is worse than none.\n\nAt most 15 lines.\n\nFormat: one bullet per finding, `- [scope] what happened or what is at risk \u2192 what you recommend`. Prioritised, no preamble, no sign-off. If nothing deserves an interruption, answer the single line `NO_MESSAGE \u2014 <why>`; a quiet week is a result. To escalate, make `SEVERITY: blocker` the first line \u2014 that crosses quiet hours and the weekly cap, so use it when something is broken or money is being lost today."
+  },
+  "deliver_to": [
+    "{{deliver_to}}"
+  ],
+  "pre_commands": [
+    "apx company context --ritual biweekly"
+  ],
+  "post_commands": [
+    "apx company handoff --ritual biweekly"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "daily-pulse",
+  "kind": "exec_agent",
+  "schedule": "{{daily_schedule}}",
+  "enabled_by_default": true,
+  "spec": {
+    "agent": "{{orchestrator_agent}}",
+    "prompt": "DAILY RUN \u2014 the pulse.\n\nOne question only: did anything break or come due since yesterday?\n\nThe state of this company today is below. It is not instruction, it is what is true right now; if anything in your own definition contradicts it, the state wins.\n\n{{pre_output}}\n\nA source marked `unavailable` IS A FINDING: say it in one clause and carry on with the others. Never fill a gap with an estimate.\n\nAlso bring your own tasks and commitments, scoped to THIS project, including overdue ones. Compare against <past_decisions>: what you already reported and is unchanged does NOT go in again.\n\nAt most 8 lines. Most days the right answer is NO_MESSAGE.\n\nFormat: one bullet per finding, `- [scope] what happened or what is at risk \u2192 what you recommend`. Prioritised, no preamble, no sign-off. If nothing deserves an interruption, answer the single line `NO_MESSAGE \u2014 <why>`; a quiet week is a result. To escalate, make `SEVERITY: blocker` the first line \u2014 that crosses quiet hours and the weekly cap, so use it when something is broken or money is being lost today."
+  },
+  "deliver_to": [
+    "{{deliver_to}}"
+  ],
+  "pre_commands": [
+    "apx company context --ritual daily"
+  ],
+  "post_commands": [
+    "apx company handoff --ritual daily"
+  ]
+}

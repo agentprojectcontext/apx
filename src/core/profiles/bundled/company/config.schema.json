@@ -24,6 +24,42 @@
       "default": "work/exec/DECISIONS.md",
       "title": "Decision ledger",
       "description": "Where the company's decisions are kept, relative to the project root. It is the orchestrator's episodic memory."
+    },
+    "orchestrator_agent": {
+      "type": "string",
+      "default": "ceo",
+      "title": "Orchestrator",
+      "description": "The agent that writes the briefs and is the only one that hands anything to the super-agent."
+    },
+    "daily_schedule": {
+      "type": "string",
+      "default": "15 8 * * *",
+      "title": "Daily pulse",
+      "description": "Cron for the daily pulse. It has to fall OUTSIDE quiet hours, or the guard holds every single run and the layer looks dead."
+    },
+    "weekly_schedule": {
+      "type": "string",
+      "default": "0 9 * * 1",
+      "title": "Weekly review",
+      "description": "Cron for the weekly review."
+    },
+    "biweekly_schedule": {
+      "type": "string",
+      "default": "every:14d",
+      "title": "Decision brief",
+      "description": "How often the decision brief runs."
+    },
+    "monthly_schedule": {
+      "type": "string",
+      "default": "30 9 1 * *",
+      "title": "Business scorecard",
+      "description": "Cron for the monthly scorecard."
+    },
+    "deliver_to": {
+      "type": "string",
+      "default": "web",
+      "title": "Where the run is filed",
+      "description": "The channel the run itself is archived on. NOT how the owner is reached \u2014 that is the super-agent's decision, always."
     }
   }
 }
