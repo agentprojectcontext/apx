@@ -175,7 +175,11 @@ export const es = {
     path_placeholder: "/Volumes/SSDT7Shield/proyectos_varios/mi-proyecto",
     register:    "Registrar",
     kind_label: "Tipo de proyecto",
-    kind_hint: "Una empresa tiene áreas, roles y un equipo ejecutivo. El resto es un proyecto y ya.",
+    kind_personal_desc: "Cosas tuyas. Sin equipo ni estructura.",
+    kind_app_desc: "Una aplicación que usa gente.",
+    kind_company_desc: "Suma áreas, roles y un equipo ejecutivo.",
+    kind_software_desc: "Una librería o un CLI que usan otros programas.",
+    kind_other_desc: "Ninguna de las anteriores. No pasa nada especial.",
     team_label: "Instalar el equipo de empresa",
     team_hint: "Crea un CEO que orquesta este proyecto y su council (CFO, COO, CMO, CHRO, GC). Después podés sacar los que no quieras desde Agentes → Import.",
     init_label: "Inicializarlo si hace falta",
@@ -2706,6 +2710,7 @@ export const es = {
     cfg_apc_spec:               "APC spec",
     cfg_apx_install:            "Estado de instalación APX",
     cfg_apx_storage_id:         "ID de storage APX",
+    cfg_kind_hint: "Cambiarlo a Empresa habilita áreas y roles, y ofrece el equipo ejecutivo desde Agentes → Import.",
   },
 
   skills_page: {

@@ -174,7 +174,11 @@ export const en = {
     path_placeholder: "/path/to/my-project",
     register:    "Register",
     kind_label: "Project type",
-    kind_hint: "A company gets areas, roles and an executive team. Everything else is just a project.",
+    kind_personal_desc: "Your own things. No team, no structure.",
+    kind_app_desc: "An application that people use.",
+    kind_company_desc: "Adds areas, roles and an executive team.",
+    kind_software_desc: "A library or CLI that other programs use.",
+    kind_other_desc: "None of the above. Nothing special happens.",
     team_label: "Install the company team",
     team_hint: "Creates a CEO that orchestrates this project plus its council (CFO, COO, CMO, CHRO, GC). You can untick members later from Agents → Import.",
     init_label: "Initialize it if needed",
@@ -2710,6 +2714,7 @@ export const en = {
     cfg_apc_spec:               "APC spec",
     cfg_apx_install:            "APX install state",
     cfg_apx_storage_id:         "APX storage id",
+    cfg_kind_hint: "Changing it to Company unlocks areas and roles, and offers the executive team from Agents → Import.",
   },
 
   skills_page: {

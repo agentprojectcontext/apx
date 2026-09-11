@@ -12,7 +12,7 @@ export type ConfigField = {
   kind?: "text" | "number" | "boolean" | "select" | "textarea" | "password";
   hint?: string;
   placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
+  options?: Array<{ value: string; label: string; description?: string }>;
 };
 
 export type ConfigSection = {
@@ -187,7 +187,7 @@ function ConfigFieldControl({
           placeholder={placeholder || "(sin override)"}
           options={[
             { value: "", label: placeholder || "(sin override)" },
-            ...(field.options || []).map((option) => ({ value: String(option.value), label: option.label })),
+            ...(field.options || []).map((option) => ({ value: String(option.value), label: option.label, description: option.description })),
           ]}
         />
       ) : field.kind === "textarea" ? (
