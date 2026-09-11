@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Field, Input, Switch, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
+import { SearchSelect } from "../SearchSelect";
+import { languageOptions } from "../../i18n/languages";
+import { localeOptions } from "../../i18n/locales";
+import { timezoneOptions } from "../../i18n/timezones";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { getDotted, parseConfigJson } from "../../lib/config-values";
 import { isSecretMarker, secretHint } from "../../lib/secrets";
@@ -9,7 +13,13 @@ import { t } from "../../i18n";
 export type ConfigField = {
   path: string;
   label: string;
-  kind?: "text" | "number" | "boolean" | "select" | "textarea" | "password";
+  // `language`, `locale` and `timezone` are selects whose options nobody should
+  // have to type or maintain: the runtime ships all three lists (Intl), and a
+  // free-text box for a timezone is a box where "Buenos Aires" is wrong and
+  // silently does nothing.
+  kind?:
+    | "text" | "number" | "boolean" | "select" | "textarea" | "password"
+    | "language" | "locale" | "timezone";
   hint?: string;
   placeholder?: string;
   options?: Array<{ value: string; label: string; description?: string }>;
@@ -182,9 +192,25 @@ export function ConfigFieldControl({
     );
   }
 
+  // Long lists get the searchable picker; a dropdown of 400 timezones is a
+  // scrollbar, not a choice.
+  if (field.kind === "locale" || field.kind === "timezone") {
+    const options = field.kind === "locale" ? localeOptions() : timezoneOptions();
+    return (
+      <Field label={field.label} hint={hint}>
+        <SearchSelect
+          value={String(value || "")}
+          onChange={onChange}
+          options={options}
+          placeholder={placeholder}
+        />
+      </Field>
+    );
+  }
+
   return (
     <Field label={field.label} hint={hint}>
-      {field.kind === "select" ? (
+      {field.kind === "select" || field.kind === "language" ? (
         <UiSelect
           value={String(value || "")}
           onChange={onChange}
@@ -195,7 +221,11 @@ export function ConfigFieldControl({
           placeholder={inheritOptionLabel(inheritedLabel)}
           options={[
             { value: "", label: inheritOptionLabel(inheritedLabel) },
-            ...(field.options || []).map((option) => ({ value: String(option.value), label: option.label, description: option.description })),
+            ...(field.kind === "language" ? languageOptions() : field.options || []).map((option) => ({
+              value: String(option.value),
+              label: option.label,
+              description: (option as { description?: string }).description,
+            })),
           ]}
         />
       ) : field.kind === "textarea" ? (
@@ -218,7 +248,10 @@ export function ConfigFieldControl({
 }
 
 function inheritOptionLabel(inheritedLabel: string) {
-  return inheritedLabel ? t("settings_ui.cfg_inherited_value", { value: inheritedLabel }) : t("settings_ui.cfg_inherit");
+  // No inherited value → nothing to inherit, whatever layer this is. Saying
+  // "inherit from the general config" in the general config (or on a project's
+  // own name) named a mechanism that was not running.
+  return inheritedLabel ? t("settings_ui.cfg_inherited_value", { value: inheritedLabel }) : t("settings_ui.cfg_unset");
 }
 
 function formatInherited(value: unknown) {

@@ -2775,7 +2775,7 @@ export const es = {
     cfg_permission_hint:        "total: hace y avisa · automatico: pide sólo lo peligroso · permiso: pregunta siempre.",
     cfg_instructions:           "Instrucciones del proyecto",
     cfg_instructions_hint:      "Se suman al prompt base, no lo reemplazan. Para contexto que vale en todos los turnos de este proyecto.",
-    cfg_inherit:                "Heredar de la config general",
+    cfg_unset:                  "Sin definir",
     cfg_inherited_value:        "Hereda: {value}",
     cfg_telegram_label:         "Telegram",
     cfg_chat_id:                "Chat ID",

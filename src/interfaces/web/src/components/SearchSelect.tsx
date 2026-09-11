@@ -2,13 +2,28 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { cn } from "../lib/cn";
-import type { TzOption } from "../i18n/timezones";
 
-// Searchable timezone picker. Shows offset-prefixed labels
-// ("(GMT-03:00) America/Argentina/Buenos_Aires"), filters as you type, and
-// commits the raw IANA value. Mirrors the ModelCombobox portal pattern so the
-// list escapes any scrolling container.
-export function TimezoneSelect({
+/** A choice: the value that gets stored, and the line the list shows. */
+export interface SearchOption { value: string; label: string }
+
+/** Accent-blind, case-blind. Typing "mex" has to find "Español (México)" and
+ *  "peru" has to find "América/Lima" — writing the accent is precisely what
+ *  someone searching a 400-row list does not stop to do. Without this the
+ *  locale picker answered "mex" with an empty list, which reads as "that one
+ *  does not exist". */
+const fold = (s: string) =>
+  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+// Searchable picker for a LONG list — the ones a dropdown cannot hold: every
+// IANA timezone ("(GMT-03:00) America/Argentina/Buenos_Aires"), every locale
+// ("es-AR · Español (Argentina)"). Filters on both the label and the raw value
+// as you type, and commits the raw value. Mirrors the ModelCombobox portal
+// pattern so the list escapes any scrolling container.
+//
+// Was TimezoneSelect, and only zones; the locale list needed the same thing and
+// a second copy of a portalled combobox is how two pickers start behaving
+// differently.
+export function SearchSelect({
   value,
   onChange,
   options,
@@ -17,7 +32,7 @@ export function TimezoneSelect({
 }: {
   value: string;
   onChange: (v: string) => void;
-  options: TzOption[];
+  options: SearchOption[];
   placeholder?: string;
   className?: string;
 }) {
@@ -64,22 +79,34 @@ export function TimezoneSelect({
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, value, options]);
 
-  const q = query.trim().toLowerCase();
+  const q = fold(query.trim());
   const isUntouched = query === labelFor(value);
   const filtered = q && !isUntouched
-    ? options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+    ? options.filter((o) => fold(o.label).includes(q) || fold(o.value).includes(q))
     : options;
 
-  const pick = (o: TzOption) => { onChange(o.value); setQuery(o.label); setOpen(false); };
+  const pick = (o: SearchOption) => { onChange(o.value); setQuery(o.label); setOpen(false); };
 
   return (
     <div ref={wrapRef} className={cn("relative", className)}>
       <div className="flex items-center gap-1 rounded-lg border border-input bg-transparent px-2.5 transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring dark:bg-input/30 dark:hover:bg-input/50">
         <input
           value={query}
-          placeholder={placeholder}
+          // While focused the box is a SEARCH box, so the current choice moves
+          // to the placeholder and stays readable behind it.
+          placeholder={(open ? labelFor(value) : "") || placeholder}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          // Clear on focus, and do not try to be clever with select-all: the
+          // box holds the current choice, and clicking into it used to drop the
+          // caret mid-label so typing INSERTED there —
+          // "es-AR · Español (Argentimexna)", which matches nothing and reads
+          // as a broken picker. (select() loses to the same click placing the
+          // caret right after it.) Clearing shows the whole list, which is what
+          // clicking a picker means.
+          onFocus={() => { setOpen(true); setQuery(""); }}
+          // Tabbing away is the other way out: the outside-click handler never
+          // fires for it, so the box would keep a half-typed query forever.
+          onBlur={() => { setQuery(labelFor(value)); setOpen(false); }}
           className="w-full bg-transparent py-1.5 text-sm outline-none placeholder:text-muted-fg/60"
         />
         <button
