@@ -25,6 +25,7 @@ import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 import { broadcastTurn } from "../events-ws.js";
+import { logTurnEvent, withTurnLog } from "./turn-log.js";
 import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, convTurnKey } from "../active-turns.js";
 import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
@@ -213,7 +214,10 @@ export function register(api, { projects, project, config, plugins, registries }
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
-        onEvent: observe,
+        // Wrapped, not replaced: the blocking handlers have nobody streaming, so
+        // the log is the ONLY record their run-level decisions can leave. A
+        // fallback here used to vanish completely.
+        onEvent: withTurnLog(observe, { trace_id: req.apxTraceId, channel: channel || CHANNELS.API, agent: agent.slug }),
       });
       const result = await withClosingFloor({ p, agent, modelId, config, result: raw, streamedText: said.text });
 
@@ -308,7 +312,10 @@ export function register(api, { projects, project, config, plugins, registries }
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
-        onEvent: observe,
+        // Wrapped, not replaced: the blocking handlers have nobody streaming, so
+        // the log is the ONLY record their run-level decisions can leave. A
+        // fallback here used to vanish completely.
+        onEvent: withTurnLog(observe, { trace_id: req.apxTraceId, channel: channel || CHANNELS.API, agent: agent.slug }),
       });
       const result = await withClosingFloor({ p, agent, modelId, config, result: raw, streamedText: said.text });
 
@@ -466,6 +473,10 @@ export function register(api, { projects, project, config, plugins, registries }
           // watching; one predicate decides both (isVisibleTurnEvent).
           recordActiveTurnEvent(active.id, ev);
           if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
+          // A project agent's turn falling from one engine to the next had no
+          // record anywhere — not the ledger, not the log, and the panel's note
+          // dropped the reason. This is the path Manu's COO turn took.
+          logTurnEvent(ev, { trace_id: req.apxTraceId, channel: channel || CHANNELS.API, agent: agent.slug });
           observeSaid(ev);
           send(ev);
         },

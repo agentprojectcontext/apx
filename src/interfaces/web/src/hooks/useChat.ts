@@ -635,7 +635,21 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
         : next;
     }
     case "engine_failed":
-      return withNote(`engine ${ev.model || "?"} failed → ${ev.retry_with || "retry"}`);
+      // WITH THE REASON. It was dropped here while the case immediately below
+      // printed its own — so the note said an engine failed and never why, and
+      // the answer was nowhere else either: this event is not persisted to the
+      // ledger, and only the super-agent and Telegram paths log it. Working out
+      // that `zen:big-pickle` was answering `429 FreeUsageLimitError` (an
+      // account quota, not a bug) took a hand-written call to the provider,
+      // because the one place that knew had thrown the sentence away.
+      //
+      // The reason is short by construction (`shortRetryReason`), so it fits on
+      // the line rather than needing somewhere else to live.
+      return withNote(
+        ev.reason
+          ? `engine ${ev.model || "?"} failed (${ev.reason}) → ${ev.retry_with || "retry"}`
+          : `engine ${ev.model || "?"} failed → ${ev.retry_with || "retry"}`,
+      );
     case "model_retry":
       return withNote(`retry (${ev.reason || "?"})`);
     case "tools_suppressed":

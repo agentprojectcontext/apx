@@ -23,6 +23,7 @@ import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
 import { startActiveTurn, endActiveTurn, threadTurnKey } from "../active-turns.js";
 import { broadcastTurn } from "../events-ws.js";
+import { withTurnLog } from "./turn-log.js";
 import { wasAborted } from "./turn-abort.js";
 import { asyncRoute } from "./shared.js";
 
@@ -216,7 +217,9 @@ export function register(api, { projects, project, config, plugins, registries }
         attachments: turnFiles.attachments, media: turnFiles.media,
         ownerName: ownerName(config), config, projects, plugins, registries,
         signal: turnAbort.signal,
-        onEvent: send,
+        // Logged on the way through: a cascade is several speakers, and an
+        // engine falling over under one of them is otherwise invisible.
+        onEvent: withTurnLog(send, { channel: GROUP_CHANNEL, agent: req.params.gid }),
       });
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
       // Stopped, not broken. runGroupTurn persists the interrupted speaker's
