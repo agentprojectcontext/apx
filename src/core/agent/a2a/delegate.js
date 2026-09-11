@@ -171,6 +171,13 @@ export async function messagePeer({
   signal = null,
   onEvent = null,
   historyLimit = 24,
+  // How many hand-offs deep this exchange already is. Carried into the
+  // recipient's turn (as `channelMeta.a2aDepth`) so that if IT hands work on
+  // again, the chain is counted rather than restarting at zero on every hop.
+  // Without it a hand-off is unbounded: A asks B, B asks A, forever, each hop a
+  // full tool loop. `POST /projects/:pid/send` has walled its own `_depth`
+  // since the route existed; the tool path had no equivalent.
+  depth = 0,
   replyFn = replyToPeer,
 }) {
   const peer = resolvePeer(to, readAgents(project.path), config);
@@ -208,6 +215,7 @@ export async function messagePeer({
     registries,
     signal,
     onEvent,
+    depth,
   });
 
   const replyTs = new Date().toISOString();

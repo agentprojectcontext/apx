@@ -136,6 +136,38 @@ export interface RoutineFrame {
   run: LiveRoutineRun;
 }
 
+/** Work an agent left running while its own turn carried on.
+ *
+ *  The store is core/stores/background-jobs.js; `from` is the agent WAITING and
+ *  `to` is the one working. A terminal status (done / failed / timed_out / lost)
+ *  means the job is over — `lost` is the daemon having restarted while it ran,
+ *  which cannot be recovered. */
+export interface BackgroundJob {
+  id: string;
+  project_id: number | string | null;
+  from: string;
+  to: string;
+  thread: string | null;
+  body: string;
+  wake: boolean;
+  depth: number;
+  status: "running" | "done" | "failed" | "timed_out" | "lost";
+  created_at: string;
+  deadline_at: string;
+  timeout_s: number;
+  closed_at: string | null;
+  result: string | null;
+}
+
+/** A background job starting or ending, pushed over the live feed. Carries the
+ *  record for the same reason RoutineFrame does: a job never touches the ledger,
+ *  so there is nothing for a client to re-fetch. */
+export interface BackgroundJobFrame {
+  phase: "start" | "end";
+  project_id: number | string | null;
+  job: BackgroundJob;
+}
+
 // Workflow sub-status for an open task (orthogonal to `state`).
 export type TaskStatus = "pending" | "running" | "in_review" | "blocked";
 

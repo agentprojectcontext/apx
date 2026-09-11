@@ -100,6 +100,39 @@ export function onRoutineEvent(fn) {
   return () => bus.off(ROUTINE_EVENT, fn);
 }
 
+export const BACKGROUND_JOB_EVENT = "background_job";
+
+/**
+ * An agent left work running, or that work ended.
+ *
+ * Carries the job RECORD for the same reason the routine event carries its run:
+ * there is nothing for a client to re-fetch. A job is not a ledger write — it is
+ * the fact that somebody is waiting, which lives in core/stores/background-jobs.js
+ * and nowhere a conversation GET would find it.
+ *
+ * This is what a surface needs to show "1 tarea en ejecución" while the agent
+ * carries on thinking. The incident behind the feature (2026-09-11) had a peer
+ * working for ten minutes with nothing anywhere saying so, so the announcement
+ * is not decoration — it is the difference between a slow job and a dead one.
+ *
+ * @param {object} event
+ *   - phase        start | end
+ *   - job          the public job record (core/stores/background-jobs.js)
+ */
+export function emitBackgroundJobEvent(event) {
+  try {
+    bus.emit(BACKGROUND_JOB_EVENT, event);
+  } catch {
+    /* a broken listener is the listener's problem, not the job's */
+  }
+}
+
+/** Subscribe to background-job events. Returns the unsubscribe function. */
+export function onBackgroundJobEvent(fn) {
+  bus.on(BACKGROUND_JOB_EVENT, fn);
+  return () => bus.off(BACKGROUND_JOB_EVENT, fn);
+}
+
 /** Drop every listener. For tests, and for a clean daemon shutdown. */
 export function resetEventBus() {
   bus.removeAllListeners();

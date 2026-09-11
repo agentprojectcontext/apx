@@ -112,7 +112,7 @@ The model can always expand its surface by calling `load_skill`.
 | `create_task` / `list_tasks` / `get_task` | Add, list and read per-project TODO items |
 | `update_task` / `complete_task` / `comment_task` | Edit one, move or close it, annotate its thread |
 | `call_agent` | Hand work to a named project agent, in-process. It runs with its own tools, so it can do the work rather than describe it, and the exchange is filed as an agent-to-agent conversation you can read and continue |
-| `send_to_agent` | Message another agent — a project agent, the super-agent, or a coding runtime — and get their answer. The exchange is filed as an agent-to-agent conversation you can read and continue. Agents use this instead of shelling out to `apx send`, which blocks the whole turn |
+| `send_to_agent` | Message another agent — a project agent, the super-agent, or a coding runtime — and get their answer. With `background: true` the work is left running and the sender is woken when it lands, so a long exchange no longer holds a turn. See [Work left running](#work-left-running) |
 | `call_mcp` | Call any registered MCP server tool |
 | `call_runtime` | Delegate to an external [runtime](/apx/docs/engine/runtimes/#delegating-from-the-super-agent-call_runtime) (Claude Code / Codex …), synchronously or in the background |
 | `run_subagent` | Spawn an isolated sub-agent (fresh context, same tools minus user-interaction ones) that works a self-contained task to completion and returns its result — one nesting level max |
@@ -121,6 +121,56 @@ The model can always expand its surface by calling `load_skill`.
 | `remember` | Write a durable fact to `~/.apx/memory.md` |
 | `search_sessions` | Retrieve past session transcripts |
 | `set_identity` | Update `~/.apx/identity.json` fields |
+
+## Work left running
+
+A peer's turn is a full tool loop. It can take minutes, and `send_to_agent` waits
+for it by default — which is right only when the answer is the next thing the
+sender needs.
+
+`background: true` changes that. The tool returns immediately with a `job_id`,
+the peer works on its own, and when it answers the sender is **woken**: the reply
+arrives as a new message on the same agent-to-agent thread, starting a fresh turn
+with the result in hand. Pass `wake_me: false` for a pure notification nobody
+needs an answer to.
+
+The wake-up is an ordinary a2a message in the other direction, so the request and
+its answer live in one thread — there is nowhere new to look.
+
+### What the sender keeps, and what it does not
+
+A woken turn is a **new** turn. It gets the reply, a recap of what was asked, and
+the thread's own history — not the working context the sender had when it handed
+the job off. Anything needed to act on the answer belongs in the message itself.
+
+A job that produced no answer wakes the sender too, and says so plainly: the peer
+failed, the job ran past its budget, or the daemon restarted while it ran and the
+work is unrecoverable. The sender is told not to report such a job as done.
+
+### Limits
+
+| Limit | Value | Why |
+|---|---|---|
+| Jobs open per agent | 3 | Bounds how WIDE the fan-out goes |
+| Hand-off depth | 3 | Bounds how DEEP it goes; counted across turns and wake-ups |
+| Job lifetime | 1 hour by default | Past it the job is cut off and the sender told |
+
+Both limits come back as a message the agent can act on, never as a crash.
+
+### Seeing what is running
+
+```bash
+curl -s localhost:7430/api/jobs?open=1 -H "Authorization: Bearer $TOKEN"
+```
+
+`GET /api/jobs` lists every job — `?open=1` for what is running now, plus
+`?project_id`, `?from` and `?status`. `GET /api/jobs/:id` returns one. The panel
+reads the same route, and the live events feed carries a `background_job` frame
+on start and end.
+
+Jobs are read-only over HTTP on purpose: one ends when its work ends, its
+deadline passes, or the daemon holding it dies. To stop the *work*, abort the
+turn the job opened.
 
 ## Cross-channel brokering
 

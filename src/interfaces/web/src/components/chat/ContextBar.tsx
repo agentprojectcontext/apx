@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Bot, ChevronDown, FilePen, Gauge, Wrench } from "lucide-react";
+import { Bot, ChevronDown, FilePen, Gauge, LoaderCircle, Wrench } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { FILE_TOOLS } from "./ToolCall";
 import { t } from "../../i18n";
 import type { ChatMsg, ToolPart } from "../../hooks/useChat";
+import { useBackgroundJobs } from "../../hooks/useBackgroundJobs";
 
 interface ChangedFile {
   path: string;
@@ -40,8 +41,11 @@ function filePathOf(args?: Record<string, unknown>): string | undefined {
  * and it wrapped to two rows to do it. Every word of that still exists, one
  * tap away. Renders nothing until the agent has actually done something.
  */
-export function ContextBar({ msgs, docked = false, onOpenChange }: {
+export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
   msgs: ChatMsg[];
+  /** Scope for the background-job count. Without it the strip would count every
+   *  project's jobs, which is a number about somebody else's work. */
+  projectId?: string | number | null;
   /** Sit inside the composer card as its top edge, instead of as a standalone
    *  strip above it. The detail then opens upward, out of the same seam. */
   docked?: boolean;
@@ -51,6 +55,10 @@ export function ContextBar({ msgs, docked = false, onOpenChange }: {
   onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Work agents in this project left running. Live: the hook fetches what is
+  // already open and then follows the feed, so a job that started before this
+  // screen mounted is counted too.
+  const { jobs } = useBackgroundJobs(projectId);
   // Told OUTSIDE the updater. A state updater runs during render, and calling
   // the host's setState from in there is React updating one component while
   // rendering another — which it refuses, mid-render, taking whatever else was
@@ -207,6 +215,21 @@ export function ContextBar({ msgs, docked = false, onOpenChange }: {
         {changed.length > 0 && (
           <span className="flex items-center gap-1 tabular-nums text-violet-700 dark:text-violet-400">
             <FilePen size={12} /> {changed.length}
+          </span>
+        )}
+        {jobs.length > 0 && (
+          // The one mark on this strip that is about RIGHT NOW rather than
+          // about the conversation so far: an agent left work running and is
+          // still thinking. Until it existed a peer working for ten minutes and
+          // a peer that had died looked exactly alike from here.
+          <span
+            className="flex items-center gap-1 tabular-nums text-emerald-700 dark:text-emerald-400"
+            title={jobs.map((j) => t("chat_ui.job_waiting_on", { peer: j.to })).join("\n")}
+          >
+            <LoaderCircle size={12} className="animate-spin motion-reduce:animate-none" />
+            {jobs.length === 1
+              ? t("chat_ui.jobs_running_one")
+              : t("chat_ui.jobs_running", { n: jobs.length })}
           </span>
         )}
         {actors.length > 0 && (

@@ -112,7 +112,7 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `create_task` / `list_tasks` / `get_task` | Agregar, listar y leer items de TODO por proyecto |
 | `update_task` / `complete_task` / `comment_task` | Editar una, moverla o cerrarla, anotar su hilo |
 | `call_agent` | Darle trabajo a un agente de proyecto, en el mismo proceso. Corre con sus propias tools, así que hace el trabajo en vez de describirlo, y el intercambio queda como una conversación agente-a-agente que podés leer y continuar |
-| `send_to_agent` | Escribirle a otro agente — uno de proyecto, el super-agente o un runtime de código — y recibir su respuesta. El intercambio queda como conversación agente-a-agente que podés leer y continuar. Los agentes usan esto en vez de salir por shell a `apx send`, que bloquea el turno entero |
+| `send_to_agent` | Escribirle a otro agente — uno de proyecto, el super-agente o un runtime de código — y recibir su respuesta. Con `background: true` el trabajo queda corriendo y al que mandó lo despiertan cuando termina, así un intercambio largo ya no le retiene el turno. Ver [Trabajo que queda corriendo](#trabajo-que-queda-corriendo) |
 | `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
 | `call_runtime` | Delegar a un [runtime](/apx/docs/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
 | `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |
@@ -121,6 +121,59 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `remember` | Escribir un hecho durable en `~/.apx/memory.md` |
 | `search_sessions` | Recuperar transcripciones de sesiones pasadas |
 | `set_identity` | Actualizar campos de `~/.apx/identity.json` |
+
+## Trabajo que queda corriendo
+
+El turno de un peer es un tool loop entero. Puede tardar minutos, y `send_to_agent`
+lo espera por defecto — lo cual está bien sólo cuando esa respuesta es lo próximo
+que el que manda necesita.
+
+`background: true` cambia eso. La tool vuelve al instante con un `job_id`, el peer
+trabaja por su cuenta y, cuando contesta, al que mandó **lo despiertan**: la
+respuesta llega como un mensaje nuevo en el mismo hilo agente-a-agente y arranca
+un turno fresco con el resultado en la mano. Pasá `wake_me: false` para un aviso
+puro, del que nunca vas a necesitar respuesta.
+
+El despertar es un mensaje a2a común en sentido inverso, así que el pedido y su
+respuesta viven en un solo hilo — no hay un lugar nuevo adonde mirar.
+
+### Qué conserva el que espera, y qué no
+
+Un turno despertado es un turno **nuevo**. Recibe la respuesta, un resumen de lo
+que había pedido y el historial del hilo — no el contexto de trabajo que tenía
+cuando dejó el trabajo corriendo. Todo lo que haga falta para actuar sobre la
+respuesta va en el mensaje mismo.
+
+Un trabajo que no produjo respuesta también despierta, y lo dice sin vueltas: el
+peer falló, el trabajo se pasó de presupuesto, o el daemon se reinició mientras
+corría y el trabajo es irrecuperable. Al que espera se le dice explícitamente que
+no lo reporte como hecho.
+
+### Límites
+
+| Límite | Valor | Por qué |
+|---|---|---|
+| Trabajos abiertos por agente | 3 | Acota cuánto se ABRE el abanico |
+| Profundidad de pases | 3 | Acota cuánto BAJA; se cuenta entre turnos y despertares |
+| Vida de un trabajo | 1 hora por defecto | Pasada esa, se corta y se avisa |
+
+Los dos límites vuelven como un mensaje sobre el que el agente puede actuar, nunca
+como una excepción.
+
+### Ver qué está corriendo
+
+```bash
+curl -s localhost:7430/api/jobs?open=1 -H "Authorization: Bearer $TOKEN"
+```
+
+`GET /api/jobs` lista todos los trabajos — `?open=1` para lo que corre ahora, más
+`?project_id`, `?from` y `?status`. `GET /api/jobs/:id` devuelve uno. El panel lee
+la misma ruta, y el feed de eventos en vivo lleva un frame `background_job` al
+arrancar y al terminar.
+
+Los trabajos son de sólo lectura por HTTP a propósito: uno termina cuando termina
+su trabajo, cuando se pasa su fecha límite, o cuando muere el daemon que lo tenía.
+Para frenar el *trabajo*, abortá el turno que el trabajo abrió.
 
 ## Brokering entre canales
 

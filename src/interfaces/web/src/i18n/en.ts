@@ -1960,6 +1960,9 @@ export const en = {
     working_generic:     "Working…",
     actions_count:       "{n} actions",
     actions_count_one:   "1 action",
+    jobs_running:        "{n} tasks running",
+    jobs_running_one:    "1 task running",
+    job_waiting_on:      "Waiting on {peer}",
     // A turn that ran tools, said something, then ran more: several blocks,
     // ONE count. Numbered against the turn so the second block does not read
     // as a second turn starting over at one.

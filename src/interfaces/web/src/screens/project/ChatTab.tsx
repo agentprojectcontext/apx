@@ -1300,7 +1300,7 @@ export function ChatTab({
               // to answer somewhere other than the thing you answer with.
               context={
                 <>
-                  <ContextBar msgs={msgs} docked onOpenChange={setCtxOpen} />
+                  <ContextBar msgs={msgs} projectId={pid} docked onOpenChange={setCtxOpen} />
                   {(() => {
                     const pending = !streaming ? pendingAskQuestions(msgs) : null;
                     if (!pending || pending.turnKey === dismissedAskKey) return null;

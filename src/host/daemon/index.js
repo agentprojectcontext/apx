@@ -32,6 +32,8 @@ import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines-scheduler.js";
 import { startDeliverySweep } from "./delivery-sweep.js";
 import { startCallbackReconciler } from "./callback-reconciler.js";
+import { startTurnResumer } from "./turn-resumer.js";
+import { startBackgroundJobsReconciler } from "./background-jobs-reconciler.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
@@ -256,6 +258,8 @@ async function main() {
   plugins.installRoutes(app);
 
   let callbackReconciler = null;
+  let stopTurnResumer = null;
+  let backgroundJobsReconciler = null;
   let eventsBridge = null;
 
   // Loopback is ALWAYS bound, whatever `host` says.
@@ -336,6 +340,18 @@ async function main() {
     // daemon died before it could (crash, pull, or a task that restarted the
     // daemon). Runs once now to recover prior IOUs, then on an interval.
     callbackReconciler = startCallbackReconciler({ plugins, log });
+    // Turns the LAST daemon had to cut off. The drain on the way down gives the
+    // work in flight ten seconds to finish and writes down whatever it still had
+    // to cut; this finishes those, with their side-effect ledger pre-seeded so
+    // the work already done is not done twice. See turn-resumer.js.
+    stopTurnResumer = startTurnResumer({ projects, plugins, registries, config: cfg, log });
+    // Background a2a jobs: an agent that left work running and is waiting to be
+    // woken. Recovers whatever a previous daemon was holding when it exited —
+    // that work is gone, so the waiter is told so rather than left waiting —
+    // then sweeps for jobs that ran past their deadline.
+    backgroundJobsReconciler = startBackgroundJobsReconciler({
+      projects, config: cfg, plugins, registries, log,
+    });
     // Live event feed: turn every ledger write into a frame on /api/events/ws so
     // an open panel — on any device — sees a conversation move the moment it
     // moves, whichever channel produced the turn.
@@ -515,6 +531,8 @@ async function main() {
 
     step("scheduler", () => scheduler.stop());
     step("callbackReconciler", () => callbackReconciler?.stop());
+    step("turnResumer", () => stopTurnResumer?.());
+    step("backgroundJobsReconciler", () => backgroundJobsReconciler?.stop());
     step("eventsBridge", () => eventsBridge?.());
     step("plugins", () => plugins.stopAll());
     step("memory", () => stopMemory());

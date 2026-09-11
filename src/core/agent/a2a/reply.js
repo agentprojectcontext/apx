@@ -200,6 +200,10 @@ export async function replyAsAgent({
   // minutes, which reads from every surface exactly like a hang. See the
   // `withTurn` that feeds this in api/conversations.js.
   onEvent = null,
+  // How many hand-offs deep this exchange is. Reaches the recipient's turn as
+  // `channelMeta.a2aDepth`, which is what `send_to_agent` reads to decide
+  // whether this agent may hand the work on again. See messagePeer's `depth`.
+  depth = 0,
   runAgentTurnFn = runAgentTurn,
 }) {
   const modelId = await resolveAgentModel({ agent: toAgent, config });
@@ -252,6 +256,7 @@ export async function replyAsAgent({
       from: peer,
       to: selfAddress || toAgent.slug,
       mode,
+      a2aDepth: depth,
     },
     tools: true,
     projects,
@@ -295,6 +300,7 @@ export async function replyAsSuperAgent({
   // did. A super-agent a2a reply is a full tool loop that can run for minutes.
   signal = null,
   onEvent = null,
+  depth = 0,
   runSuperAgentFn = runSuperAgent,
 }) {
   const selfAddress = canonicalPeerAddress(peer);
@@ -320,6 +326,7 @@ export async function replyAsSuperAgent({
       from: fromAddress,
       to: selfAddress,
       mode,
+      a2aDepth: depth,
     },
     completionContract: mode === "code",
     signal,
