@@ -48,8 +48,14 @@ export const BACKGROUND_JOBS_DIR = path.join(APX_HOME, "background-jobs");
  */
 export const MAX_OPEN_JOBS_PER_AGENT = 3;
 
-/** Jobs that are over. A terminal job is never delivered again — see claimWake. */
-export const TERMINAL_STATUSES = Object.freeze(["done", "failed", "timed_out", "lost"]);
+/** Jobs that are over. A terminal job is never delivered again — see claimWake.
+ *
+ * `cancelled` is the one an OWNER causes. The other four are things that
+ * happened to the job; this is a decision someone took about it, and it is kept
+ * distinct from `failed` for the same reason a stopped turn is not an error: an
+ * agent told "it failed" will try to fix something, and an agent told "you were
+ * stopped" will ask what to do instead. */
+export const TERMINAL_STATUSES = Object.freeze(["done", "failed", "timed_out", "lost", "cancelled"]);
 
 /** Default wall-clock life of a job, matching the background budget the a2a
  *  route already advertises for a detached send. */
