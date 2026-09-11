@@ -39,7 +39,7 @@ Resolve a loose date to a real one ("Friday" → that date) and say which date y
 
 ## Super-agent tools
 
-`record_commitment` and `list_commitments` are in the base set — a promise is caught mid-sentence, so they are always loaded. **`mark_commitment`** (kept | missed | drop | renegotiate) closes one out with a tool, no shelling to `apx commitment kept`.
+`record_commitment` and `list_commitments` are in the base set — a promise is caught mid-sentence, so they are always loaded. **`mark_commitment`** (kept | missed | drop | renegotiate) closes one out with a tool, no shelling to `apx commitment kept`. **`update_commitment`** corrects one that was written down wrong (`body`, `counterparty`, a mistyped `due`); it is loaded on demand, so reach for it through `discover_tools` when the owner says you got it wrong.
 
 ```json
 { "name": "record_commitment",
@@ -87,6 +87,12 @@ apx commitment drop c_abc123 --project acme --note "this was a task, not a promi
 | `missed` | The date passed and it did not happen. | `missed` |
 | `drop` | Filed by mistake — nobody was ever waiting. | `dropped` |
 | `renegotiate` | A NEW date, agreed with them. | back to `open` |
+
+**A mistyped date is not a renegotiation.** `renegotiate` keeps the old date in
+the history, because moving a deadline twice is a fact about the relationship
+and it is only visible if it is recorded as a move. Use `update_commitment` only
+when the record itself was wrong — never to quietly move a date the other person
+still believes in.
 
 **`drop` is not a polite `missed`.** Reach for it only when the row should not
 have existed (a task recorded as a promise, a duplicate). Using it on something

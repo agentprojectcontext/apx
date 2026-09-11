@@ -53,6 +53,9 @@ import rememberRoutine from "./handlers/remember-routine.js";
 import listRoutines from "./handlers/list-routines.js";
 import runRoutine from "./handlers/run-routine.js";
 import listTasks from "./handlers/list-tasks.js";
+import getTask from "./handlers/get-task.js";
+import updateTask from "./handlers/update-task.js";
+import updateCommitment from "./handlers/update-commitment.js";
 import discoverTools from "./handlers/discover-tools.js";
 import gitStatus from "./handlers/git-status.js";
 import gitDiff from "./handlers/git-diff.js";
@@ -126,9 +129,12 @@ const NATIVE_TOOLS = [
   transcribeAudio,
   askQuestions,
   createTask,
+  updateTask,
   commentTask,
   listTasks,
+  getTask,
   recordCommitment,
+  updateCommitment,
   listCommitments,
   rememberRoutine,
   listRoutines,
@@ -220,6 +226,16 @@ export const BASE_TOOL_NAMES = new Set([
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
+  // The detail half of list_tasks. List rows are compact on purpose — no
+  // description, no body, no comments — so "what does that task say" has no
+  // answer without this, and the model reaches for the shell to read the store.
+  TOOLS.GET_TASK,
+  // The edit verb. Hot for the same reason complete_task is: create is hot, and
+  // a pair where one half is hot and the other cold is a pair the model guesses
+  // its way across. It guessed by writing python against the JSONL event log.
+  // "movelo al viernes", "eso es de Ana", "ponelo urgente" are chat sentences,
+  // and an edit discovered a turn late is an edit that did not happen.
+  TOOLS.UPDATE_TASK,
   // The write-back half. It was left out and the asymmetry bit: on Telegram the
   // model could open a task and list it but not close one, so — seeing the name
   // in the lazy-tools block and no schema — it invented the call. It passed
@@ -313,8 +329,11 @@ const NATIVE_CATEGORY = {
   [TOOLS.WHATSAPP_CONTACTS]:   "messages",
   [TOOLS.ASK_QUESTIONS]:       "conversation",
   [TOOLS.CREATE_TASK]:         "tasks",
+  [TOOLS.UPDATE_TASK]:         "tasks",
   [TOOLS.LIST_TASKS]:          "tasks",
+  [TOOLS.GET_TASK]:            "tasks",
   [TOOLS.COMMENT_TASK]:        "tasks",
+  [TOOLS.UPDATE_COMMITMENT]:   "tasks",
   [TOOLS.LIST_ROUTINES]:       "routines",
   [TOOLS.RUN_ROUTINE]:         "routines",
   [TOOLS.TRANSCRIBE_AUDIO]:    "voice",

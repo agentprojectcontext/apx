@@ -55,10 +55,13 @@ export const TOOLS = Object.freeze({
 
   // Tasks
   LIST_TASKS:          "list_tasks",
+  GET_TASK:            "get_task",
   CREATE_TASK:         "create_task",
+  UPDATE_TASK:         "update_task",
   COMPLETE_TASK:       "complete_task",
   COMMENT_TASK:        "comment_task",
   RECORD_COMMITMENT:   "record_commitment",
+  UPDATE_COMMITMENT:   "update_commitment",
   MARK_COMMITMENT:     "mark_commitment",
   REMEMBER_ROUTINE:    "remember_routine",
 
@@ -191,8 +194,11 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.ATTACH_MEDIA,
   TOOLS.VIEW_MEDIA,
   TOOLS.LIST_TASKS,
+  TOOLS.GET_TASK,
   TOOLS.CREATE_TASK,
+  TOOLS.UPDATE_TASK,
   TOOLS.RECORD_COMMITMENT,
+  TOOLS.UPDATE_COMMITMENT,
   TOOLS.LIST_COMMITMENTS,
   TOOLS.REMEMBER_ROUTINE,
   TOOLS.LIST_ROUTINES,
@@ -247,6 +253,9 @@ export const CODE_PLAN_TOOLS = Object.freeze([
   TOOLS.LOAD_SKILL,
   TOOLS.READ_SKILL,
   TOOLS.LIST_TASKS,
+  // The detail half. Plan mode is where an agent reads before proposing, and a
+  // task's description is the part that says what was actually asked for.
+  TOOLS.GET_TASK,
   TOOLS.LIST_COMMITMENTS,
   TOOLS.ASK_QUESTIONS,
   TOOLS.FETCH,
@@ -291,7 +300,9 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.SEND_WHATSAPP,
   TOOLS.WHATSAPP_CONTACTS,
   TOOLS.CREATE_TASK,
+  TOOLS.UPDATE_TASK,
   TOOLS.RECORD_COMMITMENT,
+  TOOLS.UPDATE_COMMITMENT,
   TOOLS.REMEMBER_ROUTINE,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,

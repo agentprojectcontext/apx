@@ -1,4 +1,6 @@
 import { doneTask, dropTask, reopenTask, setTaskStatus } from "#core/stores/tasks.js";
+import { readConfig } from "#core/config/index.js";
+import { DONE_COLUMN, readColumnCatalog } from "#core/tasks/columns.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 
 // Close or move a task. The sibling of create_task: the super-agent could add
@@ -11,7 +13,10 @@ export default {
     function: {
       name: "complete_task",
       description:
-        "Change the state of an existing task: mark it done, drop it (archive without completing), reopen it, or set its workflow status (pending|running|in_review|blocked). Use after list_tasks to act on what you found. `done` vs `drop` matters — drop is 'no longer relevant', done is 'finished'.",
+        "Change the STATE of an existing task: mark it done, drop it (archive without completing), " +
+        "reopen it, or move it to another board column (action=status). Use after list_tasks to act on " +
+        "what you found. `done` vs `drop` matters — drop is 'no longer relevant', done is 'finished'. " +
+        "To change what the task SAYS (title, description, due date, assignee, priority) use update_task.",
       parameters: {
         type: "object",
         required: ["task", "action"],
@@ -19,7 +24,7 @@ export default {
           project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
           task:    { type: "string", description: "Task id or a ≥3-char unique prefix (from list_tasks)." },
           action:  { type: "string", enum: ["done", "drop", "reopen", "status"], description: "done | drop | reopen | status." },
-          status:  { type: "string", enum: ["pending", "running", "in_review", "blocked"], description: "Required when action is 'status'." },
+          status:  { type: "string", description: "Board column id, required when action is 'status'. Ships as pending | running | in_review | blocked, but the catalog is configurable — a wrong value comes back with the list this install has." },
           by:      { type: "string", description: "Optional: who completed/dropped it." },
         },
       },
@@ -45,7 +50,25 @@ export default {
       else if (action === "reopen") result = reopenTask(p.storagePath, task);
       else if (action === "status") {
         if (!status) return { error: "status required when action is 'status'" };
-        result = setTaskStatus(p.storagePath, task, status);
+        // Validated against the column catalog this install actually has, not
+        // against the four built-ins. The store normalizes an unknown status to
+        // "pending", so a board with a custom "qa" column used to answer
+        // `action=status, status=qa` with a cheerful ok and quietly file the
+        // task under pending — the one failure mode worse than an error.
+        //
+        // The GLOBAL catalog, not the project's displayed subset: the subset
+        // lives in the daemon's project config and this is core. A column the
+        // catalog knows but the board does not show still renders (columnFor
+        // falls back to the first column), so the worst case is a visible card
+        // in the wrong place instead of an invisible one.
+        const columns = readColumnCatalog(readConfig()).map((c) => c.id);
+        if (String(status) === DONE_COLUMN) {
+          return { error: `"${DONE_COLUMN}" is not a status — close the task with action="done".` };
+        }
+        if (!columns.includes(String(status))) {
+          return { error: `unknown status "${status}". This install has: ${columns.join(", ")}.` };
+        }
+        result = setTaskStatus(p.storagePath, task, status, { statuses: columns });
       } else return { error: `unknown action "${action}" (use done|drop|reopen|status)` };
       if (!result) return { error: `task not found: ${task}` };
       return {

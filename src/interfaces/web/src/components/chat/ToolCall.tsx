@@ -38,6 +38,11 @@ function toolMeta(): Record<string, { icon: typeof Wrench; label: string }> {
     call_mcp: { icon: Plug, label: t("shared_ui.tool_call_mcp") },
     call_runtime: { icon: Bot, label: t("shared_ui.tool_call_runtime") },
     create_task: { icon: ListTodo, label: t("shared_ui.tool_create_task") },
+    list_tasks: { icon: ListTodo, label: t("shared_ui.tool_list_tasks") },
+    get_task: { icon: ListTodo, label: t("shared_ui.tool_get_task") },
+    update_task: { icon: ListTodo, label: t("shared_ui.tool_update_task") },
+    complete_task: { icon: ListTodo, label: t("shared_ui.tool_complete_task") },
+    comment_task: { icon: ListTodo, label: t("shared_ui.tool_comment_task") },
   };
 }
 
@@ -59,6 +64,9 @@ function argSummary(tool: string, args?: Record<string, unknown>): string {
     pick("command") ||
     pick("slug") ||
     pick("name") ||
+    // Task tools: the title on a create, the id on everything that acts on one.
+    pick("title") ||
+    pick("task") ||
     pick("agent");
   return first ? String(first) : "";
 }

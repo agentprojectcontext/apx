@@ -1,6 +1,6 @@
 ---
 name: apx-task
-description: Per-project to-do list — a task, "una tarea", "tareas pendientes", "tareas abiertas", "anotá", "marcá como terminada" — with subtasks, comments and a board. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, complete, split or comment on a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks', 'split this task', 'subtask', 'comment on the task', 'move it to QA'.
+description: Per-project to-do list — a task, "una tarea", "tareas pendientes", "tareas abiertas", "anotá", "marcá como terminada" — with subtasks, comments and a board. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, read, EDIT, reassign, complete, split or comment on a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks', 'what does that task say', 'change the due date', 'cambiale la fecha', 'movelo al viernes', 'reassign it', 'eso es de Ana', 'make it urgent', 'split this task', 'subtask', 'comment on the task', 'move it to QA'.
 ---
 
 # apx-task
@@ -53,7 +53,11 @@ apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces ta
 | `body` | optional | **The prompt an AGENT receives** if it runs the task. Only for tasks meant to be executed by an agent — leave it empty for a plain to-do. |
 | `tags` | optional | Free-form. Used by `--tag` filter. |
 | `due` | optional | ISO `YYYY-MM-DD`. Filter with `--due-before` / `--due-after`. |
-| `agent` | optional | Slug of responsible agent. Used by `--agent` filter. |
+| `agent` | optional | Who is responsible: an agent slug, or `owner`/`human` for the human owner. Used by `--agent` filter. |
+| `priority` | optional | `low` \| `normal` (default) \| `high` \| `urgent`. |
+| `reminder_frequency` | optional | `none` (default) \| `once` \| `daily` \| `weekly`. |
+| `category` | optional | `general` (default) or `trip` — an errand with a place. Only a `trip` is considered by the mobility geofence. |
+| `location` | optional | Where the errand is: `{ place, address, latitude, longitude, radius_m }`. Inert unless the category is `trip`. |
 | `source` | auto/optional | Origin (cli, telegram, super-agent). |
 | `state` | derived | Storage lifecycle: `open` after create, `done`/`dropped` after ops. |
 | `status` | sub-status | Which BOARD COLUMN an **open** task sits in. Ships as `pending` (default) \| `running` \| `in_review` \| `blocked`, but the column catalog is configurable — call `GET /api/projects/:pid/tasks/columns` for what THIS project actually has. Orthogonal to `state`. Set via `POST …/tasks/:id/status` (the CLI `patch` does not set it). |
@@ -92,7 +96,7 @@ ceiling, can start a turn. To hand work over, name the agent in your reply.
 ## Board columns
 
 One catalog for every project (`config.tasks.columns`), and each project shows
-an ordered subset (`.apc/config.json` → `tasks.columns`). `done` is always the
+an ordered subset (the project config → `tasks.columns`). `done` is always the
 last column and is not in the catalog — closing a task is `POST …/done`, not a
 status. A column may carry `on_enter: { agent, instruction }`: a task landing
 there is handed to that agent through the same comment path as an @mention.
@@ -102,18 +106,50 @@ GET  /api/tasks/columns                  # the global catalog
 GET  /api/projects/:pid/tasks/columns    # what this project shows, + the catalog
 ```
 
-## Super-agent tools
+## Agent tools
 
-The super-agent has `create_task`, `list_tasks`, **`complete_task`** (done | drop | reopen | status) and **`comment_task`**. Add, list, and close all happen with tools — no shelling out to `apx task done`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
+The whole lifecycle is tools. Nothing about a task needs a shell.
+
+| Want to | Tool |
+|---|---|
+| note something down | `create_task` |
+| see what is pending | `list_tasks` (omit `project` for every project, in ONE call) |
+| read what a task actually says | **`get_task`** |
+| change what it says | **`update_task`** |
+| move it, close it, drop it, reopen it | `complete_task` |
+| report what you found or did | `comment_task` |
+
+`list_tasks` rows are deliberately compact — no `description`, no `body`, no
+comments — so anything past the title is `get_task`. It returns the thread and
+the subtasks with it, and finds the task without a `project` when you do not
+have one.
+
+`update_task` edits an existing task: `title`, `description`, `body`, `tags`,
+`due`, `agent`, `priority`, `reminder_frequency`, `category`, `location`,
+`parent`. Only the fields you pass change, and `""` clears one.
 
 ```json
 { "name": "create_task",
   "arguments": { "project": "acme", "title": "Close the auth bug", "description": "The 401 on refresh — reproduce it first", "due": "<tomorrow>", "tags": ["bug"] } }
+
+{ "name": "get_task",    "arguments": { "task": "t_abc123" } }
+{ "name": "update_task", "arguments": { "task": "t_abc123", "due": "2026-06-10", "agent": "ana", "priority": "urgent" } }
+{ "name": "update_task", "arguments": { "task": "t_abc123", "due": "" } }
+{ "name": "complete_task", "arguments": { "task": "t_abc123", "action": "status", "status": "in_review" } }
 ```
+
+**`update_task` does not set `status` or close a task.** A board column is
+`complete_task({ action: "status" })`, which validates against the column
+catalog this install actually has; closing is `action: "done"` (or `"drop"`).
+A raw patch would write a column id nothing checked, and the fold would read it
+back as `pending` — a move reported as done that never happened.
 
 **`description` vs `body`.** `description` is for the person; `body` is the prompt an agent receives. Most tasks the owner dictates are the first kind — write the description and leave `body` empty. Putting a prompt where the description belongs is what turns a to-do list into a queue of jobs its owner cannot read.
 
 "What's pending in acme?" → `list_tasks({ project: "acme" })`. If user doesn't say which project, `list_projects` first and ask — never assume. If the channel has pinned project context (Telegram), use that.
+
+Commitments are the sibling type and have the same shape: `record_commitment`,
+`list_commitments`, `update_commitment`, `mark_commitment`. See `apx-commitment`.
 
 ## Anti-examples
 
@@ -146,4 +182,5 @@ GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, over
 
 - Don't use tasks for reminders that need to *fire* — that's a future routine kind (`task-due-notify`, not built). Tasks are a list, not a scheduler.
 - Don't depend on `done` deleting the task. It doesn't. Event log stays.
-- Don't grep `~/.apx/projects/<id>/tasks/*.jsonl` for state — use `apx task list` or `getTask()`. Fold logic isn't trivial (later events override fields).
+- Don't grep `~/.apx/projects/<id>/tasks/*.jsonl` for state — use `list_tasks` / `get_task` (or `apx task list`). Fold logic isn't trivial (later events override fields).
+- **Never edit a task by writing to that log.** A shelled `python`/`sed` against the JSONL skips every normalizer in the store, and an append-only log edited in place is a state nobody can reconstruct. `update_task` is the only correct way, and it covers every field.
