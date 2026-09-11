@@ -1038,6 +1038,8 @@ export const en = {
       packs_heading: "Teams",
       packs_single: "Single agents",
       pack_install: "Install {count}",
+      pack_all: "Select all",
+      pack_none: "Clear",
       pack_renamed: "{slug} is taken",
       pack_success: "{count} agents installed",
       import_btn:  "Import",

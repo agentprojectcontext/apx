@@ -1037,6 +1037,8 @@ export const es = {
       packs_heading: "Equipos",
       packs_single: "Agentes sueltos",
       pack_install: "Instalar {count}",
+      pack_all: "Todos",
+      pack_none: "Ninguno",
       pack_renamed: "{slug} está ocupado",
       pack_success: "{count} agentes instalados",
       import_btn:  "Importar",

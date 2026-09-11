@@ -188,10 +188,11 @@ export function AgentsTab({ pid }: { pid: string }) {
 }
 
 function PackCard({
-  pack, pid, existing, picked, onPick, onInstalled,
+  pack, pid, vault, existing, picked, onPick, onInstalled,
 }: {
   pack: AgentPack;
   pid: string;
+  vault: AgentEntry[];
   existing: string[];
   picked: string[];
   onPick: (slugs: string[]) => void;
@@ -199,16 +200,29 @@ function PackCard({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  // The plan is the only part the user cannot work out on their own: which slug
-  // each member ends up with once this project's existing agents are counted.
+  // The ROLE comes from the vault, which does not change while you tick boxes.
+  // It used to come from the plan, and the plan is refetched on every tick and
+  // only describes the SELECTED members — so every role on the card blinked out
+  // and unticked ones never had one at all.
+  const roleOf = (slug: string) => vault.find((a) => a.slug === slug)?.role || "";
+
+  // The plan answers the one thing that cannot be worked out from the vault:
+  // which slug each member ends up with once this project's existing agents are
+  // counted. Keeping the previous answer while it refetches stops the rename
+  // hints from flickering on every tick.
   const plan = useSWR(
     picked.length ? ["pack-plan", pid, pack.id, picked.join(",")] : null,
     () => Agents.packPlan(pid, pack.id, picked),
+    { keepPreviousData: true },
   );
   const planFor = (slug: string) => plan.data?.agents.find((a) => a.template === slug);
 
   const toggle = (slug: string) =>
     onPick(picked.includes(slug) ? picked.filter((s) => s !== slug) : [...picked, slug]);
+
+  // All or nothing, because a pack of nine is where ticking one by one hurts.
+  const all = pack.agents.map((a) => a.slug);
+  const allPicked = picked.length === all.length;
 
   const install = async () => {
     setBusy(true);
@@ -231,9 +245,18 @@ function PackCard({
           <div className="text-sm font-medium">{pack.name}</div>
           {pack.explain && <p className="mt-0.5 text-xs text-muted-fg">{pack.explain}</p>}
         </div>
-        <Button size="sm" variant="primary" disabled={!picked.length || busy} loading={busy} onClick={install}>
-          {t("project.agents.pack_install", { count: picked.length })}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPick(allPicked ? [] : all)}
+            className="text-xs text-muted-fg underline-offset-2 hover:underline"
+          >
+            {allPicked ? t("project.agents.pack_none") : t("project.agents.pack_all")}
+          </button>
+          <Button size="sm" variant="primary" disabled={!picked.length || busy} loading={busy} onClick={install}>
+            {t("project.agents.pack_install", { count: picked.length })}
+          </Button>
+        </div>
       </div>
       <ul className="mt-3 space-y-1">
         {pack.agents.map((m) => {
@@ -257,7 +280,7 @@ function PackCard({
               {!renamed && existing.includes(m.slug) && (
                 <span className="text-muted-fg">{t("project.agents.import_already")}</span>
               )}
-              <span className="truncate text-muted-fg">{row?.role || ""}</span>
+              <span className="truncate text-muted-fg">{roleOf(m.slug)}</span>
             </li>
           );
         })}
@@ -323,6 +346,7 @@ function ImportVaultDialog({
               key={pack.id}
               pack={pack}
               pid={pid}
+              vault={items}
               existing={existing}
               picked={pickedFor(pack.id)}
               onPick={(slugs) => setPicked((prev) => ({ ...prev, [pack.id]: slugs }))}
