@@ -1,3 +1,10 @@
+## [1.104.1](https://github.com/agentprojectcontext/apx/compare/v1.104.0...v1.104.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **agents:** anotar el trabajo es parte de ser un agente, no un permiso ([b1dc322](https://github.com/agentprojectcontext/apx/commit/b1dc3223aa50ad86953444717591b25df3d7fba0))
+
 # [1.104.0](https://github.com/agentprojectcontext/apx/compare/v1.103.0...v1.104.0) (2026-09-11)
 
 
