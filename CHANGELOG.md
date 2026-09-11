@@ -1,3 +1,16 @@
+# [1.103.0](https://github.com/agentprojectcontext/apx/compare/v1.102.0...v1.103.0) (2026-09-11)
+
+
+### Bug Fixes
+
+* **chat:** el switch de encolar existe antes de que haga falta ([fa4faa3](https://github.com/agentprojectcontext/apx/commit/fa4faa3c62932d58edc8713732b03e6377030030))
+* **tests:** el unit test seguía pidiendo el switch que ab0b99f sacó de adentro del turno ([5e6e859](https://github.com/agentprojectcontext/apx/commit/5e6e85941c5baebcf01713cdec05041840957bf0))
+
+
+### Features
+
+* **tasks:** leer y editar una task son tools, no un shell ([fd1eb15](https://github.com/agentprojectcontext/apx/commit/fd1eb1522ec133bfe85cc028db8030220afcc5f4))
+
 # [1.102.0](https://github.com/agentprojectcontext/apx/compare/v1.101.0...v1.102.0) (2026-09-11)
 
 
