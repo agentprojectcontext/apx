@@ -37,6 +37,9 @@ export async function runSuperAgent({
   previousMessages = [],
   // Files that arrived with this turn; forwarded to runAgent verbatim.
   attachments = [],
+  // Tool calls a previous, cut-off life of this same turn already made. Seeds
+  // the loop's side-effect ledger so a resumed turn does not repeat them.
+  priorEffects = [],
   overrideModel = null,
   onEvent = null,
   signal,
@@ -193,6 +196,7 @@ export async function runSuperAgent({
       prompt: turnPrompt,
       previousMessages: history,
       attachments,
+      priorEffects,
       overrideModel,
       preferredModel: contentRoute?.model || null,
       toolSchemas,

@@ -103,13 +103,19 @@ function overlap(a, b) {
  *   `signature` returns null for read-only tools, which callers treat as
  *   "never dedupe this".
  */
-export function createSideEffectLedger() {
+/**
+ * @param {object}  [o]
+ * @param {Array}   [o.prior]  Tool calls that already ran FOR THIS TURN in an
+ *   earlier life of it — `[{ tool, args, result }]`, in order. Only a resumed
+ *   turn passes anything here; see the note below for why it exists.
+ */
+export function createSideEffectLedger({ prior = [] } = {}) {
   const executed = new Map();
   // What has already been said to a person this turn: { destination, words,
   // result }, one per message tool call that actually ran.
   const said = [];
 
-  return {
+  const ledger = {
     signature(name, args) {
       if (!SIDE_EFFECT_TOOLS.has(name)) return null;
       try {
@@ -152,4 +158,34 @@ export function createSideEffectLedger() {
       }
     },
   };
+
+  // ── Resumed turns ────────────────────────────────────────────────────────
+  //
+  // "Per turn, the ledger dies with it" is the right rule for a turn that ran
+  // once. It is exactly the wrong rule for a turn that is running for the
+  // SECOND time because the daemon went down in the middle of the first.
+  //
+  // The daemon persists what a cut-off turn had already done — the tool, its
+  // args, its result — and a resumed turn starts from that. Without this the
+  // resumed run begins with an empty ledger and no way to know a WhatsApp
+  // already left: not because the information was missing, but because it was
+  // sitting on disk in a shape nothing read back. The conversation history
+  // cannot carry it either — both replay paths filter tool rows out on purpose
+  // (api/exec.js openConversation, agent/a2a/history.js), and for good reason:
+  // tool exhaust once ate 84% of a thread's context.
+  //
+  // Replayed through `record` rather than written into the maps directly, so a
+  // seeded call is indistinguishable from one this run made — which means the
+  // near-duplicate check gets seeded too. That is the half that matters most:
+  // a model asked to pick up where it left off rarely re-emits byte-identical
+  // args, it re-words them, and re-worded is precisely what `said` catches.
+  for (const call of prior) {
+    if (!call?.tool) continue;
+    ledger.record(ledger.signature(call.tool, call.args), call.result, {
+      name: call.tool,
+      args: call.args,
+    });
+  }
+
+  return ledger;
 }

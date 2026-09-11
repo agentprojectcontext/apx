@@ -5,8 +5,14 @@
 // daemon. This registry is the daemon's own record of what is being written
 // right now — the accumulated text plus who/where — so ANY surface can be caught
 // up (via the conversation GET) and then followed live (via the events-ws
-// "turn" frames the chat handlers broadcast). It is pure in-memory runtime
-// state: if the daemon restarts mid-turn the turn is gone anyway.
+// "turn" frames the chat handlers broadcast).
+//
+// It is in-memory runtime state, and it used to say "if the daemon restarts
+// mid-turn the turn is gone anyway" — which was true, and was the bug. A
+// restart now DRAINS (drainActiveTurns), so a turn that can finish does; and
+// whatever still has to be cut is written to disk on the way out
+// (core/stores/resumable-turns.js) so the next daemon can pick it up instead of
+// finding a mid-sentence message and no idea what produced it.
 //
 // Key is the conversation's identity as the client already addresses it:
 //   project agent  → `${projectId}:conv:${conversationId}`
@@ -14,6 +20,7 @@
 // so a client on that conversation can match a frame without extra plumbing.
 
 import { DRAIN_MS, SETTLE_MS } from "#core/constants/shutdown.js";
+import { saveResumableTurns } from "#core/stores/resumable-turns.js";
 
 let seq = 0;
 const byId = new Map();  // turnId -> record
@@ -256,10 +263,53 @@ export function abortAllActiveTurns() {
  * @returns {Promise<{waited: boolean, finished: number, aborted: number}>}
  *   `finished` ran to completion on their own, `aborted` had to be cut.
  */
+/**
+ * The live record as the next daemon needs to read it.
+ *
+ * The split between `effects` and `in_flight` is the whole judgement call here,
+ * and it is a split between what we KNOW and what we only suspect.
+ *
+ *  - `effects` are tool calls with a result: they ran, they finished, the world
+ *    changed. These seed the resumed turn's side-effect ledger, which makes
+ *    repeating them mechanically impossible.
+ *  - `in_flight` are calls that had started and had NOT come back when the
+ *    process was cut. Nobody knows whether that WhatsApp left. Seeding one
+ *    would tell the resumed turn "already done" about something that may never
+ *    have happened — trading a duplicate message for a lost one, silently.
+ *
+ * So in-flight calls are deliberately NOT seeded; they are named in the resume
+ * prompt instead, for the model to verify before redoing. This is the one place
+ * where asking is better than enforcing: the machine genuinely does not know
+ * the answer, and the agent can go and look.
+ */
+function resumableFrom(rec) {
+  const tools = (rec.parts || []).filter((part) => part.kind === "tool");
+  return {
+    turn_id: rec.id,
+    project_id: rec.project_id ?? null,
+    agent_slug: rec.agent_slug ?? null,
+    conversation_id: rec.conversation_id ?? null,
+    channel: rec.channel ?? null,
+    thread_id: rec.thread_id ?? null,
+    model: rec.model ?? null,
+    surface: rec.surface ?? null,
+    prompt: rec.prompt ?? "",
+    partial_text: rec.text || "",
+    effects: tools
+      .filter((part) => part.status !== "running")
+      .map((part) => ({ tool: part.tool, args: part.args, result: part.result })),
+    in_flight: tools
+      .filter((part) => part.status === "running")
+      .map((part) => ({ tool: part.tool, args: part.args })),
+    started_at: rec.started_at,
+    cut_at: new Date().toISOString(),
+  };
+}
+
 export function drainActiveTurns({ timeoutMs = DRAIN_MS, settleMs = SETTLE_MS } = {}) {
   const pending = new Set(byId.keys());
   const total = pending.size;
-  if (!total) return Promise.resolve({ waited: false, finished: 0, aborted: 0 });
+  if (!total) return Promise.resolve({ waited: false, finished: 0, aborted: 0, resumable: 0 });
 
   return new Promise((resolve) => {
     let settled = false;
@@ -276,6 +326,18 @@ export function drainActiveTurns({ timeoutMs = DRAIN_MS, settleMs = SETTLE_MS } 
       clearTimeout(timer);
       drainWaiters.delete(onTurnEnd);
       const finished = total - left;
+      // Write down what is about to be cut, BEFORE cutting it.
+      //
+      // Deliberately here and not in abortActiveTurn, which is the same
+      // machinery: a turn the USER stopped must not come back from the dead at
+      // the next restart. Only a turn the daemon cut off against its will is a
+      // turn anybody wants resumed.
+      let resumable = 0;
+      try {
+        resumable = saveResumableTurns([...byId.values()].map(resumableFrom));
+      } catch {
+        /* never let the bookkeeping stop the abort below — the partial matters more */
+      }
       // Unconditionally, and over everything still live rather than over the
       // snapshot: a turn that arrived mid-drain has a partial worth keeping
       // too. Gating this on the snapshot having stragglers was a bug — the
@@ -283,10 +345,10 @@ export function drainActiveTurns({ timeoutMs = DRAIN_MS, settleMs = SETTLE_MS } 
       // resolves with the snapshot empty, and that turn would have been
       // dropped by the exit with nothing written.
       const aborted = abortAllActiveTurns();
-      if (!aborted) return resolve({ waited: true, finished, aborted: 0 });
+      if (!aborted) return resolve({ waited: true, finished, aborted: 0, resumable });
       // Deliberately NOT unref'd: this is the wait, and a timer that does not
       // hold the loop open is a wait the process can walk out of.
-      setTimeout(() => resolve({ waited: true, finished, aborted }), settleMs);
+      setTimeout(() => resolve({ waited: true, finished, aborted, resumable }), settleMs);
     };
 
     const onTurnEnd = () => { if (!prune()) finish(); };

@@ -55,6 +55,9 @@ export async function runAgentTurn({
   // actions to ask whether to continue — the budget belongs to the surface, not
   // to which agent happens to be answering.
   maxIters,
+  // Tool calls a previous, cut-off life of this same turn already made. Seeds
+  // the loop's side-effect ledger so a resumed turn does not repeat them.
+  priorEffects = [],
   projects,
   plugins,
   registries,
@@ -142,6 +145,7 @@ export async function runAgentTurn({
       prompt: turnPrompt,
       previousMessages: history,
       attachments,
+      priorEffects,
       overrideModel: modelId,
       toolSchemas: toolSession.initialSchemas,
       makeToolHandlers,
