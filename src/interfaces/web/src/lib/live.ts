@@ -12,7 +12,7 @@
 // exceptions carry data because there is nothing to re-fetch YET: turn frames
 // (tokens mid-answer) and routine frames (a run's steps, which only reach the
 // ledger once the run is over).
-import { getToken } from "./http";
+import { getToken, refreshToken } from "./http";
 import { wsUrl } from "./net";
 import type { BackgroundJobFrame, RoutineFrame, TurnFrame } from "../types/daemon";
 
@@ -121,6 +121,11 @@ function scheduleReconnect() {
   }, delay);
 }
 
+/** Whether the LAST attempt ever reached an open socket. A handshake refused
+ *  for auth and a daemon that is down look identical from here; both are worth
+ *  one token refresh before the next try. */
+let rejected = false;
+
 function connect() {
   if (socket || (!listeners.size && !turnListeners.size && !routineListeners.size && !jobListeners.size)) return;
   // No token yet (the bootstrap fetch is still in flight): the upgrade would be
@@ -130,6 +135,28 @@ function connect() {
     scheduleReconnect();
     return;
   }
+  // The last attempt was REJECTED rather than dropped, so the token is the
+  // first suspect: the daemon mints a new master token on every boot, and this
+  // socket used to reconnect forever against the one it was holding when the
+  // daemon restarted. A browser cannot read the handshake's status code, so
+  // "never opened" is the signal — and asking for a fresh token is one cheap
+  // loopback fetch, deduped, which is a fair price for the alternative (a panel
+  // that is silently deaf until somebody thinks to reload it).
+  if (rejected) {
+    rejected = false;
+    // Whatever the refresh answers, the loop goes on. Returning on a failed
+    // refresh is how a "recovery" becomes worse than the thing it replaced: one
+    // attempt while the daemon was still coming back up, no token, and the
+    // socket never tried again — a panel that used to reconnect forever against
+    // a dead token now simply stopped.
+    void refreshToken()
+      .catch(() => null)
+      .then(() => { attempts = 0; scheduleReconnect(); });
+    return;
+  }
+  // Per attempt, read by `dropped` below to tell a refused handshake from a
+  // socket that lived and then died.
+  let opened = false;
   let ws: WebSocket;
   try {
     ws = new WebSocket(wsUrl("/api/events/ws", { token }));
@@ -141,6 +168,7 @@ function connect() {
 
   ws.onopen = () => {
     attempts = 0;
+    opened = true;
     // Anything that happened while we were away was never delivered. Tell every
     // screen to revalidate once, or a phone that spent the afternoon in a
     // pocket comes back to a live socket over a stale conversation.
@@ -166,6 +194,9 @@ function connect() {
   const dropped = () => {
     if (socket === ws) socket = null;
     missedWhileDown = true;
+    // Closed without ever opening: the upgrade was refused (bad token) or
+    // nothing answered. Either way the next attempt should get a token first.
+    if (!opened) rejected = true;
     scheduleReconnect();
   };
   ws.onclose = dropped;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiUrl, recoverConnection } from "../lib/net";
-import { getToken, setToken, http, HttpError, Pair, Net } from "../lib/api";
+import { getToken, setToken, setReauthorize, http, HttpError, Pair, Net } from "../lib/api";
 import { loadEnginePresets } from "../components/settings/providers/typeStyles";
 import { STORAGE } from "../constants";
 import { deviceLabel } from "../lib/device";
@@ -45,9 +45,70 @@ function confirmOnce(pairingId: string) {
   return p;
 }
 
+/**
+ * Get a token the daemon currently accepts, for a page that already had one.
+ *
+ * The daemon mints a NEW master token on every boot, so every `apx restart`
+ * invalidates whatever this tab is holding. The loopback endpoint is the answer
+ * on the machine running the daemon; it refuses non-loopback and tunnelled
+ * requests, so over the LAN or a tunnel there is nothing to hand back.
+ *
+ * THE TWO FAILURES ARE NOT THE SAME, which is the whole reason this returns a
+ * shape instead of `string | null`. "The daemon did not answer" is what happens
+ * for the second or two of every restart, and it is transient — reporting it as
+ * "this browser needs to be paired" throws the reader onto a pairing screen,
+ * with a code to type, because a daemon was rebooting. "The daemon answered and
+ * would not give me one" is the real, permanent thing pairing exists for.
+ */
+type TokenAttempt =
+  | { token: string }
+  | { unreachable: true }   // nothing answered — restarting, or down
+  | { refused: true };      // answered, but not from loopback
+
+async function fetchLoopbackToken(): Promise<TokenAttempt> {
+  let res: Response;
+  try {
+    res = await fetch(apiUrl("/api/admin/web-token"));
+  } catch {
+    return { unreachable: true };
+  }
+  if (!res.ok) return { refused: true };
+  try {
+    const body = await res.json();
+    const fresh = body?.token;
+    if (!fresh || typeof fresh !== "string") return { refused: true };
+    setToken(fresh);
+    try { localStorage.setItem(STORAGE.token, fresh); } catch { /* quota */ }
+    return { token: fresh };
+  } catch {
+    return { refused: true };
+  }
+}
+
 export function useTokenBootstrap(): AuthState {
   const [state, setState] = useState<Status>({ status: "loading" });
   const [nonce, setNonce] = useState(0);
+
+  // Teach the transport how to recover, for as long as this panel is mounted.
+  // Deliberately NOT inside the bootstrap effect below: that one runs once and
+  // is done, and the 401 it has to survive arrives hours later, the first time
+  // the daemon is restarted under a tab somebody left open.
+  useEffect(() => {
+    setReauthorize(async () => {
+      const got = await fetchLoopbackToken();
+      if ("token" in got) return got.token;
+      // Refused: there is no token to be had from here and there never will be
+      // (LAN, tunnel). Say so, rather than letting every request fail silently
+      // behind a panel that looks fine.
+      if ("refused" in got) setState({ status: "unpaired" });
+      // Unreachable: say NOTHING and change nothing. This is a daemon in the
+      // middle of a restart, which is the exact situation this whole mechanism
+      // exists for — the callers retry, and the panel must not flash a pairing
+      // screen at somebody who just ran `apx restart`.
+      return null;
+    });
+    return () => setReauthorize(null);
+  }, []);
 
   const reload = useCallback(() => {
     setState({ status: "loading" });
@@ -118,16 +179,10 @@ export function useTokenBootstrap(): AuthState {
       }
 
       // 3. Loopback endpoint — only succeeds on local same-origin requests.
-      try {
-        const t = await fetch(apiUrl("/api/admin/web-token"));
-        if (t.ok) {
-          const body = await t.json();
-          if (body?.token) {
-            setToken(body.token);
-            try { localStorage.setItem(STORAGE.token, body.token); } catch { /* quota */ }
-          }
-        }
-      } catch { /* ignore — loopback-only or tunneled */ }
+      //    Same call the 401 recovery makes; one implementation, so a token
+      //    obtained at first paint and one obtained after a restart come from
+      //    the same place and are stored the same way.
+      await fetchLoopbackToken();
 
       // 4. Decide. No token at all → needs pairing.
       if (!getToken()) {

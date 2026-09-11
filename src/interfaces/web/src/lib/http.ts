@@ -15,6 +15,39 @@ let token: string | null = null;
 export function setToken(t: string | null) { token = t; }
 export function getToken(): string | null  { return token; }
 
+// ── Getting a token back ────────────────────────────────────────────────────
+//
+// The daemon mints a NEW master token on every boot (host/daemon/index.js), so
+// every `apx restart` invalidates the one this page is holding. That is a
+// deliberate property — restarting revokes a token that leaked into a tunnel
+// link or a screenshot — and it left the panel with no way back: the token was
+// acquired once at first paint and never again, so after a restart every
+// request answered 401 and the events socket reconnected forever against a
+// token the daemon had already forgotten. No error, no prompt: the panel simply
+// went deaf. Nothing streamed, no spinner moved, no thread caught up, and the
+// only cure was a reload nobody knew to do — which on a machine where the
+// daemon is restarted all afternoon is most of the afternoon.
+//
+// Who KNOWS how to get a token is useTokenBootstrap: it owns the acquisition
+// order (URL fragment, the loopback endpoint, a paired token in storage) and
+// the decision to fall back to the pairing screen. It registers that here, so
+// the client can ask for a fresh one without importing React.
+type Reauthorize = () => Promise<string | null>;
+let reauthorize: Reauthorize | null = null;
+let reauthorizing: Promise<string | null> | null = null;
+
+export function setReauthorize(fn: Reauthorize | null) { reauthorize = fn; }
+
+/** Ask for a fresh token, at most once at a time. Returns the new token, or
+ *  null when there is none to be had (unpaired, daemon down, no loopback). */
+export function refreshToken(): Promise<string | null> {
+  if (!reauthorize) return Promise.resolve(null);
+  if (!reauthorizing) {
+    reauthorizing = reauthorize().finally(() => { reauthorizing = null; });
+  }
+  return reauthorizing;
+}
+
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export class HttpError extends Error {
@@ -61,6 +94,17 @@ async function request<T>(
   // before passing that on as an answer.
   if (!res.ok && mayBeWrongAddress(res.status) && (await recoverIfAddressIsWrong())) {
     res = await send();
+  }
+  // The daemon does not know this token any more — almost always because it
+  // restarted and minted a new one. Ask for a fresh one and try again, ONCE: a
+  // second 401 on a token we just obtained is a real refusal, not a stale
+  // credential, and retrying it forever is how a login loop is built.
+  if (res.status === 401 || res.status === 403) {
+    const fresh = await refreshToken();
+    if (fresh && fresh !== headers.authorization?.slice(7)) {
+      headers.authorization = `Bearer ${fresh}`;
+      res = await send();
+    }
   }
   if (!res.ok) {
     let detail = "";
