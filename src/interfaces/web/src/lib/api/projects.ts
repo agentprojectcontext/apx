@@ -3,7 +3,11 @@ import type { ProjectConfig, ProjectEntry } from "../../types/daemon";
 
 export const Projects = {
   list:    () => http.get<ProjectEntry[]>("/api/projects"),
-  register:(path: string) => http.post<{ id: number; path: string }>("/api/projects", { path }),
+  register: (path: string, opts: RegisterProjectOptions = {}) =>
+    http.post<{ id: number; path: string; kind: string | null; team: PackInstallResult | null }>(
+      "/api/projects",
+      { path, ...opts },
+    ),
   remove:  (id: string)   => http.del<void>(`/api/projects/${encodeURIComponent(id)}`),
   rebuild: (id: string)   => http.post<{ ok: true }>(`/api/projects/${encodeURIComponent(id)}/rebuild`),
   config:  {
@@ -35,3 +39,17 @@ export const Projects = {
     },
   },
 };
+
+/** Everything the Add-project dialog can decide besides the path. */
+export type RegisterProjectOptions = {
+  /** personal | company | app | software | other. Unlocks the structure tab for a company. */
+  kind?: string;
+  /** Create .apc/ when the folder is not an APC project yet, instead of failing. */
+  init?: boolean;
+  /** Pack id to install right away, e.g. "company". */
+  team?: string;
+};
+
+export type PackInstallResult =
+  | { installed: { slug: string; template: string }[]; areas: string[]; roles: string[] }
+  | { error: string };
