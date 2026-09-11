@@ -49,13 +49,14 @@ import {
   routineOutputText,
   notifyOwnerViaRoby,
   readAbstention,
+  looksLikeAbstention,
   abstentionChannels,
   ABSTAIN_MARKER,
   AGENT_WEB_CHAT_ID,
 } from "#core/routines/delivery.js";
 import { recordDelivery, markDelivery, DELIVERY_STATUS } from "#core/stores/deliveries.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
+import { detectSignals, formatSignals, peakSeverity, gateSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
 import { readActiveProfile, effectiveProfileConfig } from "#core/profiles/store.js";
 import {
   updateRunState,
@@ -607,13 +608,16 @@ async function handleWatch(ctx, routine) {
   // news. A model that can grade its own message as critical has a shouting
   // backdoor; a deterministic overdue commitment does not.
   const result = await handleSuperAgent(ctx, enriched, {
-    signalSeverity: peakSeverity(signals),
+    // The GATE's severity, not the detector's peak — an already-late
+    // commitment is critical to rank and merely "high" to interrupt for.
+    signalSeverity: gateSeverity(signals),
     signalCount: signals.length,
   });
   return {
     ...result,
     signals: signals.length,
     peak_severity: peakSeverity(signals),
+    gate_severity: gateSeverity(signals),
     signal_types: [...new Set(signals.map((s) => s.type))],
     // Solicited when the owner explicitly asked to be told about one of these
     // (an a2a message tagged solicited). It crosses the interruption budget the
@@ -907,11 +911,21 @@ async function runRoutinePipeline(ctx, routine) {
     const skipIds = new Set(deliverySkipped.map((d) => d.channel));
     // The interruption budget, applied to the push channels delivery owns now
     // that send_telegram is suppressed for a delivering routine. An anchor is
-    // `scheduled` and exempt; a watch/a2a run carries its detector's peak
-    // severity (a blocker is critical and crosses quiet-hours); a run the owner
-    // solicited crosses the budget like a reply. See core/routines/delivery.js.
+    // `scheduled` and exempt; a run the owner solicited crosses the budget like
+    // a reply. See core/routines/delivery.js.
+    //
+    // `gate_severity`, NOT `peak_severity`: the gate is asking whether this may
+    // cross quiet hours, and only a signal that is urgent NOW may answer yes.
+    // An a2a blocker still does; an already-late commitment no longer does.
+    // See gateSeverity in core/routines/signals.js.
+    // The backstop for a prose abstention (fix 4): a reply that READS like a
+    // decision to stay quiet is still delivered — it just may not do so by
+    // crossing a closed door on the detector's word. Capped to "high", which
+    // removes bypass eligibility and changes nothing else.
+    const prose = looksLikeAbstention(deliveryText);
+    const detected = result?.gate_severity || "normal";
     const gate = {
-      severity: result?.peak_severity || "normal",
+      severity: prose && detected === "critical" ? "high" : detected,
       scheduled: routine.spec?.anchor === true,
       unsolicited: !(result?.solicited === true),
       project_id: ctx.project?.id ?? null,

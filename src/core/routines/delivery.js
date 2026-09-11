@@ -93,6 +93,51 @@ export function readAbstention(text) {
 }
 
 /**
+ * Prose that READS like an abstention — a veto, never a suppressor.
+ *
+ * The rule above says no prose detection, and it is right: a heuristic that
+ * decides what never gets delivered will eventually eat real news, which is
+ * worse than the bug. This one cannot, because of where it is used. It takes
+ * away exactly ONE privilege — the right to cross quiet hours on the detector's
+ * `critical` — and nothing else. A false positive costs a message the wait
+ * until 07:30. A false negative costs nothing that was not already true.
+ *
+ * That asymmetry is what makes a fuzzy test acceptable here and unacceptable
+ * three lines up.
+ *
+ * Why it exists: on 2026-09-11T05:01Z the watch decided to stay quiet and wrote
+ * the decision as prose instead of the marker — "Silencio registrado. Corrida
+ * nocturna de las 2 AM sin interrupciones…". readAbstention is marker-only, so
+ * it was delivered; the detector's severity was `critical`; the gate checked
+ * the critical bypass before quiet hours. Roby woke Manu at 2 AM to announce
+ * his own silence. Three independent things had to go wrong, and this is the
+ * backstop for the first of them.
+ */
+const ABSTAIN_PROSE = [
+  // es-AR — the phrasings the watch prompts actually produce
+  /\bme mantengo en silencio\b/i,
+  /\bsilencio registrado\b/i,
+  /\bsin (novedades|interrupciones|nada urgente)\b/i,
+  /\bnada (que reportar|urgente|para reportar)\b/i,
+  /\bno hay nada (urgente|que)\b/i,
+  /\bningún? (mensaje|aviso)\b/i,
+  // en — same decision, other language
+  /\bstaying (quiet|silent)\b/i,
+  /\bnothing (to report|urgent|worth)\b/i,
+  /\bno message\b/i,
+  /\ball quiet\b/i,
+];
+
+export function looksLikeAbstention(text) {
+  const raw = typeof text === "string" ? text.trim() : "";
+  if (!raw) return false;
+  // Only a SHORT reply is judged. A long one is doing more than announcing a
+  // decision, whatever sentence it happens to open with.
+  if (raw.length > 400) return false;
+  return ABSTAIN_PROSE.some((re) => re.test(raw));
+}
+
+/**
  * Write the text into a global channel ledger. That is the whole of "delivery"
  * for a surface APX owns: appendGlobalMessage announces the row on the message
  * bus, so a panel with the thread open sees it arrive, and one that is closed

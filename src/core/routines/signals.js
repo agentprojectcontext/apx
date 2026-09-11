@@ -182,10 +182,17 @@ function detectOverdueCommitments(project, { now }) {
  * The a2a severity contract: a sender tags a message [blocker | status | fyi],
  * and the tag maps to a signal severity so the watch prioritises it.
  *
- * `blocker` is "critical": the owner chose that a blocker crosses even quiet
- * hours (canNudge lets critical bypass, audited), because a blocker that waits
- * until morning is not a blocker. `status`/`fyi` are gated like any other
- * unrequested message. An untagged a2a message is a plain "normal" signal.
+ * `blocker` is "critical": the owner chose (again, explicitly, on 2026-09-11)
+ * that a blocker crosses even quiet hours, because a blocker that waits until
+ * morning is not a blocker. That crossing now needs
+ * `critical_bypasses_quiet_hours` — it used to come free with the budget flag,
+ * which is how a watch run that had NOTHING to say got through at 2 AM.
+ * `status`/`fyi` are gated like any other unrequested message. An untagged a2a
+ * message is a plain "normal" signal.
+ *
+ * Note this is the ONE critical that stays critical at the gate: see
+ * gateSeverity, where a critical that is merely expensive is handed over as
+ * "high" instead.
  */
 export const A2A_SEVERITY = Object.freeze({ blocker: "critical", status: "normal", fyi: "low" });
 
@@ -294,13 +301,44 @@ export function formatSignals(signals) {
   return lines.join("\n");
 }
 
-/** The highest severity present, for the interruption budget. */
+/** The highest severity present — for ranking and for the prompt. */
 export function peakSeverity(signals) {
   let best = "low";
   for (const s of signals || []) {
     if ((SEVERITY_RANK[s.severity] ?? 9) < (SEVERITY_RANK[best] ?? 9)) best = s.severity;
   }
   return signals?.length ? best : "low";
+}
+
+/**
+ * Signal types whose "critical" means COST, not URGENCY.
+ *
+ * An overdue commitment is the costliest thing on the board — and the least
+ * helped by a 3 AM push, because it is ALREADY LATE. Waking someone cannot
+ * un-miss a date that passed; the next anchor can still act on it. It keeps
+ * `critical` everywhere it means "rank this first" (the prompt, the ordering),
+ * and loses it at the interruption gate, where critical means the narrower and
+ * much more expensive thing: "may cross a door the user closed".
+ */
+const CRITICAL_BY_COST = Object.freeze(["overdue_commitment"]);
+
+/**
+ * The severity the INTERRUPTION GATE should see.
+ *
+ * Distinct from peakSeverity on purpose. The gate is not asking "how bad is
+ * this?" but "does this justify crossing quiet hours and the daily budget?" —
+ * and on 2026-09-11 those two questions had the same answer, so an already-late
+ * commitment woke the owner at 2 AM to announce that nothing was happening.
+ * Anything critical by cost alone is handed over as "high": it still outranks
+ * ordinary news, and it no longer opens a closed door.
+ */
+export function gateSeverity(signals) {
+  const forGate = (signals || []).map((s) =>
+    s.severity === "critical" && CRITICAL_BY_COST.includes(s.type)
+      ? { ...s, severity: "high" }
+      : s,
+  );
+  return peakSeverity(forGate);
 }
 
 /** Thresholds from a profile's config, falling back to the defaults. */

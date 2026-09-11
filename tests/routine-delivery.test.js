@@ -858,3 +858,44 @@ test("runRoutineNow — a real message still goes to telegram, unchanged", async
     cleanupTempProject(root);
   }
 });
+
+test("looksLikeAbstention — recognises the prose that woke Manu at 2 AM", async () => {
+  const { looksLikeAbstention, readAbstention } = await import("#core/routines/delivery.js");
+
+  // Verbatim from ~/.apx/nudges.json, entry ndg_hygjqn, 2026-09-11T05:01:11Z.
+  const theIncident =
+    "Silencio registrado. Corrida nocturna de las 2 AM sin interrupciones: " +
+    "todo lo pendiente va al anchor de apertura. ✅";
+  assert.equal(looksLikeAbstention(theIncident), true);
+
+  assert.equal(looksLikeAbstention("Me mantengo en silencio. La señal de flit es baja."), true);
+  assert.equal(looksLikeAbstention("Staying quiet — nothing worth interrupting for."), true);
+  assert.equal(looksLikeAbstention("Nothing to report this sweep."), true);
+});
+
+test("looksLikeAbstention VETOES the bypass — it never suppresses a delivery", async () => {
+  const { looksLikeAbstention, readAbstention } = await import("#core/routines/delivery.js");
+  // The contract that makes a fuzzy test safe here: this function is allowed to
+  // be wrong, because being wrong costs a message the wait until 07:30 and
+  // never costs the message itself. readAbstention — the one that CAN silence —
+  // stays marker-only and must keep saying "this is a message".
+  const theIncident = "Silencio registrado. Corrida nocturna de las 2 AM sin interrupciones.";
+  assert.equal(readAbstention(theIncident), null, "suppression must still require the marker");
+});
+
+test("looksLikeAbstention — a real message is not mistaken for one", async () => {
+  const { looksLikeAbstention } = await import("#core/routines/delivery.js");
+  assert.equal(
+    looksLikeAbstention("Carlos está bloqueado esperando el deploy desde ayer — respondele."),
+    false,
+  );
+  assert.equal(looksLikeAbstention("El pago a Amarok vence hoy y sigue abierto."), false);
+  assert.equal(looksLikeAbstention(""), false);
+  assert.equal(looksLikeAbstention(null), false);
+
+  // A long reply is doing more than announcing a decision, whatever it opens
+  // with — so it keeps every privilege a real message has.
+  const long = "Nada urgente por ahora, pero " + "detalle del estado de cada proyecto. ".repeat(20);
+  assert.ok(long.length > 400);
+  assert.equal(looksLikeAbstention(long), false);
+});
