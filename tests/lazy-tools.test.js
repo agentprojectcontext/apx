@@ -29,7 +29,12 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // 33 with get_task + update_task (~+660 tokens). Same asymmetry, one step
   // further: list rows carry no description and nothing could edit a task at
   // all, so the model read and wrote the JSONL event log with inline python.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 33);
+  // 34 with send_to_agent. Reaching another agent cannot be a tool you have to
+  // discover: an agent that does not find it does not look twice — it shells out
+  // to `apx send … --deliver`, which BLOCKS the whole turn until the other side
+  // answers. That is not hypothetical, it is what froze one agent for ten
+  // minutes waiting on another while both looked dead from every surface.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 34);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.

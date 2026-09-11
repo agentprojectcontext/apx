@@ -112,6 +112,7 @@ The model can always expand its surface by calling `load_skill`.
 | `create_task` / `list_tasks` / `get_task` | Add, list and read per-project TODO items |
 | `update_task` / `complete_task` / `comment_task` | Edit one, move or close it, annotate its thread |
 | `call_agent` | Hand work to a named project agent, in-process. It runs with its own tools, so it can do the work rather than describe it, and the exchange is filed as an agent-to-agent conversation you can read and continue |
+| `send_to_agent` | Message another agent — a project agent, the super-agent, or a coding runtime — and get their answer. The exchange is filed as an agent-to-agent conversation you can read and continue. Agents use this instead of shelling out to `apx send`, which blocks the whole turn |
 | `call_mcp` | Call any registered MCP server tool |
 | `call_runtime` | Delegate to an external [runtime](/apx/docs/engine/runtimes/#delegating-from-the-super-agent-call_runtime) (Claude Code / Codex …), synchronously or in the background |
 | `run_subagent` | Spawn an isolated sub-agent (fresh context, same tools minus user-interaction ones) that works a self-contained task to completion and returns its result — one nesting level max |

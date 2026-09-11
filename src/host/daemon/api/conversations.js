@@ -12,6 +12,7 @@ import { listConversations, readConversation, deleteConversation, truncateConver
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
 import { a2aPairHistory } from "#core/agent/a2a/history.js";
+import { broadcastTurn } from "../events-ws.js";
 
 /** The sender's working directory, if it still is one. This is untrusted input
  *  naming a directory we are about to spawn a coding CLI in, so it gets checked
@@ -26,7 +27,7 @@ function senderCwd(raw) {
 }
 
 import { compactConversation } from "#core/stores/conversations-compactor.js";
-import { getActiveTurnByKey, startActiveTurn, endActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
+import { getActiveTurnByKey, startActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
 import { resolvePeer, peerAddress, senderAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
@@ -562,11 +563,15 @@ export function register(api, { projects, project, config, plugins, registries }
       return session;
     };
 
-    const runReply = async () => {
+    const runReply = async ({ signal, onEvent } = {}) => {
       const codeSession = openCodeSession();
       try {
         const result = await replyToPeer({
           peer,
+          // The turn is watched and stoppable now; the peer has to be handed
+          // both or the hook above pulls on nothing.
+          signal,
+          onEvent,
           project: p,
           projectPath: p.path,
           fromAgent,
@@ -694,17 +699,56 @@ export function register(api, { projects, project, config, plugins, registries }
     // exactly the same. Keyed to the thread the inbox shows, so the indicator
     // lands on the conversation the owner is reading.
     const a2aTurnKey = threadTurnKey(p.id, "a2a", a2aThreadId(from, to));
+    // Registered, WATCHABLE, stoppable, and bounded — the four together, because
+    // with only the first one this turn was a lie the panel told for ten minutes.
+    //
+    // What it looked like: Ansel ran `apx send … --deliver` from a shell, which
+    // opened a super-agent reply here. The reply worked for ten minutes and this
+    // registry said `text: ""` and `parts: []` the whole time, because nothing
+    // fed it. So the thread showed "super_agent está escribiendo…" and nothing
+    // under it; `POST /turns/abort` answered `aborted: false` (no hook to pull);
+    // and the 300 s budget the line below advertises never fired, because
+    // replyAsAgent/replyAsSuperAgent simply ignored it — only replyAsRuntime
+    // ever honoured it. A slow peer and a dead one were the same picture, and
+    // there was no way to end either.
     const withTurn = async (run) => {
+      const ctrl = new AbortController();
+      // The budget this route already promises, actually enforced. Same clock
+      // for every kind of peer: a runtime timed out at `timeoutMs` while an
+      // agent ran unbounded, which is not a policy, it is an omission.
+      const budget = setTimeout(() => ctrl.abort(new Error("a2a turn budget exhausted")), timeoutMs);
       const active = startActiveTurn(a2aTurnKey, {
         project_id: p.id,
         channel: "a2a",
         thread_id: a2aThreadId(from, to),
         agent_slug: to,
         title: `${to} is answering ${from}`,
+        // What `abortActiveTurn` pulls. Without it the record exists and the
+        // abort route can only answer "nothing to stop".
+        abort: () => ctrl.abort(),
       });
+      const onEvent = (ev) => {
+        recordActiveTurnEvent(active.id, ev);
+        // Recorded for whoever opens the thread mid-turn, pushed for whoever is
+        // already watching it — the same pair the super-agent's own stream keeps
+        // in step (api/super-agent.js).
+        if (isVisibleTurnEvent(ev)) {
+          broadcastTurn({
+            phase: "event",
+            project_id: p.id,
+            agent_slug: to,
+            conversation_id: null,
+            channel: "a2a",
+            thread_id: a2aThreadId(from, to),
+            turn_id: active.id,
+            event: ev,
+          });
+        }
+      };
       try {
-        return await run();
+        return await run({ signal: ctrl.signal, onEvent });
       } finally {
+        clearTimeout(budget);
         endActiveTurn(active.id);
       }
     };

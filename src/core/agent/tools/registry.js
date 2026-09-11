@@ -29,6 +29,7 @@ import tailMessages from "./handlers/tail-messages.js";
 import searchMessages from "./handlers/search-messages.js";
 import searchSessions from "./handlers/search-sessions.js";
 import callAgent from "./handlers/call-agent.js";
+import sendToAgent from "./handlers/send-to-agent.js";
 import callMcp from "./handlers/call-mcp.js";
 import callRuntime from "./handlers/call-runtime.js";
 import runSubagent from "./handlers/run-subagent.js";
@@ -111,6 +112,7 @@ const NATIVE_TOOLS = [
   searchMessages,
   searchSessions,
   callAgent,
+  sendToAgent,
   callMcp,
   callRuntime,
   runSubagent,
@@ -223,6 +225,11 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.SEND_TELEGRAM,
   TOOLS.ASK_QUESTIONS,
   TOOLS.CALL_AGENT,
+  // Reaching another agent is base, not on-demand. An agent that has to go
+  // looking for this tool does not go looking: it shells out to `apx send`,
+  // which blocks its whole turn until the other side answers — which is how one
+  // agent froze for ten minutes waiting on another.
+  TOOLS.SEND_TO_AGENT,
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
@@ -313,6 +320,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.MARK_COMMITMENT]:     "tasks",
   [TOOLS.ADD_PROJECT]:         "projects",
   [TOOLS.CALL_AGENT]:          "agents",
+  [TOOLS.SEND_TO_AGENT]:       "agents",
   [TOOLS.RUN_SUBAGENT]:        "agents",
   [TOOLS.CALL_RUNTIME]:        "runtime",
   [TOOLS.CALL_MCP]:            "mcp",

@@ -195,6 +195,11 @@ export async function replyAsAgent({
   projectId = null,
   tools = true,
   signal = null,
+  // Where the steps go as they happen. Without it an a2a turn runs blind: the
+  // caller registers "X is answering Y" and then has nothing to show for ten
+  // minutes, which reads from every surface exactly like a hang. See the
+  // `withTurn` that feeds this in api/conversations.js.
+  onEvent = null,
   runAgentTurnFn = runAgentTurn,
 }) {
   const modelId = await resolveAgentModel({ agent: toAgent, config });
@@ -254,6 +259,7 @@ export async function replyAsAgent({
     registries,
     config,
     signal,
+    onEvent,
   });
 
   return {
@@ -284,6 +290,11 @@ export async function replyAsSuperAgent({
   plugins,
   registries,
   mode = "chat",
+  // Same two as replyAsAgent, and missing for the same reason: this path was
+  // written to produce an answer, not to be watched or interrupted while it
+  // did. A super-agent a2a reply is a full tool loop that can run for minutes.
+  signal = null,
+  onEvent = null,
   runSuperAgentFn = runSuperAgent,
 }) {
   const selfAddress = canonicalPeerAddress(peer);
@@ -311,6 +322,8 @@ export async function replyAsSuperAgent({
       mode,
     },
     completionContract: mode === "code",
+    signal,
+    onEvent,
   });
   return { text: result.text, usage: result.usage, model: result.model || null };
 }

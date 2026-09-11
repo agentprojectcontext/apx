@@ -40,7 +40,14 @@ If you can spawn a subagent natively in the current IDE (Claude Code, Cursor, �
 ## Talk to a peer (a2a) — an agent OR another coding CLI
 
 When the user says "hablá con Roby" / "avisale a <agent>" / "pasale esto a <peer>",
-message them on the **a2a channel** — NOT `apx exec` (that posts as the user):
+message them on the **a2a channel** — NOT `apx exec` (that posts as the user).
+
+**If you are an APX agent, use the `send_to_agent` tool, not this command.** The
+tool knows who you are, reaches any peer (an agent, the super-agent, a runtime),
+and does not block your turn. The CLI below is for a coding CLI reaching in from
+the outside — and it BLOCKS: `--deliver` holds the terminal until the peer
+answers, which on a real exchange has meant one agent frozen for ten minutes
+waiting on another.
 
 ```bash
 apx send <you> <peer> "<message>" --deliver [--project <name>]
