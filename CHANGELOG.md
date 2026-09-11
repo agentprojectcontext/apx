@@ -1,3 +1,10 @@
+# [1.105.0](https://github.com/agentprojectcontext/apx/compare/v1.104.2...v1.105.0) (2026-09-11)
+
+
+### Features
+
+* **blobs:** un blob sale del export con cara, no solo con cuerpo ([819eaad](https://github.com/agentprojectcontext/apx/commit/819eaad8df0a21102426a93d913220dc48adaef0))
+
 ## [1.104.2](https://github.com/agentprojectcontext/apx/compare/v1.104.1...v1.104.2) (2026-09-11)
 
 
