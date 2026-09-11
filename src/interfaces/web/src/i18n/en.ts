@@ -2252,10 +2252,16 @@ export const en = {
     role:            "Role",
     no_role:         "— no role —",
     autonomy:        "Autonomy",
-    autonomy_hint:   "How much the agent can do without asking for confirmation.",
+    autonomy_hint:   "How much the agent does without asking. Loosest to tightest.",
+    auto_inherit:    "Inherit",
     auto_total:      "Total",
     auto_automatico: "Auto",
     auto_permiso:    "Permission",
+    auto_inherit_desc:    "Whatever the project says. Today: {mode}.",
+    auto_inherit_unknown: "Whatever the project says.",
+    auto_total_desc:      "Does everything without asking.",
+    auto_automatico_desc: "Asks before anything dangerous: deleting, writing, sending, shell.",
+    auto_permiso_desc:    "Asks before everything, except what is on the allowed list.",
   },
 
   structure: {

@@ -54,28 +54,71 @@ export function AgentIconPicker({
 }
 
 // ── Autonomy (permission mode) segmented control ─────────────────────────────
-const AUTONOMY_OPTIONS: { value: AgentAutonomy; labelKey: "auto_total" | "auto_automatico" | "auto_permiso" }[] = [
+//
+// Ordered loosest → tightest, which is the question people actually ask of it
+// ("is permission more than auto?"). The order alone does not answer that, so
+// the selected option explains itself underneath.
+//
+// "Inherit" is a REAL option, not the absence of one. Before it existed, an
+// agent that declared nothing rendered with three unlit buttons — a control
+// showing no state at all, for what is by far the most common case. Empty is
+// not "undecided", it is "behave like the project", and it deserves to say so.
+const AUTONOMY_OPTIONS: {
+  value: AgentAutonomy | "";
+  labelKey: "auto_inherit" | "auto_total" | "auto_automatico" | "auto_permiso";
+}[] = [
+  { value: "", labelKey: "auto_inherit" },
   { value: "total", labelKey: "auto_total" },
   { value: "automatico", labelKey: "auto_automatico" },
   { value: "permiso", labelKey: "auto_permiso" },
 ];
 
-export function AutonomyPicker({ value, onChange }: { value: string; onChange: (v: AgentAutonomy) => void }) {
+const AUTONOMY_DESC: Record<string, string> = {
+  total: "auto_total_desc",
+  automatico: "auto_automatico_desc",
+  permiso: "auto_permiso_desc",
+};
+
+/**
+ * @param inherited what this agent falls back to when it declares nothing —
+ *   the project's effective permission_mode. Omitted where the caller cannot
+ *   know it yet (the create dialog), and the copy degrades honestly.
+ */
+export function AutonomyPicker({
+  value,
+  onChange,
+  inherited,
+}: {
+  value: string;
+  onChange: (v: AgentAutonomy | "") => void;
+  inherited?: string | null;
+}) {
+  const chosen = AUTONOMY_OPTIONS.some((o) => o.value === value) ? value : "";
+  const description = chosen
+    ? t(`agents_form.${AUTONOMY_DESC[chosen]}` as never)
+    : inherited
+      ? t("agents_form.auto_inherit_desc", { mode: inherited })
+      : t("agents_form.auto_inherit_unknown");
+
   return (
-    <div className="inline-flex w-full rounded-lg border border-border p-0.5" data-testid="agent-autonomy">
-      {AUTONOMY_OPTIONS.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          className={cn(
-            "flex-1 rounded-md px-2 py-1 text-[12px] font-medium capitalize transition-colors",
-            value === opt.value ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {t(`agents_form.${opt.labelKey}`)}
-        </button>
-      ))}
+    <div className="space-y-1.5">
+      <div className="inline-flex w-full rounded-lg border border-border p-0.5" data-testid="agent-autonomy">
+        {AUTONOMY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value || "inherit"}
+            type="button"
+            aria-pressed={chosen === opt.value}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "flex-1 rounded-md px-2 py-1 text-[12px] font-medium capitalize transition-colors",
+              chosen === opt.value ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t(`agents_form.${opt.labelKey}`)}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-fg">{description}</p>
     </div>
   );
 }
