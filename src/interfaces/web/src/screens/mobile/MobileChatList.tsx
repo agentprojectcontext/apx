@@ -3,7 +3,7 @@ import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, 
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
-import { rowKey } from "../../components/inbox/InboxList";
+import { inboxRowKey } from "../../lib/chat-read";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
 import { ProjectFilter } from "../../components/inbox/ProjectFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
@@ -155,7 +155,7 @@ export function MobileChatList({
                node per key, so rows appeared twice, rows that had been filtered
                out stayed on screen, and turning a channel off looked like a
                filter that did not apply. Same key the desktop rail uses. */
-            key={rowKey(row)}
+            key={inboxRowKey(row)}
             row={row}
             variant="touch"
             onSelect={onOpenChat}

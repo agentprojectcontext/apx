@@ -346,10 +346,18 @@ test("every chat rail reuses one running/unread indicator", () => {
 
   assert.match(activity, /subscribeTurns\(onTurn\)/, "one device-wide turn feed");
   assert.match(activity, /frame\.phase === "final" \|\| frame\.phase === "aborted"/);
-  assert.match(indicator, /LoaderCircle[\s\S]*animate-spin/, "working is a spinner");
+  assert.match(
+    indicator,
+    /Loader2[\s\S]*animate-spin[\s\S]*text-sky-700/,
+    "working spins in the same blue a running tool does",
+  );
   assert.match(indicator, /bg-blue-500/, "finished out of view is a blue dot");
   assert.match(indicator, /transition-\[width,margin,opacity\]/, "activity expands smoothly beside the badge");
   assert.doesNotMatch(indicator, /absolute -right-1 -top-1/, "activity no longer floats in the row corner");
   assert.match(chats, /<ChatRowActivity activityKey=\{activityKey\}/);
-  assert.match(inbox, /<ChatRowActivity activityKey=\{activityKey\}/);
+  assert.match(
+    inbox,
+    /\{row\.preview \|\| t\("inbox\.no_reply_yet"\)\}<\/span>\s*<ChatRowActivity activityKey=\{activityKey\}/,
+    "the inbox mark trails the last message, not the clock",
+  );
 });

@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { EyeOff, Eye, Inbox } from "lucide-react";
 import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
-import { InboxList, rowKey } from "../components/inbox/InboxList";
+import { InboxList } from "../components/inbox/InboxList";
+import { inboxRowKey, markRowRead } from "../lib/chat-read";
 import { agentCardUrl } from "./mobile/routes";
 import { NewChatSheet } from "./mobile/NewChatSheet";
 import { ChatTab } from "./project/ChatTab";
@@ -68,11 +69,21 @@ export function InboxScreen() {
   // reading yesterday while today filled up.
   useEffect(() => {
     if (!selected) return;
-    const fresh = rows.find((r) => rowKey(r) === rowKey(selected));
+    const fresh = rows.find((r) => inboxRowKey(r) === inboxRowKey(selected));
     if (!fresh) return;
     // What counts as "moved" is in lib/inbox-selection — channel AND id, for a
     // reason worth reading before touching this.
     if (threadMoved(selected, fresh)) setSelected(fresh);
+  }, [rows, selected]);
+
+  // The open conversation is a read one — including whatever lands in it while
+  // you sit here. The inbox keeps its selection in state rather than in the
+  // URL, so the URL rule in lib/chat-read cannot see this pane; saying so here
+  // is what keeps a dot off the row you are looking straight at.
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = rows.find((r) => inboxRowKey(r) === inboxRowKey(selected));
+    markRowRead(fresh || selected);
   }, [rows, selected]);
 
   // Padded: the screen itself is flush to the shell's edges, so a bare
@@ -150,7 +161,7 @@ export function InboxScreen() {
     <div className="flex h-full min-h-0 overflow-hidden" data-testid="inbox-screen">
       <InboxList
         rows={rows}
-        selectedKey={selected ? rowKey(selected) : null}
+        selectedKey={selected ? inboxRowKey(selected) : null}
         onSelect={setSelected}
         onNew={() => setNewOpen(true)}
         action={
@@ -185,7 +196,7 @@ export function InboxScreen() {
             /* The thread is part of the identity: when the selected agent moves
                to a new day's thread the pane must reopen on it, and ChatTab
                reads its initial selection once, at mount. */
-            key={`${rowKey(selected)}::${selected.channel ?? ""}::${selected.conversation_id ?? ""}`}
+            key={`${inboxRowKey(selected)}::${selected.channel ?? ""}::${selected.conversation_id ?? ""}`}
             pid={pid as string}
             hideSidebar
             bare

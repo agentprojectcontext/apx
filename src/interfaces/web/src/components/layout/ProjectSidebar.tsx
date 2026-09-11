@@ -37,6 +37,7 @@ import { Projects } from "../../lib/api";
 import { useNavCollapse } from "../common/TabNav";
 import { useProjects } from "../../hooks/useProjects";
 import { usePersonaName } from "../../hooks/usePersonaName";
+import { useUnreadChats } from "../../hooks/useChatRead";
 import { STORAGE } from "../../constants";
 import { cn } from "../../lib/cn";
 import { switchProjectHref } from "../../lib/projectNav";
@@ -274,6 +275,9 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
   const toast = useToast();
   const MODULES = buildModules();
   const persona = usePersonaName();
+  // How many conversations are waiting. The rail is mounted on every screen, so
+  // this is where a routine posting at 09:00 becomes visible from anywhere.
+  const unreadChats = useUnreadChats();
   const listRef = useRef<HTMLDivElement>(null);
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".projects");
   const { pinned, pin } = useRailOrder();
@@ -366,6 +370,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
         title={t("inbox.title")}
         active={isActive("/inbox")}
         icon={<MessagesSquare size={18} />}
+        badge={unreadChats}
         onClick={() => onSelect("/inbox")}
       />
 

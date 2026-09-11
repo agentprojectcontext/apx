@@ -27,9 +27,13 @@ interface Props {
    *  label to four characters, which is fine for a project slug and useless
    *  for a two-word module name. */
   sublabel?: string;
+  /** How many conversations are waiting behind this tile. Zero draws nothing.
+   *  Blue, and not the brand green a count of tasks wears: it is the same
+   *  "someone said something you have not read" as the dot on the row. */
+  badge?: number;
 }
 
-export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel }: Props) {
+export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel, badge = 0 }: Props) {
   const text = label.trim() || "·";
   const { initials, subLabel } = computeInitialsAndSub(text);
   const tone: ProjectTone =
@@ -48,7 +52,7 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
           >
             <span
               className={cn(
-                "flex size-10 items-center justify-center rounded-xl text-sm font-bold transition-all",
+                "relative flex size-10 items-center justify-center rounded-xl text-sm font-bold transition-all",
                 active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
                 isAdd && "border border-dashed border-muted-fg/50 bg-transparent text-muted-fg hover:bg-accent/60 hover:text-foreground",
                 isSettings && "bg-muted text-muted-fg hover:bg-accent hover:text-foreground dark:bg-muted/60",
@@ -58,6 +62,14 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
               )}
             >
               {icon ?? initials}
+              {badge > 0 && (
+                <span
+                  data-testid={testId ? `${testId}-badge` : undefined}
+                  className="absolute -right-1 -top-1 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] font-semibold leading-4 text-white tabular-nums ring-2 ring-background"
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
             </span>
             {showSub && (
               <span className={cn(

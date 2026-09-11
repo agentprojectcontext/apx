@@ -10,6 +10,7 @@ import {
   threadActivityKey,
 } from "../../lib/chat-activity";
 import { toneChip } from "../../lib/tone";
+import { useRowUnread } from "../../hooks/useChatRead";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON } from "../agents/AgentAvatar";
 
 export type InboxRowVariant = "compact" | "touch";
@@ -48,6 +49,7 @@ export function InboxRowItem({
   onSelect: (row: InboxRow) => void;
 }) {
   const touch = variant === "touch";
+  const unread = useRowUnread(row);
   // On a channel with several correspondents the row is the PERSON's; the
   // daemon resolved their name and face, so nothing is re-derived here.
   const contactFace = row.contact_face;
@@ -120,7 +122,6 @@ export function InboxRowItem({
                 {t("agents_ui.super_agent_badge")}
               </span>
             ) : null}
-            <ChatRowActivity activityKey={activityKey} activeTurn={row.active_turn} />
             <span className={cn("ml-2 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
               {inboxRowTime(row.last_activity_at)}
             </span>
@@ -146,8 +147,14 @@ export function InboxRowItem({
           ) : null}
         </span>
 
-        <span className={cn("mt-0.5 block truncate text-muted-fg", touch ? "text-[13px]" : "text-xs")}>
-          {row.preview || t("inbox.no_reply_yet")}
+        {/* The activity mark rides at the END of the last message, not up by
+            the clock: it is that line that is still being written. The text
+            gives way for it only while it is there — with nothing running and
+            nothing unread the mark is zero-wide and the preview reads the full
+            width. */}
+        <span className={cn("mt-0.5 flex items-center text-muted-fg", touch ? "text-[13px]" : "text-xs")}>
+          <span className="min-w-0 truncate">{row.preview || t("inbox.no_reply_yet")}</span>
+          <ChatRowActivity activityKey={activityKey} activeTurn={row.active_turn} unread={unread} />
         </span>
       </span>
     </button>
