@@ -37,7 +37,10 @@ import { SendModeToggle } from "./SendModeToggle";
 
 interface Props {
   /** `media` are the files this turn carries, already stored by the daemon. */
-  onSend: (text: string, media?: UploadedMedia[]) => void | Promise<void>;
+  /** `opts.queue` = "wait behind whatever is running", regardless of the
+   *  device's send mode. Ctrl/Cmd+Enter sets it; the button and plain Enter do
+   *  not, and leave the toggle to decide. */
+  onSend: (text: string, media?: UploadedMedia[], opts?: { queue?: boolean }) => void | Promise<void>;
   onStop: () => void;
   streaming: boolean;
   /** Selected model override ("" = Auto). Omit to hide the picker. */
@@ -319,7 +322,7 @@ export function Composer({
     }
   };
 
-  const submit = async () => {
+  const submit = async (opts?: { queue?: boolean }) => {
     const body = text.trim();
     const usable = pending.filter((p) => !p.error);
     // Anything still uploading is waited on here rather than dropped.
@@ -340,7 +343,7 @@ export function Composer({
     if (!body && !media.length) return;
     setText("");
     dropAll();
-    await onSend(body, media.length ? media : undefined);
+    await onSend(body, media.length ? media : undefined, opts);
   };
 
   const uploading = pending.some((p) => !p.media && !p.error);

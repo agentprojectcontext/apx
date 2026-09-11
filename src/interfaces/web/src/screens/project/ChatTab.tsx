@@ -372,7 +372,7 @@ export function ChatTab({
     void mutate((key) => typeof key === "string" && key.startsWith(`/api/inbox`));
   };
 
-  const send = async (text: string, media?: UploadedMedia[]) => {
+  const send = async (text: string, media?: UploadedMedia[], opts?: { queue?: boolean }) => {
     // `/invite andy hola…` — pull them in, then send the message (with @ so
     // the cascade addresses them). The composer only inserts the command; the
     // invite itself happens here on send.
@@ -403,6 +403,7 @@ export function ChatTab({
       await sendChat(text, {
         model: model || undefined,
         ...(media?.length ? { attachments: media } : {}),
+        ...(opts?.queue ? { queue: true } : {}),
       });
       // The turn just wrote itself into the channel ledger. Revalidate so the
       // new chat shows up in the sidebar now, instead of only after a reload —
@@ -415,6 +416,7 @@ export function ChatTab({
       model: model || undefined,
       agentSlug: activeAgent.slug,
       ...(media?.length ? { attachments: media } : {}),
+      ...(opts?.queue ? { queue: true } : {}),
     });
     void mutate(`/api/projects/${pid}/agents/${activeAgent.slug}/conversations`);
   };
