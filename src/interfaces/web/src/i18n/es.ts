@@ -2254,6 +2254,8 @@ export const es = {
     subtitle:         "Áreas y roles de la empresa. Las áreas agrupan agentes; los roles definen su función.",
     info:             "Las áreas son agrupaciones opcionales. Los roles definen la función de un agente y pueden pertenecer a un área.",
     empty:            "Todavía no hay áreas ni roles. Creá el primero arriba.",
+    empty_no_team:    "Las áreas y los roles de una empresa se crean con su equipo — un rol por miembro — así que todavía no hay nada para cargar a mano.",
+    install_team:     "Instalar el equipo de empresa",
     new_area:         "Nueva área",
     new_role:         "Nuevo rol",
     edit_area:        "Editar área",

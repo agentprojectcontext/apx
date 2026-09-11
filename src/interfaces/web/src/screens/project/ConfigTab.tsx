@@ -47,13 +47,17 @@ export function ConfigTab({ pid }: { pid: string }) {
   return (
     <div className="space-y-6">
       <Section title={t("project.config.section_title")} description={t("project.config.section_desc")}>
-        {/* Organized by concept: Settings · Engines · Telegram · Project · JSON. */}
-        <Tabs defaultValue="settings" className="space-y-4">
+        {/* Project first: it is what the project IS — its name and its type —
+            and it was buried behind three tabs of routing and provider keys,
+            which is why nobody could find where to edit a project. Then the
+            things you tune, then the raw file. */}
+        <Tabs defaultValue={isBase ? "settings" : "project"} className="space-y-4">
           <TabsList className="flex flex-wrap">
+            {!isBase && <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>}
             <TabsTrigger value="settings">{t("project.config.tab_settings")}</TabsTrigger>
             <TabsTrigger value="engines">{t("settings_ui.cfg_engines_label")}</TabsTrigger>
             {!isBase && <TabsTrigger value="telegram">{t("project.nav.telegram")}</TabsTrigger>}
-            <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>
+            {isBase && <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>}
             <TabsTrigger value="json">JSON</TabsTrigger>
           </TabsList>
 
