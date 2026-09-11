@@ -20,9 +20,9 @@ process.env.APX_HOME = path.join(tmpHome, ".apx");
 const {
   RITUALS, policyFrom, DEFAULT_POLICY,
   decide, fingerprint, parseSeverity, isQuietHour,
-  lint, formatFindings,
+  lint,
   appendEntry, readLedger, renderPastDecisions,
-  collectSources, renderSource,
+  collectSources,
   handoff,
 } = await import("#core/company/index.js");
 const { artifactsDir } = await import("#core/stores/artifacts.js");
