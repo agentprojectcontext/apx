@@ -104,6 +104,17 @@ export interface SendOptions {
    *  resolves each path, hands the images to the model and writes the marker
    *  that names them. Super-agent turns only. */
   attachments?: UploadedMedia[];
+  /** Wait behind whatever is running, whatever the device's send mode says.
+   *
+   *  The toggle answers "what does Enter usually mean here", and it is a real
+   *  question with two real answers. But there also has to be a way to mean the
+   *  careful one ON PURPOSE, without first walking to a switch, flipping it,
+   *  coming back, sending, and remembering to flip it back — which is four
+   *  actions to avoid interrupting one turn. That is Ctrl/Cmd+Enter, and it is
+   *  one-directional on purpose: it can only ever make a send gentler than the
+   *  toggle, never sharper. A modifier that could interrupt would be a modifier
+   *  you have to think about before pressing. */
+  queue?: boolean;
 }
 
 /** A turn written while the previous one was still running.
@@ -1212,7 +1223,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // always done on Telegram. Whatever the turn had written stays in the
         // thread, so this lands as a redirection of work in progress rather
         // than a fresh start.
-        if (!queueOnSendRef.current) void stopTurn();
+        //
+        // `opts.queue` overrules it downwards and only downwards: Ctrl+Enter
+        // means "finish that first", from either setting of the toggle.
+        if (!queueOnSendRef.current && !opts.queue) void stopTurn();
         return;
       }
 

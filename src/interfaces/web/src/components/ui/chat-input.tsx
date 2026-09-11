@@ -16,7 +16,7 @@ export interface FilePicker {
 interface ChatInputProps {
   value: string
   onValueChange: (value: string) => void
-  onSubmit: () => void
+  onSubmit: (opts?: { queue?: boolean }) => void
   onStop?: () => void
   busy?: boolean
   disabled?: boolean
@@ -182,7 +182,16 @@ export function ChatInput({
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             if (!canSend) return
-            onSubmit()
+            // Ctrl/Cmd+Enter always waits behind whatever is running, whatever
+            // the send-mode toggle says. Plain Enter obeys the toggle.
+            //
+            // Both modifiers, because the same person uses both platforms and a
+            // shortcut that works on one machine and silently interrupts on the
+            // other is worse than not having it. Held one-directional on
+            // purpose: the modifier can only make a send gentler, never sharper
+            // — one you have to think about before pressing is one you will not
+            // press.
+            onSubmit({ queue: e.ctrlKey || e.metaKey })
           }
         }}
         className="w-full resize-none bg-transparent px-2 pt-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
@@ -246,7 +255,7 @@ export function ChatInput({
               type="button"
               size="icon-sm"
               variant="default"
-              onClick={onSubmit}
+              onClick={() => onSubmit()}
               disabled={!canSend}
               aria-label={t("chat_ui.send")}
             >
