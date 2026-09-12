@@ -22,6 +22,10 @@ export interface LiveEvent {
   channel: string | null;
   /** Day file id for a channel thread (YYYY-MM-DD). */
   thread: string | null;
+  /** The room a project write belongs to, when its channel keeps several in one
+   *  ledger: the group id, or the a2a pair id. Null everywhere else — those
+   *  channels are addressed by day, which is what `thread` carries. */
+  thread_id?: string | null;
   project_id: number | string | null;
   agent_slug: string | null;
   conversation_id: string | null;
@@ -279,10 +283,20 @@ export function subscribeBackgroundJobs(fn: JobListener): () => void {
   return () => { jobListeners.delete(fn); };
 }
 
-/** Does this event concern the channel thread on screen? */
+/** Does this event concern the channel thread on screen?
+ *
+ *  Two ways of addressing a thread, because there are two kinds. A global
+ *  channel holds one thread per day, so the day IS the id. A project channel
+ *  (a group room, an a2a pair) holds many in the same day file and names the
+ *  one that moved in `thread_id` — which is the case this used to miss
+ *  entirely: every group write is scope "project" with the bare date in
+ *  `thread`, so the test below was false for every row a room ever wrote and an
+ *  open room never re-read itself. */
 export function concernsThread(ev: LiveEvent, channel: string, threadId: string): boolean {
   if (ev.scope === "resync") return true;
-  return ev.scope === "global" && ev.channel === channel && ev.thread === threadId;
+  if (ev.channel !== channel) return false;
+  if (ev.thread_id) return ev.thread_id === threadId;
+  return ev.scope === "global" && ev.thread === threadId;
 }
 
 /** Does this event concern the stored conversation on screen? */

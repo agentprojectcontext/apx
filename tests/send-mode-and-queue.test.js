@@ -53,8 +53,8 @@ test("the shortcut reaches the send, through every layer", () => {
     /await onSend\(body, media\.length \? media : undefined, opts\)/);
   const tab = web("screens", "project", "ChatTab.tsx");
   assert.match(tab, /const send = async \(text: string, media\?: UploadedMedia\[\], opts\?: \{ queue\?: boolean \}\)/);
-  assert.equal((tab.match(/\.\.\.\(opts\?\.queue \? \{ queue: true \} : \{\}\)/g) || []).length, 2,
-    "both the super-agent and the project-agent branch");
+  assert.equal((tab.match(/\.\.\.\(opts\?\.queue \? \{ queue: true \} : \{\}\)/g) || []).length, 3,
+    "the super-agent branch, the project-agent one, and a group room");
 });
 
 test("the shortcut can only soften a send, never sharpen it", () => {

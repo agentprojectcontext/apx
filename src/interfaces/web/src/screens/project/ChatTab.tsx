@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { attachmentsOf, useChat, type ChatMsg } from "../../hooks/useChat";
+import { attachmentsOf, isRoomChannel, useChat, type ChatMsg } from "../../hooks/useChat";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
 import type { UploadedMedia } from "../../lib/api/media";
@@ -110,7 +110,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, conversationId, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -345,11 +345,25 @@ export function ChatTab({
   useLiveMessages(
     useCallback(
       (events: LiveEvent[]) => {
-        if (streaming) return;
+        // A ROOM is the exception, and only while FOLLOWING one: the line that
+        // STARTED the cascade was written by whichever device sent it, and the
+        // frames carry the answers, never the question. A follower that skipped
+        // every write while it followed watched agents answer something that was
+        // not on screen. The live bubble survives the merge (it is local), which
+        // is what makes reading mid-turn safe here; the tab holding the socket
+        // still skips, because it is already painting all of it.
+        const followingRoom = following && selected.kind === "thread" && isRoomChannel(selected.channel);
+        if (streaming && !followingRoom) return;
         if (selected.kind === "thread") {
-          if (events.some((e) => concernsThread(e, selected.channel, selected.threadId))) {
-            void loadThread(selected.channel, selected.threadId, { silent: true });
-          }
+          const mine = events.filter((e) => concernsThread(e, selected.channel, selected.threadId));
+          if (!mine.length) return;
+          // …but only for what the frames do NOT bring. A speaker writes a row
+          // per tool it runs, and a cascade can run fifty of them: re-reading
+          // the whole room on each would be four fetches a second to redraw
+          // bubbles that are already being painted live. The owner's line and a
+          // reconnect's resync are the two that are worth a read.
+          if (followingRoom && !mine.some((e) => e.type === "user" || e.scope === "resync")) return;
+          void loadThread(selected.channel, selected.threadId, { silent: true });
         } else if (selected.kind === "conv") {
           if (events.some((e) => concernsConversation(e, selected.agentSlug, selected.convId))) {
             void load(selected.agentSlug, selected.convId, { silent: true });
@@ -358,7 +372,7 @@ export function ChatTab({
         // A live session has no stored thread to catch up with: everything it
         // shows was produced in this tab.
       },
-      [selected, streaming, load, loadThread],
+      [selected, streaming, following, load, loadThread],
     ),
   );
 
@@ -366,8 +380,11 @@ export function ChatTab({
   // owner's line fans out to the members and each speaker's tokens land live,
   // exactly like a 1:1 turn. Refresh the sidebar/inbox once it settles.
   const nameOfSlug = (slug: string) => agentList.find((a) => a.slug === slug)?.name || slug;
-  const groupSend = async (gid: string, text: string, media?: UploadedMedia[]) => {
-    await sendGroup(gid, text, nameOfSlug, media?.length ? { media } : undefined);
+  const groupSend = async (gid: string, text: string, media?: UploadedMedia[], opts?: { queue?: boolean }) => {
+    await sendGroup(gid, text, nameOfSlug, {
+      ...(media?.length ? { media } : {}),
+      ...(opts?.queue ? { queue: true } : {}),
+    });
     void mutate(`/api/projects/${pid}/super-agent/threads`);
     void mutate((key) => typeof key === "string" && key.startsWith(`/api/inbox`));
   };
@@ -396,7 +413,9 @@ export function ChatTab({
       }
     }
     if (selected.kind === "thread" && selected.channel === "group") {
-      await groupSend(selected.threadId, text, media);
+      // Ctrl+Enter means the same thing in a room as it does in a 1:1 chat:
+      // wait behind what is running instead of interrupting it.
+      await groupSend(selected.threadId, text, media, opts);
       return;
     }
     if (activeIsRoby) {

@@ -135,6 +135,18 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     channel,
     thread: ts.slice(0, 10),
     agent_slug: agent_slug || null,
+    // WHICH room, when the channel keeps several of them in this one ledger.
+    //
+    // `thread` above is the day file, which is how a global channel addresses a
+    // thread — but a project ledger holds every group room and every a2a pair
+    // in the same day, so the date cannot say which of them moved. A panel
+    // sitting on a room compares this against the thread it has open
+    // (concernsThread, web/src/lib/live.ts) and re-reads only on its own.
+    //
+    // Without it a room never heard about itself: the cascade wrote four
+    // replies, the inbox lit up and rang, and the open room showed none of them
+    // until somebody reloaded the page.
+    thread_id: roomThreadId(channel, { agent_slug, author, meta: fullMeta }),
     direction,
     type: msgType,
     author: author || null,
@@ -481,6 +493,20 @@ function a2aPairId(pair) {
  *  is looking at. Order-independent: claude→magui and magui→claude are one thread. */
 export function a2aThreadId(from, to) {
   return a2aPairId([...new Set([from, to].filter(Boolean))].sort());
+}
+/** The addressable thread a project row belongs to, when it belongs to one —
+ *  the room id for a group, the pair id for a2a, null for every other channel
+ *  (those are addressed by day, which the event already carries).
+ *
+ *  Derived from the row itself and from the same fields the readers group by
+ *  (`meta.group_id` for a room, `a2aPair` for a pair), so what the feed
+ *  announces is the id the panel has open — not a second way of naming the
+ *  same thing that drifts the first time one of them changes. */
+export function roomThreadId(channel, row) {
+  if (row?.meta?.group_id) return String(row.meta.group_id);
+  if (channel !== "a2a") return null;
+  const pair = a2aPair(row || {});
+  return pair.length >= 2 ? a2aPairId(pair) : null;
 }
 // `apx send … --deliver` logs each utterance twice — once under `from`, once
 // under `to`. New writes share an external_id. Older rows did not, so their

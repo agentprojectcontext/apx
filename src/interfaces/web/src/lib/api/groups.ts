@@ -42,7 +42,13 @@ export type GroupStreamEvent =
   | { type: "owner_message" }
   | { type: "speaker_start"; slug: string; reason?: string | null }
   | { type: "speaker_delta"; slug: string; delta: string }
-  | { type: "speaker_final"; slug: string; model?: string; usage?: ChatUsage }
+  // `text` is the reply as it was written to the thread. It is on the event and
+  // not only in the ledger because an engine that does not stream (or a
+  // fallback chain that lands on one) emits no deltas at all: without it the
+  // speaker's bubble stayed empty until the re-read at the end of the whole
+  // cascade, which is the "boxes with nothing in them" a room showed for
+  // minutes at a time.
+  | { type: "speaker_final"; slug: string; text?: string; model?: string; usage?: ChatUsage }
   // One speaker was cut off by Stop; its partial is already in the thread.
   | { type: "speaker_aborted"; slug: string; text: string }
   | { type: "done" }

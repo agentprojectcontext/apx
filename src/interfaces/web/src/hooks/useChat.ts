@@ -115,6 +115,10 @@ export interface SendOptions {
    *  toggle, never sharper. A modifier that could interrupt would be a modifier
    *  you have to think about before pressing. */
   queue?: boolean;
+  /** Set on a QUEUED turn that was written in a group room, so the drain sends
+   *  it back into the room instead of out as a 1:1 web turn. The queue is one
+   *  per chat and only the entry knows which kind of chat it was written in. */
+  group_id?: string;
 }
 
 /** A turn written while the previous one was still running.
@@ -146,6 +150,22 @@ export interface QueuedTurn {
 // waiting its turn — was thrown away by a reload, with nothing to say it had
 // ever existed. Parked turns are per-device, like the unread marks beside them
 // (lib/chat-activity.ts), so localStorage is where they wait.
+/** Channels whose turns belong to a ROOM inside the channel rather than to the
+ *  channel itself: one project runs any number of group rooms and a2a pairs at
+ *  once, so `channel` alone does not name a turn there (the daemon keys them by
+ *  channel + thread — see active-turns.js `threadTurnKey`), and their answers
+ *  live on the thread rather than on a closing frame. */
+const ROOM_CHANNELS = new Set(["group", "a2a"]);
+export const isRoomChannel = (channel?: string | null): boolean => !!channel && ROOM_CHANNELS.has(channel);
+
+/** The cascade's own choreography — who has the floor, and how the room's turn
+ *  opens and closes. Handled by name in sendGroup; everything else on that
+ *  stream is one speaker's turn and goes through the shared reducer. */
+const GROUP_CONTROL_EVENTS = new Set([
+  "start", "final", "aborted", "error", "done", "owner_message",
+  "speaker_start", "speaker_delta", "speaker_final", "speaker_aborted",
+]);
+
 const backgroundQueues = new Map<string, QueuedTurn[]>();
 const backgroundQueueListeners = new Set<(key: string) => void>();
 let backgroundQueueSeq = 0;
@@ -251,6 +271,20 @@ function moveBackgroundQueue(from: string | null, to: string) {
   writeBackgroundQueue(to, [...readBackgroundQueue(to), ...pending]);
 }
 
+/** How a turn goes into a group room. */
+export interface SendGroupOptions {
+  /** Re-run the room's answer to the owner line already on the thread
+   *  (regenerate) instead of appending a new one. */
+  rerun?: boolean;
+  /** Regenerate: resume the cascade at this speaker, keeping the earlier ones. */
+  from?: string;
+  /** Regenerate: who had pulled that speaker in (null = the owner did). */
+  reason?: string | null;
+  media?: UploadedMedia[];
+  /** Wait behind the running cascade instead of interrupting it (Ctrl+Enter). */
+  queue?: boolean;
+}
+
 export interface ReloadOptions {
   /** A BACKGROUND re-read: the same conversation moved somewhere else and we
    *  are catching up. It must not blank the pane first, must not drop what was
@@ -266,7 +300,7 @@ export interface UseChatResult {
    *  speakers, each streamed into its own pending bubble (name + "traído por X").
    *  `nameOf` resolves a slug to a display name; `rerun` re-runs from a speaker
    *  against the last owner message (`from` = slug, `reason` = who pulled them). */
-  sendGroup: (gid: string, text: string, nameOf: (slug: string) => string, opts?: { rerun?: boolean; from?: string; reason?: string | null; media?: UploadedMedia[] }) => Promise<void>;
+  sendGroup: (gid: string, text: string, nameOf: (slug: string) => string, opts?: SendGroupOptions) => Promise<void>;
   stop: () => void;
   clear: (queueKey?: string) => void;
   /** Load a persisted conversation as history and bind subsequent sends to it.
@@ -285,6 +319,12 @@ export interface UseChatResult {
    *  message and everything after it. Project-agent / live chats only. */
   editAndResend: (index: number, text: string, opts?: SendOptions) => Promise<void>;
   streaming: boolean;
+  /** True when the turn being painted belongs to somebody ELSE — this pane is
+   *  following it off the live feed rather than holding its socket. Folded into
+   *  `streaming` for everything that just needs "busy"; told apart where the
+   *  difference matters, which is a room catching up on what its members write
+   *  while they write it. */
+  following: boolean;
   /** Turns typed while this one was running, in the order they were written.
    *  They belong under the thread, not in `msgs`: everything that paints a live
    *  answer works on the trailing message, and a queued bubble parked there
@@ -964,7 +1004,19 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // it whole, and so the partial a mid-turn reload hydrated is what the next
   // frame builds on instead of an empty bubble that erases it.
   const liveTurnRef = useRef<{ id: string; msg: ChatMsg } | null>(null);
+  // Which SPEAKER of a followed room the bubble above belongs to. A group turn
+  // is several of them, one bubble each, and the frames say which — see the
+  // speaker split in onTurnFrame.
+  const liveSpeakerRef = useRef<string | null>(null);
   const drainQueueRef = useRef<() => void>(() => {});
+  const loadThreadRef = useRef<((channel: string, threadId: string, opts?: ReloadOptions) => Promise<void>) | null>(null);
+  // How to name a room's members, kept from the last send so a turn that was
+  // parked while the room worked can go back in with its speakers' names.
+  const groupNameOfRef = useRef<(slug: string) => string>((slug) => slug);
+  // Declared here, assigned once sendGroup exists: the queue drains above it.
+  const sendGroupRef = useRef<
+    (gid: string, text: string, nameOf: (slug: string) => string, opts?: SendGroupOptions) => Promise<void>
+  >(async () => {});
   const beginViewChange = useCallback(() => {
     viewEpochRef.current++;
     // Detach this pane from a turn that is still running elsewhere. The daemon
@@ -972,6 +1024,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     updateStreaming(false);
     updateFollowing(false);
     liveTurnRef.current = null;
+    liveSpeakerRef.current = null;
     turnTargetRef.current = null;
   }, [updateFollowing, updateStreaming]);
 
@@ -1067,6 +1120,22 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     });
   }, [updateMsgs]);
 
+  // The floor passed to someone else: close the bubble we were painting without
+  // ending the turn. Not local any more, so the silent re-read at the end of the
+  // room's turn replaces it with the persisted row (model, usage, "traído por
+  // X") instead of leaving a second copy beside it. A speaker that produced
+  // nothing leaves no bubble at all.
+  const settleLiveBubble = useCallback(() => {
+    updateMsgs((curr) => {
+      const last = curr[curr.length - 1];
+      if (!last || last.role !== "assistant" || !last.pending) return curr;
+      const copy = [...curr];
+      if (!last.parts.length && !last.media?.length) copy.pop();
+      else copy[copy.length - 1] = { ...last, pending: false, local: false };
+      return copy;
+    });
+  }, [updateMsgs]);
+
   // Close the followed bubble: `fn` gets the turn as it stands (tools included)
   // and returns how it ends. Settled means no longer local — so the next silent
   // reload replaces it with the identical persisted turn instead of doubling it.
@@ -1111,6 +1180,17 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       f.thread_id === threadRef.current.id;
     if (!sameConversation && !sameThread) return;
     const slug = f.agent_slug || undefined;
+    // A room speaks in turns, and the frames say whose. A change of speaker is
+    // a change of BUBBLE: `patchLive` keeps ONE trailing bubble and would
+    // otherwise paint four agents' answers into it as a single block, which is
+    // why a cascade used to be pushed to followers as lifecycle and nothing
+    // else. Closing the previous one here is what makes the next frame push a
+    // fresh bubble instead of replacing it.
+    if (f.speaker !== undefined && f.speaker !== liveSpeakerRef.current) {
+      if (liveSpeakerRef.current) settleLiveBubble();
+      liveSpeakerRef.current = f.speaker || null;
+      liveTurnRef.current = null;
+    }
     // How this turn is addressed, so Stop reaches the RUN and not just a socket
     // — set from any frame, because a reconnect can make a mid-turn `event` the
     // first thing this tab hears about a turn that started without it.
@@ -1121,15 +1201,32 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         ? { conversation_id: f.conversation_id || undefined }
         : { channel: f.channel || undefined, thread_id: f.thread_id || undefined };
     };
+    const roomTurn = isRoomChannel(f.channel);
     const done = () => {
       updateFollowing(false);
       turnTargetRef.current = null;
+      liveSpeakerRef.current = null;
+      liveTurnRef.current = null;
+      // A ROOM's answer is not on this frame. It is several speakers' turns
+      // already written to the thread — with their tools, their model, and who
+      // pulled each of them in — so the way to end a followed cascade is to
+      // read the room, exactly as the sending tab does when its stream closes.
+      // Conversations and channel threads keep their result on the frame and
+      // are deliberately left alone.
+      if (roomTurn && f.channel && f.thread_id) {
+        const { channel, thread_id: threadId } = f;
+        void loadThreadRef.current?.(channel, threadId, { silent: true });
+      }
       queueMicrotask(() => drainQueueRef.current());
     };
     if (f.phase === "start") {
       follow();
       liveTurnRef.current = null;
       patchLive(f.turn_id, { type: "start" }, slug);
+      // Who tagged this speaker in, so a followed room draws the same
+      // "↳ traído por X" the sending tab does instead of an unexplained
+      // agent appearing mid-conversation.
+      if (f.reason) patchLast((m) => (m.reason ? m : { ...m, reason: f.reason! }));
     } else if (f.phase === "delta") {
       follow();
       patchLive(f.turn_id, { type: "assistant_delta", delta: f.delta || "" }, slug);
@@ -1137,6 +1234,22 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       if (!f.event) return;
       follow();
       patchLive(f.turn_id, f.event, slug);
+    } else if (roomTurn && (f.phase === "final" || f.phase === "aborted")) {
+      // A ROOM ends differently, because its bubbles are not its turn: each
+      // speaker closed its own as it finished, and this frame carries no result
+      // — the answer is those speakers' rows on the thread. Running the 1:1
+      // close here had nothing open to land in, so it APPENDED the held bubble
+      // a second time: the last reply appeared twice for the moment between
+      // this frame and the re-read that tidied it away.
+      settleLiveBubble();
+      done();
+    } else if (roomTurn && f.phase === "error") {
+      // The room broke. Whatever its speakers wrote is already on the thread
+      // (the re-read in `done` brings it), so the only thing missing is the
+      // reason — and it belongs in a notice, not appended to somebody's reply.
+      settleLiveBubble();
+      onError?.(f.error || t("shared_ui.err_stream"));
+      done();
     } else if (f.phase === "final") {
       closeLive(f.turn_id, (m) => applyStreamEvent(m, { type: "final", result: f.result }));
       done();
@@ -1163,7 +1276,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       }));
       done();
     }
-  }, [pid, patchLive, closeLive, updateFollowing]);
+  }, [pid, patchLive, patchLast, closeLive, settleLiveBubble, updateFollowing, onError]);
 
   useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
@@ -1477,7 +1590,16 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     // finish opening costs one fetch and makes "queued here" mean "sent here".
     if (!queueReadyRef.current) return;
     const next = takeBackgroundQueue(key);
-    if (next) void sendRef.current(next.text, next.opts || {});
+    if (!next) return;
+    // A turn parked in a ROOM goes back into the room. The queue is shared by
+    // every kind of chat and `send` only knows how to open a 1:1 web turn, so
+    // without this a line written while a cascade was running would leave the
+    // group and arrive somewhere else entirely.
+    const gid = next.opts?.group_id;
+    if (gid) void sendGroupRef.current(gid, next.text, groupNameOfRef.current, {
+      ...(next.opts?.attachments?.length ? { media: next.opts.attachments } : {}),
+    });
+    else void sendRef.current(next.text, next.opts || {});
   }, []);
   drainQueueRef.current = drainQueue;
   // `conversationId` / `conversationMeta` are in here because the gate above
@@ -1606,7 +1728,15 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         if (active) {
           liveTurnRef.current = { id: active.turn_id, msg: activeTurnMsg(active)! };
           updateFollowing(true);
-          turnTargetRef.current = { channel };
+          // A room is addressed by channel AND thread. Catching up on one after
+          // a refresh used to bind Stop to the channel alone, which resolves to
+          // the super-agent's key: the daemon answered "nothing to stop", the
+          // local socket it fell back to did not exist here, and the button sat
+          // over a cascade that kept running. Reloading the page was what broke
+          // it, and reloading the page was the only thing that could not fix it.
+          turnTargetRef.current = isRoomChannel(channel)
+            ? { channel, thread_id: threadId }
+            : { channel };
         } else if (!opts?.silent) {
           liveTurnRef.current = null;
           updateFollowing(false);
@@ -1630,6 +1760,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     },
     [pid, onError, beginViewChange, bindQueue, updateFollowing, updateMsgs],
   );
+  // Reachable from the live-frame handler, which is declared above it: a room's
+  // turn ends by re-reading the room.
+  loadThreadRef.current = loadThread;
 
   // A group turn streams like a 1:1 one — same pending-bubble machinery — but the
   // reply comes as a CASCADE of speakers on the group endpoint. Each speaker gets
@@ -1638,22 +1771,43 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // bubble exactly where a normal turn's does. `rerun` resumes from one speaker
   // against the last owner message (regenerate) instead of appending a new one.
   const sendGroup = useCallback(
-    async (gid: string, text: string, nameOf: (slug: string) => string, opts: { rerun?: boolean; from?: string; reason?: string | null; media?: UploadedMedia[] } = {}) => {
+    async (gid: string, text: string, nameOf: (slug: string) => string, opts: SendGroupOptions = {}) => {
       const trimmed = text.trim();
       const files = opts.media || [];
-      if (streaming) return;
       if (!opts.rerun && !trimmed && !files.length) return;
       const nowIso = () => new Date().toISOString();
-      if (!opts.rerun) {
-        // Optimistic owner bubble — shows the photo/file immediately, same as a
-        // 1:1 turn; the marker rides on the text the way the daemon folds it.
-        updateMsgs((curr) => [...curr, {
-          role: "user",
-          parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
-          ts: nowIso(), local: true,
-          ...(files.length ? { media: files.map(mediaOf) } : {}),
-        }]);
+      // The bubble this turn gets, whether it goes out now or when the room is
+      // free. Same shape as the 1:1 one, markers included.
+      const bubble = (): ChatMsg => ({
+        role: "user",
+        parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
+        ts: nowIso(), local: true,
+        ...(files.length ? { media: files.map(mediaOf) } : {}),
+      });
+      // Written while the room was still answering. This used to be a bare
+      // `return`: the composer cleared, no bubble, no queue, no error — the
+      // message simply stopped existing, and a cascade is the longest-running
+      // turn shape there is, so the window to lose one is minutes wide. It now
+      // parks and interrupts exactly like a 1:1 turn (drainQueue sends it back
+      // into the room, not out as a web turn).
+      if (streamingRef.current || followingRef.current) {
+        if (opts.rerun) return;   // regenerate is not a message; it has nothing to park
+        const key = queueKeyRef.current || threadActivityKey(pid, "group", gid);
+        bindQueue(key);
+        writeBackgroundQueue(key, [
+          ...readBackgroundQueue(key),
+          {
+            id: `q${++backgroundQueueSeq}`,
+            text: trimmed,
+            opts: { group_id: gid, ...(files.length ? { attachments: files } : {}) },
+            msg: bubble(),
+          },
+        ]);
+        if (!queueOnSendRef.current && !opts.queue) void stopTurn();
+        return;
       }
+      groupNameOfRef.current = nameOf;
+      if (!opts.rerun) updateMsgs((curr) => [...curr, bubble()]);
       updateStreaming(true);
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -1673,27 +1827,41 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         } else if (ev.type === "speaker_delta") {
           // Reuse the exact token-merge the 1:1 stream uses.
           applyEvent({ type: "assistant_delta", delta: ev.delta } as ChatStreamEvent);
-        } else if (
-          ev.type === "tool_start" ||
-          ev.type === "tool_result" ||
-          ev.type === "tool_deduped" ||
-          ev.type === "assistant_text" ||
-          ev.type === "model_start" ||
-          ev.type === "model_routed" ||
-          ev.type === "engine_failed" ||
-          ev.type === "model_retry" ||
-          ev.type === "tools_suppressed" ||
-          ev.type === "skill_inspector" ||
-          ev.type === "reasoning"
-        ) {
+        } else if (ev.type === "error") {
+          onError?.(ev.error || t("shared_ui.err_stream"));
+        } else if (!GROUP_CONTROL_EVENTS.has(ev.type)) {
+          // Everything that is not the room's own choreography is one speaker's
+          // turn, and it renders through the reducer the 1:1 chat uses.
+          //
+          // This was a list of types to forward, and a list of types rots: it
+          // carried "reasoning", which is not an event the loop emits, while
+          // `assistant_reasoning` — which is — fell through it, along with
+          // every event added since. An unknown type costs nothing here (the
+          // reducer's default only reads `delta`/`content`), and a dropped one
+          // costs a step the sender can see and nobody else can.
           applyEvent(ev as ChatStreamEvent);
         } else if (ev.type === "speaker_final") {
-          patchLast((m) => ({ ...m, pending: false, ...(ev.model ? { model: ev.model } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }));
+          // Closed like a 1:1 turn, through the same reducer: the reply comes on
+          // the event and lands in the bubble whether or not a single token was
+          // streamed — a fallback chain that ends on a non-streaming engine
+          // emits no deltas at all, and this bubble used to stay empty until the
+          // re-read at the end of the whole cascade. `final` replaces the
+          // streamed text with the clean one and refuses to show it twice.
+          patchLast((m) => ({
+            ...applyStreamEvent(m, { type: "final", result: { text: ev.text, usage: ev.usage } } as ChatStreamEvent),
+            pending: false,
+            // The engine that ANSWERED, not the first one tried: `model_start`
+            // has already named a chain member that may since have 429'd.
+            ...(ev.model ? { model: ev.model } : {}),
+          }));
         } else if (ev.type === "speaker_aborted") {
           // You stopped the room mid-reply. Whatever this speaker had written is
           // real work you watched happen and the daemon kept it in the thread —
           // mark it the way a stopped 1:1 turn is marked, not as a failure.
-          patchLast((m) => ({ ...m, pending: false, parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }] }));
+          patchLast((m) => {
+            const closed = applyStreamEvent(m, { type: "final", result: { text: ev.text } } as ChatStreamEvent);
+            return { ...closed, pending: false, parts: [...closed.parts, { kind: "text", text: t("code_module.stopped") }] };
+          });
         }
       };
       try {
@@ -1712,10 +1880,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // Reconcile with the canonical thread (model/usage/reason from the ledger,
         // join/leave notices, and drops the local bubbles for the persisted ones).
         void loadThread("group", gid, { silent: true });
+        // And let go of whatever was written while the room was answering.
+        queueMicrotask(() => drainQueueRef.current());
       }
     },
-    [pid, streaming, applyEvent, patchLast, loadThread, onError, updateMsgs, updateStreaming],
+    [pid, applyEvent, patchLast, bindQueue, stopTurn, loadThread, onError, updateMsgs, updateStreaming],
   );
+  sendGroupRef.current = sendGroup;
 
   return {
     msgs,
@@ -1728,6 +1899,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     load,
     loadThread,
     streaming: streaming || following,
+    following,
     queued,
     unqueue,
     conversationId,
