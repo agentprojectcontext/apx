@@ -17,10 +17,11 @@ import groq from "./groq.js";
 import openrouter from "./openrouter.js";
 import ollama from "./ollama.js";
 import gemini from "./gemini.js";
+import cerebras from "./cerebras.js";
 import zen from "./zen.js";
 import mock from "./mock.js";
 
-const ADAPTERS = { anthropic, openai, groq, openrouter, ollama, gemini, zen, mock };
+const ADAPTERS = { anthropic, openai, groq, openrouter, cerebras, ollama, gemini, zen, mock };
 
 export function resolveProvider(modelId) {
   if (typeof modelId !== "string" || !modelId) {

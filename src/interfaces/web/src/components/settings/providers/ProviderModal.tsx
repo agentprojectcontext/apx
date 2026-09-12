@@ -7,7 +7,7 @@ import { UiSelect } from "../../UiSelect";
 import { ModelCombobox } from "../../ModelCombobox";
 import { Engines } from "../../../lib/api";
 import { isSecretMarker, secretSuffix } from "../../../lib/secrets";
-import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, type EngineType } from "./typeStyles";
+import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, engineStyle, type EngineType } from "./typeStyles";
 import type { Provider } from "./types";
 import { t } from "../../../i18n";
 import { toneText } from "../../../lib/tone";
@@ -365,7 +365,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                 <UiSelect
                   value={f.engine}
                   onChange={(v) => changeEngine(v as EngineType)}
-                  options={ENGINE_OPTIONS.map((o) => ({ value: o.value, label: o.label, icon: ENGINE_ICONS[o.value] }))}
+                  options={ENGINE_OPTIONS.map((o) => ({ value: o.value, label: o.label, icon: engineStyle(ENGINE_ICONS, o.value) }))}
                 />
               </Field>
             </div>

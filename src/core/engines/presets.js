@@ -73,6 +73,13 @@ export const ENGINE_PRESETS = {
       "whisper-large-v3-turbo",
     ],
   },
+  cerebras: {
+    base_url: "https://api.cerebras.ai/v1",
+    default_model: "qwen-3.8-27b",
+    api_key_env: "CEREBRAS_API_KEY",
+    // Verified against GET /v1/models — the ids differ from the vendor's docs.
+    known_models: ["qwen-3.8-27b", "gpt-oss-120b", "gemma-4-31b"],
+  },
   openrouter: {
     base_url: "https://openrouter.ai/api/v1",
     // openrouter/auto = "Auto Router": OpenRouter picks the best model.
