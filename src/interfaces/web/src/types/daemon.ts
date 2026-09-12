@@ -518,6 +518,13 @@ export interface TurnFrame {
   channel?: string | null;
   thread_id?: string | null;
   turn_id: string;
+  /** Group rooms: which SPEAKER these frames belong to, unique inside the turn
+   *  even when the same agent takes the floor twice. A change of speaker is a
+   *  change of bubble — without it the four agents answering one line would be
+   *  painted into the single trailing bubble a followed turn keeps. */
+  speaker?: string | null;
+  /** Who pulled this speaker in, when a mention did ("↳ traído por X"). */
+  reason?: string | null;
   delta?: string;
   /** `phase: "event"` — one step of the turn's visible work (a tool starting,
    *  a tool's result, a closed text segment), so a surface FOLLOWING a turn

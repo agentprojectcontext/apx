@@ -147,6 +147,9 @@ function publicEvent(event, projects) {
     scope: event.scope,
     channel: event.channel || null,
     thread: event.thread || null,
+    // The ROOM, on a channel that keeps many of them in one ledger (a group, an
+    // a2a pair). `thread` above is the day, which cannot tell two rooms apart.
+    thread_id: event.thread_id || null,
     project_id: projectIdOf(event, projects),
     agent_slug: event.agent_slug || null,
     // Only a conversation write has one; a channel thread is addressed by day.
@@ -178,9 +181,14 @@ function publicEvent(event, projects) {
   };
 }
 
-/** Two events about the same thread in the same window are one re-fetch. */
+/** Two events about the same thread in the same window are one re-fetch.
+ *
+ *  `thread_id` is part of the identity and not decoration: two group rooms
+ *  writing inside the same 250ms window share a channel, a day and a project,
+ *  so without it they collapse into one event and only one of the two rooms
+ *  ever hears that it moved. */
 function keyOf(e) {
-  return [e.scope, e.channel, e.thread, e.project_id, e.agent_slug, e.conversation_id].join("|");
+  return [e.scope, e.channel, e.thread, e.thread_id, e.project_id, e.agent_slug, e.conversation_id].join("|");
 }
 
 /**

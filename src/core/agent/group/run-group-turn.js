@@ -208,7 +208,12 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
       media: result.media,
     });
     said.push({ slug, text: reply });
-    onEvent({ type: "speaker_final", slug, model: result.model || modelId, usage: result.usage });
+    // The reply rides on the closing event, not only into the ledger. Tokens
+    // are not guaranteed: an engine that does not stream — or a fallback chain
+    // that ends on one, which is what a rate-limited first choice produces —
+    // runs the whole turn without a single `speaker_delta`, and the bubble
+    // watching it stayed empty until somebody re-read the room.
+    onEvent({ type: "speaker_final", slug, text: reply, model: result.model || modelId, usage: result.usage });
     return reply;
   };
 

@@ -13,7 +13,7 @@ process.env.HOME = HOME;
 process.env.APX_HOME = path.join(HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { emitMessageEvent, onMessageEvent, resetEventBus } = await import("#core/events/bus.js");
-const { appendGlobalMessage, appendMessageToFs } = await import("#core/stores/messages.js");
+const { appendGlobalMessage, appendMessageToFs, a2aThreadId } = await import("#core/stores/messages.js");
 const { startConversation, appendTurn, conversationPath, parseConversationPath } =
   await import("#core/stores/conversations.js");
 
@@ -93,6 +93,74 @@ test("appendMessageToFs announces the project root, not an id core cannot know",
   assert.equal(seen[0].project_root, root);
   assert.equal(seen[0].agent_slug, "rocky-pm");
   assert.equal(seen[0].thread, "2026-01-15");
+});
+
+// WHICH ROOM MOVED.
+//
+// A project ledger keeps every group room and every a2a pair in the same day
+// file, so the `thread` above — the date — cannot tell two of them apart. The
+// panel matches an open room against `thread_id` (concernsThread); while this
+// was missing, every row a room wrote announced a bare date that matched no
+// open thread at all, and a room never re-read itself: a cascade wrote four
+// replies, the inbox lit up and rang, and the room on screen showed none of
+// them until somebody reloaded the page.
+test("a group row announces the room it was written in", () => {
+  resetEventBus();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-proj-"));
+  const seen = capture(() =>
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "group",
+      direction: "out",
+      type: "agent",
+      body: "listo",
+      agent_slug: "candela",
+      author: "candela",
+      ts: "2026-01-15T11:00:00Z",
+      meta: { group_id: "g_7f3a", final: true },
+    }),
+  );
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].thread_id, "g_7f3a");
+  assert.equal(seen[0].thread, "2026-01-15", "the day still travels; the room is extra");
+});
+
+test("an a2a row announces the pair, the way the reader groups it", () => {
+  resetEventBus();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-proj-"));
+  const seen = capture(() =>
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "a2a",
+      direction: "out",
+      type: "agent",
+      body: "te paso lo del deploy",
+      agent_slug: "roby",
+      author: "roby",
+      ts: "2026-01-15T11:00:00Z",
+      meta: { to: "magui" },
+    }),
+  );
+  assert.equal(seen.length, 1);
+  // Order-independent, like a2aThreadId: the pair is one thread from both ends.
+  assert.equal(seen[0].thread_id, a2aThreadId("magui", "roby"));
+});
+
+test("an ordinary project row has no room to announce", () => {
+  resetEventBus();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-proj-"));
+  const seen = capture(() =>
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "exec",
+      direction: "out",
+      type: "agent",
+      body: "done",
+      agent_slug: "rocky-pm",
+      ts: "2026-01-15T11:00:00Z",
+    }),
+  );
+  assert.equal(seen[0].thread_id, null, "every other channel is addressed by day");
 });
 
 test("appendTurn announces which conversation moved", () => {

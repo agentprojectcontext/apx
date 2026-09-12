@@ -21,7 +21,10 @@ import {
 } from "#core/stores/messages.js";
 import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
-import { startActiveTurn, endActiveTurn, threadTurnKey } from "../active-turns.js";
+import {
+  startActiveTurn, startActiveTurnSpeaker, appendActiveTurn, recordActiveTurnEvent,
+  isVisibleTurnEvent, endActiveTurn, threadTurnKey,
+} from "../active-turns.js";
 import { broadcastTurn } from "../events-ws.js";
 import { withTurnLog } from "./turn-log.js";
 import { wasAborted } from "./turn-abort.js";
@@ -190,13 +193,19 @@ export function register(api, { projects, project, config, plugins, registries }
     // sidebar and any second tab: no spinner, no unread mark when it finished,
     // and a follower's bubble with no closing frame to end it.
     //
-    // LIFECYCLE ONLY, on purpose: no `event`, no `delta`. A cascade is several
-    // speakers with a bubble each, and `recordActiveTurnEvent` builds ONE flat
-    // timeline — pushing the steps through it would show a follower four agents
-    // merged into a single bubble, which is worse than showing them the room is
-    // busy and re-reading the thread when it stops. Following a cascade speaker
-    // by speaker needs the client to split on `speaker_start`; that is its own
-    // pass, and this is the part that is right either way.
+    // It used to be LIFECYCLE ONLY — start and final, no `delta`, no `event` —
+    // because a cascade is several speakers and the frames had no way to say
+    // which one they belonged to: everything a follower received merged into
+    // the single trailing bubble it paints. The cost was the whole room going
+    // dark for anyone who was not the sending tab. One owner line can occupy
+    // ten speakers running fifty tool iterations each, and for all of it a
+    // second tab, the phone, or this same tab after a refresh showed one empty
+    // bubble and then nothing: the replies appeared only on a manual reload.
+    //
+    // So the frames name their speaker (`speaker`, unique per turn even when
+    // the same agent talks twice) and the client starts a new bubble whenever
+    // it changes. Same events as the sender's socket, same reducer, same
+    // reading — a room now streams to every surface exactly like a 1:1 chat.
     const turnFrame = (phase, extra = {}) => broadcastTurn({
       phase,
       project_id: p.id,
@@ -209,6 +218,56 @@ export function register(api, { projects, project, config, plugins, registries }
     });
     turnFrame("start");
 
+    // One speaker's stream, relayed to everyone who is not holding the socket.
+    let speakerSeq = 0;
+    let speaker = null;   // "<slug>#<n>" — the bubble these frames belong to
+    let speakerSlug = null;
+    const relay = (ev) => {
+      if (!ev) return;
+      if (ev.type === "speaker_start") {
+        speakerSeq += 1;
+        speakerSlug = ev.slug;
+        speaker = `${ev.slug}#${speakerSeq}`;
+        // The catch-up snapshot follows the floor too. It is ONE record and a
+        // cascade is ten turns, so it holds the speaker in flight and nothing
+        // else: the ones that already finished are on the thread and load with
+        // it, and accumulating them here would hand whoever re-opens the room
+        // four agents fused into a single bubble.
+        startActiveTurnSpeaker(active.id, { agent_slug: ev.slug });
+        turnFrame("start", { agent_slug: ev.slug, speaker, reason: ev.reason || null });
+        return;
+      }
+      if (!speaker) return;
+      if (ev.type === "speaker_final" || ev.type === "speaker_aborted") {
+        // This SPEAKER is done — not the room. Phases are a fixed vocabulary
+        // shared with the panel's activity registry (chat-activity.ts), and a
+        // "final" phase there means the whole turn retired; so the speaker's
+        // ending travels as a step, carrying the reply the way a 1:1 turn's
+        // closing event does. `final` in the reducer replaces the streamed text
+        // with the clean one, or appends it when nothing streamed at all.
+        // A stopped speaker carries its partial for the same reason: it is real
+        // work that was watched happening, and the room kept it.
+        if (ev.text) turnFrame("event", {
+          agent_slug: speakerSlug, speaker,
+          event: { type: "final", result: { text: ev.text, model: ev.model, usage: ev.usage } },
+        });
+        return;
+      }
+      if (ev.type === "speaker_delta") {
+        appendActiveTurn(active.id, ev.delta || "");
+        turnFrame("delta", { agent_slug: speakerSlug, speaker, delta: ev.delta || "" });
+        return;
+      }
+      // The work, not only the words — a speaker that spends two minutes in
+      // tools before writing anything is otherwise indistinguishable from a
+      // stuck one. Recorded for whoever re-opens, pushed for whoever is already
+      // watching; one predicate decides both, as in every other chat route.
+      if (isVisibleTurnEvent(ev)) {
+        recordActiveTurnEvent(active.id, ev);
+        turnFrame("event", { agent_slug: speakerSlug, speaker, event: ev });
+      }
+    };
+
     try {
       await runGroupTurn({
         p, gid: req.params.gid, text: turnPrompt, rerun: !!rerun,
@@ -219,7 +278,10 @@ export function register(api, { projects, project, config, plugins, registries }
         signal: turnAbort.signal,
         // Logged on the way through: a cascade is several speakers, and an
         // engine falling over under one of them is otherwise invisible.
-        onEvent: withTurnLog(send, { channel: GROUP_CHANNEL, agent: req.params.gid }),
+        // `relay` before `send`: the socket in front of us may already be gone
+        // (that is the case this whole path exists for), and every other
+        // surface still has a turn to follow.
+        onEvent: withTurnLog((ev) => { relay(ev); send(ev); }, { channel: GROUP_CHANNEL, agent: req.params.gid }),
       });
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
       // Stopped, not broken. runGroupTurn persists the interrupted speaker's

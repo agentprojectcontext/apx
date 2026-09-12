@@ -100,6 +100,24 @@ function syncText(rec) {
     .join("");
 }
 
+/**
+ * A room hands the floor to another speaker: the record follows it.
+ *
+ * The catch-up snapshot is ONE turn and a group cascade is up to ten, one
+ * bubble each. Letting them accumulate would show whoever re-opens the room
+ * mid-cascade every speaker fused into a single answer — beside the same
+ * replies already on the thread as separate messages. So the record holds the
+ * speaker in flight and nothing else: what came before is persisted, and what
+ * follows resets it again.
+ */
+export function startActiveTurnSpeaker(id, { agent_slug = null } = {}) {
+  const rec = byId.get(id);
+  if (!rec) return;
+  rec.parts = [];
+  rec.text = "";
+  if (agent_slug) rec.agent_slug = agent_slug;
+}
+
 /** Grow the accumulated text as tokens arrive. */
 export function appendActiveTurn(id, delta) {
   const rec = byId.get(id);
