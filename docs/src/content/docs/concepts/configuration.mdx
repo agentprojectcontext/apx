@@ -57,6 +57,30 @@ API keys and base URLs for every supported LLM provider:
 }
 ```
 
+### Per-engine egress proxy
+
+Any engine accepts a `proxy`, and only that engine's traffic goes through it:
+
+```json
+{
+  "engines": {
+    "zen": { "proxy": "http://127.0.0.1:8888" }
+  }
+}
+```
+
+Everything else — Telegram, the other providers, the vault, the update check —
+keeps using the normal route. This is deliberately narrower than `HTTPS_PROXY`
+or Node's `--use-env-proxy`, which are process-wide.
+
+Because the tunnel lives behind the proxy's address rather than in this
+machine's routing table, it does not fight Tailscale the way a VPN client does.
+A ready-made container is in `examples/egress-proxy/`.
+
+A proxy that is configured but unreachable fails the call rather than falling
+back to the direct route: a silent fallback would send the traffic exactly
+where the proxy was set up to avoid.
+
 ### Super-agent
 
 ```json

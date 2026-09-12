@@ -57,6 +57,31 @@ API keys y base URLs para cada proveedor de LLM soportado:
 }
 ```
 
+### Proxy de salida por motor
+
+Cualquier motor acepta un `proxy`, y sale por ahí solamente el tráfico de ese
+motor:
+
+```json
+{
+  "engines": {
+    "zen": { "proxy": "http://127.0.0.1:8888" }
+  }
+}
+```
+
+Todo lo demás —Telegram, los otros proveedores, el vault, el chequeo de
+actualizaciones— sigue usando la ruta normal. Es a propósito más angosto que
+`HTTPS_PROXY` o el `--use-env-proxy` de Node, que son para todo el proceso.
+
+Como el túnel vive detrás de la dirección del proxy y no en la tabla de ruteo
+de esta máquina, no pelea con Tailscale como sí lo hace un cliente de VPN. Hay
+un contenedor listo para usar en `examples/egress-proxy/`.
+
+Un proxy configurado pero inalcanzable **hace fallar la llamada** en vez de caer
+a la ruta directa: caer en silencio mandaría el tráfico justo a donde el proxy
+se puso para evitarlo.
+
 ### Super-agente
 
 ```json

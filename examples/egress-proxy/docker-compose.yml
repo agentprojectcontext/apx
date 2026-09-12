@@ -1,0 +1,55 @@
+# One provider's traffic through a VPN, without touching this machine's routes.
+#
+# The tunnel lives inside the container. Nothing on the host is reconfigured,
+# so Tailscale keeps its routes and its connection — which a machine-wide VPN
+# client cannot promise, because both want the same routing table.
+#
+# What the host gets is an HTTP proxy on 127.0.0.1:8888. Point one APX engine
+# at it and that engine alone goes out through the VPN:
+#
+#   "engines": { "zen": { "proxy": "http://127.0.0.1:8888" } }
+#
+# Everything else in APX — Telegram, the other providers, the vault — keeps
+# using the normal route.
+#
+# Usage:
+#   cp .env.example .env      # then fill it in; .env is gitignored
+#   docker compose up -d
+#   curl -x http://127.0.0.1:8888 https://api.ipify.org && echo   # the exit IP
+#
+# To change exit server: `docker compose restart gluetun`. It picks another one
+# matching the SERVER_* filters below. Widen or narrow the filter to control
+# which countries are in the pool.
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: apx-egress-proxy
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      # Bound to loopback on purpose: an open proxy on the LAN is an open relay.
+      - "127.0.0.1:8888:8888"
+      # gluetun's control server — status and server switching. Loopback too.
+      - "127.0.0.1:8000:8000"
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER:-protonvpn}
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?set it in .env}
+      # Narrow the pool to the countries you actually want to exit from.
+      SERVER_COUNTRIES: ${SERVER_COUNTRIES:-Netherlands}
+      HTTPPROXY: "on"
+      HTTPPROXY_LISTENING_ADDRESS: ":8888"
+      # Leave these empty for an unauthenticated proxy: it is already bound to
+      # loopback, so the credentials would only protect it from you.
+      HTTPPROXY_USER: ${HTTPPROXY_USER:-}
+      HTTPPROXY_PASSWORD: ${HTTPPROXY_PASSWORD:-}
+      TZ: ${TZ:-America/Argentina/Salta}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
