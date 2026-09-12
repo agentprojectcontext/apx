@@ -1,3 +1,11 @@
+## [1.108.1](https://github.com/agentprojectcontext/apx/compare/v1.108.0...v1.108.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **group:** la sala se ve mientras habla, no recién cuando actualizás ([0767427](https://github.com/agentprojectcontext/apx/commit/0767427661f1b0f4b575c627cb638ec654f284f9))
+* **router:** un proveedor caído se puede elegir igual; sólo lo apagado o sin configurar queda fuera ([2b776a2](https://github.com/agentprojectcontext/apx/commit/2b776a280ab3af51277c3179484587008c9ca6c2))
+
 # [1.108.0](https://github.com/agentprojectcontext/apx/compare/v1.107.0...v1.108.0) (2026-09-12)
 
 
