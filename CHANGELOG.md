@@ -1,3 +1,10 @@
+# [1.108.0](https://github.com/agentprojectcontext/apx/compare/v1.107.0...v1.108.0) (2026-09-12)
+
+
+### Features
+
+* **engines:** un motor puede salir por su propio proxy sin mover la ruta de la máquina ([ba511f9](https://github.com/agentprojectcontext/apx/commit/ba511f9776051e6de6125cc7b9dc79795c8600b7))
+
 # [1.107.0](https://github.com/agentprojectcontext/apx/compare/v1.106.0...v1.107.0) (2026-09-12)
 
 
