@@ -12,10 +12,13 @@ import type { Provider } from "./providers/types";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { t } from "../../i18n";
 
-const KNOWN_ENGINES = new Set(ENGINE_OPTIONS.map((o) => o.value));
+// Read at call time, not at import: loadEnginePresets() appends engines the
+// daemon knows and this build does not, and a Set frozen at module load would
+// file every one of them as "custom".
+const isKnownEngine = (slug: string) => ENGINE_OPTIONS.some((o) => o.value === slug);
 
 function toProvider(slug: string, v: Record<string, unknown>): Provider {
-  const engine = (typeof v.engine === "string" && v.engine) || (KNOWN_ENGINES.has(slug as any) ? slug : "custom");
+  const engine = (typeof v.engine === "string" && v.engine) || (isKnownEngine(slug) ? slug : "custom");
   return {
     slug,
     name: typeof v.name === "string" ? v.name : undefined,

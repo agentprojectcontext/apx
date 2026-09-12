@@ -3,15 +3,24 @@
 
 import { toneChip } from "../../../lib/tone";
 
-export type EngineType =
-  | "anthropic" | "openai" | "gemini" | "groq"
+// The engines this build ships styling for.
+export type KnownEngine =
+  | "anthropic" | "openai" | "gemini" | "groq" | "cerebras"
   | "openrouter" | "ollama" | "azure" | "zen" | "mock" | "custom";
 
-export const ENGINE_GRADIENTS: Record<EngineType, string> = {
+// Any adapter id the daemon reports is valid, not just the ones above: core can
+// register an engine (src/core/engines/index.js) and the panel has to offer it
+// without waiting for a web release. `string & {}` keeps editor autocomplete for
+// the known ids while still accepting an unknown one, which then renders with
+// the generic look via engineStyle().
+export type EngineType = KnownEngine | (string & {});
+
+export const ENGINE_GRADIENTS: Record<KnownEngine, string> = {
   anthropic:  "from-orange-600 to-amber-600",
   openai:     "from-emerald-600 to-teal-600",
   gemini:     "from-blue-600 to-indigo-600",
   groq:       "from-cyan-600 to-teal-600",
+  cerebras:   "from-rose-600 to-red-600",
   openrouter: "from-violet-600 to-indigo-600",
   ollama:     "from-amber-600 to-orange-600",
   azure:      "from-blue-600 to-cyan-600",
@@ -20,11 +29,12 @@ export const ENGINE_GRADIENTS: Record<EngineType, string> = {
   custom:     "from-slate-600 to-gray-600",
 };
 
-export const ENGINE_BADGES: Record<EngineType, string> = {
+export const ENGINE_BADGES: Record<KnownEngine, string> = {
   anthropic:  toneChip.orange,
   openai:     toneChip.emerald,
   gemini:     toneChip.blue,
   groq:       toneChip.cyan,
+  cerebras:   toneChip.rose,
   openrouter: toneChip.violet,
   ollama:     toneChip.amber,
   azure:      toneChip.blue,
@@ -33,11 +43,15 @@ export const ENGINE_BADGES: Record<EngineType, string> = {
   custom:     toneChip.slate,
 };
 
+// Mutable ON PURPOSE: loadEnginePresets() appends any engine the daemon knows
+// and this build does not. Consumers read it lazily (.map/.find at render), so
+// an in-place append reaches them without a rebuild.
 export const ENGINE_OPTIONS: { value: EngineType; label: string }[] = [
   { value: "anthropic",  label: "Anthropic" },
   { value: "openai",     label: "OpenAI-compatible" },
   { value: "gemini",     label: "Gemini" },
   { value: "groq",       label: "Groq" },
+  { value: "cerebras",   label: "Cerebras" },
   { value: "openrouter", label: "OpenRouter" },
   { value: "ollama",     label: "Ollama" },
   { value: "azure",      label: "Azure OpenAI" },
@@ -46,20 +60,22 @@ export const ENGINE_OPTIONS: { value: EngineType; label: string }[] = [
   { value: "custom",     label: "Custom" },
 ];
 
-export function engineStyle<T>(map: Record<EngineType, T>, value: string | null | undefined): T {
-  if (value && value in map) return map[value as EngineType];
+/** Style for an engine, falling back to the generic look for an unknown one. */
+export function engineStyle<T>(map: Record<KnownEngine, T>, value: string | null | undefined): T {
+  if (value && value in map) return map[value as KnownEngine];
   return map.custom;
 }
 
 // Icon per engine (lucide name). Used in provider cards + selects.
-import { Sparkles, Bot, Gem, Zap, GitBranch, Server, Cloud, Leaf, FlaskConical, Wrench } from "lucide-react";
+import { Sparkles, Bot, Gem, Zap, Cpu, GitBranch, Server, Cloud, Leaf, FlaskConical, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export const ENGINE_ICONS: Record<EngineType, LucideIcon> = {
+export const ENGINE_ICONS: Record<KnownEngine, LucideIcon> = {
   anthropic:  Sparkles,
   openai:     Bot,
   gemini:     Gem,
   groq:       Zap,
+  cerebras:   Cpu,
   openrouter: GitBranch,
   ollama:     Server,
   azure:      Cloud,
@@ -83,7 +99,7 @@ export interface EnginePreset {
   known_models: string[];
 }
 
-export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
+export const ENGINE_PRESETS: Record<string, EnginePreset> = {
   // Keep these in sync with src/core/engines/presets.js. They are the offline
   // fallback only — loadEnginePresets() overrides them from the daemon at boot.
   anthropic: {
@@ -119,6 +135,12 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
       "gemini-2.5-pro",
       "gemini-2.5-flash",
     ],
+  },
+  cerebras: {
+    base_url: "https://api.cerebras.ai/v1",
+    default_model: "qwen-3.8-27b",
+    api_key_env: "CEREBRAS_API_KEY",
+    known_models: ["qwen-3.8-27b", "gpt-oss-120b", "gemma-4-31b"],
   },
   groq: {
     base_url: "https://api.groq.com/openai/v1",
@@ -194,6 +216,11 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
 // since the last upgrade must not drop models this build knows about, and a
 // daemon ahead of this build can still add ones it does not. Scalars only
 // overwrite when the daemon actually has a value.
+/** Display name for an adapter this build ships no label for: "cerebras" → "Cerebras". */
+function labelForEngine(engine: string): string {
+  return engine.charAt(0).toUpperCase() + engine.slice(1);
+}
+
 let presetsLoaded = false;
 export async function loadEnginePresets(): Promise<void> {
   if (presetsLoaded) return;
@@ -201,8 +228,19 @@ export async function loadEnginePresets(): Promise<void> {
     const { Engines } = await import("../../../lib/api/engines");
     const { presets } = await Engines.presets();
     for (const [engine, preset] of Object.entries(presets || {})) {
-      const local = ENGINE_PRESETS[engine as EngineType];
-      if (!local || !preset) continue;
+      if (!preset) continue;
+      let local = ENGINE_PRESETS[engine];
+      // An engine this build has never heard of is ADOPTED, not skipped. Core
+      // registering an adapter used to mean six parallel edits here before the
+      // panel would even list it; dropping it silently is what made a new
+      // engine invisible in the provider dialog while the CLI already had it.
+      if (!local) {
+        local = { base_url: "", default_model: "", api_key_env: "", known_models: [] };
+        ENGINE_PRESETS[engine] = local;
+        if (!ENGINE_OPTIONS.some((o) => o.value === engine)) {
+          ENGINE_OPTIONS.push({ value: engine, label: labelForEngine(engine) });
+        }
+      }
       local.known_models = Array.from(new Set([...local.known_models, ...(preset.known_models || [])]));
       if (preset.base_url) local.base_url = preset.base_url;
       if (preset.default_model) local.default_model = preset.default_model;
