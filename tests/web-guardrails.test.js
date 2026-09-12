@@ -241,7 +241,9 @@ const SENTENCE_FRAGMENTS = new Set([
   // follows the subject it qualifies
   "project.groups.pulled_by", "project.commitments.no_date", "settings.profile.over_budget",
   "settings.nudge.bypass", "settings.nudge.unrated", "project.agent_detail.model_unlisted",
-  "provider_test.served_mismatch", "voice_ui.stt_hw_limited", "router_panel.hint_offline",
+  "provider_test.served_mismatch", "voice_ui.stt_hw_limited",
+  // both hang off the provider name in the picker row: "gemini — no api key"
+  "router_panel.hint_unconfigured", "router_panel.hint_unreachable",
 
   // routing condition, read as `When: …`
   "routing_panel.when_any", "routing_panel.when_image", "routing_panel.when_no_image",

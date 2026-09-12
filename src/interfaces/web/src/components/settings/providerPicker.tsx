@@ -18,8 +18,24 @@ export interface ProviderInfo {
   default_model?: string;
   /** is_active in config.engines — the switch on the provider card. */
   active: boolean;
-  /** Has what it needs to answer: an api key, or a reachable Ollama server. */
-  connected: boolean;
+  /**
+   * Has what it needs to ATTEMPT a call: an api key, unless the engine ships
+   * its own (Ollama needs none, Zen defaults to "public"). A provider that is
+   * not configured can never answer, so it is the one thing besides the switch
+   * that makes it unpickable.
+   */
+  configured: boolean;
+  /**
+   * Answered the last live probe. Only Ollama is probed today; everything else
+   * reports `true` because there is nothing cheap to ask.
+   *
+   * This must NEVER gate selection. A server that is down, a rate limit, a
+   * monthly budget — all of them are circumstantial and most of them come back
+   * on their own, and the whole point of a fallback chain is to hold entries
+   * that are not answering right now. Surfacing it as a warning is right;
+   * refusing to let the user place the row is not.
+   */
+  reachable: boolean;
 }
 
 export type EngineEntry = {
@@ -32,7 +48,7 @@ export type EngineEntry = {
 };
 
 /** Why a row cannot be used, or null when it is fine. */
-export type RowProblem = "missing" | "off" | "offline" | null;
+export type RowProblem = "missing" | "off" | "unconfigured" | "unreachable" | null;
 
 export function splitRef(ref: string): { provider: string; model: string } {
   const i = ref.indexOf(":");
@@ -45,14 +61,16 @@ export function rowProblem(providerSlug: string, providers: ProviderInfo[]): Row
   const p = providers.find((x) => x.slug === providerSlug);
   if (!p) return "missing";
   if (!p.active) return "off";
-  if (!p.connected) return "offline";
+  if (!p.configured) return "unconfigured";
+  if (!p.reachable) return "unreachable";
   return null;
 }
 
 export function problemHint(problem: RowProblem, name: string): string {
   if (problem === "missing") return t("router_panel.provider_not_configured", { name });
   if (problem === "off") return t("router_panel.provider_off", { name });
-  if (problem === "offline") return t("router_panel.provider_offline", { name });
+  if (problem === "unconfigured") return t("router_panel.provider_unconfigured", { name });
+  if (problem === "unreachable") return t("router_panel.provider_unreachable", { name });
   return "";
 }
 
@@ -76,11 +94,20 @@ export function providersFromEngines(
     // Ollama/mock/custom need no key; for Ollama we know whether the server
     // actually answered. `undefined` = still probing → assume reachable so the
     // list does not flicker to "offline" on first paint.
-    const connected =
-      engine === "ollama" ? ollamaOnline[slug] !== false
-      : engine === "mock" ? true
+    // Two different questions, kept apart on purpose.
+    //
+    // configured: could this provider be called at all? Engines that ship
+    // their own credential (Ollama, Zen, mock — `key_optional` in the shared
+    // catalog) are always configured; `custom` needs a key or a base_url to
+    // point anywhere; everything else needs a key.
+    const keyOptional = ENGINE_PRESETS[engine]?.key_optional === true;
+    const configured =
+      keyOptional ? true
       : engine === "custom" ? hasKey || !!v?.base_url
       : hasKey;
+    // reachable: did it answer the last probe? `undefined` = still probing →
+    // assume yes so the list does not flicker on first paint.
+    const reachable = engine === "ollama" ? ollamaOnline[slug] !== false : true;
     return {
       slug,
       engine,
@@ -88,7 +115,8 @@ export function providersFromEngines(
       base_url: v?.base_url,
       default_model: v?.default_model,
       active: v?.is_active !== false,
-      connected,
+      configured,
+      reachable,
     };
   });
 }
@@ -118,10 +146,16 @@ export function ProviderModelPicker({
       // engineStyle falls back to the generic icon for an adapter this build
       // does not know about yet.
       icon: engineStyle(ENGINE_ICONS, p.engine),
-      // Only connected + active providers are pickable. The rest stay visible
-      // so it is obvious why they are not an option.
-      disabled: !p.active || !p.connected,
-      hint: !p.active ? t("router_panel.hint_off") : !p.connected ? t("router_panel.hint_offline") : undefined,
+      // Only the two states the USER controls make a provider unpickable:
+      // switched off, or never configured. Anything circumstantial — the
+      // Ollama box asleep, a rate limit, an exhausted monthly budget — stays
+      // selectable and merely warns, because a fallback chain exists precisely
+      // to hold entries that are not answering at this second.
+      disabled: !p.active || !p.configured,
+      hint: !p.active ? t("router_panel.hint_off")
+        : !p.configured ? t("router_panel.hint_unconfigured")
+        : !p.reachable ? t("router_panel.hint_unreachable")
+        : undefined,
     })),
     [providers],
   );

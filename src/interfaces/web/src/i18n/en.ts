@@ -1823,9 +1823,12 @@ export const en = {
     provider_ph:         "— provider —",
     provider_not_configured: "The provider \"{name}\" is not configured.",
     provider_off:        "The provider \"{name}\" is switched off.",
-    provider_offline:    "The provider \"{name}\" is not connected (no api key, or the server is down).",
+    provider_unconfigured: "The provider \"{name}\" has no api key yet.",
+    provider_unreachable: "The provider \"{name}\" did not answer the last check. It stays usable — the chain will try it and move on.",
     hint_off:            "Off",
-    hint_offline:        "not connected",
+    hint_unconfigured:   "no api key",
+    hint_unreachable:    "not answering",
+    
     ollama_empty:        "Ollama did not answer and nothing is cached — type the model by hand.",
   },
 

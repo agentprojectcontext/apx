@@ -97,6 +97,12 @@ export interface EnginePreset {
   default_model: string;
   api_key_env: string;
   known_models: string[];
+  /**
+   * This engine answers without an api_key of its own (Ollama needs none, Zen
+   * ships a built-in default). A CONFIGURATION fact, not a health one: it says
+   * the provider is usable as configured, never that a call will succeed.
+   */
+  key_optional?: boolean;
 }
 
 export const ENGINE_PRESETS: Record<string, EnginePreset> = {
@@ -172,6 +178,7 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
     ],
   },
   ollama: {
+    key_optional: true,
     base_url: "http://127.0.0.1:11434",
     default_model: "gemma2:9b",
     api_key_env: "",
@@ -184,6 +191,7 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
     known_models: [],
   },
   zen: {
+    key_optional: true,
     base_url: "https://opencode.ai/zen/v1",
     default_model: "big-pickle",
     // Free tier: literal "public" + User-Agent opencode/* (engine injects UA).
@@ -199,7 +207,7 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
       "hy3-free",
     ],
   },
-  mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"] },
+  mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },
 };
 
@@ -245,6 +253,9 @@ export async function loadEnginePresets(): Promise<void> {
       if (preset.base_url) local.base_url = preset.base_url;
       if (preset.default_model) local.default_model = preset.default_model;
       if (preset.api_key_env) local.api_key_env = preset.api_key_env;
+      // Booleans copy on presence, not truthiness: `false` from the daemon is
+      // a real answer and must be able to clear a bundled `true`.
+      if (typeof preset.key_optional === "boolean") local.key_optional = preset.key_optional;
     }
     presetsLoaded = true;
   } catch {
