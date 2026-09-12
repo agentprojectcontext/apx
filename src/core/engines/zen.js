@@ -8,6 +8,7 @@
 // required here like any other provider's.
 import { randomBytes } from "node:crypto";
 import { createOpenAiCompatibleEngine } from "./openai-compatible.js";
+import { fetchThrough } from "../net/proxy.js";
 import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 
 // The free tier is gated on the caller looking like the opencode client rather
@@ -163,7 +164,7 @@ export default {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(timeoutMs, 4000));
     try {
-      const res = await fetch(url, {
+      const res = await fetchThrough(config?.proxy)(url, {
         method: "POST",
         headers: base.buildHeaders(config, {
           "content-type": "application/json",

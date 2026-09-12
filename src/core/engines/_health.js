@@ -6,12 +6,12 @@
  * Reachability ping. Returns { ok, status?, reason? }. Catches abort/timeout
  * cleanly so callers can present a consistent shape.
  */
-export async function pingUrl(url, { timeoutMs = 800, headers = {} } = {}) {
+export async function pingUrl(url, { timeoutMs = 800, headers = {}, fetchImpl = fetch } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await Promise.race([
-      fetch(url, { signal: ctrl.signal, headers }),
+      fetchImpl(url, { signal: ctrl.signal, headers }),
       new Promise((_, reject) => {
         setTimeout(() => reject(new Error("timeout")), timeoutMs);
       }),
@@ -29,11 +29,11 @@ export async function pingUrl(url, { timeoutMs = 800, headers = {} } = {}) {
  * Same as pingUrl but parses the response body when 2xx. Returns
  * { ok, status?, reason?, json? }.
  */
-export async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {} } = {}) {
+export async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {}, fetchImpl = fetch } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers });
+    const res = await fetchImpl(url, { signal: ctrl.signal, headers });
     if (!res.ok) return { ok: false, status: res.status, reason: `HTTP ${res.status}` };
     const json = await res.json().catch(() => null);
     return { ok: true, status: res.status, json };
