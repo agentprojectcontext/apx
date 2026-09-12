@@ -1,3 +1,10 @@
+# [1.107.0](https://github.com/agentprojectcontext/apx/compare/v1.106.0...v1.107.0) (2026-09-12)
+
+
+### Features
+
+* **engines:** un motor nuevo en core ya aparece solo en el panel ([ba374f7](https://github.com/agentprojectcontext/apx/commit/ba374f7260dd9ed6bc5610d70179dc18b108e7f2))
+
 # [1.106.0](https://github.com/agentprojectcontext/apx/compare/v1.105.0...v1.106.0) (2026-09-11)
 
 
