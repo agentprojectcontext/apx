@@ -13,6 +13,8 @@ export interface EnginePreset {
   default_model: string;
   api_key_env: string;
   known_models: string[];
+  /** Engine answers with no api_key of its own (Ollama, Zen, mock). */
+  key_optional?: boolean;
 }
 
 export interface EnginePresets {

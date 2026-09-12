@@ -1824,9 +1824,12 @@ export const es = {
     provider_ph:         "— proveedor —",
     provider_not_configured: "El proveedor \"{name}\" no está configurado.",
     provider_off:        "El proveedor \"{name}\" está desactivado.",
-    provider_offline:    "El proveedor \"{name}\" no está conectado (sin api key o servidor caído).",
+    provider_unconfigured: "El proveedor \"{name}\" todavía no tiene api key.",
+    provider_unreachable: "El proveedor \"{name}\" no respondió el último chequeo. Se puede usar igual — la cadena lo intenta y sigue.",
     hint_off:            "Desactivado",
-    hint_offline:        "sin conexión",
+    hint_unconfigured:   "sin api key",
+    hint_unreachable:    "no responde",
+    
     ollama_empty:        "Ollama no respondió y no hay nada cacheado — escribí el modelo a mano.",
   },
 

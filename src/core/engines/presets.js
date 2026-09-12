@@ -15,7 +15,12 @@
 // `ollama` and `custom` are intentionally dynamic — no curated model list.
 // Update model ids in THIS file only; every surface reflects the change.
 
-/** @typedef {{ base_url: string, default_model: string, api_key_env: string, known_models: string[] }} EnginePreset */
+// Engines that answer with no api_key of their own. This is a CONFIGURATION
+// fact, not a health one: a surface deciding whether a provider is even
+// selectable has to tell "you never gave me a key" apart from "the key is
+// there and the call failed". Zen ships a built-in default key ("public"),
+// Ollama and mock need none at all — so none of them is ever "unconfigured".
+/** @typedef {{ base_url: string, default_model: string, api_key_env: string, known_models: string[], key_optional?: boolean }} EnginePreset */
 
 /** @type {Record<string, EnginePreset>} */
 export const ENGINE_PRESETS = {
@@ -103,6 +108,7 @@ export const ENGINE_PRESETS = {
     known_models: [],
   },
   ollama: {
+    key_optional: true,
     base_url: "http://127.0.0.1:11434",
     default_model: "gemma2:9b",
     api_key_env: "",
@@ -113,6 +119,7 @@ export const ENGINE_PRESETS = {
   // accept api_key "public" when no personal key is set. Paid Claude/GPT/
   // Gemini models on the same base URL need a real Zen key.
   zen: {
+    key_optional: true,
     base_url: "https://opencode.ai/zen/v1",
     default_model: "big-pickle",
     api_key_env: "OPENCODE_ZEN_API_KEY",
@@ -126,7 +133,7 @@ export const ENGINE_PRESETS = {
       "hy3-free",
     ],
   },
-  mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"] },
+  mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },
 };
 
