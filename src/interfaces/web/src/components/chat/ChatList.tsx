@@ -25,6 +25,7 @@ import type { ActiveTurn } from "../../types/daemon";
 import { conversationActivityKey, threadActivityKey } from "../../lib/chat-activity";
 import { showToolsDefault } from "../../lib/chat-prefs";
 import { ChatRowActivity } from "./ChatRowActivity";
+import { useThreadJobRunning } from "../../hooks/useBackgroundJobs";
 
 // Channel taxonomy — same channels the daemon writes ("web", "voice",
 // "desktop", "telegram", …) folded into sidebar groups. Each group has an
@@ -526,6 +527,12 @@ export function ChatList({
                     timeAgo={th.last_ts}
                     activityKey={threadActivityKey(pid, th.channel, th.id)}
                     activeTurn={th.active_turn}
+                    // A background job's `thread` IS an a2a pair id, so only an
+                    // a2a row can own one. Same mark, same meaning as the inbox:
+                    // the project rail and the inbox are two frames around one
+                    // list, and a status that appears in one and not the other
+                    // is the drift this component exists to prevent.
+                    jobThread={th.channel === "a2a" ? th.id : null}
                     selected={active}
                     onClick={() =>
                       onSelect(
@@ -625,6 +632,7 @@ function ChatListItem({
   timeAgo,
   activityKey,
   activeTurn,
+  jobThread,
   selected,
   onClick,
   testId,
@@ -640,12 +648,16 @@ function ChatListItem({
   timeAgo?: string;
   activityKey: string | null;
   activeTurn?: ActiveTurn | null;
+  /** The a2a pair id this row stands for, when it has one — what a background
+   *  job is filed under, so the row can say an agent left work running here. */
+  jobThread?: string | null;
   selected?: boolean;
   onClick: () => void;
   /** Stamps the row for e2e. A conversation is identified by (agent, id) —
    *  two agents in one project can each own a `web-main`. */
   testId?: string;
 }) {
+  const jobRunning = useThreadJobRunning(jobThread);
   return (
     <button
       type="button"
@@ -679,7 +691,7 @@ function ChatListItem({
           <span className="truncate">{subtitle}</span>
           <span className="ml-auto inline-flex shrink-0 items-center">
             {badge && <span className="truncate rounded bg-accent px-1.5 py-0.5">{badge}</span>}
-            <ChatRowActivity activityKey={activityKey} activeTurn={activeTurn} />
+            <ChatRowActivity activityKey={activityKey} activeTurn={activeTurn} jobRunning={jobRunning} />
           </span>
         </span>
       </span>
