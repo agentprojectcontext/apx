@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Bot, CornerDownRight, Copy, Info, Pencil, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
@@ -14,6 +14,7 @@ import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
 import { textOf, type ChatMsg, type ChatPart } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
+import { useAutoGrow } from "../../hooks/useAutoGrow";
 
 interface Props {
   msg: ChatMsg;
@@ -65,6 +66,11 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // exactly where notices appear, so the crash was on the feature's own path.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  // The edit box is as tall as what's being edited. It used to size itself off
+  // the number of NEWLINES in the draft, so a long message written as one
+  // paragraph — which is most of them — got two squashed rows with a scrollbar.
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  useAutoGrow(editRef, draft, { minRows: 2, maxRows: 10, viewportRatio: 0.45, boundToScroller: true, enabled: editing });
 
   // A group system notice ("… se sumó / salió del chat") is a centred line, not
   // a bubble, so it reads as something the room did rather than someone saying it.
@@ -222,7 +228,11 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         className={cn(
           "flex min-w-0 flex-col gap-1.5",
           compact ? "max-w-[92%]" : "max-w-[85%]",
-          mine ? "items-end" : "w-full",
+          // The user's column hugs its bubble — except while editing, where it
+          // takes the whole width it is allowed. A textarea's intrinsic width
+          // is ~20 characters, so shrink-to-fit gave the editor a thin strip
+          // regardless of how long the message being edited was.
+          mine && !editing ? "items-end" : "w-full",
         )}
       >
         {/* Group style: name the speaker ABOVE the bubble, with a "traído por X"
@@ -265,8 +275,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         {/* Editing your own turn in place: on save it re-sends and everything
             below is dropped and re-answered. Enter saves, Esc/Cancel backs out. */}
         {mine && editing && (
-          <div className={cn("flex w-full flex-col gap-1.5", compact ? "max-w-[92%]" : "max-w-[85%]")}>
+          <div className="flex w-full flex-col gap-1.5">
             <textarea
+              ref={editRef}
               autoFocus
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -274,8 +285,10 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); }
                 if (e.key === "Escape") setEditing(false);
               }}
-              rows={Math.min(8, Math.max(2, draft.split("\n").length))}
-              className="w-full resize-y rounded-2xl rounded-br-sm border border-primary/40 bg-bubble-mine px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-primary"
+              // Floor for the first paint, before the hook measures; after that
+              // the height it sets wins.
+              rows={2}
+              className="w-full resize-none rounded-2xl rounded-br-sm border border-primary/40 bg-bubble-mine px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-primary"
             />
             <div className="flex items-center justify-end gap-2 text-xs">
               <button type="button" onClick={() => setEditing(false)} className="rounded px-2 py-1 text-muted-foreground hover:text-foreground">
