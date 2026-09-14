@@ -65,11 +65,23 @@ test("a pasted URL cannot push a bubble off the screen", () => {
 });
 
 test("the composer cannot grow over the conversation it is about", () => {
-  const input = web("components", "ui", "chat-input.tsx");
+  // MOVED, 2026-09-14: the growing itself now lives in `hooks/useAutoGrow`,
+  // because the in-place message editor needs exactly the same behaviour and
+  // had drifted into its own — it sized itself off the number of NEWLINES in
+  // the draft, so a long message written as one paragraph got two squashed
+  // rows. One implementation, two fields.
+  const grow = web("hooks", "useAutoGrow.ts");
   // Two ceilings, lower wins: maxRows shapes the field, and a share of the
-  // window keeps a long draft from swallowing a 812px phone screen.
-  assert.match(input, /Math\.min\(lineHeight \* maxRows, Math\.round\(window\.innerHeight \* 0\.4\)\)/);
-  assert.match(input, /window\.addEventListener\("resize", resize\)/, "rotating the phone moves that ceiling");
+  // available height keeps a long draft from swallowing a 812px phone screen.
+  assert.match(grow, /Math\.min\(lineHeight \* maxRows \+ chrome, Math\.round\(room \* viewportRatio\)\)/);
+  assert.match(grow, /window\.addEventListener\("resize", resize\)/, "rotating the phone moves that ceiling");
+  // The floor counts the padding too, or `minRows: 2` is two rows minus the
+  // padding — which is what a one-line-and-a-bit field looks like.
+  assert.match(grow, /const min = lineHeight \* minRows \+ chrome/);
+
+  const input = web("components", "ui", "chat-input.tsx");
+  assert.match(input, /useAutoGrow\(ref, value, \{ minRows, maxRows, viewportRatio: 0\.4 \}\)/);
+  assert.doesNotMatch(input, /el\.style\.height = /, "the composer does not keep a second copy of the math");
 });
 
 test("picking a file uploads it once, not once per render pass", () => {
@@ -396,13 +408,21 @@ test("every chat rail reuses one running/unread indicator", () => {
   // component exists to prevent, so the job mark is wired in both.
   assert.match(chats, /jobRunning=\{jobRunning\}/, "the project rail marks left-running work too");
   assert.match(chats, /jobThread=\{th\.channel === "a2a" \? th\.id : null\}/, "…from the a2a pair id, the only kind a job has");
-  // Positional, and written to survive the props being reformatted onto their
-  // own lines: what matters is that the mark comes straight after the preview,
-  // not how many attributes it happens to take.
+  // MOVED, 2026-09-14, one line UP. It used to trail the last message, which is
+  // the line that wants every pixel it can get; the project/channel line above
+  // ends in two chips and has half the row to spare. Manu: "por el espacio que
+  // tenemos el loading podría ir al final de todo en la línea de proyecto y
+  // canal". Positional, and written to survive the props being reformatted
+  // onto their own lines.
   assert.match(
     inbox,
-    /\{row\.preview \|\| t\("inbox\.no_reply_yet"\)\}<\/span>\s*<ChatRowActivity[\s\S]{0,200}?activityKey=\{activityKey\}/,
-    "the inbox mark trails the last message, not the clock",
+    /data-testid="inbox-row-meta"[\s\S]*?<ChatRowActivity[\s\S]{0,240}?activityKey=\{activityKey\}/,
+    "the mark rides the tag line",
+  );
+  assert.doesNotMatch(
+    inbox,
+    /data-testid="inbox-row-preview"[\s\S]*<ChatRowActivity/,
+    "…and the message line is left whole",
   );
   // A THIRD state, and the reason the props grew: an agent left work running
   // from this thread. Not the same fact as a live turn — nobody is writing,
@@ -411,6 +431,14 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.match(indicator, /jobRunning/, "a chat with work left running has to say so");
   assert.match(indicator, /animate-spin text-emerald-700/, "left-running work is green, not the live-turn blue");
   assert.match(inbox, /useThreadJobRunning\(/, "the inbox row answers it from the job's own thread id");
+  // THREE FACTS, THREE MARKS, 2026-09-14. They used to take turns in one 12px
+  // slot and the louder one erased the other: with a live turn the blue dot did
+  // not exist, and a peer ten minutes into a job hid what you had not read. Now
+  // each one owns its own slot and they stand side by side.
+  for (const on of ["running", "job", "isUnread"]) {
+    assert.match(indicator, new RegExp(`<Mark on=\\{${on}\\}>`), `${on} draws on its own`);
+  }
+  assert.doesNotMatch(indicator, /const status =/, "no single winner decides the slot any more");
 });
 
 // Manu, 2026-09-14: "faltaría el botón de mandar ahora y quizás ordenarlos

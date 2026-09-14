@@ -43,9 +43,14 @@ test("the rail keeps measuring itself — the observer is never skipped", () => 
   // count alone rather than writing 0 into it.
   assert.match(fit, /if \(h <= 0\) return;/);
 
-  // The reservation itself is unchanged: one slot for Add, one for "+N".
-  assert.match(fit, /const forItems = slots - 1;/);
-  assert.match(fit, /forItems >= total \? total : Math\.max\(0, forItems - 1\)/);
+  // The reservation itself is unchanged: one slot for Add, one for "+N" — but
+  // it is no longer counted in uniform slots. A project tile carries a caption
+  // and a control tile does not, so both heights are measured off hidden probes
+  // and the item count is solved for.
+  assert.match(fit, /const withBucket = Math\.floor\(\(h - 2 \* control - gap\) \/ \(item \+ gap\)\);/);
+  assert.match(fit, /const whole = total \* \(item \+ gap\) \+ control <= h;/, "and no bucket at all is its own case");
+  assert.match(fit, /data-rail-probe-item/, "measured, not assumed");
+  assert.match(fit, /data-rail-probe-control/);
 });
 
 test("the overflow bucket wears the same grey as the controls under it", () => {
