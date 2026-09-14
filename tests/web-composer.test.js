@@ -355,6 +355,11 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.match(indicator, /transition-\[width,margin,opacity\]/, "activity expands smoothly beside the badge");
   assert.doesNotMatch(indicator, /absolute -right-1 -top-1/, "activity no longer floats in the row corner");
   assert.match(chats, /<ChatRowActivity activityKey=\{activityKey\}/);
+  // The project rail and the inbox are two frames around one list. A status
+  // that shows in one and not the other is exactly the drift this shared
+  // component exists to prevent, so the job mark is wired in both.
+  assert.match(chats, /jobRunning=\{jobRunning\}/, "the project rail marks left-running work too");
+  assert.match(chats, /jobThread=\{th\.channel === "a2a" \? th\.id : null\}/, "…from the a2a pair id, the only kind a job has");
   // Positional, and written to survive the props being reformatted onto their
   // own lines: what matters is that the mark comes straight after the preview,
   // not how many attributes it happens to take.
