@@ -1,3 +1,50 @@
+# [1.110.0](https://github.com/agentprojectcontext/apx/compare/v1.109.0...v1.110.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **e2e:** el control de autonomía tiene cuatro modos, y el test seguía contando tres ([8a1760d](https://github.com/agentprojectcontext/apx/commit/8a1760da337410d711150259a99e2d1e2bad3ee1))
+* **engines:** una respuesta cortada por el tope de salida se nota en ollama y anthropic, no sólo en los demás ([3ea56a4](https://github.com/agentprojectcontext/apx/commit/3ea56a44007e35a3cb5f14b8ddcb3512f36e332e))
+* **inbox:** el deep link a la conversación de un agente abre esa conversación, no la más reciente ([7461472](https://github.com/agentprojectcontext/apx/commit/7461472330efff4db2a0b3980745666d7838df77))
+* **projects:** una carpeta que se movió se dice, y se vuelve a enganchar sin perder el id ([b796f5f](https://github.com/agentprojectcontext/apx/commit/b796f5f92e9e2928074f176eaeff07106352bb95))
+* **web:** el rail usa el alto que reserva, el +N es del gris de los controles y Desktop sale del menú ([d46bfe3](https://github.com/agentprojectcontext/apx/commit/d46bfe3a9892fb77c72e56022250d74b11466c14))
+
+
+### Documentation
+
+* **rules:** el mensaje de commit decide si una versión sale, y eso no estaba escrito en ningún lado ([7c537a4](https://github.com/agentprojectcontext/apx/commit/7c537a4ce78d3977b1aef5db1b0cee5ad34cb80a))
+
+
+### Features
+
+* **chat:** la cola se puede ordenar, y cualquiera de los mensajes puede salir ahora ([2538b3a](https://github.com/agentprojectcontext/apx/commit/2538b3a1c8f89acdcde8272ce0189057a0c9b16f))
+* **web:** el rail dice qué versión de APX estás mirando, abajo del logo ([7384624](https://github.com/agentprojectcontext/apx/commit/7384624f2a2faaa393bdd5462f3e90bbb62e855e))
+* **web:** la carpeta de un proyecto se edita desde Config, y la que no está se marca con un ! ([c956129](https://github.com/agentprojectcontext/apx/commit/c95612995e54437749ee36303fd592fe08b7dc01))
+
+
+### BREAKING CHANGES
+
+* **rules:** 0 en 400 commits
+    31 de los últimos 39 subjects en es-AR, tipo y scope siempre en inglés
+
+Así que el doc describe la práctica real, no una que me gustaría. La trampa
+que nombra es la mitad de abajo de la tabla: nadie etiqueta mal un feature, lo
+que pasa es que un fix llega como `chore`, `refactor` o `test` porque eso es
+lo que parecía el DIFF. El criterio queda escrito como la pregunta que hay que
+hacerse: qué notaría un usuario, no qué tocó el parche.
+
+Cableado donde el repo lo pide: regla 18 en el hub, fila en las dos tablas de
+deep dives, índice de rules/README.md, y "17 reglas" → 18 en enforcement.md,
+más su fila en la tabla de SÓLO CONVENCIÓN — porque hoy no hay ningún gate que
+lo verifique y decirlo es la regla de esa tabla.
+
+Dos referencias que escribí y salieron falsas, corregidas antes de commitear:
+apuntaba a .githooks/commit-msg (no existe) y a human-model.md para la demora
+de propagación de npm (no la menciona). Verificado: docs-links y
+agents-md-contract 11/11 — y el primero me agarró los links a releasing.md
+mientras el archivo todavía no estaba trackeado, que es exactamente para lo
+que está.
+
 # [1.109.0](https://github.com/agentprojectcontext/apx/compare/v1.108.1...v1.109.0) (2026-09-14)
 
 
