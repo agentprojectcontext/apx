@@ -5,6 +5,7 @@ description: Software architect for multi-tenant SaaS systems. Designs scalable,
 language: en
 skills:
 tools:
+area: engineering
 ---
 
 # Software Architect

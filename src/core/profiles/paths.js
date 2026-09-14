@@ -61,3 +61,23 @@ export function schemaFileFor(lang) {
   if (!code || code.toLowerCase() === "en") return CONFIG_SCHEMA_FILE;
   return `config.schema.${code}.json`;
 }
+
+/**
+ * Language-specific MANIFEST strings: profile.es.json, profile.pt-BR.json, …
+ *
+ * The third file in the same family, and the one that was missing. A package
+ * could already translate its prompt (PROFILE.es.md) and every one of its
+ * settings (config.schema.es.json), but its own NAME and DESCRIPTION had no
+ * layer at all — so a Spanish panel listed the company package with an English
+ * sentence under it and no key anywhere to fix, because that string is package
+ * data and not app copy. A user package installed from anywhere has the same
+ * need, which is why this lives with the package and not in the app's i18n.
+ *
+ * Display strings only: id, version, scope, provides and requires stay in the
+ * base manifest, which is the single source of truth for behaviour.
+ */
+export function manifestFileFor(lang) {
+  const code = String(lang || "").trim();
+  if (!code || code.toLowerCase() === "en") return MANIFEST_FILE;
+  return `profile.${code}.json`;
+}

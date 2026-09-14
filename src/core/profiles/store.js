@@ -28,6 +28,7 @@ import {
   userProfileDir,
   promptFileFor,
   schemaFileFor,
+  manifestFileFor,
 } from "./paths.js";
 import { schemaDefaults } from "./manifest.js";
 import { readJson } from "#core/util/json-file.js";
@@ -124,6 +125,53 @@ export function listProfiles({ includeRemoved = false } = {}) {
 }
 
 /**
+ * The first localized file that exists for `lang`, or null.
+ *
+ * Tries the full tag then its base ("es-AR" → "es"), so a package that ships
+ * one Spanish translation serves every Spanish-speaking reader instead of only
+ * the ones whose locale string matches exactly.
+ */
+function localizedFile(profileDir, lang, fileFor, baseFile) {
+  const candidates = [];
+  const wanted = fileFor(lang);
+  if (wanted !== baseFile) candidates.push(wanted);
+  const base = String(lang || "").split("-")[0];
+  if (base && base !== lang) {
+    const b = fileFor(base);
+    if (b !== baseFile) candidates.push(b);
+  }
+  for (const name of candidates) {
+    const file = path.join(profileDir, name);
+    if (fs.existsSync(file)) return readJson(file);
+  }
+  return null;
+}
+
+/**
+ * A package's own NAME and DESCRIPTION in the reader's language.
+ *
+ * Package data, not app copy: a profile the user installed from anywhere names
+ * itself, so there is no i18n key the app could hold for it. The translation
+ * therefore travels with the package, the same way its prompt (PROFILE.es.md)
+ * and its settings (config.schema.es.json) already did — this was the one
+ * string of the three with no layer, which is how a Spanish panel came to show
+ * an English sentence under "Company".
+ *
+ * Display strings only. Everything the runtime keys off — id, version, scope,
+ * provides, requires — stays in the base manifest.
+ */
+export function localizeProfileManifest(profileDir, manifest, lang) {
+  if (!manifest) return manifest;
+  const tr = localizedFile(profileDir, lang, manifestFileFor, MANIFEST_FILE);
+  if (!tr) return manifest;
+  return {
+    ...manifest,
+    ...(tr.name ? { name: tr.name } : {}),
+    ...(tr.description ? { description: tr.description } : {}),
+  };
+}
+
+/**
  * The base settings schema with title/description overlaid from a
  * config.schema.<lang>.json when one exists for `lang`. Only display strings
  * are localized — every property's type, default and enum come from the base
@@ -136,23 +184,7 @@ export function listProfiles({ includeRemoved = false } = {}) {
 export function localizeProfileSchema(profileDir, schema, lang) {
   if (!schema?.properties) return schema || null;
 
-  const candidates = [];
-  const wanted = schemaFileFor(lang);
-  if (wanted !== CONFIG_SCHEMA_FILE) candidates.push(wanted);
-  const base = String(lang || "").split("-")[0];
-  if (base && base !== lang) {
-    const b = schemaFileFor(base);
-    if (b !== CONFIG_SCHEMA_FILE) candidates.push(b);
-  }
-
-  let strings = null;
-  for (const name of candidates) {
-    const file = path.join(profileDir, name);
-    if (fs.existsSync(file)) {
-      strings = readJson(file);
-      break;
-    }
-  }
+  const strings = localizedFile(profileDir, lang, schemaFileFor, CONFIG_SCHEMA_FILE);
   if (!strings?.properties) return schema;
 
   const out = { ...schema, properties: {} };

@@ -5,6 +5,7 @@ description: Growth hacker and market researcher for a SaaS product. Validates n
 language: en
 skills:
 tools:
+area: growth
 ---
 
 # Marketing & Growth

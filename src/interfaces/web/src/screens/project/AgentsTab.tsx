@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
-import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Users, Wrench, Zap } from "lucide-react";
+import { Activity, AlertTriangle, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Users, Wrench, Zap } from "lucide-react";
 import { Agents, Projects } from "../../lib/api";
 import type { AgentPack, VaultAgent } from "../../lib/api/agents";
 import type { AgentEntry, AgentStats } from "../../types/daemon";
@@ -10,7 +10,7 @@ import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea }
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
-import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
+import { AutonomyPicker, AreaRoleFields, AgentIconPicker, MasterHint } from "../../components/agents/AgentFormFields";
 import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
 import { AgentModelBadge } from "../../components/agents/AgentModelBadge";
 import { INHERIT_MODEL, isInheritedModel } from "../../components/agents/modelCatalog";
@@ -102,10 +102,20 @@ function AgentGrid({ count, children }: { count: number; children: ReactNode }) 
 }
 
 // Build parent→children map with panda's single-orchestrator fallback: if there
-// is exactly one master and an agent has no explicit parent, treat it as a child.
+// is exactly one master AT THE TOP and an agent has no explicit parent, treat
+// it as a child.
+//
+// Root masters, not every master. Several orchestrators is a normal shape, not
+// a conflict: the flag only grants rename/remove, so a lead with its own
+// sub-lead below it (`master: true` AND `parent: <lead>`) is a team. Counting
+// those as rivals switched the fallback off the moment anybody promoted a
+// second agent, and every parentless agent in the project silently jumped to
+// the top level — the tree came apart and nothing said why. Only a second
+// master with NO parent is a genuine second root, and then there really is no
+// single answer to hang an orphan off.
 function buildTree(agents: AgentEntry[]) {
-  const masters = agents.filter((a) => a.is_master);
-  const soleMaster = masters.length === 1 ? masters[0] : null;
+  const rootMasters = agents.filter((a) => a.is_master && !a.parent);
+  const soleMaster = rootMasters.length === 1 ? rootMasters[0] : null;
   const parentOf = (a: AgentEntry): string | null => {
     if (a.parent) return a.parent;
     if (soleMaster && !a.is_master && a.slug !== soleMaster.slug) return soleMaster.slug;
@@ -180,7 +190,7 @@ export function AgentsTab({ pid }: { pid: string }) {
       <ImportVaultDialog
         open={importing}
         pid={pid}
-        existing={agents.map((a) => a.slug)}
+        agents={agents}
         onClose={() => setImporting(false)}
         onImported={() => list.mutate()}
       />
@@ -189,12 +199,13 @@ export function AgentsTab({ pid }: { pid: string }) {
 }
 
 function PackCard({
-  pack, pid, vault, existing, picked, onPick, onInstalled,
+  pack, pid, vault, existing, masters, picked, onPick, onInstalled,
 }: {
   pack: AgentPack;
   pid: string;
   vault: VaultAgent[];
   existing: string[];
+  masters: AgentEntry[];
   picked: string[];
   onPick: (slugs: string[]) => void;
   onInstalled: (count: number) => void;
@@ -225,6 +236,27 @@ function PackCard({
   // All or nothing, because a pack of nine is where ticking one by one hurts.
   const all = pack.agents.map((a) => a.slug);
   const allPicked = picked.length === all.length;
+
+  // The two things a pack cannot say about itself, and that both go wrong in
+  // silence.
+  //
+  // A pack's lead is its parentless member, so it installs as a ROOT: into a
+  // project that already has one it makes a SECOND tree rather than joining the
+  // one that is there. Nothing is demoted and nothing is overwritten — which is
+  // exactly why nobody notices until the hierarchy is two loose halves.
+  //
+  // And unticking that lead does not reparent its team: every Parent in the
+  // pack points at the lead's slug, and a Parent that resolves to nobody is
+  // dropped (planPackInstall), so the whole council lands loose at top level.
+  const leadSlug = pack.agents.find((a) => !a.parent)?.slug || null;
+  const leadPicked = !!leadSlug && picked.includes(leadSlug);
+  const rootMasters = masters.filter((m) => !m.parent);
+  const secondRoot = leadPicked && rootMasters.length > 0;
+  const masterNames = rootMasters.map((m) => m.name || m.slug).join(", ");
+  const orphans =
+    leadSlug && !leadPicked && !existing.includes(leadSlug)
+      ? pack.agents.filter((a) => a.parent === leadSlug && picked.includes(a.slug)).map((a) => a.slug)
+      : [];
 
   const install = async () => {
     setBusy(true);
@@ -277,27 +309,67 @@ function PackCard({
               {/* In front of the name, because the name is what you are deciding
                   about — the tick box is the answer, this is the question. */}
               <AgentTemplatePeek agent={templateOf(m.slug)} />
-              <span className={cn("font-medium", !checked && "text-muted-fg")}>{renamed ? row.slug : m.slug}</span>
+              {/* The ROLE reads first and the slug follows as a handle. They
+                  used to be the other way round, so a dialog in Spanish opened
+                  on a column of lowercase acronyms — `ceo`, `cfo`, `coo` — and
+                  the words that say what each one DOES were pushed to the far
+                  right, clipped. The slug still has to be here: it is the file
+                  name, what a Parent points at and what you type at a prompt,
+                  and it is exactly what changes when a name is taken. But it is
+                  a handle, not a headline. */}
+              <span className={cn("font-medium", !checked && "text-muted-fg")}>{roleOf(m.slug) || m.slug}</span>
+              <code className="shrink-0 rounded bg-muted px-1 py-px font-mono text-[10px] text-muted-fg">
+                {renamed ? row.slug : m.slug}
+              </code>
               {!m.parent && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
+              {!m.parent && secondRoot && (
+                <Badge tone="warning"><AlertTriangle size={9} /> {t("project.agents.pack_warn_root_chip")}</Badge>
+              )}
+              {orphans.includes(m.slug) && (
+                <Badge tone="warning"><AlertTriangle size={9} /> {t("project.agents.pack_warn_orphan_chip")}</Badge>
+              )}
               {renamed && (
-                <span className="text-muted-fg">{t("project.agents.pack_renamed", { slug: m.slug })}</span>
+                <span className={toneText.amber}>{t("project.agents.pack_renamed", { slug: m.slug })}</span>
               )}
               {!renamed && existing.includes(m.slug) && (
                 <span className="text-muted-fg">{t("project.agents.import_already")}</span>
               )}
-              <span className="truncate text-muted-fg">{roleOf(m.slug)}</span>
             </li>
           );
         })}
       </ul>
+      {(secondRoot || !!orphans.length) && (
+        <div
+          data-testid={`pack-${pack.id}-warnings`}
+          className="mt-2 space-y-1 rounded-md border border-amber-500/30 bg-amber-500/5 p-2"
+        >
+          {secondRoot && (
+            <p className={cn("text-[11px] leading-snug", toneText.amber)}>
+              <AlertTriangle size={11} className="mr-1 inline align-[-1px]" />
+              {t("project.agents.pack_warn_second_root", { names: masterNames, slug: leadSlug || "" })}
+            </p>
+          )}
+          {!!orphans.length && (
+            <p className={cn("text-[11px] leading-snug", toneText.amber)}>
+              <AlertTriangle size={11} className="mr-1 inline align-[-1px]" />
+              {t("project.agents.pack_warn_orphans", { lead: leadSlug || "", slugs: orphans.join(", ") })}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function ImportVaultDialog({
-  open, onClose, onImported, pid, existing,
-}: { open: boolean; onClose: () => void; onImported: () => void; pid: string; existing: string[] }) {
+  open, onClose, onImported, pid, agents,
+}: { open: boolean; onClose: () => void; onImported: () => void; pid: string; agents: AgentEntry[] }) {
   const toast = useToast();
+  // Slugs answer "is this one already here". The roster itself answers the
+  // question a TEAM raises and a single template never did: who already leads
+  // this project, and therefore what a pack's own lead collides with.
+  const existing = useMemo(() => agents.map((a) => a.slug), [agents]);
+  const masters = useMemo(() => agents.filter((a) => a.is_master), [agents]);
   const vault = useSWR(open ? "/api/agents/vault" : null, () => Agents.vault());
   const packs = useSWR(open ? "/api/agents/packs" : null, () => Agents.packs());
   const [busy, setBusy] = useState("");
@@ -353,6 +425,7 @@ function ImportVaultDialog({
               pid={pid}
               vault={items}
               existing={existing}
+              masters={masters}
               picked={pickedFor(pack.id)}
               onPick={(slugs) => setPicked((prev) => ({ ...prev, [pack.id]: slugs }))}
               onInstalled={() => onImported()}
@@ -379,7 +452,8 @@ function ImportVaultDialog({
               <div className="flex min-w-0 items-start gap-2">
                 <Bot size={14} className="mt-0.5 shrink-0 text-muted-fg" />
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                  <span className="truncate text-sm font-medium">{a.slug}</span>
+                  <span className="truncate text-sm font-medium">{a.role || a.slug}</span>
+                  <code className="shrink-0 rounded bg-muted px-1 py-px font-mono text-[10px] text-muted-fg">{a.slug}</code>
                   {a.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
                   {a.model && <Badge tone="info" className="max-w-full truncate">{a.model}</Badge>}
                 </div>
@@ -854,6 +928,7 @@ function CreateAgentDialog({
           </Field>
           <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agents.master_label")} />
         </div>
+        <MasterHint agents={agents} self={slug} isMaster={isMaster || type === "orchestrator"} parent={parent} />
         <p className="rounded-lg border border-border bg-muted/30 p-2.5 text-[11px] text-muted-fg">
           {t("agents_form.create_defaults_note")}
         </p>

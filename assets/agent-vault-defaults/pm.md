@@ -5,6 +5,7 @@ description: Senior project manager that converts requirements and research into
 language: en
 skills:
 tools:
+area: product
 ---
 
 # Project Manager

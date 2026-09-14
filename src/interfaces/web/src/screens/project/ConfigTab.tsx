@@ -8,6 +8,7 @@ import { Button, Dialog, Empty, Loading, Textarea } from "../../components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ConfigFieldControl, type ConfigSection } from "../../components/config/ConfigTabsEditor";
 import { ProjectFolderCard } from "../../components/config/ProjectFolderCard";
+import { ProjectProfileSection } from "../../components/config/ProjectProfileCard";
 import { apcProjectFields, projectBehaviourFields } from "../../components/config/project-config-sections";
 import { ProjectModelsTab } from "../../components/config/ProjectModelsTab";
 import { TelegramTab } from "./TelegramTab";
@@ -252,6 +253,14 @@ function ProjectPanel({
   return (
     <div className="space-y-6">
       {group(identity, "meta")}
+      {/* Directly under the kind field, because it is the other half of the
+          same answer: the kind says what this project IS, the profile is what
+          makes it run that way. Base has no kind and no project profile. */}
+      {!isBase && (
+        <div className="border-t border-border pt-5">
+          <ProjectProfileSection pid={pid} kind={(meta.kind as string) || null} />
+        </div>
+      )}
       <div className="border-t border-border pt-5">{group(behaviour, "cfg", effective)}</div>
       <Button variant="primary" loading={busy} onClick={save}>{t("common.save")}</Button>
     </div>
