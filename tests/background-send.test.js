@@ -29,7 +29,17 @@ function fresh() {
   try { fs.rmSync(BACKGROUND_JOBS_DIR, { recursive: true, force: true }); } catch { /* nothing there */ }
 }
 
-const project = { id: 7, path: "/tmp/northwind", storagePath: "/tmp/northwind-store", name: "northwind", config: {} };
+// A project whose roster is REAL. It used to be a path that did not exist, so
+// `readAgents` returned nothing and `to: "roby"` resolved to nobody — which
+// every test below silently relied on never being checked, and is exactly how
+// a job opened for a peer that did not exist went unnoticed until an invented
+// peer got itself a thread, a face and a message it never wrote (2026-09-13).
+const { makeTempProject } = await import("./_helpers.js");
+const projectRoot = makeTempProject({
+  name: "northwind",
+  agents: [{ slug: "roby", role: "Orchestrator" }, { slug: "ansel", role: "Engineer" }],
+});
+const project = { id: 7, path: projectRoot, storagePath: "/tmp/northwind-store", name: "northwind", config: {} };
 
 /** A fake peer that answers when the test says so. Records every call, so the
  *  wake-up can be inspected as the message it really is. */
@@ -207,6 +217,48 @@ test("a send with nowhere to go is refused rather than opening a job nobody can 
   fresh();
   assert.match(sendInBackground({ project, from: "ansel" }).error, /from and to are required/);
   assert.match(sendInBackground({ from: "ansel", to: "roby" }).error, /no project/);
+  assert.equal(listJobs().length, 0);
+});
+
+// THE PHANTOM PEER, 2026-09-13. An agent invented a colleague called Bridget
+// mid-turn and handed her a job. Nothing resolved that name, and the code fell
+// back to the raw string and opened the job anyway — after which the rest was
+// fixed: `messagePeer` threw, the job closed `failed`, and `deliverWake` filed
+// the failure notice back into the thread AS BRIDGET, because a wake-up is an
+// a2a in reverse and writes `from: job.to`.
+//
+// What the owner was left with is the thing these assertions are about: an
+// inbox row for an agent that never existed, wearing a letter for a face,
+// holding one message that reads exactly as if she had written it. "no sé si
+// falló o qué."
+test("a peer nobody can place is refused before anything durable exists", async () => {
+  fresh();
+  const peer = recorder();
+  const out = sendInBackground({
+    project, from: "ansel", to: "Bridget", body: "deploy postbeam", wake: true,
+    messagePeerFn: peer.fn,
+  });
+
+  assert.match(out.error, /no peer named "Bridget"/);
+  assert.match(out.error, /list_agents/, "the refusal has to say where the real names are");
+  assert.equal(out.job_id, undefined, "a doomed job must not get an id");
+  assert.equal(listJobs().length, 0, "nothing durable may survive a refused send");
+
+  // The whole point: no job means no close, which means no wake-up, which means
+  // no message filed under a name that belongs to nobody.
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(peer.calls.length, 0, "a peer that does not exist was written to anyway");
+});
+
+test("the refusal reaches the model through the tool, not as an exception", async () => {
+  fresh();
+  const out = await handlerFor({ agentSlug: "ansel" })({
+    to: "Bridget", message: "deploy postbeam", background: true,
+  });
+  // Returned, not thrown: the model reads this and picks somebody real. The
+  // blocking half of the same tool has always refused an unknown peer — the two
+  // halves disagreeing is what let the background one through.
+  assert.match(out.error, /no peer named "Bridget"/);
   assert.equal(listJobs().length, 0);
 });
 

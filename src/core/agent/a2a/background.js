@@ -271,7 +271,31 @@ export function sendInBackground({
   // straight through the wall.
   const agents = readAgents(project.path);
   const peer = resolvePeer(to, agents, config);
-  const address = peer ? peerAddress(peer) : to;
+  // A peer nobody can place is refused HERE, before anything durable exists.
+  //
+  // This used to fall back to the raw string and open the job anyway. What
+  // followed was fixed: `messagePeer` throws `no peer named X` milliseconds
+  // later, the job closes `failed`, and `deliverWake` files the failure notice
+  // back into the thread AS THAT PEER — because a wake-up is an a2a in reverse
+  // and writes `from: job.to`. The owner is then left with a whole thread for
+  // an agent that never existed, wearing a letter for a face, holding one
+  // message that reads exactly as if that agent had spoken. (Seen 2026-09-13
+  // for a peer named Bridget, invented mid-turn.)
+  //
+  // The blocking half of this same tool has always refused an unknown peer.
+  // The background half accepting one was the two halves disagreeing, and the
+  // job was doomed at creation either way — so the only thing the fallback
+  // bought was a durable record of impossible work, plus the phantom.
+  if (!peer) {
+    return {
+      error:
+        `background send: no peer named "${to}". Nobody by that name is an agent here, ` +
+        `a coding runtime, or the super-agent — so there is nothing to leave running. ` +
+        `Check the roster with list_agents and send it to somebody who exists, ` +
+        `or do the work yourself.`,
+    };
+  }
+  const address = peerAddress(peer);
   const sender = senderAddress(from, agents, config) || from;
 
   const open = countOpenJobs({ project_id: project.id ?? null, from: sender });
