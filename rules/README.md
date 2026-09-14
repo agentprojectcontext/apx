@@ -2,7 +2,7 @@
 
 The engineering contract for working **on** apx. [`AGENTS.md`](../AGENTS.md) is
 the hub and carries the **always-read** part — the glossary, the dev loop, the
-numbered rules 1–17. Everything here is **read-on-demand**: open a file when you
+numbered rules 1–18. Everything here is **read-on-demand**: open a file when you
 are in that situation, not before.
 
 > Not to be confused with [`docs/`](../docs/), which is the **public** Astro +
@@ -44,6 +44,7 @@ playbooks, one per stage.
 | [`desktop.md`](desktop.md) | the Electron floating voice window |
 | [`android.md`](android.md) | the native Android `/mobile` shell, pairing, notifications, overlay mascot |
 | [`docs-site.md`](docs-site.md) | the public Astro + Starlight docs in `docs/` |
+| [`releasing.md`](releasing.md) | writing a commit message — it decides whether a version ships |
 
 ## Decisions
 

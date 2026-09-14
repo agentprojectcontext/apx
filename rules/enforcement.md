@@ -2,7 +2,7 @@
 
 > Deep dive for [`AGENTS.md`](../AGENTS.md). Read it before trusting a rule.
 >
-> The hub states 17 rules in the same voice, so they all read as equally
+> The hub states 18 rules in the same voice, so they all read as equally
 > binding. They are not. Some are build errors that stop a push; others are
 > prose that only review catches. Knowing which is which is the difference
 > between "the gate will catch me" and "nobody will notice for three months" —
@@ -128,6 +128,7 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
 | The 14 Playwright specs | 11 | Now run in CI's `e2e` job, but **not** in `preflight` or `pre-push` (they need a booted daemon and a browser) |
 | The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
+| Commit type matches what the change DOES | 18 | Nothing reads the diff and the subject together. A fix titled `chore` publishes no version, silently — see [`releasing.md`](releasing.md) |
 
 ## The gates, and what each one runs
 
