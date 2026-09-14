@@ -43,6 +43,7 @@ import { cn } from "../../lib/cn";
 import { switchProjectHref } from "../../lib/projectNav";
 import { missingReasonText } from "../../lib/projectPresence";
 import { t } from "../../i18n";
+import { useDaemonStatus } from "../../hooks/useDaemonStatus";
 import type { ProjectEntry } from "../../types/daemon";
 
 interface Props {
@@ -328,6 +329,11 @@ function RailProjectMenu({
 }
 
 export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props) {
+  // Which APX this is, under the logo. Same SWR key as everywhere else that
+  // asks — one poll for the panel, not one per caller — and the daemon is the
+  // only honest source: the bundle can be stale while the daemon is not, and
+  // after a release that pair disagreeing is exactly what you want to see.
+  const { health } = useDaemonStatus();
   const { projects, isLoading, mutate: mutateProjects } = useProjects();
   const location = useLocation();
   const toast = useToast();
@@ -409,9 +415,21 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           type="button"
           onClick={() => onSelect("/")}
           data-testid="nav-home"
-          className="mb-2 cursor-pointer"
+          className="mb-2 flex cursor-pointer flex-col items-center gap-1"
         >
           <Logo size={36} />
+          {/* Inside the button, not beside it: the rail lays its children out
+              with gap-3, so a sibling would open a hole as tall as a tile for
+              nine pixels of text. Rendered only once it arrives — a placeholder
+              that turns into a number moves the logo on every load. */}
+          {health?.version && (
+            <span
+              data-testid="nav-version"
+              className="text-[9px] font-medium leading-none tabular-nums text-muted-fg"
+            >
+              v{health.version}
+            </span>
+          )}
         </button>
       </Tip>
 

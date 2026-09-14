@@ -82,3 +82,28 @@ test("Desktop is not a rail tile, and its route is untouched", () => {
   const app = fs.readFileSync(path.join(ROOT, "src/interfaces/web/src/App.tsx"), "utf8");
   assert.match(app, /path="\/desktop\/\*"\s+element=\{<DesktopScreen \/>\}/, "the screen is still routed");
 });
+
+test("the rail says which APX this is, under the logo", () => {
+  // Manu asked for it small and out of the way — "abajo del logo? chiquito el
+  // version actual". The panel already showed the version, but only on the APX
+  // Admin screen, which is not where you are when you wonder whether the thing
+  // you are looking at has your last change in it.
+  assert.match(rail, /data-testid="nav-version"/);
+  assert.match(rail, /v\{health\.version\}/, "the daemon's version, rendered plainly");
+
+  // From the DAEMON, through the shared SWR key — not from package.json baked
+  // into the bundle. The bundle can be stale while the daemon is not, and after
+  // a release those two disagreeing is precisely what you want to be able to see.
+  assert.match(rail, /import \{ useDaemonStatus \} from "\.\.\/\.\.\/hooks\/useDaemonStatus"/);
+  assert.match(rail, /const \{ health \} = useDaemonStatus\(\)/);
+
+  // Inside the logo button, not next to it: the rail lays its children out with
+  // gap-3, so a sibling would open a tile-sized hole for nine pixels of text.
+  const logoButton = rail.slice(rail.indexOf('data-testid="nav-home"'), rail.indexOf("{/* The conversational way in."));
+  assert.ok(logoButton.includes('data-testid="nav-version"'), "it rides with the logo");
+  assert.match(logoButton, /flex cursor-pointer flex-col items-center/, "stacked under it");
+
+  // Nothing at all until it arrives — a placeholder that becomes a number moves
+  // the logo on every load.
+  assert.match(rail, /\{health\?\.version && \(/);
+});
