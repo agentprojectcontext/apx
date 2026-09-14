@@ -97,7 +97,7 @@ function fallbackFinalText(trace, error) {
  * the provider's own word through: OpenAI-shaped gateways say "length", Gemini
  * says "MAX_TOKENS".
  */
-function wasTruncated(result) {
+export function wasTruncated(result) {
   return /^(length|max_tokens)$/i.test(String(result?.finish_reason || ""));
 }
 

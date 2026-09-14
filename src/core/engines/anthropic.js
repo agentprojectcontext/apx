@@ -115,6 +115,7 @@ export default {
         text,
         tool_uses: undefined,
         stop_reason: stopReason,
+        finish_reason: stopReason,
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },
         raw: null,
       };
@@ -149,6 +150,12 @@ export default {
       text,
       tool_uses: toolUses.length > 0 ? toolUses : undefined,
       stop_reason: json.stop_reason,
+      // Same value under the name the agent loop actually reads. Anthropic's
+      // word for a truncated reply is literally "max_tokens", so it matches
+      // wasTruncated() as-is — but only once it arrives as `finish_reason`.
+      // Under `stop_reason` alone the loop never saw it and a reply cut at the
+      // output cap ended the turn instead of resuming.
+      finish_reason: json.stop_reason,
       usage: {
         input_tokens: json.usage?.input_tokens || 0,
         output_tokens: json.usage?.output_tokens || 0,

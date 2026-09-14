@@ -106,12 +106,14 @@ export default {
       let text = "";
       let inputTokens = 0;
       let outputTokens = 0;
+      let doneReason = null;
       for await (const evt of streamJsonLines(res)) {
         const t = evt.message?.content || "";
         if (t) { text += t; onToken(t); }
         if (evt.done) {
           inputTokens = evt.prompt_eval_count || 0;
           outputTokens = evt.eval_count || 0;
+          doneReason = evt.done_reason || null;
         }
       }
       return {
@@ -119,6 +121,7 @@ export default {
         tool_calls: null,
         message: { role: "assistant", content: text },
         usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+        finish_reason: doneReason,
         raw: null,
       };
     }
@@ -154,6 +157,12 @@ export default {
         input_tokens: json.prompt_eval_count || 0,
         output_tokens: json.eval_count || 0,
       },
+      // Ollama's word for "why did generation stop" is `done_reason`, and it
+      // says "length" for exactly the case the agent loop needs to recover
+      // from: the reply hit `num_predict` mid-sentence. Dropping it made
+      // run-agent.js's wasTruncated() blind on this provider, so a cut-off
+      // turn was silently accepted as the final answer instead of continuing.
+      finish_reason: json.done_reason || null,
       raw: json,
     };
   },
