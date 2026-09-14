@@ -1,3 +1,4 @@
+import type { WebSocketRoute } from "@playwright/test";
 import { test, expect, runtime } from "./fixtures";
 
 // The inbox is a SECOND AXIS. The most important thing these specs protect is
@@ -351,6 +352,123 @@ test.describe("agent inbox", () => {
     await expect(page.getByTestId("inbox-row-linus")).toHaveCount(0);
     await page.getByTestId("mobile-project-option-7").click();
     await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  // ── The line the row prints ──────────────────────────────────────────────
+  //
+  // A row is one line about a conversation, and it could only ever answer one
+  // question: what did the AGENT last say. So a chat you had just written to
+  // showed an answer from an hour ago, and one waiting on its first reply said
+  // "nothing said yet" over the message you had sent thirty seconds earlier —
+  // which reads as a message that never arrived.
+
+  const LINUS = {
+    project_id: 7,
+    project_name: "Northwind",
+    project_path: "/path/to/northwind",
+    agent_slug: "linus",
+    agent_name: "Linus",
+    agent_emoji: "🐧",
+    agent_icon: null,
+    kind: "agent",
+    pinned: false,
+    conversation_id: "conversation-linus",
+    channel: "web",
+    messages: 4,
+    last_activity_at: new Date().toISOString(),
+  };
+
+  /** One row, whatever the inbox asks for. */
+  const routeRow = (page: import("@playwright/test").Page, row: Record<string, unknown>) =>
+    page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: [{ ...LINUS, ...row }] }),
+    );
+
+  const previewOf = (page: import("@playwright/test").Page) =>
+    page.getByTestId("inbox-row-linus").getByTestId("inbox-row-preview");
+
+  test("the row prints the last thing said, and marks it when it is yours", async ({ page, errors }) => {
+    await routeRow(page, {
+      preview: "Filed. Nothing over policy.",
+      last_message: "and the invoices?",
+      last_role: "user",
+    });
+    await page.goto("/inbox");
+    // Yours, named as yours — not the agent's answer from before it.
+    await expect(previewOf(page)).toHaveText("You: and the invoices?");
+    expect(errors).toEqual([]);
+  });
+
+  test("a chat waiting on its first reply is not an empty one", async ({ page, errors }) => {
+    await routeRow(page, { preview: null, last_message: "are you there?", last_role: "user" });
+    await page.goto("/inbox");
+    await expect(previewOf(page)).toContainText("are you there?");
+    await expect(previewOf(page)).not.toContainText("nothing said yet");
+    expect(errors).toEqual([]);
+  });
+
+  test("a row nobody has said anything in still says so", async ({ page }) => {
+    await routeRow(page, { preview: null, last_message: null, last_role: null });
+    await page.goto("/inbox");
+    await expect(previewOf(page)).toHaveText("(nothing said yet)");
+  });
+
+  test("an answer already in flight is on the row the moment it loads", async ({ page, errors }) => {
+    await routeRow(page, {
+      preview: "Filed. Nothing over policy.",
+      last_message: "and the invoices?",
+      last_role: "user",
+      active_turn: {
+        turn_id: "turn-live",
+        project_id: 7,
+        agent_slug: "linus",
+        conversation_id: "conversation-linus",
+        text: "checking the ledger now",
+      },
+    });
+    await page.goto("/inbox");
+    // The daemon's snapshot of the turn, not the message before it.
+    await expect(previewOf(page)).toContainText("checking the ledger now");
+    await expect(previewOf(page)).not.toContainText("and the invoices?");
+    expect(errors).toEqual([]);
+  });
+
+  test("the line follows the tokens, and a tool is not a line", async ({ page, errors }) => {
+    // The live feed, entirely ours: the frames below are the ones the daemon
+    // pushes while a turn is written, and nothing else reaches the panel.
+    let feed: WebSocketRoute | null = null;
+    await page.routeWebSocket(/\/api\/events\/ws/, (ws) => { feed = ws; });
+    await routeRow(page, { preview: "Filed. Nothing over policy.", last_message: "and the invoices?", last_role: "user" });
+    await page.goto("/inbox");
+    await expect(previewOf(page)).toHaveText("You: and the invoices?");
+    await expect.poll(() => feed !== null).toBe(true);
+
+    const turn = {
+      type: "turn",
+      project_id: 7,
+      agent_slug: "linus",
+      conversation_id: "conversation-linus",
+      turn_id: "turn-live",
+    };
+    const push = (frame: Record<string, unknown>) =>
+      (feed as unknown as WebSocketRoute).send(JSON.stringify({ ...turn, ...frame }));
+
+    push({ phase: "start" });
+    push({ phase: "delta", delta: "checking" });
+    await expect(previewOf(page)).toHaveText("checking");
+    // A tool is work, not something anybody reads off a list: the words written
+    // so far stay exactly where they are while it runs.
+    push({ phase: "event", event: { type: "tool_start", trace: { id: "t1", tool: "read_file" } } });
+    await expect(previewOf(page)).toHaveText("checking");
+    push({ phase: "delta", delta: " the ledger now" });
+    await expect(previewOf(page)).toHaveText("checking the ledger now");
+
+    // And when it ends, the live line gives way to the stored conversation —
+    // which this test is holding still, so it is the row's own last message.
+    push({ phase: "final", result: { text: "checking the ledger now" } });
+    await expect(previewOf(page)).toHaveText("You: and the invoices?");
     expect(errors).toEqual([]);
   });
 });

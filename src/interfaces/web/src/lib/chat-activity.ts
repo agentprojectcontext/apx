@@ -12,7 +12,22 @@ export interface ChatActivity {
   unread: boolean;
   queued: number;
   turnId?: string;
+  /** The answer being written RIGHT NOW, as far as it has got — so a list row
+   *  can follow it instead of standing on the message before it for the whole
+   *  turn. TEXT only: tools travel as `event` frames and a tool name is not a
+   *  line anybody reads off a list. Gone when the turn ends, because what
+   *  replaces it is the stored message the row re-fetches. */
+  text?: string;
+  /** Group rooms: which speaker `text` belongs to. A cascade hands the floor
+   *  from one agent to the next, and without this the row would read as one
+   *  answer four of them wrote together. */
+  speaker?: string | null;
 }
+
+/** How much of a live answer is kept. The row shows the tail of one line; the
+ *  rest is scrollback nobody can see from here, and keeping it would grow a
+ *  string per open chat for as long as the tab is open. */
+const LIVE_TEXT_CAP = 400;
 
 const EMPTY: ChatActivity = Object.freeze({ running: false, unread: false, queued: 0 });
 const state = new Map<string, ChatActivity>();
@@ -134,19 +149,46 @@ function patch(key: string, next: Partial<ChatActivity>) {
  * phase the daemon can actually broadcast. */
 const IN_FLIGHT_PHASES = new Set(["start", "delta", "event"]);
 
+/** What the row follows while the answer is written.
+ *
+ * Tokens arrive as `delta`. An engine that does not stream closes each segment
+ * with an `assistant_text` event instead — a list that only listened for tokens
+ * sat on the previous message for the whole turn there — so both count, and
+ * everything else (a tool starting, a tool landing) leaves the line alone: the
+ * text written so far is what stays on screen while work happens.
+ */
+function liveText(key: string, frame: TurnFrame): Partial<ChatActivity> {
+  const current = state.get(key) || EMPTY;
+  const speaker = frame.speaker ?? null;
+  // A new turn — or a new SPEAKER inside a room's cascade — starts its own line.
+  const fresh = current.turnId !== frame.turn_id || speaker !== (current.speaker ?? null);
+  if (frame.phase === "start") return { text: "", speaker };
+  const base = fresh ? "" : current.text || "";
+  if (frame.phase === "delta") {
+    return { text: (base + (frame.delta || "")).slice(-LIVE_TEXT_CAP), speaker };
+  }
+  if (frame.event?.type === "assistant_text" && frame.event.text) {
+    return { text: String(frame.event.text).slice(-LIVE_TEXT_CAP), speaker };
+  }
+  return fresh ? { text: "", speaker } : {};
+}
+
 function onTurn(frame: TurnFrame) {
   const key = frameKey(frame);
   if (!key) return;
   if (IN_FLIGHT_PHASES.has(frame.phase)) {
     closedTurnIds.delete(frame.turn_id);
-    patch(key, { running: true, turnId: frame.turn_id });
+    patch(key, { running: true, turnId: frame.turn_id, ...liveText(key, frame) });
     return;
   }
   rememberClosed(frame.turn_id);
   const unread = frame.phase === "final" || frame.phase === "aborted"
     ? !visible.has(key)
     : false;
-  patch(key, { running: false, unread, turnId: undefined });
+  // The live line is dropped rather than frozen: the finished answer is on
+  // disk now, and the row re-reads it. Holding the last tokens here instead
+  // would leave a second, staler copy of the same message competing with it.
+  patch(key, { running: false, unread, turnId: undefined, text: undefined, speaker: undefined });
   persistUnread();
 }
 
@@ -175,7 +217,16 @@ export function readChatActivity(key: string | null): ChatActivity {
  * stale list response; closing frames own that transition. */
 export function seedActiveTurn(key: string | null, active?: ActiveTurn | null) {
   if (!key || !active || closedTurnIds.has(active.turn_id)) return;
-  patch(key, { running: true, turnId: active.turn_id });
+  const current = state.get(key);
+  // The snapshot catches a row up; it never rewinds one. A list response is
+  // serialized before it is read, so its text can be several tokens behind the
+  // frames that have already landed here.
+  const following = current?.turnId === active.turn_id && current.text !== undefined;
+  patch(key, {
+    running: true,
+    turnId: active.turn_id,
+    ...(following ? {} : { text: String(active.text || "").slice(-LIVE_TEXT_CAP) }),
+  });
 }
 
 /** A list/detail response can have been serialized just before its turn closed

@@ -44,6 +44,20 @@ function latestPerChannel(items) {
   return [...byChannel.values()];
 }
 
+/**
+ * The one line a row stands a whole turn on.
+ *
+ * A turn that was a FILE gets its file described, not the marker text that
+ * stands in for it on disk ("[photo]", "[image attached — saved to /Users/…]")
+ * — which is what the list used to print. Code fences read as noise at one
+ * line, so they go too.
+ */
+function oneLine(msg) {
+  if (!msg) return null;
+  const body = String(msg.content || "").replace(/```[\s\S]*?```/g, " ");
+  return previewText(body, msg.media).slice(0, 160) || null;
+}
+
 /** Most recent first; slug breaks ties so two identical calls agree. */
 function byRecency(a, b) {
   const t = (b.last_activity_at || "").localeCompare(a.last_activity_at || "");
@@ -134,6 +148,11 @@ export function listAgentInbox(projects, opts = {}) {
           messages: latest?.messages || 0,
           // The agent's last REPLY, not the user's last prompt.
           preview: latest?.preview || null,
+          // …and the thread's last LINE, whoever wrote it, which is what the
+          // row shows. See summarizeConversation for why these are two fields
+          // and not one.
+          last_message: latest?.last_message || null,
+          last_role: latest?.last_role || null,
           // WHEN that reply was written — which is not when the thread last
           // moved. A row moves for the owner's own send and for every tool the
           // agent runs; only this moves when the agent actually SAYS something,
@@ -204,24 +223,24 @@ function superAgentRow(latest, threads) {
   // owner's send too, so it cannot answer "did the agent say something new" —
   // which is the only question a notification should be asking.
   let previewAt = null;
+  // The thread's last line, whoever wrote it — the one the row prints.
+  let lastMessage = null;
+  let lastRole = null;
   if (latest) {
     try {
       const thread = readGlobalThread({ channel: latest.channel, date: latest.id });
-      const lastReply = [...(thread?.messages || [])]
-        .reverse()
-        .find((m) => m.role === "assistant");
-      // A reply that was a FILE gets its file described, not the marker text
-      // that stands in for it on disk ("[photo]", "[image attached — saved to
-      // /Users/…]") — which is what the list used to print.
-      preview = previewText(lastReply?.content, lastReply?.media)
-        .replace(/```[\s\S]*?```/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 160) || null;
+      const said = [...(thread?.messages || [])].reverse();
+      const lastReply = said.find((m) => m.role === "assistant");
+      const lastTurn = said.find((m) => m.role === "user" || m.role === "assistant");
+      preview = oneLine(lastReply);
       previewAt = lastReply?.ts || null;
+      lastMessage = oneLine(lastTurn);
+      lastRole = lastTurn?.role || null;
     } catch {
       preview = null;
       previewAt = null;
+      lastMessage = null;
+      lastRole = null;
     }
   }
 
@@ -244,6 +263,8 @@ function superAgentRow(latest, threads) {
     messages,
     preview,
     preview_at: previewAt,
+    last_message: lastMessage,
+    last_role: lastRole,
     last_activity_at: latest?.last_ts || "",
   };
 }

@@ -32,8 +32,16 @@ export interface InboxRow {
   conversation_id: string | null;
   channel: string | null;
   messages: number;
-  /** What the AGENT last said — not what the user last asked. */
+  /** What the AGENT last said — not what the user last asked. This is the one
+   *  a notification reads out; it is deliberately blind to your own messages. */
   preview: string | null;
+  /** The thread's last LINE, whoever wrote it — which is what the row PRINTS.
+   *  Absent on a2a and group rows, whose `preview` already is the last line
+   *  with its author named in it. */
+  last_message?: string | null;
+  /** Who wrote `last_message` — so the row can say "Vos:" over your own. Tool
+   *  rows are work, not lines, and never appear here. */
+  last_role?: "user" | "assistant" | null;
   /** WHEN it said that. Distinct from `last_activity_at`, which also moves for
    *  the owner's own send and for every tool row of a turn — see lib/notify.ts,
    *  where the difference is one bell per answer instead of one per step. */
