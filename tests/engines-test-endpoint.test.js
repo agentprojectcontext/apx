@@ -8,7 +8,12 @@ import { ProjectManager } from "#host/daemon/db.js";
 import { buildApi } from "#host/daemon/api.js";
 
 async function listen(app) {
-  const server = app.listen(0);
+  // Bind the address the tests actually call. `app.listen(0)` binds the
+  // wildcard `[::]`, and another process can then bind 127.0.0.1 on the SAME
+  // port with no EADDRINUSE — the specific socket wins every loopback
+  // connection and answers in this server's place. Two specific binds collide
+  // loudly instead, which is the point.
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
@@ -35,7 +40,20 @@ async function post(baseUrl, body) {
     headers: json,
     body: JSON.stringify(body),
   });
-  return { status: res.status, body: await res.json() };
+  // Read the bytes first and parse them ourselves. `res.json()` on a reply that
+  // is not JSON throws "Unexpected end of JSON input" from inside undici, which
+  // names neither the status nor the route — a failure that says nothing about
+  // what actually came back. Every reply from this route is JSON by contract,
+  // so one that is not is itself the finding, and it has to be readable.
+  const raw = await res.text();
+  try {
+    return { status: res.status, body: JSON.parse(raw) };
+  } catch {
+    throw new Error(
+      `POST /api/engines/test answered ${res.status} with ${raw.length} bytes that are not JSON: ` +
+        `${JSON.stringify(raw.slice(0, 300))} — headers ${JSON.stringify(Object.fromEntries(res.headers))}`
+    );
+  }
 }
 
 test("answers through a provider whose slug is not the adapter id", async () => {

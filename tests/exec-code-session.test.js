@@ -13,7 +13,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import net from "node:net";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -41,14 +40,6 @@ let port;
 let seen = [];
 
 before(async () => {
-  port = await new Promise((resolve) => {
-    const s = net.createServer();
-    s.listen(0, "127.0.0.1", () => {
-      const { port: p } = s.address();
-      s.close(() => resolve(p));
-    });
-  });
-
   const app = express();
   app.use(express.json());
 
@@ -121,9 +112,21 @@ before(async () => {
     res.status(404).json({ error: "not stubbed" });
   });
 
+  // Bind first, then read the port off the socket we actually hold.
+  //
+  // This used to probe for a free port — listen(0), read it, close, and bind
+  // that number back later. The gap between the close and the re-bind is long
+  // enough for the kernel to hand the same port to another test PROCESS, and
+  // the re-bind does not fail when that happens: a plain `app.listen(0)`
+  // binds the wildcard `[::]`, and a specific 127.0.0.1 bind coexists with it
+  // silently rather than raising EADDRINUSE. The specific socket then wins
+  // every 127.0.0.1 connection, so the other file's requests arrive HERE and
+  // come back answered by this stub — a failure that lands in a file nobody
+  // touched and cannot be reproduced by running it alone.
   server = await new Promise((r) => {
-    const s = app.listen(port, "127.0.0.1", () => r(s));
+    const s = app.listen(0, "127.0.0.1", () => r(s));
   });
+  port = server.address().port;
 });
 
 after(() => {
