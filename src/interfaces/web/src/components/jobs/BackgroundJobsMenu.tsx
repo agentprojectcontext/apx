@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, LoaderCircle, Square } from "lucide-react";
+import { ArrowUpRight, LoaderCircle, Square, SquareStack } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -147,14 +147,18 @@ export function BackgroundJobsMenu({
             idle ? "text-muted-fg" : "text-emerald-700 dark:text-emerald-400",
           )}
         >
-          {/* Still at zero. A spinner over "0" would animate the claim that
-              something is happening, which is the one thing this state means is
-              not. Same glyph either way, so the control stays recognisable as
-              itself across the change. */}
-          <LoaderCircle
-            size={13}
-            className={cn(!idle && "animate-spin motion-reduce:animate-none")}
-          />
+          {/* TWO GLYPHS, not one glyph in two moods. Keeping the spinner and
+              simply freezing it read as a stuck load — a circle that is clearly
+              a progress indicator, not progressing. Manu: "el icono de spin es
+              sólo si carga; en segundo plano, cuando no está cargando, que sea
+              como un doble cubo". So at rest it is stacked squares — the thing
+              itself, a pile of work that happens to be empty — and the spinner
+              belongs to the one state that IS spinning. */}
+          {idle ? (
+            <SquareStack size={13} />
+          ) : (
+            <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" />
+          )}
           {/* In a thread header the count alone is a mystery glyph beside a
               wrench; the word is what makes it a status. Globally it stays a
               bare count, because it stands for work in chats you are not
