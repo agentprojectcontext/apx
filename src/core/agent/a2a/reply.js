@@ -239,7 +239,9 @@ export async function replyAsAgent({
       config,
       signal,
     });
-    return { text: result.text, usage: result.usage, model: result.model || modelId };
+    // `trace: []` and not a missing key: this branch runs with tools DISABLED,
+    // so "called nothing" is a fact about the turn, not a gap in the record.
+    return { text: result.text, usage: result.usage, model: result.model || modelId, trace: [] };
   }
 
   const result = await runAgentTurnFn({
@@ -332,7 +334,16 @@ export async function replyAsSuperAgent({
     signal,
     onEvent,
   });
-  return { text: result.text, usage: result.usage, model: result.model || null };
+  // `trace` is NOT optional here, and leaving it off is the bug this line fixes.
+  // Both writers of an a2a reply row — `/send` in api/conversations.js and
+  // `messagePeer` in ./delegate.js — file `trace: result.trace`, so a shape that
+  // omits it writes `undefined`, which JSON drops. The result: 107 super-agent
+  // a2a replies in the September ledgers, not one of them carrying a single
+  // tool, while project-agent replies through `replyAsAgent` carried theirs.
+  // A thread that shows the claim and hides the work is the exact failure the
+  // rest of this file exists to prevent — reintroduced through the one peer
+  // kind that runs the most tools.
+  return { text: result.text, usage: result.usage, model: result.model || null, trace: result.trace || [] };
 }
 
 /**
