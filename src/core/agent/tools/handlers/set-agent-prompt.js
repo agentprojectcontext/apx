@@ -17,7 +17,7 @@ export default {
         type: "object",
         required: ["agent", "system"],
         properties: {
-          project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           agent:   { type: "string", description: "Slug of the existing agent (from list_agents)." },
           system:  { type: "string", description: "The new full system prompt. REQUIRED, non-empty." },
         },
@@ -29,7 +29,7 @@ export default {
     if (!agent) return { error: "agent required" };
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

@@ -19,7 +19,7 @@ export default {
         type: "object",
         required: ["agent", "content"],
         properties: {
-          project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           agent:   { type: "string", description: "Slug of the agent whose memory to write (from list_agents)." },
           content: { type: "string", description: "The note (append mode) or the full memory body (replace mode)." },
           mode:    { type: "string", enum: ["append", "replace"], description: "append (default) adds a dated line under Recent context; replace overwrites." },
@@ -33,7 +33,7 @@ export default {
     if (!content || !String(content).trim()) return { error: "content required" };
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

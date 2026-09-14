@@ -18,7 +18,7 @@ export default {
         type: "object",
         required: ["commitment", "action"],
         properties: {
-          project:    { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project:    { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           commitment: { type: "string", description: "Commitment id or a ≥3-char unique prefix (from list_commitments)." },
           action:     { type: "string", enum: ["kept", "missed", "drop", "renegotiate"], description: "kept | missed | drop | renegotiate." },
           due:        { type: "string", description: "New due date (ISO). REQUIRED when action is 'renegotiate'." },
@@ -35,7 +35,7 @@ export default {
     if (!commitment) return missingArg("mark_commitment", "commitment", { required: ["commitment", "action"], optional: ["project", "due", "note"] }, args);
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

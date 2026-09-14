@@ -31,7 +31,7 @@ export default {
         properties: {
           task:    { type: "string", description: "Task id or unique id prefix (≥3 chars)." },
           text:    { type: "string", description: "The comment. A few lines. Lead with the conclusion." },
-          project: { type: "string", description: "Project id, name or path. Defaults to 'default'." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
         },
       },
     },
@@ -45,7 +45,7 @@ export default {
 
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

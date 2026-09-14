@@ -21,7 +21,7 @@ export default {
         type: "object",
         required: ["task", "action"],
         properties: {
-          project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           task:    { type: "string", description: "Task id or a ≥3-char unique prefix (from list_tasks)." },
           action:  { type: "string", enum: ["done", "drop", "reopen", "status"], description: "done | drop | reopen | status." },
           status:  { type: "string", description: "Board column id, required when action is 'status'. Ships as pending | running | in_review | blocked, but the catalog is configurable — a wrong value comes back with the list this install has." },
@@ -39,7 +39,7 @@ export default {
     if (!task) return missingArg("complete_task", "task", { required: ["task", "action"], optional: ["project", "status", "by"] }, args);
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }
