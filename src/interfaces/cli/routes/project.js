@@ -5,18 +5,19 @@
 // CLI no longer loads all 38 command modules to run one of them.
 
 import { cmdProjectConfigEdit, cmdProjectConfigSet, cmdProjectConfigShow, cmdProjectConfigUnset } from "../commands/project-config.js";
-import { cmdProjectAdd, cmdProjectList, cmdProjectRebuild, cmdProjectRemove } from "../commands/project.js";
+import { cmdProjectAdd, cmdProjectList, cmdProjectRebuild, cmdProjectRelink, cmdProjectRemove } from "../commands/project.js";
 
 export default async function route(rest, { parseArgs, die, dispatch }) {
   const sub = rest[0];
   const a = parseArgs(rest.slice(1));
   const PROJECT_SUBCOMMANDS = new Set([
-    "add", "list", "ls", "remove", "rm", "rebuild", "config",
+    "add", "list", "ls", "remove", "rm", "rebuild", "relink", "config",
   ]);
   if (sub === "add") await cmdProjectAdd(a);
   else if (sub === "list" || sub === "ls") await cmdProjectList();
   else if (sub === "remove" || sub === "rm") await cmdProjectRemove(a);
   else if (sub === "rebuild") await cmdProjectRebuild(a);
+  else if (sub === "relink") await cmdProjectRelink(a);
   else if (sub === "config") {
     // apx project config <show|set|unset|edit> <project> ...
     const csub = rest[1];

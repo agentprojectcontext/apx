@@ -104,17 +104,40 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   project: topic({
     title: "apx project",
-    summary: "Register, list, remove, and rebuild daemon project entries.",
+    summary: "Register, list, remove, relink, and rebuild daemon project entries.",
     usage: ["apx project <subcommand> [args] [--flags]"],
     commands: [
       ["add [path]", "Register a project path with the daemon."],
       ["list | ls", "List known daemon projects."],
       ["remove | rm <id>", "Remove a daemon project entry."],
       ["rebuild [id]", "Rebuild daemon index from project files."],
+      ["relink <id> [path]", "Point a project at its new folder, keeping its id."],
       ["<name|id> <command>", "Run another APX command pinned to that project."],
     ],
     options: [["--project <name|id|path>", "Pin command to a specific project where supported."]],
     examples: ["apx project add .", "apx project list", "apx project testing mcp list"],
+  }),
+  "project relink": topic({
+    title: "apx project relink",
+    summary: "Point a registered project at its new folder after it was renamed or moved.",
+    usage: ["apx project relink <id|name|path> [new-path] [--force]"],
+    description:
+      "A project is registered by path alone, so renaming its folder leaves the entry pointing " +
+      "at nothing: it shows up with the OLD name (the basename of the dead path) and 0 agents, " +
+      "and no command reports an error. `apx project list` marks those rows with `!`.\n\n" +
+      "Relink repairs it in place. The id survives — and with it the stored data, which hangs " +
+      "off the project's apx_id rather than its path — so routines, tasks, chats and board hooks " +
+      "that name the project keep working. That is the difference from `remove` + `add`, which " +
+      "hands it a new id.\n\n" +
+      "Omit the path to let APX look for the folder itself: it matches a sibling whose " +
+      ".apc/project.json carries the same apx_id, which is identity, not a guess by name. " +
+      "Relinking to a folder with a DIFFERENT apx_id is refused unless you pass --force.",
+    options: [["--force", "Allow a target whose apx_id differs (a re-initialized project)."]],
+    examples: [
+      "apx project relink 18",
+      "apx project relink 18 /Volumes/disk/proyectos/cheto",
+      "apx project relink knot ../cheto",
+    ],
   }),
   "project add": topic({
     title: "apx project add",

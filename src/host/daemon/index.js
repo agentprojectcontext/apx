@@ -17,6 +17,7 @@ import {
   effectivePort,
   addProject as addProjectInConfig,
   removeProject as removeProjectInConfig,
+  relinkProject as relinkProjectInConfig,
   PID_PATH,
   APX_HOME,
   TOKEN_PATH,
@@ -265,6 +266,20 @@ async function main() {
       } catch (e) {
         log(`could not take project out of the global config: ${e.message}`);
       }
+    },
+    // A relink that only moved the in-memory entry would come back wrong on the
+    // next boot, which is the config file's whole job. This one THROWS rather
+    // than logging: the caller is a user asking to reattach a project, and a
+    // reattach that silently does not persist is the bug we are fixing.
+    relinkProjectGlobally: (fromPath, toPath) => {
+      const fresh = readConfig();
+      const { relinked } = relinkProjectInConfig(fresh, fromPath, toPath);
+      log(
+        relinked
+          ? `relinked project ${fromPath} → ${toPath} in the global config`
+          : `project ${fromPath} was not in the global config; nothing to relink`
+      );
+      return relinked;
     },
   });
 

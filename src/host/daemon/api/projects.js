@@ -21,7 +21,11 @@ function setProjectKind(root, kind) {
 //   POST   /projects               register a project by path
 //   DELETE /projects/:id           unregister
 //   POST   /projects/:id/rebuild   force a context rebuild from disk
-export function register(api, { projects, registries, addProjectGlobally, removeProjectGlobally }) {
+//   POST   /projects/:id/relink    point it at a new folder, keeping its id
+export function register(api, {
+  projects, registries, addProjectGlobally, removeProjectGlobally,
+  relinkProjectGlobally = () => false,
+}) {
   api.get("/projects", (_req, res) => res.json(projects.list()));
 
   // Registering a project is three questions, not one: where it is, whether it
@@ -84,6 +88,45 @@ export function register(api, { projects, registries, addProjectGlobally, remove
     try {
       const result = projects.rebuild(req.params.id);
       res.json({ ok: true, ...result });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Reattach a project that changed folder — the repair for the silent break
+  // described in core/apc/project-presence.js. Keeps the id (and therefore the
+  // storage, the routines, the tasks and every chat pointing at it), which is
+  // exactly what remove+add did not.
+  //
+  // Omitting `path` asks the daemon to find it: a sibling folder whose
+  // .apc/project.json carries the same apx_id. That is a match on identity, not
+  // on name, so answering it automatically is safe.
+  api.post("/projects/:id/relink", (req, res) => {
+    const { path: to, force } = req.body || {};
+    try {
+      const entry = projects.get?.(req.params.id);
+      if (!entry) return res.status(404).json({ error: `unknown project id ${req.params.id}` });
+
+      let target = to ? String(to) : null;
+      if (!target) {
+        const moved = projects.findMoved(entry.id);
+        if (!moved) {
+          return res.status(400).json({
+            error:
+              `could not find where project #${entry.id} moved to — pass the new path explicitly. ` +
+              `(Looked for a folder next to ${entry.path} carrying apx_id ${entry.apxId || "(none)"}.)`,
+          });
+        }
+        target = moved.path;
+      }
+
+      const from = entry.path;
+      const result = projects.relink(entry.id, target, { force: !!force });
+      // Persist only once the in-memory move succeeded: writing the config for a
+      // relink that threw would resurrect the wrong path on the next boot.
+      const persisted = relinkProjectGlobally(from, result.path);
+      registries?.ensure?.(projects.get(entry.id));
+      res.json({ ok: true, persisted, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
