@@ -560,6 +560,7 @@ export function ChatList({
                   timeAgo={c.started_at}
                   activityKey={conversationActivityKey(pid, c.id)}
                   activeTurn={c.active_turn}
+                  jobConversation={c.id}
                   selected={active}
                   onClick={() =>
                     onSelect(
@@ -633,6 +634,7 @@ function ChatListItem({
   activityKey,
   activeTurn,
   jobThread,
+  jobConversation,
   selected,
   onClick,
   testId,
@@ -651,13 +653,16 @@ function ChatListItem({
   /** The a2a pair id this row stands for, when it has one — what a background
    *  job is filed under, so the row can say an agent left work running here. */
   jobThread?: string | null;
+  /** The same, for a stored conversation: a SHELL job is filed under the chat
+   *  it was launched from rather than under a pair. */
+  jobConversation?: string | null;
   selected?: boolean;
   onClick: () => void;
   /** Stamps the row for e2e. A conversation is identified by (agent, id) —
    *  two agents in one project can each own a `web-main`. */
   testId?: string;
 }) {
-  const jobRunning = useThreadJobRunning(jobThread);
+  const jobRunning = useThreadJobRunning(jobThread, jobConversation);
   return (
     <button
       type="button"

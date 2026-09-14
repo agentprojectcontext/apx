@@ -53,10 +53,18 @@ test("a job without a timeout still gets one", () => {
   assert.ok(Number.isFinite(Date.parse(job.deadline_at)));
 });
 
-test("from and to are required — a job nobody can be woken from is not a job", () => {
+test("a job nobody can be woken from is not a job", () => {
   fresh();
-  assert.throws(() => openJob({ from: "ansel" }), /from and to are required/);
-  assert.throws(() => openJob({ to: "roby" }), /from and to are required/);
+  // The waiter is required of every job — it is who gets woken.
+  assert.throws(() => openJob({ to: "roby" }), /from is required/);
+  // The PEER is required only of an a2a job. A shell job's worker is a process:
+  // giving it a peer name would put a face in the inbox for something that is
+  // not an agent, so `to` stays null there and the command is required instead.
+  assert.throws(() => openJob({ from: "ansel" }), /to is required for an a2a job/);
+  assert.throws(
+    () => openJob({ from: "ansel", kind: "shell" }),
+    /command is required for a shell job/,
+  );
 });
 
 // ── The idempotency guarantee ───────────────────────────────────────────────

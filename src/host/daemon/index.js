@@ -36,6 +36,7 @@ import { startDeliverySweep } from "./delivery-sweep.js";
 import { startCallbackReconciler } from "./callback-reconciler.js";
 import { startTurnResumer } from "./turn-resumer.js";
 import { startBackgroundJobsReconciler } from "./background-jobs-reconciler.js";
+import { startShellJobWake } from "./shell-job-wake.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
@@ -288,6 +289,7 @@ async function main() {
   let callbackReconciler = null;
   let stopTurnResumer = null;
   let backgroundJobsReconciler = null;
+  let shellJobWake = null;
   let eventsBridge = null;
 
   // Loopback is ALWAYS bound, whatever `host` says.
@@ -380,6 +382,11 @@ async function main() {
     backgroundJobsReconciler = startBackgroundJobsReconciler({
       projects, config: cfg, plugins, registries, log,
     });
+    // Background SHELL jobs: a command an agent left running. When one ends —
+    // by exiting, by being cancelled, or by being harvested above — this takes
+    // the agent back into the chat it launched it from, with the result. See
+    // shell-job-wake.js for why it listens rather than being called.
+    shellJobWake = startShellJobWake({ projects, config: cfg, plugins, registries, log });
     // Live event feed: turn every ledger write into a frame on /api/events/ws so
     // an open panel — on any device — sees a conversation move the moment it
     // moves, whichever channel produced the turn.
@@ -561,6 +568,7 @@ async function main() {
     step("callbackReconciler", () => callbackReconciler?.stop());
     step("turnResumer", () => stopTurnResumer?.());
     step("backgroundJobsReconciler", () => backgroundJobsReconciler?.stop());
+    step("shellJobWake", () => shellJobWake?.stop());
     step("eventsBridge", () => eventsBridge?.());
     step("plugins", () => plugins.stopAll());
     step("memory", () => stopMemory());

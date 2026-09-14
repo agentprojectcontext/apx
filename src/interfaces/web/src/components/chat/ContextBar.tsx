@@ -224,7 +224,13 @@ export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
           // a peer that had died looked exactly alike from here.
           <span
             className="flex items-center gap-1 tabular-nums text-emerald-700 dark:text-emerald-400"
-            title={jobs.map((j) => t("chat_ui.job_waiting_on", { peer: j.to })).join("\n")}
+            title={jobs
+              .map((j) =>
+                j.kind === "shell"
+                  ? t("chat_ui.job_running_command", { command: String(j.command || j.body || "").slice(0, 80) })
+                  : t("chat_ui.job_waiting_on", { peer: j.to ?? "" }),
+              )
+              .join("\n")}
           >
             <LoaderCircle size={12} className="animate-spin motion-reduce:animate-none" />
             {jobs.length === 1

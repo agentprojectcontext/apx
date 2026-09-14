@@ -30,8 +30,8 @@
 // will need into the message it sends, the same discipline `run_subagent`
 // demands of its prompt.
 import {
-  openJob, readJob, closeJob, claimWake, countOpenJobs,
-  MAX_OPEN_JOBS_PER_AGENT, DEFAULT_JOB_TIMEOUT_S, TERMINAL_STATUSES,
+  openJob, readJob, closeJob, claimWake, countOpenJobs, jobKind,
+  JOB_KINDS, MAX_OPEN_JOBS_PER_AGENT, DEFAULT_JOB_TIMEOUT_S, TERMINAL_STATUSES,
 } from "#core/stores/background-jobs.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { emitBackgroundJobEvent } from "#core/events/bus.js";
@@ -125,6 +125,13 @@ export function wakeText(job) {
  */
 export async function deliverWake(job, { project, config, projects, plugins, registries, messagePeerFn = messagePeer } = {}) {
   if (!job?.wake) return { delivered: false, reason: "job did not ask to be woken" };
+  // A wake-up here is written AS THE PEER (`from: job.to`), so a job with no
+  // peer cannot be delivered this way — a shell job's worker is a process, and
+  // writing as it would file a message from an agent that does not exist. Those
+  // are woken by the daemon's shell-job-wake.js, in the chat they came from.
+  // Refused BEFORE the claim: claiming a wake-up we are not going to deliver is
+  // how the one that would have been delivered gets blocked.
+  if (jobKind(job) !== JOB_KINDS.A2A) return { delivered: false, reason: "not an a2a job" };
   if (!project) return { delivered: false, reason: "no project to file the wake-up in" };
   if (!claimWake(job.id)) return { delivered: false, reason: "already delivered" };
 
@@ -220,7 +227,13 @@ export async function cancelJob(id, {
   if (settled.wake) {
     woken = await deliverWake(settled, { project, config, projects, plugins, registries, messagePeerFn });
   }
-  return { ok: true, stopped, woken: woken.delivered, job: settled };
+  // A shell job's waiter IS told, just not from here: the `end` frame above is
+  // what the daemon's shell-job-wake.js listens for, and it takes the agent back
+  // into its own chat. Reporting `woken: false` because THIS function did not do
+  // it would put "its turn was no longer running" in front of the owner while
+  // the agent was, at that moment, being woken.
+  const willBeWoken = settled.wake && jobKind(settled) !== JOB_KINDS.A2A;
+  return { ok: true, stopped, woken: woken.delivered || willBeWoken, job: settled };
 }
 
 /**

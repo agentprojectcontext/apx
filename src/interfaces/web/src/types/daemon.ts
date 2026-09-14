@@ -177,12 +177,29 @@ export interface RoutineFrame {
 export interface BackgroundJob {
   id: string;
   project_id: number | string | null;
+  /** What is doing the work: another agent's turn, or a command this daemon
+   *  spawned. Absent on records written before shell jobs existed — read it as
+   *  `a2a`, which is what they all were. */
+  kind?: "a2a" | "shell";
   from: string;
-  to: string;
+  /** The peer on the other end — null for a shell job, whose worker is a
+   *  process and not somebody you can address. */
+  to: string | null;
   thread: string | null;
   body: string;
   wake: boolean;
   depth: number;
+  /** Shell jobs only, below. */
+  command?: string;
+  cwd?: string | null;
+  pid?: number | null;
+  /** The tail of what the command has printed, updated while it runs. This is
+   *  the only progress a process gives you. */
+  tail?: string;
+  exit_code?: number | null;
+  log_path?: string;
+  /** The chat it was launched from, and the one its wake-up goes back to. */
+  origin?: { channel: string | null; conversation_id: string | null } | null;
   /** `cancelled` is the one an OWNER causes; the rest are things that happened
    *  to the job. Kept apart from `failed` on purpose — an agent told "it
    *  failed" goes looking for something to fix. */
@@ -198,7 +215,9 @@ export interface BackgroundJob {
  *  record for the same reason RoutineFrame does: a job never touches the ledger,
  *  so there is nothing for a client to re-fetch. */
 export interface BackgroundJobFrame {
-  phase: "start" | "end";
+  /** `progress` carries a shell job's growing output; it is not a state change,
+   *  so a client patches its copy from the frame instead of re-fetching. */
+  phase: "start" | "progress" | "end";
   project_id: number | string | null;
   job: BackgroundJob;
 }

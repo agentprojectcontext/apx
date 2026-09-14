@@ -10,18 +10,15 @@ import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { runAgentTurn } from "#core/agent/run-turn.js";
-import { floorReplyText } from "#core/agent/closing-floor.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import {
-  startConversation,
-  appendTurn,
-  readConversation,
-  setStatus,
-} from "#core/stores/conversations.js";
-import { buildTurnAttribution, appendAgentReplyToConversation } from "#core/stores/turn-record.js";
+import { startConversation, appendTurn, setStatus } from "#core/stores/conversations.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
-import { attachmentsMeta } from "#core/stores/media-archive.js";
+// The turn itself — shared with the background-job wake-up, which takes the
+// same turn in the same chat when a command an agent left running exits.
+import {
+  prepareChatTurn, persistAgentReply, withClosingFloor, lastSaidCollector,
+} from "../agent-chat-turn.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 import { broadcastTurn } from "../events-ws.js";
@@ -68,104 +65,6 @@ async function resolveTarget(req, res, p, config) {
  * The conversation this turn belongs to: the one named, or a fresh one.
  * Returns the path, the id, the turns to replay, and any compacted summary.
  */
-function openConversation({ p, agent, modelId, system, conversationId, channel }) {
-  if (!conversationId) {
-    const conv = startConversation({
-      storagePath: p.storagePath,
-      agentSlug: agent.slug,
-      engine: modelId,
-      system,
-      channel,
-    });
-    return { path: conv.path, id: conv.id, history: [], compactSummary: null };
-  }
-  const existing = readConversation(p.storagePath, agent.slug, conversationId);
-  if (!existing) return null;
-  // Inject compact summary into system instead of replaying it as a turn.
-  const compactTurn = existing.turns.find((t) => t.role === "compact");
-  const compactSummary = compactTurn
-    ? compactTurn.content.replace(/^\[Compacted \d+ turns.*?\]\n\n?/, "").trim()
-    : null;
-  return {
-    path: existing.path,
-    id: conversationId,
-    history: existing.turns
-      .filter((t) => t.role === "user" || t.role === "assistant")
-      .map((t) => ({ role: t.role, content: t.content })),
-    compactSummary,
-  };
-}
-
-/** The attribution a reopened conversation renders from. */
-function turnAttribution(agent, result) {
-  return buildTurnAttribution({
-    agentSlug: agent.slug,
-    agentName: agent.fields?.Name || agent.slug,
-    model: result.model,
-    usage: result.usage,
-    trace: result.trace,
-  });
-}
-
-/**
- * The never-silent floor, in the agent's own voice.
- *
- * runAgent re-prompts a dud turn and then gives up, and what came back went
- * straight into the thread: an empty bubble in the panel and an empty assistant
- * row on disk, which the next turn reads back as the answer this one gave. The
- * closing is asked of the model first — the AGENT's model, because this thread
- * is in its voice and not the super-agent's — and the canned line goes out only
- * if that comes back empty too.
- *
- * A turn with a real answer is returned untouched and costs no model call.
- * Deliberately NOT used on the abort path: an interrupted turn that wrote
- * nothing is meant to leave no bubble at all.
- *
- * @returns {object} the same result, with `text` guaranteed non-empty
- */
-async function withClosingFloor({ p, agent, modelId, config, result, streamedText = "" }) {
-  const closing = await floorReplyText({
-    globalConfig: p.config || config,
-    model: result.model || modelId,
-    text: result.text,
-    streamedText,
-    trace: result.trace,
-  });
-  if (!closing.floored) return result;
-  // eslint-disable-next-line no-console
-  console.warn(
-    `[apx] ${agent.slug}: empty turn closed by the floor — ` +
-    (closing.authored
-      ? "the model wrote the closing"
-      : "the canned floor spoke, the model could not write it either")
-  );
-  return { ...result, text: closing.text };
-}
-
-/** Collect the last thing the turn actually SAID. The result carries the
- *  closing, so this is the one piece of context a floored closing needs. */
-function lastSaidCollector() {
-  const seen = { text: "" };
-  return [seen, (ev) => {
-    if (ev?.type === "assistant_text" && String(ev.text || "").trim()) seen.text = String(ev.text).trim();
-  }];
-}
-
-function persistAgentReply({ filePath, agent, result }) {
-  // Images the agent attached to THIS reply (attach_media). Archived into
-  // ~/.apx/media on the way, because a skill's picture lives beside its
-  // SKILL.md and the media endpoint serves nothing from outside the media dir —
-  // the row would name a file the viewer is not allowed to fetch.
-  const attribution = { ...turnAttribution(agent, result), ...attachmentsMeta(result.media) };
-  appendAgentReplyToConversation({
-    filePath,
-    reply: result.text,
-    trace: result.trace,
-    attribution,
-  });
-  return attribution;
-}
-
 export function register(api, { projects, project, config, plugins, registries }) {
   api.post("/projects/:pid/agents/:slug/exec", asyncRoute(async (req, res) => {
     const p = project(req, res);
@@ -211,7 +110,11 @@ export function register(api, { projects, project, config, plugins, registries }
         p, agent, modelId, system, prompt: turnPrompt,
         attachments: turnFiles.attachments,
         channel: channel || CHANNELS.API,
-        channelMeta,
+        // WHERE THIS TURN IS, carried into the tools. A tool that leaves work
+        // running (`run_shell` with `background`) records it on the job, and
+        // that is the address the wake-up comes back to — otherwise a finished
+        // render has a result and nowhere to report it. See agent-chat-turn.js.
+        channelMeta: { ...(channelMeta || {}), conversation_id: conv.id },
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
         // Wrapped, not replaced: the blocking handlers have nobody streaming, so
@@ -309,7 +212,9 @@ export function register(api, { projects, project, config, plugins, registries }
         attachments: turnFiles.attachments,
         previousMessages: turn.conv.history,
         channel: channel || CHANNELS.API,
-        channelMeta,
+        // See the note on the /exec route: this is how work left running knows
+        // which chat to come back to.
+        channelMeta: { ...(channelMeta || {}), conversation_id: turn.conv.id },
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
         // Wrapped, not replaced: the blocking handlers have nobody streaming, so
@@ -459,7 +364,7 @@ export function register(api, { projects, project, config, plugins, registries }
         // run-to-completion tool budget (channelToolIters) instead of the
         // bounded conversational one, on a surface nobody was watching.
         channel: channel || CHANNELS.API,
-        channelMeta,
+        channelMeta: { ...(channelMeta || {}), conversation_id: turn.conv.id },
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
         signal: turnAbort.signal,
@@ -538,25 +443,4 @@ export function register(api, { projects, project, config, plugins, registries }
       endActiveTurn(active.id);
     }
   }));
-
-  /** Everything both chat endpoints need before the model is called. */
-  function prepareChatTurn({ p, agent, modelId, conversation_id, channel }) {
-    // The system prompt has to exist before the conversation file that records
-    // it, and the compacted summary has to be inside it — so the file is opened
-    // first when it already exists, and created after when it does not.
-    const existing = conversation_id
-      ? openConversation({ p, agent, modelId, system: "", conversationId: conversation_id, channel })
-      : null;
-    if (conversation_id && !existing) return null;
-
-    const extraParts = existing?.compactSummary
-      ? [`## Previous Conversation Context (Compacted)\n${existing.compactSummary}`]
-      : [];
-    const system = buildAgentSystem(p, agent, { invocation: "engine", extraParts });
-
-    const conv =
-      existing ||
-      openConversation({ p, agent, modelId, system, conversationId: null, channel });
-    return { system, conv };
-  }
 }
