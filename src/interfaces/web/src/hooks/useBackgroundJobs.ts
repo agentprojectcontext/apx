@@ -42,3 +42,22 @@ export function useBackgroundJobs(projectId?: string | number | null) {
     mutate,
   };
 }
+
+/**
+ * Is an agent running work it started from THIS thread?
+ *
+ * A background job is an a2a exchange, so its `thread` is the pair id a chat
+ * row is keyed by — which means the row already knows enough to say "somebody
+ * is working on something here", and said nothing. Manu, 2026-09-14, watching
+ * a peer he had handed work to: "ahí apareció magui hablando — o sea estaba
+ * haciendo algo pero no lo decía el chat."
+ *
+ * Deliberately unscoped: every row asks the same SWR key, so the list costs ONE
+ * request however long it is, and a row for another project still answers
+ * correctly instead of reading an empty project-scoped cache.
+ */
+export function useThreadJobRunning(threadId?: string | null): boolean {
+  const { jobs } = useBackgroundJobs();
+  if (!threadId) return false;
+  return jobs.some((j) => j.thread === threadId);
+}

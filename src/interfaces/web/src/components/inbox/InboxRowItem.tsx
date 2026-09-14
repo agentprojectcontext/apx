@@ -11,6 +11,7 @@ import {
 } from "../../lib/chat-activity";
 import { toneChip } from "../../lib/tone";
 import { useRowUnread } from "../../hooks/useChatRead";
+import { useThreadJobRunning } from "../../hooks/useBackgroundJobs";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON } from "../agents/AgentAvatar";
 
 export type InboxRowVariant = "compact" | "touch";
@@ -50,6 +51,11 @@ export function InboxRowItem({
 }) {
   const touch = variant === "touch";
   const unread = useRowUnread(row);
+  // A job's `thread` IS the a2a pair id this row is keyed by, so the row can
+  // answer "somebody left work running here" without a second lookup. It could
+  // always answer it and never did: from the list, a peer ten minutes into a
+  // job and a thread nothing had touched since yesterday were the same row.
+  const jobRunning = useThreadJobRunning(row.kind === "a2a" ? row.conversation_id : null);
   // On a channel with several correspondents the row is the PERSON's; the
   // daemon resolved their name and face, so nothing is re-derived here.
   const contactFace = row.contact_face;
@@ -154,7 +160,12 @@ export function InboxRowItem({
             width. */}
         <span className={cn("mt-0.5 flex items-center text-muted-fg", touch ? "text-[13px]" : "text-xs")}>
           <span className="min-w-0 truncate">{row.preview || t("inbox.no_reply_yet")}</span>
-          <ChatRowActivity activityKey={activityKey} activeTurn={row.active_turn} unread={unread} />
+          <ChatRowActivity
+            activityKey={activityKey}
+            activeTurn={row.active_turn}
+            unread={unread}
+            jobRunning={jobRunning}
+          />
         </span>
       </span>
     </button>
