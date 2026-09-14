@@ -178,8 +178,10 @@ apx daemon logs --tail 30                      # clean boot, no stack trace
 ```
 
 Pushes are gated (`.githooks/pre-push` + CI). **Commits are not.** Releases go
-out through semantic-release on push to `main`; the docs site and the landing
-publish to GitHub Pages from the same branch.
+out through semantic-release on push to `main` — but only behind that gate: the
+`release` job needs `verify` and `e2e`, so a red run means no new version. The
+docs site and the landing publish to GitHub Pages from the same branch and are
+NOT gated on CI, on purpose: no test in the suite reads a docs page.
 
 ---
 
