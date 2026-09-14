@@ -328,10 +328,39 @@ export async function handleUpdate(self, u) {
     // Start "typing..." indicator. Stops when we send the reply (or fail).
     const stopTyping = self._startTyping(chat_id);
 
+    // The same turn, registered where every OTHER surface can find it.
+    //
+    // `_startTyping` above reaches exactly one place: this chat. The web panel,
+    // the desktop and the phone read a turn in flight out of the daemon's
+    // registry and then follow its frames — and nothing outside the HTTP routes
+    // ever wrote to it, so a turn that arrived on Telegram simply did not exist
+    // for them. Manu on 2026-09-14: "en telegram dice Escribiendo" while the
+    // same conversation on the web sat dead, and a refresh brought in every
+    // tool at once — they had been on disk all along.
+    //
+    // Keyed by (project, channel) and stamped with the day, because that is how
+    // a global channel thread is addressed and therefore how the reader looks
+    // it up (api/conversations.js, `superAgentTurnKey`). Optional by design:
+    // core must not import daemon runtime (rule 8), so this arrives through
+    // `self` like `_send`, and a channel running outside a daemon is simply not
+    // followed rather than broken.
+    const turn = self._trackTurn?.({
+      projectId: target?.id ?? null,
+      channel: CHANNELS.TELEGRAM,
+      threadId: new Date().toISOString().slice(0, 10),
+      // What was asked, kept so a restart that has to cut this off can hand it
+      // to the next daemon instead of finding half a sentence and no cause.
+      prompt: text,
+      // What Stop and POST /turns/abort pull. The poller's own supersede path
+      // already owns this controller; this just gives the panel the same lever.
+      abort: () => abortCtrl.abort(),
+    });
+
     // Detach the model turn from the poll loop. Awaiting it here used to freeze
     // getUpdates for the whole run, so a newer Telegram message could never
     // abort this one — Default Interrupt existed, but never fired.
     const replyTurn = (async () => {
+    try {
 
     // Preset to the super-agent defaults so every exit path (including one where
     // neither the routed-agent nor the super-agent branch runs) has a valid
@@ -410,7 +439,17 @@ export async function handleUpdate(self, u) {
     let lastStreamedText = "";
     let heldCount = 0;
     if (!replyText && isSuperAgentEnabled(self.globalConfig)) {
-      const { onEvent, state } = buildStreamHandler(self, { chat_id, update_id: u.update_id, agentDisplay });
+      const { onEvent: streamToChat, state } = buildStreamHandler(self, { chat_id, update_id: u.update_id, agentDisplay });
+      // TWO audiences for one turn, and only the first was ever served. The
+      // stream handler decides what TELEGRAM sees (prose only, intermediate
+      // notes held — see ./progress-gate.js); the tracker records the same
+      // steps for every other surface, which wants the opposite: the tools, as
+      // they happen. Same events, two renderings — the channel owns its output,
+      // nobody owns the fact that a turn is running.
+      const onEvent = async (ev) => {
+        turn?.onEvent(ev);
+        return streamToChat(ev);
+      };
 
       // `/slug ...` shortcut: load the matching skill body into contextNote and
       // strip the prefix from the user prompt before sending to the loop.
@@ -499,6 +538,9 @@ export async function handleUpdate(self, u) {
           // A newer message superseded this one. Whatever streamed so far is
           // already sent + logged; the newer message's run continues the thread.
           self.log(`telegram[${self.channel.name}] request aborted for chat ${chat_id}`);
+          // Superseded, not broken. A follower has to be told which, or the
+          // bubble it is holding never closes.
+          turn?.aborted();
           releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
           stopTyping();
           return;
@@ -515,6 +557,7 @@ export async function handleUpdate(self, u) {
 
     if (abortCtrl.signal.aborted) {
       self.log(`telegram[${self.channel.name}] request aborted for chat ${chat_id}`);
+      turn?.aborted();
       releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
       stopTyping();
       return;
@@ -539,6 +582,22 @@ export async function handleUpdate(self, u) {
       // it wasn't finished, not because the model rambled.
       extraMeta: replyJudge ? { judge: replyJudge } : {},
     });
+    // The ending, so a follower's bubble CLOSES. Without a closing frame it
+    // stays pending forever, the silent catch-up refuses to run (it skips while
+    // a turn is in flight) and Stop sits on screen over a turn that finished
+    // minutes ago — the exact failure api/conversations.js documents for a2a.
+    turn?.final({
+      text: replyText || "",
+      ...(replyUsage ? { usage: replyUsage } : {}),
+      ...(replyModel ? { model: replyModel } : {}),
+      name: replyAuthor || agentDisplay,
+    });
+    } finally {
+      // Every exit above returns early on abort or on the ask-flow hand-off, so
+      // the deregistration belongs here and nowhere else: a turn left in the
+      // registry is a spinner that never stops on every panel in the house.
+      turn?.end();
+    }
     })();
     replyTurn.catch((e) => {
       self.log(`telegram[${self.channel.name}] reply turn crashed: ${e.message}`);

@@ -355,9 +355,19 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.match(indicator, /transition-\[width,margin,opacity\]/, "activity expands smoothly beside the badge");
   assert.doesNotMatch(indicator, /absolute -right-1 -top-1/, "activity no longer floats in the row corner");
   assert.match(chats, /<ChatRowActivity activityKey=\{activityKey\}/);
+  // Positional, and written to survive the props being reformatted onto their
+  // own lines: what matters is that the mark comes straight after the preview,
+  // not how many attributes it happens to take.
   assert.match(
     inbox,
-    /\{row\.preview \|\| t\("inbox\.no_reply_yet"\)\}<\/span>\s*<ChatRowActivity activityKey=\{activityKey\}/,
+    /\{row\.preview \|\| t\("inbox\.no_reply_yet"\)\}<\/span>\s*<ChatRowActivity[\s\S]{0,200}?activityKey=\{activityKey\}/,
     "the inbox mark trails the last message, not the clock",
   );
+  // A THIRD state, and the reason the props grew: an agent left work running
+  // from this thread. Not the same fact as a live turn — nobody is writing,
+  // somebody is waiting — and it gets its own colour, the green the jobs panel
+  // already uses, so the row and the panel that explains it read as one thing.
+  assert.match(indicator, /jobRunning/, "a chat with work left running has to say so");
+  assert.match(indicator, /animate-spin text-emerald-700/, "left-running work is green, not the live-turn blue");
+  assert.match(inbox, /useThreadJobRunning\(/, "the inbox row answers it from the job's own thread id");
 });
