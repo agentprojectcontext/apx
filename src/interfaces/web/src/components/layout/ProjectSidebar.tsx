@@ -80,8 +80,15 @@ function buildModules(): ModuleItem[] {
 // How many project avatars fit in the flexible list area. The list is `flex-1`,
 // so its height is fixed by the surrounding chrome and does NOT depend on how
 // many items we render — measuring it is therefore stable (no resize loop). The
-// list also holds the always-present "Add" button (one slot) and, when there's
-// overflow, the "+N" button (a second slot), so we reserve for those.
+// list also holds the always-present "Add" button and, when there's overflow,
+// the "+N" bucket, so we subtract those before dividing.
+//
+// They are NOT the same size as a project tile: a project carries a caption
+// under its square (55px), the two controls do not (40px). Reserving a whole
+// tile for each of them threw away 30px — often the last thing between the rail
+// and one more project fitting, which is why the column stopped short of the
+// gear with a hole underneath it. So we measure both heights and solve for the
+// item count instead of counting uniform slots.
 function useVisibleCount(
   listRef: React.RefObject<HTMLDivElement | null>,
   total: number,
@@ -107,13 +114,18 @@ function useVisibleCount(
       const h = el.clientHeight - padY;
       if (h <= 0) return;
       const gap = parseFloat(cs.rowGap) || 12;
-      // A hidden, always-present probe gives an accurate item height even on the
-      // first paint or when zero real items currently fit.
-      const probe = el.querySelector<HTMLElement>("[data-rail-probe]");
-      const per = (probe?.offsetHeight ?? 56) + gap;
-      const slots = Math.max(0, Math.floor((h + gap) / per));
-      const forItems = slots - 1; // reserve the Add button
-      setCount(forItems >= total ? total : Math.max(0, forItems - 1)); // reserve "+N"
+      // A hidden, always-present probe gives accurate heights even on the first
+      // paint or when zero real items currently fit. It rules both shapes: a
+      // project tile (with caption) and a control tile (without).
+      const item = el.querySelector<HTMLElement>("[data-rail-probe-item]")?.offsetHeight || 55;
+      const control = el.querySelector<HTMLElement>("[data-rail-probe-control]")?.offsetHeight || 40;
+      // n items + the bucket + Add, with a gap between every pair:
+      //   n*item + 2*control + (n + 1)*gap <= h
+      const withBucket = Math.floor((h - 2 * control - gap) / (item + gap));
+      // No bucket at all is the cheaper layout, so it gets its own question:
+      //   total*item + control + total*gap <= h
+      const whole = total * (item + gap) + control <= h;
+      setCount(whole ? total : Math.max(0, Math.min(withBucket, total)));
     };
     measure();
     // Again after the browser has laid out. useLayoutEffect runs with the DOM
@@ -521,9 +533,16 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           {rest.length > 0 && !collapsed && (
             <>
               {/* Hidden ruler — out of flow, measured to size the visible list
-                  accurately regardless of how many items render. */}
+                  accurately regardless of how many items render. Two shapes,
+                  because the list mixes them: a captioned project tile and a
+                  bare control (Add / "+N"), which is 15px shorter. */}
               <div data-rail-probe aria-hidden className="invisible absolute w-full">
-                <ProjectAvatar label="Ag" active={false} onClick={() => {}} />
+                <div data-rail-probe-item>
+                  <ProjectAvatar label="Ag" active={false} onClick={() => {}} />
+                </div>
+                <div data-rail-probe-control>
+                  <ProjectAvatar label="+" isAdd active={false} onClick={() => {}} />
+                </div>
               </div>
               {visible.map((p) => (
                 <ProjectRailItem
