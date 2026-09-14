@@ -2,14 +2,19 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { Admin } from "../../lib/api/admin";
 import { Engines } from "../../lib/api/engines";
+import { useProviderModels } from "../../hooks/useProviderModels";
 
 /** One configured provider plus the models we can offer for it. */
 export interface CatalogProvider {
   slug: string;
+  /** Adapter behind the slug (`ollama`, `openai`…). Defaults to the slug. */
+  engine: string;
   name: string;
   defaultModel: string;
-  /** `default_model` first, then the engine's curated known_models. */
+  /** `default_model` first, then whatever the provider itself lists. */
   models: string[];
+  /** The list came from the provider on this pass, not from a cache or presets. */
+  live: boolean;
 }
 
 // A model id is `<provider>:<model>` and the model half can hold colons of its
@@ -32,16 +37,37 @@ export function isInheritedModel(model?: string | null): boolean {
 }
 
 /**
- * The models this install can actually offer, grouped by provider: for every
- * active provider in `config.engines`, its default model plus the curated
- * known_models of its engine (source of truth: core/engines/presets.js).
+ * The models this install can actually offer, grouped by provider.
  *
- * Both requests are plain SWR keys shared app-wide, so several pickers on
- * screen cost one fetch each.
+ * Only ACTIVE providers in `config.engines`: offering a model from a provider
+ * whose switch is off produces a turn that cannot run.
+ *
+ * Where the models come from, in order:
+ *   1. the provider itself, asked through the daemon (useProviderModels);
+ *   2. the last list we cached for it, when it does not answer right now;
+ *   3. the curated `known_models` of its engine (core/engines/presets.js),
+ *      which is the documented OFFLINE fallback — and is empty for Ollama by
+ *      design, since that catalog only exists on the machine.
+ *
+ * Live and curated are alternatives, never a union: a provider that just told
+ * us what it serves should not also be offered ids it did not mention.
+ *
+ * `enabled: false` skips the network probe — for pickers that should only reach
+ * out once the user opens them. Config and presets are daemon-local and shared
+ * through SWR, so several pickers on screen still cost one fetch each.
  */
-export function useModelCatalog() {
+export function useModelCatalog({ enabled = true }: { enabled?: boolean } = {}) {
   const cfg = useSWR("/api/admin/config", () => Admin.config.get());
   const presets = useSWR("/api/engines/presets", () => Engines.presets());
+
+  const targets = useMemo(() => {
+    const engines = cfg.data?.config?.engines ?? {};
+    return Object.entries(engines)
+      .filter(([, prov]) => prov?.is_active !== false)
+      .map(([slug, prov]) => ({ slug, engine: prov?.engine || slug, base_url: prov?.base_url }));
+  }, [cfg.data]);
+
+  const live = useProviderModels(targets, enabled);
 
   const providers = useMemo<CatalogProvider[]>(() => {
     const engines = cfg.data?.config?.engines ?? {};
@@ -50,17 +76,30 @@ export function useModelCatalog() {
     for (const [slug, prov] of Object.entries(engines)) {
       if (prov?.is_active === false) continue;
       const engine = prov?.engine || slug;
+      const probed = live.models[slug] ?? [];
       const models: string[] = [];
       for (const m of [
         ...(prov?.default_model ? [prov.default_model] : []),
-        ...(catalog[engine]?.known_models ?? []),
+        ...(probed.length ? probed : (catalog[engine]?.known_models ?? [])),
       ]) {
-        if (!models.includes(m)) models.push(m);
+        if (m && !models.includes(m)) models.push(m);
       }
-      out.push({ slug, name: prov?.name || slug, defaultModel: prov?.default_model || "", models });
+      out.push({
+        slug,
+        engine,
+        name: prov?.name || slug,
+        defaultModel: prov?.default_model || "",
+        models,
+        live: live.online[slug] === true,
+      });
     }
     return out;
-  }, [cfg.data, presets.data]);
+  }, [cfg.data, presets.data, live.models, live.online]);
 
-  return { providers, loading: cfg.isLoading || presets.isLoading };
+  return {
+    providers,
+    loading: cfg.isLoading || presets.isLoading,
+    /** A live pass is in flight; `providers` already holds the cached answer. */
+    probing: live.probing,
+  };
 }
