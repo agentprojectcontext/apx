@@ -80,12 +80,28 @@ test("get_task lists the subtasks of a parent", async () => {
 });
 
 test("get_task names both projects when an id is ambiguous instead of picking one", async () => {
-  // Prefix collisions across projects are rare but silent, and guessing writes
-  // the answer into the wrong project's history.
+  // Prefix collisions across projects are silent, and guessing writes the
+  // answer into the wrong project's history.
+  //
+  // The collision is MADE here, not waited for. This test used to create one
+  // task per project and `return` unless their random ids happened to share
+  // three characters — and since `shortId("t")` spends two of those on the
+  // `t_` prefix, that is one run in 36. The other 35 asserted nothing and
+  // reported success, so a test that failed EVERY time it actually ran read
+  // as an intermittent flake and hid the bug it was written for.
   const a = createTask(A, { title: "one" });
-  const b = createTask(B, { title: "two" });
   const shared = a.id.slice(0, 3);
-  if (!b.id.startsWith(shared)) return; // ids are random; only assert when they collide
+
+  // Stop at the first hit, which leaves exactly ONE match in each project:
+  // `getTask` returns null for a prefix that matches twice inside the same
+  // log, so a second match here would hide the very ambiguity being asserted.
+  let b = null;
+  for (let i = 0; i < 4000 && !b; i++) {
+    const t = createTask(B, { title: "two" });
+    if (t.id.startsWith(shared)) b = t;
+  }
+  assert.ok(b, `no id starting with "${shared}" in 4000 tries — has shortId changed shape?`);
+
   const r = await get({ task: shared });
   assert.match(r.error, /alpha/);
   assert.match(r.error, /beta/);
