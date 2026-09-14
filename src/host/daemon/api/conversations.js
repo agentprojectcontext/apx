@@ -12,7 +12,6 @@ import { listConversations, readConversation, deleteConversation, truncateConver
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
 import { a2aPairHistory } from "#core/agent/a2a/history.js";
-import { broadcastTurn } from "../events-ws.js";
 import { logTurnEvent } from "./turn-log.js";
 
 /** The sender's working directory, if it still is one. This is untrusted input
@@ -28,7 +27,8 @@ function senderCwd(raw) {
 }
 
 import { compactConversation } from "#core/stores/conversations-compactor.js";
-import { getActiveTurnByKey, startActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
+import { getActiveTurnByKey, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
+import { trackChannelTurn } from "../channel-turn.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
 import { resolvePeer, peerAddress, senderAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
@@ -723,19 +723,9 @@ export function register(api, { projects, project, config, plugins, registries }
       // for every kind of peer: a runtime timed out at `timeoutMs` while an
       // agent ran unbounded, which is not a policy, it is an omission.
       const budget = setTimeout(() => ctrl.abort(new Error("a2a turn budget exhausted")), timeoutMs);
-      const active = startActiveTurn(a2aTurnKey, {
-        project_id: p.id,
-        channel: "a2a",
-        thread_id: a2aThreadId(from, to),
-        agent_slug: to,
-        title: `${to} is answering ${from}`,
-        // What `abortActiveTurn` pulls. Without it the record exists and the
-        // abort route can only answer "nothing to stop".
-        abort: () => ctrl.abort(),
-      });
-      // The same helper every other chat route builds (super-agent, exec, code),
-      // for the same reason: a turn is a STORY with a beginning and an end, and
-      // a surface following it needs both, not only the middle.
+      // The narration every followable turn gets, from the ONE place that knows
+      // how to tell it (../channel-turn.js). A turn is a STORY with a beginning
+      // and an end, and a surface following it needs both, not only the middle.
       //
       // This route used to push `event` and nothing else, which cost two things
       // that looked like one. Without `start`, the "pensando…" bubble did not
@@ -746,29 +736,26 @@ export function register(api, { projects, project, config, plugins, registries }
       // `following` stayed true, the silent catch-up refused to run (it skips
       // while a turn is in flight), and Stop sat on screen over a turn that had
       // finished minutes earlier. Leaving and coming back was the only cure.
-      const turnFrame = (phase, extra = {}) => broadcastTurn({
-        phase,
-        project_id: p.id,
-        agent_slug: to,
-        conversation_id: null,
+      const turn = trackChannelTurn({
+        key: a2aTurnKey,
+        projectId: p.id,
         channel: "a2a",
-        thread_id: a2aThreadId(from, to),
-        turn_id: active.id,
-        ...extra,
+        threadId: a2aThreadId(from, to),
+        agentSlug: to,
+        title: `${to} is answering ${from}`,
+        surface: "a2a",
+        // What `abortActiveTurn` pulls. Without it the record exists and the
+        // abort route can only answer "nothing to stop".
+        abort: () => ctrl.abort(),
       });
+      const active = turn.active;
       const onEvent = (ev) => {
-        recordActiveTurnEvent(active.id, ev);
         // Nobody is watching an a2a turn while it runs, so the log is the only
-        // place its run-level decisions can be read back.
+        // place its run-level decisions can be read back. Channel-specific, so
+        // it stays here rather than in the shared tracker.
         logTurnEvent(ev, { channel: "a2a", agent: to });
-        // Recorded for whoever opens the thread mid-turn, pushed for whoever is
-        // already watching it — the same pair the super-agent's own stream keeps
-        // in step (api/super-agent.js).
-        if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
+        turn.onEvent(ev);
       };
-      // Announced before a single token exists. This is the frame that makes the
-      // thread say somebody is working.
-      turnFrame("start");
       try {
         const out = await run({ signal: ctrl.signal, onEvent });
         // `runReply` never throws — it files its own failure on the thread and
@@ -780,27 +767,25 @@ export function register(api, { projects, project, config, plugins, registries }
           // place that has it — the failure path files no text of its own — and
           // `startActiveTurn` hands back the live object, so `text` is whatever
           // the last event synced into it.
-          if (ctrl.signal.aborted) turnFrame("aborted", { result: { text: active.text || "" } });
-          else turnFrame("error", { error: out.error });
+          if (ctrl.signal.aborted) turn.aborted(active.text || "");
+          else turn.error(out.error);
         } else {
-          turnFrame("final", {
-            result: {
-              text: out?.text || "",
-              ...(out?.usage ? { usage: out.usage } : {}),
-              ...(out?.model ? { model: out.model } : {}),
-              name: to,
-            },
+          turn.final({
+            text: out?.text || "",
+            ...(out?.usage ? { usage: out.usage } : {}),
+            ...(out?.model ? { model: out.model } : {}),
+            name: to,
           });
         }
         return out;
       } catch (e) {
         // Nothing here is expected to throw, but a follower left with an open
         // bubble is the worst possible outcome of a surprise — close it.
-        turnFrame("error", { error: e?.message || String(e) });
+        turn.error(e?.message || String(e));
         throw e;
       } finally {
         clearTimeout(budget);
-        endActiveTurn(active.id);
+        turn.end();
       }
     };
 

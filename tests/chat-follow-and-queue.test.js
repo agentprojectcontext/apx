@@ -69,11 +69,35 @@ test("the daemon records and pushes the same timeline on every chat route", () =
   // acts was indistinguishable from a dead one; no `final`, so the follower's
   // bubble never closed — it stayed pending, the silent catch-up refused to run
   // behind it, and Stop sat over a turn that had ended minutes before.
+  // TWO WAYS TO SATISFY THIS, and the second is now the preferred one. Four
+  // routes still spell the five steps out; `conversations.js` delegates to the
+  // shared narrator (host/daemon/channel-turn.js), which was extracted when a
+  // turn arriving on Telegram needed the same story told and there was nowhere
+  // to get it from — five hand-written copies and no channel. A route that
+  // delegates gets every phase by construction, so asking it to also contain
+  // the literals would be asking it to keep the copy this removed.
+  const tracker = fs.readFileSync(
+    path.join(__dirname, "..", "src", "host", "daemon", "channel-turn.js"),
+    "utf8",
+  );
+  assert.match(tracker, /recordActiveTurnEvent\(active\.id, ev\)/, "the narrator must record the timeline");
+  assert.match(tracker, /isVisibleTurnEvent\(ev\)\) frame\("event"/, "…and push it too");
+  assert.match(tracker, /frame\("start"\)/, "…announce the turn before any output");
+  assert.match(tracker, /frame\("final"/, "…close the turn it opened");
+  assert.match(tracker, /frame\("error"/, "…and close a turn that broke");
+
   for (const route of ["exec.js", "super-agent.js", "code.js", "conversations.js"]) {
     const src = fs.readFileSync(
       path.join(__dirname, "..", "src", "host", "daemon", "api", route),
       "utf8",
     );
+    if (/trackChannelTurn\(/.test(src)) {
+      // Delegated. What is left to check is that it still closes its OWN turn —
+      // the tracker knows how to say "final", not when this route is finished.
+      assert.match(src, /turn\.final\(/, `${route} must close the turn it opened`);
+      assert.match(src, /turn\.error\(/, `${route} must close a turn that broke`);
+      continue;
+    }
     assert.match(src, /recordActiveTurnEvent\(active\.id, ev(ent)?\)/, `${route} must record the timeline`);
     assert.match(src, /isVisibleTurnEvent\(ev(ent)?\)\) turnFrame\("event"/, `${route} must push it too`);
     // A turn is a story: it has to say when it starts and how it ends, or the
@@ -82,6 +106,16 @@ test("the daemon records and pushes the same timeline on every chat route", () =
     assert.match(src, /turnFrame\("final"/, `${route} must close the turn it opened`);
     assert.match(src, /turnFrame\("error"/, `${route} must close a turn that broke`);
   }
+
+  // And the channels, which had none of this at all. A turn was followable if
+  // an HTTP route happened to start it and invisible if a person wrote to the
+  // bot — the rule backwards.
+  const telegram = fs.readFileSync(
+    path.join(__dirname, "..", "src", "core", "channels", "telegram", "dispatch.js"),
+    "utf8",
+  );
+  assert.match(telegram, /self\._trackTurn\?\.\(/, "an inbound Telegram turn must register too");
+  assert.match(telegram, /turn\?\.final\(\{/, "…and close the bubble it opened");
 });
 
 test("a queued turn survives the page, and only ever goes out into its own chat", () => {

@@ -94,10 +94,20 @@ test("a2a carries a whole turn, and its steps arrive as `event`", () => {
   // makes "anything that is not start/delta is over" fatal here rather than
   // merely wrong — a peer's entire turn is made of the phase that was being
   // read as an ending.
+  // The three phases moved into ONE narrator (host/daemon/channel-turn.js) when
+  // Telegram needed the same story told — five routes had hand-written it and no
+  // channel had it at all. So the contract is asserted where it now lives, plus
+  // the fact that this route still goes through it rather than keeping a copy:
+  // a second copy is how one surface drifts and the others look fine.
+  const tracker = read("src/host/daemon/channel-turn.js");
+  assert.match(tracker, /isVisibleTurnEvent\(ev\)\) frame\("event"/, "a turn pushes its steps");
+  assert.match(tracker, /frame\("start"\)/, "…and says when the turn began");
+  assert.match(tracker, /frame\("final"/, "…and closes the bubble it opened");
+
   const src = read("src/host/daemon/api/conversations.js");
-  assert.match(src, /isVisibleTurnEvent\(ev\)\) turnFrame\("event"/, "a2a pushes its steps");
-  assert.match(src, /turnFrame\("start"\)/, "…and says when the turn began");
-  assert.match(src, /turnFrame\("final"/, "…and closes the bubble it opened");
+  assert.match(src, /trackChannelTurn\(\{/, "a2a narrates through the shared tracker");
+  assert.match(src, /turn\.final\(\{/, "…and still closes its own bubble");
+  assert.doesNotMatch(src, /broadcastTurn\(/, "no private copy of the narration may survive here");
 });
 
 test("the closed-turn set cannot grow without bound", () => {

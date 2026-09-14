@@ -49,6 +49,8 @@ import { handleCallbackQuery, startAskFlow, maybeConsumeAskTextAnswer } from "#c
 import { sendMessage, sendChatAction, editMessageReplyMarkup, answerCallbackQuery, getUpdates } from "#core/channels/telegram/api.js";
 import { sendPhoto, sendVoice, sendDocument, sendAudio } from "#core/channels/telegram/media.js";
 import { archiveOutboundMedia, outboundMediaMeta } from "#core/stores/media-archive.js";
+import { trackChannelTurn } from "../../channel-turn.js";
+import { superAgentTurnKey } from "../../active-turns.js";
 export { sendPhoto, sendVoice, sendDocument, sendAudio };
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -249,6 +251,40 @@ class ChannelPoller {
     } catch (e) {
       // A silent typing failure looks exactly like a frozen agent to the owner.
       this.log(`telegram[${this.channel.name}] sendChatAction failed: ${e.message}`);
+    }
+  }
+
+  /**
+   * Register this turn with the daemon so every OTHER surface can see it.
+   *
+   * `_typing` above is Telegram's own indicator and reaches exactly one place:
+   * the chat the message came from. This is the other half — the daemon's
+   * record of a turn in flight, which is what the web panel, the desktop and
+   * the phone catch up from and then follow live.
+   *
+   * Until it existed the rule came out backwards: a turn was followable if an
+   * HTTP route happened to start it, and invisible if a person wrote to the
+   * bot. Manu on 2026-09-14: Telegram said "Escribiendo…" while the same
+   * conversation on the web sat dead, and only a refresh brought the tools in
+   * — they had been written to the ledger all along; nothing was pushing.
+   *
+   * Injected through `self`, the same way core reaches `_send`: the registry
+   * and the WS hub are daemon runtime, and core must not import upward
+   * (rule 8). Core calls it optionally, so a channel running outside a daemon
+   * simply is not followed rather than crashing.
+   */
+  _trackTurn(opts = {}) {
+    try {
+      return trackChannelTurn({
+        key: superAgentTurnKey(opts.projectId ?? null, opts.channel),
+        surface: "telegram",
+        ...opts,
+      });
+    } catch (e) {
+      // Being watched is never worth failing a reply for. The owner gets their
+      // answer on Telegram either way; the panel just does not follow along.
+      this.log(`telegram[${this.channel.name}] turn tracking failed: ${e.message}`);
+      return null;
     }
   }
 
