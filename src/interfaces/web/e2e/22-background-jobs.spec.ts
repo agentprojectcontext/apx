@@ -66,6 +66,23 @@ const quietRow = {
   preview: "April: listo.",
 };
 
+/** An ordinary project-agent conversation, LAST in the list on purpose: the
+ *  fallback picks the newest row, so a deep link that only works when the row
+ *  it asks for happens to be the first one is a deep link that does nothing. */
+const agentRow = {
+  ...a2aRow,
+  agent_slug: "linus",
+  agent_name: "Linus",
+  agent_emoji: "🐧",
+  kind: "agent",
+  participants: undefined,
+  participant_faces: undefined,
+  conversation_id: "2026-09-14-01",
+  channel: "web",
+  preview: "Linus: listo.",
+  last_activity_at: new Date(Date.now() - 3_600_000).toISOString(),
+};
+
 async function stub(page: import("@playwright/test").Page, jobs: unknown[]) {
   // The roster too, and not as belt-and-braces: a job record carries a project
   // ID and no name, so the panel MUST resolve it — which is the whole point of
@@ -79,7 +96,7 @@ async function stub(page: import("@playwright/test").Page, jobs: unknown[]) {
       ],
     }));
   await page.route((url) => url.pathname === "/api/inbox", (route) =>
-    route.fulfill({ json: [a2aRow, quietRow] }));
+    route.fulfill({ json: [a2aRow, quietRow, agentRow] }));
   await page.route((url) => url.pathname === "/api/jobs", (route) =>
     route.fulfill({ json: { data: jobs, meta: { total: jobs.length, open: jobs.length } } }));
 }
@@ -102,9 +119,12 @@ test.describe("background jobs", () => {
     await expect(global).toHaveAttribute("data-state-running", "false");
     // Muted, not coloured: present to be read, not to be noticed.
     await expect(global).toHaveClass(/text-muted-fg/);
-    // And NOT spinning. A spinner over "0" animates the claim that something is
-    // happening, which is the one thing this state means is not.
+    // And NOT spinning — a different GLYPH, not the same one frozen. Keeping the
+    // spinner and stopping it reads as a stuck load: a circle that is obviously
+    // a progress indicator, not progressing. At rest it is stacked squares, the
+    // thing itself, which happens to be empty.
     await expect(global.locator(".animate-spin")).toHaveCount(0);
+    await expect(global.locator("svg.lucide-square-stack")).toHaveCount(1);
 
     // Openable at rest too, or "is anything running?" stays a question you can
     // only have been told the answer to.
@@ -123,6 +143,7 @@ test.describe("background jobs", () => {
     // so the chip and everything it stands for read as one subject.
     await expect(global).toHaveClass(/text-emerald-700/);
     await expect(global.locator(".animate-spin")).toHaveCount(1);
+    await expect(global.locator("svg.lucide-square-stack")).toHaveCount(0);
   });
 
   test("every chat header carries the count, including the chats that can never own one", async ({ page }) => {
@@ -187,6 +208,22 @@ test.describe("background jobs", () => {
     await expect(
       page.getByTestId("inbox-row-a2a:april~super_agent").getByRole("status"),
     ).toHaveCount(0);
+  });
+
+  test("a deep link reaches an agent's conversation, not just a channel thread", async ({ page }) => {
+    // ChatTab addresses a session two ways — `?channel=&thread=` and
+    // `?agent=&conv=` — and this screen only ever read the first, so
+    // `/inbox?agent=X&conv=Y` silently opened the NEWEST chat instead. Manu
+    // refreshed on a conversation with a message parked in it, landed somewhere
+    // else, and reasonably read that as the message being gone. It was not: he
+    // was reading a different chat.
+    await stub(page, []);
+    await page.goto(`/inbox?agent=${agentRow.agent_slug}&conv=${agentRow.conversation_id}`);
+    // The row it ASKED for, which is deliberately not the one the fallback
+    // would land on — otherwise the assertion passes on a deep link that is
+    // being ignored.
+    await expect(page.getByTestId(`inbox-row-${agentRow.agent_slug}`)).toHaveClass(/bg-primary\/12/);
+    await expect(page.getByTestId(`inbox-row-a2a:${THREAD}`)).not.toHaveClass(/bg-primary\/12/);
   });
 
   test("a deep link re-selects even when a chat is already open", async ({ page }) => {

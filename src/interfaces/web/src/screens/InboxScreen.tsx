@@ -5,7 +5,7 @@ import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList } from "../components/inbox/InboxList";
 import { inboxRowKey, markRowRead } from "../lib/chat-read";
-import { agentCardUrl } from "./mobile/routes";
+import { agentCardUrl, urlLooksAt } from "./mobile/routes";
 import { NewChatSheet } from "./mobile/NewChatSheet";
 import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
@@ -47,8 +47,18 @@ export function InboxScreen() {
   // just wrote, a link in a report) silently opened the newest chat instead,
   // and the reader had no way to tell they were looking at the wrong thing.
   const [params] = useSearchParams();
-  const wantChannel = params.get("channel");
-  const wantThread = params.get("thread");
+  // BOTH spellings, which is the half that was missing. ChatTab addresses a
+  // session two ways — `?channel=&thread=` for a channel thread and
+  // `?agent=&conv=` for an agent's conversation (see mobile/routes.ts) — and
+  // this screen only ever read the first. So `/inbox?agent=X&conv=Y` opened the
+  // NEWEST chat instead, silently: Manu refreshed on a conversation with a
+  // message parked in it, landed in a different one, and reasonably read that
+  // as the message having been lost. It had not — he was reading somewhere
+  // else. `urlLooksAt` already answers "does this URL mean this row?" for every
+  // form, so it is asked rather than half re-implemented here.
+  const asked = params.get("channel") || params.get("thread") || params.get("agent") || params.get("conv")
+    ? params.toString()
+    : null;
   // What the URL last asked for and we honoured. Without it the deep link was
   // a FIRST-PAINT-ONLY feature: the effect below bailed on `selected`, so once
   // anything was open, navigating to `/inbox?channel=…&thread=…` changed the
@@ -58,21 +68,18 @@ export function InboxScreen() {
   const [applied, setApplied] = useState<string | null>(null);
   useEffect(() => {
     if (!rows.length) return;
-    const asked = wantChannel || wantThread ? `${wantChannel || ""}:${wantThread || ""}` : null;
     // Already open, or nothing asked and something already chosen: leave it be.
     // Re-selecting on every render would fight the user's own clicks.
     if (asked ? asked === applied : !!selected) return;
     const match = asked
-      ? rows.find((r) =>
-          (!wantChannel || r.channel === wantChannel) &&
-          (!wantThread || r.conversation_id === wantThread))
+      ? rows.find((r) => urlLooksAt(`/inbox?${asked}`, r))
       : null;
     if (asked) setApplied(asked);
     // Falling back to the newest row is deliberate: a link to a thread that has
     // since rolled over to a new day should still land you IN the inbox rather
     // than on a blank pane.
     setSelected(match || selected || rows[0]);
-  }, [rows, selected, applied, wantChannel, wantThread]);
+  }, [rows, selected, applied, asked]);
 
   // Follow the row, not the snapshot of it. The list refreshes underneath as
   // messages arrive, and the same agent can point at a DIFFERENT thread than it
