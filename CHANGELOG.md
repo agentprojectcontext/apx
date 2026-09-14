@@ -1,3 +1,23 @@
+# [1.109.0](https://github.com/agentprojectcontext/apx/compare/v1.108.1...v1.109.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **a2a:** las tools que corre Roby se ven en el hilo, no sólo su respuesta ([079655e](https://github.com/agentprojectcontext/apx/commit/079655e1a14cb1c3788a3933d6a1628bc4bff4a3))
+* **a2a:** un peer que no existe no se lleva un job, un hilo ni una cara ([6cf4fc8](https://github.com/agentprojectcontext/apx/commit/6cf4fc81cf534927573cc80c43a38256b1bf054e))
+* **chat:** lo que todavía no salió se ve arriba del campo, y dice si está esperando o cortando ([acc2f74](https://github.com/agentprojectcontext/apx/commit/acc2f744bd397e57fc187a565a9a88d072821f47))
+* **telegram:** un turno que llega por Telegram existe para todo el sistema, no sólo para Telegram ([e7d3ff2](https://github.com/agentprojectcontext/apx/commit/e7d3ff2459032b04bf55163a99c9e29c4b989afe))
+* **tools:** un agente de proyecto crea y edita en SU proyecto, no en el default ([b908964](https://github.com/agentprojectcontext/apx/commit/b908964e9829feff53b347f0c9991a40c926eee8))
+
+
+### Features
+
+* **agents:** borrar un agente también es cosa de orquestadores, y el intento queda escrito ([e041807](https://github.com/agentprojectcontext/apx/commit/e041807582cb733c341f60d53542bd82ac9c903d))
+* **agents:** renombrar un agente es una sola operación, y un orquestador la puede pedir ([89eaf38](https://github.com/agentprojectcontext/apx/commit/89eaf38e97967d372f629f5f7ac6e2b9c6e1c013))
+* **jobs:** el contador de tareas está siempre, en cero y en gris, en vez de aparecer y desaparecer ([968847e](https://github.com/agentprojectcontext/apx/commit/968847e4c77c5fd8fe39487663f98001971ea18a))
+* **jobs:** el rail de proyecto marca la tarea en ejecución igual que la bandeja ([23ffc9b](https://github.com/agentprojectcontext/apx/commit/23ffc9b29b0f648ec2c49534703646f8f844c236))
+* **jobs:** una tarea en ejecución dice de qué chat viene, y ese chat lo dice también ([7579942](https://github.com/agentprojectcontext/apx/commit/75799424890314e2c0e1963cc00b9e63c3ad5193))
+
 ## [1.108.1](https://github.com/agentprojectcontext/apx/compare/v1.108.0...v1.108.1) (2026-09-12)
 
 
