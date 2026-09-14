@@ -138,6 +138,16 @@ export interface QueuedTurn {
   /** How to send it. Optional because a queue is not only a chat's: the code
    *  module parks turns the same way and has no per-send options to carry. */
   opts?: SendOptions;
+  /** Is this cutting IN, or waiting BEHIND?
+   *
+   *  Both ride the same queue — the drain is what actually sends either one,
+   *  once the pane is free — so from the data alone they were the same thing,
+   *  and the interface said "En cola" for both. That is the wrong word for one
+   *  of them: an interrupting message has already stopped the running turn and
+   *  is leaving as soon as the abort lands, which is a moment away, not a wait.
+   *  Manu, 2026-09-14: "puse interrumpe y lo mandó en cola… ¿es porque espera
+   *  que termine el turno?" No — but there was no way to tell from looking. */
+  interrupting?: boolean;
 }
 
 // Queue ownership follows the CHAT, not the mounted pane. Navigating away
@@ -1341,9 +1351,14 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             : threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
         );
         bindQueue(key);
+        // Decided HERE and carried on the record, not re-derived at paint time:
+        // the toggle can be flipped while this sits waiting, and what this
+        // message did is a fact about when it was sent, not about the switch's
+        // current position.
+        const cutsIn = !queueOnSendRef.current && !opts.queue;
         writeBackgroundQueue(key, [
           ...readBackgroundQueue(key),
-          { id: `q${++backgroundQueueSeq}`, text: trimmed, opts, msg: bubble() },
+          { id: `q${++backgroundQueueSeq}`, text: trimmed, opts, msg: bubble(), interrupting: cutsIn },
         ]);
         // Interrupt, by default: writing while an agent works almost always
         // means "no, stop, do this instead", which is what a new message has
@@ -1353,7 +1368,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         //
         // `opts.queue` overrules it downwards and only downwards: Ctrl+Enter
         // means "finish that first", from either setting of the toggle.
-        if (!queueOnSendRef.current && !opts.queue) void stopTurn();
+        if (cutsIn) void stopTurn();
         return;
       }
 
@@ -1794,6 +1809,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         if (opts.rerun) return;   // regenerate is not a message; it has nothing to park
         const key = queueKeyRef.current || threadActivityKey(pid, "group", gid);
         bindQueue(key);
+        // Same distinction as the 1:1 path: a room's cascade is the longest turn
+        // shape there is, so "waiting" and "cutting in" are minutes apart here.
+        const cutsIn = !queueOnSendRef.current && !opts.queue;
         writeBackgroundQueue(key, [
           ...readBackgroundQueue(key),
           {
@@ -1801,9 +1819,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             text: trimmed,
             opts: { group_id: gid, ...(files.length ? { attachments: files } : {}) },
             msg: bubble(),
+            interrupting: cutsIn,
           },
         ]);
-        if (!queueOnSendRef.current && !opts.queue) void stopTurn();
+        if (cutsIn) void stopTurn();
         return;
       }
       groupNameOfRef.current = nameOf;

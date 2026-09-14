@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, Clock, CornerDownRight, Copy, Info, Pencil, RefreshCw, X } from "lucide-react";
+import { Bot, CornerDownRight, Copy, Info, Pencil, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
@@ -35,9 +35,6 @@ interface Props {
   compact?: boolean;
   /** Written while the previous turn was still running: it is in the thread but
    *  has not left yet. Drawn at half strength, and it says so. */
-  queued?: boolean;
-  /** Take it back before it goes. Only meaningful alongside `queued`. */
-  onUnqueue?: () => void;
   /** Re-run this assistant turn (drop it and everything after, ask again).
    *  Absent → no button (super-agent threads / previews don't offer it). */
   onRegenerate?: () => void;
@@ -60,7 +57,7 @@ interface Props {
   dayInDivider?: boolean;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
   // mid-thread ("X joined the chat") changed the hook count for that row and React
@@ -208,7 +205,6 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         mine ? "justify-end" : "justify-start",
         // Not sent yet, and it should not read as if it were: the same bubble
         // at half strength, the way a message in flight looks everywhere else.
-        queued && "opacity-55",
       )}
     >
       {!mine && !compact && (face ? (
@@ -383,34 +379,16 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
           <div
             className={cn(
               "ml-auto flex shrink-0 items-center gap-2 text-muted-foreground",
-              // The phone has no hover, so there it is simply always on. So is
-              // the queue line — "waiting its turn, here is how to take it
-              // back" is not something to hide behind a hover.
-              !compact && !queued && "opacity-0 transition-opacity group-hover:opacity-100",
+              // The phone has no hover, so there it is simply always on.
+              !compact && "opacity-0 transition-opacity group-hover:opacity-100",
             )}
           >
-            {/* A timestamp on a turn that has not gone out yet is a receipt for
-                something that did not happen. What it is waiting for takes the
-                slot instead, until it leaves and gets a real one. */}
-            {queued ? (
-              <span className="inline-flex items-center gap-1">
-                <Clock size={10} /> {t("chat_ui.queued")}
-              </span>
-            ) : (
-              <span>{formatTs(msg.ts, compact, dayInDivider)}</span>
-            )}
-            {queued && onUnqueue && (
-              <Tip content={t("chat_ui.queued_cancel")}>
-                <button
-                  type="button"
-                  onClick={onUnqueue}
-                  className="inline-flex items-center hover:text-foreground"
-                  aria-label={t("chat_ui.queued_cancel")}
-                >
-                  <X size={11} />
-                </button>
-              </Tip>
-            )}
+            {/* Every bubble here has gone out, so every one has a real
+                timestamp. A parked line never reaches this component any more —
+                it is drawn above the field (components/chat/PendingTurns.tsx),
+                where "not sent yet" is what its position says rather than
+                something a small clock on a normal-looking bubble has to. */}
+            <span>{formatTs(msg.ts, compact, dayInDivider)}</span>
             {/* The sum is what fits; the split is what you actually want when
                 a turn looks expensive. One tap/hover away rather than three
                 more numbers on a line that already wraps on a phone. */}
@@ -465,7 +443,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
               </Tip>
             )}
             {/* Edit your turn and re-ask (drops everything below). */}
-            {mine && onEdit && !queued && !editing && (
+            {mine && onEdit && !editing && (
               <Tip content={t("chat_ui.edit")}>
                 <button
                   type="button"
@@ -478,7 +456,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
               </Tip>
             )}
             {/* Re-run this answer (drops it and everything below). */}
-            {!mine && onRegenerate && !queued && (
+            {!mine && onRegenerate && (
               <Tip content={t("chat_ui.regenerate")}>
                 <button
                   type="button"

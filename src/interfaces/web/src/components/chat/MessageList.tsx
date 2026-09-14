@@ -13,7 +13,6 @@ interface Props {
   /** Written while the current turn is still running, waiting behind it. They
    *  are drawn at the foot of the thread, where they will land. */
   queued?: QueuedTurn[];
-  onUnqueue?: (id: string) => void;
   onCopy: (text: string) => void;
   /** Re-run the answer at this index (drop it and everything after). Absent →
    *  no regenerate affordance (super-agent threads, a2a, previews). */
@@ -59,7 +58,6 @@ const AT_BOTTOM_SLACK = 24;
 export function MessageList({
   msgs,
   queued = [],
-  onUnqueue,
   onCopy,
   onRegenerate,
   onEdit,
@@ -183,23 +181,14 @@ export function MessageList({
           />
         </Fragment>
       ))}
-      {/* Waiting their turn, under the answer they will follow. Same bubble as
-          any other — what you wrote is in the conversation the moment you send
-          it, whether or not the agent has got to it yet. */}
-      {queued.map((q, i) => (
-        <Fragment key={q.id}>
-          {days[msgs.length + i] && <DayDivider label={days[msgs.length + i] as string} />}
-          <MessageBubble
-            msg={q.msg}
-            onCopy={onCopy}
-            compact={compact}
-            queued
-            onUnqueue={onUnqueue ? () => onUnqueue(q.id) : undefined}
-            showTools={showTools}
-            dayInDivider={dayDividers}
-          />
-        </Fragment>
-      ))}
+      {/* Not here any more. A parked line used to be drawn at the foot of the
+          conversation as an ordinary bubble — "what you wrote is in the
+          conversation the moment you send it" — and reading it back is what
+          broke: it looked exactly like a sent message, and scrolling up hid it
+          altogether while it was still going to fire. It lives above the field
+          now (components/chat/PendingTurns.tsx), pinned, where its position
+          says the thing its styling could not. `queued` stays a prop here only
+          so the day dividers and the autoscroll still count it. */}
       <div ref={bottomRef} style={bottomInset ? { height: bottomInset } : undefined} />
     </div>
   );

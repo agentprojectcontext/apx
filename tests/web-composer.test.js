@@ -123,8 +123,13 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // …and by DEFAULT it also cuts the running turn short. The one thing that
   // overrules it is Ctrl+Enter (`opts.queue`), which can only ever soften the
   // send — see tests/send-mode-and-queue.test.js.
-  assert.match(duringRun, /if \(!queueOnSendRef\.current && !opts\.queue\) void stopTurn\(\)/,
+  // The decision is NAMED and recorded on the parked line, not re-derived when
+  // it is painted: the toggle can be flipped while a message waits, and what
+  // that message did is a fact about when it was sent.
+  assert.match(duringRun, /const cutsIn = !queueOnSendRef\.current && !opts\.queue/,
     "interrupt is the default, and only the shortcut suspends it");
+  assert.match(duringRun, /interrupting: cutsIn/, "and the parked line remembers which it was");
+  assert.match(duringRun, /if \(cutsIn\) void stopTurn\(\)/, "cutting in actually cuts the turn");
 
   // The queue belongs to the chat, not the mounted pane. The worker survives a
   // route change and drains from refs that were updated by the finished turn.
@@ -185,28 +190,59 @@ test("switching chats never leaves the previous transcript or stream in the pane
   assert.match(chat, /\(ev\) => \{ if \(ownsView\(\)\) applyEvent\(ev\); \}/);
 });
 
-test("a queued turn is in the thread, and can be taken back", () => {
+// MOVED, 2026-09-14. This used to assert the opposite placement: a parked line
+// as an ordinary bubble at the foot of the thread, "in the conversation the
+// moment you send it". Reading it back is what broke — drawn like a sent
+// message it reads as sent, and scrolling up hid it while it was still going to
+// fire. Manu: "es mejor ordenarlo digamos arriba del mismo textarea, como lo
+// hacemos acá en Claude."
+test("what has not gone out yet lives above the field, not in the thread", () => {
   const list = web("components", "chat", "MessageList.tsx");
   const bubble = web("components", "chat", "MessageBubble.tsx");
-  // It is in the conversation the moment you send it — same bubble, drawn at
-  // the foot of the thread where it will land. (Wrapped in a Fragment since the
-  // day dividers landed: a queued turn written after midnight opens its own day
-  // like any other message.)
-  assert.match(list, /\{queued\.map\(\(q, i\) => \(/);
-  assert.match(list, /<MessageBubble\s*\n\s*msg=\{q\.msg\}/);
-  assert.match(list, /queued\n\s*onUnqueue=/);
-  assert.match(list, /\}, \[msgs, queued, autoscroll\]\)/, "and it scrolls into view like any other turn");
-  assert.match(bubble, /queued && "opacity-55"/, "half strength: it has not gone out yet");
-  // A timestamp on a turn that has not been sent is a receipt for something
-  // that did not happen. And the way out is not hidden behind a hover.
-  assert.match(bubble, /queued \? \(\s*\n\s*<span className="inline-flex items-center gap-1">\s*\n\s*<Clock size=\{10\} \/> \{t\("chat_ui\.queued"\)\}/);
-  assert.match(bubble, /!compact && !queued && "opacity-0 transition-opacity group-hover:opacity-100"/);
-  assert.match(bubble, /aria-label=\{t\("chat_ui\.queued_cancel"\)\}/);
+  const pending = web("components", "chat", "PendingTurns.tsx");
+
+  // Gone from the transcript, and gone from the bubble: leaving the dead props
+  // behind is how the old path gets re-wired by somebody reading the file.
+  assert.doesNotMatch(list, /<MessageBubble\s*\n\s*msg=\{q\.msg\}/, "no parked bubble in the thread");
+  assert.doesNotMatch(bubble, /queued \? \(/, "and the bubble no longer knows the state");
+  assert.doesNotMatch(bubble, /queued \?\?|queued\?: boolean/, "the dead prop is gone with it");
+  // It still counts for the dividers and the scroll: the strip appearing moves
+  // the field, and the thread has to stay pinned to its own end.
+  assert.match(list, /\}, \[msgs, queued, autoscroll\]\)/);
+
+  // Pinned to the field, where its POSITION says what its styling could not.
+  assert.match(pending, /data-testid="pending-turns"/);
+  assert.match(pending, /line-clamp-2/, "the line you wrote, not a second transcript");
+  assert.match(pending, /aria-label=\{t\("chat_ui\.queued_cancel"\)\}/, "and the way out is not hidden");
+
+  // TWO STATES. Both ride the same queue, so the interface called both "En
+  // cola" — including the one that had already aborted the running turn and was
+  // leaving the moment that landed. "Puse interrumpe y lo mandó en cola" is
+  // what that looks like from outside.
+  assert.match(pending, /const cutsIn = q\.interrupting/);
+  assert.match(pending, /data-pending-kind=\{cutsIn \? "interrupting" : "queued"\}/);
+  assert.match(pending, /cutsIn \? t\("chat_ui\.pending_interrupting"\) : t\("chat_ui\.queued"\)/);
+  // Cutting in wears the colour the panel gives work in flight; waiting stays
+  // muted, because waiting is not an event.
+  assert.match(pending, /cutsIn \? "text-emerald-700 dark:text-emerald-400" : "text-muted-fg"/);
 
   for (const lang of ["en", "es"]) {
     const dict = web("i18n", `${lang}.ts`);
     assert.match(dict, /queued:\s+"/, `${lang} names the state`);
     assert.match(dict, /queued_cancel:\s+"/, `${lang} names the way out`);
+    assert.match(dict, /pending_interrupting:\s+"/, `${lang} tells the two states apart`);
+  }
+});
+
+test("both surfaces that park a turn show it in the same place", () => {
+  // A code session's turns run for minutes, which is exactly where a parked
+  // line is most likely to be scrolled away from and forgotten — so the chat
+  // and the code module mount the same strip rather than one growing its own.
+  for (const [name, src] of [
+    ["chat", web("screens", "project", "ChatTab.tsx")],
+    ["code", web("screens", "modules", "CodeScreen.tsx")],
+  ]) {
+    assert.match(src, /<PendingTurns queued=\{queued\} onUnqueue=\{unqueue\}/, `${name} shows what is parked`);
   }
 });
 
