@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Tip } from "./tip"
 import { t } from "@/i18n"
+import { useAutoGrow } from "@/hooks/useAutoGrow"
 
 /** What a caller-supplied attach menu can do to the hidden file input. */
 export interface FilePicker {
@@ -104,38 +105,9 @@ export function ChatInput({
 
   // Grow the textarea with its content, clamped between minRows and maxRows.
   // The min keeps a comfortable multi-line height so you can see what you're
-  // typing even on a fresh, empty composer.
-  React.useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const resize = () => {
-      el.style.height = "auto"
-      // Force a reflow before reading scrollHeight so the "auto" reset takes
-      // effect — without this, scrollHeight can return the stale prior height.
-      void el.offsetHeight
-      const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20
-      const min = lineHeight * minRows
-      // Two ceilings, and the lower one wins: maxRows for the shape of the
-      // field, and 40% of the window so a long draft on a phone can never grow
-      // over the conversation it is about. Without the second one, maxRows big
-      // enough to be comfortable on a desktop swallows a 812px screen.
-      const max = Math.min(lineHeight * maxRows, Math.round(window.innerHeight * 0.4))
-      el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`
-      el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden"
-    }
-    resize()
-    // Re-run after the next paint to catch cases where the parent layout
-    // wasn't ready on the initial sync pass (e.g. inside a resizable panel
-    // that's just been mounted).
-    const raf = requestAnimationFrame(resize)
-    // The viewport ceiling above moves: rotating the phone, or the on-screen
-    // keyboard opening, changes what 40% is.
-    window.addEventListener("resize", resize)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener("resize", resize)
-    }
-  }, [value, minRows, maxRows])
+  // typing even on a fresh, empty composer. Shared with the in-place message
+  // editor, which needs exactly the same behaviour.
+  useAutoGrow(ref, value, { minRows, maxRows, viewportRatio: 0.4 })
 
   // Note what this does NOT read: `busy`. A draft in the field is a turn to
   // send, and the agent already working is no reason to refuse it — the caller
