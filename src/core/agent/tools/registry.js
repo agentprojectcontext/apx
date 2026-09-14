@@ -440,8 +440,13 @@ export function schemasForChannel(channel, { full = false } = {}) {
  * `allowedTools` mirrors the role gate: "*" = unrestricted, [] = nothing, an
  * array = allowlist. Both the initial set AND any activation respect it, so a
  * limited sender can't discover its way past the gate.
+ *
+ * `onDenied(names)` — optional — is called when the gate refuses an activation.
+ * The session stays pure and just reports; what to DO about it is the caller's
+ * (run-turn records the role-gated ones on the `log` channel, so an agent
+ * reaching for a tool its role does not carry is visible rather than silent).
  */
-export function createToolSession(channel, { full = false, allowedTools = "*" } = {}) {
+export function createToolSession(channel, { full = false, allowedTools = "*", onDenied = null } = {}) {
   const allowAll = allowedTools === "*";
   const allow = allowAll || !Array.isArray(allowedTools) ? null : new Set(allowedTools);
   const permits = (name) => allowAll || (allow ? allow.has(name) : false);
@@ -504,6 +509,11 @@ export function createToolSession(channel, { full = false, allowedTools = "*" } 
         activeNames.add(name);
         session.pending.push(meta.schema);
         activated.push(name);
+      }
+
+      if (denied.length && typeof onDenied === "function") {
+        // Never let a reporting hook break a turn.
+        try { onDenied(denied); } catch { /* best-effort */ }
       }
 
       return {

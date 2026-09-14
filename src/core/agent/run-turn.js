@@ -18,6 +18,7 @@ import { normalizeAutonomy } from "#core/constants/permissions.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { runAgent } from "#core/agent/index.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
+import { noteDeniedTools } from "#core/agent/tools/denied-log.js";
 import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
@@ -140,7 +141,13 @@ export async function runAgentTurn({
   // The allowlist decides WHAT it may call; the channel decides how much of it
   // is loaded up front — a full channel gets the lot, a lightweight one starts
   // on the base set and expands through discover_tools.
-  const toolSession = createToolSession(channel, { allowedTools });
+  const toolSession = createToolSession(channel, {
+    allowedTools,
+    // A role-gated tool this agent reached for anyway goes on the record — see
+    // tools/denied-log.js. Ordinary allowlist misses are not news and are
+    // filtered there, not here.
+    onDenied: (names) => noteDeniedTools(p, agent, names, channel),
+  });
 
   // Images this agent's skills declare: the pool attach_media / view_media
   // validate an id against, and the sink a queued attachment lands in.

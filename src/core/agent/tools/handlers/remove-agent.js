@@ -11,7 +11,7 @@ export default {
     function: {
       name: "remove_agent",
       description:
-        "Delete a project agent: removes its .apc/agents/<slug>.md definition AND its runtime data (memory, conversations, sessions). Irreversible. Confirm with the user first unless they clearly asked to delete it.",
+        "Delete a project agent: removes its .apc/agents/<slug>.md definition AND its runtime data (memory, conversations, sessions). Irreversible. Confirm with the user first unless they clearly asked to delete it. Orchestrator/master agents and the super-agent only.",
       parameters: {
         type: "object",
         required: ["agent"],

@@ -63,22 +63,39 @@ const HOST_ONLY_TOOLS = Object.freeze([
  * Tools only a MASTER agent (an orchestrator, or anything marked `is_master`)
  * may call — and the super-agent, which never comes through here.
  *
- * A tier between "anybody" and "the host only", for the one thing a team lead
+ * A tier between "anybody" and "the host only", for what a team lead
  * legitimately does and a specialist never should: reshape another agent's
- * IDENTITY. `rename_agent` moves somebody else's file, memory dir and every
- * pointer aimed at them; the blast radius is the team, not the caller. An
- * orchestrator asked to "renombrá el orchestrator de postbeam" is doing its
- * job. A social producer deciding mid-task that the QA agent needs a better
- * name is not.
+ * EXISTENCE. Renaming moves somebody else's file, memory dir and every pointer
+ * aimed at them; removing deletes all of it. The blast radius is the team, not
+ * the caller. An orchestrator asked to "renombrá el orchestrator de postbeam"
+ * is doing its job. A social producer deciding mid-task that the QA agent needs
+ * a better name — or no longer needs to exist — is not.
+ *
+ * `remove_agent` used to sit in the broad default, so every project agent could
+ * delete any other one, irreversibly, and the only trace was the deletion
+ * itself. Nothing in the install declared it on a card, so moving it here took
+ * no capability anybody had configured.
  *
  * Unlike HOST_ONLY_TOOLS this is a HARD gate: it survives a declared `tools:`
  * list, because the card is written by whoever set the agent up and the point
- * is that this capability follows the ROLE, not the paperwork. Promote the
- * agent (`type: orchestrator`, or `is_master`) and it has it.
+ * is that this capability follows the ROLE, not the paperwork. The switch is
+ * the role itself — promote the agent (`type: orchestrator`, or `is_master`)
+ * and it has it; demote it and it does not.
+ *
+ * And the gate is not silent: an agent that reaches for one of these without
+ * the role gets it recorded on the `log` channel (see noteDeniedTools), so a
+ * specialist going for the delete button is something you find out about
+ * rather than something that merely fails.
  */
 const MASTER_ONLY_TOOLS = Object.freeze([
   TOOLS.RENAME_AGENT,
+  TOOLS.REMOVE_AGENT,
 ]);
+
+/** Is this one of the role-gated tools? Used to decide what is worth recording. */
+export function isMasterOnlyTool(name) {
+  return MASTER_ONLY_TOOLS.includes(name);
+}
 
 /** Does this agent lead a team? `orchestrator` implies it; `is_master` says it. */
 export function isMasterAgent(agent) {
