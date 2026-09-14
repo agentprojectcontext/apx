@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Server, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { Engines } from "../../lib/api";
+import { useModelCatalog } from "../agents/modelCatalog";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
@@ -9,9 +9,22 @@ import { t } from "../../i18n";
 // small "Server · <model>" button that opens a dropdown to pick a model
 // override, or fall back to "Auto" (the daemon's fallback router decides).
 //
-// Options are the live model catalogs of the configured engines, aggregated as
-// `engine:model` (best-effort — engines that fail to list are skipped). Empty
-// value = Auto.
+// Options come from the shared catalog (components/agents/modelCatalog): the
+// providers this install has switched ON, each asked for its own model list.
+// Empty value = Auto.
+//
+// It used to build the list itself, from `GET /engines` — the ADAPTER ids the
+// build ships, not the providers the user configured. Three things went wrong
+// with that, all of them invisible:
+//   • it probed providers by adapter id, with no slug and no base_url, so the
+//     daemon looked for the key under the wrong name and asked Ollama at
+//     localhost — while this install runs it on another machine entirely;
+//   • it probed providers the user had switched off, and could never probe one
+//     configured under a slug of its own;
+//   • it prefixed `engine:` only when the id had no colon — and every Ollama id
+//     has one, so `gemma3:4b` was offered whole and read back as the provider
+//     "gemma3", which resolves to nothing.
+// The catalog is asked lazily, on open, so a mounted composer costs no requests.
 export function ModelPicker({
   value,
   onChange,
@@ -23,9 +36,18 @@ export function ModelPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [options, setOptions] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Nothing is fetched until the picker is opened for the first time.
+  const { providers, loading, probing } = useModelCatalog({ enabled: open });
+
+  // Flat `<provider>:<model>` ids, kept in catalog order: providers as
+  // configured, and within each one its default model first.
+  const options = useMemo(() => {
+    const seen = new Set<string>();
+    for (const p of providers) for (const m of p.models) seen.add(`${p.slug}:${m}`);
+    return [...seen];
+  }, [providers]);
 
   // Close on outside click.
   useEffect(() => {
@@ -37,32 +59,7 @@ export function ModelPicker({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  // Lazily load the aggregated model catalog the first time the picker opens.
-  useEffect(() => {
-    if (!open || loaded) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { engines } = await Engines.list();
-        const lists = await Promise.all(
-          engines.map((e) =>
-            Engines.models({ engine: e })
-              .then((r) => (r.models || []).map((m) => (m.includes(":") ? m : `${e}:${m}`)))
-              .catch(() => [] as string[]),
-          ),
-        );
-        if (!cancelled) {
-          const flat = Array.from(new Set(lists.flat())).sort();
-          setOptions(flat);
-          setLoaded(true);
-        }
-      } catch {
-        if (!cancelled) setLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [open, loaded]);
-
+  const busy = loading || probing;
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options;
   const label = value || t("shared_ui.auto");
@@ -114,8 +111,10 @@ export function ModelPicker({
                 {!value && <Check className="size-3" />}
               </button>
             </li>
-            {!loaded && <li className="px-2 py-1 text-[11px] text-muted-fg">{t("shared_ui.loading_models")}</li>}
-            {loaded && filtered.length === 0 && query.trim() && (
+            {busy && options.length === 0 && (
+              <li className="px-2 py-1 text-[11px] text-muted-fg">{t("shared_ui.loading_models")}</li>
+            )}
+            {!busy && filtered.length === 0 && query.trim() && (
               <li>
                 <button
                   type="button"
