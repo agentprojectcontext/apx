@@ -1,3 +1,10 @@
+## [1.110.1](https://github.com/agentprojectcontext/apx/compare/v1.110.0...v1.110.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **tasks:** un id ambiguo se dice aunque uno de los proyectos sea el default ([2c276d4](https://github.com/agentprojectcontext/apx/commit/2c276d4e068b20bb8783f570223efee7b1debbc1))
+
 # [1.110.0](https://github.com/agentprojectcontext/apx/compare/v1.109.0...v1.110.0) (2026-09-14)
 
 
