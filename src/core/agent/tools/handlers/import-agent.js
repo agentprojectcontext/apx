@@ -9,11 +9,11 @@ export default {
     type: "function",
     function: {
       name: "import_agent",
-      description: "Import an agent template from the APX vault into default or a registered project.",
+      description: "Import an agent template from the APX vault into a project. Omit `project` to import into the project you belong to (the default workspace, if you are the super-agent).",
       parameters: {
         type: "object",
         properties: {
-          project: { type: "string", description: "project id/name/path; omit or use 'default' for ~/.apx/projects/default" },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           agent: { type: "string", description: "agent slug from list_vault_agents" },
         },
         required: ["agent"],
@@ -32,7 +32,7 @@ export default {
       throw new Error(`agent "${slug}" not found in vault. Available: ${available}`);
     }
 
-    const p = resolveProject(projects, project || "default");
+    const p = resolveProject(projects, project);
     addImportedAgent(p.path, slug);
     ensureAgentDir(p.path, slug);
     ensureAgentRuntimeDir(p, slug);

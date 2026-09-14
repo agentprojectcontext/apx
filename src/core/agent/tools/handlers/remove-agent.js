@@ -16,7 +16,7 @@ export default {
         type: "object",
         required: ["agent"],
         properties: {
-          project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           agent:   { type: "string", description: "Slug of the agent to delete (from list_agents)." },
         },
       },
@@ -27,7 +27,7 @@ export default {
     if (!agent) return { error: "agent required" };
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

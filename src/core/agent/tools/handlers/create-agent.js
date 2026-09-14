@@ -14,12 +14,12 @@ export default {
     function: {
       name: "create_agent",
       description:
-        "Create a project agent (a specialist persona) WITH its system prompt in one step. Use this — not run_shell/apx agent add, and never write_file on the .md — whenever the user asks you to make a new agent. `system` is the agent's full instructions (its reason to exist) and is required. Omit `tools` unless you deliberately want to narrow the agent (an undeclared tools field means the broad default). Project resolves by id/name/path; omit or use 'default' for the super-agent workspace. Call list_agents first if unsure what exists.",
+        "Create a project agent (a specialist persona) WITH its system prompt in one step. Use this — not run_shell/apx agent add, and never write_file on the .md — whenever the user asks you to make a new agent. `system` is the agent's full instructions (its reason to exist) and is required. Omit `tools` unless you deliberately want to narrow the agent (an undeclared tools field means the broad default). Project resolves by id/name/path; omit to create it in the project you belong to (that is the 'default' workspace when you are the super-agent). Call list_agents first if unsure what exists.",
       parameters: {
         type: "object",
         required: ["slug", "system"],
         properties: {
-          project:     { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project:     { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           slug:        { type: "string", description: "Lowercase id: starts with a letter, then letters/digits/-/_ (e.g. golf-coach)." },
           system:      { type: "string", description: "The agent's full system prompt / instructions. REQUIRED — this is what the agent does, how, and what it never does." },
           name:        { type: "string", description: "Display name (optional; defaults to a title-cased slug)." },
@@ -45,7 +45,7 @@ export default {
     await requirePermission("create_agent", { dangerous: true, args: { agent: slug, project } });
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }

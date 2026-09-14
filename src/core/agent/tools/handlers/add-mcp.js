@@ -40,7 +40,7 @@ export default {
         type: "object",
         required: ["name"],
         properties: {
-          project: { type: "string", description: "Project id, name or path. Omit or 'default' for ~/.apx/projects/default." },
+          project: { type: "string", description: "Project id, name or path. Omit for the project you belong to (the default project, if you are the super-agent)." },
           name:    { type: "string", description: "Server name (how you'll reference it in call_mcp)." },
           command: { type: "string", description: "stdio: the executable to spawn (e.g. 'npx')." },
           args:    { type: "array", items: { type: "string" }, description: "stdio: arguments for the command." },
@@ -67,7 +67,7 @@ export default {
 
     let p;
     try {
-      p = resolveProject(projects, project || "default");
+      p = resolveProject(projects, project);
     } catch (e) {
       return { error: e.message };
     }
