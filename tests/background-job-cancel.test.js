@@ -166,7 +166,11 @@ test("the route reaches the same turn the thread's own Stop does", () => {
   // Keyed by (project, "a2a", thread) — one key, so the two buttons cannot end
   // up addressing two different ideas of the same run.
   const src = fs.readFileSync(new URL("../src/host/daemon/api/jobs.js", import.meta.url), "utf8");
-  assert.match(src, /abortFn: \(j\) => abortActiveTurn\(threadTurnKey\(j\.project_id, "a2a", j\.thread\)\)/);
+  assert.match(src, /abortActiveTurn\(threadTurnKey\(j\.project_id, "a2a", j\.thread\)\)/);
+  // And the other kind of work: a shell job's is a process tree, killed by its
+  // group so cancelling a render takes ffmpeg with it rather than only the
+  // `sh -lc` that spawned it.
+  assert.match(src, /killShellJob\(j\)/, "a shell job is cancelled by killing it");
   // A job that already ended answers 409, not 200: a panel that greys the row
   // out on an optimistic success lies about one that finished a second before
   // the click.
@@ -185,4 +189,8 @@ test("every agent is told this mechanism exists", () => {
   assert.match(base, /cancelled/i, "that the owner can stop it");
   assert.match(base, /Do not start it again|Do NOT start it again/, "and what that means");
   assert.match(base, /apx send --deliver/, "and the shell trap that produced all this");
+  // The second kind of work. An agent that knows only about peers waits for a
+  // twelve-minute render in the foreground and gets a SIGTERM for it.
+  assert.match(base, /run_shell` with `background: true`/, "that a long command can be left running");
+  assert.match(base, /cannot finish that way at all/i, "and why waiting for one is not an option");
 });

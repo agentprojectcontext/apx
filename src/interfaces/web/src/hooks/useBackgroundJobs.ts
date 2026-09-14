@@ -29,6 +29,21 @@ export function useBackgroundJobs(projectId?: string | number | null) {
         // A frame for another project is not this screen's business. The daemon
         // broadcasts to every client; the filter belongs here.
         if (projectId != null && String(frame.project_id) !== String(projectId)) return;
+        // Progress is not a state change: the job was running before the frame
+        // and is running after it, and the frame already carries the record. So
+        // the cache is patched in place with no request — a render printing
+        // every second would otherwise mean a round-trip every two, per open
+        // panel, per device, forever.
+        if (frame.phase === "progress") {
+          void mutate(
+            (cur) =>
+              cur
+                ? { ...cur, data: cur.data.map((j) => (j.id === frame.job.id ? frame.job : j)) }
+                : cur,
+            { revalidate: false },
+          );
+          return;
+        }
         mutate();
       }),
     [projectId, mutate],
@@ -56,8 +71,16 @@ export function useBackgroundJobs(projectId?: string | number | null) {
  * request however long it is, and a row for another project still answers
  * correctly instead of reading an empty project-scoped cache.
  */
-export function useThreadJobRunning(threadId?: string | null): boolean {
+export function useThreadJobRunning(threadId?: string | null, conversationId?: string | null): boolean {
   const { jobs } = useBackgroundJobs();
-  if (!threadId) return false;
-  return jobs.some((j) => j.thread === threadId);
+  if (!threadId && !conversationId) return false;
+  return jobs.some(
+    (j) =>
+      (!!threadId && j.thread === threadId) ||
+      // A shell job has no pair thread — it belongs to the CHAT it was launched
+      // from, and that row deserves the same mark for the same reason: from
+      // outside, an agent with a render running looks like an agent doing
+      // nothing.
+      (!!conversationId && j.origin?.conversation_id === conversationId),
+  );
 }

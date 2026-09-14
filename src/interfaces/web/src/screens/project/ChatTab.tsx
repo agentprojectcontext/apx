@@ -1081,6 +1081,12 @@ export function ChatTab({
               // question, which is the whole reason the control stopped
               // disappearing.
               threadId={isA2A && selected.kind === "thread" ? selected.threadId : NO_THREAD_JOBS}
+              // The other half of "what is running HERE": a command this chat's
+              // agent left running is filed under the conversation, not under a
+              // pair. Without this an ordinary agent chat — the one Manu was
+              // looking at while asking for exactly this — reads its own zero
+              // while its agent renders thirteen reels.
+              conversationId={conversationId}
               compact
             />
             <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>

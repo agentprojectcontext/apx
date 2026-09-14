@@ -19,22 +19,43 @@ import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { BackgroundJob } from "../../types/daemon";
 
-/** Where a job's conversation lives. A background job IS an a2a exchange — the
- *  record carries the pair thread it opened — so the address is the one the
- *  inbox already answers to, not a new route. */
+/** Where a job's conversation lives.
+ *
+ *  An a2a job IS an exchange — the record carries the pair thread it opened —
+ *  so its address is the one the inbox already answers to. A SHELL job has no
+ *  thread and is not homeless for it: it belongs to the chat it was launched
+ *  from, which is also where its wake-up lands, so that is where the row goes.
+ *  A job whose origin was not a chat (a routine, a Telegram turn) has nowhere
+ *  to send you, and says so by not being a link. */
 export function jobThreadUrl(job: BackgroundJob): string | null {
+  if (job.kind === "shell") {
+    const conv = job.origin?.conversation_id;
+    if (!conv || job.project_id == null) return null;
+    return `/p/${encodeURIComponent(String(job.project_id))}/chat?agent=${encodeURIComponent(job.from)}&conv=${encodeURIComponent(conv)}`;
+  }
   if (!job.thread) return null;
   return `/inbox?channel=a2a&thread=${encodeURIComponent(job.thread)}`;
 }
 
+/** The last line a command actually printed. A tail is many lines of which only
+ *  the newest is news, and a menu row has space for one. */
+export function lastOutputLine(tail?: string): string | null {
+  const lines = String(tail || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  return lines.length ? lines[lines.length - 1].slice(-160) : null;
+}
+
 /**
- * A thread that cannot own a job, asking anyway.
+ * A thread that cannot own an a2a job, asking anyway.
  *
  * `threadId` unset means "count everything" — the global mount. A chat that is
- * not an a2a pair needs the third thing: scoped to itself, and its own count is
- * always nought. Passing `null` would silently turn its header chip into the
- * global counter, which is how a Telegram thread would come to claim work
- * happening between two other agents.
+ * not an a2a pair needs the third thing: scoped to itself, with no pair of its
+ * own. Passing `null` would silently turn its header chip into the global
+ * counter, which is how a Telegram thread would come to claim work happening
+ * between two other agents.
+ *
+ * It no longer means the count is always nought: a chat that is not an a2a pair
+ * can still own SHELL jobs, which are filed under its conversation. It passes
+ * this for the thread and its conversation id for the other half.
  */
 export const NO_THREAD_JOBS = "\u0000none";
 
@@ -79,6 +100,7 @@ export const NO_THREAD_JOBS = "\u0000none";
 export function BackgroundJobsMenu({
   projectId,
   threadId,
+  conversationId,
   compact = false,
 }: {
   /** Narrow to one project's jobs. Unset (the global mount) counts every one. */
@@ -86,6 +108,11 @@ export function BackgroundJobsMenu({
   /** Narrow to the jobs running IN one thread — the mount that lives in that
    *  thread's header, beside the tools toggle, where the work belongs. */
   threadId?: string | null;
+  /** The same narrowing for a chat that is not an a2a pair. A shell job is
+   *  filed under the CONVERSATION it was launched from, so this is how an
+   *  ordinary agent chat answers "what is running here" — the question its
+   *  header could not answer at all while a2a pairs were the only owners. */
+  conversationId?: string | null;
   /** Sit inside a thread header: no project line on the rows (you are in it)
    *  and no jump-out arrow on the row you are already reading. */
   compact?: boolean;
@@ -96,7 +123,17 @@ export function BackgroundJobsMenu({
   const toast = useToast();
   const [stopping, setStopping] = useState<string | null>(null);
 
-  const jobs = threadId ? all.filter((j) => j.thread === threadId) : all;
+  // Scoped to this chat by EITHER address: the a2a pair it is, or the
+  // conversation it is. A mount that passes neither is the global one and
+  // counts everything.
+  const scoped = threadId != null || conversationId != null;
+  const jobs = scoped
+    ? all.filter(
+      (j) =>
+        (!!threadId && threadId !== NO_THREAD_JOBS && j.thread === threadId) ||
+        (!!conversationId && j.origin?.conversation_id === conversationId),
+    )
+    : all;
   const idle = jobs.length === 0;
 
   const projectName = (id: BackgroundJob["project_id"]) =>
@@ -210,9 +247,16 @@ export function BackgroundJobsMenu({
                   url && !compact ? "group/job hover:bg-accent/50" : "cursor-default",
                 )}
               >
-                {/* Who is waiting on whom — the sentence the whole record is. */}
+                {/* The sentence the whole record is. Two kinds of record, two
+                    sentences: a peer has somebody on the other end and a command
+                    does not, and "reels is waiting on null" is how that would
+                    have read if both had shared one line. */}
                 <p className="flex items-center gap-1 truncate font-medium text-foreground">
-                  <span className="truncate">{t("jobs.waiting", { from: job.from, to: job.to })}</span>
+                  <span className="truncate">
+                    {job.kind === "shell"
+                      ? t("jobs.running_command", { agent: job.from })
+                      : t("jobs.waiting", { from: job.from, to: job.to ?? "" })}
+                  </span>
                   {url && !compact && (
                     <ArrowUpRight size={11} className="shrink-0 opacity-0 group-hover/job:opacity-70" />
                   )}
@@ -222,9 +266,29 @@ export function BackgroundJobsMenu({
                     row is two agent names floating free of anywhere. */}
                 {where && <p className="mt-0.5 truncate text-[10px] text-muted-fg">{where}</p>}
                 {/* What was asked. One line: the menu is for deciding whether to
-                    stop something, not for re-reading the brief. */}
+                    stop something, not for re-reading the brief. A command is
+                    set in mono, because it is one — and because "is that the
+                    right path?" is most of what you look at it for. */}
                 {job.body && (
-                  <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-fg">{job.body}</p>
+                  <p
+                    className={cn(
+                      "mt-0.5 line-clamp-2 text-[11px] text-muted-fg",
+                      job.kind === "shell" && "font-mono text-[10px] leading-snug",
+                    )}
+                  >
+                    {job.body}
+                  </p>
+                )}
+                {/* THE MOVING LINE, and the reason this row is worth opening
+                    while the work is still running. A peer reports when it is
+                    done; a command prints as it goes, and the last thing it
+                    printed is the only honest answer to "how is it going" —
+                    which is exactly what was asked for. Pushed over the live
+                    feed as it changes, so it moves without the panel polling. */}
+                {job.kind === "shell" && lastOutputLine(job.tail) && (
+                  <p className="mt-0.5 truncate font-mono text-[10px] text-muted-fg/80">
+                    {lastOutputLine(job.tail)}
+                  </p>
                 )}
                 <p className="mt-0.5 text-[10px] text-muted-fg">
                   {relativeWhen(job.created_at, t as never)}

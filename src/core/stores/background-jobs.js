@@ -23,6 +23,19 @@
 // only one available — inventing a result would be the lie the incident was
 // made of.
 //
+// TWO KINDS OF WORK, ONE RECORD. A job started life as "I asked another agent
+// and I am not waiting" (`kind: "a2a"`). A long COMMAND is the same sentence
+// with a different worker — a render, a build, a batch of reels — and it failed
+// the same way: `run_shell` is synchronous and capped at 600 s, so an agent with
+// a twelve-minute render either held its turn open for it or got a SIGTERM and
+// reported whatever the truncated output looked like. `kind: "shell"` is that
+// work, in this store, so it lands on the same panel, under the same fan-out
+// wall, and with the same promise to wake whoever left it running.
+//
+// A record with no `kind` is an a2a job: the field arrived after the store did,
+// and jobs already on disk must keep meaning what they meant. Read it through
+// `jobKind()` rather than the raw field.
+//
 // One JSON file per job under <APX_HOME>/background-jobs/. Not a table: jobs are
 // few, short-lived, and read one at a time by id, and a directory gives the
 // delivery claim below a filesystem primitive that a row would not.
@@ -34,6 +47,21 @@ import { readJson, writeJson } from "#core/util/json-file.js";
 import { shortId } from "#core/util/ids.js";
 
 export const BACKGROUND_JOBS_DIR = path.join(APX_HOME, "background-jobs");
+
+/**
+ * What is doing the work.
+ *
+ * `a2a` — another agent's turn. `shell` — a command this daemon spawned. The
+ * distinction decides three things and nothing else: who can be killed to cancel
+ * it (a turn's abort hook vs. a process group), what the row says, and where the
+ * wake-up lands. Everything else about a job is the same for both.
+ */
+export const JOB_KINDS = Object.freeze({ A2A: "a2a", SHELL: "shell" });
+
+/** A job's kind, defaulting to a2a for records written before kinds existed. */
+export function jobKind(job) {
+  return job?.kind || JOB_KINDS.A2A;
+}
 
 /**
  * How many jobs one agent may have open at once.
@@ -73,6 +101,19 @@ function claimFileFor(id) {
 }
 
 /**
+ * Where a shell job's full output is kept.
+ *
+ * The record carries only the tail (a progress line and the last error); this
+ * is everything the command printed. Beside the record rather than in the
+ * project, because it is runtime noise nobody asked to have in their repo —
+ * the same reason artifacts live under APX_HOME — and it is pruned with the
+ * job it belongs to.
+ */
+export function jobLogPath(id) {
+  return path.join(BACKGROUND_JOBS_DIR, `${id}.log`);
+}
+
+/**
  * Open a job. Returns the record.
  *
  * `daemon_pid` is stamped here and is what makes recovery decidable: a job whose
@@ -83,21 +124,40 @@ function claimFileFor(id) {
 export function openJob({
   project_id = null,
   from,
-  to,
+  to = null,
   thread = null,
   body = "",
   wake = false,
   timeout_s = DEFAULT_JOB_TIMEOUT_S,
   depth = 0,
+  kind = JOB_KINDS.A2A,
+  // Shell jobs only. `command`/`cwd` are what was run and where; `pid` is the
+  // process GROUP leader, so cancelling can signal the whole tree rather than
+  // the `sh -lc` wrapper that would leave ffmpeg orphaned behind it.
+  command = null,
+  cwd = null,
+  pid = null,
+  // Where the agent was when it left this running: `{ channel, conversation_id }`.
+  // The wake-up goes back THERE — into the chat the owner is reading — instead
+  // of somewhere the work has no context. A job with no origin is still woken;
+  // it just opens a new thread to do it in.
+  origin = null,
 }) {
-  if (!from || !to) throw new Error("background job: from and to are required");
+  if (!from) throw new Error("background job: from is required");
+  // Only an a2a job has someone on the other end. A shell job's worker is a
+  // process, and giving it a fake peer name is how a phantom agent gets a face
+  // in the inbox — so `to` stays null and every reader branches on the kind.
+  if (kind === JOB_KINDS.A2A && !to) throw new Error("background job: to is required for an a2a job");
+  if (kind === JOB_KINDS.SHELL && !command) throw new Error("background job: command is required for a shell job");
   const ttl = Number(timeout_s) > 0 ? Number(timeout_s) : DEFAULT_JOB_TIMEOUT_S;
   const created = new Date();
+  const id = shortId("bgjob");
   const job = {
-    id: shortId("bgjob"),
+    id,
     project_id: project_id ?? null,
+    kind,
     from: String(from),
-    to: String(to),
+    to: to == null ? null : String(to),
     thread: thread || null,
     // Kept so a wake-up and the panel can both say what this job WAS without
     // re-reading the thread. A job the owner cannot name is a spinner.
@@ -111,9 +171,22 @@ export function openJob({
     timeout_s: ttl,
     closed_at: null,
     result: null,
+    // Shell-only, and absent on an a2a record rather than null on it: a field
+    // that is always there is a field every reader has to decide about.
+    ...(kind === JOB_KINDS.SHELL
+      ? {
+        command: String(command),
+        cwd: cwd || null,
+        pid: pid ?? null,
+        tail: "",
+        exit_code: null,
+        origin: origin || null,
+        log_path: jobLogPath(id),
+      }
+      : {}),
   };
   fs.mkdirSync(BACKGROUND_JOBS_DIR, { recursive: true });
-  writeJson(fileFor(job.id), job);
+  writeJson(fileFor(id), job);
   return job;
 }
 
@@ -129,7 +202,7 @@ export function readJob(id) {
  * true one — a `lost` job whose daemon comes back must not be overwritten by a
  * late success from a promise nobody is holding any more.
  */
-export function closeJob(id, { status = "done", result = "" } = {}) {
+export function closeJob(id, { status = "done", result = "", exit_code = undefined } = {}) {
   const job = readJob(id);
   if (!job) return null;
   if (TERMINAL_STATUSES.includes(job.status)) return job;
@@ -138,9 +211,33 @@ export function closeJob(id, { status = "done", result = "" } = {}) {
     status: TERMINAL_STATUSES.includes(status) ? status : "done",
     result: String(result || "").slice(0, 8000),
     closed_at: nowIso(),
+    // A shell job's outcome in one number. Kept beside the prose because the
+    // prose is the tail of the output, and "exit 1" is the part a panel shows
+    // and a woken agent must not have to parse out of it.
+    ...(exit_code === undefined ? {} : { exit_code: exit_code === null ? null : Number(exit_code) }),
   };
   writeJson(fileFor(id), closed);
   return closed;
+}
+
+/**
+ * Patch a RUNNING job's progress. For the live half of a shell job: its pid the
+ * moment it is known, and the tail of its output as it comes.
+ *
+ * Refuses a terminal job, and takes a WHITELIST of fields, for the same reason
+ * `closeJob` keeps the first status it was given: a record that anything can
+ * rewrite at any time is not a record. Progress is the only thing that changes
+ * while a job runs — status, outcome and identity are settled elsewhere.
+ */
+export function updateJob(id, patch = {}) {
+  const job = readJob(id);
+  if (!job) return null;
+  if (TERMINAL_STATUSES.includes(job.status)) return job;
+  const next = { ...job };
+  if (patch.pid !== undefined) next.pid = patch.pid == null ? null : Number(patch.pid);
+  if (patch.tail !== undefined) next.tail = String(patch.tail || "");
+  writeJson(fileFor(id), next);
+  return next;
 }
 
 /**
@@ -253,6 +350,7 @@ export function deleteJob(id) {
   if (!id || !SAFE_ID.test(String(id))) return;
   try { fs.rmSync(fileFor(id), { force: true }); } catch { /* best-effort */ }
   try { fs.rmSync(claimFileFor(id), { force: true }); } catch { /* best-effort */ }
+  try { fs.rmSync(jobLogPath(id), { force: true }); } catch { /* best-effort */ }
 }
 
 /**

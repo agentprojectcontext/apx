@@ -24,8 +24,9 @@
 // way. What was actually missing was the third step — telling the agent that
 // asked to be woken — without which cancelling would leave it waiting forever
 // for a result nobody was coming with. `cancelJob` does all three in order.
-import { listJobs, readJob, TERMINAL_STATUSES } from "#core/stores/background-jobs.js";
+import { listJobs, readJob, TERMINAL_STATUSES, jobKind, JOB_KINDS } from "#core/stores/background-jobs.js";
 import { cancelJob } from "#core/agent/a2a/background.js";
+import { killShellJob } from "#core/agent/shell/background.js";
 import { abortActiveTurn, threadTurnKey } from "../active-turns.js";
 import { pageEnvelope, asyncRoute } from "./shared.js";
 
@@ -78,7 +79,17 @@ export function register(api, { projects, config, plugins, registries } = {}) {
       // The registry lives here, not in core (rule 8). A job's turn is keyed by
       // its thread on the a2a channel — the same key the thread's own Stop uses,
       // so the two buttons reach the same run rather than two ideas of it.
-      abortFn: (j) => abortActiveTurn(threadTurnKey(j.project_id, "a2a", j.thread)),
+      //
+      // A shell job's work is not a turn but a process TREE, and killing it is
+      // the same decision reached through a different syscall: `killShellJob`
+      // signals the group, so cancelling a render takes ffmpeg with it and not
+      // just the `sh -lc` that spawned it. A job this daemon does not hold —
+      // left by a previous one — cannot be killed at all, and says so by
+      // returning false, which `cancelJob` reports as `stopped: false` while
+      // still closing the record.
+      abortFn: (j) => (jobKind(j) === JOB_KINDS.SHELL
+        ? killShellJob(j)
+        : abortActiveTurn(threadTurnKey(j.project_id, "a2a", j.thread))),
       project: projectOfJob(projects, job.project_id),
       config,
       projects,

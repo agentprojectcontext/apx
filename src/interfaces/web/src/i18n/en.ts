@@ -1980,6 +1980,7 @@ export const en = {
     tip_idle:             "Nothing running in the background",
     none:                 "Nothing is running.",
     waiting:              "{from} is waiting on {to}",
+    running_command:      "{agent} is running a command",
     open_thread:          "Open the chat",
     no_wake:              "no wake-up",
     cancel:               "Stop",
@@ -2031,6 +2032,7 @@ export const en = {
     jobs_running_one:    "1 task running",
     jobs_running_none:   "No tasks",
     job_waiting_on:      "Waiting on {peer}",
+    job_running_command: "Running: {command}",
     // A turn that ran tools, said something, then ran more: several blocks,
     // ONE count. Numbered against the turn so the second block does not read
     // as a second turn starting over at one.

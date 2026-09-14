@@ -20,7 +20,7 @@
 // interval for case 2. Same shape as ./callback-reconciler.js, which does this
 // for detached `call_runtime` sessions.
 import {
-  listJobs, closeJob, ownerAlive, jobExpired, pruneJobs,
+  listJobs, closeJob, ownerAlive, jobExpired, pruneJobs, jobKind, JOB_KINDS,
 } from "#core/stores/background-jobs.js";
 import { deliverWake } from "#core/agent/a2a/background.js";
 import { emitBackgroundJobEvent } from "#core/events/bus.js";
@@ -67,9 +67,18 @@ export async function reconcileBackgroundJobs({
       // here ended just as really as one that answered, and a panel still
       // showing it as running is the stale spinner this feature exists to kill.
       emitBackgroundJobEvent({ phase: "end", job: settled });
-      log?.(`background-jobs: closed ${job.id} (${job.from} → ${job.to}) as ${status} — ${reason}`);
+      // Named by what it WAS: a peer for an a2a job, the command for a shell one
+      // (whose `to` is null — there is nobody on the other end of a process).
+      const what = jobKind(job) === JOB_KINDS.SHELL
+        ? `${job.from} ran ${String(job.command || "").slice(0, 80)}`
+        : `${job.from} → ${job.to}`;
+      log?.(`background-jobs: closed ${job.id} (${what}) as ${status} — ${reason}`);
 
-      if (!settled.wake) continue;
+      // A shell job's wake-up is not this function's to deliver: the `end` frame
+      // above is what shell-job-wake.js listens for, and it takes the agent back
+      // into its own chat. Calling deliverWake here would only claim the wake
+      // and then fail to send it.
+      if (!settled.wake || jobKind(settled) !== JOB_KINDS.A2A) continue;
       const project = projects?.get?.(settled.project_id);
       if (!project) {
         log?.(`background-jobs: cannot wake ${settled.from} for ${job.id} — project ${settled.project_id} is gone`);
