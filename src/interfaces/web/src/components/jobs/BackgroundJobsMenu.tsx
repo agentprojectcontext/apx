@@ -28,6 +28,17 @@ export function jobThreadUrl(job: BackgroundJob): string | null {
 }
 
 /**
+ * A thread that cannot own a job, asking anyway.
+ *
+ * `threadId` unset means "count everything" — the global mount. A chat that is
+ * not an a2a pair needs the third thing: scoped to itself, and its own count is
+ * always nought. Passing `null` would silently turn its header chip into the
+ * global counter, which is how a Telegram thread would come to claim work
+ * happening between two other agents.
+ */
+export const NO_THREAD_JOBS = "\u0000none";
+
+/**
  * Work agents left running, on the edge of every screen.
  *
  * WHY IT IS HERE AND NOT ONLY IN A CHAT. A background job is the one piece of
@@ -47,8 +58,23 @@ export function jobThreadUrl(job: BackgroundJob): string | null {
  * and the same menu is mounted a second time, scoped, inside that thread's own
  * header (`threadId`), which is where somebody reading the conversation looks.
  *
- * Drawn only when something is running. A permanent "0 jobs" chip is furniture:
- * the point of this control is that its appearance is the news.
+ * ALWAYS DRAWN, and that reverses what this file used to say. The rule here was
+ * "drawn only when something is running — a permanent 0 chip is furniture, the
+ * appearance IS the news", and Manu overruled it on 2026-09-14: "quizás estaría
+ * bueno que siempre arriba esté el numerador de procesos traseros y que diga
+ * cero, en gris, y cuando se pone en azul se resalta… como que tenga
+ * posibilidad de estar viéndolo."
+ *
+ * The old rule optimised for noticing and lost something else: a control that
+ * only exists while it matters cannot be LOOKED AT. You cannot answer "is
+ * anything running?" by checking — you can only be told, and only if you happen
+ * to be looking at the right moment. A zero you can go and read is a different
+ * kind of information from a chip that is absent, even though both say nothing
+ * is running: one is an answer, the other is an absence you have to trust.
+ *
+ * So the appearance stops being the news and the STATE carries it: muted and
+ * still at zero, coloured and spinning above it. Nothing is drawn twice — the
+ * same control, in two conditions.
  */
 export function BackgroundJobsMenu({
   projectId,
@@ -71,7 +97,7 @@ export function BackgroundJobsMenu({
   const [stopping, setStopping] = useState<string | null>(null);
 
   const jobs = threadId ? all.filter((j) => j.thread === threadId) : all;
-  if (!jobs.length) return null;
+  const idle = jobs.length === 0;
 
   const projectName = (id: BackgroundJob["project_id"]) =>
     projects.find((p) => String(p.id) === String(id))?.name || null;
@@ -106,23 +132,39 @@ export function BackgroundJobsMenu({
 
   return (
     <DropdownMenu>
-      <Tip content={t("jobs.tip", { n: jobs.length })}>
+      <Tip content={idle ? t("jobs.tip_idle") : t("jobs.tip", { n: jobs.length })}>
         <DropdownMenuTrigger
           data-testid={threadId ? "thread-jobs" : "background-jobs"}
-          aria-label={t("jobs.tip", { n: jobs.length })}
+          data-state-running={idle ? "false" : "true"}
+          aria-label={idle ? t("jobs.tip_idle") : t("jobs.tip", { n: jobs.length })}
           className={cn(
-            "flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] tabular-nums",
-            "text-emerald-700 hover:bg-accent dark:text-emerald-400",
+            "flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] tabular-nums hover:bg-accent",
+            // Two conditions of ONE control. At rest it recedes into the row of
+            // muted glyphs beside it — there to be read, not to be noticed; with
+            // work on it, it takes the colour the rest of the panel already uses
+            // for left-running work, so the chip, the menu it opens and the mark
+            // on the chat row are visibly the same subject.
+            idle ? "text-muted-fg" : "text-emerald-700 dark:text-emerald-400",
           )}
         >
-          <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" />
+          {/* Still at zero. A spinner over "0" would animate the claim that
+              something is happening, which is the one thing this state means is
+              not. Same glyph either way, so the control stays recognisable as
+              itself across the change. */}
+          <LoaderCircle
+            size={13}
+            className={cn(!idle && "animate-spin motion-reduce:animate-none")}
+          />
           {/* In a thread header the count alone is a mystery glyph beside a
               wrench; the word is what makes it a status. Globally it stays a
-              count, because it stands for work in chats you are not reading. */}
+              bare count, because it stands for work in chats you are not
+              reading and shares a strip with four other icon-sized controls. */}
           {compact
-            ? jobs.length === 1
-              ? t("chat_ui.jobs_running_one")
-              : t("chat_ui.jobs_running", { n: jobs.length })
+            ? idle
+              ? t("chat_ui.jobs_running_none")
+              : jobs.length === 1
+                ? t("chat_ui.jobs_running_one")
+                : t("chat_ui.jobs_running", { n: jobs.length })
             : jobs.length}
         </DropdownMenuTrigger>
       </Tip>
@@ -136,6 +178,15 @@ export function BackgroundJobsMenu({
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {/* Openable at rest, so "is anything running?" is a question you can
+            ASK rather than one you have to have been watching for. An empty
+            menu that says so is the answer; an empty menu that says nothing is
+            a control that looks broken. */}
+        {idle && (
+          <p data-testid="jobs-empty" className="px-2 py-3 text-center text-[11px] text-muted-fg">
+            {t("jobs.none")}
+          </p>
+        )}
         {jobs.map((job) => {
           const url = jobThreadUrl(job);
           const where = compact ? null : projectName(job.project_id);
@@ -196,8 +247,10 @@ export function BackgroundJobsMenu({
         {/* Said once, at the foot, rather than on every row: cancelling reaches
             the agent, and an owner deciding whether to press it should know
             that before pressing rather than after. */}
-        <DropdownMenuSeparator />
-        <p className="px-2 py-1.5 text-[10px] leading-snug text-muted-fg">{t("jobs.cancel_hint")}</p>
+        {!idle && <DropdownMenuSeparator />}
+        {!idle && (
+          <p className="px-2 py-1.5 text-[10px] leading-snug text-muted-fg">{t("jobs.cancel_hint")}</p>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -1949,6 +1949,8 @@ export const en = {
   jobs: {
     title:                "Work running in the background",
     tip:                  "{n} running — tap to see and stop",
+    tip_idle:             "Nothing running in the background",
+    none:                 "Nothing is running.",
     waiting:              "{from} is waiting on {to}",
     open_thread:          "Open the chat",
     no_wake:              "no wake-up",
@@ -1995,6 +1997,7 @@ export const en = {
     actions_count_one:   "1 action",
     jobs_running:        "{n} tasks running",
     jobs_running_one:    "1 task running",
+    jobs_running_none:   "No tasks",
     job_waiting_on:      "Waiting on {peer}",
     // A turn that ran tools, said something, then ran more: several blocks,
     // ONE count. Numbered against the turn so the second block does not read

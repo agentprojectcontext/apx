@@ -1950,6 +1950,8 @@ export const es = {
   jobs: {
     title:                "Trabajo en segundo plano",
     tip:                  "{n} en ejecución — tocá para ver y cortar",
+    tip_idle:             "Nada corriendo en segundo plano",
+    none:                 "No hay nada corriendo.",
     waiting:              "{from} espera a {to}",
     open_thread:          "Abrir el chat",
     no_wake:              "sin despertar",
@@ -1996,6 +1998,7 @@ export const es = {
     actions_count_one:   "1 acción",
     jobs_running:        "{n} tareas en ejecución",
     jobs_running_one:    "1 tarea en ejecución",
+    jobs_running_none:   "Sin tareas",
     job_waiting_on:      "Esperando a {peer}",
     actions_range:       "Acciones {from}–{to} de {total}",
     actions_at:          "Acción {n} de {total}",
