@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+// APX commit-msg gate: the SHAPE of a commit subject, and nothing more.
+//
+// The subject is an input to the build here, not a note to a reader.
+// semantic-release parses its type and decides from that alone whether a
+// version ships at all — `feat` is a minor, `fix`/`perf`/`revert` a patch, and
+// `chore`/`refactor`/`test`/`docs`/`build`/`ci`/`style` are nothing. A typo in
+// that one word fails SILENTLY: the code lands on main, every gate is green,
+// and nobody who installed from npm ever gets it. That is the whole reason a
+// hook exists for a thing that is otherwise just a habit. Contract and the
+// worked example: rules/releasing.md.
+//
+// WHAT IT DOES NOT DO, and cannot. It never judges whether the type is the
+// RIGHT one. A fix wearing `chore` is well-formed and is exactly the failure
+// this cannot see; only a reader comparing the diff to the subject catches
+// that. The hook buys the cheap half — that the word is a word the release
+// tool knows — and rules/releasing.md carries the expensive half.
+//
+// WHY NODE and not bash like pre-push: the list of valid types is read from
+// .releaserc.json rather than retyped here, so the gate cannot drift from the
+// config it is enforcing. Parsing JSON in portable shell needs jq, which is
+// not guaranteed; node is, on a repo with engines.node >= 22.
+//
+// Bypass: git commit --no-verify.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+// The release config is the source of truth for the vocabulary. If it cannot
+// be read, the hook steps aside: a broken gate must not become a broken
+// commit, and the CI gate is downstream of this anyway.
+let TYPES;
+try {
+  const rc = JSON.parse(fs.readFileSync(path.join(REPO, ".releaserc.json"), "utf8"));
+  const analyzer = rc.plugins.find(
+    (p) => Array.isArray(p) && String(p[0]).includes("commit-analyzer"),
+  );
+  TYPES = analyzer[1].releaseRules.map((r) => r.type).filter(Boolean);
+  if (!TYPES.length) throw new Error("no types in releaseRules");
+} catch (e) {
+  console.error(`commit-msg: could not read .releaserc.json (${e.message}); skipping the shape check`);
+  process.exit(0);
+}
+
+const raw = fs.readFileSync(process.argv[2], "utf8");
+// git strips these itself; the subject is the first line that survives.
+const subject = raw
+  .split("\n")
+  .find((l) => l.trim() && !l.startsWith("#"))
+  ?.trim();
+
+// Nothing to check. An empty message is git's own error, not ours.
+if (!subject) process.exit(0);
+
+// Messages git or a tool writes, which no convention governs. `Merge branch …`
+// is 13 of the last 300 commits here and every one of them is legitimate.
+const GENERATED = /^(Merge |Revert "|fixup! |squash! |amend! )/;
+if (GENERATED.test(subject)) process.exit(0);
+
+const SHAPE = new RegExp(`^(${TYPES.join("|")})(\\([^)]+\\))?!?: .+`);
+if (SHAPE.test(subject)) process.exit(0);
+
+const bad = subject.match(/^([a-zA-Z]+)(\([^)]*\))?!?:/)?.[1];
+console.error(`
+commit-msg: this subject will not be read by the release tool.
+
+  ${subject}
+
+Shape:  type(scope): subject
+${
+  bad
+    ? `"${bad}" is not a type the release tool knows.`
+    : "There is no `type:` prefix, so semantic-release sees nothing to release."
+}
+
+Types — these ship a version:
+  feat      a minor: someone can do something they could not do before
+  fix       a patch: something that was meant to work already, now does
+  perf      a patch: same behaviour, measurably faster or cheaper
+  revert    a patch: undoing something that shipped
+
+…and these ship nothing at all:
+  docs  test  refactor  chore  build  ci  style
+
+Ask what a USER would notice, not what the diff touched. Scope is optional and
+free-form (web, chat, engines, telegram, a2a, cli, daemon, e2e).
+
+Why this matters, and the one that already got away: rules/releasing.md
+Bypass: git commit --no-verify
+`);
+process.exit(1);

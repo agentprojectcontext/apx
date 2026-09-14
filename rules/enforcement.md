@@ -58,6 +58,7 @@ early return survived in two separate components.
 | Runtime skill headers, `name` == dir, English-only | 6 | `tests/runtime-skills.test.js` |
 | Every link in a tracked doc points at something tracked | — | `tests/docs-links.test.js` |
 | Nothing reaches npm over a red CI | 2 | `.github/workflows/ci.yml` (job `release`, `needs: [verify, e2e]`) |
+| Commit subject shape — `type(scope): subject`, type from `.releaserc.json` | 18 | `.githooks/commit-msg`, pinned by `tests/commit-msg-hook.test.js` |
 
 ### Why i18n parity needed a test rather than types
 
@@ -128,7 +129,7 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
 | The 14 Playwright specs | 11 | Now run in CI's `e2e` job, but **not** in `preflight` or `pre-push` (they need a booted daemon and a browser) |
 | The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
-| Commit type matches what the change DOES | 18 | Nothing reads the diff and the subject together. A fix titled `chore` publishes no version, silently — see [`releasing.md`](releasing.md) |
+| Commit type matches what the change DOES | 18 | `commit-msg` checks the word is a word, never that it is the RIGHT word. A fix titled `chore` is well-formed, publishes nothing, and only a reader comparing diff to subject catches it — see [`releasing.md`](releasing.md) |
 
 ## The gates, and what each one runs
 
@@ -155,7 +156,13 @@ npm run preflight
   Nothing in the suite reads a docs page, so coupling them would let a flaky
   Playwright spec block a typo fix; the Astro build inside that workflow is the
   check that actually applies to its content.
-- Commits are **not** gated. Only pushes are.
+- **`.githooks/commit-msg`** checks the SHAPE of the subject — that the type is
+  one `.releaserc.json` knows — because that one word decides whether the change
+  ever reaches npm, and getting it wrong fails silently. It reads the vocabulary
+  from that file rather than repeating it, so the two cannot drift. Bypass with
+  `git commit --no-verify`.
+- Commits are gated on **that and nothing else**. The expensive half — whether
+  the type matches what the change actually does — is still only a reader.
 
 ## Adding a gate
 

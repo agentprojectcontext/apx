@@ -239,8 +239,10 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     redacted text back to the owner, ships a regression test for it, and is
     titled `refactor`. Ask what a **user** would notice, not what the diff
     touched. Shape is `type(scope): subject` — type and scope English (the
-    release tool parses them), subject es-AR saying what is true now. Full
-    contract: [`rules/releasing.md`](rules/releasing.md).
+    release tool parses them), subject es-AR saying what is true now.
+    `.githooks/commit-msg` checks that shape and nothing more — it cannot tell a
+    real `chore` from a fix wearing one. Full contract:
+    [`rules/releasing.md`](rules/releasing.md).
 
 ## The workflow — how a change gets made
 

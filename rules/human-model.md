@@ -177,7 +177,9 @@ apx daemon logs --tail 30                      # clean boot, no stack trace
 # then exercise the path you actually changed
 ```
 
-Pushes are gated (`.githooks/pre-push` + CI). **Commits are not.** Releases go
+Pushes are gated (`.githooks/pre-push` + CI). Commits are gated on the **shape**
+of the subject only (`.githooks/commit-msg`), because the type decides whether a
+version ships; nothing checks that the type is the right one. Releases go
 out through semantic-release on push to `main` — but only behind that gate: the
 `release` job needs `verify` and `e2e`, so a red run means no new version. The
 docs site and the landing publish to GitHub Pages from the same branch and are
