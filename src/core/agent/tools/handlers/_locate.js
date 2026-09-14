@@ -8,7 +8,8 @@
 // model retries the same call and gives up with the work undone.
 //
 // So: an EXPLICIT project is honoured exactly as before, and an omitted one
-// means "find it" — this turn's own project first, then every registered one.
+// means "find it" — this turn's own project first (a REAL scope, from
+// `scopeProjects`; the default project is not one), then every registered one.
 // Whichever project it lands in is named in the reply, so nothing is silent, and
 // an id that matches in two projects is an error that says so rather than a coin
 // flip.
@@ -45,14 +46,26 @@ export function locateRecord(projects, { project, id, read, kind, example, liste
     return { project: p, record };
   }
 
-  let here = null;
-  try {
-    here = resolveProject(projects);
-  } catch {
-    here = null; // several projects and no default — the sweep below still works
-  }
+  // The project this turn BELONGS to — and ONLY that one. `scopeProjects` puts
+  // it there when the caller knows whose turn it is (a project agent, a
+  // routine); an unscoped registry has no `current` at all.
+  //
+  // This used to go through `resolveProject(projects)`, which answers an
+  // omitted project with the turn's scope OR, failing that, the DEFAULT
+  // project. Those are not the same claim. "My own project" outranks a
+  // stranger's and may win an ambiguous prefix. The default project is a
+  // fallback nobody chose, and preferring it is exactly the coin flip this
+  // module exists to prevent: searched first and returned on the spot, it
+  // silently swallowed every collision that happened to touch it, which is
+  // the case the ambiguity error below was written for and never saw.
+  const here = projects.current?.() || null;
   if (here?.storagePath) {
-    const record = read(here.storagePath, ref);
+    let record = null;
+    try {
+      record = read(here.storagePath, ref);
+    } catch {
+      record = null;
+    }
     if (record) return { project: here, record };
   }
 
