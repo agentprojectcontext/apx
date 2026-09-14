@@ -7,6 +7,7 @@ import { Section } from "../../components/Section";
 import { Button, Dialog, Empty, Loading, Textarea } from "../../components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ConfigFieldControl, type ConfigSection } from "../../components/config/ConfigTabsEditor";
+import { ProjectFolderCard } from "../../components/config/ProjectFolderCard";
 import { apcProjectFields, projectBehaviourFields } from "../../components/config/project-config-sections";
 import { ProjectModelsTab } from "../../components/config/ProjectModelsTab";
 import { TelegramTab } from "./TelegramTab";
@@ -39,8 +40,26 @@ export function ConfigTab({ pid }: { pid: string }) {
     setParams(p, { replace: true });
   };
 
+  // Drawn above the tabs, and computed BEFORE the early returns below: when a
+  // project's folder is gone its config is unreadable too, so bailing out on a
+  // failed load would hide the one card that repairs it — the screen would go
+  // blank exactly when something is broken.
+  const folderCard = !isBase && project ? (
+    <ProjectFolderCard
+      project={project}
+      onRelinked={() => { mutateProject(); cfg.mutate(); }}
+    />
+  ) : null;
+
   if (cfg.isLoading) return <Loading />;
-  if (!cfg.data) return <Empty>{t("project.config.no_data")}</Empty>;
+  if (!cfg.data) {
+    return (
+      <div className="space-y-6">
+        {folderCard}
+        <Empty>{t("project.config.no_data")}</Empty>
+      </div>
+    );
+  }
 
   const saveProjectJson = async (next: Record<string, unknown>) => {
     await Projects.apcProject.put(pid, next);
@@ -63,6 +82,7 @@ export function ConfigTab({ pid }: { pid: string }) {
 
   return (
     <div className="space-y-6">
+      {folderCard}
       <Section title={t("project.config.section_title")} description={t("project.config.section_desc")}>
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <TabsList className="flex flex-wrap">
