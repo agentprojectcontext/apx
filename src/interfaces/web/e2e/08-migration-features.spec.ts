@@ -78,7 +78,20 @@ test.describe("migrated features", () => {
     const avatars = page.getByTestId("agent-icon-picker");
     await expect(avatars).toBeVisible();
     expect(await avatars.getByRole("button").count()).toBeGreaterThan(1);
-    // Three modes: total / auto / permission.
-    await expect(page.getByTestId("agent-autonomy").getByRole("button")).toHaveCount(3);
+    // FOUR options, and the fourth is the one this assertion kept missing.
+    // "Inherit" is a real choice, not the absence of one (see the header of
+    // components/agents/AgentFormFields.tsx): an agent that declares nothing
+    // behaves like its project, which is by far the commonest case and used to
+    // render as three unlit buttons — a control showing no state at all.
+    //
+    // It arrived in 21a63da on 2026-09-11 and this line was not moved with it,
+    // so CI went red on the next push and stayed red. A count alone could not
+    // say which four, so they are named: a fifth mode appearing should fail
+    // here with something a reader can act on, not just "expected 4, got 5".
+    const autonomy = page.getByTestId("agent-autonomy").getByRole("button");
+    await expect(autonomy).toHaveCount(4);
+    for (const key of ["auto_inherit", "auto_total", "auto_automatico", "auto_permiso"]) {
+      await expect(page.getByTestId(`agent-autonomy-${key}`)).toBeVisible();
+    }
   });
 });

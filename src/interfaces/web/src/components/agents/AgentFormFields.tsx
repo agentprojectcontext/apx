@@ -107,6 +107,11 @@ export function AutonomyPicker({
           <button
             key={opt.value || "inherit"}
             type="button"
+            // Named, not just counted. The labels here are translated and the
+            // e2e suite says so in its own comment, so a spec can only address
+            // these by testid — and "expected 4, got 5" tells a reader nothing
+            // about WHICH mode appeared or vanished.
+            data-testid={`agent-autonomy-${opt.labelKey}`}
             aria-pressed={chosen === opt.value}
             onClick={() => onChange(opt.value)}
             className={cn(
