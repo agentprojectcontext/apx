@@ -41,8 +41,15 @@ If you are the super-agent, you have native tools for the agent lifecycle — us
 | `create_agent` | Creates the agent **with its system prompt** in one call | `system` is **required** — it refuses a body-less agent. Pass `slug` + `system`; add `role`/`skills`/`area`/`model` as needed. Omit `tools` unless narrowing. |
 | `set_agent_prompt` | Replaces an existing agent's prompt | Keeps every frontmatter field. |
 | `configure_agent` | Edits frontmatter (model, type, area, role, skills, …) | Keeps the prompt. Only the fields you pass change; empty string clears one. |
+| `rename_agent` | Renames the agent — display name **and** slug — and repoints everything aimed at the old slug | The ONLY safe way to rename. Pass `name` (the slug follows) or `slug`. Master/orchestrator agents and the super-agent only. |
 | `remove_agent` | Deletes the agent + its runtime data | Irreversible — confirm first unless clearly asked. |
 | `write_agent_memory` | Seeds/updates **another** agent's `memory.md` | Not `remember` (that's YOUR notebook). `mode: append` (default) or `replace`. |
+
+### Renaming is never a file edit
+
+The slug is the agent's physical key: it names `.apc/agents/<slug>.md`, the runtime dir under `~/.apx/projects/<apx_id>/agents/<slug>/`, and it is written into other agents' `Parent`, routine `spec.agent`, group rosters, task assignees, the delivery queue, code sessions, open background jobs, board-column hooks, Telegram routes and the RAG scope. `write_file`/`run_shell` over the `.md`, or `configure_agent({ name })` alone, each break half of that and report success.
+
+`rename_agent({ agent, name })` is the same operation the web's rename button runs — it moves the files, carries the memory and repoints every one of those pointers. It answers with `repointed` (what moved, per store) and `still_mentions`: prose in somebody's prompt or memory that names the agent the old way. That part is deliberately NOT rewritten — a slug is usually an ordinary word — so fix those with `set_agent_prompt` if they matter.
 
 Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` → optionally `write_agent_memory({ agent: slug, content: "..." })` to seed progress → `remember_routine(...)` for any schedule. One tool each, no shell, prompt inline.
 

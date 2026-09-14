@@ -219,6 +219,35 @@ export function countOpenJobs({ project_id = null, from }) {
   return listJobs({ project_id, from, open_only: true }).length;
 }
 
+/**
+ * Repoint an agent slug on the jobs that are still OPEN in one project — the
+ * half of an agent rename this store owns.
+ *
+ * Only open jobs, and that is the whole point: `from` and `to` on a running job
+ * are live pointers (who gets woken, whose quota this counts against), while on
+ * a closed one they are the record of a conversation that already happened.
+ * Rewriting those would falsify history for no gain.
+ *
+ * Scoped by `project_id` because two projects may each own this slug, and a
+ * rename in one must not reach into the other's queue.
+ *
+ * @returns {number} jobs touched
+ */
+export function renameJobAgent({ project_id = null, oldSlug, newSlug }) {
+  if (!oldSlug || !newSlug || oldSlug === newSlug) return 0;
+  let changed = 0;
+  for (const job of listJobs({ project_id, open_only: true })) {
+    if (job.from !== oldSlug && job.to !== oldSlug) continue;
+    writeJson(fileFor(job.id), {
+      ...job,
+      from: job.from === oldSlug ? newSlug : job.from,
+      to: job.to === oldSlug ? newSlug : job.to,
+    });
+    changed += 1;
+  }
+  return changed;
+}
+
 /** Drop a job's record and its claim marker. For tests and for pruning. */
 export function deleteJob(id) {
   if (!id || !SAFE_ID.test(String(id))) return;

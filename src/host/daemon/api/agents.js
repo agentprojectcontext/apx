@@ -363,26 +363,36 @@ export function register(api, { projects, project }) {
 
   // Rename an agent's slug — moves its .apc/agents/<slug>.md and runtime dir and
   // repoints every live reference to it (child `Parent`, routines, group
-  // rosters, tasks, deliveries, code sessions, telegram routes, the RAG scope).
+  // rosters, tasks, deliveries, code sessions, background jobs, board hooks,
+  // telegram routes, the RAG scope).
   // Distinct from PATCH on purpose: it's an irreversible file move and it
   // changes the resource URL, so the UI must navigate to the returned slug
   // rather than revalidate in place. The new slug can be sent raw (`{ slug }`)
   // or derived from a name (`{ name }`) — the caller-side slugify is mirrored
-  // here so either surface yields the same key. The whole registry goes in so
-  // the sweep can reach rooms hosted by ANOTHER project that include this agent.
+  // here so either surface yields the same key. A `name` is ALSO taken as the
+  // agent's new display name, so one call can do what the web does in two
+  // (PATCH the name, then move the slug) instead of leaving a card that reads
+  // "Nati" under the slug `vera`. The whole registry goes in so the sweep can
+  // reach rooms hosted by ANOTHER project that include this agent.
   api.post("/projects/:pid/agents/:slug/rename", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const body = req.body || {};
-    const target = body.slug ? String(body.slug) : slugifyName(body.name || "");
+    const name = typeof body.name === "string" && body.name.trim() ? body.name.trim() : undefined;
+    const target = body.slug ? String(body.slug) : slugifyName(name || "");
     if (!target || !/^[a-z][a-z0-9_-]*$/.test(target)) {
       return res.status(400).json({ error: "valid target slug required" });
     }
     try {
-      const finalSlug = await renameAgent(p, req.params.slug, target, { projects: projects.list() });
+      const out = await renameAgent(p, req.params.slug, target, {
+        projects: projects.list(), name,
+      });
       projects.rebuild(p.id);
-      const updated = readAgents(p.path).find((a) => a.slug === finalSlug);
-      res.json(agentToResponse(updated));
+      const updated = readAgents(p.path).find((a) => a.slug === out.slug);
+      // `moved` and `mentions` ride along with the agent: the first is what the
+      // sweep repointed, the second is the prose that still says the old name
+      // and was deliberately left for a human to read.
+      res.json({ ...agentToResponse(updated), moved: out.moved, mentions: out.mentions });
     } catch (e) {
       const status = /not found/.test(e.message) ? 404 : 400;
       res.status(status).json({ error: e.message });

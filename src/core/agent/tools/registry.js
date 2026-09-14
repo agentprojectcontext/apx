@@ -7,6 +7,7 @@ import setAgentPrompt from "./handlers/set-agent-prompt.js";
 import writeAgentMemory from "./handlers/write-agent-memory.js";
 import configureAgent from "./handlers/configure-agent.js";
 import removeAgent from "./handlers/remove-agent.js";
+import renameAgent from "./handlers/rename-agent.js";
 import addMcp from "./handlers/add-mcp.js";
 import completeTask from "./handlers/complete-task.js";
 import commentTask from "./handlers/comment-task.js";
@@ -91,6 +92,7 @@ const NATIVE_TOOLS = [
   writeAgentMemory,
   configureAgent,
   removeAgent,
+  renameAgent,
   addMcp,
   completeTask,
   markCommitment,
@@ -315,6 +317,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.WRITE_AGENT_MEMORY]:  "agents",
   [TOOLS.CONFIGURE_AGENT]:     "agents",
   [TOOLS.REMOVE_AGENT]:        "agents",
+  [TOOLS.RENAME_AGENT]:        "agents",
   [TOOLS.ADD_MCP]:             "mcp",
   [TOOLS.COMPLETE_TASK]:       "tasks",
   [TOOLS.MARK_COMMITMENT]:     "tasks",

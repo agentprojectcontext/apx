@@ -304,6 +304,19 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   );
 }
 
+// After a rename, the server repoints every pointer it can resolve — but not
+// the prose that names the agent in somebody's prompt or memory, because a slug
+// is usually an ordinary word too. Say so once, next to the success toast, so a
+// rename never looks more complete than it is.
+function announceRename(
+  toast: ReturnType<typeof useToast>,
+  updated: { slug: string; mentions?: { kind: string }[] },
+) {
+  toast.success(t("project.agent_detail.rename_success", { slug: updated.slug }));
+  const count = updated.mentions?.length || 0;
+  if (count) toast.info(t("project.agent_detail.rename_mentions", { count: String(count) }));
+}
+
 // Heading that doubles as an inline rename. Click the pencil (or the name) to
 // swap the h1 for an input; Enter/blur saves, Escape cancels. Only the display
 // Name changes — the slug is the agent's identity (filename, parent links,
@@ -350,7 +363,7 @@ function AgentNameHeading({
     setBusy(true);
     try {
       const updated = await Agents.rename(pid, slug, renameTo);
-      toast.success(t("project.agent_detail.rename_success", { slug: updated.slug }));
+      announceRename(toast, updated);
       onRenamed(updated.slug);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); setRenameTo(null); }
@@ -624,7 +637,7 @@ function SlugRenameField({
     setBusy(true);
     try {
       const updated = await Agents.rename(pid, currentSlug, next);
-      toast.success(t("project.agent_detail.rename_success", { slug: updated.slug }));
+      announceRename(toast, updated);
       onRenamed(updated.slug);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); setConfirm(false); }

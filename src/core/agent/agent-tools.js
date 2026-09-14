@@ -60,6 +60,35 @@ const HOST_ONLY_TOOLS = Object.freeze([
 ]);
 
 /**
+ * Tools only a MASTER agent (an orchestrator, or anything marked `is_master`)
+ * may call — and the super-agent, which never comes through here.
+ *
+ * A tier between "anybody" and "the host only", for the one thing a team lead
+ * legitimately does and a specialist never should: reshape another agent's
+ * IDENTITY. `rename_agent` moves somebody else's file, memory dir and every
+ * pointer aimed at them; the blast radius is the team, not the caller. An
+ * orchestrator asked to "renombrá el orchestrator de postbeam" is doing its
+ * job. A social producer deciding mid-task that the QA agent needs a better
+ * name is not.
+ *
+ * Unlike HOST_ONLY_TOOLS this is a HARD gate: it survives a declared `tools:`
+ * list, because the card is written by whoever set the agent up and the point
+ * is that this capability follows the ROLE, not the paperwork. Promote the
+ * agent (`type: orchestrator`, or `is_master`) and it has it.
+ */
+const MASTER_ONLY_TOOLS = Object.freeze([
+  TOOLS.RENAME_AGENT,
+]);
+
+/** Does this agent lead a team? `orchestrator` implies it; `is_master` says it. */
+export function isMasterAgent(agent) {
+  const f = agent?.fields || {};
+  if (String(f.Type || agent?.type || "").toLowerCase() === "orchestrator") return true;
+  const flag = f.Master ?? f.Primary ?? agent?.is_master;
+  return String(flag ?? "").toLowerCase() === "true";
+}
+
+/**
  * The floor. Granted to every agent that declares a `tools:` list, on top of
  * whatever it declared.
  *
@@ -128,9 +157,17 @@ export const AGENT_CORE_TOOLS = Object.freeze([
   TOOLS.COMMENT_TASK,
 ]);
 
-/** Everything a project agent may call by default: the registry minus the host's own. */
-export function defaultAgentToolNames() {
+/**
+ * Everything a project agent may call by default: the registry minus the host's
+ * own, minus the master tier unless this agent leads a team.
+ *
+ * Called with no agent by the web's tool picker, which is drawing the chips a
+ * card MAY tick — a master-only tool is not a choice there, the same way a
+ * host-only one isn't, so the no-agent form is the narrow set.
+ */
+export function defaultAgentToolNames(agent = null) {
   const deny = new Set(HOST_ONLY_TOOLS);
+  if (!isMasterAgent(agent)) for (const n of MASTER_ONLY_TOOLS) deny.add(n);
   return listCallableToolNames().filter((n) => !deny.has(n));
 }
 
@@ -145,17 +182,24 @@ export function defaultAgentToolNames() {
  * @returns {string[]}
  */
 export function resolveAgentAllowedTools(agent, { override } = {}) {
+  // The master tier is a property of the AGENT, so it is filtered last, over
+  // whatever path produced the list — a declared card and a routine override
+  // included. See MASTER_ONLY_TOOLS.
+  const gate = (names) =>
+    isMasterAgent(agent) ? names : names.filter((n) => !MASTER_ONLY_TOOLS.includes(n));
   // An explicit override — including `[]` — is the caller saying exactly what
   // this run may touch (routine suppression depends on `[]` meaning nothing).
   // The floor does not apply here: it would turn "no tools" into ten.
-  if (Array.isArray(override)) return resolveNames(override);
+  if (Array.isArray(override)) return gate(resolveNames(override));
   const declared = declaredAgentTools(agent);
-  if (!declared.length) return defaultAgentToolNames();
+  if (!declared.length) return defaultAgentToolNames(agent);
   const resolved = resolveNames(declared);
   // A card whose every name is stale would otherwise mean a silent no-tools
   // turn that dumps markup as the "answer". Capability beats a broken card.
-  if (!resolved.length) return defaultAgentToolNames();
-  return [...new Set([...AGENT_CORE_TOOLS, ...resolved])];
+  // Measured BEFORE the gate, or a card declaring only a master tool would read
+  // as broken and be handed the whole default set instead of a narrower one.
+  if (!resolved.length) return defaultAgentToolNames(agent);
+  return gate([...new Set([...AGENT_CORE_TOOLS, ...resolved])]);
 }
 
 function resolveNames(names) {

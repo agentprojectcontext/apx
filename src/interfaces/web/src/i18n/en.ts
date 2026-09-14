@@ -1071,6 +1071,7 @@ export const en = {
       rename_from_name: "Use the name: {slug}",
       rename_confirm:  "Rename “{from}” to “{to}”? This moves the agent's file and its memory/conversations, and repoints sub-agents and routines that point at it.",
       rename_success:  "Renamed to {slug}",
+      rename_mentions: "{count} prompt(s) or memories still name it the old way — worth a look.",
       reports_to:      "↳ reports to",
       no_threads:      "No threads.",
       no_activity:     "No recorded activity.",
