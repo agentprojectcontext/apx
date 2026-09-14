@@ -81,6 +81,47 @@ Each agent may leave **3** jobs running at once, and a chain of agents handing
 work to each other stops at **3** hand-offs deep. Both limits come back as a
 message you can act on, not as a crash.
 
+### The same thing for a long COMMAND
+
+A peer is not the only worker that takes minutes. A render, an encode, a build, a
+batch over a folder — `run_shell` waits for all of them, and kills them at 600 s
+at the very most, so anything longer **cannot finish in the foreground at all**.
+
+```js
+run_shell({ command: "hyperframes render reel-13.html -o out/13.mp4", background: true })
+// → { job_id, pid, log_path, status: "running", … }   immediately
+```
+
+It is the same mechanism, deliberately: the same store, the same panel, the same
+three-job wall (peers and commands **share** it), the same cancel. What differs
+is only what a process can give you that a peer cannot, and where you come back.
+
+- **The owner watches it print.** The tail of the output rides on the job while it
+  runs, so the background-work panel shows a line that moves. Launching the work
+  is therefore how you SHOW the work — an agent that says it is rendering and has
+  no job running is an agent that is not rendering.
+- **You are woken in THIS chat**, not on an a2a thread: a new turn carrying the
+  command, its exit code and the tail of its output. There is nobody to reply to
+  — you are back with the owner, so report to them.
+- **The whole output is on disk** at the `log_path` you were given. The wake-up
+  carries the tail; `tail -n 100 <log_path>` gets the rest if you need it.
+- **A batch is a queue, not one command.** Thirteen reels with a wall of three:
+  launch three, and launch the next one each time a wake-up tells you one landed.
+  Do not chain all thirteen into a single `&&` — one failure at reel 4 takes the
+  other nine with it and you cannot tell which of them ran.
+- **`exit 0` is not "it worked".** A render can exit 0 having written nothing.
+  When you are woken, check what it was supposed to produce — the file, its size —
+  before you tell anybody it is done.
+
+The failure modes are the peer's, with one of its own: if the daemon restarts
+mid-command the process keeps going (it is detached) but nobody is watching it any
+more, so you are woken with `lost` — which means **unknown**, not failed. Look at
+the files before saying anything about it.
+
+The super-agent is the exception: its thread is its channel, so it cannot be woken
+this way. It may still launch, watch and stop a job; the tool says so in the
+answer, and work somebody needs to act on belongs with a project agent instead.
+
 ```bash
 apx send <you> <peer> "<message>" --deliver [--project <name>]
 ```
