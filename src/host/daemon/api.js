@@ -94,6 +94,9 @@ export function buildApi({
   // loads it straight back. Defaulted, because several tests build the API
   // without a config on disk to write to.
   removeProjectGlobally = () => {},
+  // Same reason as the pair above, for a project that changed folder. Defaulted
+  // to a no-op so a test API without a config file on disk still builds.
+  relinkProjectGlobally = () => false,
   config,
   token,
   tokenStore,
@@ -150,6 +153,7 @@ export function buildApi({
     startedAt,
     addProjectGlobally,
     removeProjectGlobally,
+    relinkProjectGlobally,
     config,
     project,
     resolveTopProject,

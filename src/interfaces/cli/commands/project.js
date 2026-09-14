@@ -22,9 +22,51 @@ export async function cmdProjectList() {
     console.log("(no projects registered — try `apx project add .`)");
     return;
   }
-  console.log("ID\tNAME\t\t\tAGENTS\tPATH");
+  // A project whose folder is gone used to render as a perfectly ordinary row
+  // that happened to say 0 agents — the name even looked right, because it fell
+  // back to the basename of the path that no longer exists. The marker is the
+  // difference between "this project has no agents" and "we cannot read this
+  // project at all", and the footer says what to do about it.
+  const missing = projects.filter((p) => p.missing);
+  console.log(`  \tID\tNAME\t\t\tAGENTS\tPATH`);
   for (const p of projects) {
-    console.log(`${p.id}\t${p.name}\t\t${p.agents}\t${p.path}`);
+    console.log(`${p.missing ? "! " : "  "}\t${p.id}\t${p.name}\t\t${p.agents}\t${p.path}`);
+  }
+  if (missing.length) {
+    console.log("");
+    for (const p of missing) {
+      console.log(`!  #${p.id} ${p.name}: ${p.missing_reason}`);
+    }
+    console.log(
+      `\nReattach one with \`apx project relink <id> [new-path]\` — it keeps the id,` +
+      ` so nothing pointing at the project breaks. Omit the path to let APX look for it.`
+    );
+  }
+}
+
+// Point a project at its new folder. The repair for a renamed or moved
+// directory: the id survives, and with it the storage (which hangs off the
+// apx_id, not the path), the routines, the tasks and every chat that named it.
+export async function cmdProjectRelink(args) {
+  const target = args._[0];
+  if (!target) {
+    throw new Error("apx project relink: missing <id|name|path> (see `apx project list`)");
+  }
+  const id = await resolveProjectId(target);
+  const newPath = args._[1] ? path.resolve(args._[1]) : undefined;
+
+  const result = await http.post(`/api/projects/${id}/relink`, {
+    ...(newPath ? { path: newPath } : {}),
+    ...(args.force ? { force: true } : {}),
+  });
+  console.log(`Relinked project #${result.id}: ${result.from} → ${result.path}`);
+  console.log(`${result.agents} agents; id and stored data kept.`);
+  if (!result.persisted) {
+    // The in-memory move worked but the config did not record it, so the old
+    // path comes back on the next boot. Better said out loud than discovered.
+    console.log(
+      "WARNING: this was not written to ~/.apx/config.json — the old path will return on the next daemon restart."
+    );
   }
 }
 

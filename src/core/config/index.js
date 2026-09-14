@@ -513,6 +513,37 @@ export function addProject(cfg, projectPath) {
   return { added: true, project: entry };
 }
 
+/**
+ * Point a registered project at a new folder, editing the entry IN PLACE.
+ *
+ * In place is the whole requirement. The daemon's project id is the entry's
+ * position in this array, and the per-project storage hangs off the apx_id in
+ * `.apc/project.json`, so the remove+add pair this replaces changed the id and
+ * orphaned everything that referenced it. Splicing nothing keeps both.
+ *
+ * Only `.apc/project.json` is required, matching what `ProjectManager.register`
+ * accepts — `addProject` also demands AGENTS.md, but a project that lost its
+ * AGENTS.md is a different problem and refusing to reattach it here would leave
+ * the user with no way back at all.
+ */
+export function relinkProject(cfg, oldPath, newPath) {
+  const from = path.resolve(String(oldPath || ""));
+  const to = path.resolve(String(newPath || ""));
+  if (!fs.existsSync(apcProjectFile(to))) {
+    throw new Error(`not an APC project: ${to} (no .apc/project.json)`);
+  }
+  const clash = cfg.projects.find(
+    (p) => path.resolve(p.path) === to && path.resolve(p.path) !== from
+  );
+  if (clash) throw new Error(`already registered: ${to}`);
+
+  const entry = cfg.projects.find((p) => path.resolve(p.path) === from);
+  if (!entry) return { relinked: false, from, to };
+  entry.path = to;
+  writeConfig(cfg);
+  return { relinked: true, from, to };
+}
+
 export function removeProject(cfg, idOrPath) {
   const before = cfg.projects.length;
   if (typeof idOrPath === "number" || /^\d+$/.test(String(idOrPath))) {
