@@ -27,6 +27,9 @@ const { readAgentMemory, writeAgentMemory } = await import("#core/agent/memory.j
 const { upsertRoutine, listRoutines } = await import("#core/stores/routines.js");
 const { resolveAgentAllowedTools, defaultAgentToolNames, isMasterAgent } =
   await import("#core/agent/agent-tools.js");
+const { createToolSession } = await import("#core/agent/tools/registry.js");
+const { noteDeniedTools } = await import("#core/agent/tools/denied-log.js");
+const { readGlobalMessages } = await import("#core/stores/messages.js");
 
 let root, storage, entry, projects, ctx, rebuilt, asked;
 
@@ -114,6 +117,58 @@ test("rename_agent refuses a taken slug, an unusable one, and a no-op call", asy
 
   r = await rename({ agent: "ghost", name: "Whoever" });
   assert.match(r.error, /not found/i);
+});
+
+test("deleting an agent is an orchestrator's job too", () => {
+  // `remove_agent` sat in the broad default, so any project agent could delete
+  // any other one, irreversibly. It follows the role now, same as rename.
+  assert.ok(!resolveAgentAllowedTools({ slug: "magui", fields: {} }).includes("remove_agent"));
+  assert.ok(
+    resolveAgentAllowedTools({ slug: "roby", fields: { Type: "orchestrator" } }).includes("remove_agent"),
+  );
+  // Declaring it on a specialist's card does not buy it either — the switch is
+  // the role, not the paperwork.
+  assert.ok(
+    !resolveAgentAllowedTools({ slug: "magui", fields: { Tools: ["remove_agent"] } })
+      .includes("remove_agent"),
+  );
+});
+
+test("a specialist reaching for a role-gated tool lands on the log channel", () => {
+  const specialist = { slug: "magui", fields: { Name: "Magui", Type: "specialist" } };
+  const allowedTools = resolveAgentAllowedTools(specialist);
+  const denied = [];
+  const session = createToolSession("web", {
+    allowedTools,
+    onDenied: (names) => { denied.push(...names); noteDeniedTools(entry, specialist, names, "web"); },
+  });
+
+  // The gate refuses it, and nothing is activated.
+  const r = session.activate({ names: ["remove_agent", "read_file"] });
+  assert.deepEqual(r.denied, ["remove_agent"]);
+  assert.ok(!session.activeNames.has("remove_agent"));
+  assert.deepEqual(denied, ["remove_agent"]);
+
+  // And it is written down where you can go and look at it — never pushed.
+  const rows = readGlobalMessages({ channel: "log", limit: 20 });
+  const note = rows.find((m) => m.meta?.kind === "tool_denied");
+  assert.ok(note, `expected a tool_denied row, got ${JSON.stringify(rows.map((m) => m.meta?.kind))}`);
+  assert.deepEqual(note.meta.tools, ["remove_agent"]);
+  assert.equal(note.meta.agent_slug, "magui");
+  assert.match(note.body, /Magui/);
+
+  // An ordinary allowlist miss is not news: a narrowed card denies dozens every
+  // turn, and logging those would bury the line that matters.
+  const narrow = createToolSession("web", {
+    allowedTools: ["read_file"],
+    onDenied: (names) => noteDeniedTools(entry, specialist, names, "web"),
+  });
+  narrow.activate({ names: ["run_shell"] });
+  assert.equal(
+    readGlobalMessages({ channel: "log", limit: 20 }).filter((m) => m.meta?.kind === "tool_denied").length,
+    1,
+    "only the role-gated denial was recorded",
+  );
 });
 
 test("the tool belongs to orchestrators — a specialist cannot reach it", () => {

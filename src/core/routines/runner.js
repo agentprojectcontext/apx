@@ -18,6 +18,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { runAgent, computeSuppressedTools } from "#core/agent/index.js";
 import { TELEGRAM_TOOL_ITERS, ROUTINE_UNCAPPED_TOOL_ITERS } from "#core/agent/constants.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
+import { noteDeniedTools } from "#core/agent/tools/denied-log.js";
 import { readAgents } from "#core/apc/parser.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
@@ -234,7 +235,10 @@ async function handleExecAgent(ctx, routine) {
     const deliverSuppress = deliverySuppressedTools(ctx.deliverTo);
     const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress, ...deliverSuppress])];
     allowedTools = resolveAgentAllowedTools(agent, { override: toolOverride });
-    const toolSession = createToolSession(CHANNELS.ROUTINE, { allowedTools });
+    const toolSession = createToolSession(CHANNELS.ROUTINE, {
+      allowedTools,
+      onDenied: (names) => noteDeniedTools(project, agent, names, CHANNELS.ROUTINE),
+    });
     // A routine that reports to Telegram keeps the bounded chat budget; one that
     // does background work nobody watches runs to completion (Magui's backlog
     // refill was being cut off at ~23 steps by the Telegram budget).
