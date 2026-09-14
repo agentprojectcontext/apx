@@ -100,3 +100,54 @@ test("a row with no trace at all is unchanged", () => {
   assert.equal(m.trace, undefined);
   assert.equal(m.content, "Dos cosas, Magui.");
 });
+
+// THE THIRD SILENCE, found 2026-09-14 while reading the ledger rather than the
+// code. Everything above is about a row that HAS a trace reaching the viewer.
+// This is about the row never getting one in the first place.
+//
+// `replyToPeer` fans out to three peer kinds and each returns its own shape.
+// `replyAsAgent` returned `trace`; `replyAsSuperAgent` returned only text,
+// usage and model — so every a2a reply the super-agent ever wrote was filed
+// with `meta.trace` undefined, and both writers (`/send` in api/conversations
+// and `messagePeer` in a2a/delegate) faithfully wrote that undefined away.
+// The count in the live ledgers when this was found: 107 super-agent a2a
+// replies in September, zero with a trace. Not one. Roby's threads showed an
+// answer and no work, forever, no matter how many tools the turn had run.
+//
+// A runtime peer (claude-code, codex) is the one kind that legitimately has
+// none — an external CLI spends its own tools where APX cannot see them — and
+// that asymmetry is exactly why this went unnoticed: "some peers show no
+// tools" looked like the known, correct case.
+test("the super-agent's a2a reply carries the tools it ran", async () => {
+  const { replyAsSuperAgent } = await import("#core/agent/a2a/reply.js");
+  const trace = [{ id: "1:1", tool: "run_shell", args: { cmd: "git log" }, result: "ok" }];
+  const out = await replyAsSuperAgent({
+    peer: { kind: "super_agent", address: "super_agent" },
+    fromAddress: "magui",
+    body: "¿cómo venís?",
+    config: {},
+    runSuperAgentFn: async () => ({ text: "listo", usage: { input_tokens: 10, output_tokens: 2 }, model: "zen:big-pickle", trace }),
+  });
+  assert.deepEqual(out.trace, trace, "the super-agent's tools never left replyAsSuperAgent");
+  assert.equal(out.text, "listo");
+  assert.equal(out.model, "zen:big-pickle");
+});
+
+// A turn that ran with tools disabled ran nothing, and that is a FACT about it,
+// not a gap in the record. `[]` says "called nothing"; undefined says "nobody
+// looked". The viewer renders both as no action group (asserted above), so this
+// is only about what the ledger can be asked afterwards — which is the question
+// that found the bug above.
+test("a toolless agent reply records that it ran nothing, not that nothing is known", async () => {
+  const { replyAsAgent } = await import("#core/agent/a2a/reply.js");
+  const out = await replyAsAgent({
+    toAgent: { slug: "magui", fields: { Model: "mock:test" } },
+    fromAgent: { slug: "roby" },
+    body: "hola",
+    config: { engines: {} },
+    // No projectPath → the single-call branch, which is the one that had no trace.
+    projectPath: null,
+    tools: false,
+  });
+  assert.deepEqual(out.trace, [], "a toolless turn must say it called nothing");
+});
