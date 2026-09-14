@@ -15,6 +15,22 @@ process.env.APX_HOME = path.join(tmpHome, ".apx");
 process.env.HOME = tmpHome;
 process.env.USERPROFILE = tmpHome;
 
+/**
+ * Bind loopback, and WAIT for the port to exist before anyone reads it.
+ *
+ * Both halves matter. The host keeps the server off every other interface —
+ * these apps mount no auth wall — and stops another process binding the same
+ * port on top of a wildcard (see rules/testing.md). And passing a host makes
+ * listen() defer through dns.lookup, so `server.address()` is null on the next
+ * line: the five call sites here read it synchronously and only ever worked
+ * because a host-less listen(0) happens to bind on the spot.
+ */
+async function listen(app) {
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  return server;
+}
+
 const { register } = await import("../src/host/daemon/api/mobility.js");
 const {
   _resetMobilityEventsForTest,
@@ -78,7 +94,7 @@ test("POST /mobility/events acknowledges before dispatching configured workflow"
     mobilityDispatch: async (event) => resolveDispatch(event),
   });
   app.use("/api", api);
-  const server = app.listen(0);
+  const server = await listen(app);
   try {
     const address = server.address();
     const response = await fetch(`http://127.0.0.1:${address.port}/api/mobility/events`, {
@@ -104,7 +120,7 @@ test("POST /mobility/positions validates before it acknowledges", async () => {
   const api = express.Router();
   register(api, { mobilityPositionDispatch: async () => {} });
   app.use("/api", api);
-  const server = app.listen(0);
+  const server = await listen(app);
   try {
     const url = `http://127.0.0.1:${server.address().port}/api/mobility/positions`;
     const bad = await fetch(url, {
@@ -127,7 +143,7 @@ test("POST /mobility/positions acknowledges before evaluating proximity", async 
   const api = express.Router();
   register(api, { mobilityPositionDispatch: async (position) => resolveDispatch(position) });
   app.use("/api", api);
-  const server = app.listen(0);
+  const server = await listen(app);
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/mobility/positions`, {
       method: "POST",
@@ -205,7 +221,7 @@ test("answering an errand from the phone means what answering it in Telegram mea
   const api = express.Router();
   register(api, { projects });
   app.use("/api", api);
-  const server = app.listen(0);
+  const server = await listen(app);
   try {
     const url = `http://127.0.0.1:${server.address().port}/api/mobility/errands/answer`;
     const post = (body) => fetch(url, {
@@ -265,7 +281,7 @@ test("no trip is running means there is nothing to answer", async () => {
   const api = express.Router();
   register(api, {});
   app.use("/api", api);
-  const server = app.listen(0);
+  const server = await listen(app);
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api/mobility/errands/answer`, {
       method: "POST",

@@ -29,7 +29,7 @@ const CONTACT = "5491155550001@s.whatsapp.net";
 const DAY = "2026-08-25";
 
 async function listen(app) {
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }

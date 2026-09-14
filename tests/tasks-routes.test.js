@@ -50,7 +50,7 @@ before(async () => {
     config: { host: "127.0.0.1", port: 7430 },
     token: TOKEN,
   });
-  server = app.listen(0);
+  server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });

@@ -40,9 +40,22 @@
 1. **HTTP route** — never start the real daemon:
    ```js
    const app = buildApi(ctx);
-   const srv = app.listen(0);
+   const srv = app.listen(0, "127.0.0.1");   // the host is not optional — see below
    // fetch(`http://127.0.0.1:${srv.address().port}/api/...`)
    ```
+   **Pass the host.** `app.listen(0)` without one binds the wildcard `[::]`, and
+   these apps are built with `token: ""`, which mounts no auth wall at all — so
+   every such server spends the run reachable on the LAN and the tailnet, not
+   just on loopback. It is also how one test file ends up answering another's
+   requests: a second process can bind `127.0.0.1:<the same port>` **on top of a
+   wildcard with no `EADDRINUSE`**, and the specific socket then wins every
+   loopback connection. Two specific binds collide loudly instead, which is the
+   point. The kernel never hands the same ephemeral port out twice on its own
+   (measured: 0 collisions in 3300 binds, within and across processes), so this
+   needs someone binding an EXPLICIT port — which is why **you never probe for a
+   free port to bind later**: `listen(0)` → read it → close → re-bind that number
+   leaves a gap the kernel can fill with another process. Bind first, then read
+   the port off the socket you actually hold.
 2. **Project trees** — `makeTempProject()` builds a throwaway `.apc` project;
    never point tests at the real checkout.
 3. **`~/.apx` state** — set `process.env.APX_HOME` to your own temp `.apx` dir

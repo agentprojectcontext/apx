@@ -26,7 +26,7 @@ let base;
   const app = express();
   app.use(express.json());
   registerJobs(apiRouter(express, app));
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   base = `http://127.0.0.1:${server.address().port}/api`;
   server.unref();
