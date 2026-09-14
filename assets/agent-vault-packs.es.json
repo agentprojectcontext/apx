@@ -1,0 +1,14 @@
+{
+  "packs": {
+    "company": {
+      "name": "Equipo ejecutivo",
+      "description": "El equipo ejecutivo de una empresa: un orquestador que le reporta a tu super-agente, y los especialistas a los que consulta.",
+      "explain": "Crea estos agentes en el proyecto. El CEO queda como su orquestador y el resto cuelga de él; ninguno te puede escribir directo — pasan por tu super-agente. Destildá lo que no quieras; después los podés borrar o renombrar."
+    },
+    "dev-team": {
+      "name": "Equipo de producto",
+      "description": "Un orquestador más los especialistas que llevan un requerimiento a producción.",
+      "explain": "Crea estos agentes en el proyecto, con el orquestador coordinando y el resto reportándole. Cada uno recibe un nombre al instalarlo. Destildá lo que no quieras."
+    }
+  }
+}

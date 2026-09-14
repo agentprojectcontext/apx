@@ -45,6 +45,7 @@ import {
   writeProfileTombstones,
   resolvePromptFile,
   isProjectProfile,
+  localizeProfileManifest,
 } from "./store.js";
 import {
   renderProfilePrompt,
@@ -936,17 +937,24 @@ export function uninstallProfile(id) {
 export function listProfilesWithState(globalConfig = null) {
   const cfg = globalConfig || readConfig();
   const state = readProfileState(cfg);
-  return listProfiles().map((p) => ({
-    id: p.id,
-    name: p.manifest.name || p.id,
-    version: p.manifest.version || null,
-    description: p.manifest.description || "",
-    author: p.manifest.author || null,
-    languages: p.manifest.languages || ["en"],
-    source: p.source,
-    active: state.active === p.id,
-    dir: p.dir,
-  }));
+  // A package names and describes ITSELF, so the reader's language is applied
+  // here and not at the call site: there is no app i18n key for a string that
+  // ships inside a profile.
+  const lang = cfg?.user?.language || "en";
+  return listProfiles().map((p) => {
+    const manifest = localizeProfileManifest(p.dir, p.manifest, lang);
+    return {
+      id: p.id,
+      name: manifest.name || p.id,
+      version: manifest.version || null,
+      description: manifest.description || "",
+      author: manifest.author || null,
+      languages: manifest.languages || ["en"],
+      source: p.source,
+      active: state.active === p.id,
+      dir: p.dir,
+    };
+  });
 }
 
 export { readActiveProfile, readProfileState, effectiveProfileConfig };

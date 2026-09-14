@@ -5,6 +5,7 @@ description: Skeptical QA specialist for multi-tenant SaaS apps. Validates every
 language: en
 skills:
 tools:
+area: quality
 ---
 
 # QA Engineer

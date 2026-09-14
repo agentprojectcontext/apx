@@ -13,7 +13,7 @@ import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
-import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
+import { AutonomyPicker, AreaRoleFields, AgentIconPicker, MasterHint } from "../../components/agents/AgentFormFields";
 import { AgentSkillsPicker } from "../../components/agents/AgentSkillsPicker";
 import { AgentToolsPicker } from "../../components/agents/AgentToolsPicker";
 import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
@@ -560,6 +560,12 @@ function AgentConfigForm({
                 <AgentModelSelect value={model} onChange={setModel} />
               </Field>
               <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
+              <MasterHint
+                agents={agents}
+                self={agent.slug}
+                isMaster={isMaster || type === "orchestrator"}
+                parent={parent}
+              />
             </div>
           </Section>
 

@@ -499,8 +499,17 @@ export function ensureAgentDir(root, _slug) {
 }
 
 // Write .apc/agents/<slug>.md — the canonical agent definition file.
+//
+// Creates the directory itself rather than trusting the caller to have done it.
+// `installPack` called ensureAgentDir on the line AFTER this one, so installing
+// a team into a project that had never had an agent threw ENOENT on the first
+// member — with the pack's six areas already written. The project was left
+// looking like a company (Structure full of areas) with no agents and no roles,
+// and nothing said what had happened. Every caller writes into this one
+// directory, so the mkdir belongs here and not in each of them.
 export function writeAgentFile(root, slug, fields, body = "") {
   const dest = apcAgentFile(root, slug);
+  fs.mkdirSync(apcAgentsDir(root), { recursive: true });
   const lines = ["---"];
   const order = ["name", "role", "model", "language", "description", "skills", "tools"];
   const written = new Set();

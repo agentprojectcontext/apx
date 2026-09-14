@@ -1,0 +1,64 @@
+{
+  "properties": {
+    "quiet_hours": {
+      "title": "Horas de silencio",
+      "description": "Franja horaria local en la que sólo un blocker puede llegar al dueño."
+    },
+    "weekly_deliveries": {
+      "title": "Entregas por semana",
+      "description": "Cuántas veces puede interrumpirte la capa ejecutiva en 7 días corridos. Un blocker no cuenta."
+    },
+    "dedup_window_hours": {
+      "title": "Ventana de repetición",
+      "description": "Hasta cuándo un hallazgo idéntico sigue contando como ya dicho."
+    },
+    "ledger_path": {
+      "title": "Libro de decisiones",
+      "description": "Dónde se guardan las decisiones de la empresa, relativo a la raíz del proyecto. Es la memoria episódica del orquestador."
+    },
+    "orchestrator_agent": {
+      "title": "Orquestador",
+      "description": "El agente que escribe los briefs y el único que le entrega algo al super-agente."
+    },
+    "daily_schedule": {
+      "title": "Pulso diario",
+      "description": "Cron del pulso diario. Tiene que caer FUERA de las horas de silencio, o el guard retiene cada corrida y la capa parece muerta."
+    },
+    "weekly_schedule": {
+      "title": "Review semanal",
+      "description": "Cron del review semanal."
+    },
+    "biweekly_schedule": {
+      "title": "Brief de decisión",
+      "description": "Cada cuánto corre el brief de decisión."
+    },
+    "monthly_schedule": {
+      "title": "Scorecard del negocio",
+      "description": "Cron del scorecard mensual."
+    },
+    "deliver_to": {
+      "title": "Dónde se archiva la corrida",
+      "description": "El canal donde queda archivada la corrida en sí. `log` es el hilo legible en el que nadie está sentado — elegilo salvo que quieras la corrida cruda en un chat. NO es cómo se llega al dueño: eso lo decide el super-agente, siempre."
+    },
+    "cfo_schedule": {
+      "title": "Informe de plata (cfo)",
+      "description": "Cron de la nota semanal del área cfo. Escalonada antes del review semanal para que el escritorio esté puesto cuando corre el orquestador."
+    },
+    "coo_schedule": {
+      "title": "Informe de operaciones (coo)",
+      "description": "Cron de la nota semanal del área coo. Escalonada antes del review semanal para que el escritorio esté puesto cuando corre el orquestador."
+    },
+    "cmo_schedule": {
+      "title": "Informe de demanda (cmo)",
+      "description": "Cron de la nota semanal del área cmo. Escalonada antes del review semanal para que el escritorio esté puesto cuando corre el orquestador."
+    },
+    "chro_schedule": {
+      "title": "Informe de gente (chro)",
+      "description": "Cron de la nota semanal del área chro. Escalonada antes del review semanal para que el escritorio esté puesto cuando corre el orquestador."
+    },
+    "gc_schedule": {
+      "title": "Informe legal (gc)",
+      "description": "Cron de la nota semanal del área gc. Escalonada antes del review semanal para que el escritorio esté puesto cuando corre el orquestador."
+    }
+  }
+}

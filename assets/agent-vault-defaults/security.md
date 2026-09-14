@@ -5,6 +5,7 @@ description: Security specialist for a multi-tenant SaaS platform. Audits tenant
 language: en
 skills:
 tools:
+area: engineering
 ---
 
 # Security Engineer

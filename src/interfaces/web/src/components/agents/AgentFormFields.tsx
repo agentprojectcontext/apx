@@ -1,16 +1,61 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { Plus } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { toneText } from "../../lib/tone";
 import { Field } from "../ui";
 import { Tip } from "../ui/tip";
 import { UiSelect } from "../UiSelect";
 import { Org } from "../../lib/api/organization";
 import { t } from "../../i18n";
-import type { AgentAutonomy } from "../../types/daemon";
+import type { AgentAutonomy, AgentEntry } from "../../types/daemon";
 import { AreaDialog, RoleDialog } from "../structure/StructureDialogs";
 import { BlobAvatar } from "./BlobAvatar";
 import { BLOB_KEYS, BLOB_PRESETS } from "./blobPresets";
+
+// ── Orchestrator collision hint ──────────────────────────────────────────────
+/**
+ * What ELSE already leads this project, said at the moment somebody promotes an
+ * agent — because the switch itself answers none of it.
+ *
+ * Not a block, and not "something is wrong": several orchestrators is a normal
+ * shape. The flag grants exactly two tools (rename_agent, remove_agent), so a
+ * lead with its own sub-lead under it is a team, and the one that was already
+ * there is neither demoted nor handed anything over — which is the first thing
+ * anybody ticking this box wants to know and the form never said.
+ *
+ * What IS worth saying out loud is the part it hides: a second orchestrator
+ * with no parent is a second ROOT, and that is the moment the hierarchy stops
+ * being one tree.
+ */
+export function MasterHint({
+  agents, self, isMaster, parent,
+}: {
+  agents: AgentEntry[];
+  self?: string;
+  isMaster: boolean;
+  parent?: string;
+}) {
+  const others = agents.filter((a) => a.is_master && a.slug !== self);
+  if (!isMaster || others.length === 0) return null;
+  const names = others.map((a) => a.name || a.slug).join(", ");
+  // Only a ROOT master is a rival root: an existing one that already reports to
+  // somebody is a sub-lead, and adding another changes nothing about the top.
+  const secondRoot = !parent && others.some((a) => !a.parent);
+  return (
+    <p
+      data-testid="master-conflict-hint"
+      className={cn(
+        "rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] leading-snug",
+        toneText.amber,
+      )}
+    >
+      <AlertTriangle size={11} className="mr-1 inline align-[-1px]" />
+      {t("agents_form.master_conflict", { names })}
+      {secondRoot && ` ${t("agents_form.master_conflict_root")}`}
+    </p>
+  );
+}
 
 // ── Agent avatar picker ──────────────────────────────────────────────────────
 // The agent's avatar is a blob preset, full stop. Emoji avatars were dropped:

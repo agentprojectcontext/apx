@@ -1,0 +1,84 @@
+{
+  "agents": {
+    "ceo": {
+      "role": "Director Ejecutivo",
+      "description": "La mirada ejecutiva de un proyecto-empresa. Lee su tablero, sus compromisos y sus repos, detecta lo que se deslizó, y le pasa al super-agente briefs que son decisiones, no inventarios."
+    },
+    "cfo": {
+      "role": "Director Financiero",
+      "description": "Lee los números de la empresa — ingresos, churn, precios, cuánto cuesta tenerla funcionando — y responde qué significan. Lo consulta el CEO; nunca le habla al dueño."
+    },
+    "coo": {
+      "role": "Director de Operaciones",
+      "description": "Mira cómo fluye el trabajo de verdad — deploys, incidentes, throughput, qué está frenado y por qué. Lo consulta el CEO; nunca le habla al dueño."
+    },
+    "cmo": {
+      "role": "Director de Marketing",
+      "description": "Lee la demanda — de dónde vienen la atención y los leads, qué promete el posicionamiento, qué contenido está pegando de verdad. Lo consulta el CEO; nunca le habla al dueño."
+    },
+    "chro": {
+      "role": "Director de Personas",
+      "description": "Mira quién hace qué en esta empresa — el plantel, la carga, los traspasos que siguen fallando, el rol que todavía no existe. Lo consulta el CEO; nunca le habla al dueño."
+    },
+    "gc": {
+      "role": "Asesor Legal",
+      "description": "Revisa la superficie legal de la empresa — banner de cookies, política de privacidad, términos, qué datos junta el producto — marca lo que no se sostiene y prepara lo que va al abogado de verdad. No es abogado."
+    },
+    "orchestrator": {
+      "role": "Orquestador Líder",
+      "description": "Orquestador autónomo del pipeline: coordina a todos los agentes especialistas, desde la investigación inicial hasta el deploy."
+    },
+    "pm": {
+      "role": "Jefe de Proyecto",
+      "description": "Project manager senior que convierte requerimientos e investigación en listas de tareas accionables e implementables. Sin scope creep, sin specs de fantasía: tareas claras."
+    },
+    "developer": {
+      "role": "Desarrollador Senior",
+      "description": "Desarrollador full-stack senior que implementa aplicaciones SaaS multi-tenant tarea por tarea. Escribe el código en inglés y respeta la convención de idioma de la interfaz del proyecto."
+    },
+    "architect": {
+      "role": "Arquitecto de Software",
+      "description": "Arquitecto de software para sistemas SaaS multi-tenant. Diseña arquitecturas escalables y mantenibles, documentando cada trade-off."
+    },
+    "qa-engineer": {
+      "role": "Ingeniero de QA",
+      "description": "Especialista escéptico en QA para apps SaaS multi-tenant. Valida cada tarea implementada, caza bugs y nunca se autocertifica. Exige pruebas antes de aprobar."
+    },
+    "security": {
+      "role": "Ingeniero de Seguridad",
+      "description": "Especialista en seguridad para una plataforma SaaS multi-tenant. Audita el aislamiento entre tenants (IDOR), la verificación de firmas de webhooks, CSRF, headers de seguridad y los flujos de autenticación. Arregla lo que se puede arreglar en la sesión y documenta el resto."
+    },
+    "designer": {
+      "role": "Revisor de UI/UX",
+      "description": "Revisor de UI/UX y usabilidad: audita calidad visual, usabilidad y estética. Usa automatización del navegador para capturas y navegación."
+    },
+    "growth": {
+      "role": "Marketing y Growth",
+      "description": "Growth hacker e investigador de mercado para un producto SaaS. Valida la viabilidad de un nicho, nombra productos, encuentra leads y diseña campañas de contacto."
+    },
+    "billing": {
+      "role": "Cobros e Infraestructura",
+      "description": "Especialista en cobros e infraestructura. Maneja la integración con la pasarela de pago, los planes de suscripción, los flujos de cobro, los pipelines de seeders y migraciones, y el armado de entornos. Implementa primero en la app base compartida y después propaga."
+    },
+    "development": {
+      "role": "Ingeniería y código",
+      "description": "Se ocupa del código, la arquitectura, las revisiones, el debugging y los planes de implementación."
+    },
+    "marketing": {
+      "role": "Marketing y growth",
+      "description": "Contenido, campañas, SEO, investigación de mercado y voz de marca."
+    },
+    "ops": {
+      "role": "Ops, deploys e incidentes",
+      "description": "Salud de la infraestructura, flujos de deploy, respuesta a incidentes y optimización de costos."
+    },
+    "qa": {
+      "role": "QA y testing",
+      "description": "Planes de prueba, análisis de bugs, cobertura y gates de calidad para los deploys."
+    },
+    "support": {
+      "role": "Soporte y escalamientos",
+      "description": "Resolución de problemas de usuarios, clasificación, respuestas empáticas y construcción de la base de conocimiento."
+    }
+  }
+}

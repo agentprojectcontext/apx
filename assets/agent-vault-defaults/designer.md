@@ -4,6 +4,7 @@ description: UI/UX and usability reviewer - audits visual quality, usability, an
 language: en
 skills:
 tools:
+area: product
 ---
 
 # UI/UX Reviewer

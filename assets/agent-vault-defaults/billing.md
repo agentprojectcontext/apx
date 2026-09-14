@@ -4,6 +4,7 @@ description: Billing and infrastructure specialist. Handles payment provider int
 language: en
 skills:
 tools:
+area: finance
 ---
 
 # Billing & Infrastructure

@@ -6,6 +6,8 @@ import { Agents, Artifacts, Conversations, Mcps, Routines, Tasks } from "../../l
 import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
 import { BrainGraph, type BrainNode, type BrainEdge, agentPreview, routinePreview, clipPreview } from "./AgentBrainGraph";
+import { ProjectProfileNotice } from "../../components/config/ProjectProfileCard";
+import { useProject } from "../../hooks/useProjects";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
@@ -17,6 +19,7 @@ import type { AgentEntry, RoutineEntry, TaskEntry } from "../../types/daemon";
 // automation), what's in flight (task workflow), and what just happened.
 export function Overview({ pid }: { pid: string }) {
   const navigate = useNavigate();
+  const { project } = useProject(pid);
   const tasks    = useSWR(`/api/projects/${pid}/tasks?state=open`, () => Tasks.list(pid), { refreshInterval: 20_000 });
   const summary  = useSWR(`/api/projects/${pid}/tasks-summary`,    () => Tasks.summary(pid), { refreshInterval: 20_000 });
   const routines = useSWR(`/api/projects/${pid}/routines`,         () => Routines.list(pid));
@@ -36,6 +39,10 @@ export function Overview({ pid }: { pid: string }) {
 
   return (
     <div className="space-y-6">
+      {/* A project that says it is one thing and runs like another. Above the
+          stat cards on purpose: the numbers below are all zero BECAUSE of it. */}
+      <ProjectProfileNotice pid={pid} kind={project?.kind} />
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Card title={t("project.overview.agents")}     value={agentList.length}          href={`/p/${pid}/agents`}   icon={Bot} />

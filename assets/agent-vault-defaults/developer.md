@@ -5,6 +5,7 @@ description: Senior full-stack developer implementing multi-tenant SaaS applicat
 language: en
 skills:
 tools:
+area: engineering
 ---
 
 # Senior Developer

@@ -32,7 +32,11 @@ import {
   writeAgentMemory,
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
-import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
+import { readPacks, planPackInstall, installPack, takenAgentNames } from "#core/apc/agent-packs.js";
+import { pickAgentName } from "#core/apc/agent-names.js";
+import { pickBlob, isBlobKey } from "#core/apc/agent-identity.js";
+import { vaultDisplayStrings, localizePack } from "#core/apc/vault-strings.js";
+import { readConfig } from "#core/config/index.js";
 import {
   AGENT_CORE_TOOLS,
   AGENT_TOOL_ALIASES,
@@ -102,6 +106,11 @@ export function register(api, { projects, project }) {
   // hide bundled entries. GET merges both with `source` set per item.
   api.get("/agents/vault", (req, res) => {
     const includeRemoved = req.query?.include_removed === "1";
+    // Role and description are read in the panel's language. The TEMPLATE is
+    // untouched: both fields land in the agent's frontmatter at install and
+    // both reach the model, so translating the stored copy would change what
+    // the agent is told. See core/apc/vault-strings.js.
+    const lang = readConfig()?.user?.language || "en";
     res.json(readVaultAgents({ includeRemoved }).map((a) => {
       // What the template ACTUALLY says. Slug, role and tools describe an agent
       // from the outside; the prompt is the agent. Importing one used to be a
@@ -111,6 +120,7 @@ export function register(api, { projects, project }) {
       const preview = promptPreview(full);
       return {
         ...agentToResponse(a),
+        ...vaultDisplayStrings(a.slug, a.fields || {}, lang),
         source: a.source, // "bundled" | "user" | "user-override"
         system_preview: preview,
         system_bytes: Buffer.byteLength(full, "utf8"),
@@ -180,7 +190,25 @@ export function register(api, { projects, project }) {
     if (readAgents(p.path).find((a) => a.slug === slug))
       return res.status(400).json({ error: `agent ${slug} already exists in project` });
     try {
-      writeAgentFile(p.path, slug, vault.fields || {}, vault.body || "");
+      // A template that ships a persona keeps it. The ROLE templates — which
+      // are the sane way to ship a team — ship none, and a pack install names
+      // them at install time (planPackInstall). Importing one on its own went
+      // straight to disk instead, so the very same template that becomes
+      // "Briar · Chief Financial Officer" through the team dialog became
+      // "cfo / cfo" through the card sitting next to it. Same for the face: a
+      // template with no Icon got no avatar at all, while its pack siblings
+      // each got one this project was not already wearing.
+      const roster = readAgents(p.path);
+      const fields = { ...(vault.fields || {}) };
+      if (!fields.Name) {
+        const taken = takenAgentNames();
+        for (const a of roster) if (a.fields?.Name) taken.add(String(a.fields.Name));
+        fields.Name = pickAgentName([...taken], { seed: slug });
+      }
+      if (!isBlobKey(fields.Icon)) {
+        fields.Icon = pickBlob({ taken: roster.map((a) => a.fields?.Icon).filter(Boolean) });
+      }
+      writeAgentFile(p.path, slug, fields, vault.body || "");
       ensureAgentDir(p.path, slug);
       ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
@@ -221,7 +249,11 @@ export function register(api, { projects, project }) {
   // Packs = a TEAM of vault templates installed together. The manifest is
   // global (it names templates, not projects), so listing it needs no project.
   api.get("/agents/packs", (_req, res) => {
-    res.json(readPacks());
+    // A pack's name/description/explain are pure installer copy — they reach
+    // nobody but the reader — so unlike a template's role these are localized
+    // outright.
+    const lang = readConfig()?.user?.language || "en";
+    res.json(readPacks().map((p) => localizePack(p, lang)));
   });
 
   // What the install WOULD do, without doing it: the dialog shows the slug each

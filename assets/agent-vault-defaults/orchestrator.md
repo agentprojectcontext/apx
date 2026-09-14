@@ -7,6 +7,7 @@ master: true
 type: orchestrator
 skills:
 tools:
+area: direction
 ---
 
 # Lead Orchestrator

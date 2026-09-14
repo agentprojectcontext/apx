@@ -381,7 +381,26 @@ export function removeAgent(project, slug) {
   if (!fs.existsSync(file) && !fs.existsSync(runtimeDir)) {
     throw new Error(`agent ${slug} not found`);
   }
+
+  // Whoever reported to this agent now reports to ITS parent — the ordinary
+  // answer when a link is cut out of a chain, and the one renameAgent has
+  // always given. Remove did not: deleting a lead left every report carrying
+  // `Parent: <a slug that is gone>`, which resolves to nothing and drops them
+  // to the top level with no error anywhere. Installing a team, deciding you
+  // did not want its lead after all and deleting it is a completely normal
+  // sequence, and it silently took the team apart.
+  //
+  // Read before the file is gone: the grandparent lives in the frontmatter we
+  // are about to delete.
+  const roster = readAgents(project.path);
+  const grandparent = roster.find((a) => a.slug === slug)?.fields?.Parent || null;
+  const orphans = roster.filter((a) => a.slug !== slug && a.fields?.Parent === slug);
+
   if (fs.existsSync(file)) fs.rmSync(file);
   if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
+
+  for (const child of orphans) {
+    writeAgentFile(project.path, child.slug, { ...child.fields, Parent: grandparent }, child.body || "");
+  }
   return slug;
 }
