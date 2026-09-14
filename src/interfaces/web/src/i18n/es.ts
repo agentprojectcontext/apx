@@ -264,7 +264,11 @@ export const es = {
       "Cada agente como una conversación, lo más reciente primero.",
     empty: "Todavía no hablaste con ningún agente.",
     show_quiet: "Ver los que no hablaron",
-    no_reply_yet: "(sin respuestas todavía)",
+    // Acá no habló nadie — ni el agente ni vos. La fila muestra al último que
+    // dijo algo, así que "sin respuestas" era la mitad equivocada.
+    no_messages_yet: "(sin mensajes todavía)",
+    /** Prefijo de la fila cuya última línea es del dueño. */
+    you: "Vos",
   },
 
   // Filtros y etiquetas de canal: cuáles de los lugares donde puede pasar una

@@ -64,7 +64,10 @@ export function InboxList({
     );
     if (!needle) return shown;
     return shown.filter((r) =>
-      [r.agent_name, r.agent_slug, r.project_name, r.preview, r.channel]
+      // Both lines a row can print: the agent's last reply and the last thing
+      // said in the thread (your own message, when you are the one who spoke
+      // last) — searching for what you typed must find the chat you typed it in.
+      [r.agent_name, r.agent_slug, r.project_name, r.preview, r.last_message, r.channel]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle)));
   }, [rows, q, view.prefs, scope.prefs]);

@@ -10,6 +10,7 @@ import {
   threadActivityKey,
 } from "../../lib/chat-activity";
 import { toneChip } from "../../lib/tone";
+import { useChatActivity } from "../../hooks/useChatActivity";
 import { useRowUnread } from "../../hooks/useChatRead";
 import { useThreadJobRunning } from "../../hooks/useBackgroundJobs";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON } from "../agents/AgentAvatar";
@@ -25,6 +26,30 @@ export function inboxRowTime(iso: string): string {
   return sameDay
     ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+/** Channels where a message from "the user" is not necessarily the OWNER's.
+ *  Other people write in on these — a WhatsApp contact, a Telegram guest off
+ *  the roster — and the ledger records them under the same role, so marking one
+ *  of their lines "Vos:" would be a lie about who said it. The row is titled
+ *  with their name there anyway. Everywhere else the user IS the owner. */
+const SHARED_CHANNELS = new Set(["whatsapp", "telegram"]);
+
+/** How much of a live answer reaches the DOM. Several times what a row can
+ *  show, so the clip has room to work, and nothing like the whole answer: this
+ *  is rewritten on every token. */
+const LIVE_TAIL = 120;
+
+/**
+ * The END of what is being written, not the beginning of it.
+ *
+ * A row is one clipped line. Showing the head of a streaming answer means the
+ * first six words appear and then nothing ever moves again — the exact opposite
+ * of what a live line is for. The tail reads the way the words arrive; the clip
+ * is flipped to the left in the render, which is what draws the leading "…".
+ */
+function liveTail(text?: string): string {
+  return String(text || "").replace(/\s+/g, " ").trim().slice(-LIVE_TAIL);
 }
 
 function participantFaces(row: InboxRow) {
@@ -69,6 +94,23 @@ export function InboxRowItem({
         ? threadActivityKey(row.project_id, row.channel, row.conversation_id)
         : null
   );
+  // The same registry the spinner reads, for the thing the spinner cannot say:
+  // WHAT is being written. While a turn runs the row follows its text — and
+  // only its text; the tools it is running are work, not a line anyone reads
+  // off a list.
+  const activity = useChatActivity(activityKey, row.active_turn);
+  const live = activity.running ? liveTail(activity.text) : "";
+  // What the row prints when nothing is being written: the last thing said,
+  // falling back — for the multi-agent rows, whose preview already names its
+  // own author — to the agent's last reply.
+  const said = row.last_message || row.preview || "";
+  // "Vos:", the way every chat list marks your own half of a conversation.
+  // Only where the user IS the owner: on a channel that carries other people
+  // (WhatsApp) the user role is THEIRS, and the row already wears their name.
+  const ownVoice = !live
+    && row.last_role === "user"
+    && !row.contact
+    && !SHARED_CHANNELS.has(row.channel || "");
 
   return (
     <button
@@ -159,7 +201,27 @@ export function InboxRowItem({
             nothing unread the mark is zero-wide and the preview reads the full
             width. */}
         <span className={cn("mt-0.5 flex items-center text-muted-fg", touch ? "text-[13px]" : "text-xs")}>
-          <span className="min-w-0 truncate">{row.preview || t("inbox.no_reply_yet")}</span>
+          <span
+            className="min-w-0 truncate"
+            data-testid="inbox-row-preview"
+            // While the answer streams, the line is clipped at its START — the
+            // newest words are the ones worth the width, and an ellipsis on the
+            // right would hide exactly the half that is moving. An RTL box is
+            // what moves the clip (and its ellipsis) to the left.
+            style={live ? { direction: "rtl" } : undefined}
+          >
+            {live ? (
+              // The text keeps its OWN direction inside that box. Without the
+              // isolate, a neutral character at either end — the full stop this
+              // sentence may be about to end on — is laid out against the box
+              // instead, jumps to the far side, and is the first thing clipped.
+              <bdi>{live}</bdi>
+            ) : said ? (
+              ownVoice ? `${t("inbox.you")}: ${said}` : said
+            ) : (
+              t("inbox.no_messages_yet")
+            )}
+          </span>
           <ChatRowActivity
             activityKey={activityKey}
             activeTurn={row.active_turn}

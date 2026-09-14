@@ -262,7 +262,11 @@ export const en = {
       "Every agent as a conversation, most recent first.",
     empty: "You have not talked to any agent yet.",
     show_quiet: "Show quiet agents",
-    no_reply_yet: "(no replies yet)",
+    // Nobody has said anything here — not the agent, and not you either. The
+    // row prints whoever spoke last, so "no replies" was the wrong half of it.
+    no_messages_yet: "(nothing said yet)",
+    /** Prefix on a row whose last line is the owner's own. */
+    you: "You",
   },
 
   // Channel filters + tags: which of the places a conversation can happen this

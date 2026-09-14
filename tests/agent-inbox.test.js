@@ -112,6 +112,58 @@ test("preview_at is the agent's reply, not the thread's last movement", () => {
   }
 });
 
+// ── What the ROW prints ────────────────────────────────────────────────────
+// `preview` answers "what did the agent say"; the row asks something else —
+// "what is the last thing in here". They are the same answer right up until you
+// are the one who spoke last, and then the row was showing an hour-old reply
+// over a message you had just sent, or "(nothing said yet)" over a thread with
+// forty messages in it.
+
+test("the row's line is the last thing SAID, including your own message", () => {
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    writeConversation(p, "scout", {
+      id: "c1",
+      startedAt: "2026-08-01T10:00:00Z",
+      lastAt: "2026-08-01T10:05:00Z",
+      turns: [
+        ...TURNS,
+        { role: "user", ts: "2026-08-01T10:05:00Z", content: "and the invoices?" },
+      ],
+    });
+
+    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    assert.equal(scout.last_message, "and the invoices?");
+    assert.equal(scout.last_role, "user", "so the row can mark it as yours");
+    assert.equal(
+      scout.preview,
+      "report filed. 9 receipts, nothing over policy.",
+      "the notification's line is untouched: it is still the agent's answer"
+    );
+  } finally {
+    cleanup(p);
+  }
+});
+
+test("a chat nobody has answered yet still has a line", () => {
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    writeConversation(p, "scout", {
+      id: "c1",
+      startedAt: "2026-08-01T10:00:00Z",
+      lastAt: "2026-08-01T10:00:00Z",
+      turns: [{ role: "user", ts: "2026-08-01T10:00:00Z", content: "how are the receipts?" }],
+    });
+
+    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    assert.equal(scout.preview, null, "nothing was replied");
+    assert.equal(scout.last_message, "how are the receipts?", "but something was said");
+    assert.equal(scout.last_role, "user");
+  } finally {
+    cleanup(p);
+  }
+});
+
 test("a tool row does not count as the agent speaking", () => {
   const p = makeProject("alpha", ["scout"]);
   try {
@@ -128,6 +180,8 @@ test("a tool row does not count as the agent speaking", () => {
 
     const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.preview_at, "2026-08-01T10:01:00Z", "mid-turn work is not an answer");
+    assert.equal(scout.last_message, "check again", "and it is not a line on the row either");
+    assert.equal(scout.last_role, "user");
   } finally {
     cleanup(p);
   }
@@ -200,6 +254,8 @@ test("the super-agent row says when it last spoke, not when it was last written 
     assert.equal(row.last_activity_at, "2026-08-02T10:04:00Z");
     assert.equal(row.preview_at, "2026-08-02T10:01:00Z", "the last thing IT said");
     assert.equal(row.preview, "hola juan, decime");
+    assert.equal(row.last_message, "[WhatsApp de juan]: ?", "what the row prints: the unanswered one");
+    assert.equal(row.last_role, "user");
   } finally {
     cleanup(p);
   }

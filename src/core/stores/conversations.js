@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { emitMessageEvent } from "#core/events/bus.js";
-import { mediaFromMeta } from "#core/stores/messages.js";
+import { mediaFromMeta, previewText } from "#core/stores/messages.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -301,6 +301,19 @@ export function conversationTitle(fm = {}, turns = []) {
   );
 }
 
+/**
+ * The one line a list stands a whole turn on: no code fences, no newlines, and
+ * a file DESCRIBED rather than the marker that stands in for it on disk
+ * ("[image attached — saved to /Users/…]"), which is how a photo used to show
+ * up in the inbox as a file path. `previewText` is that rule, shared with the
+ * ledger's own previews so both surfaces say the same thing about a turn.
+ */
+function oneLine(turn) {
+  if (!turn) return undefined;
+  const body = String(turn.content || "").replace(/```[\s\S]*?```/g, " ");
+  return previewText(body, mediaFromMeta(turn.meta)).slice(0, 160) || undefined;
+}
+
 // Lightweight summary used by the chat list sidebar — reads frontmatter and
 // counts turns without loading the whole conversation into memory beyond what
 // `fs.readFileSync` already does. The fields match `ConversationListEntry` on
@@ -312,15 +325,21 @@ function summarizeConversation(filePath, agentSlug, filename) {
   const messages = turns.filter((t) => t.role === "user" || t.role === "assistant").length;
   const title = conversationTitle(fm, turns);
 
-  // What the AGENT last said, not what the user last asked. An inbox row that
-  // echoes your own prompt back tells you nothing; the reply is the thing you
-  // want to see without opening the thread ("report filed, nothing over policy").
+  // TWO lines, because a list row asks two different questions of a thread.
+  //
+  // `preview` is the ANSWER: what the agent last said. It is what a
+  // notification reads out and what "is there something new here" is measured
+  // against (lib/notify.ts, lib/chat-read.ts), so it must not move for anything
+  // but a reply.
   const lastReply = [...turns].reverse().find((t) => t.role === "assistant");
-  const preview = (lastReply?.content || "")
-    .replace(/```[\s\S]*?```/g, " ")   // code fences read as noise at one line
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160) || undefined;
+  // `last_message` is the thread's last LINE, whoever wrote it — which is what
+  // the row actually shows. A row that skips the message you just sent reads as
+  // a thread that never received it: it jumps to the top of the inbox and still
+  // shows an answer from an hour ago, or says "no replies yet" over a
+  // conversation with forty.
+  //
+  // Tool rows are work, not lines, and are left out of both.
+  const lastTurn = [...turns].reverse().find((t) => t.role === "user" || t.role === "assistant");
 
   return {
     id: filename.replace(/\.md$/, ""),
@@ -333,8 +352,10 @@ function summarizeConversation(filePath, agentSlug, filename) {
     archived: String(fm.archived) === "true" || undefined,
     messages,
     title,
-    preview,
+    preview: oneLine(lastReply),
     preview_at: lastReply?.ts || undefined,
+    last_message: oneLine(lastTurn),
+    last_role: lastTurn?.role,
   };
 }
 
