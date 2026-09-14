@@ -176,7 +176,10 @@ export function InboxRowItem({
           </span>
         </span>
 
-        <span className={cn("mt-0.5 flex items-center gap-1.5 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
+        <span
+          data-testid="inbox-row-meta"
+          className={cn("mt-0.5 flex items-center gap-1.5 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}
+        >
           {/* Two facts, two badges, never one slot: where this agent comes
               FROM and where the conversation HAPPENED. The project used to be
               bare text next to the channel's tag, which read as a caption on
@@ -193,16 +196,27 @@ export function InboxRowItem({
               for {row.requested_by}
             </span>
           ) : null}
+          {/* The marks ride at the END of this line — the one with room to
+              spare — and not on the message line, which is the one that wants
+              every pixel. Nothing is hidden by anything else there: a live
+              turn, work left running and something unread are three separate
+              facts and they stand side by side. */}
+          <ChatRowActivity
+            className="ml-auto"
+            activityKey={activityKey}
+            activeTurn={row.active_turn}
+            unread={unread}
+            jobRunning={jobRunning}
+          />
         </span>
 
-        {/* The activity mark rides at the END of the last message, not up by
-            the clock: it is that line that is still being written. The text
-            gives way for it only while it is there — with nothing running and
-            nothing unread the mark is zero-wide and the preview reads the full
-            width. */}
+        {/* The last line said, with the whole row to itself: one line, and the
+            whole width of it. The marks that used to share it — and shorten it
+            — moved up to the tag line, so what gets clipped here is clipped by
+            the width of the rail and by nothing else. */}
         <span className={cn("mt-0.5 flex items-center text-muted-fg", touch ? "text-[13px]" : "text-xs")}>
           <span
-            className="min-w-0 truncate"
+            className="min-w-0 flex-1 truncate"
             data-testid="inbox-row-preview"
             // While the answer streams, the line is clipped at its START — the
             // newest words are the ones worth the width, and an ellipsis on the
@@ -222,12 +236,6 @@ export function InboxRowItem({
               t("inbox.no_messages_yet")
             )}
           </span>
-          <ChatRowActivity
-            activityKey={activityKey}
-            activeTurn={row.active_turn}
-            unread={unread}
-            jobRunning={jobRunning}
-          />
         </span>
       </span>
     </button>

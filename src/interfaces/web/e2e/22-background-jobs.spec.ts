@@ -210,6 +210,46 @@ test.describe("background jobs", () => {
     ).toHaveCount(0);
   });
 
+  test("the marks share the tag line, and stand side by side", async ({ page }) => {
+    // Two facts at once: work is still out AND the agent said something this
+    // device has not read. They used to take turns in one 12px slot, so the
+    // louder one erased the other. Manu: "el punto azul con la señal de proceso
+    // segundo plano podrían ir doble (ambas a la vez)".
+    await page.addInitScript(() =>
+      // A seeded store with no mark for this row = something new here. Without
+      // the baseline the first load counts everything as already seen.
+      localStorage.setItem("apx.chat.read.v1", JSON.stringify({ seeded: true, marks: {} })),
+    );
+    await page.route((url) => url.pathname === "/api/projects", (route) =>
+      route.fulfill({ json: [{ id: 7, name: "Northwind", path: "/p", kind: "company", agents: 2, apx_id: "nw1", storage_path: "/p" }] }));
+    await page.route((url) => url.pathname === "/api/inbox", (route) =>
+      route.fulfill({
+        json: [
+          // The newest row takes the selection — and a row you are LOOKING at
+          // is read by definition, so the one under test has to be the other.
+          quietRow,
+          { ...a2aRow, preview_at: new Date(Date.now() - 60_000).toISOString(), last_activity_at: new Date(Date.now() - 60_000).toISOString() },
+        ],
+      }));
+    await page.route((url) => url.pathname === "/api/jobs", (route) =>
+      route.fulfill({ json: { data: [job], meta: { total: 1, open: 1 } } }));
+    await page.goto("/inbox");
+
+    const row = page.getByTestId(`inbox-row-a2a:${THREAD}`);
+    // Both, named in one label — not one of them winning the slot.
+    await expect(row.getByRole("status")).toHaveAttribute("aria-label", /(tarea|task).*(nueva|new)/i);
+    // And both actually drawn: a mark that is off collapses to zero width.
+    const drawn = await row.getByRole("status").evaluate((el) =>
+      Array.from(el.children).filter((c) => c.getBoundingClientRect().width > 0).length);
+    expect(drawn).toBe(2);
+    // On the project/channel line — the one with room — so the message line
+    // keeps the whole width for the message.
+    await expect(row.getByTestId("inbox-row-meta").getByRole("status")).toBeVisible();
+    const preview = await row.getByTestId("inbox-row-preview").boundingBox();
+    const marks = await row.getByRole("status").boundingBox();
+    expect(marks!.y + marks!.height).toBeLessThanOrEqual(preview!.y + 1);
+  });
+
   test("a deep link reaches an agent's conversation, not just a channel thread", async ({ page }) => {
     // ChatTab addresses a session two ways — `?channel=&thread=` and
     // `?agent=&conv=` — and this screen only ever read the first, so
