@@ -53,7 +53,7 @@ async function serveChat(root) {
   };
   register(router, ctx);
   registerConversations(router, ctx);
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, url: `http://127.0.0.1:${server.address().port}` };
 }

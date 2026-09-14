@@ -9,7 +9,7 @@ import { buildApi } from "#host/daemon/api.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 async function listen(app) {
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }

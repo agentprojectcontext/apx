@@ -141,7 +141,7 @@ test("GET /projects/:pid/super-agent/threads/:channel/:id returns 404 for missin
     project: () => ({ id: "p1", path: "/tmp/none", storagePath: null }),
     config: {},
   });
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   const { port } = server.address();
   try {

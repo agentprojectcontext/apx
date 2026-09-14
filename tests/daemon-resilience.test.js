@@ -13,7 +13,7 @@ async function withServer(build, fn) {
   app.use(express.json());
   build(app);
   app.use(errorMiddleware(() => {}));
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -136,7 +136,7 @@ test("a rejecting handler on a real daemon route returns 500 and leaves no unhan
   const rejections = [];
   const spy = (err) => rejections.push(err);
   process.on("unhandledRejection", spy);
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {

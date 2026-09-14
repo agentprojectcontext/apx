@@ -172,7 +172,7 @@ test("the two routes serve two different files", async () => {
     config: { host: "127.0.0.1", port: 7430, super_agent: { name: "apx" } },
     token: "",
   });
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const json = { "content-type": "application/json" };

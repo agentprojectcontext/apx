@@ -43,7 +43,7 @@ async function startDaemon({ permissionMode = "total" } = {}) {
     },
     token: "",
   });
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   const { port } = server.address();
   return {

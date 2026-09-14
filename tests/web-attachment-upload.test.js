@@ -44,7 +44,7 @@ async function listen() {
     config: { host: "127.0.0.1", port: 7430, super_agent: { name: "apx" } },
     token: "", // empty token → the auth middleware accepts any request
   });
-  const server = app.listen(0);
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
