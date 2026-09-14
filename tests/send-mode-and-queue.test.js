@@ -60,10 +60,15 @@ test("the shortcut reaches the send, through every layer", () => {
 test("the shortcut can only soften a send, never sharpen it", () => {
   const hook = web("hooks", "useChat.ts");
   // `queue: true` suppresses the interrupt. There is deliberately no
-  // `queue: false` that could FORCE one from a queueing toggle.
-  assert.match(hook, /if \(!queueOnSendRef\.current && !opts\.queue\) void stopTurn\(\);/);
+  // `queue: false` that could FORCE one from a queueing toggle. The condition
+  // is named now (`cutsIn`) because the answer is also RECORDED on the parked
+  // line, so the strip above the field can say which of the two it is doing —
+  // both used to read "En cola", including the one that had just cut the turn.
+  assert.equal((hook.match(/const cutsIn = !queueOnSendRef\.current && !opts\.queue;/g) || []).length, 2,
+    "both the 1:1 and the room path");
+  assert.equal((hook.match(/if \(cutsIn\) void stopTurn\(\);/g) || []).length, 2);
   assert.doesNotMatch(hook, /opts\.queue === false/);
-  assert.doesNotMatch(hook, /opts\.interrupt/);
+  assert.doesNotMatch(hook, /opts\.interrupt\b/);
 });
 
 test("the shortcut is written down where the mode is chosen", () => {

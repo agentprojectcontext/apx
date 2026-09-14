@@ -21,6 +21,7 @@ import {
   type NewSessionValues,
 } from "../../components/code/NewCodeSessionDialog";
 import { CodeComposer } from "../../components/code/CodeComposer";
+import { PendingTurns } from "../../components/chat/PendingTurns";
 import { CodeSidePanel } from "../../components/code/CodeSidePanel";
 import { CodeFileTree } from "../../components/code/CodeFileTree";
 import { CodeFileViewer } from "../../components/code/CodeFileViewer";
@@ -74,9 +75,11 @@ function activeTurnMsg(turn: ActiveTurn): ChatMsg {
 const sessionQueues = new Map<string, QueuedTurn[]>();
 
 let queueSeq = 0;
-/** A queued turn renders as the bubble it will become — what you wrote is in
- *  the conversation the moment you send it, whether or not the agent has got
- *  to it yet. Same shape and same rendering the chat's queue uses. */
+/** A parked turn carries the bubble it will BECOME, which is what gets drawn
+ *  once it actually goes out. Until then it shows above the field
+ *  (components/chat/PendingTurns.tsx) rather than in the transcript: a line
+ *  drawn like a sent one reads as sent, and here turns run for minutes. Same
+ *  shape the chat's queue uses. */
 function queuedTurn(text: string): QueuedTurn {
   return {
     id: `q-${++queueSeq}`,
@@ -933,7 +936,6 @@ export function CodeScreen() {
                             msgs={msgs}
                             onCopy={copyToClipboard}
                             queued={queued}
-                            onUnqueue={unqueue}
                             // Not while something is running: a rewind deletes
                             // turns, and the turn in flight would append onto a
                             // transcript that had moved under it.
@@ -979,6 +981,11 @@ export function CodeScreen() {
 
                   {/* Composer — always visible at the bottom of the main column */}
                   <div className="shrink-0 border-t border-border p-2" data-testid="code-input">
+                    {/* Parked lines sit with the field, not in the transcript —
+                        same move as the chat. A code session's turns run for
+                        minutes, so this is where a queued line is most likely to
+                        be scrolled away from and forgotten. */}
+                    <PendingTurns queued={queued} onUnqueue={unqueue} />
                     <CodeComposer
                       value={draft}
                       onValueChange={setDraft}

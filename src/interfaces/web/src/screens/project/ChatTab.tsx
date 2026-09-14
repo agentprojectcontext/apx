@@ -7,6 +7,7 @@ import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../..
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
+import { PendingTurns } from "../../components/chat/PendingTurns";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, chatKeyToString, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
 import { queryForChat } from "../mobile/routes";
@@ -1258,7 +1259,6 @@ export function ChatTab({
               <MessageList
                 msgs={msgs}
                 queued={queued}
-                onUnqueue={unqueue}
                 onCopy={copyToClipboard}
                 onRegenerate={regenerateHandler}
                 onEdit={editHandler}
@@ -1357,6 +1357,11 @@ export function ChatTab({
               context={
                 <>
                   <ContextBar msgs={msgs} projectId={pid} docked onOpenChange={setCtxOpen} />
+                  {/* What you wrote that has not gone out yet. Welded to the
+                      top of the field for the same reason the strip and the
+                      questions are: it belongs to the thing you type with, not
+                      to the conversation it has not joined. */}
+                  <PendingTurns queued={queued} onUnqueue={unqueue} docked />
                   {(() => {
                     const pending = !streaming ? pendingAskQuestions(msgs) : null;
                     if (!pending || pending.turnKey === dismissedAskKey) return null;

@@ -1971,6 +1971,7 @@ export const en = {
     stop:                "Stop",
     send:                "Send",
     queued:              "Queued",
+    pending_interrupting: "Interrupting",
     queued_cancel:       "Don't send it",
     running_elsewhere:   "Writing a reply",
     unread_reply:        "New reply",
