@@ -347,6 +347,11 @@ export interface UseChatResult {
   sendNow: (id: string) => void;
   /** Swap a parked turn with its neighbour (-1 = earlier, 1 = later). */
   moveQueued: (id: string, direction: -1 | 1) => void;
+  /** A chat's history is on its way. True from the moment a pick blanks the
+   *  pane until that fetch lands — which is the window in which "no messages
+   *  yet" is a lie about a conversation that has plenty. Only a real open sets
+   *  it; a silent catch-up on the chat already on screen does not. */
+  loading: boolean;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
   conversationId: string | undefined;
@@ -930,6 +935,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     msgsRef.current = value;
     setMsgs(value);
   }, []);
+  // Blanking the pane and fetching its history are two steps, and between them
+  // the thread looks exactly like an empty one. This is what tells them apart.
+  const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const streamingRef = useRef(false);
   const updateStreaming = useCallback((value: boolean) => {
@@ -1683,6 +1691,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
 
   const clear = useCallback((queueKey?: string) => {
     loadSeqRef.current++; // cancel any in-flight history load
+    setLoading(false);    // ...and with it, that load's spinner
     beginViewChange();
     convoRef.current = undefined;
     threadRef.current = null;
@@ -1716,10 +1725,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       // chat catching up, so blanking would be a flash of empty for nothing —
       // and for the same reason it keeps the queue: what you queued belongs to
       // this thread, and only actually LEAVING it drops it.
-      if (!opts?.silent) updateMsgs([]);
+      if (!opts?.silent) { updateMsgs([]); setLoading(true); }
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
-        if (seq !== loadSeqRef.current) return; // superseded by a newer pick
+        if (seq !== loadSeqRef.current) return; // superseded by a newer pick — its spinner, not ours
+        if (!opts?.silent) setLoading(false);
         const loaded = threadToChatMsgs(detail.messages ?? []);
         convoRef.current = conversationId;
         threadRef.current = null;
@@ -1753,6 +1763,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // keep showing the conversation and stay quiet. Only a refresh the user
         // asked for by picking a chat reports, and clears.
         if (opts?.silent) return;
+        setLoading(false);
         convoRef.current = undefined;
         threadRef.current = null;
         setConversationId(undefined);
@@ -1772,10 +1783,12 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         beginViewChange();
         bindQueue(threadActivityKey(pid, channel, threadId), false);
         updateMsgs([]);
+        setLoading(true);
       }
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
-        if (seq !== loadSeqRef.current) return; // superseded by a newer pick
+        if (seq !== loadSeqRef.current) return; // superseded by a newer pick — its spinner, not ours
+        if (!opts?.silent) setLoading(false);
         const loaded = threadToChatMsgs(detail.messages ?? []);
         // Ledger threads have no conversation file — sends continue as fresh
         // web turns with this history as previousMessages.
@@ -1821,6 +1834,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         if (opts?.silent) return; // see load(): a failed catch-up changes nothing
+        setLoading(false);
         convoRef.current = undefined;
         threadRef.current = null;
         setConversationId(undefined);
@@ -1979,6 +1993,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     unqueue,
     sendNow,
     moveQueued,
+    loading,
     conversationId,
     conversationMeta,
   };
