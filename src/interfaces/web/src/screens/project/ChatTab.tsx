@@ -112,7 +112,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, conversationId, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, sendNow, moveQueued, conversationId, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -1361,7 +1361,7 @@ export function ChatTab({
                       top of the field for the same reason the strip and the
                       questions are: it belongs to the thing you type with, not
                       to the conversation it has not joined. */}
-                  <PendingTurns queued={queued} onUnqueue={unqueue} docked />
+                  <PendingTurns queued={queued} onUnqueue={unqueue} onSendNow={sendNow} onMove={moveQueued} docked />
                   {(() => {
                     const pending = !streaming ? pendingAskQuestions(msgs) : null;
                     if (!pending || pending.turnKey === dismissedAskKey) return null;
