@@ -112,7 +112,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, sendNow, moveQueued, conversationId, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, sendNow, moveQueued, loading: loadingThread, conversationId, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -1270,6 +1270,15 @@ export function ChatTab({
                 bottomInset={bottomInset}
                 onAtBottomChange={setAtBottom}
               />
+            ) : loadingThread ? (
+              /* A chat you have not opened before is blank for as long as its
+                 history takes to arrive, and "no messages yet" is the one thing
+                 that pane must not say in the meantime: it answers the question
+                 before the answer is known, and it is usually wrong. The
+                 spinner says the same amount of nothing, honestly. */
+              <div className="grid h-full min-h-[200px] place-items-center p-8" data-testid="chat-loading">
+                <Loading />
+              </div>
             ) : (
               <Empty fill icon={MessageSquareDashed}>{t("project.chat.empty")}</Empty>
             )}
