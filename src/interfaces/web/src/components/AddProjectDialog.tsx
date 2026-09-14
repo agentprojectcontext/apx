@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSWRConfig } from "swr";
-import { FolderOpen, Home, Search, X } from "lucide-react";
-import { Filesystem, Projects } from "../lib/api";
-import { Button, Dialog, Empty, Field, Input, Loading, Switch } from "./ui";
+import { Projects } from "../lib/api";
+import { Button, Dialog, Field, Switch } from "./ui";
+import { DirectoryPicker } from "./common/DirectoryPicker";
 import { UiSelect } from "./UiSelect";
 import { projectKindOptions } from "./config/projectKinds";
 import { useToast } from "./Toast";
@@ -14,12 +14,6 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   const navigate = useNavigate();
   const toast = useToast();
   const [path, setPath] = useState("");
-  const [browseOpen, setBrowseOpen] = useState(false);
-  const [browsePath, setBrowsePath] = useState("");
-  const [entries, setEntries] = useState<string[]>([]);
-  const [parent, setParent] = useState<string | null>(null);
-  const [browseError, setBrowseError] = useState("");
-  const [loadingDirs, setLoadingDirs] = useState(false);
   const [busy, setBusy] = useState(false);
   const KINDS = projectKindOptions();
   // What kind of thing this project is. It already existed end to end (the
@@ -31,52 +25,14 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
   const [initIfNeeded, setInitIfNeeded] = useState(true);
   const [withTeam, setWithTeam] = useState(true);
 
-  const loadDirs = async (nextPath: string, silent = false) => {
-    setLoadingDirs(true);
-    setBrowseError("");
-    try {
-      const out = await Filesystem.dirs(nextPath || "~");
-      setBrowsePath(out.path);
-      setPath(out.path);
-      setParent(out.parent);
-      setEntries(out.entries);
-    } catch (e) {
-      const message = (e as Error).message;
-      setBrowseError(message);
-      if (!silent) toast.error(message);
-    } finally {
-      setLoadingDirs(false);
-    }
-  };
-
-  // Reset everything when the dialog closes so reopening starts fresh.
+  // Reset everything when the dialog closes so reopening starts fresh. The
+  // browser's own state (which folder it is showing) resets with it — it lives
+  // inside DirectoryPicker, which unmounts with the dialog.
   useEffect(() => {
     if (open) return;
     setPath("");
-      setKind("company");
-    setBrowseOpen(false);
-    setBrowsePath("");
-    setEntries([]);
-    setParent(null);
-    setBrowseError("");
+    setKind("company");
   }, [open]);
-
-  const openBrowser = async () => {
-    // Try the OS-native folder picker first (osascript / zenity / PowerShell).
-    // If the daemon can't open one, fall back to the inline directory list.
-    setLoadingDirs(true);
-    try {
-      const out = await Filesystem.pickDir(t("add_project.picker_prompt"));
-      if ("cancelled" in out) return;
-      setPath(out.path);
-      return;
-    } catch {
-      setBrowseOpen(true);
-      await loadDirs(path || "~");
-    } finally {
-      setLoadingDirs(false);
-    }
-  };
 
   const submit = async () => {
     const trimmed = path.trim();
@@ -113,18 +69,13 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
     >
       <div className="space-y-3">
         <Field label={t("add_project.path_label")} hint={t("add_project.path_hint")}>
-          <div className="flex gap-2">
-            <Input
-              autoFocus
-              placeholder={t("add_project.path_placeholder")}
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-            />
-            <Button onClick={openBrowser} disabled={loadingDirs}>
-              <Search size={14} /> {t("add_project.search_btn")}
-            </Button>
-          </div>
+          <DirectoryPicker
+            value={path}
+            onChange={setPath}
+            prompt={t("add_project.picker_prompt")}
+            autoFocus
+            onEnter={submit}
+          />
         </Field>
 
         {/* One description per type, written once and shown twice: greyed under
@@ -157,44 +108,6 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
             <span className="block text-muted-fg">{t("add_project.init_hint")}</span>
           </span>
         </label>
-
-        {browseOpen && (
-          <div className="rounded-md border border-border bg-muted/20">
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="truncate font-mono text-xs text-muted-fg">{browsePath || path || "~"}</span>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => loadDirs("~")} disabled={loadingDirs}>
-                  <Home size={13} />
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => parent && loadDirs(parent)} disabled={!parent || loadingDirs}>
-                  ..
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setBrowseOpen(false)} disabled={loadingDirs}>
-                  <X size={13} />
-                </Button>
-              </div>
-            </div>
-            <div className="max-h-64 overflow-y-auto p-2">
-              {loadingDirs && <Loading />}
-              {!loadingDirs && browseError && (
-                <Empty>{t("add_project.browser_unavailable")}</Empty>
-              )}
-              {!loadingDirs && !browseError && entries.length === 0 && <Empty>{t("add_project.no_folders")}</Empty>}
-              {!loadingDirs && !browseError && entries.map((entry) => (
-                <button
-                  key={entry}
-                  type="button"
-                  onClick={() => loadDirs(entry)}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
-                >
-                  <FolderOpen size={14} className="text-muted-fg" />
-                  <span className="truncate">{entry.split("/").pop()}</span>
-                  <span className="ml-auto truncate font-mono text-[10px] text-muted-fg">{entry}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </Dialog>
   );

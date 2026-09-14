@@ -31,9 +31,14 @@ interface Props {
    *  Blue, and not the brand green a count of tasks wears: it is the same
    *  "someone said something you have not read" as the dot on the row. */
   badge?: number;
+  /** Something about this project is broken — today, its folder is not where it
+   *  is registered. Amber "!" in the corner, opposite the unread badge so the
+   *  two never sit on top of each other. It is deliberately not a count: the
+   *  answer to "why does this project have no agents?" is not a number. */
+  warn?: boolean;
 }
 
-export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel, badge = 0 }: Props) {
+export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel, badge = 0, warn }: Props) {
   const text = label.trim() || "·";
   const { initials, subLabel } = computeInitialsAndSub(text);
   const tone: ProjectTone =
@@ -68,6 +73,15 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
                   className="absolute -right-1 -top-1 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] font-semibold leading-4 text-white tabular-nums ring-2 ring-background"
                 >
                   {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+              {warn && (
+                <span
+                  data-testid={testId ? `${testId}-warn` : undefined}
+                  aria-hidden
+                  className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold leading-none text-white ring-2 ring-background"
+                >
+                  !
                 </span>
               )}
             </span>

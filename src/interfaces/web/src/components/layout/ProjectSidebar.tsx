@@ -14,7 +14,7 @@
 // config, its path, unregistering it) hang off the tile itself.
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessageCircle, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessageCircle, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -41,6 +41,7 @@ import { useUnreadChats } from "../../hooks/useChatRead";
 import { STORAGE } from "../../constants";
 import { cn } from "../../lib/cn";
 import { switchProjectHref } from "../../lib/projectNav";
+import { missingReasonText } from "../../lib/projectPresence";
 import { t } from "../../i18n";
 import type { ProjectEntry } from "../../types/daemon";
 
@@ -158,6 +159,18 @@ function ProjectMenuContent({ project, actions }: { project: ProjectEntry; actio
       <div className="truncate px-1.5 py-1 text-xs font-medium text-muted-foreground">
         {projectLabel(project)}
       </div>
+      {/* Why the tile is wearing a "!", and where to go about it. Project
+          settings is already the next item, and the folder card sits at the top
+          of that screen. */}
+      {project.missing && (
+        <div
+          data-testid={`project-ctx-missing-${project.id}`}
+          className="flex items-start gap-1.5 px-1.5 pb-1 text-[11px] text-amber-600 dark:text-amber-400"
+        >
+          <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+          <span>{missingReasonText(project.missing_reason)}</span>
+        </div>
+      )}
       <ContextMenuItem onClick={() => actions.openConfig(project)} data-testid={`project-ctx-config-${project.id}`}>
         <SlidersHorizontal /> {t("nav.project_settings")}
       </ContextMenuItem>
@@ -221,12 +234,24 @@ function RailProjectMenu({
       >
         <span
           className={cn(
-            "flex size-10 items-center justify-center rounded-xl text-xs font-bold transition-all",
+            "relative flex size-10 items-center justify-center rounded-xl text-xs font-bold transition-all",
             "bg-muted/40 text-muted-fg hover:bg-accent hover:text-foreground",
             active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
           )}
         >
           {icon ?? label}
+          {/* The bucket inherits the warning of what it hides. Without this, a
+              project whose folder is gone is silent precisely while it is
+              collapsed out of sight — which is most of the time on a full rail. */}
+          {projects.some((p) => p.missing) && (
+            <span
+              data-testid={`${testId}-warn`}
+              aria-hidden
+              className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold leading-none text-white ring-2 ring-background"
+            >
+              !
+            </span>
+          )}
         </span>
         {sublabel && (
           <span className="block max-w-[3.6rem] truncate text-[9px] leading-tight text-muted-fg group-hover:text-foreground">
@@ -259,6 +284,17 @@ function RailProjectMenu({
                   {initials}
                 </span>
                 <span className="truncate">{name}</span>
+                {/* A project reachable only through this popover is one the rail
+                    could not show — its "!" has to travel with it, or the
+                    warning is invisible for exactly the projects nobody sees. */}
+                {p.missing && (
+                  <AlertTriangle
+                    size={13}
+                    data-testid={`project-menu-warn-${p.id}`}
+                    aria-label={t("nav.missing_folder")}
+                    className="ml-auto shrink-0 text-amber-500"
+                  />
+                )}
               </ContextMenuTrigger>
               <ProjectMenuContent project={p} actions={rowActions} />
             </ContextMenu>
@@ -564,7 +600,13 @@ function ProjectRailItem({
         <ProjectAvatar
           label={label}
           testId={`project-avatar-${project.id}`}
-          title={`${label} — ${project.path}`}
+          // The tooltip is where the "!" gets its sentence. A folder that moved
+          // leaves a tile that looks perfectly normal apart from the badge, and
+          // the path it still points at is the thing worth reading.
+          title={project.missing
+            ? `${label} — ${t("nav.missing_folder")}: ${project.path}`
+            : `${label} — ${project.path}`}
+          warn={project.missing}
           active={active}
           onClick={onOpen}
         />

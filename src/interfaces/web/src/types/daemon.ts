@@ -16,6 +16,15 @@ export interface ProjectEntry {
   kind?: ProjectKind;
   agents?: number;
   storagePath?: string;
+  /**
+   * The registered folder could not be read — it was renamed, moved, or lost
+   * its `.apc/project.json`. Everything else on this row is a FALLBACK when
+   * this is true: `name` degrades to the basename of the dead path and
+   * `agents` reads 0, which is precisely why the flag has to be drawn.
+   */
+  missing?: boolean;
+  /** Which of the two absences it is, in words, straight from the daemon. */
+  missing_reason?: string | null;
 }
 
 // Autonomy mirrors the super-agent permission modes.

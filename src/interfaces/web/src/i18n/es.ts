@@ -118,6 +118,11 @@ export const es = {
     copy_path:         "Copiar ruta",
     path_copied:       "Ruta copiada.",
     copy_failed:       "No se pudo copiar.",
+    // El "!" del rail. Un proyecto cuya carpeta no está se dibujaba como
+    // cualquier otro que casualmente tenía 0 agentes — hasta el nombre parecía
+    // correcto, porque cae al basename de la ruta que ya no existe.
+    missing_folder:    "No se encuentra la carpeta",
+    missing_hidden:    "{count} con la carpeta perdida",
     modules: {
       whatsapp: "WhatsApp",
       whatsapp_chats: "Chats de WhatsApp",
@@ -616,6 +621,39 @@ export const es = {
     unregister_confirm: "¿Desregistrar {label}? La carpeta no se borra.",
     unregistered:       "Desregistrado.",
     base_subtitle:      "Espacio general · super-agente",
+
+    // La carpeta es lo ÚNICO con lo que se registra un proyecto: en
+    // ~/.apx/config.json la entrada es {"path": "…"} y nada más. Todo lo demás
+    // —el nombre, los agentes— se deriva leyendo esa ruta. Por eso renombrar la
+    // carpeta rompía el proyecto sin un solo error, y por eso la ruta merece un
+    // campo propio y no un renglón gris en un breadcrumb.
+    folder: {
+      title:         "Carpeta",
+      subtitle:      "Dónde vive este proyecto en el disco. Es con lo único que APX lo tiene registrado.",
+      label:         "Ruta de la carpeta",
+      hint:          "Cambiarla acá conserva el id del proyecto y todo lo que cuelga de él: agentes, rutinas, tareas y chats.",
+      browse:        "Buscar…",
+      save:          "Cambiar carpeta",
+      unchanged:     "Esa ya es la carpeta del proyecto.",
+      relinked:      "Carpeta actualizada: {path} ({agents} agentes).",
+      // El relink movió el daemon en caliente pero no se escribió el archivo,
+      // así que la ruta vieja vuelve en el próximo arranque. Mejor decirlo.
+      not_persisted: "Ojo: no se pudo escribir ~/.apx/config.json, así que la ruta vieja vuelve cuando reinicies el daemon.",
+
+      missing_title:  "No se encuentra la carpeta de este proyecto",
+      // El "por qué" lo manda el daemon: carpeta inexistente vs. carpeta sin
+      // .apc/project.json son dos problemas distintos con arreglos distintos.
+      missing_body:   "{reason}. El proyecto sigue registrado y sus datos están intactos — cuelgan de su id, no de la ruta. Indicá dónde está ahora y vuelve a andar.",
+      missing_path:   "Ruta registrada",
+      // Las dos únicas razones que da el daemon, en castellano. Son problemas
+      // distintos: una carpeta que no está se puede buscar, una que está pero
+      // sin .apc/project.json no.
+      reason_gone:    "La carpeta ya no existe",
+      reason_deinit:  "La carpeta está, pero no tiene .apc/project.json",
+      find:           "Buscar la carpeta sola",
+      find_hint:      "Busca al lado de la ruta vieja una carpeta cuyo .apc/project.json tenga el mismo apx_id.",
+      found:          "La encontró en {path} y la reconectó ({agents} agentes).",
+    },
 
     danger: {
       title:                     "Zona peligrosa",

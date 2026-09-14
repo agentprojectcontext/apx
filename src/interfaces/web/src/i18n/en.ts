@@ -117,6 +117,8 @@ export const en = {
     copy_path:         "Copy path",
     path_copied:       "Path copied.",
     copy_failed:       "Could not copy.",
+    missing_folder:    "Folder not found",
+    missing_hidden:    "{count} with a missing folder",
     modules: {
       whatsapp: "WhatsApp",
       whatsapp_chats: "WhatsApp chats",
@@ -617,6 +619,27 @@ export const en = {
     unregister_confirm: "Unregister {label}? The folder is not deleted.",
     unregistered:       "Unregistered.",
     base_subtitle:      "General workspace · super-agent",
+
+    folder: {
+      title:         "Folder",
+      subtitle:      "Where this project lives on disk. It is the only thing APX registers it by.",
+      label:         "Folder path",
+      hint:          "Changing it here keeps the project's id and everything hanging off it: agents, routines, tasks and chats.",
+      browse:        "Browse…",
+      save:          "Change folder",
+      unchanged:     "That is already the project's folder.",
+      relinked:      "Folder updated: {path} ({agents} agents).",
+      not_persisted: "Careful: ~/.apx/config.json could not be written, so the old path comes back when you restart the daemon.",
+
+      missing_title:  "This project's folder is not there",
+      missing_body:   "{reason}. The project is still registered and its data is intact — it hangs off its id, not its path. Say where it is now and it works again.",
+      missing_path:   "Registered path",
+      reason_gone:    "The folder no longer exists",
+      reason_deinit:  "The folder is there but has no .apc/project.json",
+      find:           "Find the folder for me",
+      find_hint:      "Looks next to the old path for a folder whose .apc/project.json carries the same apx_id.",
+      found:          "Found it at {path} and reattached it ({agents} agents).",
+    },
 
     danger: {
       title:                     "Danger zone",
