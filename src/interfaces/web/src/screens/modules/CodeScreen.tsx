@@ -433,6 +433,34 @@ export function CodeScreen() {
     setQueued(next);
   }, [sid]);
 
+  /** Swap a parked turn with its neighbour, so the queue leaves in the order
+   *  you want rather than the order you typed. */
+  const moveQueued = useCallback((id: string, direction: -1 | 1) => {
+    if (!sid) return;
+    const queue = sessionQueues.get(sid) || [];
+    const from = queue.findIndex((q) => q.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= queue.length) return;
+    const next = queue.slice();
+    [next[from], next[to]] = [next[to], next[from]];
+    sessionQueues.set(sid, next);
+    setQueued(next);
+  }, [sid]);
+
+  /** Send THIS one next: to the head of the queue, and cut the running turn
+   *  short so it leaves now instead of in the order it was written. The drain
+   *  effect below is still what sends it — this only decides who is first. */
+  const sendNow = useCallback((id: string) => {
+    if (!sid) return;
+    const queue = sessionQueues.get(sid) || [];
+    const picked = queue.find((q) => q.id === id);
+    if (!picked) return;
+    const next = [{ ...picked, interrupting: true }, ...queue.filter((q) => q.id !== id)];
+    sessionQueues.set(sid, next);
+    setQueued(next);
+    if (busy || following) void stop();
+  }, [sid, busy, following, stop]);
+
   const send = async (overridePrompt?: string) => {
     const prompt = (overridePrompt ?? draft).trim();
     const fromDraft = overridePrompt === undefined;
@@ -985,7 +1013,7 @@ export function CodeScreen() {
                         same move as the chat. A code session's turns run for
                         minutes, so this is where a queued line is most likely to
                         be scrolled away from and forgotten. */}
-                    <PendingTurns queued={queued} onUnqueue={unqueue} />
+                    <PendingTurns queued={queued} onUnqueue={unqueue} onSendNow={sendNow} onMove={moveQueued} />
                     <CodeComposer
                       value={draft}
                       onValueChange={setDraft}

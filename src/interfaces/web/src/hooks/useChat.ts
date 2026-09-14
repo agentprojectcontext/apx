@@ -342,6 +342,11 @@ export interface UseChatResult {
   queued: QueuedTurn[];
   /** Take one back before it goes out. */
   unqueue: (id: string) => void;
+  /** Push one to the head of the queue and cut the running turn short, so it
+   *  goes out next instead of in the order it was written. */
+  sendNow: (id: string) => void;
+  /** Swap a parked turn with its neighbour (-1 = earlier, 1 = later). */
+  moveQueued: (id: string, direction: -1 | 1) => void;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
   conversationId: string | undefined;
@@ -1584,6 +1589,57 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     writeBackgroundQueue(key, readBackgroundQueue(key).filter((q) => q.id !== id));
   }, []);
 
+  /**
+   * Send THIS parked line next, ahead of whatever is running and ahead of the
+   * rest of the queue.
+   *
+   * The queue drains strictly in order, which is right for lines you wrote in
+   * order — and wrong the moment you write a correction and then remember
+   * something else. Without this the only way to promote one was to cancel the
+   * others and retype them.
+   *
+   * It reuses the machinery a fresh interrupting send already uses rather than
+   * sending on its own: move it to the head, mark it as cutting in (so the strip
+   * stops calling it "En cola" while it is doing the opposite), and stop the
+   * running turn. The drain fires when that turn lands, out of the same code
+   * path as everything else — so a promoted line still goes into the chat it was
+   * written in, still carries its attachments, and still cannot open a second
+   * session. When nothing is running there is nothing to stop: kick the drain.
+   */
+  const sendNow = useCallback((id: string) => {
+    const key = queueKeyRef.current;
+    if (!key) return;
+    const queue = readBackgroundQueue(key);
+    const picked = queue.find((q) => q.id === id);
+    if (!picked) return;
+    writeBackgroundQueue(key, [
+      { ...picked, interrupting: true },
+      ...queue.filter((q) => q.id !== id),
+    ]);
+    if (streamingRef.current || followingRef.current) void stopTurn();
+    else queueMicrotask(() => drainQueueRef.current());
+  }, [stopTurn]);
+
+  /**
+   * Swap a parked line with its neighbour, so the queue goes out in the order
+   * you want rather than the order you happened to type.
+   *
+   * One step at a time, deliberately: the strip shows a couple of lines at a
+   * time, the list is short, and a swap is the one reordering gesture that needs
+   * no drag target and works the same on a phone.
+   */
+  const moveQueued = useCallback((id: string, direction: -1 | 1) => {
+    const key = queueKeyRef.current;
+    if (!key) return;
+    const queue = readBackgroundQueue(key);
+    const from = queue.findIndex((q) => q.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= queue.length) return;
+    const next = queue.slice();
+    [next[from], next[to]] = [next[to], next[from]];
+    writeBackgroundQueue(key, next);
+  }, []);
+
   // Drain: one at a time, as soon as the pane is free.
   // msgsRef is synchronous, so the worker can drain after its pane unmounts and
   // still include the answer that just finished in the next turn's history.
@@ -1921,6 +1977,8 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     following,
     queued,
     unqueue,
+    sendNow,
+    moveQueued,
     conversationId,
     conversationMeta,
   };

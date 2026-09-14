@@ -412,3 +412,69 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.match(indicator, /animate-spin text-emerald-700/, "left-running work is green, not the live-turn blue");
   assert.match(inbox, /useThreadJobRunning\(/, "the inbox row answers it from the job's own thread id");
 });
+
+// Manu, 2026-09-14: "faltaría el botón de mandar ahora y quizás ordenarlos
+// también a los mensajes, así se mandan en el orden que nos convenga".
+test("the queue can be worked: send this one next, or move it a step", () => {
+  const chat = web("hooks", "useChat.ts");
+  const pending = web("components", "chat", "PendingTurns.tsx");
+
+  // PROMOTE. It must not grow a send path of its own: the drain is what sends,
+  // so promoting is head-of-queue + cut the running turn, and everything that
+  // makes a queued turn land in the right chat keeps applying.
+  const sendNow = chat.slice(chat.indexOf("const sendNow = useCallback"), chat.indexOf("const moveQueued = useCallback"));
+  assert.match(sendNow, /\{ \.\.\.picked, interrupting: true \}/, "a promoted line IS cutting in, and says so");
+  assert.match(sendNow, /\.\.\.queue\.filter\(\(q\) => q\.id !== id\)/, "to the head, keeping the rest in order");
+  assert.match(sendNow, /if \(streamingRef\.current \|\| followingRef\.current\) void stopTurn\(\)/,
+    "cutting in actually cuts the turn");
+  assert.match(sendNow, /else queueMicrotask\(\(\) => drainQueueRef\.current\(\)\)/,
+    "and with nothing running there is nothing to stop — it just goes");
+  assert.doesNotMatch(sendNow, /Turns\.send|fetch\(/, "it promotes, it does not send");
+
+  // REORDER. A swap, not a splice: one step is the whole gesture, and it is the
+  // one that needs no drag target and works on a phone.
+  const move = chat.slice(chat.indexOf("const moveQueued = useCallback"), chat.indexOf("// msgsRef is synchronous"));
+  assert.match(move, /const to = from \+ direction/);
+  assert.match(move, /if \(from < 0 \|\| to < 0 \|\| to >= queue\.length\) return/, "the ends are not wrapped around");
+  assert.match(move, /\[next\[from\], next\[to\]\] = \[next\[to\], next\[from\]\]/);
+
+  // Both write through the same store the strip subscribes to, so another tab
+  // sees the new order rather than sending from a stale copy.
+  for (const [name, body] of [["sendNow", sendNow], ["moveQueued", move]]) {
+    assert.match(body, /writeBackgroundQueue\(key,/, `${name} goes through the shared queue`);
+  }
+
+  // The controls, and the states in which they make no sense.
+  assert.match(pending, /data-testid=\{`send-now-\$\{q\.id\}`\}/);
+  assert.match(pending, /data-testid=\{`queued-up-\$\{q\.id\}`\}/);
+  assert.match(pending, /data-testid=\{`queued-down-\$\{q\.id\}`\}/);
+  assert.match(pending, /const reorderable = queued\.length > 1/,
+    "one parked line has nowhere to move to, so the arrows stay away");
+  assert.match(pending, /disabled=\{i === 0\}/, "nothing moves above the first");
+  assert.match(pending, /disabled=\{i === queued\.length - 1\}/, "nor below the last");
+  assert.match(pending, /onSendNow && !\(cutsIn && i === 0\)/,
+    "the line already leaving next, already cutting in, has nothing left to promote");
+
+  for (const lang of ["en", "es"]) {
+    const dict = web("i18n", `${lang}.ts`);
+    for (const key of ["queued_send_now", "queued_move_up", "queued_move_down"]) {
+      assert.match(dict, new RegExp(`${key}:\\s+"`), `${lang} names ${key}`);
+    }
+  }
+});
+
+test("both surfaces that park a turn can also reorder it", () => {
+  // The code module keeps its own queue (a session's, not a chat's), so it gets
+  // its own pair rather than inheriting them — but the strip is the same strip,
+  // and the gestures have to be the same gestures.
+  for (const [name, src] of [
+    ["chat", web("screens", "project", "ChatTab.tsx")],
+    ["code", web("screens", "modules", "CodeScreen.tsx")],
+  ]) {
+    assert.match(src, /onSendNow=\{sendNow\} onMove=\{moveQueued\}/, `${name} wires both`);
+  }
+  const code = web("screens", "modules", "CodeScreen.tsx");
+  assert.match(code, /const sendNow = useCallback/, "the code module implements its own");
+  assert.match(code, /const moveQueued = useCallback/);
+  assert.match(code, /if \(busy \|\| following\) void stop\(\)/, "and cuts its own turn short");
+});
