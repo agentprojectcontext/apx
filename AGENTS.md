@@ -229,6 +229,19 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     Full procedure and the verification commands: **["The dev loop"](#the-dev-loop--skip-a-step-and-your-test-is-a-lie)**
     above. It is the single most common way work here goes sideways.
 
+18. **The commit subject is an input to the build, not a note to a reader.**
+    semantic-release reads it and decides from the **type alone** whether a
+    version ships: `feat`→minor, `fix`/`perf`/`revert`→patch, and
+    `chore`/`refactor`/`test`/`docs`/`build`/`ci`/`style`→**nothing at all**.
+    Getting it wrong fails silently — the code lands on `main`, every gate is
+    green, no error appears, and the change never reaches anyone who installed
+    from npm. It has already happened: `28710e8` stops the model repeating
+    redacted text back to the owner, ships a regression test for it, and is
+    titled `refactor`. Ask what a **user** would notice, not what the diff
+    touched. Shape is `type(scope): subject` — type and scope English (the
+    release tool parses them), subject es-AR saying what is true now. Full
+    contract: [`rules/releasing.md`](rules/releasing.md).
+
 ## The workflow — how a change gets made
 
 Most code here is written by an agent. The scarce thing is not the code — it is
@@ -287,6 +300,7 @@ the same change. Index: [`rules/README.md`](rules/README.md).
 | [`desktop.md`](rules/desktop.md) | the Electron floating voice window (rule 5) |
 | [`android.md`](rules/android.md) | the native Android `/mobile` shell, pairing, notifications, or overlay mascot |
 | [`docs-site.md`](rules/docs-site.md) | the public Astro + Starlight docs in `docs/` (rule 6) |
+| [`releasing.md`](rules/releasing.md) | writing a commit message — what ships a version and what silently does not (rule 18) |
 
 ## Agents (dogfood)
 
