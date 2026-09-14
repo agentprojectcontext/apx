@@ -1,14 +1,18 @@
 import { test, expect } from "./fixtures";
 
-// Rail-level modules (Desktop / Code) sit alongside Base. Voice and Deck no
-// longer live in the rail — they moved into Settings → Modules. This validates
-// the rail wiring + that each surface renders against the real daemon with no
-// uncaught error.
+// Rail-level modules (Code / WhatsApp) sit alongside Base. Voice and Deck no
+// longer live in the rail — they moved into Settings → Modules — and Desktop
+// followed them out of the rail: it is the floating voice window, driven from
+// `apx desktop` and the tray, and the rail is the scarcest vertical space in
+// the panel. Its SCREEN is untouched, which is what the first test checks.
+// This validates the rail wiring + that each surface renders against the real
+// daemon with no uncaught error.
 
 test.describe("rail modules", () => {
-  test("Desktop module shows status and links to its configuration", async ({ page, errors }) => {
+  test("Desktop has no rail tile, but its screen still works", async ({ page, errors }) => {
     await page.goto("/");
-    await page.getByTestId("module-avatar-desktop").click();
+    await expect(page.getByTestId("module-avatar-desktop")).toHaveCount(0);
+    await page.goto("/desktop");
     await expect(page).toHaveURL(/\/desktop/);
     await expect(page.getByTestId("screen-desktop")).toBeVisible();
     // The rail surface keeps only live status + last conversation; the settings

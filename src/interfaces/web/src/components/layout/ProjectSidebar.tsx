@@ -14,7 +14,7 @@
 // config, its path, unregistering it) hang off the tile itself.
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AlertTriangle, Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessageCircle, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Plus, Settings, Terminal, Bot, BookOpen, ChevronDown, Folders, MessageCircle, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -62,7 +62,11 @@ interface ModuleItem {
 // top-level entry next to Base rather than living inside Settings.
 function buildModules(): ModuleItem[] {
   return [
-    { id: "desktop", label: t("nav.modules.desktop"), href: "/desktop", icon: Monitor },
+    // Desktop is deliberately NOT here. It is the floating voice window, driven
+    // from `apx desktop` and from the tray — not something you go to by clicking
+    // a rail tile — and the rail is the scarcest vertical space in the panel.
+    // The screen and its route (/desktop) are untouched: this hides the tile,
+    // it does not remove the surface.
     { id: "code",    label: t("nav.modules.code"),    href: "/code",    icon: Terminal },
     // WhatsApp is here rather than in Settings because of what it is used for:
     // a roster of people who write all day, a sticker lexicon that grows, and a
@@ -85,7 +89,15 @@ function useVisibleCount(
   const [count, setCount] = useState(total);
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (!el || !enabled) return;
+    if (!el) return;
+    // Observe even while disabled. The early return used to happen BEFORE the
+    // ResizeObserver was created, so a rail that started collapsed never got
+    // one — and `enabled` flipping to true re-ran this effect but measured a
+    // list whose flex height the browser had not laid out yet. `count` stuck at
+    // whatever that first bad read produced (0, from the collapsed rail's two
+    // slots) and nothing recalculated it: expanding, resizing the window, even
+    // dragging it taller all left six fitting projects hidden behind "+13" with
+    // 427px of empty rail underneath them.
     const measure = () => {
       const cs = getComputedStyle(el);
       // clientHeight includes vertical padding; items lay out in the content box,
@@ -103,10 +115,16 @@ function useVisibleCount(
       setCount(forItems >= total ? total : Math.max(0, forItems - 1)); // reserve "+N"
     };
     measure();
+    // Again after the browser has laid out. useLayoutEffect runs with the DOM
+    // updated but, on the frame the rail expands, not yet with the flex heights
+    // resolved — and a measurement taken then is the one that stuck.
+    const raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
   }, [listRef, total, enabled]);
+  // Collapsed, the count is meaningless — but it must not be left behind as a
+  // stale floor for the next time the rail opens.
   return enabled ? Math.min(count, total) : total;
 }
 
@@ -235,7 +253,11 @@ function RailProjectMenu({
         <span
           className={cn(
             "relative flex size-10 items-center justify-center rounded-xl text-xs font-bold transition-all",
-            "bg-muted/40 text-muted-fg hover:bg-accent hover:text-foreground",
+            // The same grey as the settings/docs tiles at the foot of the rail.
+            // It was `bg-muted/40`, a step fainter, which in dark mode read as a
+            // third colour on a rail that only has two kinds of tile: a project
+            // (coloured) and a control (grey).
+            "bg-muted text-muted-fg hover:bg-accent hover:text-foreground dark:bg-muted/60",
             active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
           )}
         >
