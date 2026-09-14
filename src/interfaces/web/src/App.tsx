@@ -235,8 +235,10 @@ function TopBar({
       </span>
       {pageActions}
       {/* Work agents left running, on the edge of every screen — see the
-          component for why it is not in a chat. Draws nothing when nothing is
-          running, so its appearance is the news. */}
+          component for why it is not in a chat. ALWAYS drawn: muted zero at
+          rest, coloured and spinning with work on it, so "is anything running?"
+          is a question you can go and answer rather than one you had to be
+          watching for. */}
       <BackgroundJobsMenu />
       {/* Send the chat surface to a phone: one scan carries the address, the
           /m/chat path and a pairing nonce. */}

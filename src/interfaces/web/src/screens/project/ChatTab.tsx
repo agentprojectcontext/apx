@@ -34,7 +34,7 @@ import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import { ProjectTag } from "../../components/inbox/ProjectFilter";
-import { BackgroundJobsMenu } from "../../components/jobs/BackgroundJobsMenu";
+import { BackgroundJobsMenu, NO_THREAD_JOBS } from "../../components/jobs/BackgroundJobsMenu";
 import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
@@ -1072,9 +1072,16 @@ export function ChatTab({
                 global mount stays — it is what tells you about chats you are
                 NOT reading — and this is the one that answers "what is running
                 here", scoped to this thread and opening the same panel. */}
-            {isA2A && selected.kind === "thread" && (
-              <BackgroundJobsMenu projectId={pid} threadId={selected.threadId} compact />
-            )}
+            <BackgroundJobsMenu
+              projectId={pid}
+              // A job is filed under the a2a PAIR it opened, so only an a2a
+              // thread can own one; every other chat reads its own zero. That
+              // zero is not a placeholder — it is this chat answering the
+              // question, which is the whole reason the control stopped
+              // disappearing.
+              threadId={isA2A && selected.kind === "thread" ? selected.threadId : NO_THREAD_JOBS}
+              compact
+            />
             <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
               <div
                 className={cn(

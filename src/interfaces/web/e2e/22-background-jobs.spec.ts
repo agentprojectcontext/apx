@@ -85,14 +85,60 @@ async function stub(page: import("@playwright/test").Page, jobs: unknown[]) {
 }
 
 test.describe("background jobs", () => {
-  test("nothing running draws no chip anywhere — the appearance IS the news", async ({ page, errors }) => {
+  // THE REVERSAL, 2026-09-14. This used to assert the opposite — that nothing
+  // running draws no chip at all, because "the appearance IS the news". Manu
+  // overruled it: "quizás estaría bueno que siempre arriba esté el numerador de
+  // procesos traseros y que diga cero, en gris… como que tenga posibilidad de
+  // estar viéndolo." A control that only exists while it matters cannot be
+  // LOOKED AT — you can only be told, and only if you happen to be looking.
+  test("at rest the counter is still there, reading zero and out of the way", async ({ page, errors }) => {
     await stub(page, []);
     await page.goto("/inbox");
     await expect(page.getByTestId("inbox-list")).toBeVisible();
-    // A permanent "0 jobs" control is furniture.
-    await expect(page.getByTestId("background-jobs")).toHaveCount(0);
-    await expect(page.getByTestId("thread-jobs")).toHaveCount(0);
+
+    const global = page.getByTestId("background-jobs");
+    await expect(global).toBeVisible();
+    await expect(global).toHaveText("0");
+    await expect(global).toHaveAttribute("data-state-running", "false");
+    // Muted, not coloured: present to be read, not to be noticed.
+    await expect(global).toHaveClass(/text-muted-fg/);
+    // And NOT spinning. A spinner over "0" animates the claim that something is
+    // happening, which is the one thing this state means is not.
+    await expect(global.locator(".animate-spin")).toHaveCount(0);
+
+    // Openable at rest too, or "is anything running?" stays a question you can
+    // only have been told the answer to.
+    await global.click();
+    await expect(page.getByTestId("jobs-empty")).toBeVisible();
     expect(errors).toEqual([]);
+  });
+
+  test("with work on it the same control colours and spins", async ({ page }) => {
+    await stub(page, [job]);
+    await page.goto("/inbox");
+    const global = page.getByTestId("background-jobs");
+    await expect(global).toHaveText("1");
+    await expect(global).toHaveAttribute("data-state-running", "true");
+    // The green the menu, the context strip and the chat-row mark already use,
+    // so the chip and everything it stands for read as one subject.
+    await expect(global).toHaveClass(/text-emerald-700/);
+    await expect(global.locator(".animate-spin")).toHaveCount(1);
+  });
+
+  test("every chat header carries the count, including the chats that can never own one", async ({ page }) => {
+    // A job is filed under the a2a PAIR it opened, so a Telegram or web chat
+    // reads a permanent nought — and that nought is this chat ANSWERING, which
+    // is the whole reason the control stopped disappearing. What it must never
+    // do is fall back to the global count and claim work happening between two
+    // other agents.
+    await stub(page, [job]);
+    await page.goto("/inbox?channel=a2a&thread=april~super_agent");
+    const chip = page.getByTestId("thread-jobs");
+    await expect(chip).toBeVisible();
+    await expect(chip).toHaveAttribute("data-state-running", "false");
+    await expect(chip).toHaveText(/sin tareas|no tasks/i);
+    // Meanwhile the global one still counts it — that is precisely its job.
+    await expect(page.getByTestId("background-jobs")).toHaveText("1");
   });
 
   test("the global panel names the project and opens the chat", async ({ page, errors }) => {
@@ -130,17 +176,6 @@ test.describe("background jobs", () => {
     await chip.click();
     await expect(page.getByTestId(`cancel-job-${job.id}`)).toBeVisible();
     expect(errors).toEqual([]);
-  });
-
-  test("a thread with no job of its own keeps its header clean", async ({ page }) => {
-    await stub(page, [job]);
-    await page.goto("/inbox?channel=a2a&thread=april~super_agent");
-    await expect(page.getByTestId("inbox-list")).toBeVisible();
-    // Scoped to the thread, not to the project: the job is Nati's, and April's
-    // header must not claim it. The global count still stands, because that one
-    // is precisely about chats you are not reading.
-    await expect(page.getByTestId("thread-jobs")).toHaveCount(0);
-    await expect(page.getByTestId("background-jobs")).toBeVisible();
   });
 
   test("the list row marks the chat where work is running, and only that one", async ({ page }) => {
