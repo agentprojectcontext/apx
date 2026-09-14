@@ -91,6 +91,8 @@ not do, and it used to kill every release *after* tagging.
 Read the types, not the prose. Every line that changes what a user experiences
 must be `feat`, `fix` or `perf`, or it will not ship.
 
-Nothing checks any of this for you today: the shape is convention, and the
-judgement — a real `chore` against a fix wearing one — is not mechanically
-checkable at all.
+`.githooks/commit-msg` checks the shape — that the type is a word the release
+tool knows — and reads that vocabulary from `.releaserc.json` so the two cannot
+drift. It never checks the judgement: a fix titled `chore` is perfectly
+well-formed, ships nothing, and is precisely what no gate can see. That half is
+this file, and a reader.
