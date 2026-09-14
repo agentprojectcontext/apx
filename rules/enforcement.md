@@ -57,6 +57,7 @@ early return survived in two separate components.
 | SPA fallback matches the `<Routes>` registry | 9 | `tests/web-spa-fallback.test.js` |
 | Runtime skill headers, `name` == dir, English-only | 6 | `tests/runtime-skills.test.js` |
 | Every link in a tracked doc points at something tracked | — | `tests/docs-links.test.js` |
+| Nothing reaches npm over a red CI | 2 | `.github/workflows/ci.yml` (job `release`, `needs: [verify, e2e]`) |
 
 ### Why i18n parity needed a test rather than types
 
@@ -140,7 +141,19 @@ npm run preflight
   `tsc`. Bypass with `git push --no-verify`; skip just the web build with
   `APX_SKIP_WEB_BUILD=1`.
 - **`.github/workflows/ci.yml`** — job `verify` mirrors preflight; job `e2e`
-  boots a daemon, shims `apx` onto PATH and runs Playwright.
+  boots a daemon, shims `apx` onto PATH and runs Playwright; job `release`
+  needs both, and is the thing that publishes to npm.
+- **Publishing waits for that gate**, and until 2026-09-14 it did not. The
+  release lived in its own workflow on the same `push: [main]` trigger, so it
+  RACED ci.yml rather than following it: 1.108.0 went to the registry on
+  `ba511f9` with `e2e` red, as did the two commits after it — three green
+  Releases sitting beside three red CIs. Its only check was `npm run test`.
+  `needs:` reaches jobs in the same workflow and nothing else, which is why the
+  job moved into ci.yml instead of growing a condition.
+- The **GitHub Pages** deploy (`pages.yml`) is deliberately NOT gated on CI.
+  Nothing in the suite reads a docs page, so coupling them would let a flaky
+  Playwright spec block a typo fix; the Astro build inside that workflow is the
+  check that actually applies to its content.
 - Commits are **not** gated. Only pushes are.
 
 ## Adding a gate

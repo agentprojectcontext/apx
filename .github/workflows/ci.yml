@@ -6,6 +6,11 @@ name: CI
 # triggers on push to main — i.e. after the merge. A red test blocked the
 # release, not the code coming in. Meanwhile package.json already defined a
 # correct composite gate (`preflight`) that nothing invoked.
+#
+# The `release` job at the foot of this file used to be that separate workflow,
+# firing on the same trigger rather than after this one — which is how a red
+# run and a published version came to sit on the same commit. It is a job now,
+# so `needs:` can hold it back.
 on:
   pull_request:
   push:
@@ -13,7 +18,12 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Only a PR run is cancelled by a newer push. A run on main now carries the
+  # `release` job, and workflow-level cancellation kills jobs that are already
+  # running — which could cut semantic-release between `npm publish` and the
+  # tag, leaving the registry ahead of the repo. A job-level `concurrency`
+  # cannot defend against that; not cancelling main is what does.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
@@ -160,3 +170,79 @@ jobs:
             /tmp/apx-daemon.log
           retention-days: 7
           if-no-files-found: ignore
+
+  # Publishing hangs off the gate above — and until 2026-09-14 it did not.
+  #
+  # `release.yml` was its own workflow on `push: [main]` with no `needs` and no
+  # `workflow_run`, so npm got a new version whether or not anything passed.
+  # And it did: 1.108.0 went out on `ba511f9` with the `e2e` job red, as did the
+  # two commits after it — three green Releases sitting next to three red CIs.
+  # The job's only check was `npm run test`: no lint, no web lint, no web build,
+  # no panel typecheck, no e2e. A gate that does not stand between the code and
+  # the registry is a report, not a gate.
+  #
+  # It lives HERE, in the same file, because `needs:` only reaches jobs in the
+  # same workflow. The alternative — `workflow_run` — has to re-derive the
+  # commit and re-create the branch by hand (semantic-release refuses to
+  # publish from the detached HEAD a SHA checkout leaves you on), and none of
+  # that plumbing can be tested before it is already on main. `needs` is the
+  # primitive that already means "after this passed".
+  #
+  # The release commit carries `[skip ci]`, so publishing does not re-trigger
+  # this workflow and there is no loop. When `e2e` flakes, "Re-run failed jobs"
+  # re-runs it and the release follows on success — so it needs no separate
+  # escape hatch.
+  release:
+    needs: [verify, e2e]
+    # This `if` narrows; it does not widen. A job-level condition only escapes
+    # the `needs` gate when it calls a status function (`always()`,
+    # `failure()`, `cancelled()`) — this one does not, so the implicit
+    # `success()` on both jobs above still holds. Do not add `always()` here.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Least privilege: this is the only job that writes tags, releases or npm.
+    # `verify` and `e2e` keep the default read scope.
+    permissions:
+      id-token: write
+      pull-requests: write
+      contents: write
+      issues: write
+    # Never cancelled by a newer push. A release interrupted between
+    # `npm publish` and the tag leaves the registry ahead of the repo, which is
+    # the one state nothing here can clean up automatically.
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+
+      # --legacy-peer-deps: opentui-spinner@0.0.6 pins @opentui/core@^0.1.49
+      # but the project uses ^0.2.8; without this flag npm 10+ refuses
+      # with ERESOLVE. Removing opentui-spinner would also work but it
+      # is used by the new TUI.
+      - run: npm install --legacy-peer-deps
+
+      # `npm install` runs `prepare`, which points core.hooksPath at
+      # .githooks — so semantic-release's own `git push` fires the local
+      # pre-push gate. That gate runs `lint:web`, which needs the panel's
+      # separate pnpm install this job does not do, so every release since
+      # the gate landed died with "Cannot find package 'typescript-eslint'"
+      # AFTER tagging. The checks that hook exists to enforce are the two jobs
+      # this one waits on; on this runner it is a broken duplicate.
+      - name: Take the local pre-push gate out of the way
+        run: |
+          mkdir -p .no-hooks
+          git config core.hooksPath .no-hooks
+
+      - run: npm run test
+      - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
