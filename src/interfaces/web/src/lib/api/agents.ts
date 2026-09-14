@@ -3,6 +3,12 @@ import type {
   AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
 } from "../../types/daemon";
 
+/** What a rename answers with: the moved agent, plus what it could not move. */
+export type AgentRenamed = AgentEntry & {
+  moved?: Record<string, number>;
+  mentions?: { kind: string; agent: string | null; term: string }[];
+};
+
 export const Agents = {
   // The catalog an agent card is written against — NOT /api/tools, which is the
   // daemon's own HTTP surface and only overlaps by accident.
@@ -20,11 +26,13 @@ export const Agents = {
   // carrying its prompt + memory. Returns the new agent so the caller can open it.
   clone: (pid: string, slug: string) =>
     http.post<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/clone`, {}),
-  // Rename an agent's slug (moves its file + runtime dir, repoints Parent refs
-  // and routines). Returns the agent at its new slug — the caller must navigate
-  // to it, since the resource URL changed.
+  // Rename an agent's slug (moves its file + runtime dir, repoints Parent refs,
+  // routines, rooms, tasks, jobs and channel routes). Returns the agent at its
+  // new slug — the caller must navigate to it, since the resource URL changed —
+  // plus `mentions`: prose that still names it the old way, which the server
+  // deliberately does not rewrite.
   rename: (pid: string, slug: string, newSlug: string) =>
-    http.post<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/rename`, { slug: newSlug }),
+    http.post<AgentRenamed>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/rename`, { slug: newSlug }),
   chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] }) =>
     http.post<{ conversation_id: string; text: string; usage?: ChatUsage; engine: string }>(
       `/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,

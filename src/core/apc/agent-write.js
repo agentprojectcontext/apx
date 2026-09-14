@@ -17,7 +17,7 @@ import { writeAgentFile, ensureAgentDir, removeImportedAgent } from "#core/apc/s
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
-import { repointAgentReferences } from "./agent-rename-refs.js";
+import { repointAgentReferences, findStaleAgentMentions } from "./agent-rename-refs.js";
 import { normalizeAutonomy } from "#core/constants/permissions.js";
 
 export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -258,19 +258,46 @@ export function setAgentConfig(project, slug, patch = {}) {
  * @param {string} oldSlug  current slug
  * @param {string} newSlug  desired slug (already slugified/validated by caller,
  *   re-validated here against AGENT_SLUG_RE)
- * @param {{projects?:object[]}} [opts]  the daemon registry when the caller has
- *   one — reaches rooms hosted by other projects and telegram fallbacks.
- * @returns {Promise<string>} the final slug (equal to oldSlug when it's a no-op)
+ * @param {{projects?:object[], name?:string|null}} [opts]
+ *   - `projects`: the daemon registry when the caller has one — reaches rooms
+ *     hosted by other projects and telegram fallbacks.
+ *   - `name`: the DISPLAY name to land in the same move. Renaming is two
+ *     changes to one identity — the slug (the key) and the Name (what a person
+ *     reads) — and the web does them as two calls, which is fine when a human
+ *     is driving both. Anything else (a tool, a script) doing only half leaves
+ *     an agent whose card says "Nati" under the slug `vera`. `undefined`
+ *     leaves the name alone; `null`/`""` clears it.
+ * @returns {Promise<{slug:string, name:string|null, moved:object,
+ *   mentions:{kind:string, agent:string|null, term:string}[]}>}
+ *   `moved` is what the sweep repointed, per store; `mentions` is the prose
+ *   that still says the old name and was deliberately NOT rewritten.
  */
 export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
+  const { projects = null, name } = opts;
   if (!oldSlug) throw new Error("current slug required");
   if (!newSlug) throw new Error("new slug required");
   if (!AGENT_SLUG_RE.test(newSlug)) throw new Error(`invalid slug "${newSlug}"`);
-  if (newSlug === oldSlug) return oldSlug; // nothing to do
 
   const roster = readAgents(project.path);
   const source = roster.find((a) => a.slug === oldSlug);
   if (!source) throw new Error(`agent ${oldSlug} not found`);
+  const oldName = source.fields?.Name || source.name || null;
+
+  // A no-op on the slug is not necessarily a no-op on the rename: "call it
+  // Orquestador" against the slug it already has is a display-name change, and
+  // returning early used to drop it on the floor.
+  if (newSlug === oldSlug) {
+    const renamedOnly = name !== undefined && name !== oldName;
+    if (renamedOnly) setAgentConfig(project, oldSlug, { name: name || null });
+    return {
+      slug: oldSlug,
+      name: renamedOnly ? (name || null) : oldName,
+      moved: {},
+      mentions: renamedOnly
+        ? findStaleAgentMentions(project, { oldSlug, oldName, newSlug })
+        : [],
+    };
+  }
   if (roster.find((a) => a.slug === newSlug)) throw new Error(`agent ${newSlug} already exists`);
 
   // 1) Move the definition file. If it's missing — the agent lived only in the
@@ -280,10 +307,25 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
   //    stop resolving, so the import entry goes with it: left behind, the vault
   //    template kept answering to the old slug and the rename read as a
   //    DUPLICATE — one card with the chats, one with the history.
+  //
+  //    The display name rides along in this same write: one file, one rewrite,
+  //    no window where the card is half-renamed.
+  const fields = { ...(source.fields || {}) };
+  if (name !== undefined) {
+    if (name === null || name === "") delete fields.Name;
+    else fields.Name = name;
+  }
   const oldFile = apcAgentFile(project.path, oldSlug);
+  const hadFile = fs.existsSync(oldFile);
   ensureAgentDir(project.path, newSlug);
-  if (fs.existsSync(oldFile)) fs.renameSync(oldFile, apcAgentFile(project.path, newSlug));
-  else writeAgentFile(project.path, newSlug, source.fields || {}, source.body || "");
+  if (hadFile) fs.renameSync(oldFile, apcAgentFile(project.path, newSlug));
+  // Re-serialize only when there is something new to say: a plain slug move
+  // keeps the file byte-for-byte (a hand-edited card is somebody's work, not
+  // ours to reformat), while a name change or a materialized vault agent has
+  // to be written.
+  if (!hadFile || name !== undefined) {
+    writeAgentFile(project.path, newSlug, fields, source.body || "");
+  }
   removeImportedAgent(project.path, oldSlug);
 
   // 2) Move the runtime dir (memory, conversations, sessions) wholesale.
@@ -295,20 +337,33 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
   }
 
   // 3) Repoint child agents whose Parent pointed at the old slug.
+  let children = 0;
   for (const child of roster) {
     if (child.slug === oldSlug) continue;
     if (child.fields?.Parent === oldSlug) {
       writeAgentFile(project.path, child.slug, { ...child.fields, Parent: newSlug }, child.body || "");
+      children += 1;
     }
   }
 
   // 4) Repoint every other live reference — routines, group rosters, tasks,
-  //    deliveries, code sessions, telegram routes, the project's own
-  //    the project's own config and the RAG scope. Best-effort per store: the files
-  //    have already moved, so one unreadable store must not fail the rename.
-  try { await repointAgentReferences(project, oldSlug, newSlug, opts); } catch { /* best-effort */ }
+  //    deliveries, code sessions, background jobs, board hooks, telegram
+  //    routes, the project's own config and the RAG scope. Best-effort per
+  //    store: the files have already moved, so one unreadable store must not
+  //    fail the rename.
+  let moved = {};
+  try {
+    moved = await repointAgentReferences(project, oldSlug, newSlug, { projects });
+  } catch { /* best-effort */ }
 
-  return newSlug;
+  return {
+    slug: newSlug,
+    name: name !== undefined ? (name || null) : oldName,
+    moved: { ...moved, children },
+    // What the sweep could not touch without rewriting someone's prose. The
+    // caller decides whether to surface it; nothing here is an error.
+    mentions: findStaleAgentMentions(project, { oldSlug, oldName, newSlug }),
+  };
 }
 
 /**

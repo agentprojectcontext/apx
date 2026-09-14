@@ -2,7 +2,8 @@
 // must move its .apc/agents/<slug>.md and its runtime dir (memory) AND repoint
 // every LIVE pointer to it — child `Parent`, routine `spec.agent`, group
 // rosters (here and in rooms hosted by another project), tasks, the delivery
-// queue, code sessions, telegram routing and the project's own config file
+// queue, code sessions, open background jobs, board-column hooks, telegram
+// routing and the project's own config file
 // — or it leaves dangling pointers: an agent that keeps its chats but silently
 // falls out of its rooms, its channel and its queue. This pins the whole move
 // through the real HTTP route.
@@ -25,6 +26,7 @@ const { recordDelivery, markDelivery, listDeliveries, DELIVERY_STATUS } =
   await import("#core/stores/deliveries.js");
 const { createCodeSession, getCodeSession } = await import("#core/stores/code-sessions.js");
 const { readConfig, writeConfig } = await import("#core/config/index.js");
+const { openJob, closeJob, readJob } = await import("#core/stores/background-jobs.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 async function listen(app) {
@@ -49,7 +51,13 @@ function makeApp(root, extraRoots = []) {
 }
 
 async function pidFor(baseUrl, root) {
-  const list = await (await fetch(`${baseUrl}/api/projects`)).json();
+  const res = await fetch(`${baseUrl}/api/projects`);
+  const list = await res.json();
+  // A non-array here means the route answered with an error, and "find is not a
+  // function" three frames deep says nothing about which one. Name it.
+  if (!Array.isArray(list)) {
+    throw new Error(`GET /api/projects → ${res.status} ${JSON.stringify(list)}`);
+  }
   const p = list.find((x) => x.path === root) || list[list.length - 1];
   return p.id;
 }
@@ -289,6 +297,169 @@ test("renaming an imported vault agent leaves no ghost under the old slug", asyn
       JSON.parse(fs.readFileSync(projectFile, "utf8")).agents.imported,
       [],
     );
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+  }
+});
+
+test("a rename carries the DISPLAY name, not just the slug", async () => {
+  const root = makeTempProject({});
+  const { app } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents`, {
+      method: "POST", headers: json,
+      body: JSON.stringify({ slug: "orchestrator", name: "Orchestrator", system: "You coordinate." }),
+    });
+    assert.equal(r.status, 201);
+
+    // One call, the way a person means it: "call it Arquitecto". The slug
+    // follows from the name; both halves of the identity move together, so the
+    // card never reads "Orchestrator" over the slug `arquitecto`.
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/orchestrator/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ name: "Arquitecto" }),
+    });
+    const renamed = await r.json();
+    assert.equal(r.status, 200, JSON.stringify(renamed));
+    assert.equal(renamed.slug, "arquitecto");
+    assert.equal(renamed.name, "Arquitecto");
+
+    const onDisk = fs.readFileSync(path.join(root, ".apc", "agents", "arquitecto.md"), "utf8");
+    assert.match(onDisk, /^name: Arquitecto$/m, "frontmatter carries the new name");
+    assert.match(onDisk, /You coordinate\./, "the system prompt survived the move");
+
+    // Slug-only rename (what the web's SlugRenameField sends) leaves the name.
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/arquitecto/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "arq" }),
+    });
+    const moved = await r.json();
+    assert.equal(r.status, 200, JSON.stringify(moved));
+    assert.equal(moved.slug, "arq");
+    assert.equal(moved.name, "Arquitecto");
+
+    // A name change against the slug it already has is still a rename, and used
+    // to be dropped on the floor by the `newSlug === oldSlug` early return.
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/arq/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "arq", name: "Arq" }),
+    });
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).name, "Arq");
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+  }
+});
+
+test("rename repoints open background jobs and an unambiguous board hook", async () => {
+  const root = makeTempProject({});
+  const { app } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents`, {
+      method: "POST", headers: json,
+      body: JSON.stringify({ slug: "qa", name: "QA", system: "You review." }),
+    });
+    assert.equal(r.status, 201);
+
+    // Work left running: the wake-up goes back to `to`, so a slug that moves
+    // without it means a job that finishes and a waiter nobody ever wakes.
+    const live = openJob({ project_id: pid, from: "super-agent", to: "qa", body: "revisá el PR", wake: true });
+    const closed = openJob({ project_id: pid, from: "qa", to: "super-agent", body: "listo" });
+    closeJob(closed.id, { status: "done", result: "ok" });
+
+    // A board column that hands its cards to this agent.
+    const cfg = readConfig();
+    writeConfig({
+      ...cfg,
+      tasks: { ...(cfg.tasks || {}), columns: [{ id: "review", label: null, on_enter: { agent: "qa", instruction: "revisá" } }] },
+    });
+
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/qa/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "revisora" }),
+    });
+    const out = await r.json();
+    assert.equal(r.status, 200, JSON.stringify(out));
+
+    assert.equal(readJob(live.id).to, "revisora", "the open job follows the agent");
+    assert.equal(readJob(closed.id).from, "qa", "a closed job is history, not a pointer");
+    assert.equal(readConfig().tasks.columns[0].on_enter.agent, "revisora");
+    assert.equal(out.moved.background_jobs, 1);
+    assert.equal(out.moved.columns, 1);
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+  }
+});
+
+test("a board hook stays put when another project owns the same slug", async () => {
+  const root = makeTempProject({});
+  const other = makeTempProject({ name: "northwind" });
+  const { app } = makeApp(root, [other]);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+    const list = await (await fetch(`${baseUrl}/api/projects`)).json();
+    const qid = list.find((x) => x.path === other).id;
+
+    for (const base of [pid, qid]) {
+      const r = await fetch(`${baseUrl}/api/projects/${base}/agents`, {
+        method: "POST", headers: json, body: JSON.stringify({ slug: "qa", system: "You review." }),
+      });
+      assert.equal(r.status, 201);
+    }
+    const cfg = readConfig();
+    writeConfig({
+      ...cfg,
+      tasks: { ...(cfg.tasks || {}), columns: [{ id: "review", label: null, on_enter: { agent: "qa", instruction: null } }] },
+    });
+
+    const r = await fetch(`${baseUrl}/api/projects/${pid}/agents/qa/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "revisora" }),
+    });
+    assert.equal(r.status, 200, JSON.stringify(await r.clone().json()));
+
+    // The catalog is global and the hook resolves per project: repointing it
+    // would have handed northwind's cards to an agent that only exists here.
+    assert.equal(readConfig().tasks.columns[0].on_enter.agent, "qa");
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+    cleanupTempProject(other);
+  }
+});
+
+test("rename reports the prose that still names the agent instead of rewriting it", async () => {
+  const root = makeTempProject({});
+  const { app } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+    for (const body of [
+      { slug: "nati", name: "Nati", system: "You are Nati, the companion." },
+      { slug: "helper", system: "When the brief is ready, hand it to nati. An orchestrator decides." },
+    ]) {
+      const r = await fetch(`${baseUrl}/api/projects/${pid}/agents`, {
+        method: "POST", headers: json, body: JSON.stringify(body),
+      });
+      assert.equal(r.status, 201);
+    }
+
+    const r = await fetch(`${baseUrl}/api/projects/${pid}/agents/nati/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ name: "Vera" }),
+    });
+    const out = await r.json();
+    assert.equal(r.status, 200, JSON.stringify(out));
+
+    // Both prompts still SAY the old name. Neither was rewritten — a slug is
+    // usually an ordinary word too — but the caller is told, by file.
+    const where = out.mentions.map((m) => `${m.kind}:${m.agent}`).sort();
+    assert.deepEqual([...new Set(where)], ["prompt:helper", "prompt:vera"]);
+    const helper = await (await fetch(`${baseUrl}/api/projects/${pid}/agents/helper`)).json();
+    assert.match(helper.system, /hand it to nati/, "prose left exactly as written");
   } finally {
     await new Promise((res) => server.close(res));
     cleanupTempProject(root);

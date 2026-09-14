@@ -27,9 +27,11 @@ import { renameGroupParticipant } from "#core/stores/messages.js";
 import { listTasks, patchTask } from "#core/stores/tasks.js";
 import { renameDeliveryAgent } from "#core/stores/deliveries.js";
 import { listCodeSessions, updateCodeSession } from "#core/stores/code-sessions.js";
+import { renameJobAgent } from "#core/stores/background-jobs.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 import { readJson, writeJson } from "#core/util/json-file.js";
 import { projectConfigFile } from "#core/config/paths.js";
+import { readAgents } from "./parser.js";
 import { getOrCreateApxId } from "./scaffold.js";
 
 /** Registry entries reach us either as daemon entries (`storagePath`) or as the
@@ -67,7 +69,8 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
   const registry = normalizeProjects(projects);
   const moved = {
     routines: 0, groups: 0, tasks: 0, deliveries: 0,
-    code_sessions: 0, telegram: 0, project_config: 0, memory_index: 0,
+    code_sessions: 0, background_jobs: 0, columns: 0,
+    telegram: 0, project_config: 0, memory_index: 0,
   };
   if (!storage || !oldSlug || !newSlug || oldSlug === newSlug) return moved;
 
@@ -113,7 +116,54 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
     }
   } catch { /* no code sessions */ }
 
-  // 6) Telegram routing in the global config. A channel names its project by
+  // 6) Background jobs still RUNNING. `to` is who the wake-up goes back to and
+  //    `from` is whose open-job quota this counts against — both dead the
+  //    moment the slug moves, and the symptom is the worst kind: work that
+  //    completes and a waiter that is never woken.
+  try {
+    moved.background_jobs = renameJobAgent({
+      project_id: project?.id ?? null, oldSlug, newSlug,
+    });
+  } catch { /* no jobs dir */ }
+
+  // 7) Board-column automations (`tasks.columns[].on_enter.agent`): "a task
+  //    landing here goes to that agent". The catalog is GLOBAL and the slug is
+  //    resolved against the task's own project, which is exactly what makes one
+  //    "QA" column put each project's own qa agent to work — and exactly why
+  //    this cannot be a blind rewrite: repointing it would silently retarget
+  //    every OTHER project that owns an agent with this slug.
+  //
+  //    So it moves only when the name is unambiguous: nobody else on the
+  //    registry answers to `oldSlug` any more (ours already moved by now). With
+  //    no registry to check we cannot know, so the hook is left alone — a
+  //    column that stops firing in one project beats one that starts handing
+  //    another project's cards to a stranger.
+  if (registry.length) {
+    try {
+      const contested = registry.some((entry) => {
+        if (project?.id != null && String(entry.id) === String(project.id)) return false;
+        if (!entry.path || samePath(entry.path, project?.path)) return false;
+        try { return readAgents(entry.path).some((a) => a.slug === oldSlug); } catch { return false; }
+      });
+      if (!contested) {
+        const cfg = readConfig();
+        const columns = Array.isArray(cfg.tasks?.columns) ? cfg.tasks.columns : [];
+        let touched = 0;
+        for (const col of columns) {
+          if (col?.on_enter?.agent !== oldSlug) continue;
+          col.on_enter = { ...col.on_enter, agent: newSlug };
+          touched += 1;
+        }
+        if (touched) {
+          cfg.tasks = { ...(cfg.tasks || {}), columns };
+          writeConfig(cfg);
+          moved.columns = touched;
+        }
+      }
+    } catch { /* config unreadable — leave it alone */ }
+  }
+
+  // 8) Telegram routing in the global config. A channel names its project by
   //    path, so only a channel pointing HERE is repointed — two projects may
   //    each own an agent with this slug. The bare `telegram.route_to_agent` is
   //    only live in env-only mode (resolveChannels falls back to it when no
@@ -143,7 +193,7 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
     }
   } catch { /* config unreadable — leave it alone */ }
 
-  // 7) The project's own config (~/.apx/projects/<apx_id>/config.json): its
+  // 9) The project's own config (~/.apx/projects/<apx_id>/config.json): its
   //    telegram override and any declarative routine. Project-scoped by
   //    definition, so no path matching.
   try {
@@ -170,7 +220,7 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
     }
   } catch { /* not a valid project config */ }
 
-  // 8) The RAG index. Agent memory is indexed under `agent:<projdir>:<slug>`;
+  // 10) The RAG index. Agent memory is indexed under `agent:<projdir>:<slug>`;
   //    the next pass re-indexes memory.md under the new key on its own, so what
   //    is left to do is DROP the old rows — otherwise they linger unreachable
   //    and, worse, get inherited by whoever takes that slug next.
@@ -186,4 +236,65 @@ export async function repointAgentReferences(project, oldSlug, newSlug, { projec
   }
 
   return moved;
+}
+
+// A mention of `term` that stands on its own — not the middle of a longer
+// identifier. Without the guard, renaming `nati` reports the routine named
+// `nati-daily` and the word `naticion` as references to her.
+function mentionRe(term) {
+  const escaped = String(term).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "i");
+}
+
+/**
+ * What still SAYS the old name after a rename has repointed everything that
+ * resolves — prose, in other words: an agent's system prompt ("delegate to
+ * `nati`"), its memory, the project's memory file.
+ *
+ * Deliberately a REPORT and not a rewrite. These are sentences a person wrote,
+ * and a slug is usually also an ordinary word: blind-replacing `orchestrator`
+ * across every prompt in a project would mangle the paragraph that explains
+ * what an orchestrator is. The caller (the route's log, the tool's answer)
+ * surfaces the list so a human or the orchestrator that asked for the rename
+ * can decide, one file at a time.
+ *
+ * @param {{path:string, storagePath?:string}} project
+ * @param {{oldSlug:string, oldName?:string|null, newSlug:string}} what
+ * @returns {{kind:string, agent:string|null, term:string}[]}
+ */
+export function findStaleAgentMentions(project, { oldSlug, oldName = null, newSlug } = {}) {
+  const out = [];
+  if (!project?.path || !oldSlug) return out;
+  // A display name equal to the slug, or to the NEW slug/name, says nothing.
+  const terms = [oldSlug, oldName]
+    .map((t) => (typeof t === "string" ? t.trim() : ""))
+    .filter((t, i, a) => t && t !== newSlug && a.indexOf(t) === i);
+  if (!terms.length) return out;
+  const hit = (text, kind, agent) => {
+    if (!text) return;
+    for (const term of terms) {
+      if (mentionRe(term).test(text)) out.push({ kind, agent, term });
+    }
+  };
+
+  let roster = [];
+  try { roster = readAgents(project.path); } catch { return out; }
+  for (const a of roster) {
+    hit(a.body || "", "prompt", a.slug);
+    try {
+      const file = path.join(
+        project.storagePath || "", "agents", a.slug, "memory.md",
+      );
+      if (project.storagePath && fs.existsSync(file)) {
+        hit(fs.readFileSync(file, "utf8"), "agent_memory", a.slug);
+      }
+    } catch { /* unreadable memory — nothing to report */ }
+  }
+  try {
+    const projectMemory = path.join(project.path, ".apc", "memory.md");
+    if (fs.existsSync(projectMemory)) {
+      hit(fs.readFileSync(projectMemory, "utf8"), "project_memory", null);
+    }
+  } catch { /* no project memory */ }
+  return out;
 }

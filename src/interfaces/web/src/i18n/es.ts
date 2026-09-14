@@ -1072,6 +1072,7 @@ export const es = {
       rename_from_name: "Usar el nombre: {slug}",
       rename_confirm:  "¿Renombrar «{from}» a «{to}»? Esto mueve el archivo del agente y su memoria/conversaciones, y reapunta los sub-agentes y rutinas que lo referencian.",
       rename_success:  "Renombrado a {slug}",
+      rename_mentions: "{count} prompt(s) o memoria(s) todavía lo nombran como antes — revisalos a mano.",
       reports_to:      "↳ reporta a",
       no_threads:      "Sin threads.",
       no_activity:     "Sin actividad registrada.",
