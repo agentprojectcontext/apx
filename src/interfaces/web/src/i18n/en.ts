@@ -1950,6 +1950,7 @@ export const en = {
     title:                "Work running in the background",
     tip:                  "{n} running — tap to see and stop",
     waiting:              "{from} is waiting on {to}",
+    open_thread:          "Open the chat",
     no_wake:              "no wake-up",
     cancel:               "Stop",
     cancel_hint:          "Stopping ends the work and tells the agent it was cancelled, not that it failed — it will not start it again.",

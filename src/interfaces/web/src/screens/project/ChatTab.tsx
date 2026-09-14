@@ -34,6 +34,7 @@ import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import { ProjectTag } from "../../components/inbox/ProjectFilter";
+import { BackgroundJobsMenu } from "../../components/jobs/BackgroundJobsMenu";
 import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
@@ -1062,6 +1063,18 @@ export function ChatTab({
                 no hover to explain it — and since the transcript starts pelado,
                 the one control that brings the tool calls back was the one
                 control nobody could identify. It is 13px; the room exists. */}
+            {/* Work this conversation left running, where the conversation is.
+                A background job is launched BY a turn in some chat, and until
+                now the only place it appeared was a count at the top of the
+                window, detached from everything. Manu, 2026-09-14: "la tarea la
+                ejecutó en un chat, debería aparecer en ese chat arriba donde
+                ahora están los botones de tool y abrir en el proyecto". The
+                global mount stays — it is what tells you about chats you are
+                NOT reading — and this is the one that answers "what is running
+                here", scoped to this thread and opening the same panel. */}
+            {isA2A && selected.kind === "thread" && (
+              <BackgroundJobsMenu projectId={pid} threadId={selected.threadId} compact />
+            )}
             <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
               <div
                 className={cn(

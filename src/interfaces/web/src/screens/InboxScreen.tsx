@@ -49,18 +49,30 @@ export function InboxScreen() {
   const [params] = useSearchParams();
   const wantChannel = params.get("channel");
   const wantThread = params.get("thread");
+  // What the URL last asked for and we honoured. Without it the deep link was
+  // a FIRST-PAINT-ONLY feature: the effect below bailed on `selected`, so once
+  // anything was open, navigating to `/inbox?channel=…&thread=…` changed the
+  // address bar and nothing else. That is the common case, not the rare one —
+  // the background-jobs panel's "open the chat" is pressed from inside the
+  // inbox more often than from outside it, and it silently did nothing.
+  const [applied, setApplied] = useState<string | null>(null);
   useEffect(() => {
-    if (selected || !rows.length) return;
-    const asked = wantChannel || wantThread
+    if (!rows.length) return;
+    const asked = wantChannel || wantThread ? `${wantChannel || ""}:${wantThread || ""}` : null;
+    // Already open, or nothing asked and something already chosen: leave it be.
+    // Re-selecting on every render would fight the user's own clicks.
+    if (asked ? asked === applied : !!selected) return;
+    const match = asked
       ? rows.find((r) =>
           (!wantChannel || r.channel === wantChannel) &&
           (!wantThread || r.conversation_id === wantThread))
       : null;
+    if (asked) setApplied(asked);
     // Falling back to the newest row is deliberate: a link to a thread that has
     // since rolled over to a new day should still land you IN the inbox rather
     // than on a blank pane.
-    setSelected(asked || rows[0]);
-  }, [rows, selected, wantChannel, wantThread]);
+    setSelected(match || selected || rows[0]);
+  }, [rows, selected, applied, wantChannel, wantThread]);
 
   // Follow the row, not the snapshot of it. The list refreshes underneath as
   // messages arrive, and the same agent can point at a DIFFERENT thread than it

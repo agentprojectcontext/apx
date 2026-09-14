@@ -1951,6 +1951,7 @@ export const es = {
     title:                "Trabajo en segundo plano",
     tip:                  "{n} en ejecución — tocá para ver y cortar",
     waiting:              "{from} espera a {to}",
+    open_thread:          "Abrir el chat",
     no_wake:              "sin despertar",
     cancel:               "Cortar",
     cancel_hint:          "Cortar para el trabajo y le avisa al agente que fue cancelado, no que falló — no lo vuelve a arrancar.",
