@@ -104,7 +104,7 @@ export function InboxList({
           project it came from. Each hides itself when there is only one of it
           to choose between. */}
       {(channels.length > 1 || projects.length > 1) && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
           <ChannelFilter
             channels={channels}
             counts={counts}

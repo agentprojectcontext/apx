@@ -119,7 +119,7 @@ export function MobileChatList({
             says so ("6 of 11") without needing a strip of chips wider than the
             screen, which is exactly why there is room for the second one. */}
         {(channels.length > 1 || projects.length > 1) && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex items-center gap-2">
             <ChannelFilter
               channels={channels}
               counts={counts}

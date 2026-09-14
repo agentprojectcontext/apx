@@ -68,7 +68,13 @@ export function OptionFilter({
         data-testid={`${testIdPrefix}-filter`}
         aria-label={label}
         className={cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+          // Shrinkable, not fixed: two of these share one 288px rail and the
+          // words in them are translated. `shrink-0` made "Canales 8 de 12" +
+          // "Proyectos 9 de 10" wrap to a second line, and no choice of words
+          // fixes that for every language — so the LABEL gives up characters
+          // first (it truncates) and the count, which is the part you read
+          // without opening the menu, never does.
+          "inline-flex min-w-0 shrink items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
           // A filter that is DOING something looks different from one that is
           // not: all-on is the resting state, anything else is a live filter.
           all
@@ -78,9 +84,9 @@ export function OptionFilter({
           className,
         )}
       >
-        <ListFilter className="size-3.5" />
-        {label}
-        <span className={cn("tabular-nums", all && "opacity-60")}>
+        <ListFilter className="size-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
+        <span className={cn("shrink-0 tabular-nums", all && "opacity-60")}>
           {all ? t("filters.all") : t("filters.n_of_m", { n: on, total: options.length })}
         </span>
       </DropdownMenuTrigger>

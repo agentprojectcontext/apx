@@ -292,7 +292,7 @@ export const en = {
   // whole reason the picker is collapsed.
   filters: {
     all:         "All",
-    n_of_m:      "{n} of {total}",
+    n_of_m:      "{n}/{total}",
     select_all:  "Select all",
     none:        "None",
   },
