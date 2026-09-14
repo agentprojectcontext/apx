@@ -26,7 +26,12 @@ const { createFaceResolver, withContactIdentity } = await import("#host/daemon/a
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 async function listen(app) {
-  const server = app.listen(0);
+  // 127.0.0.1, not the wildcard `app.listen(0)` binds: another process can sit
+  // on top of a wildcard port with a specific bind, no EADDRINUSE, and then
+  // answer this server's requests. That is where the stray 401 came from — this
+  // app is built with `token: ""`, so it mounts no auth wall and cannot produce
+  // one. Two specific binds collide loudly instead.
+  const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
