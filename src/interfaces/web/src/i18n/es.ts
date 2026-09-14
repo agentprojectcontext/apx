@@ -294,7 +294,7 @@ export const es = {
   // para lo que el picker está plegado.
   filters: {
     all:         "Todos",
-    n_of_m:      "{n} de {total}",
+    n_of_m:      "{n}/{total}",
     select_all:  "Seleccionar todos",
     none:        "Ninguno",
   },
