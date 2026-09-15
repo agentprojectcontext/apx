@@ -78,7 +78,13 @@ test("the agent is woken in the chat it left the job from", async () => {
   assert.match(call.prompt, /Pick up where you left off/i);
   // Nobody typed this. The thread should say so on the record.
   assert.equal(call.promptMeta.automation, "background_job");
-  assert.equal(call.promptMeta.job_id, job.id);
+  // The outcome rides as fields, not only inside the prose the model reads: the
+  // chat draws its notice from these, and re-parsing "it exited 127" out of a
+  // paragraph is a thing that works until the paragraph is reworded.
+  assert.equal(call.promptMeta.job.id, job.id);
+  assert.equal(call.promptMeta.job.status, "done");
+  assert.equal(call.promptMeta.job.exit_code, 0);
+  assert.match(call.promptMeta.job.command, /hyperframes render reel-13/);
 });
 
 test("woken exactly once, however many things notice it ended", async () => {

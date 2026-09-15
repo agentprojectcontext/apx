@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Bot, CornerDownRight, Copy, Info, Pencil, RefreshCw } from "lucide-react";
+import { Bot, ChevronDown, CornerDownRight, Copy, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
@@ -83,6 +83,17 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         </span>
       </div>
     );
+  }
+  // A turn nobody typed. The wake-up that brings an agent back when work it left
+  // running ends is filed as a user turn — that is how the agent has to read it,
+  // as the next thing said to it — and drawn HERE as what it actually is. As a
+  // bubble it wore the owner's face and their voice, so a page of machine
+  // English addressed to the model read as something they had written
+  // themselves: "¿qué es esto? no sé por qué lo veo" (Manu, 2026-09-14, on his
+  // own screen). The full text stays one click away, because when a job fails
+  // the output in it is the only thing that says why.
+  if (msg.automation === "background_job") {
+    return <BackgroundJobNotice msg={msg} />;
   }
   const mine = msg.role === "user";
   // A turn that carried a file shows the file; its text is the marker the agent
@@ -568,4 +579,56 @@ function formatTs(iso: string, compact?: boolean, dayInDivider?: boolean): strin
   } catch {
     return iso;
   }
+}
+
+/**
+ * The machine bringing an agent back, drawn as what it is.
+ *
+ * A background job's wake-up is FILED as a user turn — that is the only way the
+ * agent reads it as the next thing said to it, and the only way it survives in
+ * the thread's history. But it is not something the owner said, and the text is
+ * written for a model: an English recap of the command, the exit code and the
+ * tail of the output, several hundred words of it. In a bubble, in the owner's
+ * own colour, it reads as a wall of text they apparently pasted into their own
+ * chat.
+ *
+ * So: one line by default, with the outcome the fields carry (never parsed back
+ * out of the prose), and the whole notice one click away — because when a job
+ * fails, the output inside it is the only thing that says why.
+ */
+function BackgroundJobNotice({ msg }: { msg: ChatMsg }) {
+  const [open, setOpen] = useState(false);
+  const job = msg.job;
+  const failed = (job?.status || "") !== "done";
+  const why = job?.exit_code != null && job.exit_code !== 0 ? `exit ${job.exit_code}` : job?.status || "";
+
+  return (
+    <div className="flex justify-center py-1">
+      <div className="w-full max-w-[85%] rounded-lg border border-border bg-muted/30 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          data-testid="job-wake-notice"
+          className="flex w-full items-center gap-2 text-left text-[11px] text-muted-fg hover:text-foreground"
+        >
+          <SquareStack size={12} className="shrink-0" />
+          <span className="shrink-0 font-medium">
+            {failed ? t("chat_ui.job_wake_failed") : t("chat_ui.job_wake_done")}
+          </span>
+          {why && (
+            <span className={cn("shrink-0 rounded px-1 tabular-nums", failed ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-fg")}>
+              {why}
+            </span>
+          )}
+          {job?.command && <span className="min-w-0 flex-1 truncate font-mono opacity-70">{job.command}</span>}
+          <ChevronDown size={12} className={cn("ml-auto shrink-0 transition-transform", open && "rotate-180")} />
+        </button>
+        {open && (
+          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words border-t border-border pt-2 text-[11px] leading-snug text-muted-fg">
+            {textOf(msg)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
 }

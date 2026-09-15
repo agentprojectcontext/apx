@@ -160,7 +160,20 @@ export function shapeConversationMessage(t) {
     ...(media ? { media } : {}),
     ...(Array.isArray(t.meta?.media) && t.meta.media.length ? { media_list: t.meta.media } : {}),
   };
-  if (t.role === "user") return { ...base, ...mediaFields };
+  if (t.role === "user") {
+    // A turn NOBODY TYPED. A background job's wake-up is filed as a user turn so
+    // the agent reads it as the next thing said to it — but it is not something
+    // the owner said, and a viewer that draws it in their voice puts a wall of
+    // machine English in their own chat bubble. Seen 2026-09-14, Manu reading
+    // his own screen: "¿qué es esto? no sé por qué lo veo". So the marker rides
+    // out with the turn and the viewer draws it as a notice.
+    const automation = t.meta?.automation;
+    return {
+      ...base,
+      ...mediaFields,
+      ...(automation ? { automation, job: t.meta?.job || null } : {}),
+    };
+  }
   if (t.role === "assistant") {
     const meta = t.meta || {};
     const usage = meta.usage;

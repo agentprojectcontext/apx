@@ -116,6 +116,17 @@ export async function wakeShellJob(job, {
   // spent the tokens and done the work twice.
   if (!claimWake(job.id)) return { woken: false, reason: "already delivered" };
 
+  // TWO ATTEMPTS, because the claim is already spent. Nothing re-delivers a
+  // wake-up: the reconciler only sweeps jobs that are still open, so a turn that
+  // throws is the end of it — which is exactly what happened on 2026-09-14, when
+  // an engine 400 ate both wake-ups of the evening and the agent answered
+  // nothing twice. The turn is retried once before that verdict is accepted.
+  //
+  // What is NOT lost either way: the wake-up text is already filed in the
+  // conversation, so the next turn anybody starts in that chat reads it as
+  // history. The agent loses the chance to act on its own, not the information.
+  let lastError = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
   try {
     const out = await runChatTurnFn({
       p: project,
@@ -127,7 +138,20 @@ export async function wakeShellJob(job, {
       // Nobody typed this. Recorded on the turn so the thread's own history says
       // where it came from, rather than reading as the owner having pasted an
       // exit code into their chat at four in the morning.
-      promptMeta: { automation: "background_job", job_id: job.id },
+      //
+      // The outcome rides as FIELDS, not only inside the prose: the panel draws
+      // a line from them, and parsing "it exited 127" back out of a paragraph
+      // written for a model is the kind of thing that works until the paragraph
+      // is reworded.
+      promptMeta: {
+        automation: "background_job",
+        job: {
+          id: job.id,
+          status: job.status,
+          exit_code: job.exit_code ?? null,
+          command: String(job.command || "").slice(0, 300),
+        },
+      },
       config: project.config || config,
       projects,
       plugins,
@@ -136,13 +160,20 @@ export async function wakeShellJob(job, {
     log?.(`shell-job-wake: woke ${job.from} for ${job.id} in ${out.conversation_id}`);
     return { woken: true, conversation_id: out.conversation_id };
   } catch (e) {
+    lastError = e;
+    if (attempt === 1) {
+      log?.(`shell-job-wake: wake for ${job.id} failed (${e?.message || e}) — retrying once`);
+      await sleep(2000);
+      continue;
+    }
     // The record still holds the outcome and the panel still shows it ended, so
     // what is lost is the nudge, not the result. Said out loud rather than
     // swallowed — an agent that was promised a wake-up and did not get one is
     // the failure this whole feature exists to remove.
     log?.(`shell-job-wake: wake for ${job.id} failed — ${e?.message || e}`);
-    return { woken: false, reason: e?.message || String(e) };
   }
+  }
+  return { woken: false, reason: lastError?.message || String(lastError) };
 }
 
 /**
