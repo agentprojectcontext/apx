@@ -194,16 +194,10 @@ function claudeProjectsDir(opts) {
   return path.join(homeDir(opts), ".claude", "projects");
 }
 
-function claudeReadTitle(file) {
+function claudeScanTitle(text) {
   let title = null;
   let lastPrompt = null;
-  let text;
-  try {
-    text = fs.readFileSync(file, "utf8");
-  } catch {
-    return null;
-  }
-  for (const line of text.split("\n")) {
+  for (const line of String(text || "").split("\n")) {
     if (!line.includes('"aiTitle"') && !line.includes('"lastPrompt"')) continue;
     let d;
     try {
@@ -214,16 +208,111 @@ function claudeReadTitle(file) {
     if (d.type === "ai-title" && d.aiTitle) title = d.aiTitle;
     else if (d.type === "last-prompt" && d.lastPrompt) lastPrompt = d.lastPrompt;
   }
-  return title || lastPrompt || null;
+  return { title, lastPrompt };
+}
+
+function claudeReadRange(file, start, end) {
+  if (end <= start) return "";
+  let fd;
+  try {
+    fd = fs.openSync(file, "r");
+    const buf = Buffer.alloc(end - start);
+    const n = fs.readSync(fd, buf, 0, buf.length, start);
+    return buf.subarray(0, n).toString("utf8");
+  } catch {
+    return "";
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch {}
+    }
+  }
+}
+
+// `ai-title` is written early; `last-prompt` is appended near the end. Reading
+// the whole jsonl made Base Sessions take seconds once unmatched folders
+// (Roby, scratch cwds) joined the list — a thousand files, some huge.
+function claudeReadTitle(file) {
+  let stat;
+  try {
+    stat = fs.statSync(file);
+  } catch {
+    return null;
+  }
+  const WINDOW = 32 * 1024;
+  const head = claudeScanTitle(claudeReadRange(file, 0, Math.min(stat.size, WINDOW)));
+  if (head.title) return head.title;
+  let tail = { title: null, lastPrompt: null };
+  if (stat.size > WINDOW) {
+    tail = claudeScanTitle(claudeReadRange(file, Math.max(0, stat.size - WINDOW), stat.size));
+  }
+  return head.title || tail.title || tail.lastPrompt || head.lastPrompt || null;
+}
+
+// Registered projects plus the always-on default (~/.apx/projects/default).
+// Roby and `call_runtime` with no project spawn Claude there; config.json does
+// not list it, so a listing that only mapped registered paths dropped those
+// sessions from /sessions even though the jsonl files existed.
+function claudeKnownProjects(opts) {
+  const known = readApxProjects(opts);
+  const defaultPath = path.resolve(
+    path.join(homeDir(opts), ".apx", "projects", "default")
+  );
+  if (!known.some((p) => p.path === defaultPath)) {
+    known.push({ path: defaultPath, name: "default", apxId: null });
+  }
+  return known;
 }
 
 // Decode a Claude project folder name back to a cwd-like path. The encoding is
-// lossy (every non-alphanumeric becomes "-"), so this returns the encoded name
-// when no registered APX project maps back to a real cwd.
+// lossy (every non-alphanumeric becomes "-"), so this returns null when no
+// known APX path maps back — callers then peek the transcript for `cwd`.
 function claudeDecodeProject(encoded, opts) {
-  const known = readApxProjects(opts);
+  const known = claudeKnownProjects(opts);
   const hit = known.find((p) => encodeClaudeProjectPath(p.path) === encoded);
   return hit ? hit.path : null;
+}
+
+// Claude writes `"cwd"` on user/assistant lines. One short head read recovers
+// the real working directory for folders that are not registered APX projects.
+function claudeReadCwd(file) {
+  const head = readHead(file, 16 * 1024);
+  for (const line of head.split("\n")) {
+    if (!line.includes('"cwd"')) continue;
+    try {
+      const d = JSON.parse(line);
+      if (typeof d.cwd === "string" && d.cwd) return d.cwd;
+    } catch {}
+  }
+  return null;
+}
+
+function claudeFolderCwd(encodedName, folder, knownByEncoded) {
+  const matched = knownByEncoded.get(encodedName);
+  if (matched) return matched.path;
+  let files;
+  try {
+    files = fs.readdirSync(folder).filter((f) => f.endsWith(".jsonl"));
+  } catch {
+    return folder;
+  }
+  for (const f of files) {
+    const cwd = claudeReadCwd(path.join(folder, f));
+    if (cwd) return cwd;
+  }
+  return folder;
+}
+
+// `dir` is normally a project cwd (we encode it). It can also already be a
+// transcript folder under ~/.claude/projects — unmatched listings pass that
+// through so we don't double-encode a lossy name.
+function claudeTranscriptDir(dir, opts) {
+  const root = claudeProjectsDir(opts);
+  const resolved = path.resolve(String(dir || ""));
+  const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+  if (resolved === path.resolve(root) || resolved.startsWith(prefix)) {
+    return resolved;
+  }
+  return path.join(root, encodeClaudeProjectPath(dir));
 }
 
 const claudeEngine = {
@@ -248,7 +337,10 @@ const claudeEngine = {
           engine: "claude",
           id,
           path: file,
-          cwd: claudeDecodeProject(name, opts) || name,
+          cwd:
+            claudeDecodeProject(name, opts) ||
+            claudeReadCwd(file) ||
+            name,
           mtime: sessionTimestamp(file),
           title: claudeReadTitle(file) || "(sin título)",
         };
@@ -275,7 +367,7 @@ const claudeEngine = {
   listProjects(opts) {
     const root = claudeProjectsDir(opts);
     const known = new Map(
-      readApxProjects(opts).map((p) => [encodeClaudeProjectPath(p.path), p])
+      claudeKnownProjects(opts).map((p) => [encodeClaudeProjectPath(p.path), p])
     );
     const out = [];
     for (const name of fs.readdirSync(root)) {
@@ -288,21 +380,58 @@ const claudeEngine = {
       }
       if (files.length === 0) continue;
       const matched = known.get(name);
+      const cwd = claudeFolderCwd(name, dir, known);
       out.push({
         key: matched ? matched.name : name,
-        dir: matched ? matched.path : null,
-        label: matched ? matched.path : name,
+        dir: cwd,
+        label: cwd,
         count: files.length,
         mtime: Math.max(...files.map((f) => sessionTimestamp(path.join(dir, f)))),
       });
     }
     return out.sort((a, b) => b.mtime - a.mtime);
   },
-  listSessions(dir, opts) {
-    const folder = path.join(
-      claudeProjectsDir(opts),
-      encodeClaudeProjectPath(dir)
+  // Walk every Claude transcript folder. The web Base Sessions view (and
+  // `apx session find` with no --dir) used to skip folders that did not map
+  // to a registered APX project, which hid sessions Roby started with
+  // `claude -p` from ~/.apx/projects/default.
+  listAllSessions(opts) {
+    const root = claudeProjectsDir(opts);
+    if (!fs.existsSync(root)) return [];
+    const known = new Map(
+      claudeKnownProjects(opts).map((p) => [encodeClaudeProjectPath(p.path), p])
     );
+    const out = [];
+    let names;
+    try {
+      names = fs.readdirSync(root);
+    } catch {
+      return [];
+    }
+    for (const name of names) {
+      const folder = path.join(root, name);
+      let files;
+      try {
+        files = fs.readdirSync(folder).filter((f) => f.endsWith(".jsonl"));
+      } catch {
+        continue;
+      }
+      const cwd = claudeFolderCwd(name, folder, known);
+      for (const f of files) {
+        const file = path.join(folder, f);
+        out.push({
+          id: f.slice(0, -6),
+          mtime: sessionTimestamp(file),
+          title: claudeReadTitle(file) || "(sin título)",
+          path: file,
+          cwd,
+        });
+      }
+    }
+    return out;
+  },
+  listSessions(dir, opts) {
+    const folder = claudeTranscriptDir(dir, opts);
     if (!fs.existsSync(folder)) return { found: false, location: folder };
     const sessions = [];
     for (const f of fs.readdirSync(folder)) {
@@ -886,10 +1015,9 @@ export function findSessionInEngine(engineId, id, opts = {}) {
  * find`. When `dir` is given, only that working directory is scanned (cheap);
  * otherwise every project the engine knows about is walked.
  *
- * Caveat: an engine can only enumerate a project when it can resolve its cwd.
- * Codex always records cwd; APX uses registered projects; Claude can only list
- * folders that map back to a registered APX project (its folder names are a
- * lossy encoding of the original path). Scope with --dir to reach the rest.
+ * Caveat: an engine that only has listAllSessions (OpenCode) cannot honour a
+ * `dir` scope. Claude and Codex file by cwd; Claude recovers unmatched folders
+ * from the transcript `cwd` field (lossy folder names are not required).
  */
 export function collectAllSessions(opts = {}, { dir = null, engineId = null } = {}) {
   const out = [];
@@ -902,8 +1030,10 @@ export function collectAllSessions(opts = {}, { dir = null, engineId = null } = 
     // in one shot instead. They can't honour a `dir` scope — having no cwd to
     // match, they'd answer every project's question with the same rows — so a
     // scoped listing skips them rather than polluting it.
-    if (typeof engine.listAllSessions === "function") {
-      if (dir) continue;
+    // Claude also has listAllSessions (to include unregistered folders), but
+    // still honours `dir` via listSessions — only skip when there is no
+    // per-directory walker.
+    if (typeof engine.listAllSessions === "function" && !dir) {
       let rows = [];
       try { rows = engine.listAllSessions(opts) || []; } catch { rows = []; }
       for (const s of rows) {
