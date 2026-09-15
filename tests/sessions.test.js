@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
   ENGINES,
+  collectAllSessions,
   findSessionAcrossEngines,
   findSessionInEngine,
 } from "#core/sessions/index.js";
@@ -265,4 +266,80 @@ test("sessions list without --engine prints every detected engine", () => {
   assert.equal(result.status, 0);
   const out = stripAnsi(result.stdout);
   assert.match(out, /APX/i);
+});
+
+test("collectAllSessions includes Claude sessions from the APX default project even when it is not in config.json", () => {
+  const home = makeFakeHome();
+  const defaultDir = path.join(home, ".apx", "projects", "default");
+  const folder = path.join(home, ".claude", "projects", encode(defaultDir));
+  fs.mkdirSync(folder, { recursive: true });
+  fs.mkdirSync(path.join(home, ".apx"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".apx", "config.json"), JSON.stringify({ projects: [] }));
+  fs.writeFileSync(
+    path.join(folder, "roby-ack.jsonl"),
+    [
+      JSON.stringify({ type: "user", cwd: defaultDir, message: { content: "ACK" } }),
+      JSON.stringify({ type: "last-prompt", lastPrompt: "ACK" }),
+    ].join("\n") + "\n"
+  );
+
+  const rows = collectAllSessions({ home }, { engineId: "claude" });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, "roby-ack");
+  assert.equal(rows[0].engine, "claude");
+  assert.equal(rows[0].cwd, defaultDir);
+  assert.equal(rows[0].title, "ACK");
+});
+
+test("collectAllSessions includes unmatched Claude folders by reading cwd from the transcript", () => {
+  const home = makeFakeHome();
+  const cwd = "/tmp/apx-scratch-xyz";
+  const folder = path.join(home, ".claude", "projects", encode(cwd));
+  fs.mkdirSync(folder, { recursive: true });
+  fs.mkdirSync(path.join(home, ".apx"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".apx", "config.json"), JSON.stringify({ projects: [] }));
+  fs.writeFileSync(
+    path.join(folder, "cross-sess.jsonl"),
+    [
+      JSON.stringify({ type: "user", cwd }),
+      JSON.stringify({ type: "last-prompt", lastPrompt: "hi from scratch" }),
+    ].join("\n") + "\n"
+  );
+
+  const rows = collectAllSessions({ home }, { engineId: "claude" });
+  const hit = rows.find((r) => r.id === "cross-sess");
+  assert.ok(hit, "expected unmatched Claude session in the global list");
+  assert.equal(hit.cwd, cwd);
+  assert.equal(hit.title, "hi from scratch");
+});
+
+test("claudeReadTitle finds last-prompt in the tail of a large transcript", () => {
+  const home = makeFakeHome();
+  const cwd = "/Volumes/work/large-title";
+  const folder = path.join(home, ".claude", "projects", encode(cwd));
+  fs.mkdirSync(folder, { recursive: true });
+  const file = path.join(folder, "big.jsonl");
+  const pad = JSON.stringify({ type: "user", cwd, message: { content: "x".repeat(200) } }) + "\n";
+  fs.writeFileSync(
+    file,
+    pad.repeat(200) + JSON.stringify({ type: "last-prompt", lastPrompt: "needle at the end" }) + "\n"
+  );
+  const result = ENGINES.claude.listSessions(cwd, { home });
+  assert.equal(result.sessions[0].title, "needle at the end");
+});
+
+test("collectAllSessions with dir still lists Claude sessions via listSessions", () => {
+  const home = makeFakeHome();
+  const projectDir = "/Volumes/work/scoped-claude";
+  const folder = path.join(home, ".claude", "projects", encode(projectDir));
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(
+    path.join(folder, "scoped-id.jsonl"),
+    JSON.stringify({ type: "ai-title", aiTitle: "scoped task" }) + "\n"
+  );
+
+  const rows = collectAllSessions({ home }, { engineId: "claude", dir: projectDir });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, "scoped-id");
+  assert.equal(rows[0].cwd, projectDir);
 });
