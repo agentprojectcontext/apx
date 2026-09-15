@@ -1,44 +1,36 @@
-// "Chat con Roby" sheet — the super-agent (APX-level agent, persona from
-// identity.json) reachable from anywhere. The launcher now lives in the left
-// rail (below Settings); this component only owns the Sheet + conversation.
-// Open state is lifted to the App shell and passed in via props.
+// "Chat con Roby" sheet — the super-agent reachable from anywhere. The
+// launcher lives in the left rail; this component owns the Sheet + conversation.
 //
-// Wraps the streaming super-agent endpoint
-// (POST /projects/0/super-agent/chat/stream, project id 0 = base). The
-// conversation is persisted to localStorage so it survives refresh and route
-// changes — the *same* thread until "Nuevo chat". Tool activity is rendered
-// inline (collapsible args + results) so you can see exactly what Roby does.
+// Same composer as Chats: files, images, interrupt, queue. The thread is the
+// `web_sidebar` ledger (project 0), not a private copy — a photo pasted here
+// has to render here, and a send while Roby is working has to queue or cut in
+// the same way the big chat does.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Button } from "./ui/button";
-import { ChatInput } from "./ui/chat-input";
-import { ModelPicker } from "./chat/ModelPicker";
-import { SkillPicker } from "./chat/SkillPicker";
+import { Composer } from "./chat/Composer";
 import { MessageList } from "./chat/MessageList";
-import { AgentAvatar, SUPER_AGENT_ICON } from "./agents/AgentAvatar";
 import { ContextBar } from "./chat/ContextBar";
-import { applyStreamEvent, textOf, type ChatMsg } from "../hooks/useChat";
-import { SuperAgent } from "../lib/api";
-import { STORAGE } from "../constants";
+import { PendingTurns } from "./chat/PendingTurns";
+import { InlineAskPanel, pendingAskQuestions } from "./chat/InlineAskPanel";
+import { AgentAvatar, SUPER_AGENT_ICON } from "./agents/AgentAvatar";
+import { Loading } from "./ui";
+import { useChat } from "../hooks/useChat";
+import { threadActivityKey } from "../lib/chat-activity";
+import { useChatVisibility } from "../hooks/useChatActivity";
+import type { UploadedMedia } from "../lib/api/media";
 import { useToast } from "./Toast";
 import { t } from "../i18n";
 import { usePersonaName } from "../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../hooks/useGlobalConfig";
-import type { ChatStreamEvent, ConversationMessage } from "../types/daemon";
 
-// Load any persisted conversation, dropping half-finished (pending) turns.
-function loadStored(): ChatMsg[] {
-  try {
-    const raw = localStorage.getItem(STORAGE.robyChat);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as ChatMsg[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((m) => m && Array.isArray(m.parts) && !m.pending);
-  } catch {
-    return [];
-  }
+const PID = "0";
+const CHANNEL = "web_sidebar" as const;
+
+function todayId() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export function RobyBubble({
@@ -52,135 +44,51 @@ export function RobyBubble({
   const { superAgent } = useSuperAgentConfig();
   const avatar = superAgent?.icon || SUPER_AGENT_ICON;
   const toast = useToast();
-  const [msgs, setMsgs] = useState<ChatMsg[]>(loadStored);
-  const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
   const [model, setModel] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
+  const [prefill, setPrefill] = useState({ text: "", n: 0 });
+  const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
+  const {
+    msgs, send: sendChat, stop, clear, loadThread, streaming, queued,
+    unqueue, sendNow, moveQueued, loading,
+  } = useChat(PID, (m) => toast.error(m), { channel: CHANNEL });
 
-  // Persist the settled conversation (skip pending turns).
+  const queueKey = threadActivityKey(PID, CHANNEL, todayId());
+  useChatVisibility(queueKey);
+
+  // The dock is always mounted, so load the day's thread once — not on every
+  // open, which would blank a turn still streaming when the sheet closed.
   useEffect(() => {
-    const settled = msgs.filter((m) => !m.pending);
-    try {
-      if (settled.length) localStorage.setItem(STORAGE.robyChat, JSON.stringify(settled));
-      else localStorage.removeItem(STORAGE.robyChat);
-    } catch {
-      /* storage full / unavailable — non-fatal */
-    }
-  }, [msgs]);
+    void loadThread(CHANNEL, todayId(), { optional: true });
+  }, [loadThread]);
 
-  const newChat = () => {
-    if (busy) return;
-    setMsgs([]);
-    setDraft("");
-    try {
-      localStorage.removeItem(STORAGE.robyChat);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  // Abort any in-flight stream on unmount.
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  // Open the quick chat with a pre-filled prompt when another screen asks for
-  // it (e.g. the Sessions tab's "ask {persona} to continue this session"). The
-  // dispatcher passes the text; we open and load it without auto-sending so the
-  // user can add their own instructions first.
   useEffect(() => {
     const onPreload = (e: Event) => {
       const text = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
       if (typeof text !== "string") return;
       onOpenChange(true);
-      setDraft(text);
+      setPrefill((curr) => ({ text, n: curr.n + 1 }));
     };
     window.addEventListener("apx:roby-prompt", onPreload);
     return () => window.removeEventListener("apx:roby-prompt", onPreload);
   }, [onOpenChange]);
 
-  // A link inside the sheet (e.g. a skill badge's "open skill") navigates the
-  // router underneath it — the sheet has to get out of the way to show it.
   useEffect(() => {
     const onClose = () => onOpenChange(false);
     window.addEventListener("apx:roby-close", onClose);
     return () => window.removeEventListener("apx:roby-close", onClose);
   }, [onOpenChange]);
 
-  const stop = () => {
-    abortRef.current?.abort();
-    setBusy(false);
+  const send = async (text: string, media?: UploadedMedia[], opts?: { queue?: boolean }) => {
+    await sendChat(text, {
+      model: model || undefined,
+      ...(media?.length ? { attachments: media } : {}),
+      ...(opts?.queue ? { queue: true } : {}),
+    });
   };
 
-  const patchLast = (fn: (m: ChatMsg) => ChatMsg) =>
-    setMsgs((curr) => {
-      const copy = [...curr];
-      const last = copy[copy.length - 1];
-      if (last?.role === "assistant") copy[copy.length - 1] = fn(last);
-      return copy;
-    });
-
-  const send = async () => {
-    const prompt = draft.trim();
-    if (!prompt || busy) return;
-    const now = new Date().toISOString();
-    const history: ConversationMessage[] = msgs
-      .filter((m) => !m.pending)
-      .map((m) => ({ role: m.role, content: textOf(m) }));
-    setMsgs((curr) => [
-      ...curr,
-      { role: "user", parts: [{ kind: "text", text: prompt }], ts: now },
-      { role: "assistant", parts: [], ts: now, pending: true },
-    ]);
-    setDraft("");
-    setBusy(true);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    let errored = false;
-
-    const onEvent = (ev: ChatStreamEvent) => {
-      if (ev?.type === "error") {
-        errored = true;
-        toast.error(ev.error || "error");
-        setMsgs((curr) => {
-          const copy = [...curr];
-          const last = copy[copy.length - 1];
-          if (last?.role === "assistant" && last.pending) copy.pop();
-          return copy;
-        });
-        return;
-      }
-      patchLast((m) => applyStreamEvent(m, ev));
-    };
-
-    try {
-      await SuperAgent.stream(
-        0,
-        { prompt, previousMessages: history, model: model || undefined, channel: "web_sidebar" },
-        onEvent,
-        ctrl.signal,
-      );
-      patchLast((m) => ({ ...m, pending: false }));
-    } catch (e) {
-      if (ctrl.signal.aborted) {
-        patchLast((m) => ({
-          ...m,
-          pending: false,
-          parts: [...m.parts, { kind: "text", text: t("project.chat.stopped_marker") }],
-        }));
-      } else if (!errored) {
-        toast.error((e as Error).message);
-        setMsgs((curr) => {
-          const copy = [...curr];
-          const last = copy[copy.length - 1];
-          if (last?.role === "assistant" && last.pending) copy.pop();
-          return copy;
-        });
-      }
-    } finally {
-      if (abortRef.current === ctrl) abortRef.current = null;
-      setBusy(false);
-    }
+  const newChat = () => {
+    if (streaming) return;
+    clear(queueKey);
   };
 
   const copyToClipboard = async (text: string) => {
@@ -191,6 +99,9 @@ export function RobyBubble({
       /* ignore */
     }
   };
+
+  const pendingAsk = !streaming ? pendingAskQuestions(msgs) : null;
+  const showAsk = pendingAsk && pendingAsk.turnKey !== dismissedAskKey;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -208,39 +119,56 @@ export function RobyBubble({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {msgs.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-muted-fg">{t("superagent.empty", { persona })}</p>
-          ) : (
+          {msgs.length || queued.length ? (
             <MessageList
               msgs={msgs}
+              queued={queued}
               onCopy={copyToClipboard}
               faceFor={() => ({ icon: avatar, name: persona })}
             />
+          ) : loading ? (
+            <div className="grid h-full min-h-[200px] place-items-center p-8">
+              <Loading />
+            </div>
+          ) : (
+            <p className="mt-6 text-center text-sm text-muted-fg">{t("superagent.empty", { persona })}</p>
           )}
         </div>
 
         <div className="border-t border-border p-3">
-          <div className="mb-1.5">
-            <SkillPicker value={draft} onPick={(slug) => setDraft(`/${slug} `)} />
-          </div>
-          <ChatInput
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={() => void send()}
+          <Composer
+            key={prefill.n}
+            initialText={prefill.text || undefined}
+            onSend={send}
             onStop={stop}
-            busy={busy}
+            streaming={streaming}
+            model={model}
+            onModelChange={setModel}
+            allowFiles
             placeholder={t("superagent.placeholder")}
-            // The context summary is the field's own top edge here too, rather
-            // than a strip on its own line above it.
-            header={<ContextBar msgs={msgs} docked />}
-            footer={<ModelPicker value={model} onChange={setModel} disabled={busy} />}
+            context={
+              <>
+                <ContextBar msgs={msgs} projectId={PID} docked />
+                <PendingTurns queued={queued} onUnqueue={unqueue} onSendNow={sendNow} onMove={moveQueued} docked />
+                {showAsk && pendingAsk ? (
+                  <InlineAskPanel
+                    docked
+                    turnKey={pendingAsk.turnKey}
+                    questions={pendingAsk.questions}
+                    onSubmit={(compiled) => void send(compiled)}
+                    onDismiss={() => setDismissedAskKey(pendingAsk.turnKey)}
+                    disabled={streaming}
+                  />
+                ) : null}
+              </>
+            }
           />
           <div className="mt-1.5 flex justify-end">
             <Button
               size="xs"
               variant="ghost"
               onClick={newChat}
-              disabled={busy || msgs.length === 0}
+              disabled={streaming || (msgs.length === 0 && queued.length === 0)}
             >
               <Plus className="size-3" /> {t("superagent.new_chat")}
             </Button>

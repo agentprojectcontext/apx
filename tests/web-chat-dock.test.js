@@ -481,3 +481,27 @@ test("answering the questions gets past question one", () => {
   assert.match(panel, /<p className="mt-1\.5 text-sm font-semibold leading-snug">\{current\.question\}<\/p>/);
   assert.doesNotMatch(panel, /min-w-0 flex-1 text-sm font-semibold leading-snug/);
 });
+
+test("the sidebar dock is the same composer as Chats, not a fork", () => {
+  const dock = web("components", "RobyBubble.tsx");
+  const chat = web("hooks", "useChat.ts");
+
+  // Files, interrupt and queue lived only in ChatTab. The dock sent through a
+  // stripped ChatInput that refused a send while busy (`if (!prompt || busy)`),
+  // had no onFiles, and stored the thread in localStorage — so a photo never
+  // rendered, Stop never reached the daemon, and a second message vanished.
+  assert.match(dock, /<Composer/);
+  assert.match(dock, /\ballowFiles\b/);
+  assert.match(dock, /<PendingTurns queued=\{queued\}/);
+  assert.match(dock, /onStop=\{stop\}/);
+  assert.match(dock, /useChat\(PID, .*, \{ channel: CHANNEL \}/);
+  assert.match(dock, /const CHANNEL = "web_sidebar"/);
+  assert.doesNotMatch(dock, /localStorage\.(get|set|remove)Item/, "the ledger holds the thread, not a private copy");
+  assert.doesNotMatch(dock, /if \(!prompt \|\| busy\) return/, "busy is queue-or-interrupt, not a wall");
+
+  // Same hook, different ledger: a dock send must not land in the big Chats
+  // thread, and Stop must address web_sidebar or it kills the wrong run.
+  assert.match(chat, /channel: surfaceChannel/);
+  assert.match(chat, /turnTargetRef\.current = \{ channel: surfaceChannel \}/);
+});
+
