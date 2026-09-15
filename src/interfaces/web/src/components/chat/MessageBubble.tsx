@@ -624,7 +624,7 @@ function BackgroundJobNotice({ msg }: { msg: ChatMsg }) {
           <ChevronDown size={12} className={cn("ml-auto shrink-0 transition-transform", open && "rotate-180")} />
         </button>
         {open && (
-          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words border-t border-border pt-2 text-[11px] leading-snug text-muted-fg">
+          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] border-t border-border pt-2 text-[11px] leading-snug text-muted-fg">
             {textOf(msg)}
           </pre>
         )}
