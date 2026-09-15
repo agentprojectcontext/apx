@@ -173,7 +173,7 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // the first token — `final` used to be the first mention of the conversation
   // it had been writing to all along.
   assert.match(chat, /if \(ev\.type === "start"\)/);
-  assert.match(chat, /turnTargetRef\.current = \{ channel: "web" \}/, "Roby's thread IS its channel");
+  assert.match(chat, /turnTargetRef\.current = \{ channel: surfaceChannel \}/, "Roby's thread IS its channel");
   // Reopening the chat binds to its existing queue; navigation cannot erase it.
   assert.match(chat, /const snapshot = readBackgroundQueue\(key\)/);
   assert.doesNotMatch(chat, /backgroundQueues\.delete\(queueKeyRef\.current/);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations, Groups, Turns } from "../lib/api";
+import { HttpError } from "../lib/http";
 import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, InteractiveMenu, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
@@ -312,6 +313,10 @@ export interface ReloadOptions {
    *  typed here, and must leave the view alone if the fetch fails — none of
    *  which apply when the user actively picked a different chat. */
   silent?: boolean;
+  /** A missing thread is an empty pane, not an error. The dock opens on a day
+   *  that may have no sidebar chat yet; 404 there is "nothing to show", not a
+   *  toast. The queue still binds so the first send is ready to drain. */
+  optional?: boolean;
 }
 
 export interface UseChatResult {
@@ -929,6 +934,11 @@ function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknow
   };
 }
 
+/** Super-agent surfaces that share this hook. `web` is the big Chats tab;
+ *  `web_sidebar` is the docked quick chat. Same composer, queue, attachments
+ *  and abort — different ledger thread so one does not swallow the other. */
+export type ChatSurface = "web" | "web_sidebar";
+
 /**
  * Single source of truth for the project chat. For Roby (super-agent) it
  * consumes the NDJSON event stream and builds a rich, opencode-style turn:
@@ -936,7 +946,12 @@ function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknow
  * routing notes and token usage. For a named project agent it falls back to
  * the blocking `Agents.chat` call (those are direct LLM calls with no tools).
  */
-export function useChat(pid: string, onError?: (msg: string) => void): UseChatResult {
+export function useChat(
+  pid: string,
+  onError?: (msg: string) => void,
+  opts?: { channel?: ChatSurface },
+): UseChatResult {
+  const surfaceChannel: ChatSurface = opts?.channel === "web_sidebar" ? "web_sidebar" : "web";
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const msgsRef = useRef<ChatMsg[]>([]);
   // React drops state updates after unmount. The request does not stop, so keep
@@ -1373,7 +1388,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         const key = queueKeyRef.current || (
           opts.agentSlug
             ? liveActivityKey(pid, opts.agentSlug)
-            : threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+            : threadActivityKey(pid, surfaceChannel, new Date().toISOString().slice(0, 10))
         );
         bindQueue(key);
         // Decided HERE and carried on the record, not re-derived at paint time:
@@ -1401,7 +1416,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         bindQueue(
           opts.agentSlug
             ? liveActivityKey(pid, opts.agentSlug)
-            : threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)),
+            : threadActivityKey(pid, surfaceChannel, new Date().toISOString().slice(0, 10)),
         );
       }
 
@@ -1494,7 +1509,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       abortRef.current = ctrl;
       // Roby's thread IS the channel — it has no conversation id — so that is
       // how the daemon addresses its live turn. See superAgentTurnKey.
-      turnTargetRef.current = { channel: "web" };
+      turnTargetRef.current = { channel: surfaceChannel };
       try {
         await SuperAgent.stream(
           pid,
@@ -1502,7 +1517,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             prompt: trimmed,
             previousMessages: history,
             model: opts.model || undefined,
-            channel: "web",
+            channel: surfaceChannel,
             // Paths only: the bytes are already on disk, and the daemon re-resolves
             // each one inside ~/.apx/media before it reads a single byte.
             ...(opts.attachments?.length
@@ -1533,7 +1548,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         }
       }
     },
-    [pid, applyEvent, patchLast, onError, stopTurn, bindQueue, updateMsgs, updateStreaming],
+    [pid, surfaceChannel, applyEvent, patchLast, onError, stopTurn, bindQueue, updateMsgs, updateStreaming],
   );
 
   // Rewind the pane (and the bound file) to `keepVisible` turns, then send. The
@@ -1846,6 +1861,19 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         if (opts?.silent) return; // see load(): a failed catch-up changes nothing
+        const missing = e instanceof HttpError && e.status === 404;
+        if (missing && opts?.optional) {
+          // Empty day: bind the thread anyway so Stop/queue address this
+          // channel, and so a queued line after the first send can drain.
+          setLoading(false);
+          convoRef.current = undefined;
+          threadRef.current = { channel, id: threadId };
+          queueReadyRef.current = true;
+          setConversationId(undefined);
+          updateFollowing(false);
+          updateMsgs([]);
+          return;
+        }
         setLoading(false);
         convoRef.current = undefined;
         threadRef.current = null;
