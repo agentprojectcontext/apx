@@ -142,8 +142,8 @@ test("a queued turn survives the page, and only ever goes out into its own chat"
   assert.match(hook, /bindQueue\(threadActivityKey\(pid, channel, threadId\), false\)/);
   assert.equal(
     (hook.match(/queueReadyRef\.current = true/g) || []).length,
-    2,
-    "both async opens settle the binding when their history lands",
+    3,
+    "conversation, ledger thread, and empty optional thread all settle the binding",
   );
   // A live session has nothing to fetch, so it is open from the start — gating
   // it on a conversation it does not have yet would park its queue forever.
