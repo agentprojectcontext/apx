@@ -61,6 +61,17 @@ export interface ChatMsg {
    *  bubble. `who` is the agent slug it is about. */
   event?: "joined" | "left";
   who?: string;
+  /** A turn NOBODY TYPED: the machine woke the agent. Today the only kind is
+   *  `background_job` — a command the agent left running has ended. It is filed
+   *  as a user turn because that is how the agent must read it, and drawn as a
+   *  notice because it is not something the owner said. */
+  automation?: string;
+  job?: {
+    id: string;
+    status: string;
+    exit_code?: number | null;
+    command?: string;
+  } | null;
   /** Token accounting from the `final` event. */
   usage?: ChatUsage;
   /** You stopped this turn. What is here is what it had done — real work, kept
@@ -500,6 +511,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         ts,
         ...(m.media ? { media: [m.media] } : {}),
         ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
+        ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),
       });
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is

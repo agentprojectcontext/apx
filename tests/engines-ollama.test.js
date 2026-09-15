@@ -145,3 +145,70 @@ test("ollama: tool_calls and tool_name from prior turns are forwarded unchanged"
     restore();
   }
 });
+
+// ── Tool-call arguments: object, never a JSON string ────────────────────────
+//
+// 2026-09-14, in production. An agent left two renders running whose commands
+// echoed segment JSON into a file. Both finished, both wake-ups started a turn,
+// and both turns died on the second iteration — the one that replays the call —
+// with `ollama 400: {"error":"Value looks like object, but can't find closing
+// '}' symbol"}`. The agent was woken twice and answered nothing either time.
+//
+// Ollama wants `arguments` as an OBJECT and parses a string leniently, scanning
+// for a closing brace: `{"command":"ls"}` survives, a command carrying its own
+// JSON does not. A string arrives here two ordinary ways — a turn that fell back
+// from another engine mid-loop, and `extractBareFunctionCalls`, which
+// stringifies on purpose — so the adapter normalises at the boundary.
+
+test("ollama: a tool call's string arguments are sent as an object", async () => {
+  const { captured, restore } = stubFetchCapturingBody();
+  // The shape that actually broke: a shell command with JSON inside it.
+  const args = { command: `echo '[{"start": 0, "end": 5, "text": "HOOK"}]' > segments.json`, background: true };
+  try {
+    await ollama.chat({
+      model: "gemma4:31b-cloud",
+      messages: [
+        { role: "user", content: "lanzalo" },
+        { role: "assistant", content: "", tool_calls: [{ function: { name: "run_shell", arguments: JSON.stringify(args) } }] },
+        { role: "tool", tool_name: "run_shell", content: '{"ok":true}' },
+      ],
+    });
+  } finally {
+    restore();
+  }
+  const sent = captured.body.messages.find((m) => m.tool_calls)?.tool_calls?.[0];
+  assert.equal(typeof sent.function.arguments, "object", "Ollama is given an object, not a string");
+  assert.deepEqual(sent.function.arguments, args, "and every argument survives the trip");
+});
+
+test("ollama: arguments that are already an object are left alone", async () => {
+  const { captured, restore } = stubFetchCapturingBody();
+  const args = { command: "ls /tmp" };
+  try {
+    await ollama.chat({
+      model: "m",
+      messages: [{ role: "assistant", content: "", tool_calls: [{ id: "c1", function: { name: "run_shell", arguments: args } }] }],
+    });
+  } finally {
+    restore();
+  }
+  const sent = captured.body.messages[0].tool_calls[0];
+  assert.deepEqual(sent.function.arguments, args);
+  assert.equal(sent.id, "c1", "and the rest of the call is untouched");
+});
+
+test("ollama: arguments that are not valid JSON do not take the turn down", async () => {
+  const { captured, restore } = stubFetchCapturingBody();
+  try {
+    await ollama.chat({
+      model: "m",
+      messages: [{ role: "assistant", content: "", tool_calls: [{ function: { name: "run_shell", arguments: "{not json" } }] }],
+    });
+  } finally {
+    restore();
+  }
+  // Empty, the way the agent loop itself reads an unparseable argument string.
+  // The call already ran; losing its arguments is a poorer record than sending
+  // them, and losing the whole turn is worse than either.
+  assert.deepEqual(captured.body.messages[0].tool_calls[0].function.arguments, {});
+});

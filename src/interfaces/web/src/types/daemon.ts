@@ -429,6 +429,17 @@ export interface ConversationMessage {
   content: string;
   ts?: string;
   name?: string;
+  /** On a user row NOBODY TYPED: what woke this turn. `background_job` is a
+   *  command the agent left running, now ended — filed as a user turn because
+   *  that is how the agent reads it, drawn as a notice because it is not
+   *  something the owner said. */
+  automation?: string;
+  job?: {
+    id: string;
+    status: string;
+    exit_code?: number | null;
+    command?: string;
+  } | null;
   /** Present on role:"tool" rows from the global ledger — the tool name and its
    *  structured args/result, so the viewer can render a ToolCall part. */
   tool?: string;

@@ -2053,6 +2053,8 @@ export const en = {
     jobs_running_one:    "1 task running",
     jobs_running_none:   "No tasks",
     job_waiting_on:      "Waiting on {peer}",
+    job_wake_done:       "The work it left running finished",
+    job_wake_failed:     "The work it left running did not finish cleanly",
     job_running_command: "Running: {command}",
     // A turn that ran tools, said something, then ran more: several blocks,
     // ONE count. Numbered against the turn so the second block does not read

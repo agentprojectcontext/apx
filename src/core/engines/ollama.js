@@ -7,6 +7,47 @@ function baseUrl(config) {
   return config.base_url || process.env.OLLAMA_HOST || "http://localhost:11434";
 }
 
+/**
+ * Tool calls, in the shape Ollama actually accepts.
+ *
+ * Ollama wants `function.arguments` as an OBJECT. OpenAI wants a JSON STRING,
+ * and APX carries whatever the engine that produced the call handed back — so a
+ * string reaches here two ways, both ordinary: a turn that fell back from
+ * another engine mid-loop (zen → ollama), and `extractBareFunctionCalls`, whose
+ * recovered calls are stringified on purpose (tool-call-parser.js).
+ *
+ * Ollama does not reject a string outright. It tries to parse it with a lenient
+ * scanner, which walks the text looking for a closing brace — so `{"command":
+ * "ls"}` survives and a command containing its own JSON does not:
+ *
+ *   ollama 400: {"error":"Value looks like object, but can't find closing '}' symbol"}
+ *
+ * Seen 2026-09-14: an agent left two renders running whose commands echoed
+ * segment JSON into a file. Both jobs finished, both wake-ups started a turn,
+ * and both turns died on the SECOND iteration — the one that replays the call
+ * — so the agent was woken twice and answered nothing either time. The failure
+ * needs a big argument to show itself, which is why every smaller tool call in
+ * the same chat worked all day.
+ *
+ * An unparseable string becomes `{}`, which is what the agent loop itself does
+ * with one (run-agent.js). Losing the arguments of a call that already ran is a
+ * worse record than sending them; losing the whole TURN is worse than both.
+ */
+function ollamaToolCalls(calls) {
+  if (!Array.isArray(calls)) return calls;
+  return calls.map((call) => {
+    const fn = call?.function;
+    if (!fn || typeof fn.arguments !== "string") return call;
+    let args;
+    try {
+      args = JSON.parse(fn.arguments);
+    } catch {
+      args = {};
+    }
+    return { ...call, function: { ...fn, arguments: args && typeof args === "object" ? args : {} } };
+  });
+}
+
 export default {
   id: "ollama",
   needsApiKey: false,
@@ -78,7 +119,7 @@ export default {
       } else {
         out.content = "";
       }
-      if (m.tool_calls) out.tool_calls = m.tool_calls;
+      if (m.tool_calls) out.tool_calls = ollamaToolCalls(m.tool_calls);
       if (m.tool_name) out.tool_name = m.tool_name; // Ollama uses this field on role:"tool"
       fullMessages.push(out);
     }
