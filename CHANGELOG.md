@@ -1,3 +1,22 @@
+# [1.111.0](https://github.com/agentprojectcontext/apx/compare/v1.110.1...v1.111.0) (2026-09-14)
+
+
+### Bug Fixes
+
+* **web:** el selector ofrece los modelos de cada motor encendido, y los nombra enteros ([8fccb8d](https://github.com/agentprojectcontext/apx/commit/8fccb8dea6dbf6ae7c86aad3b63d8439c026abf8))
+* **web:** la caja de editar un mensaje crece con lo que estás editando ([b2f32c6](https://github.com/agentprojectcontext/apx/commit/b2f32c6e5693d7189d3df3fd77c22f51abf27ab0))
+* **web:** la columna de proyectos llega hasta el engranaje ([53e4e3a](https://github.com/agentprojectcontext/apx/commit/53e4e3a793211f1cd16944c2b7dc3e2c50280eb1))
+* **web:** las marcas de la fila suben a la línea de tags, y ahora conviven ([2496b33](https://github.com/agentprojectcontext/apx/commit/2496b330e276eae5f34ac28b6ef8d6222c4f6e14))
+* **web:** los dos filtros de la bandeja entran en un renglón ([e0c5bba](https://github.com/agentprojectcontext/apx/commit/e0c5bba7366b3a3b417379ae3aad2fc75b9da825))
+* **web:** un chat que todavía está cargando no dice que está vacío ([904598b](https://github.com/agentprojectcontext/apx/commit/904598bbe341a349de5c78331f413e2779961380))
+
+
+### Features
+
+* **agents:** un comando largo puede quedar corriendo, y el agente vuelve al chat cuando termina ([3d38828](https://github.com/agentprojectcontext/apx/commit/3d38828767af891d90a7948bf3e8d0fe8ba30f39))
+* **projects:** un proyecto elige su perfil, y la bóveda de agentes habla tu idioma ([84076b1](https://github.com/agentprojectcontext/apx/commit/84076b1f107edeca168d254d78f02e6a5ec0c959))
+* **web:** la fila de la bandeja dice lo último que se dijo, y lo sigue mientras se escribe ([a48579a](https://github.com/agentprojectcontext/apx/commit/a48579a06b87eda42e4c718649b5c79d9fdab35d))
+
 ## [1.110.1](https://github.com/agentprojectcontext/apx/compare/v1.110.0...v1.110.1) (2026-09-14)
 
 
