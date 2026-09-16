@@ -11,9 +11,10 @@
 // These functions are what the native tools stand on so that never has to happen.
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents } from "#core/apc/parser.js";
+import { formerSlugs, readAgents } from "#core/apc/parser.js";
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, ensureAgentDir, removeImportedAgent } from "#core/apc/scaffold.js";
+import { setFrontmatterField } from "#core/apc/frontmatter.js";
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
@@ -315,6 +316,10 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
     if (name === null || name === "") delete fields.Name;
     else fields.Name = name;
   }
+  // Ledger rows keep the old author. Faces and send_to_agent resolve through
+  // this so a rename does not leave a grey disc or a dead address.
+  const aliases = [...new Set([...formerSlugs(source), oldSlug])].filter((s) => s && s !== newSlug);
+  fields.Aliases = aliases;
   const oldFile = apcAgentFile(project.path, oldSlug);
   const hadFile = fs.existsSync(oldFile);
   ensureAgentDir(project.path, newSlug);
@@ -322,9 +327,14 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
   // Re-serialize only when there is something new to say: a plain slug move
   // keeps the file byte-for-byte (a hand-edited card is somebody's work, not
   // ours to reformat), while a name change or a materialized vault agent has
-  // to be written.
+  // to be written. Aliases always land: a slug-only move patches that one
+  // field rather than rewriting the prompt.
   if (!hadFile || name !== undefined) {
     writeAgentFile(project.path, newSlug, fields, source.body || "");
+  } else {
+    const dest = apcAgentFile(project.path, newSlug);
+    const text = fs.readFileSync(dest, "utf8");
+    fs.writeFileSync(dest, setFrontmatterField(text, "aliases", aliases.join(", ")));
   }
   removeImportedAgent(project.path, oldSlug);
 

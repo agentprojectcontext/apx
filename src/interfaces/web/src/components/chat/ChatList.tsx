@@ -290,7 +290,7 @@ export function ChatList({
   // every row can wear the right face.
   const faceFor = (slug: string): AgentFace => {
     if (slug === superAgentSlug) return { slug, icon: superAgentIcon, name: superAgentLabel };
-    const hit = agents.find((a) => a.slug === slug);
+    const hit = agents.find((a) => a.slug === slug || (a.aliases || []).includes(slug));
     return { slug, icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
   };
 

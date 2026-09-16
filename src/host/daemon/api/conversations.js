@@ -30,6 +30,7 @@ import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { getActiveTurnByKey, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 import { trackChannelTurn } from "../channel-turn.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
+import { captureToolTrace, fileA2AReply } from "#core/agent/a2a/file-reply.js";
 import { resolvePeer, peerAddress, senderAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
 import { CODE_MODES } from "#core/constants/code-modes.js";
@@ -566,13 +567,14 @@ export function register(api, { projects, project, config, plugins, registries }
 
     const runReply = async ({ signal, onEvent } = {}) => {
       const codeSession = openCodeSession();
+      const captured = captureToolTrace(onEvent);
       try {
         const result = await replyToPeer({
           peer,
           // The turn is watched and stoppable now; the peer has to be handed
           // both or the hook above pulls on nothing.
           signal,
-          onEvent,
+          onEvent: captured.onEvent,
           project: p,
           projectPath: p.path,
           fromAgent,
@@ -661,24 +663,19 @@ export function register(api, { projects, project, config, plugins, registries }
         // A peer that did not answer is news, and in the background there is no
         // response left to carry it — so the failure goes on the thread, marked
         // as a failure rather than dressed up as something the peer said.
-        p.logMessage({
-          agent_slug: to,
-          channel: "a2a",
-          direction: "out",
-          // attribution-exempt: a delivery failure, not a turn — nothing was
-          // spent and no model spoke, so there is no model or usage to record.
-          type: "agent",
-          actor_kind: "agent",
-          actor_id: to,
-          author: to,
+        // Tools that already ran ride on the reply the same way a success does;
+        // without that a rename (or a telegram, or a write) vanished with the
+        // exception and the thread showed silence.
+        fileA2AReply(p, {
+          from,
+          to,
           body: `did not answer: ${e.message}`,
-          meta: {
-            to: from,
+          failed: true,
+          failureReason: e.message,
+          trace: captured.trace,
+          extraMeta: {
             depth: _depth + 1,
             reply_to: fromAgent.slug,
-            final: true,
-            failed: true,
-            failure_reason: e.message,
             ...(codeSession ? { code_session_id: codeSession.id } : {}),
           },
         });

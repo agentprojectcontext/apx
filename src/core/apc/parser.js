@@ -10,7 +10,16 @@ import {
 } from "./paths.js";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
-const LIST_FIELDS = new Set(["Skills", "Tools"]);
+const LIST_FIELDS = new Set(["Skills", "Tools", "Aliases"]);
+
+/** Slugs this agent used to have. Display-only: ledger rows keep the old
+ *  author, faces resolve through this so a rename does not leave a grey disc. */
+export function formerSlugs(agent) {
+  const raw = agent?.fields?.Aliases;
+  if (Array.isArray(raw)) return raw.map((s) => String(s).trim()).filter(Boolean);
+  if (raw == null || raw === "") return [];
+  return String(raw).split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 
 // ---------------------------------------------------------------------------

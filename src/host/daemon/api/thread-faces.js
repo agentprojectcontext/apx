@@ -16,7 +16,7 @@
 //
 // It lives at the surface rather than in core because the super-agent's display
 // name comes from identity.json and core must not reach for it (rule 4).
-import { readAgents } from "#core/apc/parser.js";
+import { formerSlugs, readAgents } from "#core/apc/parser.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -74,7 +74,13 @@ export function createFaceResolver(projectPaths = []) {
     for (const dir of projectPaths) {
       // First project to define a slug wins — collisions are rare, and the
       // caller's own roster is tried before this map anyway.
-      for (const a of readAgentsSafe(dir)) if (!index.has(a.slug)) index.set(a.slug, faceOfAgent(a));
+      for (const a of readAgentsSafe(dir)) {
+        const face = faceOfAgent(a);
+        if (!index.has(a.slug)) index.set(a.slug, face);
+        for (const alias of formerSlugs(a)) {
+          if (alias && !index.has(alias)) index.set(alias, face);
+        }
+      }
     }
     return index;
   };
@@ -111,7 +117,8 @@ export function createFaceResolver(projectPaths = []) {
     const withSession = (f) => (session ? { ...f, slug: address, session } : f);
 
     if (slug === SUPERAGENT_ACTOR_ID) return withSession({ ...superAgentFace() });
-    const local = localAgents.find((a) => a.slug === slug);
+    const local = localAgents.find((a) => a.slug === slug)
+      || localAgents.find((a) => formerSlugs(a).includes(slug));
     const hit = local ? faceOfAgent(local) : globalIndex().get(slug) || null;
     if (!hit && LEGACY_SUPER_AGENT_SLUGS.has(String(slug).toLowerCase())) {
       return withSession({ ...superAgentFace() });

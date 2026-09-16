@@ -708,7 +708,7 @@ export function ChatTab({
     const id = msg.agentId || msg.agent;
     if (!id) return headerFace;
     if (id === "super_agent") return { icon: superAgentIcon, name: msg.agent || persona };
-    const hit = agentList.find((a) => a.slug === id || a.name === id);
+    const hit = agentList.find((a) => a.slug === id || a.name === id || (a.aliases || []).includes(id));
     if (hit) return { icon: hit.icon, emoji: hit.emoji, name: hit.name || hit.slug };
     const participant = a2aFaces.find((face) => face.slug === id || face.name === id);
     if (participant) return participant;
@@ -769,7 +769,9 @@ export function ChatTab({
   // Resolve a group/a2a face to a project-agent slug we can open. Coding CLIs
   // and the super-agent have no ficha here — tip still names them, click no-ops.
   const resolveFaceSlug = (face: AgentFace): string | undefined => {
-    if (face.slug && agentList.some((a) => a.slug === face.slug)) return face.slug;
+    if (face.slug && agentList.some((a) => a.slug === face.slug || (a.aliases || []).includes(face.slug))) {
+      return agentList.find((a) => a.slug === face.slug || (a.aliases || []).includes(face.slug))?.slug;
+    }
     return agentList.find((a) => a.name === face.name || a.slug === face.name)?.slug;
   };
   const openFace = (face: AgentFace) => {

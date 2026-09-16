@@ -608,8 +608,15 @@ export async function runAgent({
         onReasoningToken: ((!forceTool || isFinalWrapUp) && onReasoningToken) ? onReasoningToken : null,
       });
     } catch (e) {
-      if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
-        await emitProgress(onEvent, { type: "model_retry", reason: "ollama_final_response_500", iteration: iter + 1 });
+      if (signal?.aborted || e?.name === "AbortError") throw e;
+      // Tools already ran. Losing the trace here is how an a2a peer renamed
+      // an agent (or sent a telegram, or wrote a file) and the thread showed
+      // nothing: the exception killed `result.trace` before the reply was
+      // filed. A fallback answer is worse prose than a real one, and better
+      // than silence over real work. Abort still throws — that is a stop, not
+      // a compose failure.
+      if (trace.length > 0) {
+        await emitProgress(onEvent, { type: "model_retry", reason: "final_response_failed", iteration: iter + 1 });
         lastText = fallbackFinalText(trace, e);
         break;
       }

@@ -29,6 +29,7 @@ import { replyAsAgent, replyToPeer } from "./reply.js";
 import { resolvePeer, peerAddress, senderAddress } from "./peers.js";
 import { readAgents } from "#core/apc/parser.js";
 import { a2aPairHistory } from "./history.js";
+import { runPeerAndFileReply } from "./file-reply.js";
 
 /**
  * Deliver `prompt` to `agent` as the super-agent, and file both halves.
@@ -77,58 +78,32 @@ export async function delegateToAgent({
     external_id: messageId,
   });
 
-  const result = await replyFn({
+  const result = await runPeerAndFileReply({
     project,
-    projectPath: project.path,
-    toAgent: agent,
-    fromAgent: { slug: from },
-    body: prompt,
-    config,
-    history,
-    selfAddress: to,
-    peerAddress: from,
-    projectId: project.id,
-    projects,
-    plugins,
-    registries,
-    // The whole point. A delegated agent that cannot run a tool can only
-    // describe the work.
-    tools: true,
-    signal,
+    from,
+    to,
+    via: "delegation",
     onEvent,
-  });
-
-  const replyTs = new Date().toISOString();
-  const replyId = shortId("a2a");
-  project.logMessage({
-    agent_slug: to,
-    channel: CHANNELS.A2A,
-    direction: "out",
-    type: "agent",
-    actor_kind: "agent",
-    actor_id: to,
-    author: to,
-    body: result.text,
-    meta: {
-      to: from,
-      via: "delegation",
-      final: true,
-      model: result.model,
-      usage: result.usage,
-      trace: result.trace,
+    replyFn,
+    replyArgs: {
+      project,
+      projectPath: project.path,
+      toAgent: agent,
+      fromAgent: { slug: from },
+      body: prompt,
+      config,
+      history,
+      selfAddress: to,
+      peerAddress: from,
+      projectId: project.id,
+      projects,
+      plugins,
+      registries,
+      // The whole point. A delegated agent that cannot run a tool can only
+      // describe the work.
+      tools: true,
+      signal,
     },
-    ts: replyTs,
-    external_id: replyId,
-  });
-  project.logMessage({
-    agent_slug: from,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    author: to,
-    body: result.text,
-    meta: { from: to, via: "delegation" },
-    ts: replyTs,
-    external_id: replyId,
   });
 
   return {
@@ -216,59 +191,33 @@ export async function messagePeer({
     external_id: messageId,
   });
 
-  const result = await replyFn({
-    peer,
+  const result = await runPeerAndFileReply({
     project,
-    projectPath: project.path,
-    projectName: project.name || "",
-    // The peer is answering the SENDER, so it has to be told who that is in the
-    // same spelling the thread is filed under — otherwise its reply's etiquette
-    // block addresses a name the ledger has never heard of.
-    fromAgent: { slug: sender },
-    fromAddress: sender,
-    body,
-    config,
-    history,
-    projectId: project.id,
-    projects,
-    plugins,
-    registries,
-    signal,
+    from: sender,
+    to: address,
+    via: "tool",
     onEvent,
-    depth,
-  });
-
-  const replyTs = new Date().toISOString();
-  const replyId = shortId("a2a");
-  project.logMessage({
-    agent_slug: address,
-    channel: CHANNELS.A2A,
-    direction: "out",
-    type: "agent",
-    actor_kind: "agent",
-    actor_id: address,
-    author: address,
-    body: result.text,
-    meta: {
-      to: sender,
-      via: "tool",
-      final: true,
-      model: result.model,
-      usage: result.usage,
-      trace: result.trace,
+    replyFn,
+    replyArgs: {
+      peer,
+      project,
+      projectPath: project.path,
+      projectName: project.name || "",
+      // The peer is answering the SENDER, so it has to be told who that is in the
+      // same spelling the thread is filed under — otherwise its reply's etiquette
+      // block addresses a name the ledger has never heard of.
+      fromAgent: { slug: sender },
+      fromAddress: sender,
+      body,
+      config,
+      history,
+      projectId: project.id,
+      projects,
+      plugins,
+      registries,
+      signal,
+      depth,
     },
-    ts: replyTs,
-    external_id: replyId,
-  });
-  project.logMessage({
-    agent_slug: sender,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    author: address,
-    body: result.text,
-    meta: { from: address, via: "tool" },
-    ts: replyTs,
-    external_id: replyId,
   });
 
   return {
