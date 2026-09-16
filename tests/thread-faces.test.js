@@ -178,6 +178,22 @@ test("legacy roby and roby-orchestrator rows keep recognizable avatars", async (
   }, { pair: ["andy", "roby"] });
 });
 
+test("a renamed agent's old slug still wears its face", async () => {
+  await withProject(async ({ root }) => {
+    writeAgent(root, "romi", { name: "Romi", emoji: "🎬" });
+    const text = fs.readFileSync(path.join(root, ".apc", "agents", "romi.md"), "utf8");
+    fs.writeFileSync(
+      path.join(root, ".apc", "agents", "romi.md"),
+      text.replace("---\n", "---\naliases: reels\n"),
+    );
+    const resolver = createFaceResolver([root]);
+    const former = resolver.face("reels", []);
+    assert.equal(former.name, "Romi");
+    assert.equal(former.emoji, "🎬");
+    assert.equal(former.slug, "reels", "the ledger address stays; the face is today's");
+  });
+});
+
 test("a group keeps the name someone gave it, and gets one when nobody did", async () => {
   const root = makeTempProject({ name: "Group Project" });
   writeAgent(root, "andy", { name: "Andy", emoji: "🤖" });

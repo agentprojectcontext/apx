@@ -78,6 +78,7 @@ test("rename_agent moves the name, the slug, the memory and the pointers at once
   assert.match(readAgentMemory(entry, "arquitecto"), /shipped the v2 pipeline/);
   assert.equal(listRoutines(storage)[0].spec.agent, "arquitecto");
   assert.equal(r.repointed.routines, 1);
+  assert.deepEqual(moved.fields.Aliases, ["orchestrator"]);
 });
 
 test("rename_agent takes an explicit slug, and leaves the name alone", async () => {
@@ -85,7 +86,9 @@ test("rename_agent takes an explicit slug, and leaves the name alone", async () 
   const r = await rename({ agent: "qa", slug: "revisora" });
   assert.equal(r.ok, true, JSON.stringify(r));
   assert.equal(r.agent.slug, "revisora");
-  assert.equal(readAgents(root).find((a) => a.slug === "revisora").fields.Name, "QA");
+  const moved = readAgents(root).find((a) => a.slug === "revisora");
+  assert.equal(moved.fields.Name, "QA");
+  assert.deepEqual(moved.fields.Aliases, ["qa"]);
 });
 
 test("rename_agent reports the prompts that still say the old name", async () => {

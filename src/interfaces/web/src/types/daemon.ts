@@ -48,6 +48,8 @@ export interface AgentEntry {
   autonomy?: AgentAutonomy | null;
   skills: string[];
   tools: string[];
+  /** Previous slugs. Ledger authors keep the old name; faces resolve through this. */
+  aliases?: string[];
   // Optional per-agent activity summary; only present when the list is
   // requested with `?stats=1` (see AgentsTab).
   stats?: AgentStats;

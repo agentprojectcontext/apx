@@ -337,12 +337,15 @@ test("resolvePeer matches agents by slug, display name, and superagent aliases",
   const mockAgents = [
     { slug: "andy", name: "Andy", fields: { Name: "Andy", Role: "Orchestrator", Type: "orchestrator" } },
     { slug: "crypto-analyst", name: "Crypto Analyst", fields: { Name: "Crypto Analyst", Role: "Analyst" } },
+    { slug: "romi", name: "Romi", fields: { Name: "Romi", Aliases: ["reels"] } },
   ];
 
   // Exact slug
   assert.equal(resolvePeer("andy", mockAgents)?.name, "andy");
   // Display name
   assert.equal(resolvePeer("Crypto Analyst", mockAgents)?.name, "crypto-analyst");
+  // A former slug still addresses the agent that used to wear it.
+  assert.equal(resolvePeer("reels", mockAgents)?.name, "romi");
   // Superagent aliases — every spelling lands on the SAME name, and it is the
   // id the rest of APX already knows the super-agent by. It used to be
   // "default", which no agent list or face resolver can place: an exchange with

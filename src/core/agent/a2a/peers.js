@@ -27,6 +27,7 @@
 import { canonicalRuntimeId } from "#core/runtimes/index.js";
 import { resolveAgentName } from "#core/identity/self.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
+import { formerSlugs } from "#core/apc/parser.js";
 
 const SUPERAGENT_PEERS = new Set(["default", "superagent", "super_agent", "super-agent", "apx"]);
 
@@ -55,6 +56,7 @@ export function findAddressedAgent(name, agents = []) {
     agents.find((a) => a.slug === raw) ||
     agents.find((a) => a.slug?.toLowerCase() === lower) ||
     agents.find((a) => (a.name || a.fields?.Name || "").toLowerCase() === lower) ||
+    agents.find((a) => formerSlugs(a).some((s) => s === raw || s.toLowerCase() === lower)) ||
     null
   );
 }

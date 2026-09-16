@@ -5,7 +5,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "#core/logging.js";
-import { readAgents } from "#core/apc/parser.js";
+import { formerSlugs, readAgents } from "#core/apc/parser.js";
 import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -357,6 +357,7 @@ export function agentToResponse(a) {
     "Emoji",
     "Icon",
     "Autonomy",
+    "Aliases",
   ]);
   const extra = {};
   for (const [k, v] of Object.entries(f)) {
@@ -391,6 +392,7 @@ export function agentToResponse(a) {
     autonomy: f.Autonomy || null,
     skills: Array.isArray(f.Skills) ? f.Skills : [],
     tools: Array.isArray(f.Tools) ? f.Tools : [],
+    aliases: formerSlugs(a),
     extra,
   };
 }

@@ -130,8 +130,31 @@ test("the instruction reaches the agent before its own answer does", async () =>
     /engine down/,
   );
   const filed = rows(p);
-  assert.equal(filed.length, 1);
-  assert.equal(filed[0].body, "Algo que falla.");
-  assert.equal(filed[0].author, SUPERAGENT_ACTOR_ID);
+  assert.equal(filed.length, 3, "inbound plus both halves of the failure reply");
+  const ask = filed.find((r) => r.body === "Algo que falla.");
+  const reply = filed.find((r) => r.direction === "out" && r.author === "jaro");
+  assert.equal(ask.author, SUPERAGENT_ACTOR_ID);
+  assert.match(reply.body, /did not answer: engine down/);
+  assert.equal(reply.meta.failed, true);
+  cleanupTempProject(p.path);
+});
+
+test("a dead peer still files the tools it already ran", async () => {
+  const p = project();
+  await assert.rejects(
+    delegateToAgent({
+      project: p, agent: AGENT, prompt: "Renombrá.", config: {},
+      replyFn: async ({ onEvent }) => {
+        await onEvent({ type: "tool_result", trace: { tool: "rename_agent", result: { ok: true } } });
+        throw new Error("ollama 400");
+      },
+    }),
+    /ollama 400/,
+  );
+  const reply = rows(p).find((r) => r.direction === "out" && r.author === "jaro");
+  assert.ok(reply, "the failure reply is on the thread");
+  assert.match(reply.body, /did not answer: ollama 400/);
+  assert.equal(reply.meta.failed, true);
+  assert.equal(reply.meta.trace[0].tool, "rename_agent");
   cleanupTempProject(p.path);
 });
