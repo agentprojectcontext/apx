@@ -6,7 +6,7 @@
 // has to render here, and a send while Roby is working has to queue or cut in
 // the same way the big chat does.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Button } from "./ui/button";
@@ -47,18 +47,36 @@ export function RobyBubble({
   const [model, setModel] = useState("");
   const [prefill, setPrefill] = useState({ text: "", n: 0 });
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
+  // An inline arrow here is a NEW onError on every render, and useChat folds
+  // onError into loadThread's identity — which is what the effect below waits
+  // on. Through a ref so the callback can stay dep-free without going stale.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const onChatError = useCallback((m: string) => toastRef.current.error(m), []);
   const {
     msgs, send: sendChat, stop, clear, loadThread, streaming, queued,
     unqueue, sendNow, moveQueued, loading,
-  } = useChat(PID, (m) => toast.error(m), { channel: CHANNEL });
+  } = useChat(PID, onChatError, { channel: CHANNEL });
 
   const queueKey = threadActivityKey(PID, CHANNEL, todayId());
   useChatVisibility(queueKey);
 
   // The dock is always mounted, so load the day's thread once — not on every
   // open, which would blank a turn still streaming when the sheet closed.
+  //
+  // Guarded by the day, not by a bare "already ran". A day with no thread yet
+  // answers 404, which is legitimate — `optional` handles it — but its handler
+  // blanks the pane, and that re-render used to hand this effect a brand new
+  // loadThread and send it round again. The dock re-requested the same missing
+  // thread thousands of times a second and the tab ate every GB the machine
+  // had. The guard ends the loop; keying it by the day still lets the dock
+  // pick up the new thread after midnight.
+  const loadedDayRef = useRef<string | null>(null);
   useEffect(() => {
-    void loadThread(CHANNEL, todayId(), { optional: true });
+    const day = todayId();
+    if (loadedDayRef.current === day) return;
+    loadedDayRef.current = day;
+    void loadThread(CHANNEL, day, { optional: true });
   }, [loadThread]);
 
   useEffect(() => {
