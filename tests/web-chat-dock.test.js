@@ -496,6 +496,16 @@ test("the sidebar dock is the same composer as Chats, not a fork", () => {
   assert.match(dock, /onStop=\{stop\}/);
   assert.match(dock, /useChat\(PID, .*, \{ channel: CHANNEL \}/);
   assert.match(dock, /const CHANNEL = "web_sidebar"/);
+
+  // The day's thread loads ONCE. A day with nothing written yet answers 404 —
+  // legitimate, and `optional` handles it — but the handler blanks the pane,
+  // and that re-render used to hand the effect a brand new loadThread, because
+  // an inline arrow made a new onError every render. The dock re-requested the
+  // same missing thread ~2500 times a second and the tab ate every GB the
+  // machine had, swap included. Both halves are pinned: the guard that ends the
+  // loop, and the stable onError that stops feeding it.
+  assert.match(dock, /loadedDayRef\.current === day/, "the day's load must be guarded, or a 404 loops forever");
+  assert.doesNotMatch(dock, /useChat\(PID, \(m\) =>/, "an inline onError re-creates loadThread on every render");
   assert.doesNotMatch(dock, /localStorage\.(get|set|remove)Item/, "the ledger holds the thread, not a private copy");
   assert.doesNotMatch(dock, /if \(!prompt \|\| busy\) return/, "busy is queue-or-interrupt, not a wall");
 
