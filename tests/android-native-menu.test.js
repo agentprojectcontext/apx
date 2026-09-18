@@ -38,3 +38,27 @@ test("mobile preferences use Android notification state instead of browser capab
   assert.match(prefs, /nativeNotifications \? <NativeNotificationStatus \/> : <NotificationSwitch \/>/);
   assert.match(prefs, /window\.APXAndroid\?\.openNotificationSettings\(\)/);
 });
+
+test("looking at the connection is not a decision to leave the daemon", () => {
+  // This screen was a dead end with a trap at the entrance. The menu item
+  // cleared the pairing BEFORE showing it, so the connection was gone before
+  // anything was typed; and `onBackPressed` on a screen with no WebView falls
+  // through to super, which closes the app. Opening it to read the address cost
+  // you the pairing and the session.
+  const activity = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "MainActivity.java");
+
+  // Nothing is destroyed on the way in. The stored pairing is replaced only by
+  // a NEW one that actually succeeded.
+  assert.doesNotMatch(activity, /preferences\.clearPairing\(\);\s*\n\s*showPairing/);
+  assert.match(activity, /if \(which == 8\) showPairing\(null, null, false\);/);
+  assert.match(activity, /preferences\.savePairing\(base, token\)/);
+
+  // Two ways out, and both mean the same thing: the button for a thumb, the
+  // system gesture for everyone who never looks for one.
+  assert.match(activity, /back\.setOnClickListener\(ignored -> openMobile\(null\)\)/);
+  assert.match(activity, /if \(webView == null && preferences\.paired\(\)\) \{ openMobile\(null\); return; \}/);
+
+  // Offered only when there is somewhere to go back TO — on a first run this
+  // screen IS the app.
+  assert.match(activity, /if \(alreadyPaired\) \{/);
+});
