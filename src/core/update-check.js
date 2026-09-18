@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import https from "node:https";
+import { fileURLToPath } from "node:url";
 import { APX_HOME } from "./config/index.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
@@ -96,4 +97,44 @@ export function checkForUpdate(currentVersion) {
 // Used by `apx update` command to get the latest version (with network call).
 export async function getLatestVersion() {
   return await fetchLatest();
+}
+
+/**
+ * The same answer the CLI banner gives, for anything that is not a terminal.
+ *
+ * One cache, one request a day, one verdict — so the panel and the CLI can
+ * never disagree about whether there is an update, and the web surface costs
+ * the registry nothing extra.
+ *
+ * `from_git` is the part that matters for a reader. In a clone, the installed
+ * version is whatever the working tree says, npm's `latest` is behind it as
+ * often as ahead, and `apx update` is the WRONG advice — that command replaces
+ * a global npm install and has no business running against a checkout. So the
+ * source is reported and the caller decides whether there is anything to say.
+ */
+export function updateStatus(currentVersion) {
+  const cache = readCache();
+  const now = Date.now();
+  if (!cache || (now - (cache.checkedAt || 0)) > CACHE_TTL_MS) {
+    refreshInBackground(currentVersion);
+  }
+  const latest = cache?.latest || null;
+  return {
+    current: currentVersion,
+    latest,
+    newer: isNewer(currentVersion, latest),
+    checked_at: cache?.checkedAt || null,
+    from_git: isGitCheckout(),
+  };
+}
+
+// The package root holds a .git directory only when APX is running from a
+// clone. An npm install never does.
+function isGitCheckout() {
+  try {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+    return fs.existsSync(path.join(root, ".git"));
+  } catch {
+    return false;
+  }
 }

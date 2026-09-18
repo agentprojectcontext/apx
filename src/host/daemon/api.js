@@ -27,6 +27,7 @@ import {
 
 import { register as registerTools } from "./api/tools.js";
 import { register as registerHealth } from "./api/health.js";
+import { register as registerUpdate } from "./api/update.js";
 import { register as registerProjects } from "./api/projects.js";
 import { register as registerAgents } from "./api/agents.js";
 import { register as registerSessions } from "./api/sessions.js";
@@ -168,6 +169,9 @@ export function buildApi({
 
   // ---- Health (unauthenticated) ------------------------------------
   registerHealth(api, ctx);
+
+  // ---- Is there a newer APX? ---------------------------------------
+  registerUpdate(api, ctx);
 
   // ---- Projects + per-project surfaces -----------------------------
   registerProjects(api, ctx);
