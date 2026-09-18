@@ -39,6 +39,7 @@ export const en = {
     add:          "Add",
     remove:       "Remove",
     reload:       "Reload",
+    retry:        "Retry",
     shutdown:     "Shut down",
     enabled:      "Enabled",
     disabled:     "Disabled",
@@ -319,6 +320,7 @@ export const en = {
     token_paste: "Paste daemon bearer",
     token_saved: "Token saved.",
     devices:     "Paired devices",
+    devices_kind_all:    "All",
     devices_sub: "GET /pair/list. Revoking invalidates that bearer on the daemon.",
     devices_empty: "No paired clients yet.",
     devices_revoke_confirm: "Revoke client {id}?",
@@ -2125,6 +2127,7 @@ export const en = {
     install_ios:         "On iPhone: Share → Add to Home Screen. Safari does not allow installing from here.",
     install_insecure:    "This browser cannot install from a plain http:// address on a local network. It needs HTTPS — the simplest route is publishing the panel over Tailscale, below. Without HTTPS there is no microphone and no clipboard either.",
     install_unsupported: "This browser has not offered the install yet. In Chrome you can force it from the ⋮ menu → Install app.",
+    install_no_support:  "This browser cannot install web apps. Chrome or Edge can, on a phone or on a desktop; on an iPhone it is Safari → Share → Add to Home Screen.",
     addresses_title:     "Addresses",
     addresses_sub:       "Every way to reach this daemon. If one stops answering, the panel tries the others by itself.",
     secure:              "Secure",
@@ -2159,6 +2162,41 @@ export const en = {
     paired:              "Done — the phone is paired",
     insecure:            "This address is http://, so on the phone you will not be able to install it as an app or record audio. For that: apx panel tailscale on",
     open_chat:           "Open mobile chat",
+  },
+
+  android_app: {
+    title:               "APX for Android",
+    sub:                 "A native app: notifications, the floating mascot, and the car screen. Not on Google Play — it installs from a file.",
+    mode_download:       "Get the app",
+    mode_pair:           "Link an installed app",
+    scan:                "Scan with the phone to download the APK.",
+    android_only:        "Android only — there is no APK for iPhone.",
+    copy:                "Copy the link",
+    docs:                "How to install it",
+    pair_scan:           "Scan with a phone that already has APX: this opens the app itself, not the browser, and links it.",
+    pair_note:           "For a phone that lost its pairing — reinstalled, cleared, or revoked. The code lasts five minutes and works once.",
+    pair_addr:           "It will keep this address:",
+    pair_tailnet:        "That is a tailnet address — the phone has to be signed into this tailnet for it to work.",
+    pair_new:            "New code",
+    usb:                 "With the phone plugged in, `apx android install` does the whole thing — install, USB tunnel and pairing.",
+    ask:                 "Ask {persona} to install it",
+  },
+
+  update: {
+    available:           "APX {latest} is out — you are running {current}.",
+  },
+
+  android_ask: {
+    text:                "Want APX as an app on this phone?",
+    download:            "Download",
+    cta:                 "Ask {name}",
+    draft:               "Install the APX Android app on my phone, please. Tell me first what I have to do on the phone.",
+  },
+
+  community: {
+    title:               "APX has a Discord",
+    desc:                "Where questions get answered, people show what they wired up, and new releases are announced first.",
+    cta:                 "Join the Discord",
   },
 
   sidebar_ui: {

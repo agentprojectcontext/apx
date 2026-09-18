@@ -26,7 +26,10 @@ export type InstallStance =
   | { kind: "prompt" }
   | { kind: "ios" }
   | { kind: "insecure" }
-  | { kind: "unsupported" };
+  /** Chromium, secure, but it has not offered yet — the ⋮ menu still works. */
+  | { kind: "unsupported" }
+  /** This browser cannot install web apps at all (Firefox, desktop Safari). */
+  | { kind: "no-support" };
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -72,6 +75,13 @@ export function installStance(): InstallStance {
   if (deferred) return { kind: "prompt" };
   if (isIos()) return isSecure() ? { kind: "ios" } : { kind: "insecure" };
   if (!isSecure()) return { kind: "insecure" };
+  // "Has not offered yet" and "will never offer" are different facts and want
+  // different advice. Telling a Firefox user to look in Chrome's ⋮ menu is a
+  // instruction they cannot follow, in a browser that is working correctly.
+  // `onbeforeinstallprompt` exists on Chromium and nowhere else.
+  if (typeof window !== "undefined" && !("onbeforeinstallprompt" in window)) {
+    return { kind: "no-support" };
+  }
   return { kind: "unsupported" };
 }
 

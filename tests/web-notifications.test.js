@@ -218,8 +218,11 @@ test("the offer finds you, and cannot open by itself", () => {
   assert.match(prefs, /localStorage\.setItem\(NUDGE_DISMISSED, "1"\)/);
 
   // Both surfaces: a strip on the phone's inbox, a card in the desktop corner.
+  // The desktop one shares that corner with the Discord invitation, so it is
+  // positioned by the stack around it and carries a className — what has to
+  // stay true is the FLOATING variant, not the exact tag.
   assert.match(inbox, /<NotifyNudge \/>/);
-  assert.match(app, /<NotifyNudge floating \/>/);
+  assert.match(app, /<NotifyNudge floating\b/);
 });
 
 test("the inbox writes the open thread into the URL so looking() can see it", () => {

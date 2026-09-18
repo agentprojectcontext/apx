@@ -104,6 +104,9 @@ export function AccessPanel() {
         {stance.kind === "unsupported" && (
           <p className="text-sm text-muted-fg">{t("access.install_unsupported")}</p>
         )}
+        {stance.kind === "no-support" && (
+          <p className="text-sm text-muted-fg">{t("access.install_no_support")}</p>
+        )}
       </Section>
 
       <Section title={t("access.addresses_title")} description={t("access.addresses_sub")}>

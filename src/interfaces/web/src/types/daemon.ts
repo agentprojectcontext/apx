@@ -652,6 +652,10 @@ export interface PairedClient {
   id: string;
   label: string;
   kind: string;
+  /** What the device said it was running when it paired. Null for every client
+   *  paired before the app started reporting it — a phone cannot be asked
+   *  afterwards, so null means "older", not "broken". */
+  app_version: string | null;
   created_at: string;
   last_seen: string | null;
   token_suffix: string;

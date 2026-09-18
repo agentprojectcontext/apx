@@ -15,6 +15,8 @@ import { MobileScreen } from "./screens/mobile/MobileScreen";
 import { fromLegacyMobilePath } from "./screens/mobile/routes";
 import { RobyBubble } from "./components/RobyBubble";
 import { MobileHint } from "./components/MobileHint";
+import { CommunityCard } from "./components/common/CommunityCard";
+import { UpdateBanner } from "./components/common/UpdateBanner";
 import { NotifyNudge } from "./components/settings/PanelPrefs";
 import { MobileLinkDialog } from "./components/MobileLinkDialog";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
@@ -152,6 +154,9 @@ function Shell() {
             pathname={location.pathname}
             onOpenMobileLink={() => setMobileLinkOpen(true)}
           />
+          {/* Above everything the panel draws, because it is about the panel
+              itself — and the one thing here nobody would go looking for. */}
+          <UpdateBanner />
           <div className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/"           element={<ApxAdminScreen />} />
@@ -174,9 +179,16 @@ function Shell() {
             install it — both of which otherwise only exist inside /m,
             which is the place you have not found yet. */}
         <MobileHint />
-        {/* The offer, in the corner. It cannot open by itself: a browser only
-            accepts a permission request that came from a real click. */}
-        <NotifyNudge floating />
+        {/* One corner, two cards. They both used to claim bottom-right on
+            their own, and a brand-new panel is exactly when both are showing:
+            notifications undecided AND the Discord never seen. Stacked, the
+            urgent one keeps the corner. */}
+        <div className="fixed bottom-4 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
+          <CommunityCard />
+          {/* It cannot open by itself: a browser only accepts a permission
+              request that came from a real click. */}
+          <NotifyNudge floating className="static w-full max-w-none" />
+        </div>
       </div>
     </NavCollapseProvider>
   );
