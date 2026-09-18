@@ -35,7 +35,7 @@ Un motor es un servidor más el dialecto que habla. Vienen cuatro:
 | `a1111` | `POST /sdapi/v1/txt2img` (sincrónico) | El dialecto universal: AUTOMATIC1111, Forge, SD.Next, Draw Things en macOS, stable-diffusion.cpp. Lleva todas las perillas de muestreo. |
 | `sdcpp` | `POST /sdcpp/v1/img_gen` + polling | La cola nativa de stable-diffusion.cpp. El pedido vuelve enseguida y el job se consulta, así una imagen en cola nunca parece una conexión colgada. |
 | `openai` | `POST /v1/images/generations` | OpenAI (`gpt-image-1`, `dall-e-3`), o cualquier servidor compatible con OpenAI si ponés una URL base. |
-| `mock` | — | Motor de prueba offline. Siempre último en la cadena y siempre disponible, para que una llamada nunca falle del todo. |
+| `mock` | — | Motor de prueba offline. Siempre último en la cadena, y se usa solo cuando no se probó ningún motor real — nunca para tapar uno que falló. |
 
 Podés agregar todos los endpoints propios que quieras; cada uno declara cuál de los tres
 dialectos habla, así una sola pantalla cubre un servidor local, una máquina en la red y una
@@ -66,15 +66,34 @@ apx config set --global images.a1111.defaults '{"steps":8,"cfg_scale":1}'
 | `images.<motor>.defaults` | Tamaño, pasos, guía, sampler y scheduler de **este** servidor. |
 | `images.<motor>.timeout_s` | Cuánto esperar una imagen. |
 | `images.defaults` | La capa compartida de abajo: tamaño, formato, prompt negativo, cantidad. |
-| `images.order` | El orden de la cadena. Dibuja el primero que responde. |
+| `images.order` | El orden de la cadena. Gana el primero que dibuja. |
 | `images.mode` | `chain` (router, por defecto) o `single` (solo `images.provider`). |
 | `images.custom.<slug>` | Tu propio endpoint. Necesita `label`, `kind` y `base_url`. |
 
 ### Ruteo
 
-Los motores se prueban en orden y dibuja el primero que responde a un sondeo; uno configurado
-pero inalcanzable se saltea en vez de hacer fallar la llamada. `--provider` pisa el ruteo para
-una llamada, y `apx image providers` muestra qué responde en este momento.
+Los motores se prueban en orden hasta que uno dibuja. La cadena cubre las dos formas en que un
+motor puede fallar: uno configurado pero inalcanzable se saltea, y uno que responde al sondeo
+pero falla al renderizar le pasa el prompt al siguiente — una máquina de difusión con la GPU
+caída contesta los sondeos perfectamente. `--provider` pisa el ruteo para una llamada, y
+`apx image providers` muestra qué responde en este momento.
+
+Un motor nombrado — `--provider`, o el modo `single` — falla sin reintento, así el probador de
+Settings informa sobre el motor que le señalaste en vez de dibujar calladito en otro. `mock`
+cierra la cadena para una máquina sin nada configurado, pero nunca reemplaza a un render que
+falló: un placeholder devuelto como éxito no se distingue de una imagen de verdad.
+
+Cuando fallan todos, el error nombra cada motor que probó, dónde vive ese servidor y qué dijo
+el servidor mismo, así una máquina rota se identifica con solo leer el mensaje:
+
+<Terminal command={`apx image "un zorro"`}>
+{`apx image: image generation failed — all 3 engines tried:
+  · custom:zimage (http://box.example:8189): 500: server_error: vk::Queue::submit: ErrorDeviceLost
+  · custom:sdxl (http://box.example:8192): 500: server_error: vk::Queue::submit: ErrorDeviceLost
+  · custom:flux (http://box.example:8191): 500: server_error: vk::Queue::submit: ErrorDeviceLost`}
+</Terminal>
+
+Tres servidores, un solo mensaje: eso es la GPU que comparten, no tres modelos rotos.
 
 <Terminal command="apx image providers">
 {`Routing  chain (a1111 → sdcpp → openai → mock)

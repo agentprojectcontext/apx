@@ -24,11 +24,11 @@ const {
   FAMILY_DEFAULTS, REQUEST_OPTIONS, IMAGES_DIR,
 } = await import("#core/images/generate.js");
 const {
-  selectImageEngine, listAvailableImageEngines, getImageAdapter,
+  selectImageEngine, resolveImageCandidates, listAvailableImageEngines, getImageAdapter,
   resolveMode, resolveChainOrder, isCustomId,
   IMAGE_ENGINE_IDS, AUTO_PREFERENCE, CUSTOM_KINDS,
 } = await import("#core/images/engines/index.js");
-const { joinUrl, parseSize, sniffFormat, decodeBase64Image } =
+const { joinUrl, parseSize, sniffFormat, decodeBase64Image, errorDetail } =
   await import("#core/images/engines/shared.js");
 const a1111 = (await import("#core/images/engines/a1111.js")).default;
 const sdcpp = (await import("#core/images/engines/sdcpp.js")).default;
@@ -504,6 +504,178 @@ test("listing custom engines does not mistake routing metadata for configuration
     assert.equal(custom.enabled, false);
     assert.equal(custom.label, "Homelab");
     assert.equal(custom.kind, "sdcpp");
+  } finally { restore(); }
+});
+
+// ---------------------------------------------------------------------------
+// The fallback chain — a reachable engine that cannot render
+// ---------------------------------------------------------------------------
+//
+// The bug these cover, measured on the homelab: three stable-diffusion.cpp
+// servers sharing one GPU, all answering /sdapi/v1/options with 200 while the
+// GPU was in a Vulkan device-lost state. Every txt2img came back
+//   500 {"error":"server_error","message":"vk::Queue::submit: ErrorDeviceLost"}
+// and the user saw "500: server_error" — which names neither the engine, the
+// machine, nor the cause — while the other two servers were never tried,
+// because the chain only ever fell through on UNREACHABLE.
+
+/** The exact 500 body stable-diffusion.cpp answers with when its GPU is gone. */
+const DEVICE_LOST = () => new Response(
+  JSON.stringify({ error: "server_error", message: "vk::Queue::submit: ErrorDeviceLost" }),
+  { status: 500, headers: { "content-type": "application/json" } }
+);
+
+/** Three a1111-dialect boxes on three ports, exactly like the homelab. */
+const THREE_BOXES = {
+  images: {
+    order: ["custom:zimage", "custom:sdxl", "custom:flux"],
+    custom: {
+      zimage: { kind: "a1111", base_url: "http://box.test:8189", defaults: { steps: 8 } },
+      sdxl: { kind: "a1111", base_url: "http://box.test:8192", defaults: { steps: 4 } },
+      flux: { kind: "a1111", base_url: "http://box.test:8191", defaults: { steps: 4 } },
+    },
+  },
+};
+
+test("a server's error code keeps the message that explains it", () => {
+  // The half that was being dropped is the only half worth reading.
+  assert.equal(
+    errorDetail({ error: "server_error", message: "vk::Queue::submit: ErrorDeviceLost" }, "raw"),
+    "server_error: vk::Queue::submit: ErrorDeviceLost"
+  );
+  // The OpenAI shape still resolves to its message, not to "[object Object]".
+  assert.equal(errorDetail({ error: { message: "Invalid key", type: "invalid_request_error" } }, "raw"), "Invalid key");
+  assert.equal(errorDetail({ detail: "model not loaded" }, "raw"), "model not loaded");
+  // A body that is not JSON, or carries no error field, falls back to the text.
+  assert.equal(errorDetail(null, "502 Bad Gateway"), "502 Bad Gateway");
+  assert.equal(errorDetail({ ok: false }, "raw text"), "raw text");
+  // A code repeated as the message is said once.
+  assert.equal(errorDetail({ error: "boom", message: "boom" }, "raw"), "boom");
+});
+
+test("a reachable engine that 500s hands the prompt to the next one", async () => {
+  const { calls, restore } = stubFetch({
+    "8189/sdapi/v1/txt2img": DEVICE_LOST,
+    "8192/sdapi/v1/txt2img": DEVICE_LOST,
+    "8191/sdapi/v1/txt2img": () => ({ images: [TINY_PNG_B64], info: JSON.stringify({ steps: 4 }) }),
+    "/sdapi/v1/options": () => ({}), // every box is up at the HTTP level
+  });
+  try {
+    const res = await generate({ prompt: "a fox", globalConfig: THREE_BOXES, outDir: outDir() });
+    assert.equal(res.provider, "custom:flux", "the third box rendered it");
+    assert.equal(res.images.length, 1);
+    // Each engine's own defaults layer is applied to the engine that ran, not
+    // the first one's inherited by everybody.
+    assert.equal(res.request.steps, 4);
+    assert.equal(calls.filter((c) => c.url.includes("txt2img")).length, 3, "all three were tried, in order");
+    // The degraded run is reported rather than hidden behind the picture.
+    assert.equal(res.fallback_from.length, 2);
+    assert.equal(res.fallback_from[0].provider, "custom:zimage");
+    assert.match(res.fallback_from[0].message, /ErrorDeviceLost/);
+  } finally { restore(); }
+});
+
+test("when every engine fails the error names each one, its url and its reason", async () => {
+  const { restore } = stubFetch({
+    "/sdapi/v1/txt2img": DEVICE_LOST,
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    await assert.rejects(
+      () => generate({ prompt: "a fox", globalConfig: THREE_BOXES, outDir: outDir() }),
+      (e) => {
+        assert.match(e.message, /all 3 engines tried/);
+        for (const [id, port] of [["zimage", 8189], ["sdxl", 8192], ["flux", 8191]]) {
+          assert.match(e.message, new RegExp(`custom:${id} \\(http://box\\.test:${port}\\)`),
+            `${id} and where it lives are both in the message`);
+        }
+        // The cause survives all the way to the person who ran the command.
+        assert.match(e.message, /500: server_error: vk::Queue::submit: ErrorDeviceLost/);
+        // What the user used to get, and all they used to get.
+        assert.notEqual(e.message, "500: server_error");
+        return true;
+      }
+    );
+  } finally { restore(); }
+});
+
+test("mock never rescues a failed render — a placeholder is not a picture", async () => {
+  const { calls, restore } = stubFetch({
+    "/sdapi/v1/txt2img": DEVICE_LOST,
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    await assert.rejects(
+      () => generate({ prompt: "a fox", globalConfig: THREE_BOXES, outDir: outDir() }),
+      /image generation failed/
+    );
+    assert.equal(calls.filter((c) => c.url.includes("txt2img")).length, 3);
+  } finally { restore(); }
+  // With nothing configured at all, mock still answers — that path is untouched.
+  const res = await generate({ prompt: "a fox", globalConfig: {}, outDir: outDir() });
+  assert.equal(res.provider, "mock");
+  assert.equal(res.fallback_from, undefined, "a clean first-try run says nothing about fallbacks");
+});
+
+test("a forced provider fails loudly instead of rendering on a different engine", async () => {
+  const { calls, restore } = stubFetch({
+    "8189/sdapi/v1/txt2img": DEVICE_LOST,
+    "8191/sdapi/v1/txt2img": () => ({ images: [TINY_PNG_B64] }),
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    // --provider names the engine under test; silently answering with another
+    // one would make the tester useless.
+    await assert.rejects(
+      () => generate({ prompt: "a fox", provider: "custom:zimage", globalConfig: THREE_BOXES, outDir: outDir() }),
+      /custom:zimage \(http:\/\/box\.test:8189\).*ErrorDeviceLost/s
+    );
+    assert.equal(calls.filter((c) => c.url.includes("txt2img")).length, 1, "no second engine was tried");
+  } finally { restore(); }
+});
+
+test("single mode does not fall back either", async () => {
+  const { restore } = stubFetch({
+    "/sdapi/v1/txt2img": DEVICE_LOST,
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    const cfg = { images: { ...THREE_BOXES.images, mode: "single", provider: "custom:zimage" } };
+    const candidates = await resolveImageCandidates({ globalConfig: cfg });
+    assert.deepEqual(candidates.map((c) => c.provider), ["custom:zimage"]);
+    await assert.rejects(
+      () => generate({ prompt: "a fox", globalConfig: cfg, outDir: outDir() }),
+      /custom:zimage/
+    );
+  } finally { restore(); }
+});
+
+test("an aborted call stops the chain instead of retrying on the next engine", async () => {
+  const { calls, restore } = stubFetch({
+    "/sdapi/v1/txt2img": () => { const e = new Error("aborted"); e.name = "AbortError"; throw e; },
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    await assert.rejects(
+      () => generate({ prompt: "a fox", globalConfig: THREE_BOXES, outDir: outDir() }),
+      /aborted/
+    );
+    assert.equal(calls.filter((c) => c.url.includes("txt2img")).length, 1, "the caller changed its mind");
+  } finally { restore(); }
+});
+
+test("an unreachable engine is skipped before it is ever asked to render", async () => {
+  const { calls, restore } = stubFetch({
+    "8189/sdapi/v1/options": () => new Response("down", { status: 503 }),
+    "8189/": () => new Response("down", { status: 503 }),
+    "8192/sdapi/v1/txt2img": () => ({ images: [TINY_PNG_B64] }),
+    "/sdapi/v1/options": () => ({}),
+  });
+  try {
+    const res = await generate({ prompt: "a fox", globalConfig: THREE_BOXES, outDir: outDir() });
+    assert.equal(res.provider, "custom:sdxl");
+    assert.equal(res.fallback_from, undefined, "skipping a dead server is not a failed render");
+    assert.ok(!calls.some((c) => c.url.includes("8189/sdapi/v1/txt2img")));
   } finally { restore(); }
 });
 
