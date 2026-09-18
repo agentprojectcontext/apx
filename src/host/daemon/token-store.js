@@ -70,12 +70,17 @@ export function createTokenStore({ masterToken } = {}) {
 
     /** Create a new client token, persist it, return the public record
      *  (id + token; caller decides how to surface it). */
-    addClient(label = "", kind = "") {
+    addClient(label = "", kind = "", app_version = "") {
       const entry = {
         id: randomUUID(),
         token: randomBytes(32).toString("hex"),
         label: String(label || "").slice(0, 64) || "device",
         kind: String(kind || "").slice(0, 16) || "device",
+        // What the device says it is running. Optional, and empty for every
+        // client paired before this existed — a phone cannot be asked after the
+        // fact, so the panel has to read "unknown" as "older than this", not as
+        // an error.
+        app_version: String(app_version || "").slice(0, 32),
         created_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
         last_seen: null,
       };
@@ -99,6 +104,7 @@ export function createTokenStore({ masterToken } = {}) {
         id: c.id,
         label: c.label,
         kind: c.kind || "device",
+        app_version: c.app_version || null,
         created_at: c.created_at,
         last_seen: c.last_seen,
         token_suffix: c.token.slice(-8),
