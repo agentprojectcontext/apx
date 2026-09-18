@@ -80,16 +80,19 @@ const { providersFromEngines, rowProblem } = picker;
 const build = (engines, ollamaOnline = {}) => providersFromEngines(engines, ollamaOnline);
 const bySlug = (list, slug) => list.find((p) => p.slug === slug);
 
-test("an engine that ships its own credential is configured with no api key", () => {
-  // Zen answers on a built-in "public" key and Ollama needs none at all. Asking
-  // them for one and calling them "not connected" was wrong on both counts.
+test("an engine that needs no credential is configured with no api key", () => {
+  // Ollama is local and needs no key at all; asking it for one and calling it
+  // "not connected" was wrong. Zen used to be in this bucket too, on the
+  // built-in "public" key — it no longer is: OpenCode closed the free tier to
+  // everything that is not its own client (see src/core/engines/zen.js), so
+  // every model zen can still reach needs a real key like any other provider.
   const list = build({
     zen: { engine: "zen" },
     ollama: { engine: "ollama" },
     anthropic: { engine: "anthropic" },
   });
-  assert.equal(bySlug(list, "zen").configured, true, "zen has a built-in key");
   assert.equal(bySlug(list, "ollama").configured, true, "ollama needs no key");
+  assert.equal(bySlug(list, "zen").configured, false, "zen's free tier is gone — a key is required");
   assert.equal(bySlug(list, "anthropic").configured, false, "a normal engine still needs one");
 });
 
