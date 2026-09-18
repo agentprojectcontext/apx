@@ -200,6 +200,10 @@ test("a turn that blows up loses the nudge, not the record", async () => {
     projects: PROJECTS,
     runChatTurnFn: async () => { throw new Error("engine down"); },
     log: (m) => logged.push(m),
+    // No real backoff here. The wait is an unref'd timer, so with nothing else
+    // pending the loop drains before it fires and the runner reports the test's
+    // promise as never settled — green on a busy laptop, red on a clean runner.
+    retryDelayMs: 0,
   });
   assert.equal(out.woken, false);
   assert.match(out.reason, /engine down/);

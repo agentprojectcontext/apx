@@ -86,6 +86,13 @@ export async function wakeShellJob(job, {
   // is deciding WHO is woken, WHERE, and exactly once — all three worth
   // asserting without standing up an engine to answer the wake-up.
   runChatTurnFn = runChatTurn,
+  // How long to wait before the second attempt. Injectable for the same reason
+  // runChatTurnFn is: the retry is behaviour worth asserting, and a test that
+  // asserts it should not pay two real seconds for the privilege — nor await an
+  // UNREF'd timer with nothing else pending, which is how this test began
+  // failing in CI while passing on every developer machine ("Promise resolution
+  // is still pending but the event loop has already resolved").
+  retryDelayMs = 2000,
 } = {}) {
   const project = projects?.get?.(job.project_id);
   if (!project) {
@@ -163,7 +170,7 @@ export async function wakeShellJob(job, {
     lastError = e;
     if (attempt === 1) {
       log?.(`shell-job-wake: wake for ${job.id} failed (${e?.message || e}) — retrying once`);
-      await sleep(2000);
+      if (retryDelayMs > 0) await sleep(retryDelayMs);
       continue;
     }
     // The record still holds the outcome and the panel still shows it ended, so
