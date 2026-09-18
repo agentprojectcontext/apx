@@ -29,11 +29,18 @@ export async function pingUrl(url, { timeoutMs = 800, headers = {}, fetchImpl = 
  * Same as pingUrl but parses the response body when 2xx. Returns
  * { ok, status?, reason?, json? }.
  */
-export async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {}, fetchImpl = fetch } = {}) {
+export async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {}, method, body, fetchImpl = fetch } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { signal: ctrl.signal, headers });
+    // method/body are opt-in: every caller but one is a GET probe, and Ollama's
+    // /api/show (the only way it reports a model's capabilities) is a POST.
+    const res = await fetchImpl(url, {
+      signal: ctrl.signal,
+      headers,
+      ...(method ? { method } : {}),
+      ...(body !== undefined ? { body } : {}),
+    });
     if (!res.ok) return { ok: false, status: res.status, reason: `HTTP ${res.status}` };
     const json = await res.json().catch(() => null);
     return { ok: true, status: res.status, json };

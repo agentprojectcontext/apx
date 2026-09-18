@@ -20,6 +20,42 @@ export const DEFAULT_BASE = {
 // native URL regardless of the user's configured base_url.
 const GEMINI_NATIVE_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
+// Ollama's /api/tags lists EVERY pulled model, embedding models included, and a
+// model picker is for models that can answer. Handing one to a chat call is not
+// a degraded choice, it is a broken one: Ollama replies
+// `"embeddinggemma:300m" does not support generate` and the feature that picked
+// it silently falls back — or silently stops working. It happened to the
+// history compactor, where a wrong pick is invisible until someone reads a
+// summary that was never written.
+//
+// Gemini's branch below already drops these (supportedGenerationMethods);
+// Ollama just doesn't say so in /api/tags, so ask /api/show, which reports
+// `capabilities: ["embedding"]` vs `["completion", …]`.
+//
+// FAIL OPEN, deliberately: a model whose capabilities we could not read stays in
+// the list. An older Ollama that does not report capabilities at all, or one
+// slow probe, must never make a model the user has disappear from their own
+// picker — the cost of a stale entry is a clear error at call time, the cost of
+// hiding a working model is a bug report nobody can reproduce.
+async function withoutEmbeddingOnly(base, names) {
+  const results = await Promise.all(names.map(async (name) => {
+    try {
+      const r = await fetchJsonWithTimeout(`${base}/api/show`, {
+        timeoutMs: 1500,
+        method: "POST",
+        body: JSON.stringify({ model: name }),
+        headers: { "content-type": "application/json" },
+      });
+      const caps = r.ok ? r.json?.capabilities : null;
+      if (!Array.isArray(caps) || caps.length === 0) return name;  // unknown → keep
+      return caps.includes("embedding") && !caps.includes("completion") ? null : name;
+    } catch {
+      return name;                                                 // unreachable → keep
+    }
+  }));
+  return results.filter(Boolean);
+}
+
 export async function listModels(engine, baseUrl, apiKey) {
   const base = String(baseUrl || DEFAULT_BASE[engine] || "").replace(/\/$/, "");
 
@@ -28,7 +64,8 @@ export async function listModels(engine, baseUrl, apiKey) {
     const r = await fetchJsonWithTimeout(`${b}/api/tags`, { timeoutMs: 2500 });
     if (!r.ok) return { error: r.reason || "no se pudo contactar Ollama" };
     const list = Array.isArray(r.json?.models) ? r.json.models : [];
-    return { models: list.map((m) => m?.name).filter((n) => typeof n === "string" && n) };
+    const names = list.map((m) => m?.name).filter((n) => typeof n === "string" && n);
+    return { models: await withoutEmbeddingOnly(b, names) };
   }
 
   if (engine === "anthropic") {
