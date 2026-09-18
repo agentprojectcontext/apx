@@ -374,6 +374,7 @@ export async function handleUpdate(self, u) {
     let replyUsage = null;                    // token accounting for this turn
     let replyTrace = null;                    // what the turn actually did (summarised on the message)
     let replyJudge = null;                    // verdict trail, when the turn was continued past a stop
+    let replyInspector = null;                // the per-turn skill decision, for the ledger row
     const projectCfg = target.config || self.globalConfig;
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
@@ -501,6 +502,9 @@ export async function handleUpdate(self, u) {
         replyTrace = sa.trace || null;
         replyJudge = sa.judge || null;
         replyModel = sa.model || state.model || null;
+        // What the per-turn skill RAG decided, so the ledger row carries it and
+        // the thread shows the same skill badges a web turn does.
+        replyInspector = sa.skillInspector || null;
 
         // ── ask_questions integration ────────────────────────────────────
         // If the super-agent ended this turn by calling ask_questions, hand off
@@ -580,7 +584,10 @@ export async function handleUpdate(self, u) {
       agentDisplay,
       // Recoverable after the fact: this turn ran longer because a verdict said
       // it wasn't finished, not because the model rambled.
-      extraMeta: replyJudge ? { judge: replyJudge } : {},
+      extraMeta: {
+        ...(replyJudge ? { judge: replyJudge } : {}),
+        ...(replyInspector ? { skill_inspector: replyInspector } : {}),
+      },
     });
     // The ending, so a follower's bubble CLOSES. Without a closing frame it
     // stays pending forever, the silent catch-up refuses to run (it skips while

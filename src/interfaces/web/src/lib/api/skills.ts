@@ -49,9 +49,14 @@ export interface CreateResult {
 
 export interface InspectorConfig {
   enabled: boolean;
-  load_threshold: number;
-  hint_threshold: number;
-  margin: number;
+  /** Relevance (z over the skill's own baseline) needed to inline a body. */
+  load_z: number;
+  /** Relevance needed to name a skill as a suggestion. */
+  hint_z: number;
+  /** How far the top must beat the runner-up before a body is inlined. */
+  margin_z: number;
+  /** Sanity floor on RAW cosine, applied before ranking. */
+  raw_floor: number;
   max_loaded: number;
   max_hints: number;
   prompt_floor: number;
@@ -85,13 +90,46 @@ export interface InspectTrace {
   enabled: boolean;
   reason?: string;
   embedder?: string;
-  scored?: { slug: string; sim: number }[];
+  /** Running on the offline bag-of-words floor — the numbers mean much less. */
+  degraded?: boolean;
+  scored?: { slug: string; sim: number; rel?: number }[];
   loaded?: string[];
   hinted?: string[];
   jit?: boolean;
 }
 
+/** What the inspector would do with one skill, and why it landed there. */
+export type SkillVerdict = "loaded" | "hinted" | "unrelated" | "weak" | "capped";
+
+export interface SkillCandidate {
+  slug: string;
+  source: SkillSource;
+  desc: string;
+  /** Raw cosine against the prompt — compared to raw_floor. */
+  sim: number;
+  /** Relevance: how far above this skill's OWN baseline — compared to hint_z/load_z. */
+  rel: number;
+  verdict: SkillVerdict;
+}
+
 export interface InspectResult {
+  /** Whether the inspector is really ON (the dry run itself always runs). */
+  enabled: boolean;
+  reason: string | null;
+  embedder: string;
+  index_embedder: string | null;
+  degraded: boolean;
+  jit: boolean;
+  thresholds: {
+    load_z: number; hint_z: number; margin_z: number; raw_floor: number;
+    max_loaded: number; max_hints: number; prompt_floor: number;
+  };
+  loaded: string[];
+  hinted: string[];
+  /** Which gate stopped a body from being inlined, when one was close. */
+  load_blocked: "below_load_z" | "margin" | null;
+  candidates: SkillCandidate[];
+  index: IndexStatus;
   trace: InspectTrace;
   contextNote: string;
 }

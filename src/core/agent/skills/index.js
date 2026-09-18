@@ -14,10 +14,13 @@ export {
 } from "./policy.js";
 export {
   inspectPromptForSkills,
+  explainPromptForSkills,
   isInspectorEnabled,
+  shouldKeepSkillsHint,
   INSPECTOR_DEFAULTS,
   summarizeTrace,
 } from "./inspector.js";
+export { resolveTurnSkills, mergeContextNote } from "./turn-skills.js";
 export {
   ensureIndex,
   planIndex,

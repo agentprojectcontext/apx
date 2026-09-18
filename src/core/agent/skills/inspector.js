@@ -8,13 +8,14 @@
 //   2. Per-turn re-evaluation. The decision is recomputed from the current
 //      user prompt; a skill that matched last turn but not this one simply
 //      disappears from the next system prompt — natural decay.
-//   3. Two tiers based on confidence:
-//        - LOAD  (sim ≥ load_threshold): the body is inlined as contextNote.
-//          The agent has it right there — no extra tool call.
-//        - HINT  (sim ≥ hint_threshold): only the slug + one-line description
-//          is named, and the agent is told to call load_skill if it actually
-//          needs the syntax.
-//      Below hint_threshold → nothing.
+//   3. Two tiers based on confidence, measured in RELEVANCE (see baseline.js),
+//      not raw cosine:
+//        - LOAD  (rel ≥ load_z): the body is inlined as contextNote. The agent
+//          has it right there — no extra tool call.
+//        - HINT  (rel ≥ hint_z): only the slug + one-line description is named,
+//          and the agent is told to call load_skill if it actually needs the
+//          syntax.
+//      Below hint_z, or under the raw_floor sanity check → nothing.
 //   4. Local-first. Uses the same embeddings chain as cross-channel memory
 //      (ollama → gemini → openai → tf). With no provider, the offline TF
 //      fallback runs — works on any machine, zero API key, zero GPU.
@@ -171,6 +172,38 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
     return { contextNote: "", trace: { enabled: true, reason: "prompt_too_short" } };
   }
 
+  const got = await collectCandidates({ text, projectPath, globalConfig, embedOpts });
+  if (got.bail) {
+    return {
+      contextNote: "",
+      trace: {
+        enabled: true,
+        reason: got.bail,
+        degraded: !got.probe || got.probe.embedder === "tf",
+        ...(got.probe?.embedder ? { embedder: got.probe.embedder } : {}),
+        ...(got.index_embedder ? { index_embedder: got.index_embedder } : {}),
+      },
+    };
+  }
+  const out = await pickAndRender({ scored: got.scored, projectPath, probe: got.probe, cfg });
+  return got.jit
+    ? { contextNote: out.contextNote, trace: { ...out.trace, jit: true } }
+    : out;
+}
+
+// ---------------------------------------------------------------------------
+// Candidate collection — the half that is pure measurement
+// ---------------------------------------------------------------------------
+
+/**
+ * Score every eligible skill against the prompt. Shared by the live turn path
+ * and by the dry-run explainer, so what the settings panel shows IS what a turn
+ * would have seen — a tester that scored on its own code path would be wrong in
+ * exactly the cases you build a tester for.
+ *
+ * Returns { scored, probe, index_embedder, jit } or { bail: reason, probe? }.
+ */
+async function collectCandidates({ text, projectPath, globalConfig, embedOpts }) {
   // Self-heal: if a skill was added/edited/removed since the last index, kick a
   // background rebuild. Non-blocking — this turn uses whatever is already on
   // disk; the next turn picks up the fresh vectors. This is what lets a user
@@ -192,12 +225,12 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
   // install still works — the inspector is supposed to "just work" the moment
   // it's flipped on.
   if (indexedCount === 0) {
-    return await inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts });
+    return await collectFromLive({ text, projectPath, globalConfig, embedOpts });
   }
 
   const probe = await embedOne(text, { ...(embedOpts || {}), globalConfig });
   if (!probe || !Array.isArray(probe.vector) || probe.vector.length === 0) {
-    return { contextNote: "", trace: { enabled: true, reason: "embed_failed" } };
+    return { bail: "embed_failed" };
   }
 
   // Embedder mismatch — the index was built with a different provider (e.g. the
@@ -217,38 +250,30 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
         currentEmbedder: probe.embedder,
       });
     } catch { /* best-effort */ }
-    return {
-      contextNote: "",
-      trace: {
-        enabled: true,
-        reason: "embedder_mismatch",
-        embedder: probe.embedder,
-        index_embedder: idx.embedder,
-      },
-    };
+    return { bail: "embedder_mismatch", probe, index_embedder: idx.embedder };
   }
 
   const scored = scoreAgainstIndex(probe.vector, items).filter((s) =>
     isSkillEnabled(s, { config: globalConfig, projectPath }));
-  return await pickAndRender({ scored, projectPath, probe, cfg });
+  return { scored, probe, index_embedder: idx.embedder };
 }
 
 // ---------------------------------------------------------------------------
 // JIT fallback when the persistent index is empty
 // ---------------------------------------------------------------------------
 
-async function inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts }) {
+async function collectFromLive({ text, projectPath, globalConfig, embedOpts }) {
   const skills = filterEnabledSkills(listSkills({ projectPath }), {
     config: globalConfig,
     projectPath,
   });
   if (!skills.length) {
-    return { contextNote: "", trace: { enabled: true, reason: "no_skills" } };
+    return { bail: "no_skills" };
   }
 
   const probe = await embedOne(text, { ...(embedOpts || {}), globalConfig });
   if (!probe || !Array.isArray(probe.vector) || probe.vector.length === 0) {
-    return { contextNote: "", trace: { enabled: true, reason: "embed_failed" } };
+    return { bail: "embed_failed" };
   }
 
   // The background corpus, so this path ranks on the same scale the indexed
@@ -277,11 +302,7 @@ async function inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts
     });
   }
   scored.sort((a, b) => b.rel - a.rel);
-  const result = await pickAndRender({ scored, projectPath, probe, cfg });
-  return {
-    contextNote: result.contextNote,
-    trace: { ...result.trace, jit: true },
-  };
+  return { scored, probe, index_embedder: null, jit: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,8 +310,14 @@ async function inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts
 // ---------------------------------------------------------------------------
 
 async function pickAndRender({ scored, projectPath, probe, cfg }) {
+  // Running on the offline bag-of-words floor. Everything below still works,
+  // but the numbers mean much less: `tf` matches literal tokens, so a prompt
+  // and a skill that say the same thing in two languages score near zero. The
+  // flag rides on the trace so a caller can keep the static skill catalog in
+  // the prompt instead of removing it in favour of a RAG that cannot see.
+  const degraded = probe.embedder === "tf";
   if (scored.length === 0) {
-    return { contextNote: "", trace: { enabled: true, reason: "no_candidates", embedder: probe.embedder } };
+    return { contextNote: "", trace: { enabled: true, reason: "no_candidates", embedder: probe.embedder, degraded } };
   }
   // Anything below the raw floor is not a weak match, it is an unrelated one —
   // dropped before ranking so it cannot occupy a hint slot that a real
@@ -306,6 +333,7 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
         enabled: true,
         reason: "below_threshold",
         embedder: probe.embedder,
+        degraded,
         scored: scored.slice(0, 5).map((s) => ({
           slug: s.slug, sim: Number(s.sim.toFixed(3)), rel: Number(s.rel.toFixed(2)),
         })),
@@ -343,12 +371,117 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
     trace: {
       enabled: true,
       embedder: probe.embedder,
+      degraded,
       scored: scored.slice(0, 5).map((s) => ({
         slug: s.slug, sim: Number(s.sim.toFixed(3)), rel: Number(s.rel.toFixed(2)),
       })),
       loaded: loaded.map((l) => l.slug),
       hinted: hinted.map((h) => h.slug),
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dry run — the same decision, with its reasoning shown
+// ---------------------------------------------------------------------------
+
+/**
+ * Score a prompt and explain, per skill, what the inspector WOULD do with it
+ * and why it fell where it did. Same scoring path as a real turn (see
+ * collectCandidates) — this is the settings panel's tester, and a tester that
+ * agreed with the code only by construction would be worthless.
+ *
+ * The inspector's own on/off switch is NOT honoured here: a dry run is how you
+ * decide whether to turn it on. `enabled` in the result says what the real
+ * setting is, so the caller can say so.
+ *
+ * @returns {{
+ *   enabled:boolean, reason:string|null, embedder:string, index_embedder:string|null,
+ *   degraded:boolean, jit:boolean, thresholds:object,
+ *   loaded:string[], hinted:string[], load_blocked:string|null,
+ *   candidates:Array<{slug,source,desc,sim,rel,verdict}>,
+ *   contextNote:string,
+ * }}
+ */
+export async function explainPromptForSkills({ prompt, projectPath, globalConfig, embedOpts } = {}) {
+  const real = effectiveConfig(globalConfig);
+  const cfg = { ...real, enabled: true };
+  const base = {
+    enabled: real.enabled === true,
+    reason: null,
+    embedder: "",
+    index_embedder: null,
+    degraded: false,
+    jit: false,
+    thresholds: {
+      load_z: cfg.load_z, hint_z: cfg.hint_z, margin_z: cfg.margin_z,
+      raw_floor: cfg.raw_floor, max_loaded: cfg.max_loaded, max_hints: cfg.max_hints,
+      prompt_floor: cfg.prompt_floor,
+    },
+    loaded: [], hinted: [], load_blocked: null, candidates: [], contextNote: "",
+  };
+
+  const text = String(prompt || "").trim();
+  if (text.length < cfg.prompt_floor) return { ...base, reason: "prompt_too_short" };
+
+  const got = await collectCandidates({ text, projectPath, globalConfig, embedOpts });
+  if (got.bail) {
+    return {
+      ...base,
+      reason: got.bail,
+      embedder: got.probe?.embedder || "",
+      index_embedder: got.index_embedder || null,
+      degraded: (got.probe?.embedder || "") === "tf",
+    };
+  }
+
+  const decided = await pickAndRender({ scored: got.scored, projectPath, probe: got.probe, cfg });
+  const loaded = decided.trace.loaded || [];
+  const hinted = decided.trace.hinted || [];
+
+  // Why each one landed where it did. The order matters: the raw floor runs
+  // BEFORE ranking (see pickAndRender), so a skill can stand above its own
+  // baseline and still be dropped as unrelated — which is the single most
+  // confusing outcome to read off a list of numbers, and the one that hid a
+  // matching skill on this install.
+  const candidates = got.scored.map((s) => {
+    let verdict;
+    if (loaded.includes(s.slug)) verdict = "loaded";
+    else if (hinted.includes(s.slug)) verdict = "hinted";
+    else if (s.sim < cfg.raw_floor) verdict = "unrelated";
+    else if (s.rel < cfg.hint_z) verdict = "weak";
+    // Above both bars and still not in — the slots (max_loaded / max_hints)
+    // were already taken by better-ranked skills.
+    else verdict = "capped";
+    return {
+      slug: s.slug,
+      source: s.source || "",
+      desc: String(s.desc || "").replace(/\s+/g, " ").trim().slice(0, 240),
+      sim: Number(s.sim.toFixed(3)),
+      rel: Number(s.rel.toFixed(2)),
+      verdict,
+    };
+  });
+
+  // When nothing was inlined, say which of the two gates stopped it — the score
+  // itself, or the margin over the runner-up.
+  const eligible = got.scored.filter((s) => s.sim >= cfg.raw_floor);
+  let load_blocked = null;
+  if (!loaded.length && eligible.length) {
+    const [top, runner = { rel: 0 }] = eligible;
+    if (top.rel < cfg.load_z) load_blocked = "below_load_z";
+    else if (top.rel - runner.rel < cfg.margin_z) load_blocked = "margin";
+  }
+
+  return {
+    ...base,
+    reason: decided.trace.reason || null,
+    embedder: got.probe.embedder || "",
+    index_embedder: got.index_embedder || null,
+    degraded: got.probe.embedder === "tf",
+    jit: !!got.jit,
+    loaded, hinted, load_blocked, candidates,
+    contextNote: decided.contextNote,
   };
 }
 
@@ -361,6 +494,45 @@ function readBodyCapped(slug, projectPath, cap) {
   } catch {
     return "";
   }
+}
+
+// What of the inspector trace is worth keeping on disk: the decision, not the
+// payload. `null` only when the inspector had nothing to say at all — no skill
+// injected AND no candidate scored. When it scored candidates but none crossed
+// the load/hint bar we STILL keep the row: a reopened thread should be able to
+// show what was suggested each round (the "considered" near-misses), which is
+// what makes the per-turn RAG legible instead of silently doing nothing.
+export function inspectorRecord(trace) {
+  if (!trace?.enabled) return null;
+  const loaded = trace.loaded || [];
+  const hinted = trace.hinted || [];
+  const scored = trace.scored || [];
+  if (loaded.length === 0 && hinted.length === 0 && scored.length === 0) return null;
+  return {
+    ...(trace.embedder ? { embedder: trace.embedder } : {}),
+    ...(loaded.length ? { loaded } : {}),
+    ...(hinted.length ? { hinted } : {}),
+    // Already capped at the top 5 upstream — the similarities the badge shows,
+    // and the source of the dim "considered" badges when nothing was injected.
+    ...(scored.length ? { scored } : {}),
+  };
+}
+
+// The inspector exists to REPLACE the static "Available skills" slug dump in
+// the system prompt — that is the whole token argument for it. But replacing a
+// catalog with a retriever that cannot retrieve leaves the agent with neither,
+// which is how a machine with no embedding model ends up answering "I have no
+// tool for that" about a skill it has. So: drop the catalog only when the
+// inspector actually did its job.
+//
+// It did its job when it injected something, or when it ran a real embedder and
+// decided — honestly — that nothing matched. It did not when the embedder was
+// the offline `tf` floor, or when it never scored at all.
+export function shouldKeepSkillsHint(trace) {
+  if (!trace?.enabled) return true;          // inspector off → catalog as before
+  if (trace.loaded?.length || trace.hinted?.length) return false;
+  if (trace.degraded) return true;
+  return !trace.embedder;                    // never scored → keep the catalog
 }
 
 // Small helper used by the CLI inspect command to print why something fell out.

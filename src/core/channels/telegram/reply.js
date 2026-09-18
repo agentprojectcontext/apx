@@ -16,6 +16,8 @@ import { closingFloorLine } from "#core/agent/closing-floor.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
+import { resolveTurnSkills, mergeContextNote } from "#core/agent/skills/turn-skills.js";
+import { inspectorRecord } from "#core/agent/skills/inspector.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
 import { createProgressGate, progressEveryMs } from "./progress-gate.js";
@@ -165,7 +167,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
  * The single place this call is configured — change it once, both entry points
  * inherit it. Throws on failure (caller decides abort-vs-error handling).
  */
-export function runTelegramSuperAgent(self, {
+export async function runTelegramSuperAgent(self, {
   chat_id, prompt, previousMessages, target, author, authorId, relationshipBlock,
   allowedTools, contextNote, signal, onEvent, backgroundResultSink = null,
   attachments = [],
@@ -177,7 +179,33 @@ export function runTelegramSuperAgent(self, {
     // Only the user who triggered this turn may answer its confirmations.
     guardActorId: authorId ?? null,
   });
-  return runSuperAgent({
+
+  // The per-turn skill decision, which this channel simply did not make. Every
+  // turn that arrived here got whatever static catalog the prompt builder adds
+  // and nothing else: no injected body, no named suggestion, no trace — so a
+  // question answered on the web had the matching skill in its prompt and the
+  // SAME question asked on Telegram did not. `contextNote` arriving non-empty
+  // means a `/slug` command already picked a skill by hand; that wins.
+  let skillTrace = null;
+  let skipSkillsHint = false;
+  if (!contextNote) {
+    const turnSkills = await resolveTurnSkills({
+      prompt,
+      projectPath: target?.path,
+      globalConfig: self.globalConfig,
+    });
+    skillTrace = turnSkills.trace;
+    skipSkillsHint = turnSkills.skipSkillsHint;
+    contextNote = mergeContextNote(contextNote, turnSkills.contextNote);
+    // Telegram itself stays prose-only (the user never sees this), but every
+    // other surface reading the turn — the tracker, the live feed — gets the
+    // same event the web stream emits.
+    if (skillTrace) {
+      try { await onEvent?.({ type: "skill_inspector", inspector: skillTrace }); } catch { /* best-effort */ }
+    }
+  }
+
+  const result = await runSuperAgent({
     globalConfig: self.globalConfig,
     projects: self.projects,
     plugins: self.plugins,
@@ -220,7 +248,11 @@ export function runTelegramSuperAgent(self, {
     // cut tasks off after ~9 actions to ask "continue?"). Tunable via
     // config.super_agent.telegram_max_iters.
     maxIters: Number(self.globalConfig?.super_agent?.telegram_max_iters) || TELEGRAM_TOOL_ITERS,
+    skipSkillsHint,
   });
+  // Rides back with the reply so the ledger row can carry it — that row is what
+  // draws the skill badges when the thread is reopened anywhere else.
+  return { ...result, skillInspector: inspectorRecord(skillTrace) };
 }
 
 /**

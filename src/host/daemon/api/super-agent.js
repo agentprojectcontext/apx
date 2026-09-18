@@ -15,8 +15,11 @@ import { floorReplyText } from "#core/agent/closing-floor.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
-import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
-import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
+import { summarizeTrace, inspectorRecord } from "#core/agent/skills/inspector.js";
+// Re-exported at its old address: the record shape moved into core (the channels
+// need it too) and the tests + callers that import it from here still do.
+export { inspectorRecord };
+import { resolveTurnSkills, mergeContextNote } from "#core/agent/skills/turn-skills.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readTurnAttachments } from "./media.js";
 import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
@@ -47,28 +50,6 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
   } catch {
     /* logging is best-effort */
   }
-}
-
-// What of the inspector trace is worth keeping on disk: the decision, not the
-// payload. `null` only when the inspector had nothing to say at all — no skill
-// injected AND no candidate scored. When it scored candidates but none crossed
-// the load/hint bar we STILL keep the row: a reopened thread should be able to
-// show what was suggested each round (the "considered" near-misses), which is
-// what makes the per-turn RAG legible instead of silently doing nothing.
-export function inspectorRecord(trace) {
-  if (!trace?.enabled) return null;
-  const loaded = trace.loaded || [];
-  const hinted = trace.hinted || [];
-  const scored = trace.scored || [];
-  if (loaded.length === 0 && hinted.length === 0 && scored.length === 0) return null;
-  return {
-    ...(trace.embedder ? { embedder: trace.embedder } : {}),
-    ...(loaded.length ? { loaded } : {}),
-    ...(hinted.length ? { hinted } : {}),
-    // Already capped at the top 5 upstream — the similarities the badge shows,
-    // and the source of the dim "considered" badges when nothing was injected.
-    ...(scored.length ? { scored } : {}),
-  };
 }
 
 // Persist human web turns to the cross-channel message store so they feed the
@@ -300,27 +281,21 @@ export function register(api, { projects, registries, plugins, project, config }
     // slug is unknown.
     const slashed = tryResolveSkillCommand(rawPrompt || "", { projectPath: p.path });
     const prompt = slashed.handled ? slashed.prompt : rawPrompt || "";
-    const inspectorOn = isInspectorEnabled(config);
     let inspectorTrace = null;
+    let skipSkillsHint = false;
     if (slashed.handled) {
-      ctx.contextNote = [ctx.contextNote, slashed.contextNote].filter(Boolean).join("\n\n");
-    } else if (inspectorOn) {
-      // Inspector middleware: per-turn semantic RAG. Replaces both the passive
-      // suggestSkillForPrompt nudge AND the static slug-dump in the system
-      // prompt — see runSuperAgent({ skipSkillsHint }).
-      const out = await inspectPromptForSkills({
+      ctx.contextNote = mergeContextNote(ctx.contextNote, slashed.contextNote);
+    } else {
+      // Per-turn skill decision — inspector when it's on, passive nudge when
+      // it isn't. Same call every surface makes; see core/agent/skills/turn-skills.js.
+      const turnSkills = await resolveTurnSkills({
         prompt,
         projectPath: p.path,
         globalConfig: config,
       });
-      inspectorTrace = out.trace;
-      if (out.contextNote) {
-        ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
-      }
-    } else {
-      // Inspector off — fall back to the passive nudge.
-      const hint = await suggestSkillForPrompt(prompt, { projectPath: p.path });
-      if (hint) ctx.contextNote = [ctx.contextNote, hint].filter(Boolean).join("\n\n");
+      inspectorTrace = turnSkills.trace;
+      skipSkillsHint = turnSkills.skipSkillsHint;
+      ctx.contextNote = mergeContextNote(ctx.contextNote, turnSkills.contextNote);
     }
 
     // What the model reads, and what the ledger stores: the attachment markers
@@ -472,7 +447,7 @@ export function register(api, { projects, registries, plugins, project, config }
         // it drop it; the answer never carries a word of it either way.
         onReasoningToken: (chunk) => send({ type: "assistant_reasoning_delta", reasoning: chunk }),
         requestConfirmation,
-        skipSkillsHint: inspectorOn,
+        skipSkillsHint,
       });
       projects.rebuild(p.id);
       // Never-silent floor. runAgent already re-prompted a dud turn and gave
@@ -608,18 +583,17 @@ export function register(api, { projects, registries, plugins, project, config }
       req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
-    const inspectorOn = isInspectorEnabled(config);
     let inspectorTrace = null;
+    let skipSkillsHint = false;
     const reasoning = [];
-    if (inspectorOn) {
-      try {
-        const out = await inspectPromptForSkills({ prompt, projectPath: p.path, globalConfig: config });
-        inspectorTrace = out.trace;
-        if (out.contextNote) {
-          ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
-        }
-        logInspectorDecision(out.trace, { trace_id: req.apxTraceId, channel: ctx.channel });
-      } catch { /* inspector failure must not block the turn */ }
+    {
+      const turnSkills = await resolveTurnSkills({ prompt, projectPath: p.path, globalConfig: config });
+      inspectorTrace = turnSkills.trace;
+      skipSkillsHint = turnSkills.skipSkillsHint;
+      ctx.contextNote = mergeContextNote(ctx.contextNote, turnSkills.contextNote);
+      if (turnSkills.trace) {
+        logInspectorDecision(turnSkills.trace, { trace_id: req.apxTraceId, channel: ctx.channel });
+      }
     }
     // The message is on the record before the turn starts. This is the endpoint
     // the phone bridge posts to, and its turns are the long ones.
@@ -654,7 +628,7 @@ export function register(api, { projects, registries, plugins, project, config }
           }
           return logged(ev);
         },
-        skipSkillsHint: inspectorOn,
+        skipSkillsHint,
       });
       projects.rebuild(p.id);
       // Same floor as the streamed route: an empty answer is never what this

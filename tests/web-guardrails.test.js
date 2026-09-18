@@ -288,7 +288,6 @@ const SENTENCE_FRAGMENTS = new Set([
   "project.agent_detail.area_hint", "project.config.model_hint",
   "project.tasks.add_placeholder", "logs.filter_channel", "files.path_example",
   "voice_ui.stt_custom_baseurl_hint", "voice_ui.stt_custom_model_hint",
-  "settings_ui.test_placeholder",
 
   // process exit output, reproduced as the shell prints it
   "modules_ui.code_artifact_exit_ok", "modules_ui.code_artifact_exit_fail",
