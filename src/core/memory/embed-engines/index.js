@@ -19,7 +19,7 @@
 // vector is tagged with its `embedder` and the store filters search() on it —
 // switching provider strands the old index until it is re-embedded.
 
-import ollama from "./ollama.js";
+import ollama, { resolveBaseUrl as resolveOllamaBase } from "./ollama.js";
 import openai from "./openai.js";
 import gemini from "./gemini.js";
 import custom from "./custom.js";
@@ -197,6 +197,27 @@ export async function selectEmbedChain({ globalConfig }) {
   return out;
 }
 
+/** The base URL an engine will actually call, or "" for a cloud API / in-process
+ *  engine. Same precedence the adapter uses — see resolveOllamaBase. */
+function engineEndpoint(id, cfg, globalConfig) {
+  if (id === "ollama") return resolveOllamaBase(cfg, globalConfig?.engines);
+  if (isCustomId(id)) return String(cfg?.base_url || "");
+  return "";
+}
+
+/** True when the engine runs on THIS machine: the offline embedder (in-process)
+ *  or a server on loopback. A hostname we cannot parse is not claimed as local. */
+function isLocalEndpoint(id, endpoint) {
+  if (id === "tf") return true;
+  if (!endpoint) return false;
+  try {
+    const host = new URL(endpoint).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
 /** Discover which engines are configured/available right now — built-ins plus
  *  every user-added custom:<slug> provider. */
 export async function listAvailableEmbedEngines(globalConfig) {
@@ -209,9 +230,18 @@ export async function listAvailableEmbedEngines(globalConfig) {
     try {
       available = await adapter.isAvailable(cfg, globalConfig?.engines);
     } catch { available = false; }
+    const endpoint = engineEndpoint(id, cfg, globalConfig);
     out.push({
       id,
       available,
+      // Where this engine actually is, and whether that is this machine.
+      // "Local" was hardcoded on the Ollama row, so an install pointing at a
+      // box on the network (which is the normal way to run Ollama when the
+      // laptop has no GPU) was told its embedder was local. The badge is the
+      // only place the panel says anything about latency or privacy, so it has
+      // to be true.
+      ...(endpoint ? { endpoint } : {}),
+      local: isLocalEndpoint(id, endpoint),
       // `_embedder_id` is injected for custom blocks, not user-set config.
       configured: Object.keys(cfg).filter((k) => k !== "enabled" && k !== "_embedder_id").length > 0,
       enabled: isEnabled(embedCfg, id),

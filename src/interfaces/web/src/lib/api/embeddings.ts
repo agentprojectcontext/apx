@@ -15,6 +15,9 @@ export interface EmbedEngineInfo {
   enabled: boolean;     // included in the fallback chain
   custom?: boolean;     // a user-added custom:<slug> OpenAI-compatible provider
   label?: string;       // display name for a custom provider
+  endpoint?: string;    // the base URL it will actually call ("" for a cloud API)
+  local: boolean;       // resolved server-side: does it run on THIS machine
+
 }
 
 export interface EmbedProvidersResponse {
