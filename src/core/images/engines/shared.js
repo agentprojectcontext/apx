@@ -150,6 +150,32 @@ export function redactImagePayload(b64) {
 }
 
 /**
+ * The server's own words for a failed reply, in the order a reader needs them.
+ *
+ * Diffusion servers split an error across two fields and neither half is
+ * enough on its own: stable-diffusion.cpp answers
+ * `{"error":"server_error","message":"vk::Queue::submit: ErrorDeviceLost"}`,
+ * where `error` is a generic code and `message` is the entire diagnosis. Taking
+ * only `error` — as this did — turned a lost GPU into "500: server_error",
+ * which names neither a cause nor a fix. OpenAI-shaped servers nest it the
+ * other way (`error.message`), FastAPI clones use `detail`. Read all three and
+ * join what is there, so the code keeps its context and the cause survives.
+ */
+export function errorDetail(json, text) {
+  if (!json || typeof json !== "object") return text;
+  const parts = [];
+  const push = (v) => {
+    const s = typeof v === "string" ? v.trim() : "";
+    if (s && !parts.includes(s)) parts.push(s);
+  };
+  if (typeof json.error === "string") push(json.error);
+  else if (json.error && typeof json.error === "object") push(json.error.message || json.error.type);
+  push(json.message);
+  push(typeof json.detail === "string" ? json.detail : json.detail?.message);
+  return parts.length ? parts.join(": ") : text;
+}
+
+/**
  * POST JSON and parse the reply, turning a non-2xx into an Error whose message
  * carries the server's own words — a 400 from a diffusion server usually names
  * the offending field, and swallowing that costs the user the fix.
@@ -168,7 +194,7 @@ export async function postJson(url, body, { headers = {}, signal, timeoutMs } = 
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
     if (!res.ok) {
-      const detail = json?.error?.message || json?.error || json?.detail || text;
+      const detail = errorDetail(json, text);
       throw new Error(`${res.status}: ${String(detail).slice(0, 300)}`);
     }
     return json;
@@ -187,7 +213,7 @@ export async function getJson(url, { headers = {}, signal, timeoutMs } = {}) {
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* keep text */ }
     if (!res.ok) {
-      const detail = json?.error?.message || json?.error || json?.detail || text;
+      const detail = errorDetail(json, text);
       throw new Error(`${res.status}: ${String(detail).slice(0, 300)}`);
     }
     return json;

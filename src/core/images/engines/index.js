@@ -5,8 +5,12 @@
 // Two selection modes (config.images.mode):
 //   "chain"  — ordered fallback router. Walk config.images.order (falling back
 //              to AUTO_PREFERENCE), skip engines turned off
-//              (config.images.<id>.enabled === false), and take the first whose
-//              isAvailable() says yes. "mock" is always kept as the final rung.
+//              (config.images.<id>.enabled === false), and keep every one whose
+//              isAvailable() says yes. The fallback covers BOTH ways an engine
+//              can let a call down: unreachable (isAvailable says no, skipped
+//              here) and reachable-but-failing (a 500 from the render itself,
+//              retried by generate() on the next candidate). "mock" is always
+//              kept as the final rung.
 //   "single" — use exactly config.images.provider, no fallback.
 //
 // An explicit `provider` argument always wins (the settings tester and
@@ -105,6 +109,61 @@ export function resolveChainOrder(imgCfg) {
   const full = [...ordered, ...rest];
   if (!full.includes("mock")) full.push("mock");
   return full;
+}
+
+/**
+ * Every engine a generate() call may try, best first.
+ *
+ * selectImageEngine() below answers the narrower question — who goes FIRST —
+ * and that is all it can answer, because being reachable and being able to
+ * render are different questions that only the request settles. A
+ * stable-diffusion.cpp box whose GPU has fallen over still answers
+ * /sdapi/v1/options with a 200 and still 500s every txt2img, so a chain that
+ * stops at the first available engine is not a fallback chain at all: the
+ * other two servers sat idle while every generation failed.
+ *
+ * Handing back the whole list lets generate() walk it. The two cases that must
+ * NOT fall back are the two where the caller named the engine — an explicit
+ * `provider` (CLI --provider, the settings tester) and "single" mode — because
+ * quietly rendering on a different model than the one under test is worse than
+ * failing.
+ *
+ * Returns [{ provider, adapter, engineConfig }].
+ */
+export async function resolveImageCandidates({ globalConfig, provider }) {
+  const imgCfg = imagesConfig(globalConfig);
+  const entry = (id) => ({
+    provider: id,
+    adapter: getImageAdapter(id, globalConfig),
+    engineConfig: providerConfig(globalConfig, id),
+  });
+
+  if (provider && provider !== "auto") return [entry(provider)];
+
+  if (resolveMode(imgCfg) === "single") {
+    const id = imgCfg?.provider;
+    if (id && id !== "auto") return [entry(id)];
+    // Misconfigured single mode (no concrete provider) falls through to chain.
+  }
+
+  const out = [];
+  for (const id of resolveChainOrder(imgCfg)) {
+    if (id !== "mock" && !isEnabled(imgCfg, id)) continue;
+    let candidate;
+    try { candidate = entry(id); } catch { continue; } // unknown kind
+    try {
+      if (id !== "mock" && !(await candidate.adapter.isAvailable(candidate.engineConfig, globalConfig?.engines))) {
+        continue;
+      }
+    } catch { continue; }
+    out.push(candidate);
+  }
+  // mock closes the list so a tree with nothing configured still renders
+  // something. It is the LAST rung on purpose, and generate() only takes it
+  // when no real engine was tried — a placeholder handed back after a real
+  // server failed would be a fake picture reported as success.
+  if (!out.some((c) => c.provider === "mock")) out.push(entry("mock"));
+  return out;
 }
 
 /**

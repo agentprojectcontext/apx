@@ -16,6 +16,7 @@ import { IMAGES_DIR } from "#core/config/paths.js";
 import { readConfig } from "#core/config/index.js";
 import {
   selectImageEngine,
+  resolveImageCandidates,
   listAvailableImageEngines,
   getImageAdapter,
   providerConfig,
@@ -24,6 +25,7 @@ import {
   resolveChainOrder,
 } from "./engines/index.js";
 import { parseSize, redactImagePayload } from "./engines/shared.js";
+import { logWarn } from "#core/logging.js";
 
 export { IMAGES_DIR };
 
@@ -143,9 +145,43 @@ export function ignoredOptions(adapter, request = {}) {
 }
 
 /**
- * Generate one or more images. Throws on real errors; only falls back to the
- * mock engine when nothing at all is configured AND no provider was forced
- * (same contract as synthesize()).
+ * One engine's failure, in words the person who ran the command can act on.
+ *
+ * "500: server_error" — what this used to surface — names neither the engine
+ * nor the machine, and with five configured engines that is not a bug report,
+ * it is a riddle. The engine id and its base_url are what turn it into one.
+ */
+function describeFailure({ provider, base_url, message }) {
+  const where = base_url ? ` (${base_url})` : "";
+  return `${provider}${where}: ${message}`;
+}
+
+/**
+ * The error a caller gets when every candidate engine failed.
+ *
+ * Each attempt is listed rather than only the last: when three servers share
+ * one GPU, three identical messages ARE the diagnosis — the box is down, not
+ * the model — and collapsing them to one hides that.
+ */
+export function imageChainError(failures) {
+  if (!failures.length) return new Error("image generation: no engine available");
+  if (failures.length === 1) {
+    return new Error(`image generation failed — ${describeFailure(failures[0])}`);
+  }
+  return new Error(
+    `image generation failed — all ${failures.length} engines tried:\n` +
+    failures.map((f) => `  · ${describeFailure(f)}`).join("\n")
+  );
+}
+
+/**
+ * Generate one or more images, trying each routed engine in turn until one
+ * renders (same contract as synthesize()). Throws when they all fail, with an
+ * error naming every engine tried and what each said.
+ *
+ * Only falls back to the mock engine when nothing at all is configured AND no
+ * provider was forced — never after a real engine failed, because a
+ * placeholder handed back as success cannot be told from a picture.
  *
  * @param {object}   opts
  * @param {string}   opts.prompt            What to draw. Required.
@@ -166,7 +202,7 @@ export function ignoredOptions(adapter, request = {}) {
  * @param {object}  [opts.globalConfig]     Pass-in for tests; else readConfig().
  * @param {Function}[opts.onProgress]       ({status, queue_position}) while polling.
  * @param {AbortSignal} [opts.signal]
- * @returns {Promise<{images, provider, model, prompt, request, ignored, elapsed_ms, meta}>}
+ * @returns {Promise<{images, provider, model, prompt, request, ignored, elapsed_ms, meta, fallback_from?}>}
  */
 export async function generate({
   prompt,
@@ -181,53 +217,83 @@ export async function generate({
     throw new Error("generate: prompt required");
   }
   const cfg = globalConfig || readConfig() || {};
-  const { provider: selected, adapter, engineConfig } = await selectImageEngine({
-    globalConfig: cfg,
-    provider,
-  });
-
-  const request = resolveRequest({
-    imgCfg: imagesConfig(cfg),
-    engineCfg: engineConfig,
-    request: rest,
-  });
-  const declaredIgnored = ignoredOptions(adapter, { ...present(rest) });
-
+  const candidates = await resolveImageCandidates({ globalConfig: cfg, provider });
   const dir = outDir || imageOutDir();
-  const started = Date.now();
-  const result = await adapter.generate({
-    ...request,
-    prompt: prompt.trim(),
-    outDir: dir,
-    config: engineConfig,
-    parentEnginesCfg: cfg.engines,
-    onProgress,
-    signal,
-  });
+  const text = prompt.trim();
+  const failures = [];
 
-  // An adapter may discover, from the reply, that the server dropped something
-  // it had declared support for — a single-checkpoint clone answering 200 to a
-  // checkpoint switch it never made. The static declaration is the promise;
-  // this is the receipt.
-  const ignored = [...new Set([...declaredIgnored, ...(result.unhonored || [])])];
+  // Walk the chain. An engine that throws — a dead local server, a revoked
+  // key, a GPU that fell over mid-session — hands the prompt to the next one.
+  // Reachable and able to render are different questions, and only the request
+  // settles the second.
+  for (const { provider: selected, adapter, engineConfig } of candidates) {
+    // mock renders a deterministic placeholder. That is the right answer for a
+    // tree with nothing configured, and the wrong one after a real engine
+    // failed: a fake picture returned as success is worse than an error,
+    // because nothing downstream can tell the difference.
+    if (selected === "mock" && failures.length) break;
 
-  return {
-    images: result.images || [],
-    provider: selected,
-    // Only claim the requested model when the adapter could actually act on
-    // it: a server that hosts one checkpoint would otherwise report back the
-    // name it just ignored, which reads as "your model was used".
-    model: result.model
-      || (adapter.supports?.includes("model") ? request.model : null)
-      || null,
-    prompt: prompt.trim(),
-    // Redacted: the payload is up to a megabyte of base64 and this object ends
-    // up in --json, in logs and in stored sessions.
-    request: redactInputs(request),
-    ignored,
-    elapsed_ms: Date.now() - started,
-    meta: result.meta || {},
-  };
+    // Per engine, not once: each carries its own defaults layer, so the turbo
+    // box's 8 steps must not be inherited by the one that wants 4.
+    const request = resolveRequest({
+      imgCfg: imagesConfig(cfg),
+      engineCfg: engineConfig,
+      request: rest,
+    });
+    const declaredIgnored = ignoredOptions(adapter, { ...present(rest) });
+    const started = Date.now();
+
+    let result;
+    try {
+      result = await adapter.generate({
+        ...request,
+        prompt: text,
+        outDir: dir,
+        config: engineConfig,
+        parentEnginesCfg: cfg.engines,
+        onProgress,
+        signal,
+      });
+    } catch (e) {
+      // An aborted call is the caller changing its mind, not an engine fault —
+      // retrying would render a picture nobody is waiting for.
+      if (e?.name === "AbortError" || signal?.aborted) throw e;
+      const message = e?.message || String(e);
+      failures.push({ provider: selected, base_url: engineConfig?.base_url || "", message });
+      logWarn("images", `${selected} failed — ${message}`);
+      continue;
+    }
+
+    // An adapter may discover, from the reply, that the server dropped something
+    // it had declared support for — a single-checkpoint clone answering 200 to a
+    // checkpoint switch it never made. The static declaration is the promise;
+    // this is the receipt.
+    const ignored = [...new Set([...declaredIgnored, ...(result.unhonored || [])])];
+
+    return {
+      images: result.images || [],
+      provider: selected,
+      // Only claim the requested model when the adapter could actually act on
+      // it: a server that hosts one checkpoint would otherwise report back the
+      // name it just ignored, which reads as "your model was used".
+      model: result.model
+        || (adapter.supports?.includes("model") ? request.model : null)
+        || null,
+      prompt: text,
+      // Redacted: the payload is up to a megabyte of base64 and this object ends
+      // up in --json, in logs and in stored sessions.
+      request: redactInputs(request),
+      ignored,
+      elapsed_ms: Date.now() - started,
+      meta: result.meta || {},
+      // What it took to get here. Empty on a first-try success, so a caller can
+      // surface "rendered on the second engine, here is why the first failed"
+      // instead of hiding a degraded run behind a picture.
+      ...(failures.length ? { fallback_from: failures } : {}),
+    };
+  }
+
+  throw imageChainError(failures);
 }
 
 /** Engines, availability, and the configured routing — for CLI and settings. */

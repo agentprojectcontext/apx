@@ -35,7 +35,7 @@ An engine is a server plus the dialect it speaks. Four are built in:
 | `a1111` | `POST /sdapi/v1/txt2img` (synchronous) | The universal dialect: AUTOMATIC1111, Forge, SD.Next, Draw Things on macOS, stable-diffusion.cpp. Carries every sampling knob. |
 | `sdcpp` | `POST /sdcpp/v1/img_gen` + job polling | stable-diffusion.cpp's native queue. The request returns immediately and the job is polled, so a queued render never looks like a hung connection. |
 | `openai` | `POST /v1/images/generations` | OpenAI itself (`gpt-image-1`, `dall-e-3`), or any OpenAI-compatible server when you set a base URL. |
-| `mock` | — | An offline test engine. Always last in the chain and always available, so a call never fails outright. |
+| `mock` | — | An offline test engine. Always last in the chain, and used only when no real engine was tried — never to paper over one that failed. |
 
 You can add any number of your own endpoints; each one declares which of the three dialects it
 speaks, so a single screen covers a local server, a LAN box and a cloud key.
@@ -65,15 +65,34 @@ apx config set --global images.a1111.defaults '{"steps":8,"cfg_scale":1}'
 | `images.<engine>.defaults` | Size, steps, guidance, sampler, scheduler for **this** server. |
 | `images.<engine>.timeout_s` | How long to wait for one image. |
 | `images.defaults` | The shared bottom layer: size, format, negative prompt, count. |
-| `images.order` | The chain order. The first reachable engine draws. |
+| `images.order` | The chain order. The first engine that draws wins. |
 | `images.mode` | `chain` (router, the default) or `single` (only `images.provider`). |
 | `images.custom.<slug>` | Your own endpoint. Needs `label`, `kind` and `base_url`. |
 
 ### Routing
 
-Engines are tried in order and the first one that answers a probe draws; a configured but
-unreachable server is skipped rather than failing the call. `--provider` overrides the routing
-for one call, and `apx image providers` shows what is reachable right now.
+Engines are tried in order until one draws. The chain covers both ways an engine can let a
+call down: a configured but unreachable server is skipped, and one that answers a probe but
+fails the render hands the prompt to the next engine — a diffusion box whose GPU has fallen
+over still answers probes perfectly. `--provider` overrides the routing for one call, and
+`apx image providers` shows what is reachable right now.
+
+A named engine — `--provider`, or `single` mode — fails without a retry, so the settings tester
+reports on the engine you pointed it at rather than quietly rendering somewhere else. `mock`
+closes the chain for a machine with nothing configured, but never stands in for a failed
+render: a placeholder handed back as success cannot be told apart from a real picture.
+
+When every engine fails, the error names each one it tried, where that server lives and what
+the server itself said, so a broken box is identifiable from the message alone:
+
+<Terminal command={`apx image "a fox"`}>
+{`apx image: image generation failed — all 3 engines tried:
+  · custom:zimage (http://box.example:8189): 500: server_error: vk::Queue::submit: ErrorDeviceLost
+  · custom:sdxl (http://box.example:8192): 500: server_error: vk::Queue::submit: ErrorDeviceLost
+  · custom:flux (http://box.example:8191): 500: server_error: vk::Queue::submit: ErrorDeviceLost`}
+</Terminal>
+
+Three servers, one message: that is the GPU they share, not three broken models.
 
 <Terminal command="apx image providers">
 {`Routing  chain (a1111 → sdcpp → openai → mock)

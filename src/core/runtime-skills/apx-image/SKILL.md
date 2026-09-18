@@ -34,7 +34,9 @@ Add any number of extra endpoints under `images.custom.<slug>`, each naming the 
 
 ## Routing
 
-Engines are tried in `images.order` and the first reachable one draws — the same chain/single model as TTS. Set `images.mode` to `single` plus `images.provider` to pin one. `--provider` overrides the routing for one call. A configured but unreachable server is skipped rather than failing the call.
+Engines are tried in `images.order` and the first one that draws wins — the same chain/single model as TTS. Set `images.mode` to `single` plus `images.provider` to pin one. `--provider` overrides the routing for one call.
+
+The chain covers both ways an engine can let a call down: a configured but unreachable server is skipped, and one that answers a probe but fails the render hands the prompt to the next engine. Only a named engine (`--provider`, or `single` mode) fails without a retry, so what the tester reports is the engine under test. When every engine fails, the error lists each one with its URL and the server's own words — read it out; it names the machine to look at. `mock` never stands in for a failed render: a placeholder returned as success cannot be told apart from a real picture.
 
 ```bash
 apx config set --global images.a1111.base_url http://127.0.0.1:7860
