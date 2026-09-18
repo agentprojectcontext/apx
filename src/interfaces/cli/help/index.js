@@ -1648,6 +1648,31 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx plugins status telegram"],
   }),
 
+  android: topic({
+    title: "apx android",
+    summary:
+      "Put the APX Android app on a phone that is plugged in, and pair it — install, USB tunnel and pairing in one step.",
+    usage: ["apx android install [--apk <file>] [--device <serial>]", "apx android status"],
+    commands: [
+      ["install", "Install the APK over USB, open the reverse tunnel, and pair the phone."],
+      ["status", "Whether adb is present, a phone is attached, APX is installed, and the tunnel is up."],
+    ],
+    options: [
+      ["--apk <file>", "Install this file instead of the published release."],
+      ["--local", "Install the build in this checkout instead of the published APK (Android development)."],
+      ["--url <daemon>", "Pair with this address instead of the best one found."],
+      ["--device <serial>", "Which phone, when more than one is attached."],
+      ["--no-reverse", "Do not open the 127.0.0.1 tunnel (use a LAN or tailnet address instead)."],
+      ["--no-pair", "Install only; pair by hand later."],
+      ["--yes", "Skip the confirmation. Required when stdin is not a terminal."],
+    ],
+    examples: ["apx android install", "apx android install --local", "apx android status"],
+    notes: [
+      "APX is not on Google Play. The APK is published at https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk — that link never moves, so it can be opened straight from the phone when there is no cable.",
+      "Pairing picks the best address the phone can actually keep — the tailnet first, then your LAN — by asking the daemon which ones it serves and the phone which ones it can reach. The USB tunnel is the fallback, and it dies when the cable does: if that is what you get, `apx panel tailscale on` and pair again.",
+      "Android Auto: the notification cards work from a sideloaded APK, but APX's own screen on the head unit does not appear unless Android Auto's developer settings have \"Unknown sources\" ticked — Google reserves that surface for apps installed from Play.",
+    ],
+  }),
   panel: topic({
     title: "apx panel",
     summary:
@@ -2479,6 +2504,10 @@ export function buildHelp(version) {
     hCmd("apx desktop status",         36, "show desktop process + autostart state"),
     hCmd("apx desktop install",        36, "auto-launch the window at login (mac/win/linux)"),
     hCmd("apx desktop uninstall",      36, "remove the auto-launch entry"),
+
+    hSec("Android app"),
+    hCmd("apx android install",        36, "install the APK over USB, open the tunnel and pair  --apk F  --local  --url U  --device S"),
+    hCmd("apx android status",         36, "adb, attached phone, installed version, reverse tunnel"),
 
     hSec("Pair (companion devices)"),
     hCmd("apx pair [label]",           36, "QR pairing for Deck app / companion clients"),
