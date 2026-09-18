@@ -91,8 +91,22 @@ export function embedderProvider(embedder) {
   return String(embedder || "tf").split(":")[0];
 }
 
+// How long one embedding call may take before the chain gives up on that engine.
+//
+// It was 4s, which is fine for a warm server and impossible for a cold one: a
+// local Ollama loading an embedding model into VRAM for the first time takes
+// ~6s, so EVERY first call aborted, the chain fell through to the offline `tf`
+// floor, and — because the call never completed — the model never got warm and
+// the next one timed out the same way. An install with a perfectly good local
+// embedder sat in bag-of-words mode indefinitely, and nothing said why.
+//
+// A warm call is ~0.2s, so this costs nothing in the normal case; it only
+// spends time where waiting is exactly the right answer. An unreachable host
+// still fails immediately (connection refused is not a timeout).
+export const DEFAULT_EMBED_TIMEOUT_MS = 15_000;
+
 async function tryEmbed({ adapter, engineConfig }, clean, opts) {
-  const timeoutMs = opts.timeoutMs || engineConfig?.timeout_ms || 4000;
+  const timeoutMs = opts.timeoutMs || engineConfig?.timeout_ms || DEFAULT_EMBED_TIMEOUT_MS;
   const out = await adapter.embed({
     text: clean,
     config: engineConfig || {},
