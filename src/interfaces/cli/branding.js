@@ -25,14 +25,30 @@ function suppressed() {
   return !!(process.env.APX_NO_BANNER || process.env.APX_QUIET);
 }
 
-// Compact, single-line header. The default for everyday subcommands.
-//   ▸ APX CLI · v1.34.0 · skills inspector
+// Compact header — the mark, not just the word. The default for everyday
+// subcommands.
+//
+//    ▄█████▄
+//   █ ◕   ◕ █   APX CLI · v1.34.0 · skills inspector
+//    ▀█████▀
+//
+// Three lines rather than the wordmark's eight: the face is what people
+// recognise, and a command that prints a logo taller than its own output is a
+// logo that gets suppressed. Same head as core/mascot.js and the web's Splash —
+// one character everywhere, at the size each place can afford.
 export function apxHeader(version, subtitle = "") {
   if (suppressed()) return;
-  const tag = `${GR("▸")} ${B(WH("APX"))} ${DI("CLI")}`;
+  const tag = `${B(WH("APX"))} ${DI("CLI")}`;
   const ver = DI(`v${version}`);
   const sub = subtitle ? `  ${DI("·")}  ${CY(subtitle)}` : "";
-  process.stderr.write(`\n${tag}  ${DI("·")}  ${ver}${sub}\n\n`);
+  const text = `${tag}  ${DI("·")}  ${ver}${sub}`;
+  process.stderr.write(
+    "\n" +
+    `   ${GR("▄█████▄")}\n` +
+    `  ${GR("█ ◕   ◕ █")}   ${text}\n` +
+    `   ${GR("▀█████▀")}\n` +
+    "\n"
+  );
 }
 
 // Big ASCII wordmark for branding-heavy commands.
