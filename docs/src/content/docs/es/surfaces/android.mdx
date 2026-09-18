@@ -2,7 +2,7 @@
 title: App Android
 description: App nativa APX para Android — pairing, /mobile, notificaciones y mascota flotante.
 sidebar:
-  order: 6
+  order: 8
 ---
 
 import { Steps, Aside } from '@astrojs/starlight/components';
@@ -50,9 +50,16 @@ activo. Activar **Mostrar la primera línea de los mensajes** para ver texto APX
 en card, no solo anuncio de mensaje nuevo.
 
 <Aside type="caution">
-  **Fuentes desconocidas** solo hace falta con APK de desarrollo instalada
-  manualmente. Para probar build local, activar modo desarrollador Android Auto
-  y ese switch. Release distribuida normalmente no necesita opción desarrollador.
+  **Fuentes desconocidas** hace falta en toda instalación de APX, no solo en un
+  build de desarrollo. Android Auto solo carga una template app que vino de
+  Google Play, y APX se distribuye como APK: el chip queda invisible, sin nada
+  en el log que lo explique, hasta que ese switch esté tildado en los ajustes de
+  desarrollador de Android Auto. Abrí los ajustes de Android Auto, tocá
+  **Versión** diez veces y activá **Fuentes desconocidas**.
+
+  Las tarjetas de mensajes no dependen de esto: llegan por el camino de
+  notificaciones y funcionan en una instalación normal. Ver
+  [Instalar en Android](/apx/docs/es/surfaces/install-android/).
 </Aside>
 
 ## Comportamiento nativo
@@ -303,10 +310,29 @@ Conexión prueba contexto de conducción. Emitir `trip.started` solo cuando
 navegación activa y destino útil. Emitir `trip.ended` al terminar navegación o
 desconectar. Deduplicar frames `0x8006`; nunca guardar video/audio proyectado.
 
-## Compilar e instalar
+## Conseguir la app
+
+Instalarla, y elegir a qué dirección se conecta, tiene su propia página:
+**[Instalar en Android](/apx/docs/es/surfaces/install-android/)**. En corto:
+
+```bash
+apx android install     # por USB: instala, abre el túnel y vincula de una
+```
+
+o abrir
+[el APK publicado](https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk)
+desde el teléfono.
+
+## Compilarla vos mismo
 
 ```bash
 cd src/interfaces/android
 ./gradlew testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Un build `release` necesita una keystore en el entorno (`APX_KEYSTORE`,
+`APX_KEYSTORE_PASSWORD`, `APX_KEY_ALIAS`, `APX_KEY_PASSWORD`); sin ella,
+`assembleRelease` produce un APK sin firmar que Android no instala. CI hace esto
+en cada cambio bajo `src/interfaces/android/` y republica el release — ver
+`.github/workflows/android.yml`.
