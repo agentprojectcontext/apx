@@ -13,6 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
   <img src="https://img.shields.io/badge/Node.js-22%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22+">
   <a href="https://github.com/agentprojectcontext/agentprojectcontext"><img src="https://img.shields.io/badge/Protocol-APC-3fb950?style=flat-square" alt="APC protocol"></a>
+  <a href="https://discord.gg/vxdZuT5WuE"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 <p align="center">
@@ -21,6 +22,7 @@
   <a href="#examples">Examples</a> &middot;
   <a href="#web-admin">Web admin</a> &middot;
   <a href="#use-cases">Use cases</a> &middot;
+  <a href="#android-app">Android app</a> &middot;
   <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC spec</a>
 </p>
 
@@ -103,6 +105,25 @@ npm install -g @agentprojectcontext/apx
 ```
 
 Requires Node.js 22+. The daemon starts automatically on first `apx` call.
+
+## Android app
+
+APX has a native Android app — the phone surface, plus notifications, the floating mascot
+and Android Auto. It is **not on Google Play**: it installs from a file.
+
+```bash
+apx android install     # phone plugged in: installs, opens the USB tunnel and pairs
+```
+
+Or download it straight to the phone — this link always points at the newest signed build:
+
+**[github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk](https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk)**
+
+Which address the app connects to is the decision that matters: the USB tunnel
+(`127.0.0.1`) dies with the cable, your LAN (`apx panel share`) stops at the front door, and
+Tailscale (`apx panel tailscale on`) works from anywhere with a real certificate.
+[Install on Android](https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/)
+walks through all three. iPhone has no APK — the panel installs as a web app instead.
 
 ## Web admin
 
@@ -236,6 +257,11 @@ Configured in `~/.apx/config.json`:
 ## APC protocol
 
 APX implements the [APC specification](https://github.com/agentprojectcontext/agentprojectcontext). The spec defines the on-disk layout; APX provides the tooling to use it.
+
+## Community
+
+Questions, what other people are wiring up, and where new releases land first:
+**[discord.gg/vxdZuT5WuE](https://discord.gg/vxdZuT5WuE)**
 
 ## License
 

@@ -2,7 +2,7 @@
 title: Android app
 description: The native APX Android shell — pairing, /mobile, notifications, and the floating mascot.
 sidebar:
-  order: 6
+  order: 8
 ---
 
 import { Steps, Aside } from '@astrojs/starlight/components';
@@ -50,9 +50,15 @@ In Android Auto settings, keep **Show message notifications** enabled. Enable
 only announcing a new message.
 
 <Aside type="caution">
-  **Unknown sources** is needed only for a sideloaded development APK. Enable
-  Android Auto developer mode and that switch when testing a local build. A
-  normally distributed release does not require this developer option.
+  **Unknown sources** is needed by every APX install, not just a development
+  build. Android Auto only loads a template app that came from Google Play, and
+  APX is distributed as an APK — so the chip stays invisible, with nothing
+  logged to say why, until Android Auto's developer settings have that switch
+  ticked. Open Android Auto's settings, tap **Version** ten times, then enable
+  **Unknown sources**.
+
+  The message cards are not affected: those arrive through the notification
+  path and work on a stock install. See [Install on Android](/apx/docs/surfaces/install-android/).
 </Aside>
 
 ## Native behavior
@@ -306,10 +312,29 @@ after navigation state becomes active and a useful destination appears. Emit
 last semantic state in memory, deduplicate repeated `0x8006` frames, and never
 store video/audio projection data.
 
-## Build and install
+## Getting the app
+
+Installing it, and choosing which address it connects to, is its own page:
+**[Install on Android](/apx/docs/surfaces/install-android/)**. The short version:
+
+```bash
+apx android install     # over USB: installs, tunnels and pairs in one step
+```
+
+or open
+[the published APK](https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk)
+on the phone.
+
+## Build it yourself
 
 ```bash
 cd src/interfaces/android
 ./gradlew testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+A `release` build needs a keystore in the environment (`APX_KEYSTORE`,
+`APX_KEYSTORE_PASSWORD`, `APX_KEY_ALIAS`, `APX_KEY_PASSWORD`); without one,
+`assembleRelease` produces an unsigned APK that Android refuses to install. CI
+does this on every change under `src/interfaces/android/` and republishes the
+release — see `.github/workflows/android.yml`.

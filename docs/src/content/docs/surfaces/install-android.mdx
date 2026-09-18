@@ -1,0 +1,236 @@
+---
+title: Install on Android
+description: Download the APX Android APK, install it on a phone, and connect it to your daemon over USB, your network, or Tailscale.
+sidebar:
+  order: 7
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+APX Android is not on Google Play or the App Store. It is distributed the same
+way APX itself is: as a file you can inspect, from the repository that built it.
+
+**Download:**
+
+```
+https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk
+```
+
+That link never moves. It always points at the newest signed build, so it is
+safe to bookmark, print in a QR code, or send to someone else.
+
+<Aside type="note">
+  **iPhone?** There is no APK for iOS. The phone surface installs as a web app
+  instead: open the panel's HTTPS address in Safari and choose **Share → Add to
+  Home Screen**. It needs HTTPS, which is what [Tailscale](#3--tailscale-from-anywhere)
+  is for. Everything below about addresses applies to it too.
+</Aside>
+
+## Install it
+
+Two ways. They end in the same place — pick whichever matches what you have in
+your hands.
+
+<Tabs syncKey="apk-install">
+<TabItem label="From the phone">
+
+No cable, no computer.
+
+<Steps>
+1. Open the download link above in the phone's browser.
+2. Tap the downloaded file. Android will say it cannot install from this source.
+3. Allow it: **Settings → Install unknown apps → &lt;your browser&gt; → Allow**. This
+   permission is per-app — you are trusting your browser, not every app.
+4. Tap **Install**, then **Open**.
+5. Pair it: see [Connect it](#connect-it) below.
+</Steps>
+
+</TabItem>
+<TabItem label="Over USB">
+
+One command, from the machine running the daemon:
+
+```bash
+apx android install
+```
+
+It downloads the published APK, installs it, opens the USB tunnel that makes
+`127.0.0.1` mean *your daemon* on the phone, asks the daemon for a pairing, and
+hands it to the app through the cable. Nothing is typed on the phone.
+
+First it needs USB debugging on:
+
+<Steps>
+1. **Settings → About phone → tap Build number seven times.**
+2. **Settings → System → Developer options → USB debugging.**
+3. Plug the phone in and accept the **Allow USB debugging?** prompt.
+4. Run `apx android install`.
+</Steps>
+
+`apx android status` reports what it can see: adb, the attached phone, the
+installed version, the tunnel.
+
+**Or ask the super-agent.** Open the phone surface in the phone's browser and
+the list offers it: *"Want APX as an app on this phone? Roby can install it for
+you."* Tapping it opens a chat with the request already written — you press
+send, and the agent walks you through the cable and the debugging switch before
+it runs anything. It knows how from the `apx-android` skill.
+
+<Aside type="tip">
+  The command needs `adb` — Android's own USB tool, not part of APX.
+  `brew install --cask android-platform-tools` on macOS,
+  `sudo apt install android-tools-adb` on Debian/Ubuntu,
+  `winget install Google.PlatformTools` on Windows.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+### Check what you downloaded
+
+Every release publishes the APK's checksum beside it:
+
+```bash
+curl -sL https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk.sha256
+shasum -a 256 apx.apk
+```
+
+The two lines should show the same hash.
+
+## Connect it
+
+This is the part that decides how the app behaves, and it is worth
+understanding before pairing rather than after. The app asks for **one address**
+— your daemon's — and there are three kinds. They are not interchangeable.
+
+### 1 · Over the cable (localhost)
+
+`http://127.0.0.1:7430`, made real by `adb reverse`. `apx android install` sets
+this up for you; by hand it is:
+
+```bash
+adb reverse tcp:7430 tcp:7430
+```
+
+The daemon stays on loopback and nothing is exposed to any network. **It dies
+when the cable is unplugged.** Perfect for the first install and for
+development; not an address a phone can keep.
+
+### 2 · Your own network (LAN)
+
+```bash
+apx panel share
+apx restart
+```
+
+The daemon binds a local IP, and the phone reaches it at `http://192.168.x.x:7430`
+as long as both are on the same WiFi. Fast and private — nothing leaves the
+house — and gone the moment the phone does.
+
+It is `http://`, which the **native app is fine with** but a browser is not: no
+installing the panel as a web app, no microphone, no clipboard. Those three need
+a secure context, and that is a browser rule, not an APX decision.
+
+Turn it off with `apx panel unshare`.
+
+### 3 · Tailscale (from anywhere)
+
+```bash
+apx panel tailscale on
+```
+
+This gives the daemon a stable name with a real HTTPS certificate, reachable
+from any device signed into the same tailnet. It is `tailscale serve`, not
+`funnel`: nothing is published to the public internet.
+
+This is the only option that works away from home, and the only one that gives a
+browser a secure context. If the phone is meant to stay connected, this is the
+address to pair with.
+
+<Aside type="caution">
+  The address you pair with is the one the app keeps. `apx android install`
+  chooses it for you — it asks the daemon which addresses it really serves and
+  the phone which ones it can really reach, and takes the best that passes both,
+  tailnet first. The USB tunnel is only the fallback, and it says so when that
+  is what you got. Pairing by hand is where you have to choose yourself: an app
+  pointed at `127.0.0.1` has nothing behind it the moment the cable comes out.
+</Aside>
+
+## Pair it
+
+The app needs the daemon's address and a one-time code. `apx android install`
+does this over the cable. By hand:
+
+<Steps>
+1. Run `apx pair web` on the daemon machine — it prints a code and a QR.
+2. Open APX on the phone, enter the daemon URL and the code, tap **Vincular y abrir**.
+3. The device appears under **Settings → Devices** in the panel, with its own
+   token, revocable on its own.
+</Steps>
+
+A phone gets its own `kind: android` token. Installing the app does not disturb
+a browser that was already paired on the same phone — Android isolates each
+app's storage, so they are two clients.
+
+## After installing
+
+Android will not let an app grant itself the permissions that matter. Each is a
+deliberate one-time switch:
+
+| What you want | Where it is |
+| --- | --- |
+| Notifications | Accept the prompt on first launch |
+| The floating mascot | **Display over other apps** |
+| Trip detection | APX menu → **Enable trip detection** → notification access |
+| Driving alerts through Do Not Disturb | APX menu → **Allow driving alerts** |
+| Alerts arriving on time from a pocket | APX menu → **Remove battery restriction** |
+
+The [Android app page](/apx/docs/surfaces/android/) explains what each one buys.
+
+### Android Auto
+
+The car half has two levels, and a sideloaded APK only gets one of them for
+free:
+
+- **Message cards on the head unit** work as soon as the app is installed.
+- **APX's own screen in the car** — the one that offers the four answers to a
+  proximity alert — does not appear until Android Auto's developer settings have
+  **Unknown sources** enabled. Android Auto reserves that surface for apps
+  installed from Google Play, and it fails silently: no chip, no error.
+
+To enable it: open Android Auto's settings (**Settings → Connected devices →
+Connection preferences → Android Auto**), tap **Version** ten times, then in the
+developer menu tick **Unknown sources**.
+
+## Updating
+
+Install the new APK over the old one — `apx android install` again, or download
+it and tap it. Your pairing, settings and permissions survive.
+
+<Aside type="caution">
+  Android identifies an app by its signing key. An APK signed with a different
+  key cannot replace one already installed: Android refuses with
+  `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, and the only way through is to uninstall
+  first, which deletes the pairing. So install builds from one source — the
+  published release, or your own, not a mix.
+</Aside>
+
+## Building it yourself
+
+The app is in the repository, and the release is built from it by
+[`.github/workflows/android.yml`](https://github.com/agentprojectcontext/apx/blob/main/.github/workflows/android.yml).
+
+```bash
+cd src/interfaces/android
+./gradlew testDebugUnitTest assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+That needs a JDK 17 and the Android SDK. A `release` build additionally needs a
+keystore, supplied through the environment (`APX_KEYSTORE`,
+`APX_KEYSTORE_PASSWORD`, `APX_KEY_ALIAS`, `APX_KEY_PASSWORD`); without one,
+`assembleRelease` produces an unsigned APK that Android will not install.
+
+`apx android install` installs the PUBLISHED APK even inside a checkout that
+has a build of its own — a local build is signed with the debug key, and the
+first real release cannot update over it. Pass `--local` when you do want yours.
