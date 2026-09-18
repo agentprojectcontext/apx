@@ -242,7 +242,52 @@ jobs:
           git config core.hooksPath .no-hooks
 
       - run: npm run test
+
+      # semantic-release decides whether there IS a release from the commit
+      # subjects, and says so only in its log. Reading the version on either
+      # side of it is the reliable signal: @semantic-release/npm writes the new
+      # number into package.json, so a change means something shipped.
+      - name: Version before
+        id: before
+        run: echo "v=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Announced from HERE, not from a `on: release` workflow: semantic-release
+      # signs the release with the default GITHUB_TOKEN, and GitHub does not
+      # start workflows from events that token creates. Such a workflow would
+      # never run, and nothing would say why.
+      #
+      # Minors and majors only. This repo published 55 versions in 30 days —
+      # announcing every patch turns the channel into something everyone mutes,
+      # which costs more than the patches are worth. They are all in CHANGELOG.md.
+      - name: Announce the release on Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          BEFORE: ${{ steps.before.outputs.v }}
+        run: |
+          after=$(node -p "require('./package.json').version")
+          if [ -z "$WEBHOOK" ]; then
+            echo "no DISCORD_WEBHOOK secret — nothing announced"; exit 0
+          fi
+          if [ "$BEFORE" = "$after" ]; then
+            echo "semantic-release published nothing"; exit 0
+          fi
+          if [ "${BEFORE%.*}" = "${after%.*}" ]; then
+            echo "v$after is a patch — not announced"; exit 0
+          fi
+          jq -n --arg v "$after" --arg repo "$GITHUB_REPOSITORY" '{
+            username: "APX",
+            embeds: [{
+              title: "APX v\($v)",
+              url: "https://github.com/\($repo)/releases/tag/v\($v)",
+              color: 4176208,
+              description: "`npm install -g @agentprojectcontext/apx`",
+              fields: [{ name: "What changed", value: "[CHANGELOG](https://github.com/\($repo)/blob/main/CHANGELOG.md)" }]
+            }]
+          }' > payload.json
+          curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
+            && echo "announced v$after"
