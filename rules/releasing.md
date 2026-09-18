@@ -96,3 +96,47 @@ tool knows — and reads that vocabulary from `.releaserc.json` so the two canno
 drift. It never checks the judgement: a fix titled `chore` is perfectly
 well-formed, ships nothing, and is precisely what no gate can see. That half is
 this file, and a reader.
+
+## The Android APK is a second, separate release
+
+semantic-release publishes to npm. The phone app does not go there, and it does
+not go to Google Play either — it is an APK attached to a GitHub release, built
+by [`.github/workflows/android.yml`](../.github/workflows/android.yml) whenever
+a push to `main` touches `src/interfaces/android/`.
+
+Three things about it are not obvious:
+
+**The tag is a pointer, not a version.** The download URL is printed in the
+docs, drawn as a QR in the panel and compiled into `apx android install`, so it
+must never move:
+
+    https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk
+
+`android-latest` is therefore rewritten in place on every build, and created
+with `--latest=false` so it does not take the "Latest" badge from the npm
+releases, which happen several times a week. GitHub's own
+`/releases/latest/download/…` is useless here for exactly that reason: the
+newest release is almost always one that never carried an APK.
+
+**The versionName is bumped by hand.** `apxAppVersion` in
+`src/interfaces/android/gradle.properties` is what a person reads; the
+`versionCode` Android compares on update comes from the workflow's run number,
+so it is monotonic without anyone maintaining it.
+
+**The signing key is the app's identity.** An APK signed with a different key
+cannot replace an installed one — Android refuses, and the only way through is
+uninstalling, which deletes the owner's pairing. So the keystore is generated
+once and never regenerated. It lives in GitHub secrets and nowhere in the repo:
+
+    keytool -genkeypair -v -keystore apx-release.jks -alias apx \
+      -keyalg RSA -keysize 4096 -validity 10000
+
+    gh secret set ANDROID_KEYSTORE_BASE64 < <(base64 -i apx-release.jks)
+    gh secret set ANDROID_KEYSTORE_PASSWORD
+    gh secret set ANDROID_KEY_ALIAS
+    gh secret set ANDROID_KEY_PASSWORD
+
+Keep `apx-release.jks` and its passwords somewhere they survive this machine.
+Losing them means every installed copy is orphaned. Without the secret the
+workflow still builds and still runs the unit tests — it just produces an
+unsigned APK and publishes nothing, which is what a fork should get.

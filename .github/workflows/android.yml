@@ -1,0 +1,194 @@
+name: Android APK
+
+# Builds and publishes the APK that people actually install.
+#
+# APX is not on Play, so a GitHub release IS the distribution. That puts one
+# requirement above everything else here: the download URL must never move,
+# because it is printed in the docs, drawn as a QR in the panel, and baked into
+# `apx android install`.
+#
+#   https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk
+#
+# The tag `android-latest` is therefore a POINTER, rewritten in place on every
+# build, and published with --latest=false so it does not steal the "Latest"
+# badge from the npm releases semantic-release makes several times a week.
+#
+# Not part of ci.yml on purpose: this needs a JDK and the Android SDK, and the
+# app changes rarely. The path filter keeps Gradle out of the ~dozens of
+# releases a week that never touch the phone.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/interfaces/android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The runner image already ships the Android SDK; only the JDK has to be
+      # chosen, and it must match the app's sourceCompatibility (17).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Read the app version
+        id: version
+        working-directory: src/interfaces/android
+        run: |
+          name=$(sed -n 's/^apxAppVersion=//p' gradle.properties)
+          echo "name=${name:-0.1.0}" >> "$GITHUB_OUTPUT"
+          # The run number is monotonic across the whole repo, so a versionCode
+          # can never repeat or go backwards — which is the only thing Android
+          # checks when deciding whether an APK may replace an installed one.
+          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      # Absent on a fork and on a PR from one. Build anyway (the tests are the
+      # point of running at all), publish nothing, and say so in the summary.
+      - name: Unpack the signing key
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — building an unsigned APK and skipping the release."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/apx-release.jks"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Test and assemble
+        working-directory: src/interfaces/android
+        env:
+          APX_VERSION_NAME: ${{ steps.version.outputs.name }}
+          APX_VERSION_CODE: ${{ steps.version.outputs.code }}
+          APX_KEYSTORE: ${{ steps.keystore.outputs.present == 'true' && format('{0}/apx-release.jks', runner.temp) || '' }}
+          APX_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          APX_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          APX_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - name: Name it, and checksum it
+        id: apk
+        run: |
+          # Two possible names. Without a signingConfig the Android plugin
+          # writes `app-release-unsigned.apk` instead — so hard-coding the
+          # signed name would fail every fork and every run before the keystore
+          # secret exists, which is exactly what the build above allows for.
+          out=src/interfaces/android/app/build/outputs/apk/release
+          if [ -f "$out/app-release.apk" ]; then
+            src="$out/app-release.apk"
+          elif [ -f "$out/app-release-unsigned.apk" ]; then
+            src="$out/app-release-unsigned.apk"
+          else
+            echo "::error::assembleRelease produced no apk"; exit 1
+          fi
+          echo "built $src"
+          mkdir -p dist-apk
+          cp "$src" dist-apk/apx.apk
+          ( cd dist-apk && sha256sum apx.apk > apx.apk.sha256 )
+          echo "sha=$(cut -d' ' -f1 dist-apk/apx.apk.sha256)" >> "$GITHUB_OUTPUT"
+          echo "size=$(du -h dist-apk/apx.apk | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      # Kept whether or not the release happens: on a fork this is the artifact,
+      # and on main it is the record of what was published.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apx-apk
+          path: dist-apk/
+
+      - name: Move the download link onto this build
+        if: steps.keystore.outputs.present == 'true' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.name }}
+          CODE: ${{ steps.version.outputs.code }}
+          SHA256: ${{ steps.apk.outputs.sha }}
+          SIZE: ${{ steps.apk.outputs.size }}
+        run: |
+          notes=$(cat <<EOF
+          APX Android **$VERSION** (versionCode $CODE) — built from \`${GITHUB_SHA::7}\`, $SIZE.
+
+          \`\`\`
+          sha256  $SHA256
+          \`\`\`
+
+          This link always points at the newest build:
+          <https://github.com/${GITHUB_REPOSITORY}/releases/download/android-latest/apx.apk>
+
+          Install it from the phone, or over USB with \`apx android install\`.
+          See [Install on Android](https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/).
+          EOF
+          )
+          # The tag is rewritten in place, so the release may or may not exist.
+          if gh release view android-latest >/dev/null 2>&1; then
+            # `--target` is ignored once a release is published (GitHub only
+            # reads it to CREATE a missing tag), so the tag is moved with git
+            # or the release page keeps naming the first commit forever.
+            git tag -f android-latest "$GITHUB_SHA"
+            git push -f origin refs/tags/android-latest
+            gh release edit android-latest --title "APX Android $VERSION" --notes "$notes"
+          else
+            gh release create android-latest --title "APX Android $VERSION" --notes "$notes" \
+              --target "$GITHUB_SHA" --latest=false
+          fi
+          gh release upload android-latest dist-apk/apx.apk dist-apk/apx.apk.sha256 --clobber
+
+      # The APK moves a handful of times a year, so this one is never filtered:
+      # a new build of the app is exactly what someone joined the server to hear
+      # about, and it carries a link nothing else does.
+      - name: Announce the APK on Discord
+        if: steps.keystore.outputs.present == 'true' && github.ref == 'refs/heads/main'
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.name }}
+          SIZE: ${{ steps.apk.outputs.size }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "no DISCORD_WEBHOOK secret — nothing announced"; exit 0
+          fi
+          jq -n --arg v "$VERSION" --arg size "$SIZE" --arg repo "$GITHUB_REPOSITORY" '{
+            username: "APX",
+            embeds: [{
+              title: "APX Android \($v)",
+              url: "https://github.com/\($repo)/releases/tag/android-latest",
+              color: 4176208,
+              description: "A new build of the phone app — notifications, the floating mascot and Android Auto.",
+              fields: [
+                { name: "Download", value: "[apx.apk](https://github.com/\($repo)/releases/download/android-latest/apx.apk) · \($size)", inline: true },
+                { name: "Over USB", value: "`apx android install`", inline: true },
+                { name: "How to install it", value: "https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/" }
+              ]
+            }]
+          }' > payload.json
+          curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
+            && echo "announced Android $VERSION"
+
+      - name: Summary
+        run: |
+          {
+            echo "### APX Android ${{ steps.version.outputs.name }} (code ${{ steps.version.outputs.code }})"
+            echo ""
+            echo "- size: ${{ steps.apk.outputs.size }}"
+            echo "- sha256: \`${{ steps.apk.outputs.sha }}\`"
+            if [ "${{ steps.keystore.outputs.present }}" = "true" ]; then
+              echo "- signed: yes"
+            else
+              echo "- signed: **no** — unsigned build, nothing published"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
