@@ -136,6 +136,43 @@ test("explain: a prompt under the floor is reported, not scored", async () => {
   assert.deepEqual(out.candidates, []);
 });
 
+// ── 1b. What the model is actually told ─────────────────────────────────────
+
+// A suggested skill is only as good as the sentence that suggests it, and the
+// first version of that sentence lost: "Possibly relevant … call load_skill if
+// you need its exact syntax" reads as optional reference material, so a model
+// that believes it already knows the answer skips it. Asked for an image with
+// apx-image named right there, the agent answered "I don't have an image
+// generation tool" — a claim about its own capabilities, made from memory
+// instead of from the list in front of it.
+test("the suggested tier forbids denying a capability it just listed", async () => {
+  await withFixture(async (projectPath) => {
+    const out = await explainPromptForSkills({
+      prompt: "calibrate the snorkleflox and rotate the borogrove buffer please",
+      projectPath,
+      // load_z out of reach → the skill can only be SUGGESTED, which is the
+      // tier where the model gets to decide. That decision is what this text has
+      // to win.
+      globalConfig: offlineCfg({ enabled: true, load_z: 99 }),
+    });
+    assert.ok(out.hinted.includes(SLUG), `expected a suggestion, got ${JSON.stringify(out)}`);
+    const note = out.contextNote;
+    assert.match(note, /capability you HAVE/,
+      "a skill must be framed as something the agent HAS, not as documentation");
+    assert.match(note, /[Nn]ever tell the user you\s+cannot do something a skill listed here covers/,
+      "the block must forbid the exact failure: denying a capability it just listed");
+    assert.match(note, /load_skill/, "and it must name the tool that fetches it");
+    assert.doesNotMatch(note, /if you need its exact syntax/,
+      "'exact syntax' invites a model that thinks it knows to skip the skill");
+    assert.doesNotMatch(note, /Possibly relevant/,
+      "a hedge in the heading is a hedge the model will take");
+    // The scores are for the human reading the probe, not for the model: a
+    // low-looking number is one more excuse to discount the entry.
+    assert.doesNotMatch(note, /relevance \d/, "no scores in the model-facing block");
+    assert.doesNotMatch(note, /sim \d/, "no scores in the model-facing block");
+  });
+});
+
 // ── 2. The catalog guardrail ────────────────────────────────────────────────
 
 test("shouldKeepSkillsHint: the static catalog survives a blind embedder", () => {

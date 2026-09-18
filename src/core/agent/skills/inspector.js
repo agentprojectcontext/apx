@@ -100,37 +100,62 @@ function scoreAgainstIndex(promptVec, indexItems) {
 // Context block rendering
 // ---------------------------------------------------------------------------
 
-function renderInjectedBlock({ loaded, hinted, embedder }) {
+// What the model actually reads. Worth writing carefully: this block is the
+// entire contract between the retriever and the agent, and its first version
+// lost the argument.
+//
+// It used to head the second tier "Possibly relevant — load on demand" and close
+// with "call load_skill … if you need its exact syntax". Both halves invite the
+// model to skip: "possibly" is a hedge, and "exact syntax" says the skill is a
+// reference manual, so a model that believes it already knows the answer has
+// been given permission to not look. What happened next is the failure this
+// exists to prevent — asked for an image, with apx-image named right here, the
+// agent answered "I don't have an image generation tool" and never called
+// load_skill. It was not missing the tool (load_skill is in the base set); it
+// was answering a question about its own capabilities from memory instead of
+// from the list in front of it.
+//
+// So the block says the one thing that was missing: a skill is a capability you
+// HAVE, and you may not deny one without reading it first.
+//
+// The scores are deliberately NOT here. `sim 0.34` means nothing to a model and
+// a low-looking number is one more excuse to discount the entry; the numbers are
+// for the human reading the trace or the settings probe.
+function renderInjectedBlock({ loaded, hinted }) {
   if (loaded.length === 0 && hinted.length === 0) return "";
 
   const lines = [
-    "# Skill Inspector",
-    `Local RAG (${embedder}) matched the user's prompt against your skill catalog.`,
-    "The catalog itself is NOT in your system prompt — only what's below is.",
-    "If none of these is right, call `list_skills` to browse and `load_skill` to fetch one.",
+    "# Skills matched for this message",
+    "A skill is a capability you HAVE: it is installed here and its body tells you",
+    "how to use it. These matched what the user just wrote.",
     "",
   ];
 
   if (loaded.length) {
-    lines.push("## Loaded for this turn");
+    lines.push("## Loaded — the instructions are right here, use them");
     for (const s of loaded) {
       lines.push("");
-      lines.push(`### \`${s.slug}\`  (sim ${s.sim.toFixed(2)}, source: ${s.source})`);
+      lines.push(`### \`${s.slug}\``);
       lines.push(s.body);
     }
     lines.push("");
   }
 
   if (hinted.length) {
-    lines.push("## Possibly relevant — load on demand");
+    lines.push("## Installed and relevant — read before you answer");
     for (const s of hinted) {
       // A description read from a block scalar carries real newlines; this is
       // one markdown list item, so collapse it back to a single line.
       const desc = String(s.desc || "").replace(/\s+/g, " ").trim();
-      lines.push(`- \`${s.slug}\` — relevance ${s.rel.toFixed(1)}. ${desc}`);
+      lines.push(`- \`${s.slug}\` — ${desc}`);
     }
     lines.push("");
-    lines.push("Call `load_skill({slug:\"…\"})` for any of these BEFORE answering if you need its exact syntax.");
+    lines.push(
+      "If the user is asking for what one of these does, call " +
+      "`load_skill({slug:\"…\"})` BEFORE you answer. **Never tell the user you " +
+      "cannot do something a skill listed here covers** — load it and read it " +
+      "first. If none of them fits, `list_skills` browses the rest.",
+    );
   }
 
   return lines.join("\n");
@@ -365,7 +390,7 @@ async function pickAndRender({ scored, projectPath, probe, cfg }) {
     hinted.push(cand);
   }
 
-  const contextNote = renderInjectedBlock({ loaded, hinted, embedder: probe.embedder });
+  const contextNote = renderInjectedBlock({ loaded, hinted });
   return {
     contextNote,
     trace: {
