@@ -57,9 +57,13 @@ interface MemoryCfg {
 export function MemoryPanel() {
   const toast = useToast();
   const { config, isLoading, patch } = useGlobalConfig();
+  // The daemon answers immediately with a cached active_embedder and probes
+  // behind the response, so a cold one comes back blank. Poll until it lands,
+  // then stop — a badge that never fills in reads as "no embedder at all".
   const { data: providers, mutate: mutateProviders } = useSWR(
     "/api/embeddings/providers",
-    () => Embeddings.providers()
+    () => Embeddings.providers(),
+    { refreshInterval: (d) => (d?.active_embedder ? 0 : 2000) }
   );
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);

@@ -51,7 +51,13 @@ export function SkillsInspectorPanel() {
   const toast = useToast();
   const navigate = useNavigate();
   const { data, mutate, isLoading } = useSWR("/api/skills/inspector", () => Skills.inspector());
-  const { data: providers } = useSWR("/api/embeddings/providers", () => Embeddings.providers());
+  // Same as MemoryPanel: the active embedder is probed behind the response, so
+  // poll until it arrives and then stop.
+  const { data: providers } = useSWR(
+    "/api/embeddings/providers",
+    () => Embeddings.providers(),
+    { refreshInterval: (d) => (d?.active_embedder ? 0 : 2000) },
+  );
   const [busy, setBusy] = useState(false);
   // Advanced (thresholds) starts collapsed — most turns never touch these.
   const [advOpen, setAdvOpen] = useState(false);

@@ -22,12 +22,28 @@ export interface CustomBlock {
   model?: string;
 }
 
-const META: Record<string, { name: string; modelPlaceholder?: string; note: string; local?: boolean }> = {
-  ollama: { name: "Ollama", modelPlaceholder: "nomic-embed-text", note: "local · key-free", local: true },
+// No `local` here on purpose. It used to be hardcoded true for Ollama, which is
+// wrong on any install that runs Ollama on another box — the normal setup when
+// the laptop has no GPU. Whether an engine is on this machine is something only
+// the daemon can answer (it resolves the base_url), so it comes down the wire
+// per engine, with the endpoint it resolved.
+const META: Record<string, { name: string; modelPlaceholder?: string; note: string }> = {
+  ollama: { name: "Ollama", modelPlaceholder: "nomic-embed-text", note: "key-free" },
   gemini: { name: "Gemini", modelPlaceholder: "text-embedding-004", note: "key from Engines & models" },
   openai: { name: "OpenAI", modelPlaceholder: "text-embedding-3-small", note: "key from Engines & models" },
-  tf: { name: "Offline (tf)", note: "bag-of-words · low quality", local: true },
+  tf: { name: "Offline (tf)", note: "bag-of-words · low quality" },
 };
+
+/** "Local", or the host it actually talks to — never a guess. A remote engine
+ *  says where it is, because that is the difference the badge is there to make:
+ *  latency, and whether the text leaves this machine. */
+function placeBadge(e: EmbedEngineInfo) {
+  if (e.local) return <Badge tone="info">{t("memory_panel.badge_local")}</Badge>;
+  if (!e.endpoint) return null;
+  let host = e.endpoint;
+  try { host = new URL(e.endpoint).host; } catch { /* show it raw */ }
+  return <Badge tone="muted">{host}</Badge>;
+}
 
 const isMarker = (v: string) => v.startsWith("***");
 
@@ -126,7 +142,7 @@ export function EmbedProviderList({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{meta.name}</span>
-            {meta.local && <Badge tone="info">{t("memory_panel.badge_local")}</Badge>}
+            {placeBadge(e)}
             {availabilityBadge(e)}
           </div>
           <div className="mt-1.5 flex items-center gap-2">

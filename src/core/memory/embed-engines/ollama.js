@@ -6,7 +6,10 @@ import { l2normalize } from "../embeddings.js";
 
 const DEFAULT_MODEL = "nomic-embed-text";
 
-function resolveBaseUrl(config = {}, parentEnginesCfg) {
+// Exported: the settings panel has to say WHERE this engine is, and the answer
+// has to come from the same precedence the call itself uses. A second copy that
+// drifted would put a "Local" badge on a box across the network.
+export function resolveBaseUrl(config = {}, parentEnginesCfg) {
   const base =
     config.base_url ||
     parentEnginesCfg?.ollama?.base_url ||
