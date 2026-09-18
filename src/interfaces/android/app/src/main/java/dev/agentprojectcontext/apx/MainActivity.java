@@ -180,7 +180,12 @@ public final class MainActivity extends Activity {
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         root.addView(title, matchWrap());
 
-        TextView info = text("Conectá esta app al daemon. Ejecutá “apx pair web” y pegá código mostrado.", 15, Color.LTGRAY);
+        boolean alreadyPaired = preferences.paired();
+        TextView info = text(
+            alreadyPaired
+                ? "Esta app ya está vinculada. Podés cambiar la dirección o el código, o volver sin tocar nada."
+                : "Conectá esta app al daemon. Ejecutá “apx pair web” y pegá código mostrado.",
+            15, Color.LTGRAY);
         info.setPadding(0, dp(12), 0, dp(24));
         root.addView(info, matchWrap());
 
@@ -206,6 +211,21 @@ public final class MainActivity extends Activity {
 
         Button pair = button("Vincular y abrir");
         root.addView(pair, matchWrap());
+
+        // Only when there is something to go back TO. On a first run this
+        // screen is the app, and an escape hatch out of it would lead nowhere.
+        if (alreadyPaired) {
+            Button back = new Button(this);
+            back.setText("Volver sin cambiar nada");
+            back.setAllCaps(false);
+            back.setTextColor(Color.LTGRAY);
+            back.setBackgroundColor(Color.TRANSPARENT);
+            back.setOnClickListener(ignored -> openMobile(null));
+            LinearLayout.LayoutParams backParams = matchWrap();
+            backParams.topMargin = dp(8);
+            root.addView(back, backParams);
+        }
+
         setContentView(root);
 
         View.OnClickListener submit = ignored -> {
@@ -665,7 +685,7 @@ public final class MainActivity extends Activity {
                 : "✓ Viaje de Maps detectado";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, notifyChannelsAction(), drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, notifyChannelsAction(), drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Ver o cambiar la conexión"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
                 if (which == 2) showNotifyChannels();
@@ -680,11 +700,13 @@ public final class MainActivity extends Activity {
                     Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
                 }
                 if (which == 7) openMobile("/mobile");
-                if (which == 8) {
-                    stopService(new Intent(this, MascotOverlayService.class));
-                    preferences.clearPairing();
-                    showPairing(null, null, false);
-                }
+                // Opening this screen used to clear the pairing first, so the
+                // connection was already gone before anything was typed — and
+                // with no way back, because `onBackPressed` on a screen with no
+                // WebView closes the app. Looking at the address is not a
+                // decision to leave the daemon. Nothing is replaced until a new
+                // pairing actually succeeds (savePairing, below).
+                if (which == 8) showPairing(null, null, false);
             })
             .setNegativeButton("Cerrar", null)
             .show();
@@ -821,7 +843,12 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed();
+        if (webView != null && webView.canGoBack()) { webView.goBack(); return; }
+        // On the pairing screen (no WebView) with a pairing already in hand,
+        // back means "leave this screen", not "leave the app" — which is what
+        // super.onBackPressed() does, and what made this screen a dead end.
+        if (webView == null && preferences.paired()) { openMobile(null); return; }
+        super.onBackPressed();
     }
 
     @Override
