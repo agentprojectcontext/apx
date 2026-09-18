@@ -70,6 +70,7 @@ export const ROUTES = Object.freeze({
   "voice": () => import("./voice.js"),
   "transcribe": () => import("./transcribe.js"),
   "image": () => import("./image.js"),
+  "android": () => import("./android.js"),
 });
 
 export function resolveRoute(cmd) {
