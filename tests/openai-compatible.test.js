@@ -36,10 +36,39 @@ test("openai-compatible: uses config.base_url override", async () => {
   }
 });
 
-// Zen's free tier answers 429 without the opencode User-Agent and 400
-// MissingSessionID without a session id, so both headers are load-bearing, not
-// decoration. These pin them: that the engine's defaults reach the wire, and
-// that config can move them when the gateway asks for something newer.
+// Zen's free tier is not keyed, it is GATED: the gateway serves the zero-cost
+// models only to a request shaped like the one its own client sends. As of
+// 2026-09-18 that is the opencode User-Agent, a non-empty x-opencode-session,
+// `stream: true`, and tools named `bash` and `read` — drop any one and it is
+// 403. The tests below pin each piece, because the gate has moved three times
+// already and every move broke every agent pointed at a zen model at once.
+
+/** APX's real tools. The engine is what renames them on the wire. */
+const ZEN_TOOLS = ["run_shell", "read_file"].map((name) => ({
+  type: "function",
+  function: { name, parameters: { type: "object", properties: {} } },
+}));
+
+/**
+ * A stub answer that satisfies BOTH read paths — `.json()` for a blocking
+ * call and `.body` for a streamed one — so a test does not have to know which
+ * one the engine picked for the model it named.
+ */
+function zenResponse(content = "hi", rows = null) {
+  const deltas = rows || [{ choices: [{ delta: { content }, finish_reason: "stop" }] }];
+  return {
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    }),
+    body: (async function* () {
+      const enc = new TextEncoder();
+      for (const r of deltas) yield enc.encode(`data: ${JSON.stringify(r)}\n\n`);
+      yield enc.encode("data: [DONE]\n\n");
+    })(),
+  };
+}
 test("zen: sends the opencode User-Agent on chat", async () => {
   const { default: zen, ZEN_USER_AGENT } = await import("#core/engines/zen.js");
 
@@ -47,19 +76,14 @@ test("zen: sends the opencode User-Agent on chat", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (_url, opts) => {
     sent = opts.headers;
-    return {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "hi" }, finish_reason: "stop" }],
-        usage: { prompt_tokens: 1, completion_tokens: 1 },
-      }),
-    };
+    return zenResponse();
   };
 
   try {
     await zen.chat({
       model: "big-pickle",
       messages: [{ role: "user", content: "ping" }],
+      tools: ZEN_TOOLS,
       config: { api_key: "zen-key" },
     });
     assert.equal(sent["user-agent"], ZEN_USER_AGENT);
@@ -80,19 +104,14 @@ test("zen: falls back to api_key public when none is configured", async () => {
   delete process.env.OPENCODE_ZEN_API_KEY;
   globalThis.fetch = async (_url, opts) => {
     sent = opts.headers;
-    return {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "hi" }, finish_reason: "stop" }],
-        usage: { prompt_tokens: 1, completion_tokens: 1 },
-      }),
-    };
+    return zenResponse();
   };
 
   try {
     await zen.chat({
       model: "big-pickle",
       messages: [{ role: "user", content: "ping" }],
+      tools: ZEN_TOOLS,
       config: {},
     });
     assert.equal(sent["user-agent"], ZEN_USER_AGENT);
@@ -115,13 +134,7 @@ test("zen: sends a stable, non-empty x-opencode-session on every chat", async ()
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (_url, opts) => {
     seen.push(opts.headers);
-    return {
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: "hi" }, finish_reason: "stop" }],
-        usage: { prompt_tokens: 1, completion_tokens: 1 },
-      }),
-    };
+    return zenResponse();
   };
 
   try {
@@ -129,6 +142,7 @@ test("zen: sends a stable, non-empty x-opencode-session on every chat", async ()
       await zen.chat({
         model: "big-pickle",
         messages: [{ role: "user", content: "ping" }],
+        tools: ZEN_TOOLS,
         config: { api_key: "zen-key" },
       });
     }
@@ -141,6 +155,130 @@ test("zen: sends a stable, non-empty x-opencode-session on every chat", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// The other two halves of the gate, which live in the BODY rather than the
+// headers, and the translation that lets APX satisfy them without inventing a
+// tool it does not have.
+test("zen: a free model goes out as bash+read and comes back under APX's names", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+
+  let body = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    body = JSON.parse(opts.body);
+    // The model answers with the gateway's name for the tool…
+    return zenResponse("", [
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: "c1", type: "function", function: { name: "bash", arguments: '{"cmd":"date"}' } },
+              ],
+            },
+            finish_reason: "tool_calls",
+          },
+        ],
+      },
+    ]);
+  };
+
+  try {
+    const r = await zen.chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "corré date" }],
+      tools: [...ZEN_TOOLS, { type: "function", function: { name: "send_telegram" } }],
+      config: { api_key: "zen-key" },
+    });
+
+    // Out: the two the gate looks for, renamed; everything else untouched.
+    const names = body.tools.map((t) => t.function.name);
+    assert.deepEqual(names, ["bash", "read", "send_telegram"]);
+    // …and back in under the name the loop actually dispatches on.
+    assert.equal(r.tool_calls[0].function.name, "run_shell");
+    assert.equal(r.tool_calls[0].id, "c1");
+    assert.deepEqual(JSON.parse(r.tool_calls[0].function.arguments), { cmd: "date" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("zen: a free model is streamed even when no caller asked for tokens", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+
+  const bodies = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    bodies.push(JSON.parse(opts.body));
+    return zenResponse("listo");
+  };
+
+  try {
+    // No onToken anywhere: this is the shape every non-streaming surface sends,
+    // and a blocking request is exactly what the gateway 403s.
+    const free = await zen.chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "ping" }],
+      tools: ZEN_TOOLS,
+      config: { api_key: "zen-key" },
+    });
+    assert.equal(bodies[0].stream, true, "the free tier only answers a stream");
+    assert.equal(free.text, "listo", "and the caller still gets a plain result");
+
+    // A paid model on the same gateway is left alone — nothing is forced.
+    await zen.chat({
+      model: "claude-haiku-4-5",
+      messages: [{ role: "user", content: "ping" }],
+      config: { api_key: "zen-key" },
+    });
+    assert.equal(bodies[1].stream, undefined, "a paid model keeps the blocking path");
+    assert.equal("tools" in bodies[1], false, "and is not handed tools it was not given");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("zen: an agent without shell+read is told why, instead of a bare 403", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+
+  let called = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { called = true; return zenResponse(); };
+
+  try {
+    await assert.rejects(
+      zen.chat({
+        model: "big-pickle",
+        messages: [{ role: "user", content: "hola" }],
+        tools: [{ type: "function", function: { name: "send_telegram" } }],
+        config: { api_key: "zen-key" },
+      }),
+      // Names the models's own tools, not the gateway's — the reader has to fix
+      // the agent, and "run_shell" is what they will search the config for.
+      /run_shell|read_file/,
+    );
+    assert.equal(called, false, "and the doomed request is never sent");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("zen: engines.zen.session_per_call mints a new session id every time", async () => {
+  const { zenHeaders, ZEN_SESSION_ID } = await import("#core/engines/zen.js");
+
+  // The default pins one session per process: the gateway pins a session to an
+  // upstream provider, so a fresh id per call scatters one conversation's turns
+  // across providers and loses the prompt cache.
+  assert.equal(zenHeaders()["x-opencode-session"], ZEN_SESSION_ID);
+  assert.equal(zenHeaders({})["x-opencode-session"], ZEN_SESSION_ID);
+
+  // Opt in and every call carries its own — also accepted by the gateway.
+  const a = zenHeaders({ session_per_call: true })["x-opencode-session"];
+  const b = zenHeaders({ session_per_call: true })["x-opencode-session"];
+  assert.match(a, /^ses_[0-9a-f]{12}[0-9A-Za-z]{14}$/);
+  assert.notEqual(a, b);
+  assert.notEqual(a, ZEN_SESSION_ID);
 });
 
 test("openai-compatible: config.headers override the engine's, never the key", async () => {
@@ -319,10 +457,7 @@ function captureZenBody() {
   const state = { body: null, restore: () => { globalThis.fetch = originalFetch; } };
   globalThis.fetch = async (_url, opts) => {
     state.body = JSON.parse(opts.body);
-    return {
-      ok: true,
-      json: async () => ({ choices: [{ message: { content: "ok" } }], usage: {} }),
-    };
+    return zenResponse("ok");
   };
   return state;
 }
@@ -345,6 +480,7 @@ test("zen: replays reasoning_content for the models whose thinking mode demands 
     await zen.chat({
       model: "deepseek-v4-flash-free",
       messages: THINKING_HISTORY,
+      tools: ZEN_TOOLS,
       config: { api_key: "zen-key" },
     });
     const assistant = cap.body.messages.find((m) => m.role === "assistant");
@@ -363,6 +499,7 @@ test("zen: other models never see reasoning_content (deepseek-r1 et al reject it
     await zen.chat({
       model: "big-pickle",
       messages: THINKING_HISTORY,
+      tools: ZEN_TOOLS,
       config: { api_key: "zen-key" },
     });
     const assistant = cap.body.messages.find((m) => m.role === "assistant");
@@ -407,6 +544,7 @@ test("zen: a turn with no stored reasoning is sent as-is, not invented", async (
         { role: "user", content: "hola" },
         { role: "assistant", content: "Hola" },
       ],
+      tools: ZEN_TOOLS,
       config: { api_key: "zen-key" },
     });
     const assistant = cap.body.messages.find((m) => m.role === "assistant");

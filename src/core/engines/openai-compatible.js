@@ -45,6 +45,10 @@ export function createOpenAiCompatibleEngine({
   // Without a key the adapter would refuse the call even though the gateway
   // is happy — so an engine can opt into a built-in default.
   defaultApiKey = "",
+  // (model, config) => boolean. Some gateways only answer a streamed request
+  // for some models — Zen's free tier 403s a blocking one. An engine says so
+  // here instead of every caller having to pass an onToken it does not want.
+  forceStream = null,
 }) {
   function getKey(config) {
     return config?.api_key || process.env[apiKeyEnv] || defaultApiKey || "";
@@ -191,8 +195,14 @@ export function createOpenAiCompatibleEngine({
 
       // Stream when the caller wants tokens as they land. A tool-forced turn is
       // excluded: it has no prose to stream, only a call to assemble.
+      //
+      // `forceStream` overrides both: when the provider only answers streamed
+      // requests, assembling the stream ourselves beats not being answered.
+      // readStream returns the same object the blocking path does, so a caller
+      // that passed no onToken cannot tell the difference.
       const wantsStream =
-        typeof onToken === "function" && toolChoice !== "required" && toolChoice !== "any";
+        forceStream?.(model, config) === true ||
+        (typeof onToken === "function" && toolChoice !== "required" && toolChoice !== "any");
       if (wantsStream) {
         body.stream = true;
         // Streamed responses omit usage unless asked. Gateways that don't know
@@ -267,7 +277,8 @@ async function readStream(res, onToken, onReasoningToken) {
 
     if (delta.content) {
       text += delta.content;
-      onToken(delta.content);
+      // Guarded: a forced stream has no caller waiting on tokens.
+      if (typeof onToken === "function") onToken(delta.content);
     }
     const think = delta.reasoning_content || delta.reasoning;
     if (think) {

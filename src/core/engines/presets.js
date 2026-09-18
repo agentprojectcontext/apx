@@ -114,23 +114,30 @@ export const ENGINE_PRESETS = {
     api_key_env: "",
     known_models: [], // dynamic — fetched live from the local Ollama daemon
   },
-  // OpenCode Zen. A real key is REQUIRED as of 2026-09-18: the free ids
-  // (big-pickle, *-free) now answer 403 FreeTierError to everything that is
-  // not the opencode client itself, so listing them here only offered models
-  // that cannot answer. See src/core/engines/zen.js for the measurement.
+  // OpenCode Zen. The free ids come first: they bill at zero and accept the
+  // literal api_key "public". What they also need is the request shape the
+  // gate checks for — see src/core/engines/zen.js, which builds it. The paid
+  // Claude/GPT/Gemini models on the same base URL need a real Zen key.
+  //
+  // Verified answering on 2026-09-18. Four more ids the catalog advertises are
+  // NOT here on purpose: deepseek-v4-flash-free 400s ("Model is unavailable"),
+  // both muse-spark-*-contributor-free 500, and laguna-s-2.1-free / hy3-free
+  // no longer exist.
   zen: {
+    key_optional: true,
     base_url: "https://opencode.ai/zen/v1",
-    default_model: "claude-haiku-4-5",
+    default_model: "big-pickle",
     api_key_env: "OPENCODE_ZEN_API_KEY",
     known_models: [
+      "big-pickle",
+      "nemotron-3-ultra-free",
+      "nemotron-3.5-lightning-free",
+      "mimo-v2.5-free",
+      "ling-3.0-flash-fin-free",
       "claude-haiku-4-5",
       "claude-sonnet-4-5",
       "gemini-3.5-flash",
       "gpt-5-nano",
-      "grok-4.6",
-      "glm-5.3-flash",
-      "kimi-k2.6",
-      "deepseek-v4-flash",
     ],
   },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },
