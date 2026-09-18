@@ -1,5 +1,4 @@
 // Shared OpenAI-compatible chat adapter (OpenAI, Groq, OpenRouter, …).
-import { fetchThrough } from "../net/proxy.js";
 import { pingUrl } from "./_health.js";
 import { streamSseDataEvents } from "./_streaming.js";
 
@@ -96,7 +95,6 @@ export function createOpenAiCompatibleEngine({
       const res = await pingUrl(`${base}/models`, {
         timeoutMs: Math.max(timeoutMs, 1200),
         headers: buildHeaders(config, { authorization: `Bearer ${getKey(config)}` }),
-        fetchImpl: fetchThrough(config?.proxy),
       });
       if (res.ok) return { ok: true, provider: id, detail: base };
       // Key present but catalog ping failed — keep going, the chat call will
@@ -202,8 +200,7 @@ export function createOpenAiCompatibleEngine({
         body.stream_options = { include_usage: true };
       }
 
-      // `engines.<id>.proxy` routes THIS provider only; the global fetch otherwise.
-      const res = await fetchThrough(config?.proxy)(`${getBaseUrl(config)}/chat/completions`, {
+      const res = await fetch(`${getBaseUrl(config)}/chat/completions`, {
         method: "POST",
         headers: buildHeaders(config, {
           "content-type": "application/json",
@@ -211,8 +208,6 @@ export function createOpenAiCompatibleEngine({
         }),
         body: JSON.stringify(body),
         signal,
-        // `engines.<id>.proxy` routes THIS provider only; undefined otherwise.
-        fetchImpl: fetchThrough(config?.proxy),
       });
 
       if (!res.ok) {

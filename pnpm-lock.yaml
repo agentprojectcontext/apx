@@ -62,9 +62,6 @@ importers:
       solid-js:
         specifier: ^1.9.13
         version: 1.9.13
-      undici:
-        specifier: ^8.10.2
-        version: 8.10.2
       ws:
         specifier: ^8.21.3
         version: 8.21.3
@@ -3574,10 +3571,6 @@ packages:
   undici@7.25.0:
     resolution: {integrity: sha512-xXnp4kTyor2Zq+J1FfPI6Eq3ew5h6Vl0F/8d9XU5zZQf1tX9s2Su1/3PiMmUANFULpmksxkClamIZcaUqryHsQ==}
     engines: {node: '>=20.18.1'}
-
-  undici@8.10.2:
-    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
-    engines: {node: '>=22.19.0'}
 
   unicode-emoji-modifier-base@1.0.0:
     resolution: {integrity: sha512-yLSH4py7oFH3oG/9K+XWrz1pSi3dfUrWEnInbxMfArOfc1+33BlGPQtLsOYwvdMy11AwUBetYuaRxSPqgkq+8g==}
@@ -7527,8 +7520,6 @@ snapshots:
   undici@6.25.0: {}
 
   undici@7.25.0: {}
-
-  undici@8.10.2: {}
 
   unicode-emoji-modifier-base@1.0.0: {}
 
