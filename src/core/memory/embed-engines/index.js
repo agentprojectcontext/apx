@@ -77,7 +77,9 @@ export function embeddingsConfig(globalConfig) {
       ollama: {
         model: mem.embed_model || "nomic-embed-text",
         base_url: mem.embed_base_url || "",
-        timeout_ms: mem.embed_timeout_ms || 4000,
+        // Only when the old key actually set one — otherwise fall through to
+        // DEFAULT_EMBED_TIMEOUT_MS, which is long enough for a cold model load.
+        ...(mem.embed_timeout_ms ? { timeout_ms: mem.embed_timeout_ms } : {}),
       },
     };
   }

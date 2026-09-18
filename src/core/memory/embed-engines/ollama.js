@@ -26,7 +26,10 @@ export default {
     return true;
   },
 
-  async embed({ text, config = {}, parentEnginesCfg, timeoutMs = 4000, signal }) {
+  // 15s, not 4: cold-loading an embedding model into VRAM takes ~6s on a
+  // normal box, and a timeout shorter than that can never succeed — see
+  // DEFAULT_EMBED_TIMEOUT_MS in ../embeddings.js.
+  async embed({ text, config = {}, parentEnginesCfg, timeoutMs = 15_000, signal }) {
     const model = config.model || DEFAULT_MODEL;
     const base = resolveBaseUrl(config, parentEnginesCfg);
     const ctrl = new AbortController();

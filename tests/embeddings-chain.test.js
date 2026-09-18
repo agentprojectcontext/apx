@@ -3,7 +3,8 @@
 // That is what lets a working local Ollama pick up after a quota-exhausted Gemini.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { embedderProvider, embedOne } from "#core/memory/embeddings.js";
+import http from "node:http";
+import { embedderProvider, embedOne, DEFAULT_EMBED_TIMEOUT_MS } from "#core/memory/embeddings.js";
 import {
   selectEmbedChain,
   getEmbedAdapter,
@@ -89,4 +90,47 @@ test("resolveChainOrder — custom providers are reorderable and tf stays last",
   const order = resolveChainOrder({ mode: "chain", custom: { zen: { base_url: "http://x/v1" } } });
   assert.ok(order.includes("custom:zen"), "custom provider must appear in the order");
   assert.equal(order[order.length - 1], "tf");
+});
+
+// A timeout shorter than a cold model load can never succeed, and its failure
+// mode is invisible: the chain falls through to the offline `tf` floor, the
+// call never completes so the model never warms up, and the next call times out
+// the same way. A live install sat in bag-of-words mode indefinitely because a
+// 4s default was measured against a ~6s cold load, with a perfectly good local
+// embedder one hop away.
+test("the default embed timeout leaves room for a cold model load", () => {
+  assert.ok(
+    DEFAULT_EMBED_TIMEOUT_MS >= 15_000,
+    `a cold Ollama embedding model takes ~6s to load; ${DEFAULT_EMBED_TIMEOUT_MS}ms cannot cover it`,
+  );
+});
+
+test("embedOne: a slow-but-alive engine is waited for; an explicit timeout still wins", async () => {
+  // Stands in for a cold Ollama: answers correctly, just not instantly.
+  let calls = 0;
+  const server = http.createServer((req, res) => {
+    calls += 1;
+    setTimeout(() => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ embedding: [3, 4, 0] }));
+    }, 250);
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base_url = `http://127.0.0.1:${server.address().port}`;
+  const cfgWith = (extra) => ({
+    memory: { embeddings: { provider: "ollama", mode: "single", ollama: { model: "m", base_url, ...extra } } },
+  });
+  try {
+    // No timeout_ms → the generous default → the slow engine answers and wins.
+    const ok = await embedOne("una imagen de un zorro", { globalConfig: cfgWith({}) });
+    assert.equal(ok.embedder, "ollama:m", "a slow engine that ANSWERS must beat the tf floor");
+    assert.equal(ok.dim, 3);
+
+    // An explicit timeout is still honoured — this is a floor, not a ceiling.
+    const cut = await embedOne("una imagen de un zorro", { globalConfig: cfgWith({ timeout_ms: 30 }) });
+    assert.equal(cut.embedder, "tf", "an explicit timeout_ms must still be able to cut a call short");
+    assert.equal(calls, 2, "both calls must have reached the server");
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
 });
