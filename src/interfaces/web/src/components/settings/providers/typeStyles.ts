@@ -191,20 +191,20 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
     known_models: [],
   },
   zen: {
-    key_optional: true,
     base_url: "https://opencode.ai/zen/v1",
-    default_model: "big-pickle",
-    // Free tier: literal "public" + User-Agent opencode/* (engine injects UA).
-    // Paid models need a real OpenCode Zen key.
+    default_model: "claude-haiku-4-5",
+    // A real OpenCode Zen key is required: the free ids answer 403
+    // FreeTierError to every caller that is not the opencode client.
     api_key_env: "OPENCODE_ZEN_API_KEY",
     known_models: [
-      "big-pickle",
-      "nemotron-3-ultra-free",
-      "nemotron-3.5-lightning-free",
-      "deepseek-v4-flash-free",
-      "laguna-s-2.1-free",
-      "mimo-v2.5-free",
-      "hy3-free",
+      "claude-haiku-4-5",
+      "claude-sonnet-4-5",
+      "gemini-3.5-flash",
+      "gpt-5-nano",
+      "grok-4.6",
+      "glm-5.3-flash",
+      "kimi-k2.6",
+      "deepseek-v4-flash",
     ],
   },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },

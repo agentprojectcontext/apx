@@ -1,41 +1,47 @@
 // OpenCode Zen — an OpenAI-compatible gateway in front of many vendors'
-// models, including a handful the provider serves at no cost.
+// models: Claude, GPT, Gemini, Grok, GLM, Kimi and DeepSeek on one base URL
+// and one key.
 //
-// The free models are the reason this engine exists: with a Zen key they bill
-// at zero, which makes them a real option for an agent that runs all day. The
-// key is not optional, though. Zen also fronts paid Claude/GPT/Gemini models on
-// the same base URL, and the same key is what tells the two apart — so it is
-// required here like any other provider's.
+// The free models used to be the reason this engine existed — they billed at
+// zero, which made them a real option for an agent that runs all day. They are
+// no longer reachable from here; see the next block. What is left is the paid
+// catalog, and that needs a real key like any other provider's.
 import { randomBytes } from "node:crypto";
 import { createOpenAiCompatibleEngine } from "./openai-compatible.js";
-import { fetchThrough } from "../net/proxy.js";
 import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 
-// The free tier is gated on the caller looking like the opencode client rather
-// than on the key — and since 2026-09-07 that takes two headers, not one:
+// THE FREE TIER IS CLOSED TO APX. Measured against the live gateway on
+// 2026-09-18: every free model (big-pickle, nemotron-*-free, mimo-v2.5-free,
+// ling-3.0-flash-fin-free) answers
+//   403 FreeTierError — "OpenCode's free tier can only be used from within
+//   OpenCode"
+// for every request APX can make — with a real Zen key or with "public",
+// with these headers or without them. Only the PAID models on this base URL
+// still work, and those need a real key.
 //
-//   user-agent: opencode/<version>
-//     Old news: byte-for-byte the same request answers 429 FreeUsageLimitError
-//     without it and 200 with it.
-//   x-opencode-session: <non-empty id>
-//     New, and what broke every Zen call at once: without it the gateway
-//     answers 400 MissingSessionID — "OpenCode's free tier can only be used in
-//     OpenCode". An empty value counts as missing.
+// What the gate actually checks, bisected against a request captured from the
+// real opencode client (which does still get 200 from this same machine and
+// the same IP, so it is not an address block):
+//   1. `stream: true` — a non-streaming call is 403 whatever else it carries.
+//   2. a tools array declaring tools NAMED `bash` and `read` — both, by name.
+//      Descriptions and schemas are not inspected and extra tools are fine,
+//      but any other set is 403, including opencode's own tools renamed.
+//   3. the `x-opencode-session` header, still, non-empty.
 //
-// Nothing changed in the opencode client: it has sent this header on every
-// `opencode*` call for months (session/llm/request.ts), together with the
-// request, client and project ids. What changed is the gateway
-// (console/.../zen/util/handler.ts), which now routes the free models through
-// its own "Console" inference backend and forwards those headers to it — and
-// Console rejects a request that carries no session.
+// APX's tools are `run_shell` / `read_file`, and only the surfaces that stream
+// set `stream: true` — so no APX call clears (1) and (2) today, and clearing
+// them would mean declaring tools the agent does not have for the sole
+// purpose of passing the check. This is a deliberate anti-circumvention gate:
+// it has moved three times (429 on the UA, then 400 MissingSessionID, now
+// this), and every move broke every agent pointed at a zen model at once.
+// Treat the free tier as gone; point `super_agent.model` somewhere real.
 //
-// The values are not validated (any non-empty string answers 200), but we mint
-// opencode-shaped ids anyway, and keep ONE session per process: the gateway
-// pins a session to an upstream provider, so a fresh id per call would scatter
-// the turns of one conversation across providers and lose the prompt cache.
-//
-// Pins go stale. `engines.zen.headers` overrides any of these from config, and
-// a header set to "" there is dropped from the request altogether.
+// The headers below stay because the paid models' routing still wants them
+// and they cost nothing. `engines.zen.headers` overrides any of them from
+// config, and a header set to "" there is dropped from the request. One
+// session per process on purpose: the gateway pins a session to an upstream
+// provider, so a fresh id per call would scatter the turns of one
+// conversation across providers and lose the prompt cache.
 export const ZEN_USER_AGENT = "opencode/1.18.29";
 
 const ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -126,12 +132,13 @@ function replayReasoningContent(entry, source, { model, config }) {
   if (typeof reasoning === "string" && reasoning) entry.reasoning_content = reasoning;
 }
 
-// Free-tier key. With zenHeaders() the gateway answers 200 for big-pickle and
-// the other *-free models; without the UA it answers 429 FreeUsageLimitError
-// and without the session header 400 MissingSessionID, valid key or not.
-// Prefer a real OPENCODE_ZEN_API_KEY / engines.zen api_key when present (paid
-// models need one); fall back to "public" so agents are never left keyless on
-// the free tier.
+// The literal the gateway used to accept in place of a key on the free tier.
+// It buys nothing now — the free models 403 with it and the paid ones 401
+// ("Missing API key") — but it is kept as the fallback so a zen config with no
+// key still produces the gateway's own answer rather than an APX-side throw,
+// and so the shape stays if OpenCode ever reopens the tier. Set a real
+// OPENCODE_ZEN_API_KEY / engines.zen.api_key: it is what every model that
+// still answers needs.
 export const ZEN_PUBLIC_API_KEY = "public";
 
 const base = createOpenAiCompatibleEngine({
@@ -144,19 +151,35 @@ const base = createOpenAiCompatibleEngine({
   defaultApiKey: ZEN_PUBLIC_API_KEY,
 });
 
-/** The cheapest model that still proves a key works: free, one token. */
+/** Last-resort probe model when neither the caller nor config names one. */
 const PROBE_MODEL = "big-pickle";
+
+/** The free models, which no longer answer APX at all (see the note up top). */
+const FREE_MODELS = [/^big-pickle$/i, /-free$/i];
+const isFreeModel = (m) => FREE_MODELS.some((re) => re.test(String(m || "")));
 
 // Zen serves its catalog to anyone — `GET /models` answers 200 with no key at
 // all, and 200 again with a made-up one. The shared health check reads that as
 // "connected", so a typo in the key would show a healthy provider that fails on
-// the first real turn. Here the probe has to be a completion: one token against
-// a free model, which costs nothing and is the only answer the gateway gives
-// that actually depends on the key. Empty config still probes with "public".
+// the first real turn. Here the probe has to be a completion against the model
+// the chain is really asking about: it is the only answer the gateway gives
+// that depends on both the key and the model's tier.
 export default {
   ...base,
 
-  async health(config = {}, { timeoutMs = 800 } = {}) {
+  async health(config = {}, { timeoutMs = 800, candidateModel = null } = {}) {
+    // Probe the model the chain is actually asking about. Probing a free model
+    // on behalf of a paid one would fail the paid model for the wrong reason,
+    // and vice versa — the two now answer differently.
+    const model = candidateModel || config?.model || PROBE_MODEL;
+    if (isFreeModel(model)) {
+      return {
+        ok: false,
+        provider: "zen",
+        reason: `${model}: el free tier de OpenCode ya sólo responde al cliente opencode`,
+      };
+    }
+
     const key = config?.api_key || process.env.OPENCODE_ZEN_API_KEY || ZEN_PUBLIC_API_KEY;
     if (!key) return { ok: false, provider: "zen", reason: "no api_key" };
 
@@ -164,14 +187,14 @@ export default {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(timeoutMs, 4000));
     try {
-      const res = await fetchThrough(config?.proxy)(url, {
+      const res = await fetch(url, {
         method: "POST",
         headers: base.buildHeaders(config, {
           "content-type": "application/json",
           authorization: `Bearer ${key}`,
         }),
         body: JSON.stringify({
-          model: config?.model || PROBE_MODEL,
+          model,
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 1,
         }),
@@ -179,7 +202,12 @@ export default {
       });
       if (res.ok) return { ok: true, provider: "zen", detail: url };
       if (res.status === 401 || res.status === 403) {
-        return { ok: false, provider: "zen", reason: "api_key rechazada por Zen" };
+        // 403 here is the free-tier gate, not the key; 401 is the key. Saying
+        // "api_key rechazada" for both sent people to rotate a key that was
+        // fine.
+        const body = await res.json().catch(() => null);
+        const kind = body?.error?.type === "FreeTierError" ? "free tier cerrado" : "api_key rechazada";
+        return { ok: false, provider: "zen", reason: `${kind} por Zen (HTTP ${res.status})` };
       }
       // Anything else (a rate limit, a model that went away) says nothing about
       // the key, so the chain is allowed to try — flagged, not blocked.
