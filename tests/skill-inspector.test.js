@@ -71,8 +71,13 @@ async function withFixtureProject(fn) {
   }
 }
 
+// Lax thresholds, in the names the inspector actually reads. They used to be
+// spelled `hint_threshold`/`load_threshold`/`margin` — the pre-baseline cosine
+// keys — which effectiveConfig ignores, so this "lax" config was silently the
+// strict default. The same stale spelling had made every field in the web
+// panel's Advanced section dead.
 const enabledConfig = {
-  skills: { inspector: { ...INSPECTOR_DEFAULTS, enabled: true, hint_threshold: 0.05, load_threshold: 0.15, margin: 0.0 } },
+  skills: { inspector: { ...INSPECTOR_DEFAULTS, enabled: true, hint_z: 0.5, load_z: 1.0, margin_z: 0, raw_floor: 0.05 } },
   memory: { embeddings: { provider: "tf" } },
 };
 

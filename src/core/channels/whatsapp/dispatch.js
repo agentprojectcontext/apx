@@ -23,6 +23,7 @@
 import { CHANNELS } from "#core/constants/channels.js";
 import { appendGlobalMessage, readGlobalMessages } from "#core/stores/messages.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
+import { resolveTurnSkills } from "#core/agent/skills/turn-skills.js";
 import { buildWhatsAppRelationshipBlock } from "./relationship.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 import {
@@ -503,12 +504,20 @@ export async function handleOwnWhatsAppMessage(m, ctx) {
  */
 async function runOwnerTurn({ ctx, sender, chatJid, body, media, signal }) {
   const { globalConfig, projects, plugins, registries } = ctx;
+  // The per-turn skill decision. This channel never made it, so the owner
+  // asking here got a prompt with no matching skill in it while the same
+  // question on the web got one — see core/agent/skills/turn-skills.js. Only
+  // the owner's turn: a sealed third-party turn has no tools, and a skill it
+  // could not act on is just context we owe nobody.
+  const skills = await resolveTurnSkills({ prompt: body, globalConfig });
   const r = await runSuperAgent({
     globalConfig,
     projects,
     plugins,
     registries,
     prompt: body,
+    ...(skills.contextNote ? { contextNote: skills.contextNote } : {}),
+    skipSkillsHint: skills.skipSkillsHint,
     previousMessages: threadFor(chatJid, { limit: CONTACT_HISTORY_TURNS * 2 }),
     attachments: media.attachment ? [media.attachment] : [],
     channel: CHANNELS.WHATSAPP,

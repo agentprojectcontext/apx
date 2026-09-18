@@ -32,7 +32,7 @@ import {
   isPrivateSkill,
 } from "#core/agent/skills/policy.js";
 import {
-  inspectPromptForSkills,
+  explainPromptForSkills,
   INSPECTOR_DEFAULTS,
 } from "#core/agent/skills/inspector.js";
 import {
@@ -437,17 +437,30 @@ export function register(api /*, ctx */) {
         return res.status(400).json({ error: "prompt required" });
       }
       const cfg = readConfig();
-      // Force enabled for the dry-run so the operator sees what it WOULD do
-      // even when the feature is currently off.
-      const probed = structuredClone(cfg);
-      probed.skills = probed.skills || {};
-      probed.skills.inspector = { ...mergedInspectorConfig(cfg), enabled: true };
-      const out = await inspectPromptForSkills({
+      // explainPromptForSkills runs the dry-run enabled regardless of the real
+      // setting — you test this precisely when deciding whether to turn it on —
+      // and reports the real setting back as `enabled`.
+      const out = await explainPromptForSkills({
         prompt,
         projectPath: project_path,
-        globalConfig: probed,
+        globalConfig: cfg,
       });
-      res.json({ trace: out.trace, contextNote: out.contextNote });
+      res.json({
+        ...out,
+        index: indexStatus(),
+        // Back-compat with the first version of this route, which returned only
+        // the live turn's trace. Same numbers, fewer of them.
+        trace: {
+          enabled: out.enabled,
+          ...(out.reason ? { reason: out.reason } : {}),
+          embedder: out.embedder,
+          degraded: out.degraded,
+          ...(out.jit ? { jit: true } : {}),
+          loaded: out.loaded,
+          hinted: out.hinted,
+          scored: out.candidates.slice(0, 5).map((c) => ({ slug: c.slug, sim: c.sim, rel: c.rel })),
+        },
+      });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

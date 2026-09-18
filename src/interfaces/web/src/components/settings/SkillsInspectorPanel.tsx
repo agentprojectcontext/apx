@@ -1,12 +1,13 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, RefreshCw, Wand2, ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Section } from "../Section";
 import { Button, Field, Input, Loading, Badge, Switch } from "../ui";
+import { SkillProbe } from "./SkillProbe";
 import { cn } from "../../lib/cn";
 import { useToast } from "../Toast";
-import { Skills, type InspectTrace } from "../../lib/api/skills";
+import { Skills } from "../../lib/api/skills";
 import { Embeddings } from "../../lib/api/embeddings";
 import { t } from "../../i18n";
 
@@ -23,11 +24,17 @@ import { t } from "../../i18n";
 // Numeric knobs with human labels + sane ranges. We keep them as plain number
 // inputs (same idiom as the embeddings model fields) rather than sliders so the
 // values are explicit and copy-pasteable.
+// These keys must match INSPECTOR_DEFAULTS exactly: the PUT route drops any key
+// it doesn't recognise, so a stale name here is a field that renders empty and
+// silently saves nothing. It happened — the panel still said `load_threshold`
+// (a cosine) long after scoring moved to `load_z` (a z-score over each skill's
+// own baseline), so every box in Advanced was dead.
 function knobs(): { key: keyof NumericKnobs; label: string; hint: string; step: number; min: number; max: number }[] {
   return [
-    { key: "load_threshold", label: t("settings_ui.knob_load_threshold"), hint: t("settings_ui.knob_load_threshold_hint"), step: 0.01, min: 0, max: 1 },
-    { key: "hint_threshold", label: t("settings_ui.knob_hint_threshold"), hint: t("settings_ui.knob_hint_threshold_hint"), step: 0.01, min: 0, max: 1 },
-    { key: "margin", label: t("settings_ui.knob_margin"), hint: t("settings_ui.knob_margin_hint"), step: 0.01, min: 0, max: 1 },
+    { key: "load_z", label: t("settings_ui.knob_load_z"), hint: t("settings_ui.knob_load_z_hint"), step: 0.1, min: 0, max: 10 },
+    { key: "hint_z", label: t("settings_ui.knob_hint_z"), hint: t("settings_ui.knob_hint_z_hint"), step: 0.1, min: 0, max: 10 },
+    { key: "margin_z", label: t("settings_ui.knob_margin_z"), hint: t("settings_ui.knob_margin_z_hint"), step: 0.1, min: 0, max: 5 },
+    { key: "raw_floor", label: t("settings_ui.knob_raw_floor"), hint: t("settings_ui.knob_raw_floor_hint"), step: 0.01, min: 0, max: 1 },
     { key: "max_loaded", label: t("settings_ui.knob_max_loaded"), hint: t("settings_ui.knob_max_loaded_hint"), step: 1, min: 0, max: 5 },
     { key: "max_hints", label: t("settings_ui.knob_max_hints"), hint: t("settings_ui.knob_max_hints_hint"), step: 1, min: 0, max: 8 },
     { key: "prompt_floor", label: t("settings_ui.knob_prompt_floor"), hint: t("settings_ui.knob_prompt_floor_hint"), step: 1, min: 0, max: 40 },
@@ -36,7 +43,7 @@ function knobs(): { key: keyof NumericKnobs; label: string; hint: string; step: 
 }
 
 type NumericKnobs = {
-  load_threshold: number; hint_threshold: number; margin: number;
+  load_z: number; hint_z: number; margin_z: number; raw_floor: number;
   max_loaded: number; max_hints: number; prompt_floor: number; body_char_cap: number;
 };
 
@@ -46,8 +53,6 @@ export function SkillsInspectorPanel() {
   const { data, mutate, isLoading } = useSWR("/api/skills/inspector", () => Skills.inspector());
   const { data: providers } = useSWR("/api/embeddings/providers", () => Embeddings.providers());
   const [busy, setBusy] = useState(false);
-  const [probe, setProbe] = useState("");
-  const [probeResult, setProbeResult] = useState<InspectTrace | null>(null);
   // Advanced (thresholds) starts collapsed — most turns never touch these.
   const [advOpen, setAdvOpen] = useState(false);
 
@@ -84,20 +89,6 @@ export function SkillsInspectorPanel() {
       await mutate();
     } catch (e) {
       toast.error(t("settings_ui.index_failed", { msg: (e as Error).message }));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const runProbe = async () => {
-    if (!probe.trim()) return;
-    setBusy(true);
-    setProbeResult(null);
-    try {
-      const r = await Skills.inspect(probe.trim());
-      setProbeResult(r.trace);
-    } catch (e) {
-      toast.error(t("settings_ui.dry_run_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -181,67 +172,10 @@ export function SkillsInspectorPanel() {
         </div>
       </Section>
 
-      {/* 2 — Test (dry-run): dimmed + inert when the inspector is off, like the
-          Advanced limits below. */}
-      <Section
-        title={t("settings_ui.test_title")}
-        description={t("settings_ui.test_desc")}
-      >
-        <div className={cn("space-y-3", !cfg.enabled && "pointer-events-none opacity-50")}>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              value={probe}
-              placeholder={t("settings_ui.test_placeholder")}
-              disabled={busy || !cfg.enabled}
-              onChange={(ev) => setProbe(ev.target.value)}
-              onKeyDown={(ev) => { if (ev.key === "Enter") runProbe(); }}
-              className="max-w-xl flex-1"
-            />
-            <Button variant="primary" onClick={runProbe} loading={busy} disabled={busy || !cfg.enabled}>
-              <Wand2 size={14} /> {t("settings_ui.test_btn")}
-            </Button>
-          </div>
-
-          {probeResult && (
-            <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Sparkles size={14} className="text-muted-foreground" />
-                <span className="text-muted-foreground">{probeResult.embedder || "—"}</span>
-                {probeResult.jit ? <Badge tone="warning">{t("settings_ui.jit_empty_index")}</Badge> : null}
-                {probeResult.reason && !probeResult.loaded?.length && !probeResult.hinted?.length ? (
-                  <Badge tone="muted">{probeResult.reason}</Badge>
-                ) : null}
-              </div>
-
-              {probeResult.loaded?.length ? (
-                <div className="mb-1">
-                  <span className="text-muted-foreground">{t("settings_ui.loaded_label")} </span>
-                  {probeResult.loaded.map((s) => (
-                    <Badge key={s} tone="success" className="mr-1">{s}</Badge>
-                  ))}
-                </div>
-              ) : null}
-
-              {probeResult.hinted?.length ? (
-                <div className="mb-1">
-                  <span className="text-muted-foreground">{t("settings_ui.suggested_label")} </span>
-                  {probeResult.hinted.map((s) => (
-                    <Badge key={s} tone="info" className="mr-1">{s}</Badge>
-                  ))}
-                </div>
-              ) : null}
-
-              {probeResult.scored?.length ? (
-                <div className="mt-2 space-y-0.5 font-mono text-xs text-muted-foreground">
-                  {probeResult.scored.map((s) => (
-                    <div key={s.slug}>{s.sim.toFixed(3)}  {s.slug}</div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </Section>
+      {/* 2 — Test: the shared probe, same component Memory (RAG) renders. It
+          runs the dry-run enabled regardless of the switch above, so it is NOT
+          dimmed when the inspector is off — testing it is how you decide. */}
+      <SkillProbe />
 
       {/* 3 — Advanced: the thresholds, collapsed by default so they don't tire the
           eye, and dimmed + inert when the inspector is off. */}

@@ -9,6 +9,7 @@ import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Embeddings, type EmbedMode } from "../../lib/api/embeddings";
 import { EmbedProviderList } from "./EmbedProviderList";
 import { ModelPicker } from "../chat/ModelPicker";
+import { SkillProbe } from "./SkillProbe";
 import { t } from "../../i18n";
 
 // Memory / RAG embeddings configuration. Mirrors the Voice (TTS/STT) panel:
@@ -232,6 +233,11 @@ export function MemoryPanel() {
         </div>
       </Section>
 
+      {/* Right column: compaction, then the probe under it. The probe used to
+          span both columns, which left the tall embeddings card facing a short
+          one and a wide, mostly-empty table below. Stacked here it fills the
+          space the compaction card doesn't use. */}
+      <div className="space-y-6">
       <Section
         title={t("memory_panel.compaction_title")}
         description={t("memory_panel.compaction_desc")}
@@ -289,6 +295,13 @@ export function MemoryPanel() {
           </div>
         </Field>
       </Section>
+
+      {/* The embedder chosen above is what decides which skills reach an agent
+          each turn, and that decision is invisible from the chat. It belongs on
+          this screen: "Test embedding" only proves an engine answers, not that
+          it can tell one skill from another. */}
+      <SkillProbe />
+      </div>
     </div>
   );
 }
