@@ -23,6 +23,7 @@
     "skills/",
     "README.md",
     "!**/node_modules/**",
+    "!src/interfaces/android/**",
     "!**/e2e/**",
     "!**/playwright-report/**",
     "!**/test-results/**",
