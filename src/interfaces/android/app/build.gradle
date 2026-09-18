@@ -2,6 +2,24 @@ plugins {
     id "com.android.application"
 }
 
+// The app's own version, and the monotonic number Android compares on update.
+//
+// They move independently on purpose. `apxAppVersion` is what a person reads
+// and is bumped by hand in gradle.properties when the app actually changes;
+// the code is just "is this newer", and CI feeds it the run number so two
+// builds of the same version can never collide. Locally both fall back to
+// something buildable, because a developer running ./gradlew is not releasing.
+def appVersionName = System.getenv("APX_VERSION_NAME") ?: project.findProperty("apxAppVersion") ?: "0.1.0"
+def appVersionCode = (System.getenv("APX_VERSION_CODE") ?: "1") as Integer
+
+// Release signing comes entirely from the environment: the keystore never
+// lives in the repo and is never written into a build file. Without it the
+// release variant is simply left unsigned rather than falling back to the
+// debug key — a debug-signed APK handed out as a release is a key everyone
+// already has, and the first real signature would then be unable to update it.
+def keystorePath = System.getenv("APX_KEYSTORE") ?: ""
+def hasKeystore = !keystorePath.isEmpty() && file(keystorePath).exists()
+
 android {
     namespace "dev.agentprojectcontext.apx"
     compileSdk 35
@@ -10,23 +28,49 @@ android {
         applicationId "dev.agentprojectcontext.apx"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "0.1.0"
+        versionCode appVersionCode
+        versionName appVersionName
 
         testInstrumentationRunner "android.test.InstrumentationTestRunner"
     }
 
+    if (hasKeystore) {
+        signingConfigs {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("APX_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("APX_KEY_ALIAS")
+                keyPassword System.getenv("APX_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasKeystore) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
+    }
+
+    // AGP 8 stopped generating BuildConfig unless asked. The app reads
+    // BuildConfig.VERSION_NAME to tell the daemon what it is running, and
+    // without this the class does not exist and the build fails on that line.
+    buildFeatures {
+        buildConfig true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+// Say it once, at configuration time. An unsigned release APK fails at
+// `adb install` with a message about the parse, not about the signature, so
+// the place to notice is here.
+if (!hasKeystore) {
+    logger.lifecycle("APX: no release keystore (APX_KEYSTORE); `assembleRelease` will produce an UNSIGNED apk.")
 }
 
 dependencies {
