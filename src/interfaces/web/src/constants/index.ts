@@ -24,6 +24,19 @@ export const STORAGE = {
   railOrder: "apx.rail.order",
   language: "apx.lang",
   robyChat: "apx.roby.chat",
+  discordDismissed: "apx.discord.dismissed",
+  // The VERSION that was dismissed, not a boolean: skipping one release is
+  // not a decision about the next one.
+  updateDismissed: "apx.update.dismissed",
+} as const;
+
+/** Links that live outside the daemon. */
+export const LINKS = {
+  discord: "https://discord.gg/vxdZuT5WuE",
+  // A FIXED release tag, never /releases/latest: APX publishes to npm several
+  // times a week, so "latest" is almost never the release that carries an APK.
+  androidApk: "https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk",
+  androidDocs: "https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/",
 } as const;
 
 /** Tailwind class tokens reused across components. */

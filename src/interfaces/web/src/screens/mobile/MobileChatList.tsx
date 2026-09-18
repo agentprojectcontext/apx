@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
+import { CommunityCard } from "../../components/common/CommunityCard";
+import { chatPath, keyFor, pidOf } from "./routes";
+import { LINKS } from "../../constants";
 import { inboxRowKey } from "../../lib/chat-read";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
 import { ProjectFilter } from "../../components/inbox/ProjectFilter";
@@ -144,6 +148,10 @@ export function MobileChatList({
           real tap to be accepted at all, so the app has to ask first. */}
       <NotifyNudge />
       <InstallRow />
+      {/* Only outside the app: inside it the app IS installed, and this would
+          be an offer to do something already done. */}
+      <AskToInstallRow rows={rows} />
+      <CommunityCard variant="inline" />
 
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         {shownRows.map((row) => (
@@ -183,6 +191,91 @@ export function MobileChatList({
   );
 }
 
+
+/**
+ * "Ask <the super-agent> to install the app."
+ *
+ * The APK cannot be installed from this page: Android installs it from a file,
+ * over a cable, from the machine the daemon runs on — which is where the agent
+ * already is. So the phone does not try; it hands the job to the one party that
+ * can do it, in one tap, and the owner still presses send.
+ *
+ * Not auto-sent on purpose. The `?draft=` deep link puts the request in the
+ * composer and stops there: installing software on a phone is a thing someone
+ * should read before it starts, and the agent's first answer is the two
+ * conditions it cannot arrange itself (cable, USB debugging) — see the
+ * `apx-android` runtime skill.
+ */
+const ASK_DISMISSED = "apx.android.ask.dismissed";
+
+function AskToInstallRow({ rows }: { rows: InboxRow[] }) {
+  const navigate = useNavigate();
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(ASK_DISMISSED) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  // Inside the APK there is nothing to offer, and on an iPhone there is no APK
+  // to offer — that phone installs the panel as a web app, which InstallRow
+  // above already says.
+  const android = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+  const superAgent = rows.find((r) => r.kind === "super_agent");
+  if (hidden || !android || isNativeShell() || !superAgent) return null;
+  const name = superAgent.agent_name || superAgent.agent_slug;
+
+  const dismiss = () => {
+    setHidden(true);
+    try {
+      localStorage.setItem(ASK_DISMISSED, "1");
+    } catch {
+      /* private mode: gone for this session, which is enough */
+    }
+  };
+
+  const open = () => {
+    const to = chatPath(pidOf(superAgent), superAgent.agent_slug, keyFor(superAgent));
+    navigate(`${to}?draft=${encodeURIComponent(t("android_ask.draft"))}`);
+  };
+
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-primary/5 px-4 py-3 text-sm">
+      <Smartphone size={16} className="shrink-0 text-primary" />
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+        {t("android_ask.text", { name })}
+      </span>
+      {/* Two ways, because they need different things and only the reader knows
+          which they have. The download works from the phone alone; asking the
+          agent needs a cable and a computer, and gets the install plus a
+          pairing without anything typed on a phone keyboard. */}
+      <a
+        href={LINKS.androidApk}
+        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+        data-testid="android-download-apk"
+      >
+        {t("android_ask.download")}
+      </a>
+      <button
+        type="button"
+        onClick={open}
+        data-testid="android-ask-install"
+        className="shrink-0 rounded-full border border-border px-3 py-1.5 text-xs font-medium"
+      >
+        {t("android_ask.cta", { name })}
+      </button>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label={t("common.close")}
+        className="shrink-0 rounded p-1 text-muted-fg hover:text-foreground"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
 
 /**
  * "Put this on your home screen" — offered here because this is the screen a

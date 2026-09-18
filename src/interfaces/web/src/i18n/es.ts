@@ -40,6 +40,7 @@ export const es = {
     add:          "Agregar",
     remove:       "Quitar",
     reload:       "Recargar",
+    retry:        "Reintentar",
     shutdown:     "Apagar",
     enabled:      "Habilitado",
     disabled:     "Deshabilitado",
@@ -321,6 +322,7 @@ export const es = {
     token_paste: "Pegá el bearer del daemon",
     token_saved: "Token guardado.",
     devices:     "Dispositivos pareados",
+    devices_kind_all:    "Todos",
     devices_sub: "GET /pair/list. Revocar invalida ese bearer en el daemon.",
     devices_empty: "No hay clientes pareados todavía.",
     devices_revoke_confirm: "Revocar cliente {id}?",
@@ -2138,6 +2140,7 @@ export const es = {
     install_ios:         "En iPhone: Compartir → Añadir a pantalla de inicio. Safari no permite instalarla desde acá.",
     install_insecure:    "Este navegador no puede instalarla desde una dirección http:// de red local. Necesita HTTPS — la forma más simple es publicar el panel por Tailscale, abajo. Sin HTTPS tampoco hay micrófono ni portapapeles.",
     install_unsupported: "Este navegador todavía no ofreció instalar la app. En Chrome podés forzarlo desde el menú ⋮ → Instalar aplicación.",
+    install_no_support:  "Este navegador no puede instalar apps web. Chrome o Edge sí, en teléfono o en escritorio; en iPhone es Safari → Compartir → Agregar a inicio.",
     addresses_title:     "Direcciones",
     addresses_sub:       "Todas las formas de llegar a este daemon. Si una deja de responder, el panel prueba las otras solo.",
     secure:              "Seguro",
@@ -2172,6 +2175,41 @@ export const es = {
     paired:              "Listo, el teléfono ya está vinculado",
     insecure:            "Esta dirección es http://, así que en el teléfono no vas a poder instalarla como app ni grabar audio. Para eso: apx panel tailscale on",
     open_chat:           "Abrir chat mobile",
+  },
+
+  android_app: {
+    title:               "APX para Android",
+    sub:                 "Una app nativa: notificaciones, la mascota flotante y la pantalla del auto. No está en Google Play — se instala desde un archivo.",
+    mode_download:       "Bajar la app",
+    mode_pair:           "Vincular una app instalada",
+    scan:                "Escaneá con el teléfono para bajar el APK.",
+    android_only:        "Sólo Android — no hay APK para iPhone.",
+    copy:                "Copiar el link",
+    docs:                "Cómo instalarla",
+    pair_scan:           "Escaneá con un teléfono que ya tenga APX: abre la app, no el navegador, y la vincula.",
+    pair_note:           "Para un teléfono que perdió el pairing — reinstalado, borrado o revocado. El código dura cinco minutos y sirve una vez.",
+    pair_addr:           "Se va a quedar con esta dirección:",
+    pair_tailnet:        "Es una dirección de la tailnet — el teléfono tiene que estar logueado en esta tailnet para que funcione.",
+    pair_new:            "Código nuevo",
+    usb:                 "Con el teléfono enchufado, `apx android install` hace todo: instala, abre el túnel USB y vincula.",
+    ask:                 "Pedirle a {persona} que la instale",
+  },
+
+  update: {
+    available:           "Salió APX {latest} — estás corriendo la {current}.",
+  },
+
+  android_ask: {
+    text:                "¿Querés APX como app en este teléfono?",
+    download:            "Bajarla",
+    cta:                 "Pedirle a {name}",
+    draft:               "Instalame la app de APX Android en el teléfono, por favor. Decime primero qué tengo que hacer yo en el celular.",
+  },
+
+  community: {
+    title:               "APX tiene Discord",
+    desc:                "Ahí se contestan las dudas, se muestra lo que cada uno armó, y se avisan las versiones nuevas primero.",
+    cta:                 "Entrar al Discord",
   },
 
   sidebar_ui: {
