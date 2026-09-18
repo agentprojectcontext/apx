@@ -3,6 +3,7 @@
 export { setToken, getToken, setReauthorize, refreshToken, http, streamNdjson, HttpError } from "./http";
 
 export * from "./api/health";
+export * from "./api/update";
 export * from "./api/projects";
 export * from "./api/agents";
 export * from "./api/conversations";
