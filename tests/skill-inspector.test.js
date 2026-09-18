@@ -122,8 +122,20 @@ test("inspectPromptForSkills: matching prompt injects the fixture skill body (JI
     // the slug must appear in the trace and the contextNote.
     const surfaced = (out.trace.loaded || []).concat(out.trace.hinted || []);
     assert.ok(surfaced.includes(FIXTURE_SLUG), `expected ${FIXTURE_SLUG} to be surfaced, got ${JSON.stringify(out.trace)}`);
-    assert.ok(out.contextNote.includes("Skill Inspector"));
+    // NOT the block's heading. That is copy, and copy changes — this assertion
+    // was `includes("Skill Inspector")` and broke the moment the heading was
+    // reworded, reporting a broken retriever when nothing about the retrieval
+    // had moved. What must hold is that the block REACHED the prompt, names the
+    // skill, and — when the body was inlined rather than hinted — carries it.
+    // The wording itself has its own test (skill-turn-surfaces.test.js).
+    assert.ok(out.contextNote.trim(), "a surfaced skill must produce a context note");
     assert.ok(out.contextNote.includes(FIXTURE_SLUG));
+    if (out.trace.loaded?.length) {
+      assert.ok(
+        out.contextNote.includes("boondiggle frangistan"),
+        "a LOADED skill must carry its body, not just its name",
+      );
+    }
   });
 });
 
