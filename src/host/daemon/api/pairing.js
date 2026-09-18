@@ -142,7 +142,7 @@ export function register(api, ctx) {
   // new client token. Nonce is one-shot.
   api.post("/pair/confirm", (req, res) => {
     purgeExpired();
-    const { pairing_id, label, fingerprint, kind } = req.body || {};
+    const { pairing_id, label, fingerprint, kind, app_version } = req.body || {};
     if (!pairing_id || typeof pairing_id !== "string") {
       return res.status(400).json({ error: "pair/confirm: pairing_id required" });
     }
@@ -162,7 +162,7 @@ export function register(api, ctx) {
     // them anyway), but we surface it back so the device can decide.
     const expectedFp = tokenStore.masterFingerprint();
 
-    const client = tokenStore.addClient(label || "device", kind || "device");
+    const client = tokenStore.addClient(label || "device", kind || "device", app_version || "");
     s.confirmed_at = Date.now();
     s.device_label = client.label;
     s.client_id = client.id;

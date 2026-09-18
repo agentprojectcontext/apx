@@ -58,6 +58,12 @@ final class DaemonClient {
             payload.put("pairing_id", pairingId);
             payload.put("label", label);
             payload.put("kind", "android");
+            // What this phone is running, said once, at the only moment the
+            // daemon and the app ever exchange anything but a token. Without it
+            // nothing on the daemon side can tell a phone on 0.2.0 from one on
+            // 0.9.0 — and a phone cannot be asked after the fact, so an app that
+            // ships without this is permanently silent about its own version.
+            payload.put("app_version", BuildConfig.VERSION_NAME);
         } catch (JSONException error) {
             callback.onError("No pude preparar pairing.");
             return;
