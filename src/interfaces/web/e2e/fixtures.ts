@@ -26,6 +26,17 @@ export const test = base.extend<{ errors: string[] }>({
     await page.addInitScript((tok) => {
       try {
         localStorage.setItem("apx.token", tok as string);
+        // The corner cards, already closed. They are a real card over the
+        // bottom-right corner, and a fresh browser — which every run is — shows
+        // one. It covered `task-comment-send` and took that click for itself,
+        // and the spec that failed never mentions these cards, so the failure
+        // pointed nowhere near the cause. Dismissed the way a returning user
+        // would have them: through the same keys the panel writes.
+        localStorage.setItem("apx.discord.dismissed", "1");
+        localStorage.setItem("apx.star.dismissed", "1");
+        localStorage.setItem("apx.notify.nudge.dismissed", "1");
+        localStorage.setItem("apx.install.dismissed", "1");
+        localStorage.setItem("apx.mobilehint.dismissed", "1");
       } catch {
         /* ignore */
       }
