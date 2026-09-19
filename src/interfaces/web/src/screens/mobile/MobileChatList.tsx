@@ -301,6 +301,13 @@ function InstallRow() {
   useEffect(() => onInstallStateChange(() => bump((n) => n + 1)), []);
 
   const stance = installStance();
+  // Never inside the app. "Install the panel as an app" is an offer to do the
+  // thing you already did, and its insecure-context wording is worse: it tells
+  // you there is no install without HTTPS and points at a Tailscale section
+  // "below" that exists on the DESKTOP panel and not on this screen. The
+  // microphone half of it is still true in a WebView over http://, but a
+  // permanent, dismissible banner was never where that belonged.
+  if (isNativeShell()) return null;
   if (hidden) return null;
   // `insecure` is shown too, and that is the important one: over plain http on
   // a LAN address Chrome does not expose the service worker API at all, so
