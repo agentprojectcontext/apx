@@ -1,5 +1,4 @@
 import { resolveProject } from "../helpers.js";
-import { mcpToolRisk } from "#core/mcp/tool-risk.js";
 
 export default {
   name: "call_mcp",
@@ -20,47 +19,36 @@ export default {
       },
     },
   },
+  // `call_mcp` carries NO dangerous flag, on purpose.
+  //
+  // It used to be graded per call: split the target tool's name into words and
+  // look them up in two lists of English verbs and nouns, so `cheto_task_update`
+  // was "dangerous" because it contains "update". Under `automatico` that means
+  // a confirmation dialog, and a routine has nobody to show one to — so the
+  // company-council-cmo run died on `cheto_task_update` with "Action requires
+  // user confirmation", which was not true: nothing about that call needed a
+  // person. Putting `call_mcp` in the routine's allowed_tools did not help
+  // either, because `automatico` does not consult the allowlist at all.
+  //
+  // No wording of those lists fixes that. Guessing what a third-party tool does
+  // from its name is the wrong instrument: the lists only know the words the
+  // servers they were grown against happened to use, and every server that
+  // names things differently gets graded by coincidence. The grade also had no
+  // way to be right — a wrong "read" lets a write through, a wrong "write"
+  // stops a routine, and the name carries no evidence either way.
+  //
+  // So APX grades its OWN tools, which it knows, and stops pretending to grade
+  // somebody else's. An MCP call is bounded by the permission mode like any
+  // other tool: `total` and `automatico` run it, `permiso` requires it in
+  // allowed_tools. Which MCPs an agent can reach at all is decided upstream,
+  // where it belongs — by what is registered in the project and what the
+  // agent's tool list allows.
   makeHandler: ({ projects, registries, requirePermission }) => async ({ project, mcp, tool, args = {}, confirmed = false }) => {
     const p = resolveProject(projects, project);
     if (!registries) throw new Error("MCP registry unavailable");
     const registry = registries.for ? registries.for(p) : registries.ensure(p);
 
-    // Graded by the tool it is ABOUT to call, not wholesale.
-    //
-    // `call_mcp` used to be `dangerous: true` for everything, which is two
-    // mistakes at once: under `total` it gates nothing at all, so an agent
-    // whose whole tool list is read-only could still reach
-    // `appsi_send_campaign`; and under `automatico` it gates EVERYTHING, so
-    // every read asks too — and a routine, which has nobody to ask, simply
-    // loses the sources it needed. See core/mcp/tool-risk.js.
-    let descriptor = null;
-    try {
-      // The server's own `annotations.readOnlyHint` beats any guess from the
-      // name. Best-effort: a listing that fails must not stop the call, it
-      // only means we fall back to the name.
-      const tools = await registry.listTools(mcp);
-      descriptor = (Array.isArray(tools) ? tools : tools?.tools || []).find((t) => t?.name === tool) || null;
-    } catch {
-      // Unreachable or slow server — the heuristic still applies, and the call
-      // below will fail on its own terms with a better message than ours.
-    }
-
-    // What the operator declared about THIS server, if anything. Cheap: it is
-    // a read of the already-loaded mcps.json entry, no process involved.
-    let declared = null;
-    try {
-      declared = registry.getByName ? registry.getByName(mcp) : null;
-    } catch {
-      // A registry that cannot describe itself still gets to run the call; the
-      // name heuristic covers it, the same as before this existed.
-    }
-
-    const risk = mcpToolRisk(tool, descriptor, declared);
-    await requirePermission("call_mcp", {
-      dangerous: risk.dangerous,
-      confirmed,
-      args: { mcp, tool, why: risk.reason },
-    });
+    await requirePermission("call_mcp", { confirmed, args: { mcp, tool } });
 
     return registry.call(mcp, tool, args);
   },

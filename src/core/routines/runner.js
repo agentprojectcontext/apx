@@ -24,6 +24,7 @@ import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { recordAgentTurn } from "#core/stores/turn-record.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "#core/stores/artifacts.js";
@@ -296,10 +297,7 @@ async function handleExecAgent(ctx, routine) {
       });
       return {
         status: "error",
-        error:
-          `blocked waiting for a confirmation nobody can give: ${blocked.join(", ")}. ` +
-          `A scheduled run has no one to approve a dangerous tool — either allow it on ` +
-          `this routine (allowed_tools) or use a tool that does not need approval.`,
+        error: blockedForPermissionError(blocked, cfg.super_agent?.permission_mode),
         blocked_tools: blocked,
         reply: text,
         trace,
@@ -460,10 +458,7 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
   if (blocked.length) {
     return {
       status: "error",
-      error:
-        `blocked waiting for a confirmation nobody can give: ${blocked.join(", ")}. ` +
-        `A scheduled run has no one to approve a dangerous tool — either allow it on ` +
-        `this routine (allowed_tools) or use a tool that does not need approval.`,
+      error: blockedForPermissionError(blocked, cfg.super_agent?.permission_mode),
       blocked_tools: blocked,
       reply: result.text,
       trace: result.trace,
@@ -486,6 +481,40 @@ export function blockedForPermission(trace) {
     }
   }
   return [...names];
+}
+
+/**
+ * Why the run stopped, and the lever that actually moves.
+ *
+ * The old message said "either allow it on this routine (allowed_tools) or use
+ * a tool that does not need approval" for every mode. Under `automatico` the
+ * first half is false: the guard never consults allowed_tools there, it only
+ * looks at whether APX grades the tool destructive. company-council-cmo was
+ * blocked while holding the exact allowlist the message told its owner to
+ * write. A remedy that does nothing is worse than none — it sends someone to
+ * re-do what they already did and conclude the system is lying to them.
+ */
+export function blockedForPermissionError(blocked, permissionMode) {
+  const head = `blocked waiting for a confirmation nobody can give: ${blocked.join(", ")}. `;
+  const mode = permissionMode || DEFAULT_PERMISSION_MODE;
+  if (mode === PERMISSION_MODES.PERMISO) {
+    return head +
+      `This routine runs in \`permiso\`, where only allowed_tools run unattended — ` +
+      `add ${blocked.join(", ")} to its allowed_tools, or set its permission_mode to ` +
+      `\`automatico\` or \`total\`.`;
+  }
+  if (mode === PERMISSION_MODES.AUTOMATICO) {
+    return head +
+      `This routine runs in \`automatico\`, which does NOT consult allowed_tools — ` +
+      `a tool APX grades destructive always asks, and a scheduled run has no one to ask. ` +
+      `Set this routine's permission_mode to \`total\`, or use a tool that does not need approval.`;
+  }
+  // `total` and the guard agree on everything, so a block here came from the
+  // security_risk analyzer's floor (super_agent.security_risk), not the mode.
+  return head +
+    `This routine runs in \`total\`, so the block came from the security-risk gate ` +
+    `(super_agent.security_risk), which confirms on the model's own grade of the action. ` +
+    `Lower its confirm_at, turn it off, or use a tool that does not need approval.`;
 }
 
 /**
