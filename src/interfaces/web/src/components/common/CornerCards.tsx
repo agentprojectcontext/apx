@@ -33,12 +33,21 @@ export function CornerCards() {
   return (
     <div
       className={[
-        "fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))]",
+        // `pointer-events-none` on the box, `auto` on the card: the box is a
+        // 24rem rectangle that draws nothing, and it has no business taking a
+        // click that misses the card inside it.
+        //
+        // This is hygiene, NOT the fix for the e2e failures these cards caused.
+        // Those were the card itself, visibly covering `task-comment-send` at
+        // 1280x720 once Playwright scrolled it into view — measured: the point
+        // it clicks returned `community-card`. A card that is meant to be seen
+        // will cover things, so the harness dismisses them (see e2e/fixtures).
+        "pointer-events-none fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))]",
         // The one in front is IN FLOW, so the container takes its height and
         // the corner keeps its size. The rest are absolute against the same
         // bottom edge, which is what makes them a deck instead of a list.
         "[&>*]:origin-top [&>*]:transition-all [&>*]:duration-200",
-        "[&>*:first-child]:relative [&>*:first-child]:z-30",
+        "[&>*:first-child]:pointer-events-auto [&>*:first-child]:relative [&>*:first-child]:z-30",
         // Anchored to the TOP of the front card, not the bottom. Anchored at
         // the bottom the peek depended on the cards' relative heights, and the
         // tallest one happened to be in front — so the deck was there, measured
