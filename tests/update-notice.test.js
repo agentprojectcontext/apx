@@ -33,6 +33,28 @@ test("the verdict knows it is running from a clone", () => {
   assert.equal(out.current, "0.0.1");
 });
 
+test("the feature can be seen working, and says when it is being simulated", () => {
+  // Everywhere this can be developed, `from_git` is true and the banner is
+  // deliberately silent — so without a seam the only way to verify it would be
+  // to ship it and wait for a stranger's bug report.
+  const before = process.env.APX_UPDATE_SIMULATE;
+  try {
+    process.env.APX_UPDATE_SIMULATE = "9.9.9";
+    const out = updateStatus("1.0.0");
+    assert.equal(out.latest, "9.9.9");
+    assert.equal(out.newer, true);
+    // The two things the real verdict would suppress, both lifted.
+    assert.equal(out.from_git, false);
+    // …and marked, so nothing downstream can mistake it for the truth.
+    assert.equal(out.simulated, true);
+  } finally {
+    if (before === undefined) delete process.env.APX_UPDATE_SIMULATE;
+    else process.env.APX_UPDATE_SIMULATE = before;
+  }
+  // Absent by default: the seam must never be what a normal run takes.
+  assert.equal(updateStatus("1.0.0").simulated, undefined);
+});
+
 test("the panel stays quiet in a checkout, and forgets one version at a time", () => {
   const banner = read("src/interfaces/web/src/components/common/UpdateBanner.tsx");
   assert.match(banner, /if \(!data\?\.newer \|\| !data\.latest \|\| data\.from_git\) return null;/);

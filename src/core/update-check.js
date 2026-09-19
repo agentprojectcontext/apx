@@ -113,6 +113,26 @@ export async function getLatestVersion() {
  * source is reported and the caller decides whether there is anything to say.
  */
 export function updateStatus(currentVersion) {
+  // A declared testing seam, and the only way to SEE this feature work.
+  // Everywhere it can be developed, `from_git` is true and the banner is
+  // deliberately silent — so without this the panel's update notice could only
+  // ever be verified by shipping it and waiting for someone else's report.
+  // Reported as `simulated` so nothing downstream can mistake it for real, and
+  // logged, so a variable left set in a shell is noisy rather than quietly
+  // lying to whoever opens the panel.
+  const fake = process.env.APX_UPDATE_SIMULATE;
+  if (fake) {
+    console.warn(`apx: APX_UPDATE_SIMULATE=${fake} — reporting a fake update. Unset it to go back to the truth.`);
+    return {
+      current: currentVersion,
+      latest: fake,
+      newer: isNewer(currentVersion, fake),
+      checked_at: Date.now(),
+      from_git: false,
+      simulated: true,
+    };
+  }
+
   const cache = readCache();
   const now = Date.now();
   if (!cache || (now - (cache.checkedAt || 0)) > CACHE_TTL_MS) {
