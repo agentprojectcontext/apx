@@ -45,6 +45,16 @@ export const Conversations = {
   // assistant turns, dropping the rest — backs "regenerate" and "edit & resend".
   truncate: (pid: string, slug: string, id: string, keepVisible: number) =>
     http.post<{ ok: boolean }>(`/api/projects/${pid}/agents/${seg(slug)}/conversations/${seg(id)}/truncate`, { keep_visible: keepVisible }),
+  // Rewind a super-agent channel thread the same way, on the ledger instead of
+  // a file. The daemon refuses the threads where a rewind would not land back
+  // where it cut (delivered channels, rooms, any day but today) — see
+  // `threadRewindRefusal` in core/constants/channels.js, which `canRewindThread`
+  // in ChatTab mirrors so the buttons are not offered in the first place.
+  truncateThread: (pid: string, channel: string, id: string, keepVisible: number) =>
+    http.post<{ ok: boolean; removed?: number }>(
+      `/api/projects/${pid}/super-agent/threads/${seg(channel)}/${seg(id)}/truncate`,
+      { keep_visible: keepVisible },
+    ),
   compact: (pid: string, slug: string, id?: string) =>
     http.post<{ ok?: boolean }>(
       id

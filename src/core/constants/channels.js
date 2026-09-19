@@ -21,3 +21,51 @@ export const CHANNELS = Object.freeze({
   DIRECT: "direct",           // Planned: 1:1 channel that isn't a chat platform
   WHATSAPP: "whatsapp",       // Planned: WhatsApp bot integration
 });
+
+/**
+ * Channels whose turns were DELIVERED to a person on somebody else's platform.
+ *
+ * A row here is a receipt. The message is on their phone, in their app, and
+ * nothing this daemon does can take it back — so rewriting the ledger would
+ * only make our record disagree with what the other side is still reading. A
+ * rewind (regenerate / edit & resend) is therefore refused on these, and the
+ * panel does not offer it.
+ *
+ * `log` is deliberately NOT here: it exists precisely because it is readable
+ * and never delivered.
+ */
+export const DELIVERED_CHANNELS = Object.freeze(
+  new Set([CHANNELS.TELEGRAM, CHANNELS.WHATSAPP]),
+);
+
+/** Threads that are a ROOM inside a channel rather than a day of one. They are
+ *  project-scoped ledgers with their own rewind (a group) or a deliberate
+ *  refusal to have one (a2a: it is the record of two agents talking). Either
+ *  way they never take the channel+day path. */
+const ROOM_CHANNELS = Object.freeze(new Set([CHANNELS.A2A, "group"]));
+
+/**
+ * May the panel rewind this channel+day thread — i.e. offer "regenerate" and
+ * "edit & resend" on it?
+ *
+ * All three conditions are really one question: does the RE-SENT turn land back
+ * where the one we just dropped was?
+ *
+ *   - not a delivered channel — see DELIVERED_CHANNELS;
+ *   - not a room — those have their own endpoints;
+ *   - TODAY. The re-run is written with the clock, into `channel/<today>.jsonl`
+ *     (api/super-agent.js mints `thread_id` from `new Date()`), so rewinding
+ *     Tuesday would cut a hole in Tuesday and put the answer in today's file.
+ *
+ * Returns a reason string when it refuses, so the caller can say WHICH of the
+ * three it was rather than a bare "no".
+ */
+export function threadRewindRefusal(channel, threadId, today = new Date().toISOString().slice(0, 10)) {
+  const ch = String(channel || "");
+  if (ROOM_CHANNELS.has(ch)) return `${ch} threads are not rewound here`;
+  if (DELIVERED_CHANNELS.has(ch)) return `${ch} messages were delivered and cannot be rewound`;
+  // The id may name a person inside the day (`2026-09-18~5491122334455`); the
+  // day is its first ten characters either way.
+  if (String(threadId || "").slice(0, 10) !== today) return "only today's thread can be rewound";
+  return null;
+}

@@ -112,6 +112,11 @@ export interface SendOptions {
   model?: string;
   /** When set, talk to a project agent (non-streaming) instead of Roby. */
   agentSlug?: string;
+  /** Which channel this super-agent turn belongs to, overriding the pane's own
+   *  surface. Set by a channel-thread rewind and by nothing else: regenerating
+   *  a turn has to write the new one back into the thread it was just cut from,
+   *  and the pane's surface is always "web". Ignored for a project agent. */
+  channel?: string;
   /** Files already stored under ~/.apx/media that this turn carries. The daemon
    *  resolves each path, hands the images to the model and writes the marker
    *  that names them. Super-agent turns only. */
@@ -1509,7 +1514,13 @@ export function useChat(
       abortRef.current = ctrl;
       // Roby's thread IS the channel — it has no conversation id — so that is
       // how the daemon addresses its live turn. See superAgentTurnKey.
-      turnTargetRef.current = { channel: surfaceChannel };
+      //
+      // Normally that channel is this pane's surface. A rewind is the exception
+      // and says so: the turn it replaces was written to some other channel's
+      // ledger, and the replacement has to land there rather than in today's web
+      // file, or regenerating would cut a hole in one thread and answer in another.
+      const turnChannel = opts.channel || surfaceChannel;
+      turnTargetRef.current = { channel: turnChannel };
       try {
         await SuperAgent.stream(
           pid,
@@ -1517,7 +1528,7 @@ export function useChat(
             prompt: trimmed,
             previousMessages: history,
             model: opts.model || undefined,
-            channel: surfaceChannel,
+            channel: turnChannel,
             // Paths only: the bytes are already on disk, and the daemon re-resolves
             // each one inside ~/.apx/media before it reads a single byte.
             ...(opts.attachments?.length
@@ -1560,13 +1571,26 @@ export function useChat(
   const rewindAndSend = useCallback(
     async (keepVisible: number, text: string, opts: SendOptions) => {
       if (streaming) return;
-      if (convoRef.current && opts.agentSlug) {
-        try {
+      try {
+        if (convoRef.current && opts.agentSlug) {
           await Conversations.truncate(pid, opts.agentSlug, convoRef.current, keepVisible);
-        } catch (e) {
-          onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
-          return;
+        } else if (!opts.agentSlug) {
+          // Roby with no thread bound yet — a brand-new chat that has not been
+          // reopened from the list. Its turns ARE in the ledger (the daemon wrote
+          // them), so re-sending without cutting them first would answer the same
+          // question twice. Refuse instead; the buttons are not offered there.
+          if (!threadRef.current) return;
+          // Roby on a channel thread. There is no conversation file — the LEDGER
+          // is the history, and it is read back by every surface, not just this
+          // pane. Rewinding only what is on screen would leave the dropped turns
+          // in the record and in Roby's memory of the day, so the next answer
+          // (here, on Telegram, anywhere) would still be replying to them.
+          const { channel, id } = threadRef.current;
+          await Conversations.truncateThread(pid, channel, id, keepVisible);
         }
+      } catch (e) {
+        onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
+        return;
       }
       updateMsgs((curr) => curr.slice(0, keepVisible));
       await send(text, opts);

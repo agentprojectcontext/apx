@@ -511,7 +511,13 @@ test("the sidebar dock is the same composer as Chats, not a fork", () => {
 
   // Same hook, different ledger: a dock send must not land in the big Chats
   // thread, and Stop must address web_sidebar or it kills the wrong run.
-  assert.match(chat, /channel: surfaceChannel/);
-  assert.match(chat, /turnTargetRef\.current = \{ channel: surfaceChannel \}/);
+  //
+  // The channel is now read from one place — `turnChannel` — because a rewind of
+  // a channel thread re-runs the turn into THAT thread rather than the pane's
+  // surface. The default is what matters here: with nothing overriding it, a
+  // dock send is still a web_sidebar send.
+  assert.match(chat, /const turnChannel = opts\.channel \|\| surfaceChannel;/);
+  assert.match(chat, /channel: turnChannel/);
+  assert.match(chat, /turnTargetRef\.current = \{ channel: turnChannel \}/);
 });
 
