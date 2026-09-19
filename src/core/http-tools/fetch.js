@@ -33,7 +33,16 @@ async function getFetch() {
 }
 
 const DEFAULT_TIMEOUT = 30000;
-const MAX_BODY_BYTES  = 5 * 1024 * 1024; // 5MB
+const MAX_BODY_BYTES  = 5 * 1024 * 1024; // 5MB — what we are willing to download
+
+// What we are willing to hand BACK. A different question, and the one that
+// matters: this body is about to become part of a model's context. 5 MB of HTML
+// is over a million tokens, which is not a big response — it is a dead turn.
+const MAX_TEXT_BYTES  = 256 * 1024;
+
+// Media types that ARE text. Everything else is bytes, and bytes do not get
+// decoded — see readBody.
+const TEXTUAL_TYPE_RE = /^text\/|^application\/(json|xml|javascript|ecmascript|x-ndjson|x-www-form-urlencoded|xhtml\+xml|graphql)|\+(json|xml)\b/i;
 
 // Block cloud metadata endpoints by name (they may resolve to public-looking
 // IPs on some providers). IP-range blocking is done on the RESOLVED address
@@ -98,26 +107,69 @@ async function validateUrl(rawUrl) {
   }
 }
 
+/**
+ * Turn a response into something safe to put in front of a model.
+ *
+ * This used to decode ANY content-type as UTF-8 and hand back up to 5 MB of it.
+ * On 2026-09-18 an agent called http_get on a 3.8 MB .mp4 to check that a video
+ * was online. The bytes came back as 3.665.297 characters, 43% of them U+FFFD
+ * replacement chars, and the turn died at 4.336.896 tokens against a 1.048.576
+ * limit — having answered nothing. A HEAD request would have told it everything
+ * it actually wanted to know.
+ *
+ * So: bytes are not text, and are never pretended to be. A binary response comes
+ * back described (type, size, reachable) rather than decoded, which is the whole
+ * of what a caller can use anyway. Text comes back capped at something a context
+ * window can hold.
+ */
 async function readBody(response, jsonHint) {
   const ctype = response.headers.get("content-type") || "";
+  // arrayBuffer, so the decision is made on real bytes whatever the headers say.
+  return decodeBody(Buffer.from(await response.arrayBuffer()), ctype, { jsonHint });
+}
+
+/** The decision itself, with no socket attached — which is what makes it
+ *  testable: http_get refuses loopback addresses (SSRF guard), so there is no
+ *  local server to point it at. */
+export function decodeBody(buf, ctype = "", { jsonHint = false } = {}) {
   const wantsJson = jsonHint || ctype.includes("application/json");
 
-  // Use arrayBuffer so we can enforce a size cap regardless of content-type.
-  const ab = await response.arrayBuffer();
-  if (ab.byteLength > MAX_BODY_BYTES) {
+  // A NUL in the first kilobyte means bytes, whatever the content-type says —
+  // and a server that sends no content-type at all is exactly where that
+  // matters. Text does not contain NUL.
+  const looksBinary = buf.subarray(0, 1024).includes(0);
+  const declaredText = TEXTUAL_TYPE_RE.test(ctype);
+  const isText = ctype ? declaredText && !looksBinary : !looksBinary;
+
+  if (!isText) {
+    const kind = ctype.split(";")[0].trim() || "application/octet-stream";
     return {
-      truncated: true,
-      bytes: ab.byteLength,
-      text: Buffer.from(ab.slice(0, MAX_BODY_BYTES)).toString("utf8") + "\n[TRUNCATED]",
+      binary: true,
+      truncated: false,
+      bytes: buf.byteLength,
+      media_type: kind,
+      // Deliberately a sentence and not the file: it says everything a caller
+      // can act on. To fetch the bytes themselves, download them to disk —
+      // a tool result is not a place to put a video.
+      text: `[${kind}, ${buf.byteLength} bytes — not decoded: this is a binary body, ` +
+            `not text. The request succeeded, which is what a reachability check asks. ` +
+            `To work with the file, download it to disk instead of reading it here.]`,
       json: null,
     };
   }
-  const text = Buffer.from(ab).toString("utf8");
+
+  const overCap = buf.byteLength > MAX_TEXT_BYTES;
+  const text = overCap
+    ? buf.subarray(0, MAX_TEXT_BYTES).toString("utf8") +
+      `\n[TRUNCATED — ${buf.byteLength} bytes, showing the first ${MAX_TEXT_BYTES}]`
+    : buf.toString("utf8");
+
   let json = null;
-  if (wantsJson) {
+  // Parsing a truncated document is parsing a document that ended mid-sentence.
+  if (wantsJson && !overCap) {
     try { json = JSON.parse(text); } catch { /* not JSON; leave as text */ }
   }
-  return { truncated: false, bytes: ab.byteLength, text, json };
+  return { binary: false, truncated: overCap, bytes: buf.byteLength, text, json };
 }
 
 async function doRequest({ url, method = "GET", headers = {}, body = null, timeout_ms = DEFAULT_TIMEOUT, json = false } = {}) {
@@ -158,6 +210,7 @@ async function doRequest({ url, method = "GET", headers = {}, body = null, timeo
       headers: responseHeaders,
       bytes: parsed.bytes,
       truncated: parsed.truncated,
+      ...(parsed.binary ? { binary: true, media_type: parsed.media_type } : {}),
       body: parsed.text,
       json: parsed.json,
     };
