@@ -484,6 +484,10 @@ function entryToMeta(e) {
     transport: e.transport || "stdio",
     source: e.source,
     enabled: e.enabled,
+    // What this server's tools DO, when the operator wrote it down. Read by
+    // core/mcp/tool-risk.js; absent for every server nobody has described.
+    ...(Array.isArray(e.read_only_tools) ? { read_only_tools: e.read_only_tools } : {}),
+    ...(Array.isArray(e.write_tools) ? { write_tools: e.write_tools } : {}),
   };
 }
 

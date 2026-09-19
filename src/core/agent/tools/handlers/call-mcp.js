@@ -45,7 +45,17 @@ export default {
       // below will fail on its own terms with a better message than ours.
     }
 
-    const risk = mcpToolRisk(tool, descriptor);
+    // What the operator declared about THIS server, if anything. Cheap: it is
+    // a read of the already-loaded mcps.json entry, no process involved.
+    let declared = null;
+    try {
+      declared = registry.getByName ? registry.getByName(mcp) : null;
+    } catch {
+      // A registry that cannot describe itself still gets to run the call; the
+      // name heuristic covers it, the same as before this existed.
+    }
+
+    const risk = mcpToolRisk(tool, descriptor, declared);
     await requirePermission("call_mcp", {
       dangerous: risk.dangerous,
       confirmed,
