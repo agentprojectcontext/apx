@@ -46,6 +46,33 @@ const TRACE_RESULT_CAP = 1200;
 // Longest single string field kept inside a structured result.
 const TRACE_FIELD_CAP = 900;
 
+// How much of one tool result the MODEL is handed. A different cap from the
+// trace above, and for a long time there was no cap here at all — which is the
+// asymmetry that bit: the record of a turn was bounded, the context it ran in
+// was not. Whatever a tool returned went into the conversation verbatim.
+//
+// On 2026-09-18 that was an http_get against a 3.8 MB .mp4: the body came back
+// decoded as 3.665.297 characters and the turn died at 4.336.896 tokens against
+// a 1.048.576 limit, having answered nothing. http_get no longer decodes binary
+// (core/http-tools/fetch.js), but that fixed one tool. This is the floor under
+// all of them — generous for any real result, fatal for none.
+const CONTEXT_RESULT_CAP = 100_000;
+
+/** The tool result as the model sees it, bounded. Truncation is announced in
+ *  the text rather than done silently: a result that stops mid-object is a
+ *  result the model will otherwise try to reason about as if it were whole. */
+export function toolContentForModel(result, name) {
+  const json = JSON.stringify(result);
+  if (json === undefined) return "null";
+  if (json.length <= CONTEXT_RESULT_CAP) return json;
+  return (
+    json.slice(0, CONTEXT_RESULT_CAP) +
+    `\n\n[TRUNCATED — ${name} returned ${json.length} characters, which does not fit in a ` +
+    `context window. You are seeing the first ${CONTEXT_RESULT_CAP}. Narrow the call ` +
+    `(a tighter pattern, a smaller range, a specific file) rather than repeating it.]`
+  );
+}
+
 // Shrink a tool result for the trace WITHOUT destroying its shape. The old
 // version stringified anything over 400 chars and sliced the JSON text, which
 // left a half-open brace: unparseable, so every downstream reader (history
@@ -907,7 +934,7 @@ export async function runAgent({
         role: "tool",
         tool_call_id: tc.id || `synth_${iter}_${trace.length}`,
         tool_name: name,
-        content: JSON.stringify(toolResult),
+        content: toolContentForModel(toolResult, name),
         // Multimodal tool results (view_media): carried beside the JSON so a
         // vision engine renders them as inlineData parts. Text engines drop it.
         ...(toolImages ? { images: toolImages } : {}),
