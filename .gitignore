@@ -55,3 +55,18 @@ qa/
 src/interfaces/web/scripts/shots.mjs
 
 .playwright-mcp/
+# La clave con la que se firma el APK, y cualquier otro almacén de claves.
+#
+# El keystore de release no es un secreto más: es la IDENTIDAD de la app. Android
+# sólo acepta una actualización firmada con la misma clave, así que perderla
+# obliga a que todo el mundo desinstale y vuelva a vincular el teléfono, y
+# filtrarla deja que cualquiera publique un APK que los teléfonos ya instalados
+# aceptan como nuestro.
+#
+# Vive en dos lugares y en ninguno más: el archivo local de quien lo generó, y
+# ANDROID_KEYSTORE_BASE64 en los secrets del repo, que es de donde lo saca
+# .github/workflows/android.yml. Nunca entró acá — esto es para que siga así.
+*.jks
+*.keystore
+*.p12
+*.jks.b64
