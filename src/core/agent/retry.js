@@ -60,6 +60,16 @@ const FATAL_PHRASES = [
 export function isRetryableEngineError(err) {
   if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return false;
 
+  // An adapter that already knows says so, instead of encoding the verdict in
+  // prose and making a regex here re-derive it. This is for the case an
+  // adapter can see and the classifier cannot: the request is well formed and
+  // the key is fine, but THIS model cannot serve THIS call — zen's free tier
+  // only answers an agent that carries a shell and a file reader, which a
+  // deliberately narrow agent does not. Rotating is right; failing the run is
+  // not, and no status code describes it.
+  if (err?.retryable === true) return true;
+  if (err?.retryable === false) return false;
+
   const msg = String(err?.message || err || "");
   if (!msg) return false;
 
