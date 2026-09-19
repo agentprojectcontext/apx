@@ -16,6 +16,8 @@ interface Props {
   actions?: ReactNode;
   contentClassName?: string;
   testId?: string;
+  /** Passed straight to the nav's footer slot — see TabNav. */
+  navFooter?: ReactNode;
   children: ReactNode;
 }
 
@@ -28,13 +30,14 @@ export function TabLayout({
   actions,
   contentClassName,
   testId,
+  navFooter,
   children,
 }: Props) {
   useRegisterNavCollapse(collapsed, onToggleCollapse);
 
   return (
     <div className="flex h-full">
-      <TabNav sections={sections} active={active} onChange={onChange} collapsed={collapsed} />
+      <TabNav sections={sections} active={active} onChange={onChange} collapsed={collapsed} footer={navFooter} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {actions ? (
           <div className="flex shrink-0 items-center justify-end gap-2 px-6 pt-3">

@@ -6,6 +6,7 @@
 //
 // Each project gets a deterministic colour pulled from PROJECT_TONES so the
 // rail is visually scannable even when names are similar.
+import { ArrowUp } from "lucide-react";
 import { PROJECT_TONES, type ProjectTone } from "../../constants";
 import { cn } from "../../lib/cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -36,9 +37,14 @@ interface Props {
    *  two never sit on top of each other. It is deliberately not a count: the
    *  answer to "why does this project have no agents?" is not a number. */
   warn?: boolean;
+  /** There is a newer APX than the one running. An arrow, not a count — the
+   *  number of versions you are behind is not a thing anyone acts on, and this
+   *  tile has no unread count of its own to collide with. Brand green, because
+   *  unlike `warn` nothing is broken: there is simply something newer. */
+  update?: boolean;
 }
 
-export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel, badge = 0, warn }: Props) {
+export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel, badge = 0, warn, update }: Props) {
   const text = label.trim() || "·";
   const { initials, subLabel } = computeInitialsAndSub(text);
   const tone: ProjectTone =
@@ -73,6 +79,15 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
                   className="absolute -right-1 -top-1 min-w-4 rounded-full bg-blue-500 px-1 text-center text-[10px] font-semibold leading-4 text-white tabular-nums ring-2 ring-background"
                 >
                   {badge > 99 ? "99+" : badge}
+                </span>
+              )}
+              {update && (
+                <span
+                  data-testid={testId ? `${testId}-update` : undefined}
+                  aria-hidden
+                  className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-fg ring-2 ring-background"
+                >
+                  <ArrowUp size={10} strokeWidth={3} />
                 </span>
               )}
               {warn && (

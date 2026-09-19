@@ -27,6 +27,11 @@ interface TabNavProps {
   active: string;
   onChange: (key: string) => void;
   collapsed?: boolean;
+  /** Rendered under the last section. For things that are not a tab: an offer,
+   *  a state, anything that belongs to the screen rather than to one of its
+   *  pages. Given the nav's own width, so it must survive being narrow — and
+   *  it is hidden while collapsed, where there is no room to say anything. */
+  footer?: ReactNode;
 }
 
 // Collapsed state lives in the screen (so the toggle can render in the page
@@ -63,7 +68,7 @@ export function NavToggle({ collapsed, onToggle }: { collapsed: boolean; onToggl
   );
 }
 
-export function TabNav({ sections, active, onChange, collapsed = false }: TabNavProps) {
+export function TabNav({ sections, active, onChange, collapsed = false, footer }: TabNavProps) {
   return (
     <nav
       className={cn(
@@ -116,6 +121,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
           </div>
         </div>
       ))}
+      {footer && !collapsed && <div className="mt-3 w-full px-0.5">{footer}</div>}
     </nav>
   );
 }

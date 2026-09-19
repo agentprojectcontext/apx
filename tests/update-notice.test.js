@@ -79,6 +79,38 @@ test("a device says what it is running, and an older one says nothing", () => {
   assert.match(read("src/host/daemon/token-store.js"), /app_version: c\.app_version \|\| null/);
 });
 
+test("the badge and the offer are driven by one answer, and lead somewhere", () => {
+  const hook = read("src/interfaces/web/src/hooks/useUpdateStatus.ts");
+  const rail = read("src/interfaces/web/src/components/layout/ProjectSidebar.tsx");
+  const offer = read("src/interfaces/web/src/components/settings/UpdateOffer.tsx");
+  const settings = read("src/interfaces/web/src/screens/SettingsScreen.tsx");
+
+  // ONE SWR key for every surface that asks. Three callers each fetching would
+  // be three requests and, worse, three verdicts: a badge on the gear over a
+  // settings screen offering nothing is a light with nothing behind it.
+  assert.match(hook, /useSWR\("update"/);
+  // The checkout rule lives in the hook, so no caller has to remember it.
+  assert.match(hook, /!data\.from_git/);
+  for (const src of [rail, offer]) assert.match(src, /useUpdateStatus\(\)/);
+
+  // Gear badge, and the offer at the foot of the settings nav.
+  assert.match(rail, /update=\{updateAvailable\}/);
+  assert.match(settings, /navFooter=\{<UpdateOffer \/>\}/);
+  assert.match(offer, /if \(!newer\) return null;/);
+
+  // The button hands the command to the Code terminal. It does NOT press Enter:
+  // `apx update` stops the daemon that serves this terminal, so a real update
+  // kills the connection showing it. A prepared command is honest about who
+  // runs it; auto-running would look like a failure every time it worked.
+  assert.match(offer, /navigate\(`\/code\?cmd=\$\{encodeURIComponent\(UPDATE_CMD\)\}`\)/);
+  assert.match(hook, /export const UPDATE_CMD = "apx update"/);
+  // …and the deep link must accept a command with no project, because a global
+  // command has none to name.
+  const code = read("src/interfaces/web/src/screens/modules/CodeScreen.tsx");
+  assert.match(code, /if \(!cmd && !edit\) return;/);
+  assert.match(code, /if \(wantPid && String\(pid\) !== String\(wantPid\)\)/);
+});
+
 test("the terminal notice can be seen, and the face survives a pipe", () => {
   const check = read("src/core/update-check.js");
   // The seam has to cover the CLI too. This notice fires off the cache, so
