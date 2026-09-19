@@ -52,10 +52,15 @@ jobs:
         run: |
           name=$(sed -n 's/^apxAppVersion=//p' gradle.properties)
           echo "name=${name:-0.1.0}" >> "$GITHUB_OUTPUT"
-          # The run number is monotonic across the whole repo, so a versionCode
-          # can never repeat or go backwards — which is the only thing Android
-          # checks when deciding whether an APK may replace an installed one.
-          echo "code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          # A versionCode may never go backwards: Android refuses an APK whose
+          # code is not greater than the installed one, and there is no way out
+          # but an uninstall, which deletes that phone's pairing.
+          #
+          # This was `github.run_number`, which is monotonic only WITHIN one
+          # workflow — rename or recreate the file and it resets to 1, silently
+          # bricking every update. The build date has no such reset: it fits an
+          # int32 until 2121 and only ever grows.
+          echo "code=$(date -u +%y%m%d%H)" >> "$GITHUB_OUTPUT"
 
       # Absent on a fork and on a PR from one. Build anyway (the tests are the
       # point of running at all), publish nothing, and say so in the summary.
@@ -79,7 +84,11 @@ jobs:
           APX_VERSION_CODE: ${{ steps.version.outputs.code }}
           APX_KEYSTORE: ${{ steps.keystore.outputs.present == 'true' && format('{0}/apx-release.jks', runner.temp) || '' }}
           APX_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          APX_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          # NOT a secret. An alias is public — it is in the signing block of
+          # every APK — and registering "apx" as one makes GitHub replace that
+          # string with *** in every log line of this repo, including the URLs
+          # and commands the logs exist to show.
+          APX_KEY_ALIAS: apx
           APX_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
 
@@ -159,9 +168,19 @@ jobs:
           VERSION: ${{ steps.version.outputs.name }}
           SIZE: ${{ steps.apk.outputs.size }}
         run: |
+          # A secret pasted by a human arrives with whatever the clipboard had —
+          # a trailing newline is enough for curl to answer `(3) URL rejected:
+          # Malformed input to a URL function`, which says nothing about where
+          # the problem is. Trimmed here, and checked, so the failure names
+          # itself.
+          WEBHOOK="$(printf '%s' "$WEBHOOK" | tr -d '[:space:]')"
           if [ -z "$WEBHOOK" ]; then
             echo "no DISCORD_WEBHOOK secret — nothing announced"; exit 0
           fi
+          case "$WEBHOOK" in
+            https://discord.com/api/webhooks/*|https://discordapp.com/api/webhooks/*) ;;
+            *) echo "::warning::DISCORD_WEBHOOK is not a Discord webhook URL — nothing announced"; exit 0 ;;
+          esac
           jq -n --arg v "$VERSION" --arg size "$SIZE" --arg repo "$GITHUB_REPOSITORY" '{
             username: "APX",
             embeds: [{
