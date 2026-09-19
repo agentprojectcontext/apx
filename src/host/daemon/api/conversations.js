@@ -3,16 +3,18 @@
 //   GET  /projects/:pid/agents/:slug/conversations/:id
 //   GET  /projects/:pid/super-agent/threads                    (channel ledger)
 //   GET  /projects/:pid/super-agent/threads/:channel/:id
+//   POST /projects/:pid/super-agent/threads/:channel/:id/truncate
 //   POST /projects/:pid/agents/:slug/compact
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage, conversationTitle } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, truncateGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readA2APeerSession } from "#core/stores/messages.js";
 import { shortId } from "#core/util/ids.js";
 import { a2aPairHistory } from "#core/agent/a2a/history.js";
 import { logTurnEvent } from "./turn-log.js";
+import { threadRewindRefusal } from "#core/constants/channels.js";
 
 /** The sender's working directory, if it still is one. This is untrusted input
  *  naming a directory we are about to spawn a coding CLI in, so it gets checked
@@ -335,6 +337,38 @@ export function register(api, { projects, project, config, plugins, registries }
     });
     if (!ok) return res.status(404).json({ error: "thread not found" });
     res.json({ ok: true });
+  });
+
+  // Rewind a channel thread to its first `keep_visible` pane bubbles. The
+  // channel-thread twin of the conversation truncate above: the pane rewinds to
+  // a turn and the LEDGER has to rewind with it, or the dropped turns stay in
+  // the record and in everything the super-agent reads back from it.
+  //
+  // Not every thread may be rewound, and the rule is one question — does the
+  // re-sent turn land where the one we dropped was? Telegram and WhatsApp
+  // already handed their message to a person; a2a and group are rooms with
+  // their own endpoints; and every other channel can only be rewound on TODAY's
+  // thread, because the re-run is written with the clock. See
+  // `threadRewindRefusal` — it is the same rule the panel uses to decide
+  // whether to draw the buttons at all.
+  api.post("/projects/:pid/super-agent/threads/:channel/:id/truncate", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const keepVisible = Number(req.body?.keep_visible);
+    if (!Number.isInteger(keepVisible) || keepVisible < 0)
+      return res.status(400).json({ error: "keep_visible must be a non-negative integer" });
+    const refusal = threadRewindRefusal(req.params.channel, req.params.id);
+    if (refusal) return res.status(400).json({ error: refusal });
+    const out = truncateGlobalThread({
+      channel: req.params.channel,
+      date: req.params.id,
+      project: threadScope(p),
+      keepVisible,
+    });
+    // Nothing removed is not an error: regenerating the LAST bubble of a thread
+    // whose rows are all somebody else's, or re-asking a turn that is already
+    // the tail, both legitimately have nothing to cut.
+    res.json({ ok: true, ...out });
   });
 
   // A channel thread has no file of its own to carry a name, so the two

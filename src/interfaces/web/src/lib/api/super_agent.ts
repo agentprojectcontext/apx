@@ -8,7 +8,12 @@ export interface SuperAgentSendBody {
   // Surface that originated this turn, so the daemon injects the matching
   // channels/*.md block. "web" = big chat (full tools), "web_sidebar" = quick
   // chat (lightweight). Omitted → daemon defaults to "api".
-  channel?: "web" | "web_sidebar";
+  //
+  // Any channel name, not only the two web ones: regenerating a channel thread
+  // re-runs the turn INTO THAT THREAD, so the daemon has to write it to the same
+  // ledger it was just cut from. Which threads may do that is decided in one
+  // place — `threadRewindRefusal`, core/constants/channels.js.
+  channel?: string;
   /** Files this turn carries, as paths the daemon stored (POST /media/upload).
    *  It re-resolves each one inside ~/.apx/media before reading it. */
   attachments?: { path: string; name?: string }[];

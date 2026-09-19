@@ -173,7 +173,10 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // the first token — `final` used to be the first mention of the conversation
   // it had been writing to all along.
   assert.match(chat, /if \(ev\.type === "start"\)/);
-  assert.match(chat, /turnTargetRef\.current = \{ channel: surfaceChannel \}/, "Roby's thread IS its channel");
+  // Roby's thread IS its channel. Which channel is `turnChannel`: the pane's own
+  // surface, unless a channel-thread rewind named the one it just cut from.
+  assert.match(chat, /const turnChannel = opts\.channel \|\| surfaceChannel;/);
+  assert.match(chat, /turnTargetRef\.current = \{ channel: turnChannel \}/, "Roby's thread IS its channel");
   // Reopening the chat binds to its existing queue; navigation cannot erase it.
   assert.match(chat, /const snapshot = readBackgroundQueue\(key\)/);
   assert.doesNotMatch(chat, /backgroundQueues\.delete\(queueKeyRef\.current/);

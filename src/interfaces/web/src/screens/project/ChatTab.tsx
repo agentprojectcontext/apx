@@ -38,6 +38,7 @@ import { ProjectTag } from "../../components/inbox/ProjectFilter";
 import { BackgroundJobsMenu, NO_THREAD_JOBS } from "../../components/jobs/BackgroundJobsMenu";
 import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
+import { DELIVERED_CHANNELS } from "../../lib/channels";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
 import { showTools as readShowTools, setShowTools as writeShowTools, showToolsKey } from "../../lib/chat-prefs";
@@ -815,14 +816,42 @@ export function ChatTab({
     ? { key: "delete", icon: Trash2, label: t("project.chat.delete"), onClick: () => setConfirmDelete(true), disabled: streaming }
     : null;
 
-  // Regenerate / edit-and-resend are wired only for a project agent's own chat —
-  // the case whose history the daemon rebuilds from a file we can rewind. The
-  // super-agent's channel threads and a2a share a day-ledger, not a per-chat
-  // file, so they're left out for now.
-  const canRewind = !activeIsRoby && !!activeAgent && !isMultiThread && !streaming;
+  // Regenerate / edit-and-resend rewind the pane AND the record behind it. Two
+  // records, because there are two kinds of chat here: a project agent's own
+  // conversation file, and — since the super-agent has none — the channel+day
+  // ledger its threads are made of.
+  //
+  // A thread only qualifies when the RE-SENT turn lands back where the one we
+  // dropped was. That rules out three things, and the daemon refuses the same
+  // three: a room (a2a and group go through their own endpoints), a channel that
+  // already handed the message to a person on their own phone, and any day but
+  // today — the re-run is written with the clock, so rewinding Tuesday would cut
+  // a hole in Tuesday and put the answer in today's file.
+  //
+  // Source of truth: `threadRewindRefusal`, core/constants/channels.js. Kept
+  // mirrored here so the buttons are not drawn over a call that would 400.
+  const canRewindThread =
+    selected.kind === "thread" &&
+    !isMultiThread &&
+    !DELIVERED_CHANNELS.has(selected.channel) &&
+    // Same clock the daemon mints thread ids with (UTC), or the two would
+    // disagree for the three hours a day the local date is already tomorrow.
+    threadDate(selected.threadId) === new Date().toISOString().slice(0, 10);
+  const canRewind = (canRewindThread || (!activeIsRoby && !!activeAgent && !isMultiThread)) && !streaming;
   const afterRewind = () =>
-    void mutate(`/api/projects/${pid}/agents/${activeAgent?.slug}/conversations`);
-  const rewindOpts = () => ({ model: model || undefined, agentSlug: activeAgent!.slug });
+    void mutate(
+      canRewindThread
+        ? `/api/projects/${pid}/super-agent/threads`
+        : `/api/projects/${pid}/agents/${activeAgent?.slug}/conversations`,
+    );
+  // A project agent is addressed by slug; Roby by the channel the thread is on,
+  // so the re-run is written to that ledger instead of the pane's own surface.
+  const rewindOpts = () => ({
+    model: model || undefined,
+    ...(canRewindThread && selected.kind === "thread"
+      ? { channel: selected.channel }
+      : { agentSlug: activeAgent!.slug }),
+  });
   const onRegenerate = canRewind
     ? (index: number) =>
         setRewind({

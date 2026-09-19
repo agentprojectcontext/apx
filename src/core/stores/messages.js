@@ -1980,6 +1980,102 @@ export function patchGlobalMessage({ channel, date, external_id, body, meta, _gl
   return next;
 }
 
+/**
+ * Rewind a channel+day thread: keep the first `keepVisible` PANE BUBBLES and
+ * drop the rest from the global ledger, so "regenerate" / "edit & resend" can
+ * overwrite everything after a point. It is the channel-thread twin of
+ * truncateConversation (an agent's file) and truncateGroupThread (a room).
+ *
+ * Whether a thread may be rewound at all is NOT decided here — see
+ * `threadRewindRefusal` in core/constants/channels.js. This function is the
+ * mechanism; the route is what refuses.
+ *
+ * Three things it is careful about, because a ledger day-file is shared:
+ *
+ *   - SCOPE. One file holds every project's turns on that channel, and (on
+ *     WhatsApp) every person's. Rows outside the scope the pane was showing are
+ *     invisible to whoever pressed the button, so they are never counted and
+ *     never dropped. Same two narrowings readGlobalThread reads with.
+ *   - BUBBLES, not rows. `keepVisible` is what the PANE draws, and the pane
+ *     collapses a turn's tool rows and its consecutive agent rows into one
+ *     bubble (threadToChatMsgs, hooks/useChat.ts). Counting rows instead would
+ *     cut early and eat the owner's message.
+ *   - BYTES. What survives is the ORIGINAL line, not a re-serialisation of it:
+ *     rows are parsed to decide, and the file is rewritten by dropping line
+ *     indices. A rewind must not quietly rewrite the rows it keeps.
+ *
+ * Returns how many rows were removed.
+ */
+export function truncateGlobalThread({ channel, date, project, keepVisible, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return { removed: 0 };
+  const parsed = parseThreadId(date);
+  if (!parsed) return { removed: 0 };
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  const file = path.join(base, channel, `${parsed.date}.jsonl`);
+  if (!fs.existsSync(file)) return { removed: 0 };
+
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  const scoped = project !== undefined && project !== null && project !== "";
+  // Line index → normalised row, for the rows this pane was showing. Parsed one
+  // line at a time through parseDayJsonl so the derived fields (type, agent_slug,
+  // actor_id) are the very ones readGlobalThread built its messages from — the
+  // count has to agree with the pane or the cut lands in the wrong place.
+  const display = [];
+  lines.forEach((line, idx) => {
+    if (!line.trim()) return;
+    const [row] = parseDayJsonl(line);
+    if (!row) return;
+    if (row.type !== "user" && row.type !== "agent" && row.type !== "tool") return;
+    if (scoped && !rowBelongsTo(row, String(project))) return;
+    if (parsed.contact && rowContact(row, channel) !== parsed.contact) return;
+    display.push({ idx, row });
+  });
+
+  // Collapse into pane bubbles. Kept deliberately in step with threadToChatMsgs:
+  // a user row is its own bubble; tool rows ride with the turn they were logged
+  // in; consecutive agent rows from the same speaker on the same day are one
+  // bubble, and a change of either breaks it.
+  const bubbles = [];
+  let turn = null;
+  let turnActor;          // undefined = opened by tools, nobody has named it yet
+  let turnDay = null;
+  for (const { idx, row } of display) {
+    if (row.type === "user") {
+      turn = null;
+      turnActor = undefined;
+      turnDay = null;
+      bubbles.push([idx]);
+      continue;
+    }
+    const actor = row.type === "agent" ? (row.agent_slug || row.actor_id || undefined) : turnActor;
+    const named = turnActor !== undefined;
+    const day = String(row.ts || "").slice(0, 10);
+    const newDay = !!turn && day !== turnDay;
+    if (!turn || newDay || (row.type === "agent" && named && actor !== turnActor)) {
+      turn = [idx];
+      bubbles.push(turn);
+      turnActor = actor;
+      turnDay = day;
+    } else {
+      if (row.type === "agent" && !named) turnActor = actor;
+      turn.push(idx);
+    }
+  }
+
+  const drop = new Set();
+  for (const bubble of bubbles.slice(Math.max(0, keepVisible))) {
+    for (const idx of bubble) drop.add(idx);
+  }
+  if (!drop.size) return { removed: 0 };
+  const kept = lines.filter((_, idx) => !drop.has(idx));
+  // Nothing of anyone's left: drop the file rather than leave an empty day
+  // behind, exactly as deleteGlobalThread does. A remaining row from another
+  // project or another person keeps the file alive.
+  if (!kept.some((line) => line.trim())) fs.unlinkSync(file);
+  else fs.writeFileSync(file, kept.join("\n"));
+  return { removed: drop.size };
+}
+
 // Delete one channel+day thread by removing its JSONL file. The global ledger
 // is FS-backed (listGlobalThreads/readGlobalThread read files directly), so
 // unlinking the day-file drops the thread from the sidebar. Returns false for a

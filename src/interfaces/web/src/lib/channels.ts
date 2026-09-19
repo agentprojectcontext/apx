@@ -48,6 +48,20 @@ const CHANNEL_LABELS: Record<string, string> = {
   log: "Log",
 };
 
+/**
+ * Channels whose turns were DELIVERED to a person on somebody else's platform.
+ *
+ * Mirrors DELIVERED_CHANNELS in core/constants/channels.js — the daemon refuses
+ * a rewind on these, and this copy is what keeps the panel from drawing a button
+ * over a call that would 400. A row here is a receipt: the message is on their
+ * phone, in their app, and nothing APX does can take it back, so rewriting the
+ * ledger would only make our record disagree with what they are still reading.
+ *
+ * `log` is deliberately absent: it exists precisely because it is readable and
+ * never delivered.
+ */
+export const DELIVERED_CHANNELS = new Set(["telegram", "whatsapp"]);
+
 export function channelLabel(channel: string): string {
   if (channel === "a2a") return t("channels.a2a");
   if (channel === "group") return t("channels.group");
