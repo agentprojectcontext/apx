@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { ArrowUpCircle, X } from "lucide-react";
+import { ArrowUpCircle, Check, Copy, X } from "lucide-react";
 import { Update } from "../../lib/api";
 import { STORAGE } from "../../constants";
 import { useState } from "react";
@@ -20,11 +20,14 @@ import { t } from "../../i18n";
  * Dismissal is per VERSION, not forever: deciding to skip 1.112.0 is a decision
  * about 1.112.0, and 1.113.0 deserves to be mentioned.
  */
+const CMD = "apx update";
+
 export function UpdateBanner() {
   const { data } = useSWR("update", () => Update.get(), {
     refreshInterval: 60 * 60_000,
     revalidateOnFocus: false,
   });
+  const [copied, setCopied] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(() => {
     try {
       return localStorage.getItem(STORAGE.updateDismissed);
@@ -35,6 +38,17 @@ export function UpdateBanner() {
 
   if (!data?.newer || !data.latest || data.from_git) return null;
   if (dismissed === data.latest) return null;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(CMD);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // No clipboard without a secure context. Selecting it by hand still
+      // works, so this fails quietly rather than claiming it copied.
+    }
+  };
 
   const dismiss = () => {
     setDismissed(data.latest);
@@ -62,9 +76,20 @@ export function UpdateBanner() {
         <p className="mt-0.5 font-mono text-xs text-muted-fg">
           {data.current} → {data.latest}
         </p>
-        <code className="mt-2.5 inline-block rounded-lg border border-border bg-muted/40 px-2.5 py-1 font-mono text-xs">
+        {/* Copy, and nothing more ambitious. A page cannot open a terminal —
+            there is no scheme for it that works across machines — and the
+            daemon must not run this itself: `apx update` stops the daemon as
+            its first step, so anything asking for it from inside is asking the
+            process to kill the turn that asked. */}
+        <button
+          type="button"
+          onClick={copy}
+          title={t("update.copy")}
+          className="mt-2.5 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1 font-mono text-xs transition-colors hover:bg-muted"
+        >
+          {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-muted-fg" />}
           apx update
-        </code>
+        </button>
       </div>
       <button
         type="button"
