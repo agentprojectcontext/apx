@@ -69,6 +69,12 @@ test("the phone offers the app through the agent, and only where that makes sens
   // Both ways out, because they need different things: the download works from
   // the phone alone, asking the agent needs a cable and a computer.
   assert.match(list, /data-testid="android-download-apk"/);
+
+  // And the PWA offer is gated the same way, for a sharper reason: inside the
+  // app it offered to install what you are already running, and over http it
+  // pointed at a Tailscale section "below" that only exists on the desktop.
+  const installRow = list.slice(list.indexOf("function InstallRow"));
+  assert.match(installRow, /if \(isNativeShell\(\)\) return null;/);
   assert.match(list, /href=\{LINKS\.androidApk\}/);
   // …and every string that carries {name} is actually GIVEN one. The button
   // shipped reading "Pedirle a {name}" because one call lacked the argument.
