@@ -2216,6 +2216,7 @@ export const en = {
 
   update: {
     available:           "Update available",
+    copy:                "Copy the command",
   },
 
   star: {
