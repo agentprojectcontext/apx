@@ -45,6 +45,10 @@ export function buildConfirmDescription(tool, args) {
     add_project:   (a) => `Add project: ${a.path || a.name || "?"}`,
     set_identity:  (a) => `Change agent identity to: "${a.name || "?"}"`,
     call_runtime:  (a) => `Call runtime: ${a.runtime || a.name || "?"}`,
+    // Only reachable under `permiso`, where every tool not on the allowlist
+    // asks. "Run tool: `call_mcp`" named the door, not what was going through
+    // it — and one call_mcp is every tool of every registered server.
+    call_mcp:      (a) => `Call MCP tool: ${a.mcp || "?"} → ${a.tool || "?"}`,
   };
 
   const fn = builders[tool];
