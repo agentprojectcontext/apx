@@ -1098,6 +1098,7 @@ function SkillsToolsTab({
             onUseDefaults={setSkillsNone}
             available={agent.skills_available}
             matchHeight={PICKER_SCROLLER_MAX}
+            resetKey={agent.slug}
           />
         </Section>
       )}
