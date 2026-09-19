@@ -202,7 +202,6 @@ test("the test notification goes through the same path the real ones do", () => 
 test("the offer finds you, and cannot open by itself", () => {
   const prefs = webSrc("components", "settings", "PanelPrefs.tsx");
   const inbox = webSrc("screens", "mobile", "MobileChatList.tsx");
-  const app = webSrc("App.tsx");
 
   // A banner with a button, never an automatic prompt: browsers only accept
   // Notification.requestPermission() from a real click, and Chrome drops a
