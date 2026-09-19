@@ -119,3 +119,62 @@ test("junk input does not throw", () => {
     assert.equal(mcpToolRisk(bad).dangerous, true, "and stays closed");
   }
 });
+
+// --- what the operator declared --------------------------------------------
+// The token lists were grown against knot and appsi. Cheto — an MCP the user
+// wrote and registered themselves — names its readers `cheto_areas` and
+// `cheto_agents`, which say neither read nor write in those lists, so both
+// failed closed and a scheduled run lost a backlog it was entitled to. There
+// is no wording that fixes that class of miss; the way out is to stop guessing
+// when somebody already knows.
+
+test("a declared read beats the heuristic's closed tie", () => {
+  const declared = { read_only_tools: ["cheto_areas", "cheto_agents"] };
+  assert.equal(mcpToolRisk("cheto_areas").dangerous, true, "the guess alone gates it");
+  assert.equal(mcpToolRisk("cheto_areas", null, declared).dangerous, false);
+  assert.equal(mcpToolRisk("cheto_agents", null, declared).dangerous, false);
+  assert.match(mcpToolRisk("cheto_areas", null, declared).reason, /read_only_tools/);
+});
+
+test("a declared write gates a name that reads as a read", () => {
+  // `appsi_list_apps` reads as a read and is one. `knot_tasks` reads as a read
+  // too — but if this server's `tasks` tool takes a mutation argument, the
+  // operator gets to say so and be believed.
+  const declared = { write_tools: ["knot_tasks"] };
+  assert.equal(mcpToolRisk("knot_tasks").dangerous, false, "the guess lets it through");
+  assert.equal(mcpToolRisk("knot_tasks", null, declared).dangerous, true);
+  assert.match(mcpToolRisk("knot_tasks", null, declared).reason, /write_tools/);
+});
+
+test("write_tools wins over a read glob that also matches", () => {
+  // The lists are allowed to overlap, so the order has to be decided rather
+  // than incidental: the narrower statement is the dangerous one, and letting
+  // a broad `cheto_*` open a `cheto_task_create` is exactly the failure this
+  // whole file exists to prevent.
+  const declared = { read_only_tools: ["cheto_*"], write_tools: ["cheto_task_create"] };
+  assert.equal(mcpToolRisk("cheto_areas", null, declared).dangerous, false);
+  assert.equal(mcpToolRisk("cheto_task_create", null, declared).dangerous, true);
+});
+
+test("the server's own readOnlyHint still outranks the operator", () => {
+  // The server implements the tool. If it declares one thing and mcps.json
+  // says another, the server is the one that knows.
+  const declared = { write_tools: ["x_read"] };
+  assert.equal(mcpToolRisk("x_read", { annotations: { readOnlyHint: true } }, declared).dangerous, false);
+  const declared2 = { read_only_tools: ["x_wipe"] };
+  assert.equal(mcpToolRisk("x_wipe", { annotations: { readOnlyHint: false } }, declared2).dangerous, true);
+});
+
+test("an absent or junk declaration changes nothing", () => {
+  for (const bad of [null, undefined, {}, { read_only_tools: "cheto_areas" }, { read_only_tools: [] }, { write_tools: [null, 42] }]) {
+    assert.equal(mcpToolRisk("cheto_areas", null, bad).dangerous, true, "still the closed tie");
+    assert.equal(mcpToolRisk("appsi_list_apps", null, bad).dangerous, false, "still a read");
+  }
+});
+
+test("the closed tie tells the reader how to open it", () => {
+  // This message is what someone reads when a routine just told them it could
+  // not reach a source it should have. "the name says neither" is a diagnosis;
+  // it has to also be an instruction.
+  assert.match(mcpToolRisk("cheto_areas").reason, /read_only_tools|readOnlyHint/);
+});
