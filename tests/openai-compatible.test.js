@@ -264,6 +264,42 @@ test("zen: an agent without shell+read is told why, instead of a bare 403", asyn
   }
 });
 
+test("zen: a narrow agent rotates to the next model instead of failing the run", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
+
+  // The agents this hits are the well-built ones: april and the secretary crons
+  // declare three or four tools on purpose. Handing them a shell to satisfy a
+  // gateway check would be the wrong trade, and killing their run because the
+  // PRIMARY model cannot serve them is what the fallback chain exists to avoid.
+  const err = await zen
+    .chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "hola" }],
+      tools: [{ type: "function", function: { name: "call_mcp" } }],
+      config: { api_key: "zen-key" },
+    })
+    .then(() => null, (e) => e);
+
+  assert.ok(err, "it still refuses to send a request the gateway would 403");
+  assert.equal(isRetryableEngineError(err), true, "but the chain walks on");
+});
+
+test("retry: an adapter's own verdict beats the message heuristic", async () => {
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
+
+  // Prose no classifier would ever guess right, in either direction.
+  const rotate = new Error("some provider said something only it understands");
+  rotate.retryable = true;
+  assert.equal(isRetryableEngineError(rotate), true);
+
+  // And an adapter can pin a fatal that the phrases would have rotated on.
+  const stop = new Error("rate limit");
+  assert.equal(isRetryableEngineError(stop), true, "the phrase alone rotates");
+  stop.retryable = false;
+  assert.equal(isRetryableEngineError(stop), false, "the adapter overrides it");
+});
+
 test("zen: engines.zen.session_per_call mints a new session id every time", async () => {
   const { zenHeaders, ZEN_SESSION_ID } = await import("#core/engines/zen.js");
 

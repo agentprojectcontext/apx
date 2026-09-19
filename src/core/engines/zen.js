@@ -209,14 +209,21 @@ export default {
     const names = new Set((tools || []).map((t) => t?.function?.name));
     const missing = REQUIRED_WIRE_TOOLS.filter((n) => !names.has(n));
     if (missing.length) {
-      // Better than the gateway's 403, which names nothing and sends people to
-      // rotate a key. The fallback chain rotates off this the same way.
-      throw new Error(
+      // A narrow agent — one whose allowed_tools is a short, deliberate list —
+      // cannot satisfy the gate, and giving it a shell just to get past a
+      // gateway check would be the wrong trade every time. So this is not the
+      // agent's problem to fix: it is this MODEL being unable to serve this
+      // call, which is what the fallback chain is for. Marked retryable so the
+      // turn continues on the next model instead of dying here; the message is
+      // still specific, because it is what a one-model install will read.
+      const e = new Error(
         `zen: ${args.model} es free tier y el gateway sólo contesta a un pedido que ` +
           `declare ${REQUIRED_WIRE_TOOLS.join(" y ")} — a este agente le faltan ` +
-          `${missing.map((n) => APX_NAME[n] || n).join(", ")}. Dale esas tools o ` +
-          `elegí un modelo pago de zen.`
+          `${missing.map((n) => APX_NAME[n] || n).join(", ")}. Rotando al siguiente ` +
+          `modelo de la cadena; para usar zen acá, dale esas tools o elegí un modelo pago.`
       );
+      e.retryable = true;
+      throw e;
     }
 
     const out = await base.chat({ ...args, tools });
