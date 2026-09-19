@@ -51,8 +51,14 @@ export function UpdateBanner() {
       className="flex shrink-0 items-center gap-3 border-b border-border bg-primary/8 px-4 py-2 text-sm"
     >
       <ArrowUpCircle size={16} className="shrink-0 text-primary" />
+      {/* The shape the CLI has printed for a long time — "1.111.0 → 1.112.0",
+          the fact and nothing else. It used to announce itself ("APX 1.112.0 is
+          out"), which reads like marketing for something you already have. */}
       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        {t("update.available", { current: data.current, latest: data.latest })}
+        <span className="font-medium">{t("update.available")}</span>
+        <span className="ml-2 font-mono text-xs text-muted-fg">
+          {data.current} → {data.latest}
+        </span>
       </span>
       <code className="shrink-0 rounded border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
         apx update
