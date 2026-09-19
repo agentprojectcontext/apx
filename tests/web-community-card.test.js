@@ -55,9 +55,15 @@ test("the corner says one thing at a time, in a deliberate order", () => {
   assert.match(app, /<CornerCards \/>/);
   assert.doesNotMatch(app, /<UpdateBanner \/>/, "the update notice belongs to the queue now, not to the top of the panel");
 
-  // The queue IS the DOM order, and the hiding is one rule: whatever is left
-  // as :first-child is the first card that still has something to say.
-  assert.match(stack, /\[&>\*:not\(:first-child\)\]:hidden/);
+  // The queue IS the DOM order. The one in front is in flow so the corner keeps
+  // its size; the rest are absolute against its TOP edge — anchored at the
+  // bottom the peek depended on the cards' relative heights, and the tallest
+  // was in front, so the deck was there and invisible.
+  assert.match(stack, /\[&>\*:first-child\]:relative/);
+  assert.match(stack, /\[&>\*:not\(:first-child\)\]:top-0/);
+  assert.match(stack, /\[&>\*:not\(:first-child\)\]:pointer-events-none/);
+  // Deep enough to hint, not deep enough to be a pile.
+  assert.match(stack, /\[&>\*:nth-child\(n\+4\)\]:hidden/);
   const order = ["NotifyNudge", "CommunityCard", "UpdateBanner", "StarCard"]
     .map((c) => stack.indexOf(`<${c}`));
   assert.deepEqual(order, [...order].sort((a, b) => a - b), "the cards must stay in priority order");

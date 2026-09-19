@@ -7,7 +7,7 @@ import { LINKS, STORAGE } from "../../constants";
 import { t } from "../../i18n";
 
 /**
- * One corner, one card at a time.
+ * One corner, a deck of cards.
  *
  * Four things want to be said to someone opening the panel — turn notifications
  * on, there is a Discord, there is a newer APX, the repo takes stars — and all
@@ -15,10 +15,15 @@ import { t } from "../../i18n";
  * behind it. They queue instead: the first one that applies is the only one
  * visible, and closing it brings the next.
  *
- * The queue is the DOM order, and the hiding is one CSS rule. Each card already
- * returns null when it is dismissed or does not apply, so whatever is left as
+ * The queue is the DOM order, and the stacking is CSS. Each card already returns
+ * null when it is dismissed or does not apply, so whatever is left as
  * `:first-child` is by definition the first that still has something to say —
  * no card has to know about the others, and adding one is adding a line here.
+ *
+ * The two behind it peek out, shrunk and faded, so closing one does not feel
+ * like something appearing from nowhere: you could already see it was there.
+ * They are `pointer-events-none`, so the only card you can click is the one you
+ * can actually read.
  *
  * Order is deliberate. The permission ask goes first because it is the only one
  * that silently stops working if ignored: no notifications ever arrive. The
@@ -26,7 +31,25 @@ import { t } from "../../i18n";
  */
 export function CornerCards() {
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 [&>*:not(:first-child)]:hidden [&>*]:pointer-events-auto">
+    <div
+      className={[
+        "fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))]",
+        // The one in front is IN FLOW, so the container takes its height and
+        // the corner keeps its size. The rest are absolute against the same
+        // bottom edge, which is what makes them a deck instead of a list.
+        "[&>*]:origin-top [&>*]:transition-all [&>*]:duration-200",
+        "[&>*:first-child]:relative [&>*:first-child]:z-30",
+        // Anchored to the TOP of the front card, not the bottom. Anchored at
+        // the bottom the peek depended on the cards' relative heights, and the
+        // tallest one happened to be in front — so the deck was there, measured
+        // correctly, and completely invisible.
+        "[&>*:not(:first-child)]:pointer-events-none [&>*:not(:first-child)]:absolute [&>*:not(:first-child)]:inset-x-0 [&>*:not(:first-child)]:top-0",
+        "[&>*:nth-child(2)]:z-20 [&>*:nth-child(2)]:-translate-y-2 [&>*:nth-child(2)]:scale-95 [&>*:nth-child(2)]:opacity-70",
+        "[&>*:nth-child(3)]:z-10 [&>*:nth-child(3)]:-translate-y-4 [&>*:nth-child(3)]:scale-90 [&>*:nth-child(3)]:opacity-45",
+        // Four deep is a pile, not a hint that there is more behind.
+        "[&>*:nth-child(n+4)]:hidden",
+      ].join(" ")}
+    >
       <NotifyNudge floating className="static w-full max-w-none" />
       <CommunityCard />
       <UpdateBanner />
