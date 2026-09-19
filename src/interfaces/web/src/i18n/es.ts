@@ -2130,6 +2130,36 @@ export const es = {
     rec_denied:          "No diste permiso al micrófono",
     rec_failed:          "No se pudo abrir el micrófono",
     transcribing:        "Transcribiendo…",
+    delivered_notice:    "{channel} no se responde desde acá: lo que escribas sigue en una sesión nueva, con el último mensaje de este hilo citado arriba.",
+    delivered_ph:        "Escribí y sigue en una sesión nueva…",
+  },
+
+  // Un mensaje sacado de una conversación y puesto en otra. La cita viaja con
+  // su procedencia — de qué sesión, quién lo dijo, cuándo — así del otro lado
+  // se lee como lo que es y no como un texto pegado sin autor.
+  forward: {
+    action:              "Reenviar",
+    dialog_title:        "Reenviar mensaje",
+    dialog_hint:         "Elegí a quién le llega y dónde sigue la charla.",
+    to_label:            "Para",
+    session_label:       "Sesión",
+    new_session:         "Sesión nueva",
+    note_label:          "Tu mensaje",
+    note_hint:           "Va debajo de la cita. Podés dejarlo vacío: el agente responde al mensaje reenviado.",
+    note_ph:             "Escribí algo sobre este mensaje…",
+    search_ph:           "Buscar por nombre o proyecto",
+    send_to:             "Reenviar a {name}",
+    no_agents:           "No hay agentes",
+    no_matches:          "Nadie con «{query}»",
+    show_all:            "Ver todos",
+    super_agent_tag:     "Super-agente",
+    from_label:          "Reenviado de",
+    author_you:          "Vos",
+    author_agent:        "Un agente",
+    open_source:         "Abrir la sesión de origen",
+    show_more:           "Ver más",
+    show_less:           "Ver menos",
+    truncated:           "Recortado",
   },
 
   access: {
@@ -2196,7 +2226,7 @@ export const es = {
   },
 
   update: {
-    available:           "Salió APX {latest} — estás corriendo la {current}.",
+    available:           "Actualización disponible",
   },
 
   android_ask: {

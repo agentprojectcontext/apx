@@ -2117,6 +2117,36 @@ export const en = {
     rec_denied:          "Microphone permission was denied",
     rec_failed:          "Could not open the microphone",
     transcribing:        "Transcribing…",
+    delivered_notice:    "{channel} can't be replied to from here: what you write continues in a new session, with this thread's last message quoted above it.",
+    delivered_ph:        "Write, and it continues in a new session…",
+  },
+
+  // One message taken out of a conversation and put into another. The quote
+  // travels with its provenance — which session, who said it, when — so on the
+  // other side it reads as what it is rather than as pasted text with no author.
+  forward: {
+    action:              "Forward",
+    dialog_title:        "Forward message",
+    dialog_hint:         "Pick who gets it and where the conversation continues.",
+    to_label:            "To",
+    session_label:       "Session",
+    new_session:         "New session",
+    note_label:          "Your message",
+    note_hint:           "Goes under the quote. You can leave it empty: the agent answers the forwarded message.",
+    note_ph:             "Say something about this message…",
+    search_ph:           "Search by name or project",
+    send_to:             "Forward to {name}",
+    no_agents:           "No agents",
+    no_matches:          "Nobody matching “{query}”",
+    show_all:            "Show all",
+    super_agent_tag:     "Super-agent",
+    from_label:          "Forwarded from",
+    author_you:          "You",
+    author_agent:        "An agent",
+    open_source:         "Open the source session",
+    show_more:           "Show more",
+    show_less:           "Show less",
+    truncated:           "Trimmed",
   },
 
   access: {
@@ -2183,7 +2213,7 @@ export const en = {
   },
 
   update: {
-    available:           "APX {latest} is out — you are running {current}.",
+    available:           "Update available",
   },
 
   android_ask: {
