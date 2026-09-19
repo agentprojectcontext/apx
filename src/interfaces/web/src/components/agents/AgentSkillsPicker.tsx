@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import useSWR from "swr";
 import { Lock, Sparkles } from "lucide-react";
 import { Skills } from "../../lib/api/skills";
@@ -24,7 +25,7 @@ import { toneOutline } from "../../lib/tone";
 // project's whole catalog is still one tool call away. Injected in the prompt
 // and reachable at runtime are different promises and the copy now says which.
 export function AgentSkillsPicker({
-  value, onChange, projectPath, useDefaults, onUseDefaults, available, matchHeight,
+  value, onChange, projectPath, useDefaults, onUseDefaults, available, matchHeight, resetKey,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
@@ -36,6 +37,9 @@ export function AgentSkillsPicker({
   available?: number;
   /** Cap the scroller. */
   matchHeight?: number;
+  /** Whose list this is. Changing it re-sorts, so switching agents without a
+   *  remount does not leave the previous agent's order behind. */
+  resetKey?: string;
 }) {
   const { data, isLoading } = useSWR(
     ["/api/skills", projectPath ?? "default"],
@@ -50,10 +54,29 @@ export function AgentSkillsPicker({
   // catalog — 55 rows on this install — and four ticked boxes scattered through
   // it are invisible: the question the screen has to answer at a glance is
   // "what does this agent carry", not "what exists".
-  const rows = [...skills].sort((a, b) => {
-    const pick = Number(selected.has(b.slug)) - Number(selected.has(a.slug));
-    return pick !== 0 ? pick : a.slug.localeCompare(b.slug);
-  });
+  //
+  // But that sort is computed ONCE and then held, because it used to run on
+  // every render: ticking a box moved that row to the top under the cursor, so
+  // the next box you wanted was no longer where you were looking and the one
+  // you just ticked was where the NEXT click would land. Picking six skills
+  // meant re-finding the list six times, and a mis-click un-ticked what you had
+  // just ticked. The order answers "what does this agent carry" when the screen
+  // OPENS; while you are editing, the only thing that should move is the tick.
+  //
+  // Frozen per (agent, catalog): reopening the screen — or switching agents —
+  // sorts again with the current selection, so nothing drifts out of date.
+  const orderRef = useRef<{ key: string; order: Map<string, number> } | null>(null);
+  const freezeKey = `${resetKey ?? ""}\u0000${skills.map((s) => s.slug).join(",")}`;
+  if (skills.length > 0 && orderRef.current?.key !== freezeKey) {
+    const pinned = new Set(value);
+    const sorted = [...skills].sort((a, b) => {
+      const pick = Number(pinned.has(b.slug)) - Number(pinned.has(a.slug));
+      return pick !== 0 ? pick : a.slug.localeCompare(b.slug);
+    });
+    orderRef.current = { key: freezeKey, order: new Map(sorted.map((x, i) => [x.slug, i])) };
+  }
+  const rankOf = (slug: string) => orderRef.current?.order.get(slug) ?? Number.MAX_SAFE_INTEGER;
+  const rows = [...skills].sort((a, b) => rankOf(a.slug) - rankOf(b.slug));
 
   const toggle = (slug: string) => {
     const next = new Set(selected);
