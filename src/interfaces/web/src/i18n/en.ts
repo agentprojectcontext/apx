@@ -2165,6 +2165,8 @@ export const en = {
     copy:                "Copy",
     copied:              "Copied",
     qr:                  "Show QR",
+    reveal:              "Show the address",
+    hide:                "Hide the address",
     qr_hint:             "Scan with the phone's camera, then pair the device for its token.",
     local_only:          "The daemon only listens on loopback: nothing on the network can reach it. To share it: apx panel share",
     kind_ts_https:       "Tailnet HTTPS",
@@ -2214,6 +2216,12 @@ export const en = {
 
   update: {
     available:           "Update available",
+  },
+
+  star: {
+    title:               "APX takes stars",
+    desc:                "A star on GitHub is how the next person finds this.",
+    cta:                 "Star the repo",
   },
 
   android_ask: {

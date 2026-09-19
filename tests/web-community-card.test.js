@@ -39,11 +39,37 @@ test("the Discord invitation is offered on both surfaces and closes for good", (
   // Both surfaces. The desktop corner, and the top of the phone's list, beside
   // the two offers that were already there — at the FOOT it measured 8275px
   // into an 8304px scroller, which is not a quiet invitation but an absent one.
-  assert.match(app, /<CommunityCard \/>/);
+  assert.match(app, /<CornerCards \/>/);
+  assert.match(webSrc("components", "common", "CornerCards.tsx"), /<CommunityCard \/>/);
   assert.match(list, /<CommunityCard variant="inline" \/>/);
   const offers = list.indexOf("<CommunityCard variant=\"inline\" />");
   const rowsBegin = list.indexOf("shownRows.map");
   assert.ok(offers > 0 && offers < rowsBegin, "the invitation must sit above the list, not after it");
+});
+
+test("the corner says one thing at a time, in a deliberate order", () => {
+  const stack = webSrc("components", "common", "CornerCards.tsx");
+  const app = webSrc("App.tsx");
+
+  // One mount point, not four components each claiming bottom-right.
+  assert.match(app, /<CornerCards \/>/);
+  assert.doesNotMatch(app, /<UpdateBanner \/>/, "the update notice belongs to the queue now, not to the top of the panel");
+
+  // The queue IS the DOM order, and the hiding is one rule: whatever is left
+  // as :first-child is the first card that still has something to say.
+  assert.match(stack, /\[&>\*:not\(:first-child\)\]:hidden/);
+  const order = ["NotifyNudge", "CommunityCard", "UpdateBanner", "StarCard"]
+    .map((c) => stack.indexOf(`<${c}`));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), "the cards must stay in priority order");
+  assert.ok(order.every((i) => i > 0), "every card must be in the queue");
+
+  // The permission ask is first because it is the only one that silently stops
+  // working when ignored — no notification ever arrives.
+  assert.ok(order[0] === Math.min(...order));
+
+  // The ask-for-something card is last, and never comes back once closed.
+  assert.match(stack, /localStorage\.setItem\(STORAGE\.starDismissed, "1"\)/);
+  assert.match(stack, /rel="noopener noreferrer"/);
 });
 
 test("the phone offers the app through the agent, and only where that makes sense", () => {

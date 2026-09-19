@@ -62,7 +62,8 @@ test("the panel stays quiet in a checkout, and forgets one version at a time", (
   // the moment someone decided to skip one.
   assert.match(banner, /setItem\(STORAGE\.updateDismissed, data\.latest!\)/);
   assert.match(banner, /if \(dismissed === data\.latest\) return null;/);
-  assert.match(read("src/interfaces/web/src/App.tsx"), /<UpdateBanner \/>/);
+  // Mounted by the corner queue now, not by the shell — one card at a time.
+  assert.match(read("src/interfaces/web/src/components/common/CornerCards.tsx"), /<UpdateBanner \/>/);
 });
 
 test("a device says what it is running, and an older one says nothing", () => {
