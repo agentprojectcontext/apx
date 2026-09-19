@@ -1,0 +1,2926 @@
+
+==============================================================================
+[01:50:46] WRITE COMPLETO → src/core/stores/forwards.js
+(guardado en archivos-completos/src__core__stores__forwards.js)
+==============================================================================
+
+==============================================================================
+[01:51:05] PARCHE (bash) — Create exact-replacement helper
+==============================================================================
+cat > /private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad/sub.py <<'PY'
+import sys, io
+def sub(path, old, new, count=1):
+    src = io.open(path, encoding="utf-8").read()
+    n = src.count(old)
+    if n != count:
+        sys.exit("FAIL %s: expected %d occurrence(s), found %d\n---\n%s" % (path, count, n, old[:300]))
+    io.open(path, "w", encoding="utf-8").write(src.replace(old, new))
+    print("ok", path)
+PY
+echo written
+
+==============================================================================
+[01:51:22] PARCHE (bash) — Wire forwards into super-agent route
+==============================================================================
+SCR=/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad && python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/super-agent.js"
+
+sub(f,
+'''function logInboundTurn(channel, { prompt, project, media }) {
+  if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
+  try {
+    appendGlobalMessage({
+      channel, direction: "in", type: "user", author: "user", body: prompt,
+      // `media` records the file the turn was sent with (local_path, name, mime
+      // — see readTurnAttachments), which is what lets a reopened thread render
+      // the photo instead of the marker text the agent was handed.
+      meta: { ...ledgerScope(project), ...(media || {}) },
+    });''',
+'''function logInboundTurn(channel, { prompt, project, media, forwarded }) {
+  if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
+  try {
+    appendGlobalMessage({
+      channel, direction: "in", type: "user", author: "user", body: prompt,
+      // `media` records the file the turn was sent with (local_path, name, mime
+      // — see readTurnAttachments), which is what lets a reopened thread render
+      // the photo instead of the marker text the agent was handed. `forwarded`
+      // does the same job for a quote carried in from another session: the body
+      // holds the machine-facing marker, and this is what the panel draws as a
+      // card saying where it came from.
+      meta: { ...ledgerScope(project), ...(media || {}), ...(forwarded ? { forwarded } : {}) },
+    });''')
+
+sub(f,
+'''    const turnFiles = readTurnAttachments(req.body?.attachments);
+    if (!rawPrompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }''',
+'''    const turnFiles = readTurnAttachments(req.body?.attachments);
+    // A message carried in from another session — the quote, plus where it came
+    // from. Validated here rather than trusted: the text is capped and the
+    // marker is built on this side, so a client cannot write its own.
+    const forwarded = normalizeForward(req.body?.forwarded);
+    // A forward IS a turn, with or without a note under it: "read this" is a
+    // complete thing to say, and refusing it would make the empty composer the
+    // one way to hand somebody a message.
+    if (!rawPrompt && !turnFiles.markers.length && !forwarded) {
+      return res.status(400).json({ error: "prompt required" });
+    }''')
+
+sub(f,
+'''    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+
+    // Before a single token: the message exists now, and the panel (and the
+    // inbox, and the live feed) should say so while the turn is still working.
+    logInboundTurn(ctx.channel, { prompt: turnPrompt, project: p, media: turnFiles.media });''',
+'''    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // A forwarded quote goes ABOVE what was typed, on its own lines: it is what
+    // the turn is about, and the note under it is the answer to it.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;
+
+    // Before a single token: the message exists now, and the panel (and the
+    // inbox, and the live feed) should say so while the turn is still working.
+    logInboundTurn(ctx.channel, { prompt: turnPrompt, project: p, media: turnFiles.media, forwarded });''')
+
+sub(f,
+'''import { CHANNELS } from "#core/constants/channels.js";''',
+'''import { CHANNELS } from "#core/constants/channels.js";
+import { forwardPrompt, normalizeForward } from "#core/stores/forwards.js";''')
+PY
+
+==============================================================================
+[01:51:38] PARCHE (bash) — Wire forwards into agent chat routes
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/exec.js"
+
+sub(f, """      channel,
+      channelMeta,
+      attachments,
+    } = req.body || {};""", """      channel,
+      channelMeta,
+      attachments,
+      // A message carried in from another session: the quote plus where it came
+      // from. Normalised rather than trusted — the marker the model reads is
+      // built on this side, from a capped copy of the text.
+      forwarded: rawForwarded,
+    } = req.body || {};""", count=2)
+
+sub(f, """    const turnFiles = readTurnAttachments(attachments);
+    if (!prompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");""",
+"""    const turnFiles = readTurnAttachments(attachments);
+    const forwarded = normalizeForward(rawForwarded);
+    // A forward IS a turn, with or without a note under it — see the same guard
+    // on the super-agent's stream.
+    if (!prompt && !turnFiles.markers.length && !forwarded) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // The quote first, on its own lines; what was typed answers it underneath.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;""", count=2)
+
+# The two appendTurn calls differ only in indentation.
+for indent in ("      ", "    "):
+    sub(f, indent + """appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });""",
+        indent + """appendTurn({
+""" + indent + """  filePath: turn.conv.path,
+""" + indent + """  role: "user",
+""" + indent + """  content: turnPrompt,
+""" + indent + """  // Where the quote came from, so the panel draws the card instead of the
+""" + indent + """  // machine-facing marker sitting in the body.
+""" + indent + """  meta: turnFiles.media || forwarded ? { ...(turnFiles.media || {}), ...(forwarded ? { forwarded } : {}) } : undefined,
+""" + indent + """});""")
+PY
+
+==============================================================================
+[01:52:08] PARCHE (bash) — Wire forwards into the two agent chat routes
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/exec.js"
+
+# Only the two /chat routes destructure conversation_id — /exec does not.
+sub(f, """      prompt,
+      conversation_id,
+      temperature,
+      maxTokens,
+      tools,
+      maxIters,
+      channel,
+      channelMeta,
+      attachments,
+    } = req.body || {};""", """      prompt,
+      conversation_id,
+      temperature,
+      maxTokens,
+      tools,
+      maxIters,
+      channel,
+      channelMeta,
+      attachments,
+      // A message carried in from another session: the quote plus where it came
+      // from. Normalised rather than trusted — the marker the model reads is
+      // built on this side, from a capped copy of the text.
+      forwarded: rawForwarded,
+    } = req.body || {};""", count=2)
+
+# Now unique to the two chat routes, because of the line just added above it.
+sub(f, """      forwarded: rawForwarded,
+    } = req.body || {};
+    // Files the composer uploaded to ~/.apx/media and named on this turn,
+    // resolved the way the super-agent turn resolves them: images ride on the
+    // model message, and a marker naming each file is folded into the prompt so
+    // a photo with no caption is still a turn and a non-vision engine is told a
+    // file arrived and where it lives.
+    const turnFiles = readTurnAttachments(attachments);
+    if (!prompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");""",
+"""      forwarded: rawForwarded,
+    } = req.body || {};
+    // Files the composer uploaded to ~/.apx/media and named on this turn,
+    // resolved the way the super-agent turn resolves them: images ride on the
+    // model message, and a marker naming each file is folded into the prompt so
+    // a photo with no caption is still a turn and a non-vision engine is told a
+    // file arrived and where it lives.
+    const turnFiles = readTurnAttachments(attachments);
+    const forwarded = normalizeForward(rawForwarded);
+    // A forward IS a turn, with or without a note under it — same guard as the
+    // super-agent's stream.
+    if (!prompt && !turnFiles.markers.length && !forwarded) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // The quote first, on its own lines; what was typed answers it underneath.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;""", count=2)
+
+for indent in ("      ", "    "):
+    old = indent + '''appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });'''
+    new = "\n".join([
+        indent + "appendTurn({",
+        indent + "  filePath: turn.conv.path,",
+        indent + '  role: "user",',
+        indent + "  content: turnPrompt,",
+        indent + "  // Where a forwarded quote came from, recorded beside the attachment it",
+        indent + "  // may also carry: the body holds the machine-facing marker, and this is",
+        indent + "  // what the panel draws as a card instead of it.",
+        indent + "  meta: turnMeta(turnFiles.media, forwarded),",
+        indent + "});",
+    ])
+    sub(f, old, new)
+PY
+
+==============================================================================
+[01:52:21] PARCHE (bash) — Add turnMeta helper and import, syntax-check
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/exec.js"
+sub(f, '''import { answerDeliveries } from "#core/stores/deliveries.js";''',
+    '''import { answerDeliveries } from "#core/stores/deliveries.js";
+import { forwardPrompt, normalizeForward } from "#core/stores/forwards.js";''')
+
+sub(f, '''// How long a streamed turn may go silent before it writes a keepalive byte.
+// Matches api/super-agent.js — comfortably under undici's body timeout.
+const KEEPALIVE_MS = 20_000;''',
+'''// How long a streamed turn may go silent before it writes a keepalive byte.
+// Matches api/super-agent.js — comfortably under undici's body timeout.
+const KEEPALIVE_MS = 20_000;
+
+/** What a user turn records about itself beyond its text: the file it carried,
+ *  and where it was forwarded from. `undefined` when it is neither, because
+ *  `appendTurn` writes the meta as a JSON header and an empty object there is a
+ *  `{}` on every plain line of every conversation file. */
+function turnMeta(media, forwarded) {
+  const meta = { ...(media || {}), ...(forwarded ? { forwarded } : {}) };
+  return Object.keys(meta).length ? meta : undefined;
+}''')
+PY
+node --input-type=module -e "import('./src/host/daemon/api/exec.js').then(()=>console.log('exec.js loads')).catch(e=>{console.error(e.message);process.exit(1)})"
+
+==============================================================================
+[01:52:35] PARCHE (bash) — Expose forwarded meta on readback
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+sub("src/core/stores/conversations.js",
+'''    const automation = t.meta?.automation;
+    return {
+      ...base,
+      ...mediaFields,
+      ...(automation ? { automation, job: t.meta?.job || null } : {}),
+    };''',
+'''    const automation = t.meta?.automation;
+    return {
+      ...base,
+      ...mediaFields,
+      ...(automation ? { automation, job: t.meta?.job || null } : {}),
+      // Handed in from another session. The body still holds the marker the
+      // model was given; this is what lets the viewer draw the quote as a card
+      // that names where it came from, and strip the marker out of the text.
+      ...(t.meta?.forwarded ? { forwarded: t.meta.forwarded } : {}),
+    };''')
+
+sub("src/core/stores/messages.js",
+'''      ...(r.meta?.interactive_selection ? { chose: r.meta.interactive_selection } : {}),
+    };''',
+'''      ...(r.meta?.interactive_selection ? { chose: r.meta.interactive_selection } : {}),
+      // Handed in from another session — the quote's provenance, so every
+      // surface reading this row draws the same card instead of the
+      // machine-facing marker sitting in the body.
+      ...(r.meta?.forwarded ? { forwarded: r.meta.forwarded } : {}),
+    };''')
+PY
+
+==============================================================================
+[01:53:01] WRITE COMPLETO → src/interfaces/web/src/lib/forwarded.ts
+(guardado en archivos-completos/src__interfaces__web__src__lib__forwarded.ts)
+==============================================================================
+
+==============================================================================
+[01:53:15] PARCHE (bash) — Add forwarded to ConversationMessage type
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/types/daemon.ts"
+sub(f, '''// Daemon shapes. Mirror the responses returned by src/host/daemon/api/*.
+// If you find yourself reaching for `any`, add a type here first.
+''', '''// Daemon shapes. Mirror the responses returned by src/host/daemon/api/*.
+// If you find yourself reaching for `any`, add a type here first.
+
+// Type-only, so nothing of the panel's runtime is pulled into a module that is
+// meant to be erased at build time. The shape lives beside the rest of what a
+// forward knows about itself (lib/forwarded.ts), not here.
+import type { Forwarded } from "../lib/forwarded";
+''')
+
+sub(f, '''  /** A menu option this message PICKED. */''',
+'''  /** Carried in from another session: the quote, and where it came from. The
+   *  `content` still holds the marker the model was handed; the viewer strips
+   *  it (`stripForwardMarker`) and draws this as a card instead. */
+  forwarded?: Forwarded;
+  /** A menu option this message PICKED. */''')
+PY
+
+==============================================================================
+[01:53:36] PARCHE (bash) — Add forwarded to ChatMsg and SendOptions
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/hooks/useChat.ts"
+
+sub(f, '''import type { UploadedMedia } from "../lib/api/media";''',
+    '''import type { UploadedMedia } from "../lib/api/media";
+import type { Forwarded } from "../lib/forwarded";''')
+
+sub(f, '''        ...(m.media ? { media: [m.media] } : {}),
+        ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
+        ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),''',
+    '''        ...(m.media ? { media: [m.media] } : {}),
+        ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
+        ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),
+        ...(m.forwarded ? { forwarded: m.forwarded } : {}),''')
+
+# ChatMsg: the field, next to the other things a user turn can carry.
+sub(f, '''  /** A menu this message offered (WhatsApp buttons/list/template), drawn as
+   *  buttons under the text. */
+  interactive?: InteractiveMenu;''',
+    '''  /** A menu this message offered (WhatsApp buttons/list/template), drawn as
+   *  buttons under the text. */
+  interactive?: InteractiveMenu;
+  /** This turn carried a message in from ANOTHER session: the quote and where
+   *  it came from. The text still holds the marker the model was handed — the
+   *  bubble strips it and draws the quote as a card, the way it does with an
+   *  attachment marker. */
+  forwarded?: Forwarded;''')
+
+# SendOptions: what the composer hands the daemon.
+sub(f, '''  /** Set on a QUEUED turn that was written in a group room, so the drain sends
+   *  it back into the room instead of out as a 1:1 web turn. The queue is one
+   *  per chat and only the entry knows which kind of chat it was written in. */
+  group_id?: string;''',
+    '''  /** Set on a QUEUED turn that was written in a group room, so the drain sends
+   *  it back into the room instead of out as a 1:1 web turn. The queue is one
+   *  per chat and only the entry knows which kind of chat it was written in. */
+  group_id?: string;
+  /** A message brought in from another session, quoted above whatever was
+   *  typed. The daemon builds the marker the model reads and records this on
+   *  the turn, so every surface can draw the card — see lib/forwarded.ts. */
+  forwarded?: Forwarded;''')
+PY
+
+==============================================================================
+[01:54:53] PARCHE (bash) — Add forwardMarker mirror to the panel
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/lib/forwarded.ts"
+
+sub(f, '''/** The source, in words: a session title when it has one, else the channel it
+ *  lives on. Never a bare id — "2026-09-17" names a day, not a conversation. */
+export function forwardSourceLabel(fwd: Forwarded): string {
+  const from = fwd.from || ({} as ForwardSource);
+  if (from.title) return from.title;
+  if (from.channel) return channelLabel(from.channel);
+  return from.agent_slug || "";
+}''',
+'''/** The source, in words, FOR A READER: a session title when it has one, else
+ *  the channel it lives on, spelled the way the rest of the panel spells it.
+ *  Never a bare id — "2026-09-17" names a day, not a conversation. */
+export function forwardSourceLabel(fwd: Forwarded): string {
+  const from = fwd.from || ({} as ForwardSource);
+  if (from.title) return from.title;
+  if (from.channel) return channelLabel(from.channel);
+  return from.agent_slug || "";
+}
+
+/** The same source FOR THE MODEL — the raw channel name, not the panel's label
+ *  for it. It mirrors `forwardSourceLabel` in core/stores/forwards.js, which is
+ *  what actually writes the stored marker; a translated word here would make
+ *  the two disagree the moment the reader's locale changed. */
+function markerSourceLabel(fwd: Forwarded): string {
+  const from = fwd.from || ({} as ForwardSource);
+  return from.title || from.channel || from.agent_slug || "web";
+}
+
+/**
+ * The quote as the MODEL reads it — a copy of `forwardMarker` in
+ * core/stores/forwards.js, pinned to it by `tests/forwards.test.js`.
+ *
+ * The panel needs its own because of HISTORY. A turn sent from this pane is in
+ * the pane's memory before it is on disk, and the next turn's `previousMessages`
+ * is built from that memory: without this, the message after a forward would
+ * reach the model with the note ("¿qué opinás?") and no sign of what it was
+ * about. It is not used for what is STORED — the daemon writes that, from its
+ * own normalised copy — so the two can only ever differ cosmetically, and the
+ * test is there so they do not differ at all.
+ */
+export function forwardMarker(fwd: Forwarded): string {
+  const who = fwd.author === "user" ? "the owner" : fwd.author_name || "an agent";
+  const when = fwd.ts ? fwd.ts.replace("T", " ").replace(/:\\d\\d\\.\\d+Z$/, " UTC") : "";
+  const head = [
+    `from ${markerSourceLabel(fwd)}`,
+    `said by ${who}`,
+    when ? `on ${when}` : "",
+  ].filter(Boolean).join(", ");
+  const quoted = fwd.text.split("\\n").map((line) => `> ${line}`).join("\\n");
+  return `[forwarded message — ${head}]\\n${quoted}\\n[end of forwarded message]`;
+}''')
+PY
+sed -n '/export function forwardMarker/,/^}/p' src/interfaces/web/src/lib/forwarded.ts
+
+==============================================================================
+[01:55:06] PARCHE (bash) — Carry the quote into model history
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/hooks/useChat.ts"
+
+sub(f, '''import type { Forwarded } from "../lib/forwarded";''',
+    '''import { forwardMarker, stripForwardMarker, type Forwarded } from "../lib/forwarded";''')
+
+# History: a forwarded turn carries its quote, or the turn AFTER it reads a
+# reply to something the model was never shown.
+sub(f, '''export function historyTextOf(msg: ChatMsg): string {
+  const chunks: string[] = [];
+  for (const p of msg.parts) {
+    if (p.kind === "text" && p.text) chunks.push(p.text);
+    else if (p.kind === "tool" && p.tool === "ask_questions") {
+      const s = summarizeAskQuestions(p);
+      if (s) chunks.push(s);
+    }
+  }
+  return chunks.join("\\n\\n").trim();
+}''',
+'''export function historyTextOf(msg: ChatMsg): string {
+  const chunks: string[] = [];
+  for (const p of msg.parts) {
+    if (p.kind === "text" && p.text) chunks.push(p.text);
+    else if (p.kind === "tool" && p.tool === "ask_questions") {
+      const s = summarizeAskQuestions(p);
+      if (s) chunks.push(s);
+    }
+  }
+  const text = chunks.join("\\n\\n").trim();
+  // A turn that carried a message in from somewhere else. Read back from
+  // storage the quote is already in the text (the daemon wrote the marker
+  // there); composed in THIS pane it is not, and the next turn's history would
+  // hand the model a reply to something it was never shown.
+  if (msg.forwarded && !msg.forwarded.text.startsWith("[forwarded message")) {
+    return [forwardMarker(msg.forwarded), text].filter(Boolean).join("\\n\\n");
+  }
+  return text;
+}''')
+PY
+sed -n '436,465p' src/interfaces/web/src/hooks/useChat.ts
+
+==============================================================================
+[01:55:13] PARCHE (bash) — Fix the marker-already-present check
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("src/interfaces/web/src/hooks/useChat.ts",
+'''  if (msg.forwarded && !msg.forwarded.text.startsWith("[forwarded message")) {''',
+'''  if (msg.forwarded && !text.startsWith("[forwarded message")) {''')
+PY
+
+==============================================================================
+[01:55:34] PARCHE (bash) — Dedupe forwarded turns and carry the quote on the optimistic bubble
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/hooks/useChat.ts"
+
+sub(f, '''export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {
+  const extras = current.filter((m) => m.local);
+  if (!extras.length) return remote;
+  const seenText = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
+  const seenMedia = new Set(
+    remote.filter((m) => mediaPathsKey(m)).map((m) => `${m.role}|${mediaPathsKey(m)}`),
+  );
+  return [
+    ...remote,
+    ...extras.filter((m) => {
+      if (seenText.has(`${m.role}|${textOf(m)}`)) return false;''',
+'''/**
+ * What makes two copies of the same turn the same turn, for this merge.
+ *
+ * Not the raw text. A forwarded turn is STORED with the quote marker the daemon
+ * wrote at the head of it, and the copy this pane composed has only the note
+ * typed under it — so comparing texts would never match, and every background
+ * refresh would leave the same message in the thread twice. The comparison is
+ * therefore made on what the person actually wrote, plus the quote it carried:
+ * two forwards of different messages with the same empty note are still two
+ * turns.
+ */
+function mergeKey(m: ChatMsg): string {
+  return `${m.role}|${stripForwardMarker(textOf(m))}|${m.forwarded?.text || ""}`;
+}
+
+export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {
+  const extras = current.filter((m) => m.local);
+  if (!extras.length) return remote;
+  const seenText = new Set(remote.map(mergeKey));
+  const seenMedia = new Set(
+    remote.filter((m) => mediaPathsKey(m)).map((m) => `${m.role}|${mediaPathsKey(m)}`),
+  );
+  return [
+    ...remote,
+    ...extras.filter((m) => {
+      if (seenText.has(mergeKey(m))) return false;''')
+
+# send(): a forward with no note is still a turn, and the optimistic bubble
+# carries the quote so the card is on screen before the daemon answers.
+sub(f, '''      const trimmed = text.trim();
+      const files = opts.attachments || [];
+      // A photo with no caption is a turn; text alone still is one.
+      if (!trimmed && !files.length) return;''',
+'''      const trimmed = text.trim();
+      const files = opts.attachments || [];
+      // A photo with no caption is a turn; text alone still is one. So is a
+      // message forwarded in from another session with nothing typed under it:
+      // "read this" is a complete thing to say.
+      if (!trimmed && !files.length && !opts.forwarded) return;''')
+
+sub(f, '''        local: true,
+        ...(files.length ? { media: files.map(mediaOf) } : {}),
+      });''',
+'''        local: true,
+        ...(files.length ? { media: files.map(mediaOf) } : {}),
+        // The quote is drawn from here, so the card is on screen the moment the
+        // message is — not one round trip later. The daemon writes the marker
+        // into the stored text; this bubble holds only what was typed, and
+        // `mergeKey` is what keeps the two from reading as two messages.
+        ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
+      });''')
+PY
+
+==============================================================================
+[01:55:48] PARCHE (bash) — Pass forwarded through the API layer
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/hooks/useChat.ts"
+
+sub(f, '''              ...(opts.attachments?.length
+                ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+                : {}),
+            },''',
+'''              ...(opts.attachments?.length
+                ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+                : {}),
+              // Where this turn was carried in from. The daemon builds the
+              // marker the model reads and records the quote on the turn.
+              ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
+            },''')
+
+sub(f, '''            ...(opts.attachments?.length
+              ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+              : {}),
+        },''',
+'''            ...(opts.attachments?.length
+              ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+              : {}),
+            ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
+        },''')
+
+# The API bodies have to admit the field.
+sub("src/interfaces/web/src/lib/api/super_agent.ts",
+'''  /** Files this turn carries, as paths the daemon stored (POST /media/upload).
+   *  It re-resolves each one inside ~/.apx/media before reading it. */
+  attachments?: { path: string; name?: string }[];''',
+'''  /** Files this turn carries, as paths the daemon stored (POST /media/upload).
+   *  It re-resolves each one inside ~/.apx/media before reading it. */
+  attachments?: { path: string; name?: string }[];
+  /** A message brought in from another session. The daemon normalises it, folds
+   *  the quote into the prompt the model reads, and records it on the turn so
+   *  every surface draws the same card — see core/stores/forwards.js. */
+  forwarded?: Forwarded;''')
+
+sub("src/interfaces/web/src/lib/api/super_agent.ts",
+'''import type { ChatStreamEvent, ConversationMessage } from "../../types/daemon";''',
+'''import type { ChatStreamEvent, ConversationMessage } from "../../types/daemon";
+import type { Forwarded } from "../forwarded";''')
+
+sub("src/interfaces/web/src/lib/api/agents.ts",
+'''    body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] },''',
+'''    body: {
+      prompt: string;
+      conversation_id?: string;
+      model?: string;
+      channel?: string;
+      attachments?: { path: string; name?: string }[];
+      /** A message brought in from another session — see core/stores/forwards.js. */
+      forwarded?: Forwarded;
+    },''')
+PY
+head -6 src/interfaces/web/src/lib/api/agents.ts
+
+==============================================================================
+[01:55:55] PARCHE (bash) — Import Forwarded in agents api
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("src/interfaces/web/src/lib/api/agents.ts",
+'''import type {
+  AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
+} from "../../types/daemon";''',
+'''import type {
+  AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
+} from "../../types/daemon";
+import type { Forwarded } from "../forwarded";''')
+PY
+
+==============================================================================
+[01:56:32] WRITE COMPLETO → src/interfaces/web/src/components/chat/ForwardedQuote.tsx
+(guardado en archivos-completos/src__interfaces__web__src__components__chat__ForwardedQuote.tsx)
+==============================================================================
+
+==============================================================================
+[01:56:43] PARCHE (bash) — Clarify the clamp constant
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+f = "src/interfaces/web/src/components/chat/ForwardedQuote.tsx"
+sub(f, '''/** How many lines of the quote show before it is folded. Enough for a short
+ *  message to arrive whole — which most forwards are — and few enough that a
+ *  long one does not bury the sentence written under it. */
+const CLAMP_LINES = 6;''',
+'''/** How many lines of the quote show before it is folded (`line-clamp-6` below —
+ *  Tailwind needs the class spelled out, so the two are kept side by side).
+ *  Enough for a short message to arrive whole, which most forwards are, and few
+ *  enough that a long one does not bury the sentence written under it. */
+const CLAMP_LINES = 6;''')
+PY
+
+==============================================================================
+[01:57:14] PARCHE (bash) — Strip the quote from the visible text in MessageBubble
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/components/chat/MessageBubble.tsx"
+
+sub(f, '''import { Bot, ChevronDown, CornerDownRight, Copy, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";''',
+    '''import { Bot, ChevronDown, CornerDownRight, Copy, Forward, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";''')
+
+sub(f, '''import { AttachmentGroup, stripMediaMarker } from "./Attachment";''',
+    '''import { AttachmentGroup, stripMediaMarker } from "./Attachment";
+import { ForwardedQuote } from "./ForwardedQuote";
+import { stripForwardMarker } from "../../lib/forwarded";''')
+
+sub(f, '''  /** Edit this user turn and re-send, dropping everything after it. Absent → no
+   *  edit affordance. */
+  onEdit?: (text: string) => void;''',
+'''  /** Edit this user turn and re-send, dropping everything after it. Absent → no
+   *  edit affordance. */
+  onEdit?: (text: string) => void;
+  /** Hand this message to another session. Offered on BOTH sides of the
+   *  conversation: what you want to show somebody else is as often the answer
+   *  as the question. Absent → no forward affordance (previews, and the
+   *  surfaces with nowhere to forward to). */
+  onForward?: () => void;
+  /** Open the session a forwarded quote came from. Absent → the card names its
+   *  source without linking to it. */
+  onOpenForwardSource?: () => void;''')
+
+sub(f, '''export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {''',
+    '''export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, onForward, onOpenForwardSource, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {''')
+
+# Copy what the reader sees: neither the attachment marker nor the quote block.
+sub(f, '''  const media = msg.media;
+  const copyText = media?.length ? stripMediaMarker(textOf(msg), media.length) : textOf(msg);''',
+'''  const media = msg.media;
+  // What the READER would copy: their own words. The quote is drawn as a card
+  // of its own and the attachment markers name a path on the daemon, so neither
+  // belongs on the clipboard when somebody copies a message.
+  const copyText = visibleTextOf(textOf(msg), media, msg.forwarded);''')
+
+sub(f, '''  const visibleText = (raw: string | undefined) => {
+    const text = textOfPart(raw, media);
+    return msg.interactive?.options?.length ? stripMenuMarker(text) : text;
+  };''',
+'''  const visibleText = (raw: string | undefined) => {
+    const text = visibleTextOf(raw, media, msg.forwarded);
+    return msg.interactive?.options?.length ? stripMenuMarker(text) : text;
+  };''')
+
+sub(f, '''/** The visible text of a part: with attachments, the machine-facing markers
+ *  are dropped and what is left (a caption, or the voice transcript) is shown. */
+function textOfPart(text: string | undefined, media: unknown[] | undefined): string {
+  if (!text) return "";
+  return media?.length ? stripMediaMarker(text, media.length) : text;
+}''',
+'''/**
+ * The visible text of a part: every machine-facing marker dropped, and what is
+ * left — a caption, a voice transcript, the note written under a quote — shown.
+ *
+ * The forward block comes off FIRST, and the order is not a style choice: the
+ * attachment strip takes a leading `[…]` off the front of the text, and a
+ * forwarded turn's front is `[forwarded message — …]`. Run the other way round
+ * it eats the head of the quote block and leaves the `> ` lines on screen.
+ */
+function visibleTextOf(
+  text: string | undefined,
+  media: unknown[] | undefined,
+  forwarded: unknown,
+): string {
+  if (!text) return "";
+  const body = forwarded ? stripForwardMarker(text) : text;
+  return media?.length ? stripMediaMarker(body, media.length) : body;
+}''')
+PY
+
+==============================================================================
+[01:57:30] PARCHE (bash) — Render the quote card and the forward action
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/components/chat/MessageBubble.tsx"
+
+# The card goes above everything the turn itself carries — the file, the text —
+# because it is what the turn is ABOUT.
+sub(f, '''        {/* What was actually sent: the voice note plays, the photo is the photo,
+            the document opens. */}
+        {media?.length ? <AttachmentGroup media={media} /> : null}''',
+'''        {/* Carried in from another session. Above the turn's own words, because
+            that is the shape of the message: here is the thing somebody said
+            somewhere else, here is what I say about it. */}
+        {msg.forwarded && (
+          <ForwardedQuote fwd={msg.forwarded} onOpen={onOpenForwardSource} compact={compact} />
+        )}
+
+        {/* What was actually sent: the voice note plays, the photo is the photo,
+            the document opens. */}
+        {media?.length ? <AttachmentGroup media={media} /> : null}''')
+
+# The action, beside copy. On both sides of the conversation.
+sub(f, '''            {/* Edit your turn and re-ask (drops everything below). */}
+            {mine && onEdit && !editing && (''',
+'''            {/* Hand this message to another session — an agent, or the
+                super-agent — with a line of your own under it. Offered on both
+                sides: an answer is as often the thing worth passing on as the
+                question that got it. */}
+            {onForward && copyText && !editing && (
+              <Tip content={t("forward.action")}>
+                <button
+                  type="button"
+                  data-testid="forward-message"
+                  onClick={onForward}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  aria-label={t("forward.action")}
+                >
+                  <Forward size={10} /> {!compact && t("forward.action")}
+                </button>
+              </Tip>
+            )}
+            {/* Edit your turn and re-ask (drops everything below). */}
+            {mine && onEdit && !editing && (''')
+PY
+
+==============================================================================
+[01:57:46] PARCHE (bash) — Thread forward props through MessageList
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/components/chat/MessageList.tsx"
+
+sub(f, '''  /** Edit the user message at this index and re-send (drop everything after). */
+  onEdit?: (index: number, text: string) => void;''',
+'''  /** Edit the user message at this index and re-send (drop everything after). */
+  onEdit?: (index: number, text: string) => void;
+  /** Hand the message at this index to another session. Absent → no forward
+   *  affordance (previews, and surfaces with nowhere to forward to). */
+  onForward?: (index: number) => void;
+  /** Open the session a forwarded quote came from. */
+  onOpenForwardSource?: (msg: ChatMsg) => void;''')
+
+sub(f, '''  onCopy,
+  onRegenerate,
+  onEdit,
+  faceFor,''',
+'''  onCopy,
+  onRegenerate,
+  onEdit,
+  onForward,
+  onOpenForwardSource,
+  faceFor,''')
+
+sub(f, '''            onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
+            onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}''',
+'''            onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
+            onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
+            {/* Not while it is still being written: half an answer is not a
+                thing to hand somebody, and the quote would be whatever had
+                arrived by the moment of the click. */}
+            onForward={onForward && !m.pending ? () => onForward(i) : undefined}
+            onOpenForwardSource={
+              onOpenForwardSource && m.forwarded ? () => onOpenForwardSource(m) : undefined
+            }''')
+PY
+
+==============================================================================
+[01:57:58] PARCHE (bash) — Fix invalid JSX comment placement
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/components/chat/MessageList.tsx"
+
+sub(f, '''            {/* Not while it is still being written: half an answer is not a
+                thing to hand somebody, and the quote would be whatever had
+                arrived by the moment of the click. */}
+            onForward={onForward && !m.pending ? () => onForward(i) : undefined}''',
+'''            onForward={onForward && !m.pending ? () => onForward(i) : undefined}''')
+
+sub(f, '''  /** Hand the message at this index to another session. Absent → no forward
+   *  affordance (previews, and surfaces with nowhere to forward to). */
+  onForward?: (index: number) => void;''',
+'''  /** Hand the message at this index to another session. Absent → no forward
+   *  affordance (previews, and surfaces with nowhere to forward to).
+   *
+   *  Never offered on a turn still being written: half an answer is not a thing
+   *  to hand somebody, and the quote would be whatever had happened to arrive
+   *  by the moment of the click. */
+  onForward?: (index: number) => void;''')
+PY
+
+==============================================================================
+[01:58:57] WRITE COMPLETO → src/interfaces/web/src/components/chat/ForwardDialog.tsx
+(guardado en archivos-completos/src__interfaces__web__src__components__chat__ForwardDialog.tsx)
+==============================================================================
+
+==============================================================================
+[01:59:25] PARCHE (bash) — Tighten ForwardDialog types and target rules
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/components/chat/ForwardDialog.tsx"
+
+sub(f, '''  const people = useMemo(() => {
+    const rows = [
+      { slug: superAgentSlug, name: superAgentLabel, icon: superAgentIcon || SUPER_AGENT_ICON, emoji: undefined as string | undefined },
+      ...agents.map((a) => ({ slug: a.slug, name: a.name || a.slug, icon: a.icon, emoji: a.emoji })),
+    ];''',
+'''  const people = useMemo<Person[]>(() => {
+    const rows: Person[] = [
+      {
+        slug: superAgentSlug,
+        name: superAgentLabel,
+        icon: superAgentIcon || SUPER_AGENT_ICON,
+      },
+      ...agents.map((a) => ({ slug: a.slug, name: a.name || a.slug, icon: a.icon, emoji: a.emoji })),
+    ];''')
+
+sub(f, '''/** A session the forward can land in. `null` key = start a fresh one. */
+type Choice = { id: string; label: string; hint?: string; key: ChatKey | null };''',
+'''/** A session the forward can land in. `null` key = start a fresh one. */
+type Choice = { id: string; label: string; hint?: string; key: ChatKey | null };
+
+/** Somebody the message can go to: a project agent, or the super-agent under
+ *  the virtual slug the panel addresses it by. */
+type Person = { slug: string; name: string; icon?: string | null; emoji?: string | null };''')
+
+sub(f, '''  if (s.channel && DELIVERED_CHANNELS.has(s.channel)) return false;
+  if (s.channel === "a2a") return false;
+  if (s.archived) return false;''',
+'''  if (s.channel && DELIVERED_CHANNELS.has(s.channel)) return false;
+  if (s.channel === "a2a") return false;
+  // A room, not a session with one agent. A group turn goes out through the
+  // cascade endpoint, which carries no quote — so a forward dropped there would
+  // arrive as a bare note about a message nobody in the room can see. Rooms are
+  // a destination worth having; they need the quote on their own path first.
+  if (s.channel === "group") return false;
+  if (s.archived) return false;''')
+
+sub(f, ''' *   - a2a — the record of two agents talking, which the daemon refuses to be
+ *     written into (`rejectA2AWrite`);''',
+''' *   - a2a — the record of two agents talking, which the daemon refuses to be
+ *     written into (`rejectA2AWrite`) — and a group room, whose turns go out
+ *     through the cascade endpoint, which does not carry a quote yet;''')
+PY
+
+==============================================================================
+[02:00:57] PARCHE (bash) — Export visibleTextOf for reuse
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("src/interfaces/web/src/components/chat/MessageBubble.tsx",
+'''function visibleTextOf(
+  text: string | undefined,''',
+'''export function visibleTextOf(
+  text: string | undefined,''')
+PY
+
+==============================================================================
+[02:01:08] PARCHE (bash) — Add ChatTab imports
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''import { MessageList } from "../../components/chat/MessageList";''',
+    '''import { MessageList } from "../../components/chat/MessageList";
+import { visibleTextOf } from "../../components/chat/MessageBubble";
+import { ForwardDialog } from "../../components/chat/ForwardDialog";''')
+
+sub(f, '''import { attachmentsOf, isRoomChannel, useChat, type ChatMsg } from "../../hooks/useChat";''',
+    '''import { attachmentsOf, isRoomChannel, textOf, useChat, type ChatMsg } from "../../hooks/useChat";
+import type { Forwarded, ForwardSource } from "../../lib/forwarded";''')
+
+sub(f, '''import { DELIVERED_CHANNELS } from "../../lib/channels";''',
+    '''import { DELIVERED_CHANNELS, channelLabel as channelName } from "../../lib/channels";''')
+PY
+grep -n "^export function textOf\|export const textOf" src/interfaces/web/src/hooks/useChat.ts
+
+==============================================================================
+[02:01:29] PARCHE (bash) — Add forward state and guard the load effect
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''  const [confirmDelete, setConfirmDelete] = useState(false);''',
+'''  const [confirmDelete, setConfirmDelete] = useState(false);
+  // The message the forward dialog is open on. Null = closed.
+  const [forwarding, setForwarding] = useState<Forwarded | null>(null);
+  // A forward that has been confirmed and is waiting for the pane to arrive at
+  // the session it is going to. It sits in a ref rather than in state because
+  // the effect that loads a selection must be able to see it WITHOUT waiting
+  // for a re-render — see the guard on that effect.
+  const forwardInFlight = useRef<{ key: ChatKey } | null>(null);''')
+
+sub(f, '''  useEffect(() => {
+    if (selected.kind === "conv") {
+      void load(selected.agentSlug, selected.convId);
+    } else if (selected.kind === "thread") {''',
+'''  useEffect(() => {
+    // A forward drives the load itself, and then sends into it. Two loads of
+    // the same session would race: the one this effect starts resolves after
+    // the turn has been appended and REPLACES the messages — taking the message
+    // just sent, and the answer being streamed into it, off the screen.
+    if (forwardInFlight.current && chatKeyToString(forwardInFlight.current.key) === chatKeyToString(selected)) return;
+    if (selected.kind === "conv") {
+      void load(selected.agentSlug, selected.convId);
+    } else if (selected.kind === "thread") {''')
+PY
+
+==============================================================================
+[02:02:02] PARCHE (bash) — Add the forwarding machinery to ChatTab
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+block = '''  // ── Forwarding: one message, handed to another session ────────────────────
+  //
+  // A session used to be a closed room. What an agent said this morning on
+  // Telegram could be read from the Telegram thread and nowhere else, and the
+  // only way to bring it into a conversation with somebody else was to select
+  // it, copy it and paste it — arriving as words with no author, no date and no
+  // sign that they had been said anywhere at all.
+  //
+  // So: the message goes WITH its provenance (core/stores/forwards.js), the
+  // pane moves to where it landed, and the turn runs there. Moving the pane is
+  // half the feature — a forward that fires into a conversation you are not
+  // looking at is indistinguishable from one that did not fire.
+
+  /** Where the chat on screen IS, in the shape a forward records. */
+  const forwardSource = (): ForwardSource => {
+    // The name a person would use. A thread is called by its title when it has
+    // one; a bare day or conversation id names an address, not a conversation,
+    // and the card falls back to the channel instead. A project agent's chat is
+    // called by the agent.
+    const named = convLabel && convLabel !== (selected.kind === "thread" ? selected.threadId : selected.kind === "conv" ? selected.convId : "")
+      ? convLabel
+      : "";
+    if (selected.kind === "thread") {
+      return { kind: "thread", channel: selected.channel, thread_id: selected.threadId, ...(named ? { title: named } : {}) };
+    }
+    if (selected.kind === "conv") {
+      return { kind: "conv", agent_slug: selected.agentSlug, conversation_id: selected.convId, title: named || agentLabel };
+    }
+    return { kind: "live", agent_slug: selected.agentSlug, title: agentLabel };
+  };
+
+  /** One message, as the thing that will be quoted on the other side. */
+  const forwardPayload = (m: ChatMsg | undefined): Forwarded | null => {
+    if (!m) return null;
+    // What the READER sees — the attachment markers and any quote block this
+    // turn itself carried are machine-facing, and a quote of a marker is a
+    // quote of nothing. A forward with nothing typed under it has only its own
+    // quote to pass on, so that is what travels: a chain of forwards keeps the
+    // message instead of losing it a link at a time.
+    const text = visibleTextOf(textOf(m), m.media, m.forwarded) || m.forwarded?.text || "";
+    if (!text.trim()) return null;
+    return {
+      from: forwardSource(),
+      author: m.role === "user" ? "user" : "agent",
+      ...(m.role === "user" ? {} : { author_name: m.agent || agentLabel }),
+      text: text.trim(),
+      ...(m.ts ? { ts: m.ts } : {}),
+    };
+  };
+
+  /** Send one, into a session that may not be the one on screen. */
+  const deliverForward = async (target: ChatKey, note: string, fwd: Forwarded) => {
+    // Addressed from the TARGET, never from `selected`: the state write below
+    // has not landed yet when this runs, so reading the selection here would
+    // send the message to the chat we are leaving.
+    const toSuper = target.kind === "thread" || target.agentSlug === ROBY_SLUG;
+    const opts = {
+      model: model || undefined,
+      forwarded: fwd,
+      ...(toSuper ? {} : { agentSlug: target.agentSlug }),
+    };
+    forwardInFlight.current = { key: target };
+    selectChat(target);
+    try {
+      // The pane's own history, loaded here rather than by the selection effect
+      // — which is standing aside for exactly this (see the guard on it).
+      if (target.kind === "conv") await load(target.agentSlug, target.convId);
+      else if (target.kind === "thread") await loadThread(target.channel, target.threadId);
+      else clear(toSuper
+        ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+        : liveActivityKey(pid, target.agentSlug));
+      await sendChat(note, opts);
+    } finally {
+      forwardInFlight.current = null;
+    }
+    void mutate(`/api/projects/${pid}/super-agent/threads`);
+    if (!toSuper) void mutate(`/api/projects/${pid}/agents/${target.agentSlug}/conversations`);
+    void mutate((key) => typeof key === "string" && key.startsWith(`/api/inbox`));
+  };
+
+  /** The card's "where did this come from" link: open that session. */
+  const openForwardSource = (m: ChatMsg) => {
+    const from = m.forwarded?.from;
+    if (!from) return;
+    if (from.kind === "thread" && from.channel && from.thread_id) {
+      selectChat({ kind: "thread", channel: from.channel, threadId: from.thread_id }, { channel: from.channel, title: from.title });
+      return;
+    }
+    if (from.kind === "conv" && from.agent_slug && from.conversation_id) {
+      selectChat({ kind: "conv", agentSlug: from.agent_slug, convId: from.conversation_id }, { title: from.title });
+      return;
+    }
+    if (from.agent_slug) selectChat({ kind: "live", agentSlug: from.agent_slug });
+  };
+
+  // ── A thread that was DELIVERED somewhere else ────────────────────────────
+  //
+  // Telegram and WhatsApp threads are readable here and cannot be written to:
+  // the message is in somebody's app, and a reply typed here goes out on `web`
+  // — a different conversation, in a different place. That was always true and
+  // never said out loud, so a reply typed into a Telegram thread appeared to
+  // land in it, and was gone on the next reload. Now the composer says what
+  // will happen before you press enter, and then it happens visibly: the pane
+  // moves to the new session with the last message of the thread quoted at the
+  // head of yours.
+  const deliveredThread = selected.kind === "thread" && DELIVERED_CHANNELS.has(selected.channel);
+  /** The message a reply to this thread is a reply TO — the last one with words
+   *  in it, from either side. */
+  const lastSpoken = (): ChatMsg | undefined => {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.pending || m.event || m.automation) continue;
+      if (visibleTextOf(textOf(m), m.media, m.forwarded).trim()) return m;
+    }
+    return undefined;
+  };
+
+'''
+
+sub(f, '''  // One face per speaker, resolved from the same data the inbox uses. Turns a''',
+    block + '''  // One face per speaker, resolved from the same data the inbox uses. Turns a''')
+PY
+
+==============================================================================
+[02:02:20] PARCHE (bash) — Intercept sends on delivered threads and wire the list
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''    if (selected.kind === "thread" && selected.channel === "group") {
+      // Ctrl+Enter means the same thing in a room as it does in a 1:1 chat:
+      // wait behind what is running instead of interrupting it.
+      await groupSend(selected.threadId, text, media, opts);
+      return;
+    }''',
+'''    if (selected.kind === "thread" && selected.channel === "group") {
+      // Ctrl+Enter means the same thing in a room as it does in a 1:1 chat:
+      // wait behind what is running instead of interrupting it.
+      await groupSend(selected.threadId, text, media, opts);
+      return;
+    }
+    // A thread that was delivered on somebody else's platform cannot be written
+    // back into — see `deliveredThread`. The reply continues in a new session
+    // with the super-agent, and takes the message it is answering with it, so
+    // the new conversation opens on the thing it is about rather than on a
+    // sentence with no subject. The composer said this would happen.
+    if (deliveredThread) {
+      const fwd = forwardPayload(lastSpoken());
+      const target: ChatKey = { kind: "live", agentSlug: ROBY_SLUG };
+      if (fwd) {
+        await deliverForward(target, text, fwd);
+        return;
+      }
+      // Nothing to quote (an empty thread): still a new session, just without
+      // the quote. Falling through would write into the Telegram pane again.
+      forwardInFlight.current = { key: target };
+      selectChat(target);
+      try {
+        clear(threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)));
+        await sendChat(text, {
+          model: model || undefined,
+          ...(media?.length ? { attachments: media } : {}),
+        });
+      } finally {
+        forwardInFlight.current = null;
+      }
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+      return;
+    }''')
+
+# The list gets the two new handlers.
+sub(f, '''                onRegenerate={regenerateHandler}
+                onEdit={editHandler}''',
+'''                onRegenerate={regenerateHandler}
+                onEdit={editHandler}
+                onForward={(i) => {
+                  const fwd = forwardPayload(msgs[i]);
+                  if (fwd) setForwarding(fwd);
+                }}
+                onOpenForwardSource={openForwardSource}''')
+PY
+
+==============================================================================
+[02:02:41] PARCHE (bash) — Add the composer notice and mount the dialog
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wrench, X } from "lucide-react";''',
+    '''import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, Info, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wrench, X } from "lucide-react";''')
+
+sub(f, '''              placeholder={
+                isGroup
+                  ? t("project.groups.composer_ph")
+                  : canAddPeople
+                    ? t("project.groups.invite_ph")
+                    : undefined
+              }''',
+'''              placeholder={
+                deliveredThread
+                  ? t("chat_ui.delivered_ph")
+                  : isGroup
+                    ? t("project.groups.composer_ph")
+                    : canAddPeople
+                      ? t("project.groups.invite_ph")
+                      : undefined
+              }''')
+
+sub(f, '''                  <ContextBar msgs={msgs} projectId={pid} docked onOpenChange={setCtxOpen} />''',
+'''                  {/* Said before you press enter, not discovered afterwards.
+                      This thread was delivered on somebody else's platform and
+                      cannot be written back into; what you type continues in a
+                      new session here, with this conversation's last message
+                      quoted at the head of it. */}
+                  {deliveredThread && selected.kind === "thread" && (
+                    <div
+                      data-testid="delivered-channel-notice"
+                      className="flex items-start gap-1.5 border-b border-border/60 px-3 py-1.5 text-[11px] leading-snug text-muted-fg"
+                    >
+                      <Info size={12} className="mt-[1px] shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>{t("chat_ui.delivered_notice", { channel: channelName(selected.channel) })}</span>
+                    </div>
+                  )}
+                  <ContextBar msgs={msgs} projectId={pid} docked onOpenChange={setCtxOpen} />''')
+
+sub(f, '''      <CreateAgentDialog
+        open={creating}''',
+'''      <ForwardDialog
+        pid={pid}
+        fwd={forwarding}
+        agents={agentList}
+        superAgentSlug={ROBY_SLUG}
+        superAgentLabel={persona}
+        superAgentIcon={superAgentIcon}
+        origin={selected}
+        onClose={() => setForwarding(null)}
+        onSend={(target, note) => {
+          const fwd = forwarding;
+          setForwarding(null);
+          if (fwd) void deliverForward(target, note, fwd);
+        }}
+      />
+
+      <CreateAgentDialog
+        open={creating}''')
+PY
+
+==============================================================================
+[02:03:25] PARCHE (bash) — Add forward strings to both dictionaries
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+ES = '''    transcribing:        "Transcribiendo…",
+    delivered_notice:    "{channel} no se responde desde acá: lo que escribas sigue en una sesión nueva, con el último mensaje de este hilo citado arriba.",
+    delivered_ph:        "Escribí y sigue en una sesión nueva…",
+  },
+
+  // Un mensaje sacado de una conversación y puesto en otra. La cita viaja con
+  // su procedencia — de qué sesión, quién lo dijo, cuándo — así del otro lado
+  // se lee como lo que es y no como un texto pegado sin autor.
+  forward: {
+    action:              "Reenviar",
+    dialog_title:        "Reenviar mensaje",
+    dialog_hint:         "Elegí a quién le llega y dónde sigue la charla.",
+    to_label:            "Para",
+    session_label:       "Sesión",
+    new_session:         "Sesión nueva",
+    note_label:          "Tu mensaje",
+    note_hint:           "Va debajo de la cita. Podés dejarlo vacío: el agente responde al mensaje reenviado.",
+    note_ph:             "Escribí algo sobre este mensaje…",
+    search_ph:           "Buscar",
+    send_to:             "Reenviar a {name}",
+    no_agents:           "No hay agentes",
+    from_label:          "Reenviado de",
+    author_you:          "Vos",
+    author_agent:        "Un agente",
+    open_source:         "Abrir la sesión de origen",
+    show_more:           "Ver más",
+    show_less:           "Ver menos",
+    truncated:           "Recortado",
+  },
+'''
+
+EN = '''    transcribing:        "Transcribing…",
+    delivered_notice:    "{channel} can't be replied to from here: what you write continues in a new session, with this thread's last message quoted above it.",
+    delivered_ph:        "Write, and it continues in a new session…",
+  },
+
+  // One message taken out of a conversation and put into another. The quote
+  // travels with its provenance — which session, who said it, when — so on the
+  // other side it reads as what it is rather than as pasted text with no author.
+  forward: {
+    action:              "Forward",
+    dialog_title:        "Forward message",
+    dialog_hint:         "Pick who gets it and where the conversation continues.",
+    to_label:            "To",
+    session_label:       "Session",
+    new_session:         "New session",
+    note_label:          "Your message",
+    note_hint:           "Goes under the quote. You can leave it empty: the agent answers the forwarded message.",
+    note_ph:             "Say something about this message…",
+    search_ph:           "Search",
+    send_to:             "Forward to {name}",
+    no_agents:           "No agents",
+    from_label:          "Forwarded from",
+    author_you:          "You",
+    author_agent:        "An agent",
+    open_source:         "Open the source session",
+    show_more:           "Show more",
+    show_less:           "Show less",
+    truncated:           "Trimmed",
+  },
+'''
+
+sub("src/interfaces/web/src/i18n/es.ts", '''    transcribing:        "Transcribiendo…",
+  },
+''', ES)
+sub("src/interfaces/web/src/i18n/en.ts", '''    transcribing:        "Transcribing…",
+  },
+''', EN)
+PY
+
+==============================================================================
+[02:05:47] WRITE COMPLETO → tests/forwards.test.js
+(guardado en archivos-completos/tests__forwards.test.js)
+==============================================================================
+
+==============================================================================
+[02:06:20] PARCHE (bash) — Support forwarding on the blocking route and rerun
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/super-agent.js"
+
+sub(f, '''    const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
+      req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    const ctx = resolveSuperAgentContext(req, p);''',
+'''    const { prompt: typed, previousMessages, model, maxIters, maxTokens, completionContract } =
+      req.body || {};
+    // Same contract as the streamed route above: the quote is validated here,
+    // written into the prompt the model reads, and recorded on the turn. This
+    // endpoint has its own callers (the phone bridge, `SuperAgent.send`), and a
+    // forward that worked on one of the two would be the worst of both.
+    const forwarded = normalizeForward(req.body?.forwarded);
+    if (!typed && !forwarded) return res.status(400).json({ error: "prompt required" });
+    const prompt = forwarded ? forwardPrompt(forwarded, typed || "") : typed;
+    const ctx = resolveSuperAgentContext(req, p);''')
+
+sub(f, '''    logInboundTurn(ctx.channel, { prompt, project: p });''',
+    '''    logInboundTurn(ctx.channel, { prompt, project: p, forwarded });''')
+PY
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+f = "/Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx/tests/forwards.test.js"
+sub(f, '''const { readConversation } = await import("#core/stores/conversations.js");''',
+    '''const { readConversation, shapeConversationMessage } = await import("#core/stores/conversations.js");''')
+sub(f, '''    const conv = readConversation(storage, "northwind", body.conversation_id);
+    const user = conv.messages.find((m) => m.role === "user");''',
+'''    const conv = readConversation(storage, "northwind", body.conversation_id);
+    // Through the shaper the viewer uses, not the raw turn: the point is that
+    // what a reader gets back carries the quote.
+    const user = conv.turns.map(shapeConversationMessage).find((m) => m.role === "user");''')
+PY
+cd /Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx && node --test tests/forwards.test.js 2>&1 | tail -30
+
+==============================================================================
+[02:07:02] PARCHE (bash) — Move the target rule into lib and typecheck
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+lib = "src/interfaces/web/src/lib/forwarded.ts"
+sub(lib, '''import { channelLabel } from "./channels";''',
+'''import { channelLabel, DELIVERED_CHANNELS } from "./channels";
+// Type-only: the address a chat is reached by. Erased at build time, so this
+// stays a rule about addresses rather than a dependency on the component that
+// happens to declare their shape.
+import type { ChatKey } from "../components/chat/ChatList";''')
+
+sub(lib, '''/** The source, in words, FOR A READER''',
+'''/**
+ * May this session RECEIVE a forward?
+ *
+ * Four noes, and every one of them is the same no: the message would not land
+ * where the list said it would.
+ *
+ *   - a delivered channel (Telegram, WhatsApp) — the thread is a receipt for
+ *     something already on somebody's phone, and a turn written there goes out
+ *     on `web` instead;
+ *   - a2a — the record of two agents talking, which the daemon refuses to be
+ *     written into (`rejectA2AWrite`);
+ *   - a group room — its turns go out through the cascade endpoint, which
+ *     carries no quote, so the forward would arrive as a bare note about a
+ *     message nobody in the room can see;
+ *   - the conversation the message is already in — forwarding a message to
+ *     itself is a no-op dressed as an action.
+ *
+ * Archived sessions are left out too: reaching for one is a decision to take it
+ * back out of the drawer, not something a send should do on your behalf.
+ */
+export function canReceiveForward(
+  session: { channel?: string; archived?: boolean; key: ChatKey },
+  origin?: ChatKey,
+): boolean {
+  if (session.channel && DELIVERED_CHANNELS.has(session.channel)) return false;
+  if (session.channel === "a2a" || session.channel === "group") return false;
+  if (session.archived) return false;
+  if (!origin) return true;
+  if (origin.kind === "thread" && session.key.kind === "thread") {
+    return !(origin.channel === session.key.channel && origin.threadId === session.key.threadId);
+  }
+  if (origin.kind === "conv" && session.key.kind === "conv") {
+    return !(origin.agentSlug === session.key.agentSlug && origin.convId === session.key.convId);
+  }
+  return true;
+}
+
+/** The source, in words, FOR A READER''')
+
+dlg = "src/interfaces/web/src/components/chat/ForwardDialog.tsx"
+sub(dlg, '''import { useSessionRows, type SessionRow } from "./SessionPicker";
+import { DELIVERED_CHANNELS } from "../../lib/channels";''',
+    '''import { useSessionRows } from "./SessionPicker";
+import { canReceiveForward } from "../../lib/forwarded";''')
+
+sub(dlg, '''      .filter((s) => usableTarget(s, origin))''', '''      .filter((s) => canReceiveForward(s, origin))''')
+
+old_tail = '''
+/**
+ * May this session receive a forward?
+ *
+ * Three noes, and each is the same no: the message would not land where the
+ * list says it does.
+ *   - a delivered channel — the thread is a receipt for something already on
+ *     somebody's phone, and a turn written here goes out on `web` instead;
+ *   - a2a — the record of two agents talking, which the daemon refuses to be
+ *     written into (`rejectA2AWrite`) — and a group room, whose turns go out
+ *     through the cascade endpoint, which does not carry a quote yet;
+ *   - the conversation the message is already in — forwarding a message to
+ *     itself is a no-op dressed as an action.
+ */
+function usableTarget(s: SessionRow, origin?: ChatKey): boolean {
+  if (s.channel && DELIVERED_CHANNELS.has(s.channel)) return false;
+  if (s.channel === "a2a") return false;
+  // A room, not a session with one agent. A group turn goes out through the
+  // cascade endpoint, which carries no quote — so a forward dropped there would
+  // arrive as a bare note about a message nobody in the room can see. Rooms are
+  // a destination worth having; they need the quote on their own path first.
+  if (s.channel === "group") return false;
+  if (s.archived) return false;
+  if (!origin) return true;
+  if (origin.kind === "thread" && s.key.kind === "thread") {
+    return !(origin.channel === s.key.channel && origin.threadId === s.key.threadId);
+  }
+  if (origin.kind === "conv" && s.key.kind === "conv") {
+    return !(origin.agentSlug === s.key.agentSlug && origin.convId === s.key.convId);
+  }
+  return true;
+}
+'''
+sub(dlg, old_tail, "\n")
+
+sub(dlg, '''import type { Forwarded } from "../../lib/forwarded";''',
+    '''import type { Forwarded } from "../../lib/forwarded";''')
+PY
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"
+
+==============================================================================
+[02:07:37] PARCHE (bash) — Restrict super-agent thread targets to today's own surface
+==============================================================================
+cd /Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx && python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+lib = "src/interfaces/web/src/lib/forwarded.ts"
+
+sub(lib, ''' *   - the conversation the message is already in — forwarding a message to
+ *     itself is a no-op dressed as an action.
+ *
+ * Archived sessions are left out too: reaching for one is a decision to take it
+ * back out of the drawer, not something a send should do on your behalf.
+ */
+export function canReceiveForward(
+  session: { channel?: string; archived?: boolean; key: ChatKey },
+  origin?: ChatKey,
+): boolean {
+  if (session.channel && DELIVERED_CHANNELS.has(session.channel)) return false;
+  if (session.channel === "a2a" || session.channel === "group") return false;
+  if (session.archived) return false;
+  if (!origin) return true;''',
+''' *   - the conversation the message is already in — forwarding a message to
+ *     itself is a no-op dressed as an action.
+ *
+ * And one more, which is the same no wearing a date. The super-agent has no
+ * conversation file: its threads ARE the channel and the day, and a turn sent
+ * from this pane is written with the clock, onto this pane's own surface. So
+ * yesterday's thread, or one belonging to another surface (desktop, code), can
+ * be OPENED here but not continued — a forward dropped into it would be shown
+ * in one thread and recorded in another, which is precisely the bug that made
+ * replies typed into a Telegram thread disappear on the next reload. Same
+ * reasoning as `threadRewindRefusal` in core/constants/channels.js, and the
+ * same two conditions.
+ *
+ * Archived sessions are left out too: reaching for one is a decision to take it
+ * back out of the drawer, not something a send should do on your behalf.
+ */
+export function canReceiveForward(
+  session: { channel?: string; archived?: boolean; key: ChatKey },
+  origin?: ChatKey,
+  /** The channel this pane's own turns go out on, and the day it is writing —
+   *  both injectable so the rule can be tested without a clock. */
+  opts: { surface?: string; today?: string } = {},
+): boolean {
+  if (session.channel && DELIVERED_CHANNELS.has(session.channel)) return false;
+  if (session.channel === "a2a" || session.channel === "group") return false;
+  if (session.archived) return false;
+  if (session.key.kind === "thread") {
+    const surface = opts.surface || "web";
+    // UTC, the same clock the daemon mints thread ids with — or the two
+    // disagree for the three hours a day the local date is already tomorrow.
+    const today = opts.today || new Date().toISOString().slice(0, 10);
+    if (session.key.channel !== surface) return false;
+    if (threadDate(session.key.threadId) !== today) return false;
+  }
+  if (!origin) return true;''')
+
+sub(lib, '''import type { ChatKey } from "../components/chat/ChatList";''',
+    '''import type { ChatKey } from "../components/chat/ChatList";
+import { threadDate } from "./thread-id";''')
+PY
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"
+
+==============================================================================
+[02:08:22] WRITE COMPLETO → tests/web-forward-ui.test.js
+(guardado en archivos-completos/tests__web-forward-ui.test.js)
+==============================================================================
+
+==============================================================================
+[02:08:46] PARCHE (bash) — Probe bundling useChat for a real unit test
+==============================================================================
+cat > /private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad/try-usechat.mjs <<'JS'
+import path from "node:path";
+import { createRequire } from "node:module";
+import { buildSync } from "esbuild";
+const require = createRequire(import.meta.url);
+const WEB_SRC = "/Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx/src/interfaces/web/src";
+const built = buildSync({
+  entryPoints: [path.join(WEB_SRC, "hooks/useChat.ts")],
+  bundle: true, write: false, format: "cjs", platform: "node", logLevel: "silent",
+});
+const mod = { exports: {} };
+new Function("module", "exports", "require", built.outputFiles[0].text)(mod, mod.exports, require);
+console.log("exports:", Object.keys(mod.exports).slice(0, 20).join(", "));
+console.log("bundle KB:", Math.round(built.outputFiles[0].text.length / 1024));
+JS
+node /private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad/try-usechat.mjs 2>&1 | tail -20
+
+==============================================================================
+[02:09:13] PARCHE (bash) — Add merge/history tests and run
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "tests/web-forward-ui.test.js"
+sub(f, '''test("the quote is drawn as a card, and never reaches the reader as its marker", () => {''',
+'''test("a forwarded turn does not land in the thread twice", () => {
+  // THE TRAP. The pane composes the bubble with only what was TYPED — the
+  // daemon writes the marker — so the copy that comes back from storage and
+  // the copy on screen have different text. `mergeLocalTurns` matches them by
+  // text, so without a key that strips the marker first, every background
+  // refresh (and they fire on every live event) would leave the same message in
+  // the conversation twice.
+  const { mergeLocalTurns } = loadPanelModule("hooks/useChat.ts");
+  const fwd = {
+    from: { kind: "thread", channel: "telegram", thread_id: "2026-09-17", title: "Telegram" },
+    author: "agent",
+    author_name: "Northwind",
+    text: "el pedido de acme sale el lunes",
+  };
+  const local = {
+    role: "user",
+    parts: [{ kind: "text", text: "¿lo cerramos?" }],
+    ts: "2026-09-18T10:00:00Z",
+    local: true,
+    forwarded: fwd,
+  };
+  const stored = {
+    role: "user",
+    parts: [{
+      kind: "text",
+      text: "[forwarded message — from Telegram, said by Northwind]\\n> el pedido de acme sale el lunes\\n[end of forwarded message]\\n\\n¿lo cerramos?",
+    }],
+    ts: "2026-09-18T10:00:01Z",
+    forwarded: fwd,
+  };
+  assert.equal(mergeLocalTurns([stored], [local]).length, 1, "the stored copy wins; the local one is recognised as the same turn");
+
+  // Two forwards of DIFFERENT messages with the same (empty) note are two
+  // turns, so the key cannot be the note alone.
+  const other = { ...local, forwarded: { ...fwd, text: "otra cosa" }, parts: [{ kind: "text", text: "" }] };
+  const storedEmpty = {
+    role: "user",
+    parts: [{ kind: "text", text: "[forwarded message — from Telegram, said by Northwind]\\n> el pedido de acme sale el lunes\\n[end of forwarded message]" }],
+    forwarded: fwd,
+  };
+  assert.equal(mergeLocalTurns([storedEmpty], [other]).length, 2);
+});
+
+test("the turn after a forward still knows what the forward was about", () => {
+  // A turn sent from this pane is in the pane's memory before it is on disk,
+  // and the NEXT turn's history is built from that memory. Without the quote,
+  // the agent would be handed "¿lo cerramos?" with nothing to say what "lo" is.
+  const { historyTextOf } = loadPanelModule("hooks/useChat.ts");
+  const fwd = {
+    from: { kind: "thread", channel: "telegram", title: "Telegram" },
+    author: "agent",
+    author_name: "Northwind",
+    text: "el pedido de acme sale el lunes",
+  };
+  const composedHere = historyTextOf({
+    role: "user",
+    parts: [{ kind: "text", text: "¿lo cerramos?" }],
+    forwarded: fwd,
+  });
+  assert.match(composedHere, /^\\[forwarded message — from Telegram/);
+  assert.match(composedHere, /> el pedido de acme sale el lunes/);
+  assert.ok(composedHere.endsWith("¿lo cerramos?"));
+
+  // Read back from storage the marker is already in the text — adding a second
+  // one would quote the quote.
+  const fromStorage = historyTextOf({
+    role: "user",
+    parts: [{ kind: "text", text: composedHere }],
+    forwarded: fwd,
+  });
+  assert.equal(fromStorage, composedHere, "the quote is added once, never twice");
+});
+
+test("the quote is drawn as a card, and never reaches the reader as its marker", () => {''')
+PY
+node --test tests/web-forward-ui.test.js 2>&1 | tail -20
+
+==============================================================================
+[02:10:26] PARCHE (bash) — Update the two source guardrails and rerun
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+# The two endpoints now also record where a forwarded turn came from. Same
+# guard, one field wider.
+sub("tests/turn-attribution.test.js",
+'''    /logInboundTurn\\(ctx\\.channel, \\{ prompt: turnPrompt, project: p, media: turnFiles\\.media \\}\\)/,
+    "the streaming endpoint writes the inbound message up front",''',
+'''    /logInboundTurn\\(ctx\\.channel, \\{ prompt: turnPrompt, project: p, media: turnFiles\\.media, forwarded \\}\\)/,
+    "the streaming endpoint writes the inbound message up front",''')
+
+sub("tests/turn-attribution.test.js",
+'''    /logInboundTurn\\(ctx\\.channel, \\{ prompt, project: p \\}\\)/,
+    "and so does the blocking one",''',
+'''    /logInboundTurn\\(ctx\\.channel, \\{ prompt, project: p, forwarded \\}\\)/,
+    "and so does the blocking one",''')
+
+# Copy still copies what is shown — through the one reader that drops every
+# machine-facing marker, the attachment ones included.
+sub("tests/channel-attachments.test.js",
+'''  assert.match(
+    src,
+    /stripMediaMarker\\(textOf\\(msg\\), media\\.length\\)/,
+    "copying a media turn copies what is shown, one marker dropped per file",
+  );''',
+'''  assert.match(
+    src,
+    /const copyText = visibleTextOf\\(textOf\\(msg\\), media, msg\\.forwarded\\)/,
+    "copying a media turn copies what is shown, not the marker the agent was handed",
+  );
+  assert.match(
+    src,
+    /stripMediaMarker\\(body, media\\.length\\)/,
+    "and one marker is dropped per file",
+  );''')
+
+sub("tests/channel-attachments.test.js",
+'''  assert.match(src, /textOfPart\\(raw, media\\)/, "the machine-facing marker is not shown as the message");''',
+'''  assert.match(src, /visibleTextOf\\(raw, media, msg\\.forwarded\\)/, "the machine-facing marker is not shown as the message");''')
+PY
+node --test tests/channel-attachments.test.js tests/turn-attribution.test.js 2>&1 | tail -12
+
+==============================================================================
+[02:11:48] PARCHE (bash) — Document forwarding in both docs locales
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+EN = "docs/src/content/docs/surfaces/web.mdx"
+ES = "docs/src/content/docs/es/surfaces/web.mdx"
+
+sub(EN, '''also surfaces the super-agent's day-threads from every other channel (Telegram,
+Desktop, Deck), so a conversation that happened over Telegram is visible and
+continuable from the web.
+''',
+'''also surfaces the super-agent's day-threads from every other channel (Telegram,
+Desktop, Deck), so a conversation that happened over Telegram is visible from
+the web — and can be carried on there, in a session of its own.
+''')
+
+sub(EN, '''![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+''',
+'''![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+
+#### Forwarding a message to another session
+
+Any message in any conversation — yours or an agent's — has a **Forward** action
+next to **Copy**. It asks two things: who should see it, and where in their
+history it should land. The most recent session of whoever you pick comes
+preselected, so continuing a conversation you were already having is one click;
+**New session** is always the first option for the other case. Whatever you type
+goes under the quote, and may be left empty: "read this" is a complete message,
+and the agent answers the quote.
+
+On the other side the message arrives as a card that says where it came from,
+who said it and when, with a link back to that session — so the forward reads as
+a citation rather than as pasted text with no author. The agent reads the same
+three facts: the quote travels in the prompt, marked as somebody else's words.
+
+Some conversations cannot receive a forward, and are left out of the list rather
+than offered and then refused: Telegram and WhatsApp threads (the message is on
+somebody's phone; a turn written here goes out on `web` instead), agent-to-agent
+transcripts, group rooms, and any super-agent thread but today's on this
+surface — the super-agent has no conversation file, so its turns are written
+with the clock, and a message dropped into yesterday would be shown in one
+thread and recorded in another.
+
+#### Replying inside a Telegram or WhatsApp thread
+
+Those threads are readable here and cannot be written back into: the message was
+delivered on somebody else's platform, and APX cannot take it back or add to it.
+The composer says so above the field, and then does the honest thing — what you
+write continues in a **new session with the super-agent**, with the thread's
+last message quoted at the head of yours, and the panel moves there as it sends.
+Before, the reply appeared to land in the Telegram thread and was gone on the
+next reload.
+''')
+
+sub(ES, '''Desktop, Deck), así una conversación que pasó por Telegram queda visible y se puede
+continuar desde la web.
+''',
+'''Desktop, Deck), así una conversación que pasó por Telegram queda visible desde la
+web — y se puede seguir ahí, en una sesión aparte.
+''')
+
+sub(ES, '''![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+''',
+'''![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+
+#### Reenviar un mensaje a otra sesión
+
+Cualquier mensaje de cualquier conversación —tuyo o de un agente— tiene una
+acción **Reenviar** al lado de **Copiar**. Pregunta dos cosas: a quién le llega y
+en qué parte de su historia cae. La sesión más reciente de quien elijas viene
+preseleccionada, así seguir una charla que ya venías teniendo es un solo clic;
+**Sesión nueva** es siempre la primera opción para el otro caso. Lo que escribas
+va debajo de la cita, y podés dejarlo vacío: "mirá esto" es un mensaje completo,
+y el agente responde al mensaje reenviado.
+
+Del otro lado llega como una tarjeta que dice de dónde salió, quién lo dijo y
+cuándo, con un link de vuelta a esa sesión — así el reenvío se lee como una cita
+y no como un texto pegado sin autor. El agente lee los mismos tres datos: la
+cita viaja en el prompt, marcada como palabras de otro.
+
+Hay conversaciones que no pueden recibir un reenvío, y quedan fuera de la lista
+en vez de ofrecerse para después rebotar: los hilos de Telegram y WhatsApp (el
+mensaje está en el teléfono de alguien; un turno escrito acá sale por `web`), los
+transcripts entre agentes, los grupos, y cualquier hilo del super-agente que no
+sea el de hoy en esta superficie — el super-agente no tiene archivo de
+conversación, sus turnos se escriben con el reloj, y un mensaje puesto en el de
+ayer se vería en un hilo y quedaría registrado en otro.
+
+#### Responder dentro de un hilo de Telegram o WhatsApp
+
+Esos hilos se leen acá y no se pueden escribir: el mensaje se entregó en la
+plataforma de otro, y APX no puede retirarlo ni agregarle nada. El composer lo
+dice arriba del campo, y después hace lo honesto — lo que escribas sigue en una
+**sesión nueva con el super-agente**, con el último mensaje del hilo citado
+arriba del tuyo, y el panel se mueve ahí mientras manda. Antes la respuesta
+parecía caer en el hilo de Telegram y desaparecía en la siguiente recarga.
+''')
+PY
+
+==============================================================================
+[02:12:05] PARCHE (bash) — Add ES docs and build the docs site
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+ES = "docs/src/content/docs/es/surfaces/web.mdx"
+sub(ES, '''![Pestaña Chat — barra lateral channel-first con hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
+''',
+'''![Pestaña Chat — barra lateral channel-first con hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
+
+#### Reenviar un mensaje a otra sesión
+
+Cualquier mensaje de cualquier conversación —tuyo o de un agente— tiene una
+acción **Reenviar** al lado de **Copiar**. Pregunta dos cosas: a quién le llega y
+en qué parte de su historia cae. La sesión más reciente de quien elijas viene
+preseleccionada, así seguir una charla que ya venías teniendo es un solo clic;
+**Sesión nueva** es siempre la primera opción para el otro caso. Lo que escribas
+va debajo de la cita, y podés dejarlo vacío: "mirá esto" es un mensaje completo,
+y el agente responde al mensaje reenviado.
+
+Del otro lado llega como una tarjeta que dice de dónde salió, quién lo dijo y
+cuándo, con un link de vuelta a esa sesión — así el reenvío se lee como una cita
+y no como un texto pegado sin autor. El agente lee los mismos tres datos: la
+cita viaja en el prompt, marcada como palabras de otro.
+
+Hay conversaciones que no pueden recibir un reenvío, y quedan fuera de la lista
+en vez de ofrecerse para después rebotar: los hilos de Telegram y WhatsApp (el
+mensaje está en el teléfono de alguien; un turno escrito acá sale por `web`), los
+transcripts entre agentes, los grupos, y cualquier hilo del super-agente que no
+sea el de hoy en esta superficie — el super-agente no tiene archivo de
+conversación, sus turnos se escriben con el reloj, y un mensaje puesto en el de
+ayer se vería en un hilo y quedaría registrado en otro.
+
+#### Responder dentro de un hilo de Telegram o WhatsApp
+
+Esos hilos se leen acá y no se pueden escribir: el mensaje se entregó en la
+plataforma de otro, y APX no puede retirarlo ni agregarle nada. El composer lo
+dice arriba del campo, y después hace lo honesto — lo que escribas sigue en una
+**sesión nueva con el super-agente**, con el último mensaje del hilo citado
+arriba del tuyo, y el panel se mueve ahí mientras manda. Antes la respuesta
+parecía caer en el hilo de Telegram y desaparecía en la siguiente recarga.
+''')
+PY
+cd docs && pnpm build 2>&1 | tail -8
+
+==============================================================================
+[02:13:13] WRITE COMPLETO → src/interfaces/web/e2e/24-forward-message.spec.ts
+(guardado en archivos-completos/src__interfaces__web__e2e__24-forward-message.spec.ts)
+==============================================================================
+
+==============================================================================
+[02:14:18] PARCHE (bash) — Capture screenshots of the new UI
+==============================================================================
+cat > e2e/zz-shot.spec.ts <<'TS'
+import { test } from "./fixtures";
+import { runtime } from "./fixtures";
+const SHOTS = "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad";
+const AGENT = "northwind-bot";
+const OTHER = "acme-bot";
+const CONV = "conversation-example";
+const TODAY = new Date().toISOString().slice(0, 10);
+const nowIso = (m = 0) => new Date(Date.now() - m * 60_000).toISOString();
+const FWD = {
+  from: { kind: "thread", channel: "telegram", thread_id: TODAY, title: "Telegram" },
+  author: "agent", author_name: "Northwind",
+  text: "Sale el lunes por la mañana. Confirmé con el depósito: quedan 12 unidades y el remito sale con la carga del lunes temprano.",
+  ts: nowIso(29),
+};
+const MESSAGES = [
+  { role: "user", content: "¿Cómo quedó el pedido de Acme?", ts: nowIso(40) },
+  { role: "assistant", content: "Sale el lunes por la mañana.", ts: nowIso(39), agent: AGENT, agent_name: "Northwind", model: "mock:test" },
+  { role: "user", content: "[forwarded message — from Telegram, said by Northwind]\n> " + FWD.text + "\n[end of forwarded message]\n\n¿lo confirmamos con el cliente?", ts: nowIso(5), forwarded: FWD },
+  { role: "assistant", content: "Sí, lo confirmo yo y te aviso cuando esté.", ts: nowIso(4), agent: AGENT, agent_name: "Northwind", model: "mock:test" },
+];
+async function stub(page, pid) {
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents`, (r) => r.fulfill({ json: [
+    { slug: AGENT, name: "Northwind", role: "master", emoji: "🚀", model: "mock:test" },
+    { slug: OTHER, name: "Acme", role: "worker", emoji: "📦", model: "mock:test" },
+  ] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/${AGENT}/conversations`, (r) => r.fulfill({ json: [{ id: CONV, title: "Acme", messages: 4, updated_at: nowIso(), created_at: nowIso(60) }] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/${OTHER}/conversations`, (r) => r.fulfill({ json: [{ id: "acme-01", title: "Envíos", messages: 4, updated_at: nowIso(120), created_at: nowIso(600) }] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/${AGENT}/conversations/${CONV}`, (r) => r.fulfill({ json: { id: CONV, agent_slug: AGENT, channel: "web", messages: MESSAGES } }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/super-agent/threads`, (r) => r.fulfill({ json: [
+    { channel: "telegram", id: TODAY, title: "Telegram", messages: 2, started_at: nowIso(60), last_ts: nowIso(29) },
+    { channel: "web", id: TODAY, title: "Web", messages: 2, started_at: nowIso(50), last_ts: nowIso(10) },
+  ] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/super-agent/threads/telegram/${TODAY}`, (r) => r.fulfill({ json: { channel: "telegram", id: TODAY, title: "Telegram", messages: [
+    { role: "user", content: "¿Cómo quedó el pedido de Acme?", ts: nowIso(30) },
+    { role: "assistant", content: FWD.text, ts: nowIso(29), agent: "super_agent", agent_name: "APX" },
+  ] } }));
+}
+test("shots", async ({ page }) => {
+  const { projectId } = runtime();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await stub(page, projectId);
+  await page.goto(`/p/${projectId}/chat?agent=${AGENT}&conv=${CONV}`);
+  await page.getByText("¿lo confirmamos con el cliente?").waitFor();
+  await page.screenshot({ path: `${SHOTS}/1-card.png` });
+  await page.getByText("Sale el lunes por la mañana.").first().hover();
+  await page.getByTestId("forward-message").first().click();
+  await page.getByTestId(`forward-agent-${OTHER}`).click();
+  await page.getByTestId("forward-note").fill("¿podés confirmarlo vos con el depósito?");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}/2-dialog.png` });
+  await page.keyboard.press("Escape");
+  await page.goto(`/p/${projectId}/chat?channel=telegram&thread=${TODAY}`);
+  await page.getByTestId("delivered-channel-notice").waitFor();
+  await page.screenshot({ path: `${SHOTS}/3-telegram.png` });
+});
+TS
+pnpm exec playwright test e2e/zz-shot.spec.ts --reporter=list 2>&1 | tail -15
+
+==============================================================================
+[02:15:09] PARCHE (bash) — Fix fixture field names and rerun the spec
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+f = "src/interfaces/web/e2e/24-forward-message.spec.ts"
+sub(f, '''        json: [{ id: CONV, title: "Acme", messages: messages.length, updated_at: nowIso(), created_at: nowIso(60) }],''',
+    '''        // The daemon's own field names (`ConversationListEntry`): the session
+        // list reads `ended_at`/`started_at` and falls back to the ID when they
+        // are missing, which is how a fixture ends up dated in 2001.
+        json: [{ id: CONV, filename: `${CONV}.md`, agent_slug: AGENT, title: "Acme", messages: messages.length, started_at: nowIso(60), ended_at: nowIso() }],''')
+sub(f, '''        json: [{ id: "acme-01", title: "Envíos", messages: 4, updated_at: nowIso(120), created_at: nowIso(600) }],''',
+    '''        json: [{ id: "acme-01", filename: "acme-01.md", agent_slug: OTHER, title: "Envíos", messages: 4, started_at: nowIso(600), ended_at: nowIso(120) }],''')
+PY
+cd src/interfaces/web && pnpm exec playwright test e2e/24-forward-message.spec.ts --reporter=list 2>&1 | tail -12
+
+==============================================================================
+[02:18:02] PARCHE (bash) — Hand the selection back as soon as history lands
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''    forwardInFlight.current = { key: target };
+    selectChat(target);
+    try {
+      // The pane's own history, loaded here rather than by the selection effect
+      // — which is standing aside for exactly this (see the guard on it).
+      if (target.kind === "conv") await load(target.agentSlug, target.convId);
+      else if (target.kind === "thread") await loadThread(target.channel, target.threadId);
+      else clear(toSuper
+        ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+        : liveActivityKey(pid, target.agentSlug));
+      await sendChat(note, opts);
+    } finally {
+      forwardInFlight.current = null;
+    }''',
+'''    forwardInFlight.current = { key: target };
+    selectChat(target);
+    try {
+      // The pane's own history, loaded here rather than by the selection effect
+      // — which is standing aside for exactly this (see the guard on it).
+      if (target.kind === "conv") await load(target.agentSlug, target.convId);
+      else if (target.kind === "thread") await loadThread(target.channel, target.threadId);
+      else clear(toSuper
+        ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+        : liveActivityKey(pid, target.agentSlug));
+    } finally {
+      // Handed back the moment the history is in: the effect's job is done for
+      // this selection either way, and holding the flag for the whole turn
+      // would make a round trip AWAY from this chat and back skip the load —
+      // leaving the other conversation's messages under this one's header.
+      forwardInFlight.current = null;
+    }
+    await sendChat(note, opts);''')
+
+# The delivered-thread fallback has the same shape and the same reason.
+sub(f, '''      forwardInFlight.current = { key: target };
+      selectChat(target);
+      try {
+        clear(threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)));
+        await sendChat(text, {
+          model: model || undefined,
+          ...(media?.length ? { attachments: media } : {}),
+        });
+      } finally {
+        forwardInFlight.current = null;
+      }''',
+'''      forwardInFlight.current = { key: target };
+      selectChat(target);
+      try {
+        clear(threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)));
+      } finally {
+        forwardInFlight.current = null;
+      }
+      await sendChat(text, {
+        model: model || undefined,
+        ...(media?.length ? { attachments: media } : {}),
+      });''')
+PY
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"; cd .. && cd ../.. && node scripts/lint-web.js 2>&1 | tail -2
+
+==============================================================================
+[02:22:19] PARCHE (bash) — Add the cross-project agent directory route
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/host/daemon/api/agents.js"
+
+sub(f, '''export function register(api, { projects, project }) {''',
+'''export function register(api, { projects, project }) {
+  // Every agent this install has, with the project each one belongs to.
+  //
+  // The panel used to be able to ask "who is in THIS project" and nothing else,
+  // which is fine for a screen that is already standing inside one — and wrong
+  // for the two that are not. Forwarding a message is the case that forced it:
+  // the person you want to hand something to is very often in another project,
+  // and fourteen round trips to find that out is not a list, it is a fan-out.
+  //
+  // Lean on purpose: the face and the name, which is what a picker draws. A
+  // screen that needs an agent's tools, memory or prompt asks for that agent.
+  api.get("/agents/directory", (_req, res) => {
+    const out = [];
+    for (const p of projects.list()) {
+      // `readAgentsSafe`, not `readAgents`: one project whose folder was
+      // renamed or removed must not take the whole directory down with it —
+      // that is a registry that looks empty rather than a project that is gone.
+      for (const a of readAgentsSafe(p.path)) {
+        out.push({
+          project_id: String(p.id),
+          project_name: p.name || "",
+          slug: a.slug,
+          name: a.fields?.Name || a.name || a.slug,
+          icon: a.icon ?? null,
+          emoji: a.emoji ?? null,
+          role: a.role ?? null,
+        });
+      }
+    }
+    res.json(out);
+  });
+''')
+
+sub(f, '''import { agentToResponse, asyncRoute } from "./shared.js";''',
+    '''import { agentToResponse, asyncRoute } from "./shared.js";
+import { readAgentsSafe } from "./thread-faces.js";''')
+PY
+node --input-type=module -e "import('./src/host/daemon/api/agents.js').then(()=>console.log('agents.js loads')).catch(e=>{console.error(e.message);process.exit(1)})"
+
+==============================================================================
+[02:22:35] PARCHE (bash) — Shape directory rows through agentToResponse
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("src/host/daemon/api/agents.js",
+'''      for (const a of readAgentsSafe(p.path)) {
+        out.push({
+          project_id: String(p.id),
+          project_name: p.name || "",
+          slug: a.slug,
+          name: a.fields?.Name || a.name || a.slug,
+          icon: a.icon ?? null,
+          emoji: a.emoji ?? null,
+          role: a.role ?? null,
+        });
+      }''',
+'''      for (const a of readAgentsSafe(p.path)) {
+        // Through the one shaper, then narrowed — the frontmatter keys are
+        // capitalised (`Name`, `Icon`, `Emoji`) and reading them by hand here
+        // is how a picker ends up drawing slugs where the names should be.
+        const shaped = agentToResponse(a);
+        if (!shaped) continue;
+        out.push({
+          project_id: String(p.id),
+          project_name: p.name || "",
+          slug: shaped.slug,
+          name: shaped.name,
+          icon: shaped.icon,
+          emoji: shaped.emoji,
+          role: shaped.role,
+        });
+      }''')
+PY
+
+==============================================================================
+[02:23:01] PARCHE (bash) — Add the pure people-targeting logic
+==============================================================================
+cat >> src/interfaces/web/src/lib/forwarded.ts <<'TS'
+
+// ── Who a message can be handed to ──────────────────────────────────────────
+
+/** One row of `GET /api/agents/directory`: every agent this install has, with
+ *  the project it belongs to. */
+export interface DirectoryAgent {
+  project_id: string;
+  project_name: string;
+  slug: string;
+  name?: string | null;
+  icon?: string | null;
+  emoji?: string | null;
+  role?: string | null;
+}
+
+export interface ForwardPerson {
+  slug: string;
+  name: string;
+  icon?: string | null;
+  emoji?: string | null;
+  /** The project this agent lives in. Absent for the super-agent, which belongs
+   *  to the daemon rather than to any one project. */
+  projectId?: string;
+  projectName?: string;
+  isSuper?: boolean;
+}
+
+/** People under a heading: the project they are in, or the one the reader is
+ *  standing in (which gets no heading — it is where they already are). */
+export interface ForwardGroup {
+  key: string;
+  label: string;
+  people: ForwardPerson[];
+}
+
+/** Lowercase, and without the accents. Searching "magui" has to find "Maguí",
+ *  and searching "cañada" has to find it back — a picker that only matches what
+ *  you can type exactly is a picker you fight. */
+function fold(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Everybody a message can be forwarded to, grouped and filtered.
+ *
+ * `total` is the count BEFORE the query, and that is the whole point of
+ * returning it: the search field's visibility must be decided by how many
+ * people exist, never by how many the current query matched. Deciding it from
+ * the filtered list is what made the field disappear the moment you mistyped a
+ * name — taking with it the only way to fix the typo.
+ */
+export function forwardPeople({
+  pid,
+  superAgent,
+  here,
+  directory = [],
+  query = "",
+}: {
+  pid: string;
+  superAgent: ForwardPerson;
+  /** The current project's agents, as the chat screen already has them. */
+  here: { slug: string; name?: string | null; icon?: string | null; emoji?: string | null }[];
+  /** Every agent of every project. The current project's are skipped — `here`
+   *  is the same list, already loaded, and two copies would draw two rows. */
+  directory?: DirectoryAgent[];
+  query?: string;
+}): { groups: ForwardGroup[]; total: number } {
+  const mine: ForwardPerson[] = [
+    { ...superAgent, isSuper: true },
+    ...here.map((a) => ({ slug: a.slug, name: a.name || a.slug, icon: a.icon, emoji: a.emoji })),
+  ];
+  const elsewhere = new Map<string, ForwardGroup>();
+  for (const a of directory) {
+    if (String(a.project_id) === String(pid)) continue;
+    const key = String(a.project_id);
+    if (!elsewhere.has(key)) elsewhere.set(key, { key, label: a.project_name || key, people: [] });
+    elsewhere.get(key)!.people.push({
+      slug: a.slug,
+      name: a.name || a.slug,
+      icon: a.icon,
+      emoji: a.emoji,
+      projectId: key,
+      projectName: a.project_name || "",
+    });
+  }
+
+  const others = [...elsewhere.values()].sort((a, b) => a.label.localeCompare(b.label));
+  const total = mine.length + others.reduce((n, g) => n + g.people.length, 0);
+
+  const q = fold(query.trim());
+  if (!q) {
+    return { groups: [{ key: "here", label: "", people: mine }, ...others], total };
+  }
+  // The project's NAME matches too: "apx" is a perfectly good way to ask for
+  // the people in apx, and it is often the only half you remember.
+  const hit = (p: ForwardPerson, projectLabel = "") =>
+    fold(`${p.name} ${p.slug} ${projectLabel}`).includes(q);
+  const groups = [
+    { key: "here", label: "", people: mine.filter((p) => hit(p)) },
+    ...others.map((g) => ({ ...g, people: g.people.filter((p) => hit(p, g.label)) })),
+  ].filter((g) => g.people.length);
+  return { groups, total };
+}
+TS
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"
+
+==============================================================================
+[02:23:29] PARCHE (bash) — Wire the directory client and project provenance
+==============================================================================
+cd /Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx && python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+# The API client for the new route.
+sub("src/interfaces/web/src/lib/api/agents.ts",
+'''import type { Forwarded } from "../forwarded";''',
+'''import type { DirectoryAgent, Forwarded } from "../forwarded";''')
+
+sub("src/interfaces/web/src/lib/api/agents.ts",
+'''  memory: {
+    get: (pid: string, slug: string) =>''',
+'''  // Every agent of every project, with the project each one belongs to. The
+  // per-project list above answers "who is in this one"; a picker that has to
+  // reach across the install would otherwise fan out one request per project.
+  directory: () => http.get<DirectoryAgent[]>("/api/agents/directory"),
+  memory: {
+    get: (pid: string, slug: string) =>''')
+
+# The source of a forward now records WHICH PROJECT it came from, so the card's
+# link can reopen it from another one.
+sub("src/interfaces/web/src/lib/forwarded.ts",
+'''export interface ForwardSource {
+  kind: "thread" | "conv" | "live";
+  channel?: string;
+  thread_id?: string;
+  agent_slug?: string;
+  conversation_id?: string;
+  /** What that session is CALLED. The day/ids name an address, not a chat. */
+  title?: string;
+}''',
+'''export interface ForwardSource {
+  kind: "thread" | "conv" | "live";
+  channel?: string;
+  thread_id?: string;
+  agent_slug?: string;
+  conversation_id?: string;
+  /** What that session is CALLED. The day/ids name an address, not a chat. */
+  title?: string;
+  /** WHICH PROJECT it was said in. A forward crosses projects now, and without
+   *  this the card's way back would open the same address in the wrong one. */
+  project_id?: string;
+  project_name?: string;
+}''')
+
+# Core: carry the project through normalisation.
+sub("src/core/stores/forwards.js",
+'''  const title = oneLine(raw.title);
+  if (title) out.title = title;
+  return out;
+}''',
+'''  const title = oneLine(raw.title);
+  if (title) out.title = title;
+  // WHICH PROJECT it was said in. A forward crosses projects, and the address
+  // above (a conversation id, a channel+day) only means something inside one:
+  // without this the card's way back would open the right id in the wrong
+  // project, or nothing at all.
+  const projectId = oneLine(raw.project_id, 40);
+  if (projectId) out.project_id = projectId;
+  const projectName = oneLine(raw.project_name);
+  if (projectName) out.project_name = projectName;
+  return out;
+}''')
+PY
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"
+
+==============================================================================
+[02:23:54] WRITE COMPLETO → src/interfaces/web/src/lib/forward-handoff.ts
+(guardado en archivos-completos/src__interfaces__web__src__lib__forward-handoff.ts)
+==============================================================================
+
+==============================================================================
+[02:24:47] WRITE COMPLETO → src/interfaces/web/src/components/chat/ForwardDialog.tsx
+(guardado en archivos-completos/src__interfaces__web__src__components__chat__ForwardDialog.tsx)
+==============================================================================
+
+==============================================================================
+[02:25:34] WRITE COMPLETO → src/interfaces/web/src/components/chat/ForwardDialog.tsx
+(guardado en archivos-completos/src__interfaces__web__src__components__chat__ForwardDialog.tsx)
+==============================================================================
+
+==============================================================================
+[02:25:44] PARCHE (bash) — Add the new dialog strings to both dictionaries
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+sub("src/interfaces/web/src/i18n/es.ts",
+'''    search_ph:           "Buscar",
+    send_to:             "Reenviar a {name}",
+    no_agents:           "No hay agentes",''',
+'''    search_ph:           "Buscar por nombre o proyecto",
+    send_to:             "Reenviar a {name}",
+    no_agents:           "No hay agentes",
+    no_matches:          "Nadie con «{query}»",
+    show_all:            "Ver todos",
+    super_agent_tag:     "Super-agente",''')
+
+sub("src/interfaces/web/src/i18n/en.ts",
+'''    search_ph:           "Search",
+    send_to:             "Forward to {name}",
+    no_agents:           "No agents",''',
+'''    search_ph:           "Search by name or project",
+    send_to:             "Forward to {name}",
+    no_agents:           "No agents",
+    no_matches:          "Nobody matching “{query}”",
+    show_all:            "Show all",
+    super_agent_tag:     "Super-agent",''')
+PY
+
+==============================================================================
+[02:26:01] PARCHE (bash) — Guard the loader and stamp the source project
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+sub(f, '''import type { Forwarded, ForwardSource } from "../../lib/forwarded";''',
+    '''import type { Forwarded, ForwardSource } from "../../lib/forwarded";
+import { parkForward, peekForward, takeForward } from "../../lib/forward-handoff";''')
+
+# The loader stands aside for a forward that arrived with the navigation, the
+# same way it does for one sent from this pane.
+sub(f, '''    // A forward drives the load itself, and then sends into it. Two loads of
+    // the same session would race: the one this effect starts resolves after
+    // the turn has been appended and REPLACES the messages — taking the message
+    // just sent, and the answer being streamed into it, off the screen.
+    if (forwardInFlight.current && chatKeyToString(forwardInFlight.current.key) === chatKeyToString(selected)) return;''',
+'''    // A forward drives the load itself, and then sends into it. Two loads of
+    // the same session would race: the one this effect starts resolves after
+    // the turn has been appended and REPLACES the messages — taking the message
+    // just sent, and the answer being streamed into it, off the screen.
+    if (forwardInFlight.current && chatKeyToString(forwardInFlight.current.key) === chatKeyToString(selected)) return;
+    // The same rule for one that arrived WITH the navigation, from another
+    // project's pane. It is parked before the route changes, so it is already
+    // here on this mount's first render — read, not taken: taking it is the
+    // sender's job, one effect below.
+    if (peekForward(pid, selected)) return;''')
+
+# The project a forward came from, so the card's way back can cross one.
+sub(f, '''    if (selected.kind === "thread") {
+      return { kind: "thread", channel: selected.channel, thread_id: selected.threadId, ...(named ? { title: named } : {}) };
+    }
+    if (selected.kind === "conv") {
+      return { kind: "conv", agent_slug: selected.agentSlug, conversation_id: selected.convId, title: named || agentLabel };
+    }
+    return { kind: "live", agent_slug: selected.agentSlug, title: agentLabel };''',
+'''    const where = { project_id: String(pid), ...(project.data?.name ? { project_name: project.data.name } : {}) };
+    if (selected.kind === "thread") {
+      return { kind: "thread", channel: selected.channel, thread_id: selected.threadId, ...(named ? { title: named } : {}), ...where };
+    }
+    if (selected.kind === "conv") {
+      return { kind: "conv", agent_slug: selected.agentSlug, conversation_id: selected.convId, title: named || agentLabel, ...where };
+    }
+    return { kind: "live", agent_slug: selected.agentSlug, title: agentLabel, ...where };''')
+PY
+grep -n "const project = useProject\|useProject(" src/interfaces/web/src/screens/project/ChatTab.tsx | head -3
+
+==============================================================================
+[02:26:18] PARCHE (bash) — Fix the project name accessor
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("src/interfaces/web/src/screens/project/ChatTab.tsx",
+'''    const where = { project_id: String(pid), ...(project.data?.name ? { project_name: project.data.name } : {}) };''',
+'''    // Which project this was said in. `project` is resolved further down (the
+    // header needs it too); this only runs from a click, long after render.
+    const where = { project_id: String(pid), ...(project?.name ? { project_name: project.name } : {}) };''')
+PY
+
+==============================================================================
+[02:26:40] PARCHE (bash) — Route forwards across projects and reopen sources
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/src/screens/project/ChatTab.tsx"
+
+# Cross-project send, and the pickup on the other side.
+sub(f, '''  /** The card's "where did this come from" link: open that session. */
+  const openForwardSource = (m: ChatMsg) => {
+    const from = m.forwarded?.from;
+    if (!from) return;
+    if (from.kind === "thread" && from.channel && from.thread_id) {
+      selectChat({ kind: "thread", channel: from.channel, threadId: from.thread_id }, { channel: from.channel, title: from.title });
+      return;
+    }
+    if (from.kind === "conv" && from.agent_slug && from.conversation_id) {
+      selectChat({ kind: "conv", agentSlug: from.agent_slug, convId: from.conversation_id }, { title: from.title });
+      return;
+    }
+    if (from.agent_slug) selectChat({ kind: "live", agentSlug: from.agent_slug });
+  };''',
+'''  /**
+   * Send it, wherever it is going.
+   *
+   * Inside this project the pane can do the whole thing itself. Into another
+   * one it cannot: `<ChatTab key={pid}>` is remounted on a project switch — on
+   * purpose, so that landing on a new project never leaves you reading the old
+   * one's chat — so the component that took the click is gone before the
+   * destination exists. The message is parked (lib/forward-handoff.ts) and
+   * picked up by the pane that mounts there, which then does exactly what this
+   * one would have.
+   */
+  const routeForward = (target: ChatKey, note: string, fwd: Forwarded, targetPid: string) => {
+    if (String(targetPid) === String(pid)) {
+      void deliverForward(target, note, fwd);
+      return;
+    }
+    parkForward(String(targetPid), target, { note, fwd });
+    navigate(`/p/${targetPid}/chat?${queryForChat(target)}`);
+  };
+
+  // The other end of that: a forward left for THIS pane by the one the reader
+  // came from. Once, on mount, against the selection the URL already carries —
+  // which is the address the forward was parked under, because the link was
+  // built from it.
+  useEffect(() => {
+    const parked = takeForward(pid, selected);
+    if (!parked) return;
+    void deliverForward(selected, parked.note, parked.fwd);
+    // Mount only: a forward is consumed by the first pane to see it, and
+    // re-running this on every selection change would be a second delivery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** The card's "where did this come from" link: open that session — in its own
+   *  project, which may not be this one. */
+  const openForwardSource = (m: ChatMsg) => {
+    const from = m.forwarded?.from;
+    if (!from) return;
+    const key: ChatKey | null =
+      from.kind === "thread" && from.channel && from.thread_id
+        ? { kind: "thread", channel: from.channel, threadId: from.thread_id }
+        : from.kind === "conv" && from.agent_slug && from.conversation_id
+          ? { kind: "conv", agentSlug: from.agent_slug, convId: from.conversation_id }
+          : from.agent_slug
+            ? { kind: "live", agentSlug: from.agent_slug }
+            : null;
+    if (!key) return;
+    // A conversation id means nothing outside the project that holds it, so a
+    // forward from elsewhere is a navigation, not a selection.
+    if (from.project_id && String(from.project_id) !== String(pid)) {
+      navigate(`/p/${from.project_id}/chat?${queryForChat(key)}`);
+      return;
+    }
+    selectChat(key, { ...(from.channel ? { channel: from.channel } : {}), ...(from.title ? { title: from.title } : {}) });
+  };''')
+
+# The dialog now says which project it is sending into.
+sub(f, '''        onSend={(target, note) => {
+          const fwd = forwarding;
+          setForwarding(null);
+          if (fwd) void deliverForward(target, note, fwd);
+        }}''',
+'''        onSend={(target, note, targetPid) => {
+          const fwd = forwarding;
+          setForwarding(null);
+          if (fwd) routeForward(target, note, fwd, targetPid);
+        }}''')
+PY
+cd src/interfaces/web && npx tsc --noEmit; echo "tsc exit=$?"
+
+==============================================================================
+[02:27:22] PARCHE (bash) — Test the people picker logic
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "tests/web-forward-ui.test.js"
+sub(f, '''test("a reply typed into a delivered thread is intercepted before the ordinary send", () => {''',
+'''const SUPER = { slug: "__super_agent__", name: "Roby", icon: "noche" };
+const HERE = [
+  { slug: "northwind-bot", name: "Northwind" },
+  { slug: "acme-bot", name: "Acme" },
+];
+const DIRECTORY = [
+  // The current project's own agents come back in the directory too — the
+  // picker already has them, and two copies would draw two rows.
+  { project_id: "7", project_name: "Here", slug: "northwind-bot", name: "Northwind" },
+  { project_id: "9", project_name: "Otro proyecto", slug: "magui", name: "Maguí" },
+  { project_id: "9", project_name: "Otro proyecto", slug: "rocky", name: "Rocky" },
+  { project_id: "3", project_name: "Apx", slug: "candela", name: "Candela" },
+];
+const people = (query = "") =>
+  loadPanelModule("lib/forwarded.ts").forwardPeople({
+    pid: "7", superAgent: SUPER, here: HERE, directory: DIRECTORY, query,
+  });
+
+test("the search field's visibility is decided by who EXISTS, not by what matched", () => {
+  // THE BUG. `total` is what the dialog shows the search box for, and it is the
+  // unfiltered count — so a query that matches nobody empties the list and
+  // leaves the field standing. It used to be computed from the filtered list:
+  // one mistyped letter took the search box away with the results, and there
+  // was no way left to fix the typo. Manu, on his own screen: "el buscador se
+  // corta y no veo mas nadie si busco mal".
+  const all = people();
+  assert.equal(all.total, 5, "Roby + two here + three elsewhere, minus the duplicate of one here");
+  const missed = people("zzzz");
+  assert.deepEqual(missed.groups, [], "nothing matched");
+  assert.equal(missed.total, all.total, "and the count the field keys off is unchanged");
+});
+
+test("the picker reaches into other projects, grouped by the project they are in", () => {
+  const { groups } = people();
+  assert.deepEqual(groups.map((g) => g.label), ["", "Apx", "Otro proyecto"], "here first, then the rest by name");
+  assert.deepEqual(groups[0].people.map((p) => p.slug), ["__super_agent__", "northwind-bot", "acme-bot"]);
+  assert.equal(groups[0].people[0].isSuper, true);
+  // Nobody appears twice: the directory's copy of a local agent is dropped.
+  const slugs = groups.flatMap((g) => g.people.map((p) => p.slug));
+  assert.equal(new Set(slugs).size, slugs.length, "no duplicate rows");
+  // And the ones from elsewhere carry the project they belong to, because the
+  // send has to go there.
+  const magui = groups.find((g) => g.label === "Otro proyecto").people.find((p) => p.slug === "magui");
+  assert.equal(magui.projectId, "9");
+});
+
+test("searching matches the name, the slug, the project — and ignores accents", () => {
+  assert.deepEqual(people("magui").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui"],
+    "\\"magui\\" finds \\"Maguí\\": nobody types the accent");
+  assert.deepEqual(people("MAGUÍ").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui"],
+    "and it works back the other way");
+  assert.deepEqual(people("acme-bot").groups.flatMap((g) => g.people.map((p) => p.slug)), ["acme-bot"],
+    "the slug is a name too");
+  // The project's name is often the half you remember.
+  assert.deepEqual(people("otro").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui", "rocky"]);
+});
+
+test("a reply typed into a delivered thread is intercepted before the ordinary send", () => {''')
+PY
+node --test tests/web-forward-ui.test.js 2>&1 | tail -18
+
+==============================================================================
+[02:27:31] PARCHE (bash) — Fix the count and rerun
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("tests/web-forward-ui.test.js",
+'''  assert.equal(all.total, 5, "Roby + two here + three elsewhere, minus the duplicate of one here");''',
+'''  assert.equal(all.total, 6, "Roby + the two here + the three elsewhere; the directory's copy of a local agent is not a seventh");''')
+PY
+node --test tests/web-forward-ui.test.js 2>&1 | tail -16
+
+==============================================================================
+[02:27:56] PARCHE (bash) — Test the directory route and project provenance
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "tests/forwards.test.js"
+
+sub(f, '''const { register: registerExec } = await import("../src/host/daemon/api/exec.js");''',
+    '''const { register: registerExec } = await import("../src/host/daemon/api/exec.js");
+const { register: registerAgents } = await import("#host/daemon/api/agents.js");''')
+
+sub(f, '''// ── The super-agent's turn ──────────────────────────────────────────────────''',
+'''// ── Who the message can go to ───────────────────────────────────────────────
+
+test("the agent directory answers across every project, and survives a broken one", async () => {
+  // A forward's destination is very often in ANOTHER project, and the panel had
+  // no way to ask: `/projects/:pid/agents` answers for one, and fourteen of
+  // those is a fan-out, not a list.
+  const here = fs.mkdtempSync(path.join(TMP_HOME, "dir-a-"));
+  const there = fs.mkdtempSync(path.join(TMP_HOME, "dir-b-"));
+  for (const [root, slug, name] of [[here, "northwind", "Northwind"], [there, "magui", "Maguí"]]) {
+    fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "x", apx: "installed" }));
+    fs.writeFileSync(
+      path.join(root, ".apc", "agents", `${slug}.md`),
+      `---\\nName: ${name}\\nRole: Tester\\nEmoji: 🚀\\nIcon: noche\\n---\\n\\nbody\\n`,
+    );
+  }
+  const projects = {
+    list: () => [
+      { id: 1, name: "Acme", path: here },
+      { id: 2, name: "Northwind", path: there },
+      // A project whose folder was renamed or removed. It must cost its own
+      // rows and nothing else — a registry that reads as empty looks exactly
+      // like an install with no agents at all.
+      { id: 3, name: "Gone", path: path.join(TMP_HOME, "does-not-exist") },
+    ],
+    get: () => null,
+    rebuild: () => {},
+  };
+  const app = express();
+  app.use(express.json());
+  registerAgents(apiRouter(express, app), { projects, project: () => null });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/agents/directory`);
+    assert.equal(res.status, 200);
+    const rows = await res.json();
+    assert.equal(rows.length, 2, "both live projects, and the broken one costs only itself");
+    const magui = rows.find((r) => r.slug === "magui");
+    assert.equal(magui.project_id, "2");
+    assert.equal(magui.project_name, "Northwind");
+    // Read through the one shaper: the frontmatter keys are capitalised, and
+    // reading them by hand is how a picker draws slugs where names should be.
+    assert.equal(magui.name, "Maguí");
+    assert.equal(magui.emoji, "🚀");
+    assert.equal(magui.icon, "noche");
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// ── The super-agent's turn ──────────────────────────────────────────────────''')
+
+sub(f, '''test("a title cannot break out of the marker it is printed inside", () => {''',
+'''test("the source records which project it was said in", () => {
+  // A conversation id means nothing outside the project that holds it. Without
+  // this, the card's way back from a forward that crossed projects would open
+  // the right address in the wrong one — or nothing at all.
+  const fwd = normalizeForward(raw({
+    from: { kind: "conv", agent_slug: "northwind", conversation_id: "2026-09-17-01", title: "Northwind", project_id: 9, project_name: "Otro proyecto" },
+  }));
+  assert.equal(fwd.from.project_id, "9", "coerced to a string, the way every other id here is");
+  assert.equal(fwd.from.project_name, "Otro proyecto");
+  // And it stays out of the marker: the model is being shown a quote, not a
+  // routing table.
+  assert.doesNotMatch(forwardMarker(fwd), /Otro proyecto/);
+});
+
+test("a title cannot break out of the marker it is printed inside", () => {''')
+PY
+node --test tests/forwards.test.js 2>&1 | tail -18
+
+==============================================================================
+[02:28:18] PARCHE (bash) — Extend the e2e spec and run it
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+f = "src/interfaces/web/e2e/24-forward-message.spec.ts"
+
+sub(f, '''  await page.route(
+    (url) => url.pathname === `/api/projects/${pid}/agents`,''',
+'''  // Every agent of every project — what makes somebody in ANOTHER project
+  // reachable from this dialog. Includes this project's own rows, as the real
+  // endpoint does, so the de-duplication is exercised too.
+  await page.route(
+    (url) => url.pathname === "/api/agents/directory",
+    (route) =>
+      route.fulfill({
+        json: [
+          { project_id: String(pid), project_name: "apx-e2e", slug: AGENT, name: "Northwind" },
+          { project_id: "9001", project_name: "Otro proyecto", slug: "magui", name: "Maguí" },
+          { project_id: "9001", project_name: "Otro proyecto", slug: "rocky", name: "Rocky" },
+          { project_id: "9002", project_name: "Tercero", slug: "candela", name: "Candela" },
+          { project_id: "9002", project_name: "Tercero", slug: "andy", name: "Andy" },
+        ],
+      }),
+  );
+  await page.route(
+    (url) => url.pathname === `/api/projects/${pid}/agents`,''')
+
+sub(f, '''    // And the destinations a forward cannot land in are not offered at all.
+    await page.getByTestId("forward-agent-__super_agent__").click();
+    await expect(page.getByTestId(`forward-session-telegram:${TODAY}`)).toHaveCount(0);
+    await expect(page.getByTestId(`forward-session-web:${TODAY}`)).toBeVisible();
+
+    expect(errors, "no uncaught page errors").toEqual([]);
+  });''',
+'''    // And the destinations a forward cannot land in are not offered at all.
+    await page.getByTestId("forward-agent-__super_agent__").click();
+    await expect(page.getByTestId(`forward-session-telegram:${TODAY}`)).toHaveCount(0);
+    await expect(page.getByTestId(`forward-session-web:${TODAY}`)).toBeVisible();
+
+    expect(errors, "no uncaught page errors").toEqual([]);
+  });
+
+  test("people in other projects are reachable, and a bad search is not a dead end", async ({ page, errors }) => {
+    const { projectId } = runtime();
+    await stubChat(page, projectId);
+    await page.goto(`/p/${projectId}/chat?agent=${AGENT}&conv=${CONV}`);
+
+    const bubble = page.getByText("Sale el lunes por la mañana.");
+    await expect(bubble).toBeVisible();
+    await bubble.hover();
+    await page.getByTestId("forward-message").last().click();
+
+    // Somebody in another project, under that project's own heading.
+    await expect(page.getByTestId("forward-agent-magui")).toBeVisible();
+    await expect(page.getByText("Otro proyecto")).toBeVisible();
+
+    // THE REGRESSION. A query that matches nobody used to empty the list AND
+    // remove the search field with it, leaving no way to correct the typo and a
+    // dialog that said "no agents" to somebody who had seven.
+    const search = page.getByTestId("forward-search");
+    await search.fill("zzzz");
+    await expect(page.getByTestId("forward-no-matches")).toBeVisible();
+    await expect(search, "the field that caused the miss must survive it").toBeVisible();
+
+    // And the way back out is offered, not just implied.
+    await page.getByTestId("forward-search-clear").click();
+    await expect(page.getByTestId("forward-agent-magui")).toBeVisible();
+
+    // The project's name is a perfectly good way to ask for its people.
+    await search.fill("tercero");
+    await expect(page.getByTestId("forward-agent-candela")).toBeVisible();
+    await expect(page.getByTestId("forward-agent-magui")).toHaveCount(0);
+
+    expect(errors, "no uncaught page errors").toEqual([]);
+  });''')
+PY
+cd src/interfaces/web && npx tsc --noEmit && pnpm exec playwright test e2e/24-forward-message.spec.ts --reporter=list 2>&1 | tail -14
+
+==============================================================================
+[02:28:51] PARCHE (bash) — Screenshot the redesigned picker
+==============================================================================
+cat > e2e/zz-shot.spec.ts <<'TS'
+import { test } from "./fixtures";
+import { runtime } from "./fixtures";
+const SHOTS = "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad";
+const AGENT = "northwind-bot";
+const CONV = "conversation-example";
+const TODAY = new Date().toISOString().slice(0, 10);
+const nowIso = (m = 0) => new Date(Date.now() - m * 60_000).toISOString();
+const MESSAGES = [
+  { role: "user", content: "¿Cómo quedó el pedido de Acme?", ts: nowIso(40) },
+  { role: "assistant", content: "Sale el lunes por la mañana. Confirmé con el depósito: quedan 12 unidades.", ts: nowIso(39), agent: AGENT, agent_name: "Northwind", model: "mock:test" },
+];
+async function stub(page, pid) {
+  await page.route((u) => u.pathname === "/api/agents/directory", (r) => r.fulfill({ json: [
+    { project_id: String(pid), project_name: "apx-e2e", slug: AGENT, name: "Northwind" },
+    { project_id: "9001", project_name: "Savia", slug: "magui", name: "Maguí" },
+    { project_id: "9001", project_name: "Savia", slug: "rocky", name: "Rocky" },
+    { project_id: "9002", project_name: "Postbean", slug: "candela", name: "Candela" },
+    { project_id: "9002", project_name: "Postbean", slug: "andy", name: "Andy" },
+    { project_id: "9003", project_name: "Conatus", slug: "april", name: "April" },
+  ] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents`, (r) => r.fulfill({ json: [
+    { slug: AGENT, name: "Northwind", role: "master", emoji: "🚀", model: "mock:test" },
+    { slug: "acme-bot", name: "Acme", role: "worker", emoji: "📦", model: "mock:test" },
+  ] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/${AGENT}/conversations`, (r) => r.fulfill({ json: [{ id: CONV, filename: `${CONV}.md`, agent_slug: AGENT, title: "Acme", messages: 2, started_at: nowIso(60), ended_at: nowIso() }] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/acme-bot/conversations`, (r) => r.fulfill({ json: [] }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/agents/${AGENT}/conversations/${CONV}`, (r) => r.fulfill({ json: { id: CONV, agent_slug: AGENT, channel: "web", messages: MESSAGES } }));
+  await page.route((u) => u.pathname === `/api/projects/${pid}/super-agent/threads`, (r) => r.fulfill({ json: [
+    { channel: "web", id: TODAY, title: "Web", messages: 2, started_at: nowIso(50), last_ts: nowIso(10) },
+  ] }));
+  await page.route((u) => u.pathname === "/api/projects/9001/agents/magui/conversations", (r) => r.fulfill({ json: [
+    { id: "2026-09-18-01", filename: "a.md", agent_slug: "magui", title: "Reels de la semana", messages: 8, started_at: nowIso(300), ended_at: nowIso(120) },
+  ] }));
+}
+test("shots", async ({ page }) => {
+  const { projectId } = runtime();
+  await page.setViewportSize({ width: 1280, height: 950 });
+  await stub(page, projectId);
+  await page.goto(`/p/${projectId}/chat?agent=${AGENT}&conv=${CONV}`);
+  await page.getByText("Sale el lunes por la mañana.").waitFor();
+  await page.getByText("Sale el lunes por la mañana.").hover();
+  await page.getByTestId("forward-message").last().click();
+  await page.getByTestId("forward-search").waitFor();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${SHOTS}/4-picker.png` });
+  await page.getByTestId("forward-agent-magui").click();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${SHOTS}/5-cross-project.png` });
+  await page.getByTestId("forward-search").fill("zzzz");
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${SHOTS}/6-no-matches.png` });
+});
+TS
+pnpm exec playwright test e2e/zz-shot.spec.ts --reporter=list 2>&1 | tail -6
+
+==============================================================================
+[02:30:40] PARCHE (bash) — Test the cross-project handoff
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("tests/web-forward-ui.test.js",
+'''test("a reply typed into a delivered thread is intercepted before the ordinary send", () => {''',
+'''test("a forward handed across projects is picked up exactly once", () => {
+  // Crossing a project is a navigation: `<ChatTab key={pid}>` is remounted, so
+  // the pane that took the click is gone before the destination exists and the
+  // message waits in the module between the two. The "once" is the load-bearing
+  // part — a parked forward RUNS A TURN when it is picked up, and two panes
+  // mounted on the same chat would otherwise send it twice.
+  const { parkForward, peekForward, takeForward } = loadPanelModule("lib/forward-handoff.ts");
+  const key = { kind: "conv", agentSlug: "magui", convId: "2026-09-18-01" };
+  const payload = { note: "¿lo ves?", fwd: { from: { kind: "thread", channel: "web" }, author: "user", text: "esto" } };
+
+  assert.equal(peekForward("9", key), false, "nothing waiting yet");
+  parkForward("9", key, payload);
+  assert.equal(peekForward("9", key), true, "the loader has to see it WITHOUT consuming it");
+  assert.equal(peekForward("7", key), false, "the same chat id in another project is another chat");
+
+  assert.deepEqual(takeForward("9", key), payload);
+  assert.equal(takeForward("9", key), null, "and never a second time");
+  assert.equal(peekForward("9", key), false);
+});
+
+test("a reply typed into a delivered thread is intercepted before the ordinary send", () => {''')
+PY
+node --test tests/web-forward-ui.test.js 2>&1 | tail -8
+
+==============================================================================
+[02:30:57] PARCHE (bash) — Teach the test loader about images and rerun
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+sub("tests/web-forward-ui.test.js",
+'''function loadPanelModule(relPath) {
+  const built = buildSync({
+    entryPoints: [path.join(WEB_SRC, relPath)],
+    bundle: true,
+    write: false,
+    format: "cjs",
+    platform: "node",
+    logLevel: "silent",
+  });''',
+'''function loadPanelModule(relPath) {
+  const built = buildSync({
+    entryPoints: [path.join(WEB_SRC, relPath)],
+    bundle: true,
+    write: false,
+    format: "cjs",
+    platform: "node",
+    // Vite resolves an imported image to a URL; esbuild has no opinion unless
+    // told. Nothing under test here draws one, so they resolve to nothing —
+    // without this, reaching a module that transitively imports an avatar is a
+    // build error about a .webp.
+    loader: { ".webp": "empty", ".png": "empty", ".svg": "empty", ".jpg": "empty" },
+    logLevel: "silent",
+  });''')
+PY
+node --test tests/web-forward-ui.test.js 2>&1 | tail -16
+
+==============================================================================
+[02:31:36] PARCHE (bash) — Document cross-project forwarding and rebuild docs
+==============================================================================
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "/private/tmp/claude-501/-Volumes-SSDT7Shield-proyectos-varios-agentprojectcontext-apx/abdac2f8-7f80-4b84-ae17-e8099b752835/scratchpad")
+from sub import sub
+
+sub("docs/src/content/docs/surfaces/web.mdx",
+'''On the other side the message arrives as a card that says where it came from,''',
+'''The list is not limited to this project. An install is one set of agents as far
+as you are concerned, so the picker reaches across every registered project,
+grouped under each project's name, with a search that matches a person's name,
+their slug, or the project they are in (`GET /api/agents/directory` backs it).
+Forwarding into another project navigates there and continues in that project's
+chat — the quote records which project it came FROM, so the card's link back
+still opens the right conversation.
+
+On the other side the message arrives as a card that says where it came from,''')
+
+sub("docs/src/content/docs/es/surfaces/web.mdx",
+'''Del otro lado llega como una tarjeta que dice de dónde salió, quién lo dijo y''',
+'''La lista no se limita a este proyecto. Para vos la instalación es un solo
+conjunto de agentes, así que el selector cruza todos los proyectos registrados,
+agrupados por el nombre de cada uno, con un buscador que matchea el nombre de la
+persona, su slug o el proyecto donde está (lo sirve `GET
+/api/agents/directory`). Reenviar a otro proyecto te lleva ahí y la charla sigue
+en el chat de ese proyecto — la cita guarda de qué proyecto SALIÓ, así el link
+de la tarjeta sigue abriendo la conversación correcta.
+
+Del otro lado llega como una tarjeta que dice de dónde salió, quién lo dijo y''')
+PY
+cd docs && pnpm build 2>&1 | tail -3
