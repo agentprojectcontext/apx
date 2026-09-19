@@ -270,6 +270,10 @@ jobs:
           BEFORE: ${{ steps.before.outputs.v }}
         run: |
           after=$(node -p "require('./package.json').version")
+          # Same trim as android.yml: a pasted secret carries whatever the
+          # clipboard had, and curl's answer to a trailing newline is a bare
+          # exit 3 that explains nothing.
+          WEBHOOK="$(printf '%s' "$WEBHOOK" | tr -d '[:space:]')"
           if [ -z "$WEBHOOK" ]; then
             echo "no DISCORD_WEBHOOK secret — nothing announced"; exit 0
           fi
