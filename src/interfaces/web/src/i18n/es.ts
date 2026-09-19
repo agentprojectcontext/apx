@@ -2178,6 +2178,8 @@ export const es = {
     copy:                "Copiar",
     copied:              "Copiado",
     qr:                  "Ver QR",
+    reveal:              "Mostrar la dirección",
+    hide:                "Ocultar la dirección",
     qr_hint:             "Escaneá con la cámara del teléfono. Después vinculá el dispositivo para el token.",
     local_only:          "El daemon sólo escucha en loopback: nada de la red puede llegar. Para compartirlo: apx panel share",
     kind_ts_https:       "Tailnet HTTPS",
@@ -2227,6 +2229,12 @@ export const es = {
 
   update: {
     available:           "Actualización disponible",
+  },
+
+  star: {
+    title:               "APX acepta estrellas",
+    desc:                "Una estrella en GitHub es como la encuentra el que viene después.",
+    cta:                 "Dejar la estrella",
   },
 
   android_ask: {

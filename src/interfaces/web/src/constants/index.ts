@@ -28,11 +28,13 @@ export const STORAGE = {
   // The VERSION that was dismissed, not a boolean: skipping one release is
   // not a decision about the next one.
   updateDismissed: "apx.update.dismissed",
+  starDismissed: "apx.star.dismissed",
 } as const;
 
 /** Links that live outside the daemon. */
 export const LINKS = {
   discord: "https://discord.gg/vxdZuT5WuE",
+  repo: "https://github.com/agentprojectcontext/apx",
   // A FIXED release tag, never /releases/latest: APX publishes to npm several
   // times a week, so "latest" is almost never the release that carries an APK.
   androidApk: "https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk",

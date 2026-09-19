@@ -48,26 +48,29 @@ export function UpdateBanner() {
   return (
     <div
       data-testid="update-banner"
-      className="flex shrink-0 items-center gap-3 border-b border-border bg-primary/8 px-4 py-2 text-sm"
+      className="flex items-start gap-3 rounded-2xl border border-border bg-card/95 p-3 text-sm shadow-lg backdrop-blur"
     >
-      <ArrowUpCircle size={16} className="shrink-0 text-primary" />
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12">
+        <ArrowUpCircle size={18} className="text-primary" />
+      </span>
+
       {/* The shape the CLI has printed for a long time — "1.111.0 → 1.112.0",
           the fact and nothing else. It used to announce itself ("APX 1.112.0 is
           out"), which reads like marketing for something you already have. */}
-      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        <span className="font-medium">{t("update.available")}</span>
-        <span className="ml-2 font-mono text-xs text-muted-fg">
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">{t("update.available")}</p>
+        <p className="mt-0.5 font-mono text-xs text-muted-fg">
           {data.current} → {data.latest}
-        </span>
-      </span>
-      <code className="shrink-0 rounded border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
-        apx update
-      </code>
+        </p>
+        <code className="mt-2.5 inline-block rounded-lg border border-border bg-muted/40 px-2.5 py-1 font-mono text-xs">
+          apx update
+        </code>
+      </div>
       <button
         type="button"
         onClick={dismiss}
         aria-label={t("common.close")}
-        className="shrink-0 rounded p-1 text-muted-fg hover:text-foreground"
+        className="-mr-1 shrink-0 rounded p-1 text-muted-fg hover:text-foreground"
       >
         <X size={14} />
       </button>
