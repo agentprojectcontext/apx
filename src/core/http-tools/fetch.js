@@ -120,19 +120,59 @@ async function validateUrl(rawUrl) {
  * So: bytes are not text, and are never pretended to be. A binary response comes
  * back described (type, size, reachable) rather than decoded, which is the whole
  * of what a caller can use anyway. Text comes back capped at something a context
- * window can hold.
+ * window can hold — and how much we are willing to pull off the socket at all is
+ * a separate ceiling, enforced one level down in readCapped.
  */
 async function readBody(response, jsonHint) {
   const ctype = response.headers.get("content-type") || "";
-  // arrayBuffer, so the decision is made on real bytes whatever the headers say.
-  return decodeBody(Buffer.from(await response.arrayBuffer()), ctype, { jsonHint });
+  const body = response.body;
+  const { buf, capped } = typeof body?.[Symbol.asyncIterator] === "function"
+    ? await readCapped(body)
+    // Nothing to stop pulling (204, HEAD, a fetch impl that exposes no stream):
+    // read it whole. The decision below is made on real bytes either way.
+    : { buf: Buffer.from(await response.arrayBuffer()), capped: false };
+  return decodeBody(buf, ctype, { jsonHint, downloadCapped: capped });
+}
+
+/**
+ * Drain a response stream, stopping at the download cap.
+ *
+ * MAX_TEXT_BYTES governs what leaves this module; this governs what enters it.
+ * Two questions, and for a while only one of them was answered: `arrayBuffer()`
+ * buffers the WHOLE body before any cap can look at it, so the 5 MB ceiling was
+ * a comment rather than a limit and a 500 MB response was 500 MB of daemon
+ * memory on its way to a 256 KB answer.
+ *
+ * Breaking out of the loop closes the async iterator, which cancels the
+ * underlying stream — the rest of the file is never pulled over the socket.
+ *
+ * Exported for the same reason decodeBody is: http_get refuses loopback
+ * addresses (SSRF guard), so there is no local server to point it at.
+ */
+export async function readCapped(stream, cap = MAX_BODY_BYTES) {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of stream) {
+    const b = Buffer.from(chunk);
+    if (total + b.byteLength > cap) {
+      chunks.push(b.subarray(0, cap - total));
+      return { buf: Buffer.concat(chunks), capped: true };
+    }
+    chunks.push(b);
+    total += b.byteLength;
+  }
+  return { buf: Buffer.concat(chunks), capped: false };
 }
 
 /** The decision itself, with no socket attached — which is what makes it
  *  testable: http_get refuses loopback addresses (SSRF guard), so there is no
  *  local server to point it at. */
-export function decodeBody(buf, ctype = "", { jsonHint = false } = {}) {
+export function decodeBody(buf, ctype = "", { jsonHint = false, downloadCapped = false } = {}) {
   const wantsJson = jsonHint || ctype.includes("application/json");
+  // When the download was cut at MAX_BODY_BYTES, what we hold is a floor on the
+  // real size, not the size. Say "at least" rather than report a number we know
+  // is wrong — content-length, when the server sent one, is in the headers.
+  const size = downloadCapped ? `at least ${buf.byteLength}` : `${buf.byteLength}`;
 
   // A NUL in the first kilobyte means bytes, whatever the content-type says —
   // and a server that sends no content-type at all is exactly where that
@@ -145,13 +185,13 @@ export function decodeBody(buf, ctype = "", { jsonHint = false } = {}) {
     const kind = ctype.split(";")[0].trim() || "application/octet-stream";
     return {
       binary: true,
-      truncated: false,
+      truncated: downloadCapped,
       bytes: buf.byteLength,
       media_type: kind,
       // Deliberately a sentence and not the file: it says everything a caller
       // can act on. To fetch the bytes themselves, download them to disk —
       // a tool result is not a place to put a video.
-      text: `[${kind}, ${buf.byteLength} bytes — not decoded: this is a binary body, ` +
+      text: `[${kind}, ${size} bytes — not decoded: this is a binary body, ` +
             `not text. The request succeeded, which is what a reachability check asks. ` +
             `To work with the file, download it to disk instead of reading it here.]`,
       json: null,
@@ -161,7 +201,7 @@ export function decodeBody(buf, ctype = "", { jsonHint = false } = {}) {
   const overCap = buf.byteLength > MAX_TEXT_BYTES;
   const text = overCap
     ? buf.subarray(0, MAX_TEXT_BYTES).toString("utf8") +
-      `\n[TRUNCATED — ${buf.byteLength} bytes, showing the first ${MAX_TEXT_BYTES}]`
+      `\n[TRUNCATED — ${size} bytes, showing the first ${MAX_TEXT_BYTES}]`
     : buf.toString("utf8");
 
   let json = null;
