@@ -11,9 +11,16 @@
 // truly on every run), and self-suppress only when APX_QUIET / APX_NO_BANNER is
 // set — the escape hatch for scripts and CI.
 //
-// Color: reuses raw ANSI like mascot.js. Honors NO_COLOR.
+// Color: reuses raw ANSI like mascot.js. Honors NO_COLOR, and stays off
+// entirely when stdout is not a terminal.
+//
+// That second half is not a nicety. The panel's terminal runs commands through
+// the daemon's /api/run and prints what comes back as text — nothing there
+// interprets an escape sequence, so the face arrived as `[32m▄█[0m` rubble
+// around the banner. Anything that is not a TTY is in the same position: a
+// pipe, a log file, a captured test output.
 
-const NO_COLOR = !!process.env.NO_COLOR;
+const NO_COLOR = !!process.env.NO_COLOR || !process.stdout.isTTY;
 const c = (code) => (s) => (NO_COLOR ? s : `\x1b[${code}m${s}\x1b[0m`);
 const B = c("1");
 const DI = c("2");

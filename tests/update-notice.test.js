@@ -78,3 +78,20 @@ test("a device says what it is running, and an older one says nothing", () => {
   // Null, not a guess, for everything paired before this existed.
   assert.match(read("src/host/daemon/token-store.js"), /app_version: c\.app_version \|\| null/);
 });
+
+test("the terminal notice can be seen, and the face survives a pipe", () => {
+  const check = read("src/core/update-check.js");
+  // The seam has to cover the CLI too. This notice fires off the cache, so
+  // without it the only way to see the banner is to actually be a version
+  // behind — the one state you cannot arrange on demand.
+  assert.match(check, /const fake = process\.env\.APX_UPDATE_SIMULATE;/);
+  assert.match(check, /if \(isNewer\(currentVersion, fake\)\) notice\(currentVersion, fake\);/);
+  // A simulation must not write the cache, or it outlives itself.
+  assert.match(check, /return; \/\/ no background refresh/);
+
+  // Colour off when stdout is not a terminal. The panel's terminal prints what
+  // /api/run returns as plain text, so escapes arrived as `[32m` rubble around
+  // the face.
+  assert.match(read("src/interfaces/cli/branding.js"),
+    /const NO_COLOR = !!process\.env\.NO_COLOR \|\| !process\.stdout\.isTTY;/);
+});

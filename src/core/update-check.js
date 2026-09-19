@@ -74,6 +74,17 @@ function refreshInBackground(currentVersion) {
 // Shows an update notice if a newer version is cached.
 // Also triggers a background refresh if cache is stale.
 export function checkForUpdate(currentVersion) {
+  // The same declared seam `updateStatus` honours. It has to cover BOTH
+  // surfaces or it only half exists: this notice fires off the CACHE, so
+  // without it the only way to see the terminal banner is to actually be a
+  // version behind — which is precisely the state you cannot arrange on
+  // demand, and never the state of the machine doing the work.
+  const fake = process.env.APX_UPDATE_SIMULATE;
+  if (fake) {
+    if (isNewer(currentVersion, fake)) notice(currentVersion, fake);
+    return; // no background refresh: a simulation must not rewrite the cache
+  }
+
   const cache = readCache();
   const now = Date.now();
 
@@ -83,15 +94,19 @@ export function checkForUpdate(currentVersion) {
   }
 
   // Show notice if cache has a newer version.
-  if (cache && isNewer(currentVersion, cache.latest)) {
-    const divider = "─".repeat(56);
-    process.stderr.write(
-      `\n${divider}\n` +
-      `  apx update available  ${currentVersion} → ${cache.latest}\n` +
-      `  run: apx update\n` +
-      `${divider}\n`
-    );
-  }
+  if (cache && isNewer(currentVersion, cache.latest)) notice(currentVersion, cache.latest);
+}
+
+// Written to stderr, so piping a command's output somewhere never carries the
+// banner into the pipe.
+function notice(current, latest) {
+  const divider = "─".repeat(56);
+  process.stderr.write(
+    `\n${divider}\n` +
+    `  apx update available  ${current} → ${latest}\n` +
+    `  run: apx update\n` +
+    `${divider}\n`
+  );
 }
 
 // Used by `apx update` command to get the latest version (with network call).
