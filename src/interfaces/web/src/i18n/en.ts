@@ -2217,6 +2217,9 @@ export const en = {
   update: {
     available:           "Update available",
     copy:                "Copy the command",
+    title:               "A newer version is out",
+    open_terminal:       "Update in the terminal",
+    daemon_note:         "Opens the terminal with the command typed. Running it restarts the daemon; the panel comes back on its own.",
   },
 
   star: {

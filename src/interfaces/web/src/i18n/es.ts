@@ -2230,6 +2230,9 @@ export const es = {
   update: {
     available:           "Actualización disponible",
     copy:                "Copiar el comando",
+    title:               "Hay una versión nueva",
+    open_terminal:       "Actualizar en la terminal",
+    daemon_note:         "Te deja el comando escrito. Al correrlo el daemon se reinicia y el panel vuelve solo.",
   },
 
   star: {

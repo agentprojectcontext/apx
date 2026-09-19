@@ -16,6 +16,7 @@ import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTab
 import { WhatsAppSettingsTabs } from "../components/settings/WhatsAppSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
+import { UpdateOffer } from "../components/settings/UpdateOffer";
 import { WebPanel } from "../components/settings/WebPanel";
 import { DesktopSettingsPanel } from "../components/settings/DesktopSettingsPanel";
 import { VoiceScreen } from "./modules/VoiceScreen";
@@ -123,6 +124,7 @@ export function SettingsScreen() {
       onChange={(k) => navigate(k === "identity" ? "/settings" : `/settings/${pathFromTab(k as TabKey)}`)}
       collapsed={collapsed}
       onToggleCollapse={toggle}
+      navFooter={<UpdateOffer />}
       contentClassName={`w-full ${WIDE_TABS.has(active) ? "" : "mx-auto max-w-3xl"} space-y-6 py-6 pt-3 pr-6 pl-4`}
       testId={`settings-tab-${active}`}
     >
