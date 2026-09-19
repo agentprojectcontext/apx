@@ -218,11 +218,17 @@ test("the offer finds you, and cannot open by itself", () => {
   assert.match(prefs, /localStorage\.setItem\(NUDGE_DISMISSED, "1"\)/);
 
   // Both surfaces: a strip on the phone's inbox, a card in the desktop corner.
-  // The desktop one shares that corner with the Discord invitation, so it is
-  // positioned by the stack around it and carries a className — what has to
-  // stay true is the FLOATING variant, not the exact tag.
+  // The desktop one is mounted by the corner queue (CornerCards), which owns
+  // the position — what has to stay true is the FLOATING variant, and that it
+  // is FIRST in that queue: it is the only offer there that stops working in
+  // silence when ignored.
   assert.match(inbox, /<NotifyNudge \/>/);
-  assert.match(app, /<NotifyNudge floating\b/);
+  const stack = webSrc("components", "common", "CornerCards.tsx");
+  assert.match(stack, /<NotifyNudge floating\b/);
+  assert.ok(
+    stack.indexOf("<NotifyNudge") < stack.indexOf("<CommunityCard"),
+    "the permission ask must come before the invitations",
+  );
 });
 
 test("the inbox writes the open thread into the URL so looking() can see it", () => {
