@@ -82,19 +82,17 @@ test("the message says what kind of release it is, and who wrote it", () => {
     .embeds[0].fields.some((f) => f.name === "Credits"));
 });
 
-test("the buttons are links, so nothing has to be listening for them", () => {
+test("no components are sent, because a channel webhook silently eats them", () => {
   const p = buildPayload("1.3.0", REPO, notes("### Features\n\n* algo\n"));
-  const row = p.components[0];
-  assert.equal(row.type, 1);
-  for (const b of row.components) {
-    assert.equal(b.type, 2);
-    // Style 5 is a link. Any other style carries a custom_id and needs an
-    // application to answer the click — there is none here, so the button
-    // would spin and fail.
-    assert.equal(b.style, 5);
-    assert.match(b.url, /^https:\/\/github\.com\//);
-    assert.equal(b.custom_id, undefined);
-  }
+  // Measured on v1.114.0: a link button was sent, Discord answered 204 and the
+  // button never appeared. It does not REJECT components from a plain channel
+  // webhook, it discards them without a word — so there is no status code to
+  // fall back on, and carrying them is carrying something that cannot work and
+  // cannot report that it did not.
+  assert.equal(p.components, undefined);
+  // The links live in the description instead, where they do render.
+  assert.match(p.embeds[0].description, /\[Changelog\]\(https:\/\/github\.com\//);
+  assert.match(p.embeds[0].description, /\[Diff\]\(https:\/\/github\.com\//);
 });
 
 test("notes that could not be read still produce a valid announcement", () => {

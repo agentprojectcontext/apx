@@ -8,10 +8,15 @@
 //
 //   node scripts/discord-release-payload.js <version> <owner/repo> < notes.md
 //
-// A real BUTTON (the pill that release bots show) is not available here: Discord
-// only accepts message components from an application-owned webhook, and a plain
-// channel webhook cannot send them. The links are ordinary markdown, which is
-// the whole of what a webhook gets.
+// No BUTTON, deliberately — and the way that was settled is worth keeping. A
+// link button was sent on v1.114.0: Discord answered 204 and dropped it. It
+// does not reject components from a plain channel webhook, it discards them in
+// silence, so nothing in the response tells you it happened and a fallback on
+// the status code never fires. Buttons would need an application-owned webhook,
+// which means a real Discord app and a bot token rather than a channel URL.
+//
+// The links in the description are ordinary markdown, which is the whole of
+// what a channel webhook gets — and they render.
 //
 // Discord's limits are hard failures, not truncations — the POST is rejected
 // with a 400 and the release goes unannounced — so every one of them is capped
@@ -119,20 +124,6 @@ export function buildPayload(version, repo, notes, opts = {}) {
         // Nothing to show when the notes could not be read — an embed with a
         // title and an install line is still a correct announcement.
         ...(fields.length ? { fields } : {}),
-      },
-    ],
-    // A link button, which needs no application to handle it — unlike a button
-    // with a custom_id, nothing has to be listening. Discord may still refuse
-    // components from a plain channel webhook, so the caller posts this, and on
-    // a rejection posts again with `components` removed. The announcement is
-    // never lost to a decoration.
-    components: [
-      {
-        type: 1,
-        components: [
-          { type: 2, style: 5, label: "Changelog", url: `https://github.com/${repo}/blob/main/CHANGELOG.md` },
-          { type: 2, style: 5, label: "Release", url: release },
-        ],
       },
     ],
   };
