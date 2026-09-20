@@ -261,13 +261,19 @@ jobs:
       # start workflows from events that token creates. Such a workflow would
       # never run, and nothing would say why.
       #
-      # Minors and majors only. This repo published 55 versions in 30 days —
-      # announcing every patch turns the channel into something everyone mutes,
-      # which costs more than the patches are worth. They are all in CHANGELOG.md.
+      # EVERY release, patches included. It was minors and majors only while the
+      # message was an install line and a link — at 55 versions in 30 days, that
+      # many "there is a new version, go read elsewhere" posts is something
+      # people mute. Now the announcement carries what actually changed, so a
+      # patch is a line worth reading rather than a notification with no content.
       - name: Announce the release on Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           BEFORE: ${{ steps.before.outputs.v }}
+          GH_TOKEN: ${{ github.token }}
+          # Optional repo variable: the id of a role to ping. Not a secret — a
+          # role id is public the moment anyone right-clicks the role.
+          ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
         run: |
           after=$(node -p "require('./package.json').version")
           # Same trim as android.yml: a pasted secret carries whatever the
@@ -280,18 +286,34 @@ jobs:
           if [ "$BEFORE" = "$after" ]; then
             echo "semantic-release published nothing"; exit 0
           fi
-          if [ "${BEFORE%.*}" = "${after%.*}" ]; then
-            echo "v$after is a patch — not announced"; exit 0
+          # The notes semantic-release just wrote ARE the announcement — the
+          # message used to be an install line and a link to CHANGELOG.md, so
+          # the only way to learn what landed was to leave Discord.
+          #
+          # Never fatal: the release has already happened and cannot be undone
+          # by a failure here, so an unreachable API costs the detail, not the
+          # message. The builder handles empty notes and empty credits.
+          notes="$(gh release view "v$after" --json body -q .body 2>/dev/null || true)"
+          if [ -z "$notes" ]; then
+            echo "::warning::could not read the notes for v$after — announcing without them"
           fi
-          jq -n --arg v "$after" --arg repo "$GITHUB_REPOSITORY" '{
-            username: "APX",
-            embeds: [{
-              title: "APX v\($v)",
-              url: "https://github.com/\($repo)/releases/tag/v\($v)",
-              color: 4176208,
-              description: "`npm install -g @agentprojectcontext/apx`",
-              fields: [{ name: "What changed", value: "[CHANGELOG](https://github.com/\($repo)/blob/main/CHANGELOG.md)" }]
-            }]
-          }' > payload.json
-          curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
-            && echo "announced v$after"
+          # Who wrote the commits in this release. The builder drops the bots.
+          export APX_RELEASE_CREDITS="$(
+            gh api "repos/$GITHUB_REPOSITORY/compare/v$BEFORE...v$after" \
+              --jq '[.commits[].author.login] | unique | join(",")' 2>/dev/null || true
+          )"
+          printf '%s' "$notes" | node scripts/discord-release-payload.js \
+            "$after" "$GITHUB_REPOSITORY" "$BEFORE" "$ROLE_ID" > payload.json
+
+          # Discord answers a rejected payload with a 400 and a body saying why,
+          # and `curl -f` would hide both. The status is read instead.
+          post() {
+            curl -sS -o /tmp/discord-response.json -w '%{http_code}' \
+              -X POST -H "Content-Type: application/json" -d @"$1" "$WEBHOOK"
+          }
+          code="$(post payload.json)"
+          if [ "$code" -ge 400 ]; then
+            echo "::warning::Discord rejected the announcement (HTTP $code): $(cat /tmp/discord-response.json)"
+            exit 0
+          fi
+          echo "announced v$after (HTTP $code)"

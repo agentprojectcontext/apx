@@ -163,12 +163,6 @@ function normalize(name, server, sourceId) {
     headers: server.headers || null,
     transport: server.url ? "http" : "stdio",
     enabled,
-    // Not connection details — a description of what this server's tools DO,
-    // used to grade a call_mcp as read or write (core/mcp/tool-risk.js). Only
-    // carried when present, so an entry that says nothing stays untouched and
-    // falls through to the name heuristic.
-    ...(Array.isArray(server.read_only_tools) ? { read_only_tools: server.read_only_tools } : {}),
-    ...(Array.isArray(server.write_tools) ? { write_tools: server.write_tools } : {}),
     raw: server,
   };
 }

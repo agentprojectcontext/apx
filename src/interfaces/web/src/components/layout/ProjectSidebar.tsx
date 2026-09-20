@@ -44,6 +44,7 @@ import { switchProjectHref } from "../../lib/projectNav";
 import { missingReasonText } from "../../lib/projectPresence";
 import { t } from "../../i18n";
 import { useDaemonStatus } from "../../hooks/useDaemonStatus";
+import { useUpdateStatus } from "../../hooks/useUpdateStatus";
 import type { ProjectEntry } from "../../types/daemon";
 
 interface Props {
@@ -346,6 +347,11 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
   // only honest source: the bundle can be stale while the daemon is not, and
   // after a release that pair disagreeing is exactly what you want to see.
   const { health } = useDaemonStatus();
+  // The gear is the only tile that is always on screen, so it carries the one
+  // notice that is not about any project: there is a newer APX. It is the
+  // entrance to where the offer lives, which is what makes a badge here mean
+  // something rather than just blink.
+  const { newer: updateAvailable } = useUpdateStatus();
   const { projects, isLoading, mutate: mutateProjects } = useProjects();
   const location = useLocation();
   const toast = useToast();
@@ -586,9 +592,12 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
         isSettings
         testId="nav-settings"
         icon={<Settings size={16} />}
+        update={updateAvailable}
         active={location.pathname === "/settings" || location.pathname.startsWith("/settings/")}
         onClick={() => onSelect("/settings")}
-        title={t("nav.settings")}
+        // The badge draws an arrow and nothing else; the tooltip is where it
+        // gets to say what the arrow is about.
+        title={updateAvailable ? t("update.pending") : t("nav.settings")}
       />
       {/* Docs — opens the hosted documentation site in a new tab. */}
       <Tip content={t("settings_ui.documentation")} side="right">

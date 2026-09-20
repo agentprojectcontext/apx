@@ -1,3 +1,70 @@
+## [1.114.1](https://github.com/agentprojectcontext/apx/compare/v1.114.0...v1.114.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **ci:** el anuncio no manda botones, que Discord se come sin avisar ([f2a813b](https://github.com/agentprojectcontext/apx/commit/f2a813be6a92801a142eefae031b8bb656ada5a8))
+
+# [1.114.0](https://github.com/agentprojectcontext/apx/compare/v1.113.0...v1.114.0) (2026-09-20)
+
+
+### Features
+
+* **ci:** Discord se entera de todos los releases, también de los patches ([768611d](https://github.com/agentprojectcontext/apx/commit/768611def44a5944c5e08bcf9eb4998a73086594))
+* **ci:** el anuncio de Discord cuenta qué cambió, no dónde leerlo ([db5b07d](https://github.com/agentprojectcontext/apx/commit/db5b07d02f65975cb0e35816082b3bc685e1c5ec))
+* **ci:** el anuncio dice de qué tipo es el release, quién lo escribió y lleva botones ([b3e6867](https://github.com/agentprojectcontext/apx/commit/b3e6867c845d44317929ed24bcf94dc7f84b80ec))
+
+# [1.113.0](https://github.com/agentprojectcontext/apx/compare/v1.112.0...v1.113.0) (2026-09-20)
+
+
+### Features
+
+* **cli:** el aviso de versión se puede ver funcionando, y la cara sobrevive una tubería ([3cb3fdb](https://github.com/agentprojectcontext/apx/commit/3cb3fdb9bc72b3bc8f7af6c4680962a376275e86))
+* **web:** el engranaje avisa que hay versión nueva, y settings ofrece actualizar ([55d1363](https://github.com/agentprojectcontext/apx/commit/55d13630edf1b187c56282d5a1b0372c6ea29dfe))
+
+# [1.112.0](https://github.com/agentprojectcontext/apx/compare/v1.111.0...v1.112.0) (2026-09-19)
+
+
+### Bug Fixes
+
+* **a2a:** si el peer muere, el hilo guarda reply y tools ([4898a8d](https://github.com/agentprojectcontext/apx/commit/4898a8d49358281b39a4e1d4296966a1fe5b1d39))
+* **android:** el versionCode no puede volver atrás, y el alias no es secreto ([a738e5a](https://github.com/agentprojectcontext/apx/commit/a738e5a475a793d02785467f81f41d7225e4a265))
+* **android:** mirar la conexión no es decidir irse del daemon ([6b1b0b9](https://github.com/agentprojectcontext/apx/commit/6b1b0b916b3b461731941374342cb48600f0f6bd))
+* **e2e:** las tarjetas de la esquina se comían clics de otros tests ([b1a9de4](https://github.com/agentprojectcontext/apx/commit/b1a9de455298a9083a64ba26e4846ab2442a9a6f))
+* **embeddings:** un timeout de 4 s no cubre la carga en frío del modelo ([2cfcd14](https://github.com/agentprojectcontext/apx/commit/2cfcd148a2d1f6926a5ea4a50f4ef48ed1431230))
+* **engines:** un modelo de embeddings no es una opción para un picker de chat ([f55bd13](https://github.com/agentprojectcontext/apx/commit/f55bd13bdb12305cab5eb5e2d34e223b791c73d1))
+* **images:** un servidor que contesta el sondeo pero no dibuja no es un motor disponible ([82b92f8](https://github.com/agentprojectcontext/apx/commit/82b92f835bd75dc3e69f3507704d5e1f1ad76928))
+* **mcp:** una tool de MCP no se mide por el nombre ([1f7c5a5](https://github.com/agentprojectcontext/apx/commit/1f7c5a55f9ea223bfdc0f6ea195e4f3e841af0f2))
+* **ollama:** los argumentos de un tool call van como objeto, no como string JSON ([8aed5ad](https://github.com/agentprojectcontext/apx/commit/8aed5adbd776cc434b8336ed5dc9b0fc500ce8c8))
+* **sessions:** las sesiones Claude que arranca APX salen en Base ([91a9a78](https://github.com/agentprojectcontext/apx/commit/91a9a7817c95545e2e5fd0b27af1c44dce30b6cd))
+* **skills:** una skill sugerida es una capacidad, no documentación opcional ([b89abc9](https://github.com/agentprojectcontext/apx/commit/b89abc9e8ea6f69f055359951c071209f0431709))
+* **test:** el test del inspector afirmaba sobre el título del bloque, no sobre el bloque ([91e73bf](https://github.com/agentprojectcontext/apx/commit/91e73bf007bfa3e70ca4bca195f968ed2cf626cd))
+* **tools:** un .mp4 no es texto, y ningún resultado de tool entra sin tope ([b65fab7](https://github.com/agentprojectcontext/apx/commit/b65fab7226c38b5a04f648647aa393d082936188))
+* **tools:** un cuerpo enorme deja de bajarse entero antes de que lo recortemos ([aa2d6cf](https://github.com/agentprojectcontext/apx/commit/aa2d6cf052b1446d04a33559e3e7c7b30f3556ff))
+* **web:** el chat del costado manda fotos, para y encola como Chats ([1a660ee](https://github.com/agentprojectcontext/apx/commit/1a660eecc8ecefcf46eb98d201d1ea6cc4870465))
+* **web:** el chat del costado pide el hilo del día una vez, no 2500 veces por segundo ([ffc4917](https://github.com/agentprojectcontext/apx/commit/ffc49176e071d68f3835aba4d8625a05728d9de3))
+* **web:** el panel de embeddings no espera a la red, y el badge "Local" no miente ([499cfb7](https://github.com/agentprojectcontext/apx/commit/499cfb7c3cd34c7b30b8f7bafc485731beda20fb))
+* **web:** el slug de una cara aliasada es string antes de buscarla ([58505a1](https://github.com/agentprojectcontext/apx/commit/58505a13e6ae449842ebeb359f7dce3928c9cab4))
+* **web:** la app no ofrece instalar la app ([8fc0c74](https://github.com/agentprojectcontext/apx/commit/8fc0c744f8960b394b69ac0af50929801a6175c3))
+* **web:** tildar una skill ya no la mueve de lugar ([47d1096](https://github.com/agentprojectcontext/apx/commit/47d1096b04b4a06fa84dce9d9fbf71e778f55a47))
+* **zen:** el free tier se cerró, y el health decía que la culpa era la key ([6233bee](https://github.com/agentprojectcontext/apx/commit/6233bee3df541ce50d97b080b08347444774e831))
+* **zen:** el free tier vuelve a contestar — le faltaban el stream y dos nombres ([e790a27](https://github.com/agentprojectcontext/apx/commit/e790a27775a2e236434ad6066f9e40330d1e668e))
+* **zen:** un agente angosto rota de modelo, no se muere ([6dab445](https://github.com/agentprojectcontext/apx/commit/6dab445e3fb534d8099fc7a30531e32e87fc599e))
+
+
+### Features
+
+* **android:** apx android install pone la app en el teléfono y la vincula ([25fc7b9](https://github.com/agentprojectcontext/apx/commit/25fc7b9bf188de6906b2a28b0e210ae72cc3c4fd))
+* **android:** el APK se compila, se firma y se publica solo ([4bdf929](https://github.com/agentprojectcontext/apx/commit/4bdf929a4deb5a0cb4ea89f1fddc25f7e9400741))
+* **android:** un dispositivo dice qué versión está corriendo ([8294d80](https://github.com/agentprojectcontext/apx/commit/8294d800b8eb578e165c6309ef192b0867c5ee07))
+* **chat:** rebobinar un hilo de canal, y que el turno nuevo caiga donde estaba el viejo ([b8db7f7](https://github.com/agentprojectcontext/apx/commit/b8db7f72e0a59196e7293fe230b707c5cf0b0fba)), closes [#core](https://github.com/agentprojectcontext/apx/issues/core)
+* **mcp:** un MCP puede decir qué tools suyas leen, en vez de que APX adivine ([26af57e](https://github.com/agentprojectcontext/apx/commit/26af57e5482fdfbb9025b9aa7decbef04fdb70ba))
+* **skills:** una sola decisión de skills por turno, y un probador para verla ([1616c92](https://github.com/agentprojectcontext/apx/commit/1616c924e1558cd15ac59e34bc5499599694b52f))
+* **web:** el comando del aviso de versión se copia de un toque ([c361331](https://github.com/agentprojectcontext/apx/commit/c3613312062973805250e636e6bc6b124f891481))
+* **web:** el panel avisa cuando hay una versión nueva ([9e1747a](https://github.com/agentprojectcontext/apx/commit/9e1747a13c124d8dd1458daddd8b1c0cd84e0c6b))
+* **web:** el panel invita al Discord y reparte la app de Android ([e4339df](https://github.com/agentprojectcontext/apx/commit/e4339dfce33b7fc0f35938d338ec29d7be00e669))
+* **web:** la esquina dice una cosa por vez, y ahora pide la estrella ([e0f5f03](https://github.com/agentprojectcontext/apx/commit/e0f5f03f8c20698aacf5d4d0b07bd0aecc67b759))
+
 # [1.111.0](https://github.com/agentprojectcontext/apx/compare/v1.110.1...v1.111.0) (2026-09-14)
 
 
