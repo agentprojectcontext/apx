@@ -448,7 +448,7 @@ public final class MainActivity extends Activity {
                 // callback is the kind of thing that works until it does not,
                 // and `request` is only guaranteed valid for this call.
                 final Uri address = request.getUrl();
-                final String reason = networkReason(error);
+                final String reason = networkReason(error, address);
                 view.post(() -> showLoadFailure(address, reason));
             }
 
@@ -557,6 +557,16 @@ public final class MainActivity extends Activity {
         setContentView(root);
     }
 
+    /** Is the host a literal IPv4/IPv6 address rather than a name? */
+    private boolean looksNumeric(Uri address) {
+        String host = address == null ? null : address.getHost();
+        if (host == null || host.isEmpty()) return false;
+        // An IPv6 literal arrives bracketed, or at least carries a colon; IPv4
+        // is digits and dots and nothing else.
+        if (host.indexOf(':') >= 0 || host.startsWith("[")) return true;
+        return host.matches("\\d{1,3}(\\.\\d{1,3}){3}");
+    }
+
     /**
      * Is this a URL the app itself navigated to, rather than a link inside the
      * panel? `openMobile` only ever loads /mobile, so anything else came from
@@ -584,10 +594,19 @@ public final class MainActivity extends Activity {
      * which of those it looks like is the difference between a screen that
      * blames the app and one that says where to go.
      */
-    private String networkReason(WebResourceError error) {
+    private String networkReason(WebResourceError error, Uri address) {
         int code = error == null ? 0 : error.getErrorCode();
         if (code == WebViewClient.ERROR_HOST_LOOKUP) {
-            return "Ese nombre no resuelve desde este teléfono. Si es una dirección de Tailscale, fijate que Tailscale esté conectado acá.";
+            // Chromium reports the lookup error even when there is nothing to
+            // look up: cut the Wi-Fi on a phone pointed at a literal IP and it
+            // still answers ERROR_HOST_LOOKUP. Sending that reader after their
+            // DNS — or their Tailscale — is sending them after the one thing
+            // that cannot be the cause, and it is the commonest case there is:
+            // a LAN address whose lease moved is exactly what put Manu on this
+            // screen. Only an address with a NAME in it gets the name answer.
+            return looksNumeric(address)
+                ? "Esa dirección no está en la red donde está este teléfono. Suele pasar cuando la computadora cambió de IP, o cuando el teléfono está en otra red."
+                : "Ese nombre no resuelve desde este teléfono. Si es una dirección de Tailscale, fijate que Tailscale esté conectado acá.";
         }
         if (code == WebViewClient.ERROR_CONNECT || code == WebViewClient.ERROR_IO) {
             return "Nadie contestó en esa dirección. Suele pasar cuando la computadora cambió de IP en la red, o cuando el daemon está apagado.";
