@@ -271,6 +271,9 @@ jobs:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           BEFORE: ${{ steps.before.outputs.v }}
           GH_TOKEN: ${{ github.token }}
+          # Optional repo variable: the id of a role to ping. Not a secret — a
+          # role id is public the moment anyone right-clicks the role.
+          ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
         run: |
           after=$(node -p "require('./package.json').version")
           # Same trim as android.yml: a pasted secret carries whatever the
@@ -289,11 +292,39 @@ jobs:
           #
           # Never fatal: the release has already happened and cannot be undone
           # by a failure here, so an unreachable API costs the detail, not the
-          # message. The builder handles empty notes.
+          # message. The builder handles empty notes and empty credits.
           notes="$(gh release view "v$after" --json body -q .body 2>/dev/null || true)"
           if [ -z "$notes" ]; then
             echo "::warning::could not read the notes for v$after — announcing without them"
           fi
-          printf '%s' "$notes" | node scripts/discord-release-payload.js "$after" "$GITHUB_REPOSITORY" > payload.json
-          curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
-            && echo "announced v$after"
+          # Who wrote the commits in this release. The builder drops the bots.
+          export APX_RELEASE_CREDITS="$(
+            gh api "repos/$GITHUB_REPOSITORY/compare/v$BEFORE...v$after" \
+              --jq '[.commits[].author.login] | unique | join(",")' 2>/dev/null || true
+          )"
+          printf '%s' "$notes" | node scripts/discord-release-payload.js \
+            "$after" "$GITHUB_REPOSITORY" "$BEFORE" "$ROLE_ID" > payload.json
+
+          # Discord answers a rejected payload with a 400 and a body saying why,
+          # and `curl -f` would hide both. The status is read instead.
+          post() {
+            curl -sS -o /tmp/discord-response.json -w '%{http_code}' \
+              -X POST -H "Content-Type: application/json" -d @"$1" "$WEBHOOK"
+          }
+          code="$(post payload.json)"
+          if [ "$code" -ge 400 ]; then
+            # The buttons are the one part that may not be allowed: Discord only
+            # takes message components from an application-owned webhook, and a
+            # webhook made from the channel settings is not one. Whether THIS
+            # webhook qualifies cannot be known from here, so it is attempted
+            # and the announcement falls back rather than being lost to a
+            # decoration.
+            echo "::warning::Discord refused the message with buttons (HTTP $code): $(cat /tmp/discord-response.json)"
+            node -e 'const p=JSON.parse(require("fs").readFileSync("payload.json","utf8")); delete p.components; process.stdout.write(JSON.stringify(p))' > payload-plain.json
+            code="$(post payload-plain.json)"
+          fi
+          if [ "$code" -ge 400 ]; then
+            echo "::warning::Discord rejected the announcement (HTTP $code): $(cat /tmp/discord-response.json)"
+            exit 0
+          fi
+          echo "announced v$after (HTTP $code)"
