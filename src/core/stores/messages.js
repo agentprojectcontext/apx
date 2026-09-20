@@ -28,6 +28,7 @@ import { summarizeToolTrace } from "../agent/tool-summary.js";
 import { emitMessageEvent } from "../events/bus.js";
 import { cleanTextOfPseudoToolCalls } from "../agent/tools/tool-call-parser.js";
 import { attachmentsMeta } from "./media-archive.js";
+import { readAgents } from "../apc/parser.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -866,9 +867,31 @@ function groupRows(projectRoot, group_id) {
 }
 const isControlRow = (r) => !!r.meta?.kind || r.type === "system";
 
+/**
+ * Slug → display name, for the two places a group row is TEXT: the thread's
+ * title and its preview line. A group stores its roster and its authors as
+ * SLUGS — that is the identity every other field addresses by, and it stays —
+ * but a list that prints them reads `romi · productor-reels` where the project
+ * knows perfectly well it means `Romi · Frida`.
+ */
+function agentNamer(projectRoot) {
+  let bySlug;
+  return (slug) => {
+    if (!slug) return slug;
+    if (!bySlug) {
+      bySlug = new Map();
+      try {
+        for (const a of readAgents(projectRoot)) bySlug.set(a.slug, a.fields?.Name || a.slug);
+      } catch { /* no project on disk — slugs it is */ }
+    }
+    return bySlug.get(slug) || slug;
+  };
+}
+
 /** One thread row per group in this project, shaped like a listProjectA2AThreads
  *  row so the web sidebar and inbox render it in a group. */
 export function listProjectGroupThreads(projectRoot) {
+  const nameOf = agentNamer(projectRoot);
   const byId = new Map();
   for (const r of groupRows(projectRoot, null)) {
     const gid = r.meta.group_id;
@@ -890,14 +913,14 @@ export function listProjectGroupThreads(projectRoot) {
     out.push({
       id: g.id,
       channel: GROUP_CHANNEL,
-      title: g.title || g.participants.join(" · "),
+      title: g.title || g.participants.map(nameOf).join(" · "),
       participants: g.participants,
       ...(g.homes ? { homes: g.homes } : {}),
       messages: g.display.length,
       started_at: g.created || (g.display[0]?.ts) || "",
       last_ts: g.last?.ts || g.created || "",
       preview: g.last
-        ? `${g.last.author === "owner" ? "vos" : g.last.author}: ${previewText(g.last.body, mediaFromMeta(g.last.meta))}`.slice(0, 140)
+        ? `${g.last.author === "owner" ? "vos" : nameOf(g.last.author)}: ${previewText(g.last.body, mediaFromMeta(g.last.meta))}`.slice(0, 140)
         : undefined,
       preview_at: g.lastAgent?.ts || null,
     });
@@ -933,10 +956,13 @@ export function readProjectGroupThread(projectRoot, group_id) {
     else if (r.type === "user") messages.push(shapeLedgerMessage(r));
     else messages.push(shapeLedgerMessage({ ...r, agent_slug: r.actor_id || r.author, actor_kind: r.actor_kind || "agent" }));
   }
+  const nameOf = agentNamer(projectRoot);
   return {
     id: group_id,
     channel: GROUP_CHANNEL,
-    title: title || participants.join(" · "),
+    title: title || participants.map(nameOf).join(" · "),
+    // Slugs, deliberately: this is the room's roster, and every mention, avatar
+    // and turn is addressed by it. Only the title above is for reading.
     participants,
     ...(homes ? { homes } : {}),
     messages,
