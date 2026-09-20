@@ -212,3 +212,44 @@ test("run-agent: a tool the role gate denies is refused, not run, even when the 
   assert.match(call.result.error, /not available to you/);
   assert.ok(!session.activeNames.has("run_shell"));
 });
+
+test("run-agent: a well-formed call to an unloaded tool just runs", async () => {
+  // The bounce is for a GUESSED call. When the arguments already satisfy the
+  // schema the model never saw, asking it to send them again buys nothing — and
+  // on 2026-09-20 it cost a great deal: the identical retry landed in the
+  // side-effect dedup as "already done", so four `call_runtime` calls were
+  // reported to the owner as running sessions that had never been spawned.
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const session = createToolSession("telegram");
+  const executed = [];
+  const result = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: '[mock:tool:web_search] [mock:args:{"query":"precios de reels"}] buscá',
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: () => ({ web_search: async (args) => { executed.push(args); return { ok: true, hits: 3 }; } }),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 2,
+  });
+  const call = (result.trace || []).find((t) => t.tool === "web_search");
+  assert.ok(call, "the call was made");
+  assert.equal(executed.length, 1, "it ran, once, with the arguments as sent");
+  assert.deepEqual(executed[0], { query: "precios de reels" });
+  assert.ok(!call.result.error, `expected no error, got ${JSON.stringify(call.result)}`);
+  assert.ok(session.activeNames.has("web_search"), "and the tool stays activated");
+});
+
+test("run-agent: a bounced call is not remembered as done, so the retry can run", async () => {
+  // `sideEffects.record` used to be called for every outcome, including the
+  // ones that explicitly did nothing. The dedup reads that ledger, so the
+  // retry of a bounced call came back `{ok: true, deduped: true}` — a refusal
+  // laundered into a success.
+  const { createSideEffectLedger } = await import("#core/agent/loop/side-effects.js");
+  const ledger = createSideEffectLedger();
+  const sig = ledger.signature("send_telegram", { chat_id: 1, text: "hola" });
+  assert.ok(sig, "send_telegram is a side-effecting tool");
+  // Nothing recorded, because nothing ran.
+  assert.equal(ledger.seen(sig), false, "a call that never ran leaves no trace");
+  ledger.record(sig, { ok: true }, { name: "send_telegram", args: { chat_id: 1, text: "hola" } });
+  assert.equal(ledger.seen(sig), true, "one that did is remembered");
+});

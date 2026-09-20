@@ -61,11 +61,21 @@ export default {
     // `[mock:risk:HIGH]` → the emitted tool call carries a security_risk grade,
     // so the inline security analyzer / confirmation gate can be exercised.
     const riskGrade = userText.match(/\[mock:risk:(LOW|MEDIUM|HIGH|UNKNOWN)\]/)?.[1];
+    // `[mock:args:{"a":1}]` → the emitted tool call carries THESE arguments
+    // instead of `{}`. A tool call with empty arguments can only ever exercise
+    // the paths that reject one; testing what the loop does with a call that is
+    // actually well-formed needs a way to emit one.
+    const argsJson = userText.match(/\[mock:args:(\{.*?\})\]/)?.[1];
+    const mockArgs = (() => {
+      if (!argsJson) return null;
+      try { return JSON.parse(argsJson); } catch { return null; }
+    })();
     const mkToolCall = (name, id) => {
+      const args = { ...(mockArgs || {}), ...(riskGrade ? { security_risk: riskGrade } : {}) };
       const toolCall = {
         id,
         type: "function",
-        function: { name, arguments: riskGrade ? JSON.stringify({ security_risk: riskGrade }) : "{}" },
+        function: { name, arguments: Object.keys(args).length ? JSON.stringify(args) : "{}" },
       };
       return {
         text: "",
