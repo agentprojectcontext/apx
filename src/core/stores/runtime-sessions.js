@@ -21,6 +21,11 @@ export function createRuntimeSession({
   runtime,
   taskRef = "",
   title,
+  // WHERE it ran. Recorded because continuing a session has to reopen the same
+  // repo, and because a session record that cannot say which folder it touched
+  // is a record of nothing in particular — the 2026-09-20 sessions all said
+  // "claude-code" and none of them said they had opened the wrong directory.
+  cwd = "",
 }) {
   const dir = path.join(storageRoot, "agents", agentSlug, "sessions");
   fs.mkdirSync(dir, { recursive: true });
@@ -39,6 +44,7 @@ export function createRuntimeSession({
     `completed: \n` +
     `result: \n` +
     `runtime: ${runtime}\n` +
+    `cwd: ${cwd || projectRoot || ""}\n` +
     `external_session_path: \n` +
     `---\n\n` +
     `# ${sessionTitle}\n\n`;
@@ -66,7 +72,127 @@ export function closeRuntimeSession({ filePath, externalSessionPath, exitCode, r
   fs.writeFileSync(filePath, text);
 }
 
+/**
+ * Every runtime session a project holds, newest first.
+ *
+ * These files were only ever WRITTEN — created at spawn, closed at exit — and
+ * read back one at a time by id when a run was resumed. Nothing listed them, so
+ * "what sessions have you been launching?" (Manu, 2026-09-20) had no answer
+ * short of `ls` in a folder nobody documents.
+ *
+ * Frontmatter only: the body of these files is whatever the runtime wrote into
+ * them, which can be long, and a LIST must not pay for it. The transcript the
+ * external engine keeps is named by `external_session_path`; the detail reader
+ * is what follows that pointer.
+ *
+ * @param {string} storageRoot  the project's storage path (~/.apx/projects/<id>)
+ * @param {{limit?: number, agentSlug?: string}} [opts]
+ */
+export function listRuntimeSessions(storageRoot, opts = {}) {
+  const agentsDir = path.join(storageRoot, "agents");
+  let slugs = [];
+  try {
+    slugs = opts.agentSlug ? [opts.agentSlug] : fs.readdirSync(agentsDir);
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const slug of slugs) {
+    const dir = path.join(agentsDir, slug, "sessions");
+    let files = [];
+    try {
+      files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      const full = path.join(dir, file);
+      let text = "";
+      try {
+        // The head is enough: frontmatter sits at the top and these files can
+        // carry a whole session's notes underneath it.
+        const fd = fs.openSync(full, "r");
+        const buf = Buffer.alloc(4096);
+        const n = fs.readSync(fd, buf, 0, 4096, 0);
+        fs.closeSync(fd);
+        text = buf.slice(0, n).toString("utf8");
+      } catch {
+        continue;
+      }
+      const meta = readFrontmatter(text);
+      if (!meta) continue;
+      out.push({
+        ...meta,
+        id: meta.id || file.replace(/\.md$/, ""),
+        agent: meta.agent || slug,
+        path: full,
+        // Derived rather than stored: a file written by an older APX has no
+        // `status` line, and a reader that branched on its absence would draw
+        // every historical session as "unknown".
+        done: !!meta.completed,
+        failed: /⚠️|error|failed/i.test(String(meta.status || meta.result || "")),
+        mtime: safeStatMtime(full),
+      });
+    }
+  }
+  out.sort((a, b) => b.mtime - a.mtime);
+  return typeof opts.limit === "number" ? out.slice(0, opts.limit) : out;
+}
+
+/** One session by id, with the body the runtime left in it. */
+export function readRuntimeSession(storageRoot, id, opts = {}) {
+  const row = listRuntimeSessions(storageRoot, opts).find((s) => s.id === id);
+  if (!row) return null;
+  let text = "";
+  try {
+    text = fs.readFileSync(row.path, "utf8");
+  } catch {
+    return row;
+  }
+  const end = text.indexOf("\n---", 4);
+  return { ...row, body: end === -1 ? "" : text.slice(end + 4).trim() };
+}
+
+function safeStatMtime(p) {
+  try {
+    return fs.statSync(p).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+/** The `key: value` head of a session file, as a flat object. */
+function readFrontmatter(text) {
+  if (!text.startsWith("---\n")) return null;
+  const end = text.indexOf("\n---", 4);
+  if (end === -1) return null;
+  const out = {};
+  for (const line of text.slice(4, end).split("\n")) {
+    const at = line.indexOf(":");
+    if (at <= 0) continue;
+    const key = line.slice(0, at).trim();
+    const value = line.slice(at + 1).trim();
+    if (key) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * One frontmatter line, always.
+ *
+ * `result` is the runtime's own words, and a runtime that answers with a
+ * markdown report puts newlines in them. Written raw, those newlines END the
+ * frontmatter: everything after the first one — `runtime`, `external_session_path`
+ * — falls out of the head and into the body, so a reader gets a session whose
+ * engine is `undefined`. Seen on 2026-09-20-05, whose result opened with a
+ * heading.
+ */
+function oneLine(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
 function setField(text, field, value) {
+  value = oneLine(value);
   if (!text.startsWith("---\n")) return text;
   const end = text.indexOf("\n---", 4);
   if (end === -1) return text;
