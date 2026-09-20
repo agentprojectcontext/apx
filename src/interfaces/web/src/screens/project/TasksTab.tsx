@@ -128,8 +128,12 @@ export function TasksTab({ pid }: { pid?: string }) {
     key: `/api/tasks?pid=${pid ?? "all"}&state=${state}&status=${effStatus}`,
     fetchPage: (limit, offset) =>
       pid
-        ? Tasks.listPage(pid, { state, limit, offset, status: effStatus })
-        : Tasks.globalPage({ state, limit, offset, status: effStatus }),
+        // Attention order on the OPEN list only — on done/dropped nothing is
+        // waiting on anybody, and the bands would shuffle a history that reads
+        // better newest-first. Same call the phone makes, so the two surfaces
+        // cannot drift into two different ideas of "what is on top".
+        ? Tasks.listPage(pid, { state, limit, offset, status: effStatus, ...(state === "open" ? { sort: "attention" as const } : {}) })
+        : Tasks.globalPage({ state, limit, offset, status: effStatus, ...(state === "open" ? { sort: "attention" as const } : {}) }),
     resetKey: `${pid ?? "all"}|${state}|${effStatus}`,
     swr: { dedupingInterval: 0, revalidateOnFocus: true },
   });
@@ -193,6 +197,29 @@ export function TasksTab({ pid }: { pid?: string }) {
     if (selectedId && pool.some((x) => x.id === selectedId)) return;
     select(pool[0].id);
   }, [pool, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Opening a task is reading it — when YOU opened it.
+   *
+   * Deliberately not an effect on `selected`: this screen keeps one task
+   * selected at all times and heals a stale selection by picking the first row,
+   * so an effect would clear the dot on whatever happens to sort to the top the
+   * moment you walk in. That is the one row you certainly have NOT read yet,
+   * since it is the newest thing waiting.
+   *
+   * With the `activity_at` the row carried, never `now`: a comment that lands
+   * between this render and the click has not been read by anybody. The marks
+   * live on the daemon (core/stores/task-reads.js), so clearing one here clears
+   * it on the phone too.
+   */
+  const selectAndRead = (id: string) => {
+    select(id);
+    const row = pool.find((x) => x.id === id);
+    if (!row?.unread || !row.activity_at) return;
+    void Tasks.markRead([{ project_id: rowPid(row), id: row.id, at: row.activity_at }])
+      .then(() => paged.mutate())
+      .catch(() => { /* a mark is a convenience, never the point of the click */ });
+  };
 
   const wantEdit = params.get("edit") === "1";
   const canOpenEditor = wantEdit && !!selected;
@@ -270,7 +297,7 @@ export function TasksTab({ pid }: { pid?: string }) {
             columns={colData?.columns ?? []}
             state={state}
             selectedId={selectedId}
-            onSelect={select}
+            onSelect={selectAndRead}
             onChanged={refreshAll}
             refreshKey={boardRev}
             onItems={setBoardItems}
@@ -309,7 +336,7 @@ export function TasksTab({ pid }: { pid?: string }) {
             tasks={paged.items}
             pid={rowPid}
             selectedId={selected?.id ?? null}
-            onSelect={select}
+            onSelect={selectAndRead}
             onEdit={(task) => setEditing({ pid: rowPid(task), task })}
             onChanged={() => paged.mutate()}
             checkedIds={checkedIds}
