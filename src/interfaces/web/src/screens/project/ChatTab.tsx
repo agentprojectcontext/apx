@@ -932,6 +932,28 @@ export function ChatTab({
   const regenerateHandler = isGroup ? (streaming ? undefined : groupRegenerate) : onRegenerate;
   const editHandler = isGroup ? (streaming ? undefined : groupEdit) : onEditResend;
 
+  // ONE GEOMETRY FOR THE WHOLE HEADER STRIP. Tasks, tools and add-person are
+  // three controls answering three questions, and they were drawn at three
+  // sizes: an 11px chip spelling out a word, a 13px glyph wired to a switch,
+  // and a 20px icon in a 40px circle. Manu, looking at the phone: "el icono de
+  // invitar a un agente se ve enorme respecto a los otros dos, los 3 deberían
+  // tener el mismo tamaño". Same box, same glyph — and the ⋯ takes it too,
+  // because it stands in the same row and would inherit the complaint.
+  //
+  // THE SMALL BOX ON BOTH SURFACES, which is not the usual phone rule. A
+  // header control is normally grown for the thumb there, and this row is the
+  // exception on purpose: four 40px circles ate half of a 375px header and
+  // left the session name three letters wide. Manu: "en mobile el tamaño que
+  // quiero es el pequeño no el grande, pensá que ver el nombre arriba de
+  // sesión y demás es importante". What the phone keeps is the touch
+  // FEEDBACK — active: rather than hover:, which sticks on a touch screen.
+  // BackgroundJobsMenu draws its own copy of this box; they stay in step.
+  const ctlIcon = 16;
+  const ctlBtn = cn(
+    "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-fg",
+    compact ? "active:bg-accent/60" : "hover:bg-accent/60",
+  );
+
   if (agents.isLoading) return <Loading />;
 
   return (
@@ -1096,14 +1118,13 @@ export function ChatTab({
               spelled out where there is width, folded behind one ⋯ where there
               is not. On the phone they used to be absent altogether. */}
           <div className="flex shrink-0 items-center gap-1">
-            {/* Same switch as "create group": on = tools/ActionGroup, off = pelado
-                (narration as bubbles, tools hidden). Lives next to add-person.
-
-                The wrench stays on the PHONE too. It used to be dropped there
-                for width, which left a bare unlabelled toggle in a header with
-                no hover to explain it — and since the transcript starts pelado,
-                the one control that brings the tool calls back was the one
-                control nobody could identify. It is 13px; the room exists. */}
+            {/* Three controls, one size, in this order: what is running, what
+                the transcript shows, who else is in the room. Tools on =
+                ActionGroup, off = pelado (narration as bubbles) — the same
+                choice the "create group" checkbox seeds. It stays on the PHONE
+                too: it used to be dropped there for width, and since the
+                transcript starts pelado, the one control that brings the tool
+                calls back was the one control nobody could reach. */}
             {/* Work this conversation left running, where the conversation is.
                 A background job is launched BY a turn in some chat, and until
                 now the only place it appeared was a count at the top of the
@@ -1130,46 +1151,61 @@ export function ChatTab({
               compact
             />
             {/* The way in to this chat's timeline — and, closed, the only place
-                that says there is something to look at. The counts ride on the
-                button so a chat with a step still open reports it without being
-                opened; that is the half the TikTok note was about. */}
-            <Tip content={t("milestones.open_panel")}>
-              <Button
-                variant={timelineOpen ? "primary" : "ghost"}
-                size="sm"
-                data-testid="chat-timeline-toggle"
-                aria-pressed={timelineOpen}
-                aria-label={t("milestones.open_panel")}
-                onClick={() => setTimelineOpen((v) => !v)}
-                className="shrink-0 gap-1"
-              >
-                <RouteIcon size={14} />
-                {milestones.stats.failed > 0 ? (
-                  <span className="text-[11px] tabular-nums text-rose-700 dark:text-rose-400">
-                    {milestones.stats.failed}
-                  </span>
-                ) : milestones.stats.open > 0 ? (
-                  <span className="text-[11px] tabular-nums text-amber-700 dark:text-amber-400">
-                    {milestones.stats.open}
-                  </span>
-                ) : null}
-              </Button>
-            </Tip>
-            <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full text-muted-fg",
-                  compact ? "px-1.5" : "px-1",
-                )}
-                aria-label={t("chat_ui.show_tools")}
-              >
-                <Wrench
-                  size={13}
-                  className={cn("shrink-0 transition-opacity", showTools ? "text-primary opacity-100" : "opacity-70")}
+                that says there is something to look at.
+
+                SAME BOX AS THE OTHER THREE (ctlBtn/ctlIcon): this row is one
+                strip of controls, and a button drawn at its own size is the
+                complaint that produced those two constants in the first place.
+                So the counts do NOT widen it — they ride as a dot on the
+                corner, which is what a badge is for. A chat with a step still
+                open reports it without being opened, and the header still fits
+                a phone. */}
+            <div className="relative shrink-0">
+              <Tip content={t("milestones.open_panel")}>
+                <button
+                  type="button"
+                  data-testid="chat-timeline-toggle"
+                  aria-pressed={timelineOpen}
+                  aria-label={t("milestones.open_panel")}
+                  onClick={() => setTimelineOpen((v) => !v)}
+                  className={cn(ctlBtn, timelineOpen && "bg-primary/12 text-primary")}
+                >
+                  <RouteIcon size={ctlIcon} />
+                </button>
+              </Tip>
+              {milestones.stats.failed > 0 || milestones.stats.open > 0 ? (
+                <span
+                  data-testid="chat-timeline-badge"
                   aria-hidden
-                />
-                <Switch checked={showTools} onChange={setShowTools} />
-              </div>
+                  className={cn(
+                    "pointer-events-none absolute -right-0.5 -top-0.5 grid min-w-3.5 place-items-center",
+                    "rounded-full px-1 text-[9px] font-semibold leading-[14px] tabular-nums text-white",
+                    milestones.stats.failed > 0 ? "bg-rose-600" : "bg-amber-600",
+                  )}
+                >
+                  {milestones.stats.failed || milestones.stats.open}
+                </span>
+              ) : null}
+            </div>
+            {/* ONE CONTROL, not a glyph explaining a switch beside it. The
+                wrench already IS the thing being turned on, so the switch was
+                a second widget restating it — and on a phone the pair cost as
+                much width as the other two controls together. Pressed state
+                carries the answer now: lit in the brand colour with the rail
+                behind it when tools are shown, muted and flat when they are
+                not. `aria-pressed` says the same thing to a screen reader,
+                which is what the Switch used to be doing. */}
+            <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
+              <button
+                type="button"
+                data-testid="toggle-tools"
+                aria-label={t("chat_ui.show_tools")}
+                aria-pressed={showTools}
+                onClick={() => setShowTools(!showTools)}
+                className={cn(ctlBtn, showTools && "bg-primary/12 text-primary")}
+              >
+                <Wrench size={ctlIcon} />
+              </button>
             </Tip>
             {!agentList.length && !activeIsRoby && !compact && (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
@@ -1185,13 +1221,9 @@ export function ChatTab({
                     type="button"
                     aria-label={isGroup ? t("project.groups.members_label") : t("project.groups.make_group")}
                     onClick={() => setAddOpen((o) => !o)}
-                    className={cn(
-                      "flex items-center justify-center rounded-full text-muted-fg",
-                      compact ? "size-10 active:bg-accent/60" : "size-8 hover:bg-accent/60",
-                      addOpen && "bg-accent/60",
-                    )}
+                    className={cn(ctlBtn, addOpen && "bg-accent/60")}
                   >
-                    <UserPlus size={compact ? 20 : 16} />
+                    <UserPlus size={ctlIcon} />
                   </button>
                 </Tip>
                 {addOpen && (
@@ -1280,12 +1312,9 @@ export function ChatTab({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={t("common.more")}
-                  className={cn(
-                    "flex items-center justify-center rounded-full text-muted-fg data-[popup-open]:bg-accent/60",
-                    compact ? "size-10 active:bg-accent/60" : "size-8 hover:bg-accent/60",
-                  )}
+                  className={cn(ctlBtn, "data-[popup-open]:bg-accent/60")}
                 >
-                  <MoreVertical size={compact ? 20 : 16} />
+                  <MoreVertical size={ctlIcon} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" sideOffset={6} className="w-60">
                   {/* Which session these act on, named at the top — the same

@@ -2106,7 +2106,6 @@ export const en = {
     actions_count_one:   "1 action",
     jobs_running:        "{n} tasks running",
     jobs_running_one:    "1 task running",
-    jobs_running_none:   "No tasks",
     job_waiting_on:      "Waiting on {peer}",
     job_wake_done:       "The work it left running finished",
     job_wake_failed:     "The work it left running did not finish cleanly",

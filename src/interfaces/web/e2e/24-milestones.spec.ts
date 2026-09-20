@@ -216,9 +216,11 @@ test.describe("timeline", () => {
 
     const toggle = page.getByTestId("chat-timeline-toggle");
     await expect(toggle).toBeVisible();
-    // Closed, the button is the only thing that says there is something to look
-    // at — so it carries the count rather than waiting to be opened.
-    await expect(toggle).toContainText("1");
+    // Closed, this is the only thing that says there is something to look at —
+    // so the count rides on it as a badge. A badge and not text inside the
+    // button, because the header is one strip of same-sized controls and a
+    // wider one there is what the sizing rules exist to prevent.
+    await expect(page.getByTestId("chat-timeline-badge")).toHaveText("1");
     await expect(page.getByTestId("chat-timeline-panel")).toHaveCount(0);
 
     await toggle.click();

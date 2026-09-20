@@ -157,7 +157,11 @@ test.describe("background jobs", () => {
     const chip = page.getByTestId("thread-jobs");
     await expect(chip).toBeVisible();
     await expect(chip).toHaveAttribute("data-state-running", "false");
-    await expect(chip).toHaveText(/sin tareas|no tasks/i);
+    // A NUMBER, not a sentence. The header used to spell "no tasks" out, which
+    // on a phone cost the width of the two controls beside it and still read
+    // as a label rather than a status. The word lives in the tooltip now.
+    await expect(chip).toHaveText("0");
+    await expect(chip).toHaveAttribute("aria-label", /nada|nothing/i);
     // Meanwhile the global one still counts it — that is precisely its job.
     await expect(page.getByTestId("background-jobs")).toHaveText("1");
   });
@@ -190,9 +194,10 @@ test.describe("background jobs", () => {
     // the conversation actually looks, rather than at the top of the window.
     const chip = page.getByTestId("thread-jobs");
     await expect(chip).toBeVisible();
-    // In a header a bare count is a mystery glyph next to a wrench; the word is
-    // what makes it a status.
-    await expect(chip).toContainText(/tarea|task/i);
+    // Its own count, which is the whole point of the scoped mount: this chat's
+    // one job, said in the one character it takes to say it.
+    await expect(chip).toHaveText("1");
+    await expect(chip).toHaveAttribute("aria-label", /1/);
     // Same panel, one tap away — not a second, smaller rendering of the truth.
     await chip.click();
     await expect(page.getByTestId(`cancel-job-${job.id}`)).toBeVisible();
