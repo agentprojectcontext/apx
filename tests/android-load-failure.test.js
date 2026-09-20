@@ -73,6 +73,16 @@ test("a net:: code is turned into something a person can act on", () => {
   // Each branch names WHICH of the two halves to go fix — the phone's
   // Tailscale, or the machine the daemon runs on.
   assert.match(src, /WebViewClient\.ERROR_HOST_LOOKUP/);
+
+  // A lookup error on a LITERAL IP is not a lookup problem. Chromium answers
+  // ERROR_HOST_LOOKUP with the Wi-Fi off even when there is no name to look
+  // up, and that is the commonest case of all — a LAN address whose DHCP lease
+  // moved. Verified on the A55 on 2026-09-20: pointed at 192.168.18.134 with
+  // no route, the first version of this screen sent the reader after their
+  // DNS and their Tailscale, neither of which could be the cause.
+  assert.match(src, /private boolean looksNumeric\(Uri address\)/);
+  assert.match(src, /return looksNumeric\(address\)/);
+  assert.match(src, /Esa dirección no está en la red donde está este teléfono/);
   assert.match(src, /Tailscale esté conectado acá/);
   assert.match(src, /WebViewClient\.ERROR_CONNECT \|\| code == WebViewClient\.ERROR_IO/);
   assert.match(src, /cambió de IP en la red/);
