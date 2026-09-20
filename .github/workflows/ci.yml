@@ -261,9 +261,11 @@ jobs:
       # start workflows from events that token creates. Such a workflow would
       # never run, and nothing would say why.
       #
-      # Minors and majors only. This repo published 55 versions in 30 days —
-      # announcing every patch turns the channel into something everyone mutes,
-      # which costs more than the patches are worth. They are all in CHANGELOG.md.
+      # EVERY release, patches included. It was minors and majors only while the
+      # message was an install line and a link — at 55 versions in 30 days, that
+      # many "there is a new version, go read elsewhere" posts is something
+      # people mute. Now the announcement carries what actually changed, so a
+      # patch is a line worth reading rather than a notification with no content.
       - name: Announce the release on Discord
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -280,9 +282,6 @@ jobs:
           fi
           if [ "$BEFORE" = "$after" ]; then
             echo "semantic-release published nothing"; exit 0
-          fi
-          if [ "${BEFORE%.*}" = "${after%.*}" ]; then
-            echo "v$after is a patch — not announced"; exit 0
           fi
           # The notes semantic-release just wrote ARE the announcement — the
           # message used to be an install line and a link to CHANGELOG.md, so
