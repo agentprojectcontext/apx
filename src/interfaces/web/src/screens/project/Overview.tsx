@@ -135,36 +135,39 @@ export function Overview({ pid }: { pid: string }) {
         <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
       </div>
 
-      {/* The two views of the same project, side by side: what it HAS DONE and
-          who it is MADE OF. Reading one against the other is the point — a
-          stalled step next to the agent that owns it — and stacked full-width
-          they were a scroll apart. One column below `lg`, where two would make
-          both unreadable rather than comparable. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
-        {/* What the project has actually been through, across every chat. The
-            per-chat rail cannot answer "which conversation did that stall in" —
-            you have to already know. This is where a request nobody answered and
-            a step the agent recorded as failed become findable. */}
-        <Section
-          title={t("milestones.title")}
-          description={t("milestones.description")}
-          className="!p-4"
-        >
-          {/* A GLANCE, not the whole thing. A real week came back 85 steps
-              long — the transcript again in a different shape, pushing the rest
-              of the page off the bottom. The newest handful, and the way to the
-              rest is the screen built for it. */}
-          <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
-        </Section>
+      {/* FULL WIDTH EACH, and the side-by-side pair that used to be here was
+          the mistake. The argument for it was good — what the project HAS DONE
+          beside who it is MADE OF, read one against the other — and the pixels
+          disagreed: at half width a step's own sentence truncated mid-line
+          ("Run April's daily Moltbook editorial session through the APX MCP
+          server named…") while the agent map was squeezed into a column it
+          could not lay out in. Two things cramped side by side are not more
+          comparable than two things stacked; they are just both harder to read.
+          The cap above is what keeps them a scroll apart rather than a page. */}
 
-        {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
-            (memory / threads / tasks / heartbeats), connected by hierarchy. */}
-        {agentList.length > 0 && (
-          <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
-            <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
-          </Section>
-        )}
-      </div>
+      {/* What the project has actually been through, across every chat. The
+          per-chat rail cannot answer "which conversation did that stall in" —
+          you have to already know. This is where a request nobody answered and
+          a step the agent recorded as failed become findable. */}
+      <Section
+        title={t("milestones.title")}
+        description={t("milestones.description")}
+        className="!p-4"
+      >
+        {/* A GLANCE, not the whole thing. A real week came back 85 steps
+            long — the transcript again in a different shape, pushing the rest
+            of the page off the bottom. The newest handful, and the way to the
+            rest is the screen built for it. */}
+        <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
+      </Section>
+
+      {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
+          (memory / threads / tasks / heartbeats), connected by hierarchy. */}
+      {agentList.length > 0 && (
+        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
+          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
+        </Section>
+      )}
     </div>
   );
 }
