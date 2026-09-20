@@ -190,7 +190,12 @@ export async function projectTimeline({
     const steps = deriveSteps(thread.turns).map((s) => ({
       ...s,
       channel: thread.channel,
+      // TWO NAMES, AND THEY ARE NOT INTERCHANGEABLE. `agent` is what the turn
+      // showed a reader ("Magui"); `agent_slug` is what addresses it. A link
+      // built from the display name opens nothing, and the two are the same
+      // string often enough that the bug hides until an agent has a real name.
       agent: s.agent || thread.agent,
+      agent_slug: thread.agent,
       conversation_id: thread.conversation_id,
     }));
     const mine = thread.conversation_id ? byConversation.get(thread.conversation_id) || [] : [];

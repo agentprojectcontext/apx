@@ -1,5 +1,7 @@
+import type React from "react";
 import { useState } from "react";
-import { AlertCircle, Check, ChevronRight, Circle, Route } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { AlertCircle, ArrowUpRight, Check, ChevronRight, Circle, Route } from "lucide-react";
 import { cn } from "../../lib/cn";
 import type { MilestoneState, TimelineEntry, TimelineStats } from "../../lib/api/milestones";
 import { t } from "../../i18n";
@@ -57,7 +59,7 @@ function clock(iso: string | null | undefined): string {
     : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-function Row({ entry }: { entry: TimelineEntry }) {
+function Row({ entry, href }: { entry: TimelineEntry; href?: string | null }) {
   const state = reportedState(entry);
   const tools = entry.tools;
   // `data-milestone-state`, not `data-state`: the latter is the vocabulary a
@@ -71,9 +73,24 @@ function Row({ entry }: { entry: TimelineEntry }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className={cn("truncate text-[12px]", !entry.title && "text-muted-foreground")}>
-            {entry.title || t("milestones.unnamed_step")}
-          </span>
+          {/* A step names work that happened somewhere. Getting from the line to
+              the conversation that produced it is the question a reader has the
+              moment they spot one that failed, and without the link the answer
+              is "go and find it yourself". */}
+          {href ? (
+            <NavLink
+              to={href}
+              data-testid="milestone-open-chat"
+              className="group flex min-w-0 items-center gap-1 text-[12px] hover:underline"
+            >
+              <span className="truncate">{entry.title || t("milestones.unnamed_step")}</span>
+              <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" aria-hidden />
+            </NavLink>
+          ) : (
+            <span className={cn("truncate text-[12px]", !entry.title && "text-muted-foreground")}>
+              {entry.title || t("milestones.unnamed_step")}
+            </span>
+          )}
           <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
             {clock(entry.started_at)}
           </span>
@@ -136,9 +153,16 @@ interface Props {
    * reads as broken, so the caller passes false and shows its own empty line.
    */
   hideWhenUneventful?: boolean;
+  /** Where a step's own chat lives, when there is one to go to. Returning null
+   *  leaves the row as plain text — which is right inside a chat's own panel,
+   *  where every link would point at the page you are already on. */
+  chatHref?: (entry: TimelineEntry) => string | null;
+  /** Rendered under the last row. The cross-chat glance shows a slice and puts
+   *  the way to the rest here; the full screen passes nothing. */
+  footer?: React.ReactNode;
 }
 
-export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUneventful = true }: Props) {
+export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUneventful = true, chatHref, footer }: Props) {
   const [manual, setManual] = useState<boolean | null>(null);
   const open = manual ?? defaultOpen;
 
@@ -189,10 +213,17 @@ export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUne
       {open && (
         <ul className="flex flex-col border-t border-border/60 px-2.5 py-2 [&>li:last-child>div:first-child>span]:hidden">
           {entries.map((entry, i) => (
-            <Row key={`${entry.kind}-${entry.started_at}-${i}`} entry={entry} />
+            <Row
+              key={`${entry.kind}-${entry.started_at}-${i}`}
+              entry={entry}
+              href={chatHref?.(entry) ?? null}
+            />
           ))}
         </ul>
       )}
+      {open && footer ? (
+        <div className="border-t border-border/60 px-2.5 py-1.5 text-[12px]">{footer}</div>
+      ) : null}
     </div>
   );
 }

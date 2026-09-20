@@ -267,6 +267,7 @@ export const en = {
     empty:           "Nothing recorded in this range.",
     empty_chat:      "Nothing recorded in this chat yet.",
     open_panel:      "Timeline",
+    view_more:       "{n} more — see them all",
     range_today:     "Today",
     range_week:      "7 days",
     range_month:     "30 days",
