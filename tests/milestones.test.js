@@ -437,6 +437,51 @@ test("the cross-chat timeline is built from the ledger, one thread at a time", a
   assert.equal(stats.open, 1);
 });
 
+// Seen live the day this shipped. Four milestones written at 23:51 by a CLI
+// turn rendered underneath a scheduled run from 20:00 — because both had no
+// conversation id, both keyed to "" in the grouping map, and the routine's
+// open-ended last step swallowed them. A missing id is the ABSENCE of an
+// identity, never a shared one.
+test("a milestone with no conversation is not adopted by a thread that also has none", async () => {
+  const dir = path.join(STORE, "messages");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "2026-09-19.jsonl"),
+    [
+      // A routine thread: ledger rows, and no conversation id on them either.
+      { ts: "2026-09-19T20:00:00Z", channel: "routine", type: "user", agent_slug: "watcher", body: "watch the projects" },
+      { ts: "2026-09-19T20:00:30Z", channel: "routine", type: "agent", agent_slug: "watcher", body: "nothing to report" },
+    ].map((r) => JSON.stringify(r)).join("\n") + "\n"
+  );
+  // Recorded hours later, from a CLI turn that belongs to no conversation.
+  startMilestone(STORE, { title: "Recorded from the CLI", state: "done", channel: "cli" });
+
+  const { entries } = await projectTimeline({ storagePath: STORE, since: "2026-09-19T00:00:00Z" });
+  const routineStep = entries.find((e) => e.kind === "derived");
+  assert.deepEqual(routineStep.milestones, [], "the routine did not record this");
+
+  const standalone = entries.find((e) => e.kind === "declared");
+  assert.ok(standalone, "it must still show, on a row of its own");
+  assert.equal(standalone.title, "Recorded from the CLI");
+});
+
+test("a milestone WITH a conversation id still lands inside that thread", async () => {
+  const dir = path.join(STORE, "messages");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "2026-09-19.jsonl"),
+    [
+      { ts: "2026-09-19T10:00:00Z", channel: "web", type: "user", agent_slug: "rocky", body: "make it", meta: { conversation: "c1" } },
+      { ts: "2026-09-19T10:30:00Z", channel: "web", type: "agent", agent_slug: "rocky", body: "done", meta: { conversation: "c1" } },
+    ].map((r) => JSON.stringify(r)).join("\n") + "\n"
+  );
+  startMilestone(STORE, { title: "Rendered", state: "done", conversation_id: "c1" });
+
+  const { entries } = await projectTimeline({ storagePath: STORE, since: "2026-09-19T00:00:00Z" });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].milestones.length, 1);
+});
+
 test("a declared milestone whose chat left no ledger rows still shows", async () => {
   startMilestone(STORE, { title: "Routine ran", state: "failed", conversation_id: "quiet" });
   const { entries } = await projectTimeline({ storagePath: STORE, since: "2000-01-01T00:00:00Z" });
