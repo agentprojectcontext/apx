@@ -276,6 +276,34 @@ export interface TaskEntry {
   comment_count?: number;
   subtask_count?: number;
   subtask_done?: number;
+
+  // ── what this card is asking for (core/tasks/attention.js) ───────────────
+  //
+  // Four fields and not one badge, because they are four different questions:
+  // a card can have unread activity without needing a reply, need a reply
+  // without being blocked, and be blocked with nothing new to read.
+
+  /** Newest thing SOMEBODY ELSE did here. "" when nothing is anyone else's. */
+  activity_at?: string;
+  /** The newest comment names the owner — it is waiting on them. */
+  awaits_owner?: boolean;
+  /** Open, blocked, and assigned to the human: owed, but not news. */
+  blocked_by_owner?: boolean;
+  /** Who spoke last and what about, clipped server-side for the list. */
+  last_comment?: TaskCommentPreview | null;
+  /** Has anything happened here since this task was last opened, on ANY
+   *  device? Decided by the daemon (core/stores/task-reads.js). */
+  unread?: boolean;
+}
+
+export interface TaskCommentPreview {
+  id: string;
+  ts: string;
+  by: string | null;
+  text: string;
+  mentions: string[];
+  /** This comment addressed the owner. */
+  mentions_owner: boolean;
 }
 
 export interface TaskComment {

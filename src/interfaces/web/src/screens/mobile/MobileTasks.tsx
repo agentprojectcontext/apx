@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
+import { useSearchParams } from "react-router-dom";
 import { Check, ExternalLink, ListTodo, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { StatusBadge, StatusIcon, effectiveStatus, statusTint } from "../../components/tasks/taskStatus";
@@ -54,14 +55,39 @@ export function MobileTasks() {
   const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
   const { projects } = useProjects();
 
+  // Deep link from the notification centre: `?task=<id>&pid=<n>` opens that
+  // card as soon as the page it is on has loaded. Cleared from the URL once
+  // it opens, so a back gesture does not re-open the sheet you just closed.
+  const [params, setParams] = useSearchParams();
+  const wantTask = params.get("task");
+  const wantPid = params.get("pid");
+
   const limit = PAGE * pages;
   const { data, isLoading, mutate } = useSWR(
     `mobile-tasks:${state}:${limit}`,
-    () => Tasks.globalPage({ state, limit, offset: 0 }),
+    // `sort: "attention"` on the OPEN list only. On done/dropped there is
+    // nothing waiting on anybody, and the bands would just shuffle a history
+    // that reads better newest-first.
+    () => Tasks.globalPage({ state, limit, offset: 0, ...(state === "open" ? { sort: "attention" as const } : {}) }),
     { revalidateOnFocus: true, keepPreviousData: true },
   );
   const items = data?.items ?? NONE;
   const total = data?.total ?? 0;
+
+  useEffect(() => {
+    if (!wantTask) return;
+    const hit = items.find((x) => x.id === wantTask && (!wantPid || String(x.project_id) === wantPid));
+    if (!hit) return;
+    setOpen(hit);
+    markRead(hit);
+    const next = new URLSearchParams(params);
+    next.delete("task");
+    next.delete("pid");
+    setParams(next, { replace: true });
+    // `items` is the dependency that matters: the card cannot be opened before
+    // the page it lives on has arrived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantTask, wantPid, items]);
 
   const q = query.trim().toLowerCase();
   const shown = useMemo(() => {
@@ -72,17 +98,65 @@ export function MobileTasks() {
     );
   }, [items, q]);
 
+  /**
+   * What ASKED you something rides above the calendar.
+   *
+   * The list is grouped by due date, which is the right shape for work you
+   * owe — but a card whose newest comment names you has no due date most of
+   * the time, so it landed under "sin fecha", below everything. "Siempre
+   * encima las más actualizadas" (2026-09-20) is about exactly that: a
+   * question waiting on you is not a date, it is an interruption.
+   *
+   * Only on the OPEN list: on done/dropped nothing is waiting on anybody.
+   */
+  const asking = useMemo(
+    () => (state === "open" ? shown.filter((x) => x.awaits_owner) : NONE),
+    [shown, state],
+  );
+  const rest = useMemo(
+    () => (asking.length ? shown.filter((x) => !x.awaits_owner) : shown),
+    [shown, asking],
+  );
+
   // "Vencida" is about work still owed. On the done/dropped lists the date has
   // stopped being a deadline, so the buckets go away and the server's order
   // (newest first) stands.
   const groups = useMemo(
-    () => groupByDue(shown, (task) => task.due, { keep: state === "open" }),
-    [shown, state],
+    () => groupByDue(rest, (task) => task.due, { keep: state === "open" }),
+    [rest, state],
   );
 
   const changeState = (next: State) => {
     setState(next);
     setPages(1);
+  };
+
+  /**
+   * Opening a card is reading it.
+   *
+   * With the `activity_at` the ROW carried, not `now`: a comment that lands
+   * between this render and the tap has not been read by anybody, and stamping
+   * the clock would swallow it. Optimistic on the local list so the dot goes
+   * out under your finger, then reconciled by the refetch.
+   */
+  const markRead = (task: GlobalTaskEntry) => {
+    if (!task.unread || !task.activity_at) return;
+    void mutate(
+      async (current) => {
+        await Tasks.markRead([{ project_id: task.project_id, id: task.id, at: task.activity_at! }]).catch(() => {});
+        return current;
+      },
+      {
+        optimisticData: (current) => ({
+          total: current?.total ?? 0,
+          items: (current?.items ?? []).map((r) => (
+            r.id === task.id && r.project_id === task.project_id ? { ...r, unread: false } : r
+          )),
+        }),
+        revalidate: true,
+        rollbackOnError: false,
+      },
+    );
   };
 
   return (
@@ -121,6 +195,22 @@ export function MobileTasks() {
           </p>
         )}
 
+        {asking.length > 0 && (
+          <section data-testid="mobile-tasks-asking">
+            <MobileGroupHeader label={t("tasks.awaits_you")} count={asking.length} />
+            <ul className="divide-y divide-border/60">
+              {asking.map((task) => (
+                <TaskRow
+                  key={`${task.project_id}-${task.id}`}
+                  task={task}
+                  onOpen={() => { markRead(task); setOpen(task); }}
+                  onChanged={() => void mutate()}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
+
         {groups.map((group) => (
           <section key={group.bucket ?? "all"}>
             {group.bucket && (
@@ -131,7 +221,7 @@ export function MobileTasks() {
                 <TaskRow
                   key={`${task.project_id}-${task.id}`}
                   task={task}
-                  onOpen={() => setOpen(task)}
+                  onOpen={() => { markRead(task); setOpen(task); }}
                   onChanged={() => void mutate()}
                 />
               ))}
@@ -275,9 +365,21 @@ function TaskRow({ task, onOpen, onChanged }: {
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-start gap-2">
+            {/* The dot sits BEFORE the title and takes the space whether or not
+                it is lit, so a card that gets read does not reflow the row it
+                is in. Same blue, same meaning as the one on a chat. */}
+            <span
+              aria-hidden
+              data-testid={task.unread ? `mobile-task-unread-${task.id}` : undefined}
+              className={cn(
+                "mt-[7px] size-2 shrink-0 rounded-full",
+                task.unread ? "bg-sky-500" : "bg-transparent",
+              )}
+            />
             <span className={cn(
               "min-w-0 flex-1 text-[15px] leading-snug [overflow-wrap:anywhere]",
               task.state === "open" ? "font-medium" : "text-muted-fg line-through decoration-muted-fg/40",
+              task.unread && task.state === "open" && "font-semibold",
             )}>
               {task.title}
             </span>
@@ -286,6 +388,24 @@ function TaskRow({ task, onOpen, onChanged }: {
           <span className="mt-0.5 block truncate text-xs text-muted-fg">
             {[task.project_name?.split("/").pop(), task.agent].filter(Boolean).join(" · ")}
           </span>
+          {/* Who spoke last, and what about. A row that only said "3
+              comentarios" could not be triaged without opening it. */}
+          {task.last_comment && (
+            <span className="mt-1 flex items-start gap-1.5">
+              {task.awaits_owner && (
+                <span
+                  data-testid={`mobile-task-awaits-${task.id}`}
+                  className="shrink-0 rounded bg-sky-500/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400"
+                >
+                  {t("tasks.awaits_you")}
+                </span>
+              )}
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-fg">
+                <b className="font-medium text-fg/70">{task.last_comment.by || "?"}:</b>{" "}
+                {task.last_comment.text}
+              </span>
+            </span>
+          )}
         </span>
       </button>
     </SwipeRow>
@@ -366,6 +486,16 @@ function TaskSheet({
           <SheetTitle className="pr-8 text-left text-base leading-snug">{task.title}</SheetTitle>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={effectiveStatus(live)} />
+            {/* The reason this card was at the top of the list, said once where
+                the answer is going to be written. */}
+            {task.awaits_owner && (
+              <span
+                data-testid="mobile-task-sheet-awaits"
+                className="rounded bg-sky-500/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400"
+              >
+                {t("tasks.awaits_you")}
+              </span>
+            )}
             <span className="text-[11px] text-muted-fg">{task.project_name?.split("/").pop()}</span>
           </div>
         </SheetHeader>

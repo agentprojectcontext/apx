@@ -198,6 +198,13 @@ export const es = {
     no_folders:  "Sin carpetas.",
   },
   mobile: {
+    tab_attention: "Avisos",
+    tab_attention_badge: "{count} esperando tu respuesta",
+    attention_empty: "Nada esperando. Todo al día.",
+    attention_awaiting: "Te preguntaron",
+    attention_chats: "Chats sin leer",
+    attention_unread_tasks: "Tasks con novedades",
+    attention_blocked: "Trabadas por vos",
     back: "Volver",
     sessions: "Sesiones",
     no_sessions: "Sin sesiones guardadas todavía.",
@@ -2618,6 +2625,8 @@ export const es = {
   },
 
   tasks: {
+    // The card is waiting on the OWNER: its newest comment named them.
+    awaits_you: "Requiere respuesta",
     category_general: "Tarea",
     category_trip: "Mandado en el camino",
     location_label: "Lugar",
