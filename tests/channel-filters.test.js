@@ -141,7 +141,11 @@ test("the open conversation keeps its project — except inside that project", (
   const chat = webSrc("screens", "project", "ChatTab.tsx");
   assert.match(chat, /showProject\?: boolean;/, "a flag, not a second header");
   assert.match(chat, /showProject = false/, "off unless a surface asks for it");
-  assert.match(chat, /showProject && \(\s*<ProjectTag/);
+  // Two places, one flag: the desktop's one-line meta, and — on the phone —
+  // the band under the header, where the project has the whole width instead
+  // of a share of what a face and five controls left over.
+  assert.match(chat, /showProject && !compact && \(\s*<ProjectTag/);
+  assert.match(chat, /chat-header-where[\s\S]{0,400}showProject && <ProjectTag/);
   // The name comes from the project list, not from whoever opened the chat: a
   // deep link has no inbox row behind it (see `placeholderRow`), so a prop
   // would be there when you tapped in and missing when you followed a link.
