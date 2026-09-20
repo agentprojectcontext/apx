@@ -33,6 +33,7 @@ import {
   routineMemoryPath,
 } from "#core/stores/routine-memory.js";
 import { buildRoutineHeader, prependRoutineHeader } from "#core/routines/header.js";
+import { shellCommand, killChild } from "#core/util/shell.js";
 import {
   startRoutineRun,
   setRoutineRunPhase,
@@ -519,17 +520,30 @@ function handleShell(ctx, routine) {
     const { command, cmd, timeout_ms = 30_000 } = routine.spec || {};
     const finalCmd = command || cmd;
     if (!finalCmd) return reject(new Error("shell routine needs spec.command (or spec.cmd)"));
-    const child = spawn("sh", ["-c", finalCmd], {
+    const { file, args, options } = shellCommand(finalCmd);
+    const child = spawn(file, args, {
       cwd: ctx.project.path,
       stdio: ["ignore", "pipe", "pipe"],
+      ...options,
     });
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => child.kill("SIGTERM"), timeout_ms);
+    let cancelKill = null;
+    const timer = setTimeout(() => { cancelKill = killChild(child); }, timeout_ms);
     child.stdout.on("data", (c) => (stdout += c.toString()));
     child.stderr.on("data", (c) => (stderr += c.toString()));
+    // A shell that is not there (Windows without Git Bash) emits `error` and
+    // never `close`. Unlistened, that throws out of a promise nobody catches
+    // and the routine's run record is never written at all — so the schedule
+    // looks like it simply did not fire. Recorded as a failed run instead.
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      cancelKill?.();
+      resolve({ status: "error", code: null, stderr: `could not start "${file}": ${e.message}` });
+    });
     child.on("close", (code) => {
       clearTimeout(timer);
+      cancelKill?.();
       if (code === 0) resolve({ status: "ok", stdout: stdout.trim().slice(0, 4000) });
       else resolve({ status: "error", code, stderr: stderr.trim().slice(0, 2000) });
     });
@@ -645,10 +659,12 @@ const HANDLERS = {
 /** Run a single shell command. Returns { exitCode, stdout, stderr }. */
 function runShellCmd(cmd, env = {}, cwd = os.homedir()) {
   return new Promise((resolve) => {
-    const child = spawn("sh", ["-c", cmd], {
+    const { file, args, options } = shellCommand(cmd);
+    const child = spawn(file, args, {
       cwd,
       env: { ...process.env, ...env },
       stdio: ["ignore", "pipe", "pipe"],
+      ...options,
     });
     let stdout = "";
     let stderr = "";
