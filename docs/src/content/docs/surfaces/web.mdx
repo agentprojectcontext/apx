@@ -259,6 +259,29 @@ recorded with the turn, not just streamed and forgotten. Progress prose stays
 visible too, but is not replayed into the next model prompt; only the final
 answer becomes conversation history.
 
+#### Inviting someone turns the chat into a room
+
+A conversation is never left behind to start another one. Adding an agent to a
+1:1 **converts that chat**: the transcript moves onto a group room, the agent
+that walks in can read everything said before it arrived, and the 1:1 is
+archived with a pointer to where it continues.
+
+An **agent-to-agent pair** is a room too — two agents talking — so it is drawn
+like one, with each speaker named above their bubble instead of tagged under it.
+It has no seat for you until you want one: the moment you write in a pair it
+converts as well, seating whichever of the two are agents of this project (the
+super-agent's seat becomes yours), and your line is the first thing said in the
+new room.
+
+#### A pair that is working says so
+
+An agent-to-agent turn is a full tool loop that can run for minutes. However it
+was started — over HTTP, or by one agent calling `send_to_agent` / `call_agent`,
+including work left running in the background — the pair shows the same live
+narration as any other chat: it says somebody is answering before the first
+token, the tools appear as they run, and **Stop** reaches the work. Cancelling a
+background job stops its peer for the same reason.
+
 A chat you start inside a project is listed in that project. The Base workspace
 still shows every thread from every channel; a project shows the ones opened from
 it, plus channel threads (Telegram, Desktop) that belong to no project in

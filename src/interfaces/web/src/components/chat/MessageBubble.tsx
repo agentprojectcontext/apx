@@ -47,7 +47,8 @@ interface Props {
    *  por X" tag when a mention pulled them in), the way a group chat reads. Off
    *  in a 1:1, where the single agent is already named in the header. */
   showSpeaker?: boolean;
-  /** Resolve an agent slug to its display name, for the "traído por X" tag. */
+  /** Resolve an agent slug to its display name — for the speaker header, the
+   *  "traído por X" tag and every @mention inside the text. */
   nameOf?: (slug: string) => string;
   /** Full view: tool calls collapse into an ActionGroup. Simple ("pelado") view:
    *  tools hide and the narration lines that lived inside the group render as
@@ -63,6 +64,21 @@ interface Props {
   jobScope?: JobScope;
 }
 
+/** How much of one message the transcript paints before asking.
+ *  Well past any answer anyone writes — this is a ceiling on pathology, not a
+ *  length policy. */
+const LONG_TEXT_CAP = 8000;
+
+/** `slice` that never cuts a surrogate pair in half: half an emoji is a
+ *  replacement glyph, which is a rendering bug in place of the one being
+ *  avoided. */
+function safeSlice(text: string, n: number): string {
+  if (text.length <= n) return text;
+  const code = text.charCodeAt(n - 1);
+  const cut = code >= 0xd800 && code <= 0xdbff ? n - 1 : n;
+  return text.slice(0, cut);
+}
+
 export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider, jobScope }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
@@ -71,6 +87,8 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // exactly where notices appear, so the crash was on the feature's own path.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  // Opened by hand for a message long enough that painting it stops the tab.
+  const [showAll, setShowAll] = useState(false);
   // The edit box is as tall as what's being edited. It used to size itself off
   // the number of NEWLINES in the draft, so a long message written as one
   // paragraph — which is most of them — got two squashed rows with a scrollbar.
@@ -101,6 +119,25 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
     return <BackgroundJobNotice msg={msg} />;
   }
   const mine = msg.role === "user";
+  // WHO IS SPEAKING, BY NAME.
+  //
+  // The ledger files a group turn under the speaker's SLUG (`author: slug`, in
+  // appendGroupAgentMessage) because that is the room's identity — every
+  // mention, avatar and turn is addressed by it. So the header read
+  // `productor-reels` while the "traído por" tag two words to its right, which
+  // resolves through the roster, read "Productor Reels": the same agent, on
+  // the same line, spelled two ways.
+  //
+  // The roster answers wherever it can. `face.name` covers the speakers it
+  // cannot — the super-agent's persona, an a2a peer, a coding CLI — and the
+  // stored name is the last resort, for an agent that has since been deleted.
+  const speakerId = msg.agentId || msg.agent || "";
+  const fromRoster = nameOf ? nameOf(speakerId) : "";
+  const speakerName =
+    (fromRoster && fromRoster !== speakerId ? fromRoster : "") ||
+    face?.name ||
+    msg.agent ||
+    speakerId;
   // A turn that carried a file shows the file; its text is the marker the agent
   // was handed, so only what the user actually wrote (caption, or the voice
   // transcript) stays as text — copy included.
@@ -208,15 +245,47 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             would eat their asterisks and line breaks. The first/last child
             margins are zeroed so the block spacing does not double up with the
             bubble's own py-2. */}
-        {mine ? (
-          renderMentions(visibleText(part.text))
-        ) : (
-          <MarkdownPreview
-            content={visibleText(part.text)}
-            mentions
-            className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-          />
-        )}
+        {(() => {
+          // A BUBBLE HAS A CEILING, and it is not cosmetic.
+          //
+          // On 2026-09-20 a turn ended with one emoji repeated several thousand
+          // times. A colour-font glyph is an image, so laying out tens of
+          // thousands of them does not make the transcript slow — it stops the
+          // tab, and the thread simply never appears ("no se ve el chat mejor
+          // dicho el thread"). The daemon clips that at the source now
+          // (core/agent/runaway-text.js), but every message written BEFORE that
+          // is still on disk and is still opened every time the thread is, so
+          // the surface has to survive one on its own.
+          //
+          // Clipped, never dropped: the rest is one click away and the button
+          // says how much there is. Nothing is hidden, and nothing is a wall
+          // the reader cannot get past.
+          const full = visibleText(part.text);
+          const over = full.length - LONG_TEXT_CAP;
+          const clip = !showAll && over > 0;
+          const shown = clip ? safeSlice(full, LONG_TEXT_CAP) : full;
+          return (
+            <>
+              {mine ? renderMentions(shown, nameOf) : (
+                <MarkdownPreview
+                  content={shown}
+                  mentions
+                  nameOf={nameOf}
+                  className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                />
+              )}
+              {clip && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="mt-2 block text-[11px] text-muted-fg underline underline-offset-2 hover:text-foreground"
+                >
+                  {t("project.chat.long_clipped", { n: over })} · {t("project.chat.long_show")}
+                </button>
+              )}
+            </>
+          );
+        })()}
       </div>
     ) : null;
 
@@ -255,7 +324,16 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             tag when a mention pulled them in — the way a group chat reads. */}
         {showSpeaker && !mine && (msg.agent || msg.agentId) && (
           <div className="flex items-center gap-1.5 text-[11px] leading-none">
-            <span className="font-semibold text-foreground/90">{msg.agent}</span>
+            {/* On the phone the avatar column is dropped (see `compact`), so a
+                room of four agents was four identical unmarked blocks of text.
+                The face comes back here, in miniature, where it costs one line
+                instead of 36px on every turn — and it gives the name the same
+                left offset the desktop's column gives the bubble. */}
+            {compact && (face
+              ? <AgentAvatar {...face} size={16} />
+              : <span className="grid size-4 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Bot size={10} /></span>
+            )}
+            <span className="font-semibold text-foreground/90">{speakerName}</span>
             {msg.reason && (
               <span className="inline-flex items-center gap-0.5 text-muted-fg/70">
                 <CornerDownRight size={11} /> {t("project.groups.pulled_by", { name: nameOf ? nameOf(msg.reason) : msg.reason })}
@@ -388,7 +466,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
               the green name chip and keeps only model/time/cost. */}
           {!mine && msg.agent && !showSpeaker && (
             <span className="shrink-0 rounded bg-emerald-500/15 px-1 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
-              {msg.agent}
+              {speakerName}
             </span>
           )}
           {/* Half-strength surface: the attribution sits under the bubble and

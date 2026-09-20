@@ -19,7 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { readAgents, readVaultAgents } from "#core/apc/parser.js";
-import { pickAgentName } from "./agent-names.js";
+import { pickAgentName, takenAgentNames } from "./agent-names.js";
 import { AGENT_VAULT_DIR } from "#core/config/paths.js";
 import { ensureAgentRuntimeDir } from "#core/agent/memory.js";
 import { readOrganization, createArea, createRole } from "#core/stores/organization.js";
@@ -28,31 +28,10 @@ import { buildNewAgentFields, nextFreeSlug, AGENT_SLUG_RE } from "./agent-write.
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * Every agent name in play on this machine.
- *
- * Machine-wide on purpose: two agents called Nora in two companies collide in
- * the one place it matters — the owner's inbox, where both write.
- */
-export function takenAgentNames({ apxHome = process.env.APX_HOME || path.join(process.env.HOME || "", ".apx") } = {}) {
-  const names = new Set();
-  let config;
-  try {
-    config = JSON.parse(fs.readFileSync(path.join(apxHome, "config.json"), "utf8"));
-  } catch {
-    return names;
-  }
-  for (const entry of config?.projects ?? []) {
-    if (!entry?.path) continue;
-    for (const agent of readAgents(entry.path)) {
-      const name = agent.fields?.Name;
-      if (name) names.add(String(name));
-    }
-  }
-  const superName = config?.super_agent?.name;
-  if (superName) names.add(String(superName));
-  return names;
-}
+// Naming moved to agent-names.js — a pack is not the only thing that names an
+// agent any more, and the pool and the "who is already called that" question
+// belong together. Re-exported because this is where callers found it first.
+export { takenAgentNames };
 
 /** Shipped with APX, read-only — same layering as the agent vault itself. */
 export const BUNDLED_PACKS_FILE = path.resolve(__dir, "../../../assets/agent-vault-packs.json");

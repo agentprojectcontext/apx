@@ -3,6 +3,25 @@ import type {
   AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
 } from "../../types/daemon";
 
+/**
+ * One row of the cross-project roster (`GET /api/agents`).
+ *
+ * Carries the project it belongs to and the TOP of its system prompt, both of
+ * which the per-project list leaves out: without them a directory row cannot
+ * say where an agent lives or what it is for, and the alternative is one
+ * detail request per agent.
+ */
+export type DirectoryAgent = AgentEntry & {
+  project_id: number;
+  project_name: string;
+  project_path: string;
+  /** First few hundred characters of the system prompt, clipped server-side. */
+  system_preview: string;
+  system_bytes: number;
+  /** There is more prompt than the preview shows. */
+  system_more: boolean;
+};
+
 /** What a rename answers with: the moved agent, plus what it could not move. */
 export type AgentRenamed = AgentEntry & {
   moved?: Record<string, number>;
@@ -13,6 +32,16 @@ export const Agents = {
   // The catalog an agent card is written against — NOT /api/tools, which is the
   // daemon's own HTTP surface and only overlaps by accident.
   toolCatalog: () => http.get<AgentToolCatalog>("/api/agents/tools"),
+  /**
+   * EVERY agent in EVERY project, in one request — the phone's Directory.
+   *
+   * Not the inbox: that lists CONVERSATIONS, so it only carries agents somebody
+   * has already talked to, and knows nothing about an agent's area, its place
+   * in the tree, or what its prompt says. A directory has to show the whole
+   * roster, including the agent nobody has opened yet — which is exactly the
+   * one you go looking for when you open a directory.
+   */
+  directory: () => http.get<DirectoryAgent[]>("/api/agents"),
   list:   (pid: string, opts?: { stats?: boolean }) =>
     http.get<AgentEntry[]>(`/api/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
   get:    (pid: string, slug: string) => http.get<AgentDetail>(`/api/projects/${pid}/agents/${slug}`),

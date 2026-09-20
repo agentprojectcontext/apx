@@ -228,7 +228,10 @@ function superAgentRow(latest, threads) {
   let lastRole = null;
   if (latest) {
     try {
-      const thread = readGlobalThread({ channel: latest.channel, date: latest.id });
+      // Scoped to the thread's own project, the way the detail route reads it.
+      // Unscoped, a web day used from two projects came back as one pile and
+      // the row previewed a line that is not in the conversation it opens.
+      const thread = readGlobalThread({ channel: latest.channel, date: latest.id, project: latest.project });
       const said = [...(thread?.messages || [])].reverse();
       const lastReply = said.find((m) => m.role === "assistant");
       const lastTurn = said.find((m) => m.role === "user" || m.role === "assistant");
@@ -245,7 +248,21 @@ function superAgentRow(latest, threads) {
   }
 
   return {
-    project_id: null,
+    // WHICH project this conversation opens under.
+    //
+    // The super-agent itself belongs to no project — it is daemon-level — and
+    // this field said so, flatly `null`, for every row. But a ROW is a
+    // conversation, not an agent, and `GET /projects/:pid/super-agent/threads/
+    // :channel/:id` scopes: a web day written inside project 4 is not project
+    // 0's thread to read. So the inbox listed it, the phone opened it as
+    // project 0 (`row.project_id ?? 0`), and the daemon answered
+    // `404: thread not found` over an empty pane — seen 2026-09-20.
+    //
+    // `listGlobalThreads` now says which project each day belongs to, and
+    // unstamped channels (telegram, desktop, deck) answer "0", the default
+    // workspace — the same value `?? 0` was already falling back to, so those
+    // rows open exactly where they always did.
+    project_id: latest?.project ?? null,
     project_name: null,
     project_path: null,
     // Who the super-agent was talking TO on this row. The row's agent is always

@@ -1,17 +1,18 @@
 import useSWR from "swr";
 import { NavLink } from "react-router-dom";
-import { Handshake, ListTodo, MessagesSquare } from "lucide-react";
+import { Bell, Handshake, ListTodo, MessagesSquare } from "lucide-react";
 import { Commitments } from "../../lib/api/commitments";
 import { Tasks } from "../../lib/api/tasks";
-import { CHAT_ROOT, COMMITMENTS_ROOT, TASKS_ROOT } from "./routes";
+import { ATTENTION_ROOT, CHAT_ROOT, COMMITMENTS_ROOT, TASKS_ROOT } from "./routes";
+import { useAttentionCount } from "./MobileAttention";
 import { useUnreadChats } from "../../hooks/useChatRead";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
 /**
- * The phone's bottom bar: chats, tasks, promises.
+ * The phone's bottom bar: chats, tasks, promises, and what is waiting on you.
  *
- * Three surfaces, one thumb. The phone used to be chat and only chat, so the
+ * Four surfaces, one thumb. The phone used to be chat and only chat, so the
  * way to your own task list was to open the desktop panel — on a phone, in a
  * three-pane layout, to read twelve rows. These are the three things you check
  * standing up, so they are the three things that get a tab.
@@ -23,6 +24,7 @@ import { t } from "../../i18n";
 export function MobileTabBar() {
   const counts = useTabCounts();
   const unreadChats = useUnreadChats();
+  const waiting = useAttentionCount();
   const tabs = [
     {
       to: CHAT_ROOT, icon: MessagesSquare, label: t("mobile.tab_chats"),
@@ -38,6 +40,14 @@ export function MobileTabBar() {
       to: COMMITMENTS_ROOT, icon: Handshake, label: t("mobile.tab_commitments"),
       badge: counts.overdue, tone: "danger" as const, testId: "mobile-tab-commitments",
       badgeLabel: t("mobile.tab_commitments_badge", { count: counts.overdue }),
+    },
+    // Last, and deliberately: it is a summary of the three to its left, so it
+    // is where you look when you do not want to sweep them one by one — not
+    // the place the app opens.
+    {
+      to: ATTENTION_ROOT, icon: Bell, label: t("mobile.tab_attention"),
+      badge: waiting, tone: "unread" as const, testId: "mobile-tab-attention",
+      badgeLabel: t("mobile.tab_attention_badge", { count: waiting }),
     },
   ];
 

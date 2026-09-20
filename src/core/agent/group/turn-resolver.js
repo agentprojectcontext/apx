@@ -21,7 +21,13 @@ export const MAX_TURNS_PER_MESSAGE = 10;
 
 // Strip diacritics + lowercase so "@Natalia", "@natalia" and "@natália" all
 // resolve to the same participant.
-function norm(s) {
+//
+// Exported because a mention of the OWNER is resolved somewhere else entirely
+// (core/tasks/attention.js): nobody gets a turn for it, so it cannot go through
+// `parseMentions`, which filters the owner out by design. Two copies of this
+// rule is how "@Manú" comes to mean one person in a task thread and another in
+// a group room.
+export function normalizeMention(s) {
   return String(s || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -37,7 +43,7 @@ function norm(s) {
  */
 function aliasesFor(participant) {
   const out = new Set();
-  const add = (v) => { const n = norm(v); if (n) out.add(n); };
+  const add = (v) => { const n = normalizeMention(v); if (n) out.add(n); };
   add(participant.slug);
   if (participant.name) {
     add(participant.name);
@@ -73,7 +79,7 @@ export function parseMentions(text, participants, authorSlug) {
   const re = /@([\p{L}\p{N}_-]+)/gu;
   let m;
   while ((m = re.exec(text)) !== null) {
-    const token = norm(m[1]);
+    const token = normalizeMention(m[1]);
     const hit = table.find((t) => t.alias === token);
     if (!hit) continue;
     if (hit.slug === authorSlug) continue;
@@ -162,4 +168,4 @@ export async function resolveGroupTurn({
   return replies;
 }
 
-export const __test__ = { norm, aliasesFor, MAX_TURNS_PER_MESSAGE };
+export const __test__ = { norm: normalizeMention, aliasesFor, MAX_TURNS_PER_MESSAGE };

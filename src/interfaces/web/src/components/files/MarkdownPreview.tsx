@@ -9,19 +9,36 @@ import { toneText, toneTextHover } from "../../lib/tone";
 // headings, fenced/inline code, bold/italic/links, blockquotes, hr, and
 // ordered/unordered lists. Anything else renders as plain paragraphs.
 
+/** Resolve an agent slug to its display name. Returns the slug when it knows
+ *  no better, which is what tells the chip to print what was written. */
+export type NameOf = (slug: string) => string;
+
 // A group @mention, styled as a soft neutral chip (not a loud colour) so it
 // reads as a handle in any theme. Exported so a literal (non-markdown) bubble —
 // the user's own — can highlight mentions the same way.
-export function MentionChip({ handle }: { handle: string }) {
+//
+// THE CHIP SAYS THE NAME. `@productor-reels` is what has to be TYPED — the
+// mention only reaches an agent if it carries the exact slug, which is why the
+// composer inserts one and the text on disk keeps it — but nobody has to READ
+// an address. So the handle is resolved here, at render, and the raw one is a
+// hover away. Unresolved (a person, another project's agent, a plain word with
+// an @) prints exactly as written.
+export function MentionChip({ handle, nameOf }: { handle: string; nameOf?: NameOf }) {
+  const slug = handle.replace(/^@/, "");
+  const name = nameOf ? nameOf(slug) : slug;
+  const resolved = name && name !== slug;
   return (
-    <span className="rounded bg-foreground/[0.07] px-1 font-medium text-foreground/90 dark:bg-foreground/10">
-      {handle}
+    <span
+      title={resolved ? handle : undefined}
+      className="rounded bg-foreground/[0.07] px-1 font-medium text-foreground/90 dark:bg-foreground/10"
+    >
+      {resolved ? `@${name}` : handle}
     </span>
   );
 }
 
 // ── Inline: bold, italic, code, links, (optional) @mentions ─────────────────
-function renderInline(text: string, keyBase: string, mentions = false): ReactNode[] {
+function renderInline(text: string, keyBase: string, mentions = false, nameOf?: NameOf): ReactNode[] {
   const out: ReactNode[] = [];
   // One regex, alternation ordered so `**` beats `*`. Groups capture the inner.
   // The trailing @mention group is only STYLED when `mentions` is on; otherwise
@@ -44,7 +61,7 @@ function renderInline(text: string, keyBase: string, mentions = false): ReactNod
       );
     else if (m[10] !== undefined)
       out.push(mentions
-        ? <MentionChip key={`${keyBase}-m${i}`} handle={m[10]} />
+        ? <MentionChip key={`${keyBase}-m${i}`} handle={m[10]} nameOf={nameOf} />
         : <Fragment key={`${keyBase}-m${i}`}>{m[10]}</Fragment>);
     last = re.lastIndex;
     i += 1;
@@ -55,7 +72,7 @@ function renderInline(text: string, keyBase: string, mentions = false): ReactNod
 
 // Highlight @mentions in a literal (non-markdown) string — the user's own
 // bubble, which stays verbatim so we don't run it through the markdown parser.
-export function renderMentions(text: string): ReactNode[] {
+export function renderMentions(text: string, nameOf?: NameOf): ReactNode[] {
   const out: ReactNode[] = [];
   const re = /(?<![\w])@[\p{L}\p{N}_-]+/gu;
   let last = 0;
@@ -63,7 +80,7 @@ export function renderMentions(text: string): ReactNode[] {
   let i = 0;
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(<Fragment key={`u-t${i}`}>{text.slice(last, m.index)}</Fragment>);
-    out.push(<MentionChip key={`u-m${i}`} handle={m[0]} />);
+    out.push(<MentionChip key={`u-m${i}`} handle={m[0]} nameOf={nameOf} />);
     last = re.lastIndex;
     i += 1;
   }
@@ -72,7 +89,7 @@ export function renderMentions(text: string): ReactNode[] {
 }
 
 // ── Block-level ─────────────────────────────────────────────────────────────
-export function MarkdownPreview({ content, className, mentions = false }: { content: string; className?: string; mentions?: boolean }) {
+export function MarkdownPreview({ content, className, mentions = false, nameOf }: { content: string; className?: string; mentions?: boolean; nameOf?: NameOf }) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -83,7 +100,7 @@ export function MarkdownPreview({ content, className, mentions = false }: { cont
     blocks.push(
       <Tag key={`k${key++}`} className={cn("my-2 space-y-1 pl-5", ordered ? "list-decimal" : "list-disc")}>
         {items.map((it, idx) => (
-          <li key={idx}>{renderInline(it, `li${key}-${idx}`, mentions)}</li>
+          <li key={idx}>{renderInline(it, `li${key}-${idx}`, mentions, nameOf)}</li>
         ))}
       </Tag>,
     );
@@ -116,7 +133,7 @@ export function MarkdownPreview({ content, className, mentions = false }: { cont
       const sizes = ["text-2xl", "text-xl", "text-lg", "text-base", "text-sm", "text-sm"];
       blocks.push(
         <div key={`k${key++}`} className={cn("mt-3 mb-1 font-semibold text-foreground", sizes[level - 1])}>
-          {renderInline(h[2], `h${key}`, mentions)}
+          {renderInline(h[2], `h${key}`, mentions, nameOf)}
         </div>,
       );
       i += 1;
@@ -136,7 +153,7 @@ export function MarkdownPreview({ content, className, mentions = false }: { cont
       while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
       blocks.push(
         <blockquote key={`k${key++}`} className="my-2 border-l-2 border-border pl-3 text-muted-foreground">
-          {renderInline(buf.join(" "), `q${key}`, mentions)}
+          {renderInline(buf.join(" "), `q${key}`, mentions, nameOf)}
         </blockquote>,
       );
       continue;
@@ -173,7 +190,7 @@ export function MarkdownPreview({ content, className, mentions = false }: { cont
     }
     blocks.push(
       <p key={`k${key++}`} className="my-2 leading-relaxed">
-        {renderInline(para.join(" "), `p${key}`, mentions)}
+        {renderInline(para.join(" "), `p${key}`, mentions, nameOf)}
       </p>,
     );
   }

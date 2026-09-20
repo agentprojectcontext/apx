@@ -13,7 +13,19 @@ export interface GroupCreated {
   participants: string[];
   /** Present when the room mixes agents from several projects. */
   homes?: Record<string, number | string>;
+  /** How many turns of the promoted 1:1 were carried into the room. */
+  imported?: number;
+  /** The chat this room grew out of, when it was a promotion. */
+  from?: GroupFrom;
 }
+
+/** The chat being CONVERTED into a room — not a fresh room beside it. Either a
+ *  1:1 (`agent` + `conversation`, whose file is archived) or an a2a pair
+ *  (`thread`, which is left where it is). Its transcript is replayed onto the
+ *  room either way, so the room opens with the conversation already in it. */
+export type GroupFrom =
+  | { agent: string; conversation: string }
+  | { thread: string };
 
 export type GroupMember = { project_id: number | string; slug: string };
 
@@ -61,7 +73,7 @@ export type GroupStreamEvent =
 export const Groups = {
   create: (
     pid: string,
-    body: { title?: string; participants?: string[]; members?: GroupMember[] },
+    body: { title?: string; participants?: string[]; members?: GroupMember[]; from?: GroupFrom },
   ) => http.post<GroupCreated>(`/api/projects/${pid}/groups`, body),
   addParticipant: (pid: string, gid: string, slug: string) =>
     http.post<{ id: string; participants: string[] }>(`/api/projects/${pid}/groups/${gid}/participants`, { slug }),

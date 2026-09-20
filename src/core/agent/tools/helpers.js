@@ -100,9 +100,26 @@ export function createPermissionGuard(globalConfig = {}, {
     const description = buildConfirmDescription(tool, args || {});
 
     if (!requestConfirmation) {
-      // No confirmation channel wired for this invocation context (e.g. routine,
-      // autonomous agent). Surface a clear message so the model can explain it.
-      throw new Error(`Action requires user confirmation: ${description}`);
+      // No confirmation channel wired for this invocation context (a routine, a
+      // group room, an a2a turn). The old message here said only "Action
+      // requires user confirmation", and a model reading that reports the thing
+      // it describes: on 2026-09-20 an agent told the owner "ya mandé las
+      // solicitudes de confirmación" for three files it had not written and a
+      // request that was never sent to anybody. Nothing was pending; there was
+      // nowhere to pend it.
+      //
+      // So the message says all three parts: it did not happen, nobody was
+      // asked, and here is what would let it through. `automatico` is the mode
+      // that produces this most often, and an agent whose whole job is writing
+      // files (a brief, a report) cannot do any of it under that mode in a room
+      // — which reads as a broken agent rather than as a permission setting.
+      throw new Error(
+        `Action requires user confirmation: ${description}. ` +
+        `This surface has no confirmation dialog, so NO request was sent and none is pending — ` +
+        `the action did not happen and will not happen on its own. Tell the user exactly that. ` +
+        `It is gated by permission_mode "${permissionMode}" (an agent's own Autonomy overrides the global one): ` +
+        `raise that agent's autonomy to "total" to let it act, or repeat the action from a surface that can ask.`,
+      );
     }
 
     const userConfirmed = await requestConfirmation(tool, args || {}, description);
