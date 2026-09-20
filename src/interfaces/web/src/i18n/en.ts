@@ -235,6 +235,7 @@ export const en = {
     tab_attention: "Waiting",
     tab_attention_badge: "{count} waiting on you",
     attention_empty: "Nothing waiting. You are up to date.",
+    attention_overdue: "Overdue",
     attention_awaiting: "They asked you",
     attention_chats: "Unread chats",
     attention_unread_tasks: "Tasks with news",
