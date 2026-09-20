@@ -21,7 +21,7 @@
 //      depends on the model remembering to report is a report that goes missing
 //      exactly when it matters.
 import { CHANNELS } from "#core/constants/channels.js";
-import { appendGlobalMessage, readGlobalMessages } from "#core/stores/messages.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { resolveTurnSkills } from "#core/agent/skills/turn-skills.js";
 import { buildWhatsAppRelationshipBlock } from "./relationship.js";
@@ -36,11 +36,11 @@ import {
   learnOwnerAliases,
   senderAddresses,
   REPLY_POLICIES,
-  normalizeJid,
   contactKeyFor,
   isIgnorableJid,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
+import { threadFor } from "./thread.js";
 import { messageText, readInteractive } from "./interactive.js";
 import { describeSticker } from "./stickers.js";
 import { captureRequest } from "./capture.js";
@@ -566,27 +566,6 @@ async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, sig
  * One conversation, as turns. Filtered by the CHAT, so a group is a thread and
  * a person is a thread, and neither can see the other.
  */
-export function threadFor(chatJid, { limit = 12, senderJid = null } = {}) {
-  let records = [];
-  try {
-    records = readGlobalMessages({ channel: CHANNELS.WHATSAPP, limit: 400 }) || [];
-  } catch {
-    return [];
-  }
-  const wanted = normalizeJid(chatJid);
-  return records
-    .filter((r) => {
-      const chat = normalizeJid(r.meta?.chat_jid);
-      if (!chat || chat !== wanted) return false;
-      // Belt and braces for a sealed turn: even inside one chat, only rows that
-      // belong to this correspondent count.
-      if (senderJid && normalizeJid(r.meta?.sender_jid) !== normalizeJid(senderJid)) return false;
-      return r.type === "user" || r.type === "agent";
-    })
-    .slice(-limit)
-    .map((r) => ({ role: r.direction === "in" ? "user" : "assistant", content: r.body || "" }))
-    .filter((t) => t.content);
-}
 
 /**
  * Keep a contact's profile picture on their roster row.
@@ -626,3 +605,6 @@ const shortJid = (jid) => String(jid || "").split("@")[0];
 export function _resetReportThrottle() {
   lastReported.clear();
 }
+
+// Re-exported for callers that have always imported it from the dispatcher.
+export { threadFor };
