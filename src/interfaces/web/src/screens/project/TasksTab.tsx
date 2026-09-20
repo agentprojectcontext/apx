@@ -81,11 +81,17 @@ export function TasksTab({ pid }: { pid?: string }) {
   }, [view, state, status]);
 
   const [editingColumns, setEditingColumns] = useState(false);
-  // Bumped after a column edit so the board refetches with the new set, and
-  // after ANY change made from the detail pane — the board keeps its own query,
-  // so revalidating only the list left a card sitting in the column it just
-  // left.
+  // TWO revisions, not one. `columnsRev` moves when the COLUMN SET changes —
+  // rare, and worth a new query. `boardRev` moves on any change made from the
+  // detail pane, because the board keeps its own query and revalidating only
+  // the list left a card sitting in the column it just left.
+  //
+  // They used to be the same counter, which made every comment, status flip and
+  // due-date edit mint a new columns key as well: `colData` went undefined for
+  // one render and the board drew zero columns. Together with the board's own
+  // key changing, that is what made the screen blink.
   const [columnsRev, setColumnsRev] = useState(0);
+  const [boardRev, setBoardRev] = useState(0);
   const { data: colData, mutate: mutateColumns } = useSWR(
     view === "board" ? `/api/tasks/columns?pid=${pid ?? "all"}&r=${columnsRev}` : null,
     () => (pid ? Tasks.columns.forProject(pid) : Tasks.columns.catalog().then((r) => ({
@@ -94,6 +100,7 @@ export function TasksTab({ pid }: { pid?: string }) {
       columns: [...r.columns, { id: "done", label: null }] as BoardColumn[],
       catalog: r.columns,
     }))),
+    { keepPreviousData: true },
   );
 
   const [adding, setAdding] = useState(false);
@@ -130,9 +137,19 @@ export function TasksTab({ pid }: { pid?: string }) {
   const rowPid = (task: TaskEntry) => pid ?? String((task as GlobalTaskEntry).project_id ?? "");
 
   /** Both views hold their own query — a change in one has to move the other. */
-  const refreshAll = () => { paged.mutate(); setColumnsRev((n) => n + 1); };
+  const refreshAll = () => { paged.mutate(); setBoardRev((n) => n + 1); };
   const selectedId = params.get("task");
-  const selected = paged.items.find((x) => x.id === selectedId) || null;
+
+  // The rows the BOARD is showing. The two views do not fetch the same set —
+  // the board pulls 300 in one go, the list pulls one page of 20 — so a
+  // selection made on the board has to be resolved against the board. Looking
+  // it up in the list's page meant every card past the first page resolved to
+  // nothing, and the heal-a-stale-selection effect below then bounced the
+  // selection back to the top of the list: the two leftmost columns opened and
+  // nothing else did.
+  const [boardItems, setBoardItems] = useState<TaskEntry[]>([]);
+  const pool = view === "board" ? boardItems : paged.items;
+  const selected = pool.find((x) => x.id === selectedId) || null;
 
   const select = (id: string | null) =>
     setParams((prev) => {
@@ -172,10 +189,10 @@ export function TasksTab({ pid }: { pid?: string }) {
   // Keep the first task selected, and heal a stale ?task (filter switched, the
   // task closed, the page moved).
   useEffect(() => {
-    if (paged.items.length === 0) return;
-    if (selectedId && paged.items.some((x) => x.id === selectedId)) return;
-    select(paged.items[0].id);
-  }, [paged.items, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (pool.length === 0) return;
+    if (selectedId && pool.some((x) => x.id === selectedId)) return;
+    select(pool[0].id);
+  }, [pool, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const wantEdit = params.get("edit") === "1";
   const canOpenEditor = wantEdit && !!selected;
@@ -255,7 +272,8 @@ export function TasksTab({ pid }: { pid?: string }) {
             selectedId={selectedId}
             onSelect={select}
             onChanged={refreshAll}
-            refreshKey={columnsRev}
+            refreshKey={boardRev}
+            onItems={setBoardItems}
           />
           <div className="min-h-0 w-full shrink-0 overflow-hidden border-t border-border lg:w-[360px] lg:border-l lg:border-t-0">
             {selected ? (
@@ -334,7 +352,7 @@ export function TasksTab({ pid }: { pid?: string }) {
         open={editingColumns}
         onClose={() => setEditingColumns(false)}
         pid={pid}
-        onSaved={() => { setColumnsRev((n) => n + 1); void mutateColumns(); }}
+        onSaved={() => { setColumnsRev((n) => n + 1); setBoardRev((n) => n + 1); void mutateColumns(); }}
       />
 
       <TaskFormDialog

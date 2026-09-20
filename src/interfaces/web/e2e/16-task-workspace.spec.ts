@@ -263,6 +263,39 @@ test.describe("task workspace", () => {
     await expect(page.getByTestId("task-coords")).toHaveValue("-41.1335, -71.3103");
   });
 
+  test("the open form survives the screen behind it refreshing", async ({ page }) => {
+    const { projectId } = runtime();
+    await page.goto(`/p/${projectId}/tasks?view=list`);
+
+    // The screen underneath polls — health, projects, the task page itself —
+    // and its form dialog used to reset itself on ANY of those re-renders,
+    // because the reset effect depended on an array the screen rebuilt every
+    // render. Half a second with the dialog open was enough to lose the title
+    // and put the category back to `general`, which unmounts the place fields
+    // entirely. The errand test above kept failing on `task-address` having
+    // stopped existing, which pointed at a slow click and never at the reset.
+    await page.getByTestId("task-new").click();
+    await typeInto(page.getByTestId("task-input"), "sobrevive al refresh");
+    await page.getByTestId("task-category-select").click();
+    await page.getByRole("option", { name: /Errand|Mandado/ }).click();
+    await typeInto(page.getByTestId("task-place"), "Farmacia del Puente");
+
+    // Force the revalidation rather than waiting for a poll: this has to fail
+    // in one second on a laptop, not in fifteen on a lucky runner.
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => {
+        window.dispatchEvent(new Event("focus"));
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await page.waitForTimeout(300);
+    }
+
+    // Everything typed is still typed, and the place block is still mounted.
+    await expect(page.getByTestId("task-input")).toHaveValue("sobrevive al refresh");
+    await expect(page.getByTestId("task-place")).toHaveValue("Farmacia del Puente");
+    await expect(page.getByTestId("task-address")).toBeVisible();
+  });
+
   test("the view and the filter you left on are the ones you come back to", async ({ page }) => {
     const { projectId } = runtime();
     await page.goto(`/p/${projectId}/tasks`);

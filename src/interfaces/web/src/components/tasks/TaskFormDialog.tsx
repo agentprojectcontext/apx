@@ -93,8 +93,18 @@ export function TaskFormDialog({
   // silently on save.
   const coordsInvalid = coords.trim().length > 0 && !parseCoords(coords);
 
-  // Reset every time the dialog opens so a cancelled edit never leaks into the
+  // Reset every time the dialog OPENS so a cancelled edit never leaks into the
   // next one.
+  //
+  // `projects` is deliberately NOT a dependency, and that is the whole point of
+  // this comment. It is a brand-new array on every render of the screen above
+  // (useProjects sorts a copy), so listing it here re-ran this reset on every
+  // re-render of that screen — and the screen re-renders constantly, on its own
+  // polls. A form open for half a second was enough: the title went back to
+  // empty and the category back to `general`, which unmounts the entire place
+  // block. That is why an errand could not be filled in at all, and why
+  // 16-task-workspace.spec.ts kept failing on a field that had stopped
+  // existing. The default project lives in its own effect below.
   useEffect(() => {
     if (!open) return;
     const task = editing?.task;
@@ -117,8 +127,18 @@ export function TaskFormDialog({
         : "",
     );
     setRadius(task?.location?.radius_m != null ? String(task.location.radius_m) : "");
-    setTarget(fixedPid ?? String(projects?.[0]?.id ?? ""));
-  }, [open, editing, fixedPid, projects]);
+    setTarget(fixedPid ?? "");
+  }, [open, editing, fixedPid]);
+
+  // The project picker's default, on the cross-project screen only. It needs
+  // `projects`, which may still be loading when the dialog opens — so it gets
+  // its own effect, and only ever writes onto an EMPTY target. A later refresh
+  // of the list then cannot walk back over the project someone picked, and
+  // nothing else in the form is in reach of it.
+  useEffect(() => {
+    if (!open || fixedPid || editing) return;
+    setTarget((prev) => prev || String(projects?.[0]?.id ?? ""));
+  }, [open, fixedPid, editing, projects]);
 
   // Agents belong to a project, so the picker can only be filled once one is
   // chosen. On the cross-project screen that is after the project select.
