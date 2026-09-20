@@ -1,3 +1,33 @@
+# [1.116.0](https://github.com/agentprojectcontext/apx/compare/v1.115.0...v1.116.0) (2026-09-20)
+
+
+### Bug Fixes
+
+* **a2a:** el peer que trabaja por una tool ahora se ve trabajando ([241506c](https://github.com/agentprojectcontext/apx/commit/241506c89f7ae8780b26f01e8681395997f1aa60))
+* **chat:** en un grupo cada uno se llama por su nombre, y en el teléfono tiene cara ([c314992](https://github.com/agentprojectcontext/apx/commit/c314992aaf4b3dc09dbdc80998fcc5ed34491557))
+* **chat:** un turno que se repite a sí mismo deja de congelar la pestaña ([7eb9390](https://github.com/agentprojectcontext/apx/commit/7eb93908dc3b7d0fcef1a1d3729823e2235f07bf))
+* **group:** el export de prueba sigue al rename que lo dejó apuntando a un nombre muerto ([7e367e2](https://github.com/agentprojectcontext/apx/commit/7e367e23336e7ce73843f339b3c321ab6c84abaf))
+* **inbox:** el hilo del super-agente se abre en el proyecto donde vive ([384ea36](https://github.com/agentprojectcontext/apx/commit/384ea36a859bb04b44713d9672abfbf2225c5b4d))
+* **loop:** una llamada bien formada a una tool no cargada corre, y un rebote no cuenta como hecho ([089e2c6](https://github.com/agentprojectcontext/apx/commit/089e2c6d922c41210e0a11672b87c1b425659784))
+* **permisos:** el agente bloqueado dice que no mandó ninguna solicitud, porque no la mandó ([5dedaf2](https://github.com/agentprojectcontext/apx/commit/5dedaf29a6a9f23eac1ed144e3e2d754833161ee))
+* **tasks:** el formulario deja de borrarse solo, y el hilo deja de parpadear ([ed5faba](https://github.com/agentprojectcontext/apx/commit/ed5fabaeff5a714f747bdc32cb01845c33b75f03))
+* **whatsapp:** el mensaje sale — tres causas deterministas, una por una ([cbcf7a1](https://github.com/agentprojectcontext/apx/commit/cbcf7a1e9b77d944680fbb13ec1b667f36f9b4e0))
+* **whatsapp:** escribirle mientras piensa deja de abrir un segundo turno ([5fe8a0b](https://github.com/agentprojectcontext/apx/commit/5fe8a0bc392f15318c027b79037ac278791edf21))
+
+
+### Features
+
+* **agentes:** el agente que crea un agente le pone un nombre, no un nombre de archivo ([1d04125](https://github.com/agentprojectcontext/apx/commit/1d041258bb9557446da8edaa623d9b7692c41e60))
+* **agents:** el directorio de agentes en el teléfono, como una lista de contactos ([5030d65](https://github.com/agentprojectcontext/apx/commit/5030d65f82dda3329571eb9f2be8b2594c7c6ba8))
+* **avisos:** la tarea vencida tiene nombre, no sólo un número ([faa84e6](https://github.com/agentprojectcontext/apx/commit/faa84e635773b61f66199a164114589d4796e216))
+* **chat:** invitar a alguien convierte el chat en grupo, no abre otro al lado ([ff754cb](https://github.com/agentprojectcontext/apx/commit/ff754cbe10df91f2d2686ad01b2ceb772c9a8398))
+* **cli:** apx agent set --autonomy, y los otros tres campos que sólo tenía la web ([7abe369](https://github.com/agentprojectcontext/apx/commit/7abe369cebbd55da1dc6c3e9573de873504209c2))
+* **runtime:** las sesiones de Claude Code se ven, y se les puede escribir ([99b9c78](https://github.com/agentprojectcontext/apx/commit/99b9c7885f4efef8c7863297c14c3408b94c27d4))
+* **runtime:** una sesión de Claude Code se ve en el chat, y arranca donde le dijiste ([01c7afc](https://github.com/agentprojectcontext/apx/commit/01c7afc1a83aa7f65d755c523b6d7f2e0b462de6))
+* **tasks:** el punto azul también en el panel, no sólo en el teléfono ([8a706ab](https://github.com/agentprojectcontext/apx/commit/8a706ab2705818a3b3d5de3f62a6569a9dacd831))
+* **tasks:** el punto azul, quién habló último, y una pantalla con todo lo que te espera ([4ecf9c0](https://github.com/agentprojectcontext/apx/commit/4ecf9c057b3c17f6f5d5eba5aea7bdae8892ca3b))
+* **telegram:** interrumpir un turno ya no le borra la memoria al que lo reemplaza ([33322c6](https://github.com/agentprojectcontext/apx/commit/33322c61d8b1e5e621abe5ca1e6ea9cf1a843dc1))
+
 # [1.115.0](https://github.com/agentprojectcontext/apx/compare/v1.114.1...v1.115.0) (2026-09-20)
 
 
