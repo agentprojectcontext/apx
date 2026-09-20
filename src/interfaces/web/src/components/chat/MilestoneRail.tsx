@@ -127,16 +127,23 @@ interface Props {
   stats: TimelineStats;
   /** Open on mount. The cross-chat view wants that; a chat does not. */
   defaultOpen?: boolean;
+  /**
+   * Disappear when there is nothing worth following (default true).
+   *
+   * Right for a rail that shares space with something else — one step that went
+   * fine is the answer sitting right there, and a rail describing it is
+   * furniture. Wrong for a panel somebody OPENED to see this: there, vanishing
+   * reads as broken, so the caller passes false and shows its own empty line.
+   */
+  hideWhenUneventful?: boolean;
 }
 
-export function MilestoneRail({ entries, stats, defaultOpen = false }: Props) {
+export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUneventful = true }: Props) {
   const [manual, setManual] = useState<boolean | null>(null);
   const open = manual ?? defaultOpen;
 
-  // Nothing to follow: one step that went fine is the answer sitting right
-  // there, and a rail describing it is furniture.
   if (!entries.length) return null;
-  if (entries.length < 2 && stats.failed === 0 && stats.open === 0) return null;
+  if (hideWhenUneventful && entries.length < 2 && stats.failed === 0 && stats.open === 0) return null;
 
   return (
     <div
