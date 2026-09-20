@@ -475,11 +475,19 @@ test("the header leads with the session, and says who under it", () => {
   // sitting right there) and put a bare DATE where the name should be.
   assert.match(tab, /label=\{convLabel \|\| t\("mobile\.live_session"\)\}/);
   assert.doesNotMatch(tab, /const headerSubtitle/, "no more one-string subtitle");
-  // Who · where · when, one line, truncated as a whole so a long agent name
-  // cannot push the channel and the date onto a second row.
+  // Who · where · when, one line on a desktop, truncated as a whole so a long
+  // agent name cannot push the channel and the date onto a second row.
   assert.match(tab, /<span className="truncate">\{agentLabel\}<\/span>/);
-  assert.match(tab, /<span className="shrink-0">· \{shownChannel\}<\/span>/);
-  assert.match(tab, /createdIso && <span className="shrink-0">· \{formatDate\(createdIso\)\}/);
+  assert.match(tab, /\{!compact && <span className="shrink-0">· \{shownChannel\}<\/span>\}/);
+  assert.match(tab, /createdIso && !compact && <span className="shrink-0">· \{formatDate\(createdIso\)\}/);
+
+  // On the PHONE that same line keeps only the WHO, and where/when move to a
+  // band of their own under the header: four facts sharing an 11px line beside
+  // a face and five controls is how every one of them came out truncated.
+  // Project on the left, channel on the right — two different questions.
+  assert.match(tab, /data-testid="chat-header-where"/);
+  assert.match(tab, /border-t border-border\/60/, "the band is divided by a hairline");
+  assert.match(tab, /chat-header-where[\s\S]{0,500}ml-auto[\s\S]{0,200}\{shownChannel\}/);
 
   // The loaded session's OWN name wins: the list row is only what happened to
   // be carried in from wherever you clicked, and a deep link carries nothing —
