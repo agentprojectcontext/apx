@@ -42,6 +42,22 @@ const IGNORED_ROLES = new Set(["system", "compact"]);
 export function stepTitle(content, max = TITLE_MAX) {
   let text = String(content || "");
 
+  // A ROUTINE'S PROMPT OPENS ON A MACHINE HEADER, not on the request. The runner
+  // prepends an automation block (core/routines/header.js) carrying the id, the
+  // memory path and two clock stamps, and the actual instruction starts after
+  // the blank line under it. Titled without this, every scheduled run on the
+  // timeline read "Automation ID: r_… Automation memory: /Users/…" — the same
+  // opaque line twelve times over, which is worse than no title at all because
+  // it fills the rail while naming nothing.
+  //
+  // Anchored on the literal first field rather than on a general "looks like a
+  // key: value block" rule: a real request that happens to open on "Note: …"
+  // must keep its own words.
+  if (/^Automation ID:/.test(text)) {
+    const body = text.split(/\n\s*\n/).slice(1).join("\n\n");
+    if (body.trim()) text = body;
+  }
+
   // Attachment markers are prepended to the prompt by the upload path
   // ([archivo: …] / [file: …]); they name plumbing, not the request.
   text = text.replace(/^\s*(?:\[[^\]\n]{0,200}\]\s*)+/, "");
@@ -111,14 +127,6 @@ function emptyStep(turn, index) {
 }
 
 /**
- * Close a step. `answered` decides between a finished step and an abandoned
- * one; the tool tally decides between finished-well and finished-badly.
- *
- * The assistant row's own `tool_summary` wins when it is there: it was written
- * by the run itself and counts calls the transcript may not carry (a turn whose
- * tool rows were trimmed still knows what it ran).
- */
-/**
  * An assistant turn's attribution, wherever this shape happens to keep it.
  *
  * A conversation FILE stores it under `meta` on the turn header; a LEDGER row
@@ -132,6 +140,14 @@ function attr(turn, key) {
   return turn[key] !== undefined ? turn[key] : turn.meta?.[key];
 }
 
+/**
+ * Close a step. `answered` decides between a finished step and an abandoned
+ * one; the tool tally decides between finished-well and finished-badly.
+ *
+ * The assistant row's own `tool_summary` wins when it is there: it was written
+ * by the run itself and counts calls the transcript may not carry (a turn whose
+ * tool rows were trimmed still knows what it ran).
+ */
 function closeStep(step, { assistant = null } = {}) {
   if (assistant) {
     step.answered = true;
@@ -160,6 +176,13 @@ function closeStep(step, { assistant = null } = {}) {
         if (item?.tool && !step.tools.names.includes(item.tool)) step.tools.names.push(item.tool);
       }
     }
+
+    // A turn NOBODY ASKED FOR still deserves a name. A routine delivering into
+    // an agent's chat, a wake-up, an a2a reply — there is no request in front of
+    // it, so the title would be empty and the rail would read "Unnamed step" over
+    // a row that has real content in it. Named by what the agent SAID instead,
+    // which is the only honest label available: this is what came out.
+    if (!step.title) step.title = stepTitle(assistant.content);
 
     step.agent = attr(assistant, "agent_name") || attr(assistant, "agent") || step.agent;
     step.model = attr(assistant, "model") || step.model;
