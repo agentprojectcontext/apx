@@ -950,7 +950,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if (loud) Toast.makeText(this, "Buscando actualizaciones…", Toast.LENGTH_SHORT).show();
-        ApkUpdate.check(preferences.daemonUrl(), preferences.token(), new ApkUpdate.CheckCallback() {
+        ApkUpdate.check(preferences.daemonUrl(), preferences.token(), loud, new ApkUpdate.CheckCallback() {
             @Override
             public void onChecked(ApkUpdate.Available available) {
                 runOnUiThread(() -> {
