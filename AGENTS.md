@@ -300,7 +300,7 @@ the same change. Index: [`rules/README.md`](rules/README.md).
 | [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |
 | [`memory.md`](rules/memory.md) | embeddings, message store, compaction, vector index |
 | [`desktop.md`](rules/desktop.md) | the Electron floating voice window (rule 5) |
-| [`android.md`](rules/android.md) | the native Android `/mobile` shell, pairing, notifications, or overlay mascot |
+| [`android.md`](rules/android.md) | the native Android `/mobile` shell, pairing, notifications, overlay mascot — **and building, signing or installing the APK** |
 | [`docs-site.md`](rules/docs-site.md) | the public Astro + Starlight docs in `docs/` (rule 6) |
 | [`releasing.md`](rules/releasing.md) | writing a commit message — what ships a version and what silently does not (rule 18) |
 
