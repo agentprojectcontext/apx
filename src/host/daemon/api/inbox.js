@@ -1,14 +1,22 @@
-// GET /inbox   every agent as a conversation, most recent first, super-agent pinned
-//              ?limit=N&include_empty=1
+// GET  /inbox        every agent as a conversation, most recent first, super-agent pinned
+//                     ?limit=N&include_empty=1
+// POST /inbox/read    mark rows read, for every surface at once
 //
 // The conversation-first entry point. Project-first navigation is unaffected —
 // this is a second axis over the same data, not a replacement for it.
+//
+// Each row carries `unread`. The daemon answers it because the answer has to be
+// the SAME one on the laptop and on the phone — when it was a browser's own
+// localStorage, an afternoon of reading on one device left forty blue rows on
+// the other. See core/stores/read-marks.js.
 import { listAgentInbox } from "#core/stores/agent-inbox.js";
+import { readReadMarks, decorateUnread, markRowsRead } from "#core/stores/read-marks.js";
 import { listProjectA2AThreads, listProjectGroupThreads } from "#core/stores/messages.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { faceResolverFor, readAgentsSafe, contactFaceFor, resolveContact } from "./thread-faces.js";
-import { pageEnvelope, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
+import { pageEnvelope, asyncRoute, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
+import { broadcastReadMarks } from "../events-ws.js";
 import { convTurnKey, threadTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
 
 function activeTurnForRow(row, activeTurns) {
@@ -106,7 +114,7 @@ function groupInboxRows(entries, faces) {
 }
 
 export function register(api, { projects }) {
-  api.get("/inbox", (req, res) => {
+  api.get("/inbox", asyncRoute(async (req, res) => {
     try {
       const entries = [];
       for (const entry of projects.list()) {
@@ -203,11 +211,31 @@ export function register(api, { projects }) {
         (a, b) => new Date(b.last_activity_at || 0).getTime() - new Date(a.last_activity_at || 0).getTime()
       );
 
-      const envelope = pageEnvelope(merged, req.query);
+      // Read state last, over the finished list: it is a property of the row as
+      // the reader sees it, and the merge above is what decides which rows
+      // those are.
+      const marks = await readReadMarks();
+      const envelope = pageEnvelope(decorateUnread(merged, marks), req.query);
       if (skipped.length) envelope.meta = { ...(envelope.meta || {}), skipped };
       res.json(envelope);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
+
+  // Reading it counts as having been told — on every surface, not just this one.
+  //
+  // The body carries each row's identity plus the utterance that was read
+  // (`at` = the `preview_at` the caller had in hand). Its own timestamp and not
+  // `now`: an answer that landed between the fetch and this call has not been
+  // read by anybody and must stay unread.
+  api.post("/inbox/read", asyncRoute(async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+    if (!rows) return res.status(400).json({ error: "rows must be an array" });
+    const marked = await markRowsRead(rows);
+    // Only when something moved: this frame makes every open panel revalidate,
+    // and a list that re-fetches every 15s does not need a third reason to.
+    if (marked) broadcastReadMarks();
+    res.json({ ok: true, marked });
+  }));
 }

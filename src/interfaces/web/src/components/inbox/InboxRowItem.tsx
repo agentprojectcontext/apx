@@ -4,11 +4,7 @@ import { t } from "../../i18n";
 import { ChannelTag } from "./ChannelFilter";
 import { ProjectTag } from "./ProjectFilter";
 import { ChatRowActivity } from "../chat/ChatRowActivity";
-import {
-  activityKeyFromActiveTurn,
-  conversationActivityKey,
-  threadActivityKey,
-} from "../../lib/chat-activity";
+import { activityKeyForRow } from "../../lib/chat-activity";
 import { toneChip } from "../../lib/tone";
 import { useChatActivity } from "../../hooks/useChatActivity";
 import { useRowUnread } from "../../hooks/useChatRead";
@@ -87,13 +83,7 @@ export function InboxRowItem({
   const label = contactFace?.name || row.agent_name || row.agent_slug;
   const faces = participantFaces(row);
   const grouped = (row.kind === "a2a" || row.kind === "group") && faces.length > 0;
-  const activityKey = activityKeyFromActiveTurn(row.active_turn) || (
-    row.kind === "agent" && row.project_id != null && row.conversation_id
-      ? conversationActivityKey(row.project_id, row.conversation_id)
-      : row.kind === "super_agent" && row.project_id != null && row.channel && row.conversation_id
-        ? threadActivityKey(row.project_id, row.channel, row.conversation_id)
-        : null
-  );
+  const activityKey = activityKeyForRow(row);
   // The same registry the spinner reads, for the thing the spinner cannot say:
   // WHAT is being written. While a turn runs the row follows its text — and
   // only its text; the tools it is running are work, not a line anyone reads

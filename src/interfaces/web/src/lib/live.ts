@@ -17,8 +17,11 @@ import { wsUrl } from "./net";
 import type { BackgroundJobFrame, RoutineFrame, TurnFrame } from "../types/daemon";
 
 export interface LiveEvent {
-  /** Which ledger moved. `resync` is not from the daemon — see below. */
-  scope: "global" | "project" | "conversation" | "resync";
+  /** Which ledger moved. `resync` is not from the daemon — see below. `read`
+   *  is: somebody opened a conversation on ANOTHER device, so the lists have a
+   *  dot to drop (the thread itself did not move, which is why the two
+   *  `concerns*` helpers below leave it alone). */
+  scope: "global" | "project" | "conversation" | "resync" | "read";
   channel: string | null;
   /** Day file id for a channel thread (YYYY-MM-DD). */
   thread: string | null;
@@ -59,6 +62,21 @@ let missedWhileDown = false;
  *  stale". Matches everything, so every subscriber revalidates once. */
 const RESYNC: LiveEvent = {
   scope: "resync",
+  channel: null,
+  thread: null,
+  project_id: null,
+  agent_slug: null,
+  conversation_id: null,
+  direction: null,
+  type: null,
+  ts: null,
+};
+
+/** "Something was read somewhere else." Carries no row: the lists re-read the
+ *  daemon's own answer, which is the point of moving read state off the
+ *  device in the first place. */
+const READ: LiveEvent = {
+  scope: "read",
   channel: null,
   thread: null,
   project_id: null,
@@ -193,6 +211,7 @@ function connect() {
     else if (frame.type === "turn") emitTurn(frame as unknown as TurnFrame);
     else if (frame.type === "routine") emitRoutine(frame as unknown as RoutineFrame);
     else if (frame.type === "background_job") emitJob(frame as unknown as BackgroundJobFrame);
+    else if (frame.type === "read") emit([READ]);
   };
 
   const dropped = () => {

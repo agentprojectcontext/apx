@@ -177,8 +177,11 @@ export interface QueuedTurn {
 // And it outlives the PAGE, not only the pane. A queue held in memory alone
 // meant a message accepted from the composer — already in the thread, dimmed,
 // waiting its turn — was thrown away by a reload, with nothing to say it had
-// ever existed. Parked turns are per-device, like the unread marks beside them
-// (lib/chat-activity.ts), so localStorage is where they wait.
+// ever existed. A parked turn IS per-device — it is a draft this browser
+// accepted and nobody else can drain — so localStorage is where it waits. Read
+// marks used to sit beside it on that reasoning and did not belong: whether a
+// conversation has been read is true of the conversation, not of the browser,
+// and the daemon owns it now (lib/chat-read.ts).
 /** Channels whose turns belong to a ROOM inside the channel rather than to the
  *  channel itself: one project runs any number of group rooms and a2a pairs at
  *  once, so `channel` alone does not name a turn there (the daemon keys them by

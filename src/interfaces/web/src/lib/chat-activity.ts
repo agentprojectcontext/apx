@@ -5,6 +5,7 @@
 // UI projection here (running / unread / queued) gives every rail one contract
 // and keeps a finished answer visible after the pane that started it is gone.
 import { subscribeTurns } from "./live";
+import type { InboxRow } from "./api/inbox";
 import type { ActiveTurn, TurnFrame } from "../types/daemon";
 
 export interface ChatActivity {
@@ -63,6 +64,32 @@ export function activityKeyFromActiveTurn(active?: ActiveTurn | null): string | 
     return threadActivityKey(active.project_id, active.channel, active.thread_id);
   }
   return null;
+}
+
+/**
+ * The registry key for an inbox row — the one expression, not one per rail.
+ *
+ * It mirrors `frameKey` below, which is what makes a row and the frames about
+ * it meet: a project agent is addressed by its conversation file, and
+ * everything else (the super-agent on a channel, an a2a pair, a group room) by
+ * channel + thread. The daemon's own `active_turn` wins when there is one,
+ * because it is the authority on which turn this row is running.
+ *
+ * It lived inline in InboxRowItem, which is also why it stopped at the first
+ * two kinds; lib/chat-read needs it too — to drop this device's private unread
+ * mark once the daemon says somebody else read the row — and two copies of a
+ * key rule is how one surface quietly stops matching the other.
+ */
+export function activityKeyForRow(row: InboxRow): string | null {
+  const live = activityKeyFromActiveTurn(row.active_turn);
+  if (live) return live;
+  if (row.project_id == null) return null;
+  if (row.kind === "agent") {
+    return row.conversation_id ? conversationActivityKey(row.project_id, row.conversation_id) : null;
+  }
+  return row.channel && row.conversation_id
+    ? threadActivityKey(row.project_id, row.channel, row.conversation_id)
+    : null;
 }
 
 function frameKey(frame: TurnFrame): string | null {
@@ -250,6 +277,25 @@ export function setChatVisible(key: string | null, shown: boolean) {
   } else {
     visible.delete(key);
   }
+}
+
+/**
+ * Drop this device's unread mark because somebody read the row — possibly on
+ * another device entirely.
+ *
+ * The registry only ever hears turn frames, so it cannot know that the phone
+ * opened the chat five minutes ago. lib/chat-read does know (the daemon puts it
+ * on the row) and calls this. Returns whether anything actually changed, so a
+ * list folding in forty rows does not publish forty times.
+ */
+export function markActivityRead(key: string | null): boolean {
+  if (!key) return false;
+  hydrateUnread();
+  const current = state.get(key);
+  if (!current?.unread) return false;
+  patch(key, { unread: false });
+  persistUnread();
+  return true;
 }
 
 /** Test seam. */

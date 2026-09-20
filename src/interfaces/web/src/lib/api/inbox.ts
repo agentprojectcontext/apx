@@ -49,6 +49,24 @@ export interface InboxRow {
   last_activity_at: string;
   /** Daemon-owned status; survives navigation and is shared by every rail. */
   active_turn?: ActiveTurn | null;
+  /** Has the agent said something here that nobody has read yet?
+   *
+   *  The DAEMON's answer, not this browser's. It used to be worked out per
+   *  device in localStorage, which meant an afternoon of reading on the laptop
+   *  left forty blue rows on the phone — every one of them already read. See
+   *  core/stores/read-marks.js and lib/chat-read.ts. */
+  unread?: boolean;
+}
+
+/** One row's identity plus the utterance that was read. The timestamp the
+ *  reader HAD, never `now`: an answer that landed between the fetch and the
+ *  call has not been read by anybody. */
+export interface ReadMark {
+  project_id: number | string | null;
+  agent_slug: string;
+  channel: string | null;
+  contact_person?: string | null;
+  at: string;
 }
 
 export const Inbox = {
@@ -64,4 +82,8 @@ export const Inbox = {
       .get<unknown>(`/api/inbox${qs ? `?${qs}` : ""}`)
       .then((b) => unwrapPage<InboxRow>(b).items);
   },
+
+  /** Record that these rows were read — for every surface, not just this one. */
+  markRead: (rows: ReadMark[]) =>
+    http.post<{ ok: boolean; marked: number }>("/api/inbox/read", { rows }),
 };
