@@ -1,3 +1,11 @@
+# [1.113.0](https://github.com/agentprojectcontext/apx/compare/v1.112.0...v1.113.0) (2026-09-20)
+
+
+### Features
+
+* **cli:** el aviso de versión se puede ver funcionando, y la cara sobrevive una tubería ([3cb3fdb](https://github.com/agentprojectcontext/apx/commit/3cb3fdb9bc72b3bc8f7af6c4680962a376275e86))
+* **web:** el engranaje avisa que hay versión nueva, y settings ofrece actualizar ([55d1363](https://github.com/agentprojectcontext/apx/commit/55d13630edf1b187c56282d5a1b0372c6ea29dfe))
+
 # [1.112.0](https://github.com/agentprojectcontext/apx/compare/v1.111.0...v1.112.0) (2026-09-19)
 
 
