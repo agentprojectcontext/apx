@@ -182,20 +182,27 @@ test("a routine's own delivery path is not doubled by these rows", () => {
 test("background no longer needs Telegram: a panel-launched session runs detached", async () => {
   const { root, projects } = setup();
   try {
-    // A runtime that takes its time. Foreground would hold the turn for the
-    // whole five seconds (and a real session for the whole 300 before being
-    // killed mid-job); background hands the turn back at once, which is the
-    // difference the panel could not get before this.
+    // Asserted against the RUNTIME's own progress, not against a clock: a
+    // wall-time threshold is a test that passes alone and fails in a full
+    // suite, which teaches everyone to re-run it instead of reading it.
+    //
+    // The fake touches `done` only after it sleeps. Foreground would hold the
+    // turn until then (and a real session until the 300s deadline killed it
+    // mid-job); background hands control back while the file does not exist
+    // yet, which IS the fix.
+    //
     // `--version` answers at once: it is the availability probe, and a fake
     // that slept through it would be timing the probe instead of the spawn.
-    await withFakeBinary("aider", '#!/bin/sh\ncase "$*" in *--version*) echo "aider 0.0.0"; exit 0;; esac\nsleep 5\n', async () => {
-      const startedAt = Date.now();
+    const marker = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "apx-bg-")), "done");
+    const script = '#!/bin/sh\ncase "$*" in *--version*) echo "aider 0.0.0"; exit 0;; esac\n'
+      + `sleep 5\ntouch ${marker}\n`;
+    await withFakeBinary("aider", script, async () => {
       const r = await handlersOn(projects, "web").call_runtime({
         runtime: "aider",
         prompt: "una sesión larga, como son las de verdad",
         background: true,
       });
-      assert.ok(Date.now() - startedAt < 2000, "the turn got control back without waiting for the runtime");
+      assert.equal(fs.existsSync(marker), false, "the turn got control back before the runtime finished");
       assert.equal(r.status, "launched");
       assert.equal(r.background, true);
       assert.ok(ledgerRows("web").some((row) => row.meta?.runtime_phase === "launched"));

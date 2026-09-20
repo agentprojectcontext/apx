@@ -205,7 +205,7 @@ export const es = {
     runtimes_running: "Corriendo",
     runtimes_finished: "Terminadas",
     runtimes_empty: "Todavía no se lanzó ninguna.",
-    runtimes_unknown: "engine desconocido",
+    runtimes_unknown: "Engine desconocido",
     runtimes_started: "Arrancó",
     runtimes_completed: "Terminó",
     runtimes_cwd: "Carpeta",
