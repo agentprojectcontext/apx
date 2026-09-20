@@ -155,6 +155,15 @@ mientras agente escribe y punto azul cuando respuesta termina fuera chat abierto
 Abrir chat limpia punto. Cambio chat limpia historial anterior enseguida; turno
 viejo sigue daemon, pero no puede escribir chat nuevo.
 
+**El punto es compartido, no de cada dispositivo.** Lo leído vive en el daemon
+(`~/.apx/read-marks.json`), así que leer una conversación en la laptop lo apaga
+en el teléfono en el mismo segundo — las demás superficies se enteran por el
+mismo socket. Antes era la memoria de cada navegador, y por eso una tarde de
+lectura en un aparato dejaba cuarenta filas azules en el otro, todas ya leídas.
+Una instalación que ya venía andando toma su línea de base la primera vez que se
+le pregunta: todo lo dicho antes de ese momento cuenta como leído, y sólo lo que
+llega después levanta un punto.
+
 ## Notificaciones y qué canales te llegan
 
 El panel puede avisarte cuando un agente escribe y vos no estás mirando: una

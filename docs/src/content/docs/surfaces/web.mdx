@@ -155,6 +155,15 @@ Opening the chat clears the dot. Switching chats clears the old transcript
 immediately; a request still running for that old chat continues in the daemon,
 but cannot write into the newly opened one.
 
+**The dot is shared, not per device.** What has been read lives with the daemon
+(`~/.apx/read-marks.json`), so reading a conversation on the laptop clears it on
+the phone within the same second — the other surfaces are told over the same
+socket. It used to be each browser's own memory, which meant an afternoon of
+reading on one device left forty blue rows on the other, every one of them
+already read. An install that has been running for a while takes its baseline
+the first time it is asked: everything said before that moment counts as read,
+and only what arrives afterwards raises a dot.
+
 ## Notifications, and which channels reach you
 
 The panel can tell you when an agent writes and you are not looking: one

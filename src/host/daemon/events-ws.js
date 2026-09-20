@@ -85,6 +85,19 @@ export function broadcastEvents(msg) {
   for (const ws of _clients) send(ws, msg);
 }
 
+/**
+ * Tell every other surface that a conversation was just READ here.
+ *
+ * Read state belongs to the install, not to the browser that cleared it (see
+ * core/stores/read-marks.js), so the laptop's dot has to go out when the phone
+ * opens the chat. A signal, like every other frame: it says nothing about WHICH
+ * row moved, and the lists re-read the answer through the inbox they already
+ * poll. One frame per chat you open is nothing next to that poll.
+ */
+export function broadcastReadMarks() {
+  broadcastEvents({ type: "read", ts: new Date().toISOString() });
+}
+
 /** Push one live-turn frame (start / delta / event / final / error) to every
  *  surface — the turn that used to belong only to the sending tab. Sent
  *  straight, NOT through the 250ms message batch: tokens must arrive as they

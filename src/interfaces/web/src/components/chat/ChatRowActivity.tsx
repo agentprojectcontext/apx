@@ -43,9 +43,11 @@ export function ChatRowActivity({
 }: {
   activityKey: string | null;
   activeTurn?: ActiveTurn | null;
-  /** "There is something here I have not read", worked out from the row itself
-   *  (lib/chat-read) rather than from a turn this device watched end. A routine
-   *  or a task speaking is exactly the case the live registry cannot see. */
+  /** "There is something here nobody has read", worked out from the row itself
+   *  (lib/chat-read, answered by the daemon) rather than from a turn this device
+   *  watched end. A routine or a task speaking is exactly the case the live
+   *  registry cannot see — and being the daemon's answer is what makes reading
+   *  on the laptop clear the dot on the phone. */
   unread?: boolean;
   /** An agent left work running from this thread. NOT the same fact as a live
    *  turn: nobody is writing right now, somebody is WAITING — and from the list

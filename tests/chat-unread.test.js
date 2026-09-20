@@ -8,17 +8,27 @@
 // over a2a. golf-coach filed three reports and every rail stayed blank.
 //
 // `lib/chat-read.ts` answers the other half from the row itself: the agent's
-// last utterance (`preview_at`) is newer than the last one this device saw.
+// last utterance (`preview_at`) is newer than the last one anybody read.
 // Whoever wrote it, however it ran.
+//
+// AND IT IS THE DAEMON'S ANSWER, NOT THIS BROWSER'S. The marks used to live in
+// `localStorage`, one copy per device, which meant an afternoon of reading on
+// the laptop left forty blue rows on the phone — every one of them already
+// read. They live in `~/.apx/read-marks.json` now (core/stores/read-marks.js,
+// covered by tests/read-marks.test.js); what is left on the device is a
+// one-request bridge so the dot goes out on the click rather than on the next
+// fetch.
 //
 // The contracts below are the ones that broke or would break silently:
 //   · it must key off preview_at, never last_activity_at — activity also moves
 //     for your OWN send and for every tool row of a turn (560 of them on one
 //     busy Telegram day), so the dot would light the moment you pressed enter
-//   · it must take a baseline before anything counts, or a fresh browser shows
-//     a badge of 74 for conversations you have already read
+//   · the mark must be SENT, and the row's own `unread` believed, or the panel
+//     grows a second opinion and the two devices drift apart again
 //   · the row's identity must be the SHARED one, or a row is read under one key
 //     and drawn under another
+//   · the live registry's private dot must be droppable from outside, or the
+//     tab that watched a turn end keeps a mark the rest of the install cleared
 //   · the count must obey the same filters the list does, or you get a badge
 //     for a channel you have hidden and no way to clear it
 import { test } from "node:test";
@@ -40,13 +50,23 @@ test("unread is decided by what the AGENT said, not by activity", () => {
   );
 });
 
-test("a device takes a baseline before anything counts as unread", () => {
+test("read state is the daemon's, not this browser's", () => {
   const read = webSrc("lib", "chat-read.ts");
-  assert.match(read, /if \(!s\.seeded\) return false;/, "nothing is news before the first pass");
-  assert.match(read, /s\.seeded = true;/, "and the first pass with rows in hand sets it");
-  // An empty list is not a baseline: seeding off it would mark every row that
-  // arrives afterwards as new.
-  assert.match(read, /if \(!rows\.length\) return;/);
+  // The regression in one line: a device that remembers on its own is a device
+  // the other one cannot correct.
+  assert.doesNotMatch(
+    read,
+    /localStorage\.(get|set|remove)Item/,
+    "marks must not go back into per-device storage — that is the bug, not the fix",
+  );
+  assert.match(read, /Inbox\.markRead\(/, "reading is reported to the daemon");
+  assert.match(read, /row\.unread === true/, "and the row's own answer is what the dot reads");
+
+  // The row carries it, and the daemon is what puts it there.
+  assert.match(webSrc("lib", "api", "inbox.ts"), /unread\?: boolean/);
+  const route = fs.readFileSync(path.join(ROOT, "src/host/daemon/api/inbox.js"), "utf8");
+  assert.match(route, /decorateUnread\(merged, marks\)/, "every listed row is stamped");
+  assert.match(route, /api\.post\("\/inbox\/read"/, "and there is somewhere to report a read");
 });
 
 test("reading marks read — including the pane already on screen", () => {
@@ -58,6 +78,25 @@ test("reading marks read — including the pane already on screen", () => {
   // And every list that lands feeds the marks, so the rail can count on screens
   // that never mount an inbox.
   assert.match(webSrc("hooks", "useInbox.ts"), /syncReadMarks\(data \?\? \[\]\)/);
+});
+
+test("a read somewhere else clears the dot this device raised on its own", () => {
+  // chat-activity only ever hears turn frames, so it cannot know the phone
+  // opened the chat. chat-read does — the daemon puts it on the row — and drops
+  // the private mark for it. Without this the laptop keeps a dot forever.
+  const read = webSrc("lib", "chat-read.ts");
+  assert.match(read, /markActivityRead\(activityKeyForRow\(row\)\)/);
+  const activity = webSrc("lib", "chat-activity.ts");
+  assert.match(activity, /export function markActivityRead/);
+  // One key expression, shared — a second copy is how one rail stops matching
+  // the frames the other one is keyed by.
+  assert.match(activity, /export function activityKeyForRow/);
+  assert.match(webSrc("components", "inbox", "InboxRowItem.tsx"), /activityKeyForRow\(row\)/);
+
+  // And the other device hears about it without waiting for the 15s poll.
+  const ws = fs.readFileSync(path.join(ROOT, "src/host/daemon/events-ws.js"), "utf8");
+  assert.match(ws, /export function broadcastReadMarks/);
+  assert.match(webSrc("lib", "live.ts"), /frame\.type === "read"/);
 });
 
 test("the dot and the badge are the same fact, drawn twice", () => {
