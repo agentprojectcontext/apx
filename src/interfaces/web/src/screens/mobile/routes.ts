@@ -136,9 +136,14 @@ export function chatInProjectUrl(row: InboxRow): string {
   if (row.kind === "super_agent") {
     const ch = row.channel || "web";
     const id = row.conversation_id || "";
+    // The project the THREAD lives in, not a hardcoded 0. A web day written
+    // inside another project is not project 0's to read — the detail route
+    // scopes, and "open in project" was sending every super-agent row to a
+    // workspace that 404s on half of them.
+    const pid = row.project_id ?? 0;
     return id
-      ? `/p/0/chat?channel=${encodeURIComponent(ch)}&thread=${encodeURIComponent(id)}`
-      : "/p/0/chat";
+      ? `/p/${pid}/chat?channel=${encodeURIComponent(ch)}&thread=${encodeURIComponent(id)}`
+      : `/p/${pid}/chat`;
   }
   const pid = row.project_id ?? 0;
   if (row.kind === "a2a" || row.kind === "group") return agentCardUrl(row);
