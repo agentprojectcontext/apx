@@ -161,12 +161,28 @@ export async function projectTimeline({
     threads.get(key).turns.push({ role, ts: row.ts, content: row.body || "", meta: row.meta || null });
   }
 
+  // A MISSING CONVERSATION ID IS NOT AN IDENTITY, and treating it as one is a
+  // lie with a face on it. Grouping on `conversation_id || ""` put every
+  // milestone recorded outside a conversation — the super-agent's own threads,
+  // where a turn is addressed by channel and day — into one bucket keyed by the
+  // empty string, and handed the whole bucket to whichever thread also had no
+  // conversation id. Seen live the day this shipped: four milestones written at
+  // 23:51 by a CLI turn rendered underneath a scheduled run from 20:00, because
+  // that step was open-ended and the window swallowed them.
+  //
+  // So only a REAL id joins a thread. The rest keep their own row: we know when
+  // they happened and on which channel, and not which thread — which is exactly
+  // what gets shown.
   const declared = listMilestones(storagePath, { since });
   const byConversation = new Map();
+  const unplaced = [];
   for (const m of declared) {
-    const key = m.conversation_id || "";
-    if (!byConversation.has(key)) byConversation.set(key, []);
-    byConversation.get(key).push(m);
+    if (!m.conversation_id) {
+      unplaced.push(m);
+      continue;
+    }
+    if (!byConversation.has(m.conversation_id)) byConversation.set(m.conversation_id, []);
+    byConversation.get(m.conversation_id).push(m);
   }
 
   const entries = [];
@@ -177,14 +193,14 @@ export async function projectTimeline({
       agent: s.agent || thread.agent,
       conversation_id: thread.conversation_id,
     }));
-    const mine = byConversation.get(thread.conversation_id || "") || [];
+    const mine = thread.conversation_id ? byConversation.get(thread.conversation_id) || [] : [];
     entries.push(...mergeTimeline(steps, mine));
-    byConversation.delete(thread.conversation_id || "");
+    if (thread.conversation_id) byConversation.delete(thread.conversation_id);
   }
   // Declared milestones whose conversation left no ledger rows in the range
   // still belong in the answer — a routine that declared its steps and posted
   // nowhere is exactly the run nobody would otherwise hear about.
-  for (const rest of byConversation.values()) {
+  for (const rest of [...byConversation.values(), unplaced]) {
     entries.push(...rest.map((m) => ({ kind: "declared", ...m, milestones: [] })));
   }
 
