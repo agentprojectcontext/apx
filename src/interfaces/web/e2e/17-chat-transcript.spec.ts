@@ -127,10 +127,16 @@ test.describe("chat transcript", () => {
     // The turn's spend, on the same line, at phone width.
     await expect(page.getByText(/4\.8k tok/)).toBeVisible();
 
-    // Both directions of the header switch, because a phone had no way to even
-    // identify this control while its icon was desktop-only. Off first: pelado
-    // hides the LOG and keeps the count.
-    const layout = page.getByRole("switch").first();
+    // Both directions of the header control, because a phone had no way to even
+    // identify it while its icon was desktop-only. Off first: pelado hides the
+    // LOG and keeps the count.
+    //
+    // Addressed by its testid, not by `getByRole("switch")`: the switch became
+    // a pressed button (the wrench already IS the thing being turned on, and
+    // the pair cost a phone header too much width). The role went with it, and
+    // this spec kept driving the old one — e2e does not run in preflight, so
+    // nothing said so until the suite was run by hand.
+    const layout = page.getByTestId("toggle-tools");
     await expect(page.getByTestId("action-group").last()).toBeVisible();
     await layout.click();
     await expect(page.getByTestId("action-group")).toHaveCount(0);

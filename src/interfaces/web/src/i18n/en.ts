@@ -265,6 +265,9 @@ export const en = {
     title:           "Timeline",
     description:     "What was asked, what got done, and what was left open — across every chat.",
     empty:           "Nothing recorded in this range.",
+    empty_chat:      "Nothing recorded in this chat yet.",
+    open_panel:      "Timeline",
+    view_more:       "{n} more — see them all",
     range_today:     "Today",
     range_week:      "7 days",
     range_month:     "30 days",
@@ -682,6 +685,7 @@ export const en = {
     nav: {
       overview: "Overview",
       chat:     "Chat",
+      timeline: "Timeline",
       group:    "Group",
       config:   "Config",
       telegram: "Telegram",
