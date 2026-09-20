@@ -19,7 +19,9 @@
 // Fan-out is per PROCESS and that is enough: the daemon owns the HTTP API, the
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
-import { onMessageEvent, onMobilityAlert, onRoutineEvent, onBackgroundJobEvent } from "#core/events/bus.js";
+import { onMessageEvent, onMobilityAlert, onRoutineEvent, onBackgroundJobEvent, onPeerTurnEvent } from "#core/events/bus.js";
+import { trackChannelTurn } from "./channel-turn.js";
+import { threadTurnKey } from "./active-turns.js";
 import { mascotNoticesFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
@@ -270,6 +272,57 @@ export function startEventsBridge({ projects } = {}) {
     broadcastMobilityAlert(card);
   });
 
+  // An a2a turn a TOOL started, re-told as a tracked turn.
+  //
+  // `POST /projects/:pid/send` calls `trackChannelTurn` itself; `send_to_agent`
+  // and `call_agent` cannot — they run inside core, which must not import the
+  // registry (rule 8) — so they narrate on the bus and it is re-told here,
+  // through the same helper, into the same registry, under the same key. The
+  // effect is that the tool path stops being the one way of reaching a peer
+  // that nobody could watch or stop.
+  //
+  // NOT gated on `_clients.size`, unlike every subscriber above. The frames are
+  // the small half of this: the REGISTRY is what a panel opened halfway through
+  // catches up from and what `POST /jobs/:id/cancel` aborts, and both have to
+  // exist whether or not a socket happens to be open right now.
+  const livePeerTurns = new Map();   // ref -> the tracked turn
+  const unsubscribePeerTurns = onPeerTurnEvent((event) => {
+    const ref = event?.ref;
+    if (!ref) return;
+    try {
+      if (event.phase === "start") {
+        if (livePeerTurns.has(ref)) return;
+        livePeerTurns.set(ref, trackChannelTurn({
+          key: threadTurnKey(event.project_id ?? null, event.channel, event.thread_id),
+          projectId: event.project_id ?? null,
+          channel: event.channel,
+          threadId: event.thread_id || null,
+          agentSlug: event.agent_slug || null,
+          title: event.title || null,
+          surface: "a2a_tool",
+          abort: typeof event.abort === "function" ? event.abort : null,
+        }));
+        return;
+      }
+      const turn = livePeerTurns.get(ref);
+      if (!turn) return;
+      if (event.phase === "event") turn.onEvent(event.event);
+      else if (event.phase === "final") turn.final(event.result || {});
+      else if (event.phase === "error") turn.error(event.error || "");
+      else if (event.phase === "aborted") turn.aborted(event.result?.text ?? "");
+      else if (event.phase === "end") {
+        livePeerTurns.delete(ref);
+        turn.end();
+      }
+    } catch {
+      // Watching a turn must never be the reason it fails. Drop the record so a
+      // broken one cannot leak, and let the turn finish unobserved.
+      const turn = livePeerTurns.get(ref);
+      livePeerTurns.delete(ref);
+      try { turn?.end(); } catch { /* already gone */ }
+    }
+  });
+
   const unsubscribe = onMessageEvent((event) => {
     let pub;
     try {
@@ -303,6 +356,13 @@ export function startEventsBridge({ projects } = {}) {
     unsubscribeRoutines();
     unsubscribeJobs();
     unsubscribeMobility();
+    unsubscribePeerTurns();
+    // A turn still in flight at shutdown has nobody left to close it, and a
+    // record nothing can end is a chat that says "working" forever.
+    for (const turn of livePeerTurns.values()) {
+      try { turn.end(); } catch { /* already gone */ }
+    }
+    livePeerTurns.clear();
     clearInterval(pinger);
     if (flushTimer) clearTimeout(flushTimer);
     pending.clear();

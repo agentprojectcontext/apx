@@ -133,6 +133,59 @@ export function onBackgroundJobEvent(fn) {
   return () => bus.off(BACKGROUND_JOB_EVENT, fn);
 }
 
+export const PEER_TURN_EVENT = "peer_turn";
+
+/**
+ * An a2a turn started by a TOOL is narrating itself.
+ *
+ * `POST /projects/:pid/send` has always told this story — it wraps the peer's
+ * run in `trackChannelTurn`, so the thread says somebody is working, the tools
+ * appear as they run, and Stop has something to pull. The tool path
+ * (`send_to_agent`, `call_agent`, and every background job and wake-up built on
+ * them) told none of it: `messagePeer` was called with no `onEvent` and nothing
+ * registered the run, so a peer worked in total silence and the thread only
+ * moved when the reply was finally filed. Manu, 2026-09-20: "en los últimos
+ * agent to agent … la gente no respondió … debería verse que está respondiendo".
+ * It answered; there was simply nothing saying so.
+ *
+ * Worse, the silence was load-bearing elsewhere: `POST /jobs/:id/cancel` stops a
+ * background job by calling `abortActiveTurn(threadTurnKey(…, "a2a", thread))`,
+ * and no tool-path job ever registered under that key — so cancelling closed the
+ * record while the peer kept working, exactly what that route promises it does
+ * not do.
+ *
+ * Layering (rule 8): core EMITS the phases and never registers anything. The
+ * live-turn registry and the WS hub are daemon runtime; `host/daemon/events-ws.js`
+ * subscribes and turns these into a tracked, followable, stoppable turn — the
+ * same `trackChannelTurn` the HTTP route calls directly.
+ *
+ * @param {object} event
+ *   - phase       start | event | final | error | aborted
+ *   - ref         an id unique to this turn; every later phase repeats it
+ *   - project_id  the project the thread lives in
+ *   - channel     always CHANNELS.A2A today
+ *   - thread_id   the pair id — what the inbox and the panel address it by
+ *   - agent_slug  the peer that is answering
+ *   - title       one line for a panel listing live work
+ *   - abort       (start only) what Stop and `POST /jobs/:id/cancel` pull
+ *   - event       (event phase) one turn event, as the agent loop emits it
+ *   - result      (final) `{ text, model, usage }`
+ *   - error       (error) the message
+ */
+export function emitPeerTurnEvent(event) {
+  try {
+    bus.emit(PEER_TURN_EVENT, event);
+  } catch {
+    /* a broken listener must not fail the turn it is watching */
+  }
+}
+
+/** Subscribe to a2a peer-turn narration. Returns the unsubscribe function. */
+export function onPeerTurnEvent(fn) {
+  bus.on(PEER_TURN_EVENT, fn);
+  return () => bus.off(PEER_TURN_EVENT, fn);
+}
+
 /** Drop every listener. For tests, and for a clean daemon shutdown. */
 export function resetEventBus() {
   bus.removeAllListeners();
