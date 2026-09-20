@@ -2118,7 +2118,6 @@ export const es = {
     actions_count_one:   "1 acción",
     jobs_running:        "{n} tareas en ejecución",
     jobs_running_one:    "1 tarea en ejecución",
-    jobs_running_none:   "Sin tareas",
     job_waiting_on:      "Esperando a {peer}",
     job_wake_done:       "Terminó lo que dejó corriendo",
     job_wake_failed:     "No terminó bien lo que dejó corriendo",
