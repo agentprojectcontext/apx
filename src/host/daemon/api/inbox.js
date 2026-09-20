@@ -12,10 +12,11 @@
 import { listAgentInbox } from "#core/stores/agent-inbox.js";
 import { readReadMarks, decorateUnread, markRowsRead } from "#core/stores/read-marks.js";
 import { listProjectA2AThreads, listProjectGroupThreads } from "#core/stores/messages.js";
+import { listRecentProjectRuntimeRooms } from "#core/stores/runtime-room.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { faceResolverFor, readAgentsSafe, contactFaceFor, resolveContact } from "./thread-faces.js";
-import { pageEnvelope, asyncRoute, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
+import { pageEnvelope, asyncRoute, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX, RUNTIME_SLUG_PREFIX } from "./shared.js";
 import { broadcastReadMarks } from "../events-ws.js";
 import { convTurnKey, threadTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
 
@@ -25,7 +26,7 @@ function activeTurnForRow(row, activeTurns) {
   }
   // a2a and group threads are keyed by thread, not by conversation: the run
   // belongs to the pair, not to one agent's conversation file.
-  if ((row.kind === "a2a" || row.kind === "group") && row.project_id != null && row.conversation_id) {
+  if ((row.kind === "a2a" || row.kind === "group" || row.kind === "runtime") && row.project_id != null && row.conversation_id) {
     return getActiveTurnByKey(threadTurnKey(row.project_id, row.channel || row.kind, row.conversation_id));
   }
   if (row.kind === "super_agent" && row.channel && row.conversation_id) {
@@ -107,6 +108,61 @@ function groupInboxRows(entries, faces) {
         preview: th.preview || null,
         preview_at: th.preview_at || null,
         last_activity_at: th.last_ts,
+      });
+    }
+  }
+  return rows;
+}
+
+// A launched runtime session is a room too — one thread per session on the
+// `runtime` channel. Folded in here for the same reason a2a and group rooms
+// are: this is the one list that shows EVERY conversation, and a Claude Code
+// session you can write to is a conversation.
+//
+// Asked for on 2026-09-20: "claude code, codex y opencode deberían verse en la
+// lista de chats". Until then the only trace of a session was two rows inside
+// whichever channel happened to launch it — a receipt, in someone else's
+// thread, that you could read and not answer.
+//
+// The engine is the face. A room's participants are the engine plus whoever has
+// written to it, and the title is the first line of the first prompt — what the
+// session is ABOUT, which is the only thing that tells two of them apart.
+async function runtimeInboxRows(entries) {
+  const rows = [];
+  for (const e of entries) {
+    let rooms = [];
+    // The last week, not the whole archive. A session from May is history with
+    // a screen of its own (`/m/runtimes`); this list is the conversations you
+    // might still answer. It also keeps the request cheap — the bounded reader
+    // opens only the day files inside the window (see the store).
+    try { rooms = await listRecentProjectRuntimeRooms(e.storagePath); } catch { /* skip */ }
+    for (const room of rooms) {
+      rows.push({
+        project_id: e.id,
+        project_name: e.name,
+        project_path: e.path,
+        agent_slug: `${RUNTIME_SLUG_PREFIX}${room.id}`,
+        agent_name: room.title,
+        agent_emoji: null,
+        // THE ENGINE IS THE FACE. AgentAvatar ships a logo per engine, so
+        // handing it the runtime's name here makes the row wear Claude's mark
+        // with no branch in the row component: a list of chats where the coding
+        // sessions are recognisable at a glance, which is the point of them
+        // being in that list at all.
+        agent_icon: room.runtime || null,
+        kind: "runtime",
+        runtime: room.runtime,
+        cwd: room.cwd,
+        phase: room.phase,
+        participants: room.participants,
+        participant_faces: [],
+        pinned: false,
+        conversation_id: room.id,
+        channel: "runtime",
+        messages: room.messages,
+        preview: room.preview || null,
+        preview_at: room.preview_at || null,
+        last_activity_at: room.last_ts,
       });
     }
   }
@@ -205,7 +261,7 @@ export function register(api, { projects }) {
       // Merge a2a group chats in and re-sort so the newest conversation wins
       // regardless of whether it was an individual or a group one.
       const activeTurns = listActiveTurns();
-      const merged = [...deduped, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces)]
+      const merged = [...deduped, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces), ...(await runtimeInboxRows(entries))]
         .map((row) => ({ ...row, active_turn: activeTurnForRow(row, activeTurns) }))
         .sort(
         (a, b) => new Date(b.last_activity_at || 0).getTime() - new Date(a.last_activity_at || 0).getTime()

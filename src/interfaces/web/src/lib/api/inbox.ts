@@ -11,8 +11,13 @@ export interface InboxRow {
   agent_emoji: string | null;
   /** Blob-preset key for the animated avatar (see components/agents/blobPresets). */
   agent_icon: string | null;
-  kind: "agent" | "super_agent" | "a2a" | "group";
-  /** For a2a and group chats: the participant slugs, for the multi-face avatar. */
+  kind: "agent" | "super_agent" | "a2a" | "group" | "runtime";
+  /** A launched coding session (kind "runtime"): which engine answers in it,
+   *  where it opened, and how the last run ended. The engine is the face. */
+  runtime?: string | null;
+  cwd?: string | null;
+  phase?: string | null;
+  /** For a2a, group and runtime rooms: the participant slugs, for the multi-face avatar. */
   participants?: string[];
   /** Resolved face per participant (blob/emoji/name) so the duo wears real
    *  avatars — the same shape, from the same resolver, that a thread carries. */

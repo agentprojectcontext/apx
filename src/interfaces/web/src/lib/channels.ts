@@ -41,6 +41,7 @@ const CHANNEL_LABELS: Record<string, string> = {
   desktop: "Desktop",
   deck: "Deck",
   code: "Code",
+  runtime: "Runtime",
   cli: "CLI",
   api: "API",
   direct: "Direct",

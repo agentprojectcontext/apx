@@ -25,6 +25,7 @@ import {
   listRuntimeSessions,
   readRuntimeSession,
 } from "#core/stores/runtime-sessions.js";
+import { readProjectRuntimeRoom, listProjectRuntimeRooms } from "#core/stores/runtime-room.js";
 import { makeToolHandlers } from "#core/agent/tools/registry.js";
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { asyncRoute, pageEnvelope } from "./shared.js";
@@ -75,6 +76,27 @@ export function register(api, { projects, project, plugins, config }) {
     res.json({ ...rest, project_id: p.id, project_name: p.name });
   });
 
+  // The session as a CONVERSATION — the shape the chat viewer reads.
+  //
+  // Next to the detail route above rather than replacing it: that one answers
+  // "what is this session" (engine, cwd, exit code, the notes it left), this
+  // one answers "what was said in it", and the panel wants both on the same
+  // screen. Shaped like a group thread, because it is one: `messages` already
+  // carries the three voices (see core/stores/runtime-room.js).
+  api.get("/projects/:pid/runtime-rooms/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const room = readProjectRuntimeRoom(p.storagePath, req.params.id);
+    if (!room) return res.status(404).json({ error: "runtime room not found" });
+    res.json({ ...room, project_id: p.id, project_name: p.name });
+  });
+
+  api.get("/projects/:pid/runtime-rooms", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    res.json(pageEnvelope(listProjectRuntimeRooms(p.storagePath), req.query));
+  });
+
   api.post("/projects/:pid/runtime-sessions/:id/continue", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -89,15 +111,28 @@ export function register(api, { projects, project, plugins, config }) {
       return res.status(400).json({ error: `session has no runnable runtime (${session.runtime || "unknown"})` });
     }
 
-    // `channel: "web"` is what makes the new run narrate itself into the panel's
-    // thread (core/agent/runtime-thread.js) instead of disappearing the way the
-    // one being continued did.
+    // `channel: "runtime"` keeps the answer IN THE ROOM.
+    //
+    // It used to be "web", which made the run narrate itself into the panel's
+    // day thread — the right answer when a session had nowhere else to land.
+    // It has somewhere now: the room this prompt was typed into, which already
+    // holds both sides of the conversation. A launch notice filed beside them
+    // would be the thread announcing itself. `runtime` is a room channel, so
+    // runtimeThreadCanCarry() declines it and only the room rows are written.
+    //
+    // Telegram still gets its narration: that is a different surface, and a
+    // person who asked from their phone is not looking at this panel.
     const handlers = makeToolHandlers({
       projects,
       plugins,
       registries: null,
       globalConfig: config,
-      channel: req.body?.channel === "telegram" ? "telegram" : "web",
+      channel: req.body?.channel === "telegram" ? "telegram" : "runtime",
+      // THE OWNER TYPED THIS. The room records who wrote each prompt, and the
+      // engine cannot tell — `claude -p` reads one user either way. It rides in
+      // the handler context and not in the tool's arguments on purpose: a model
+      // must never be able to sign the owner's name to its own message.
+      promptAuthor: "owner",
     });
 
     const out = await handlers.call_runtime({

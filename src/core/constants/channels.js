@@ -16,6 +16,13 @@ export const CHANNELS = Object.freeze({
   DECK: "deck",               // Mobile cockpit dashboard
   DESKTOP: "desktop",         // Electron capsule (always voice mode)
   CODE: "code",               // `apx code` — terminal coding session
+  // A launched runtime session (Claude Code, Codex, OpenCode…) as a room of
+  // its own. A ROOM, not a day of a channel: one thread per session, addressed
+  // by its id, so it lists in the chat list and can be written to. Manu asked
+  // for it by name on 2026-09-20 — "un canal tipo runtime así sabés que es
+  // aparte" — and apart is right: `code` is a terminal session the owner is
+  // sitting in, this is a process somebody launched that is still running.
+  RUNTIME: "runtime",
   A2A: "a2a",                 // Agent-to-agent relay (project-scoped ledger)
   LOG: "log",                 // Readable, never delivered (routine abstentions)
   DIRECT: "direct",           // Planned: 1:1 channel that isn't a chat platform
@@ -42,7 +49,7 @@ export const DELIVERED_CHANNELS = Object.freeze(
  *  project-scoped ledgers with their own rewind (a group) or a deliberate
  *  refusal to have one (a2a: it is the record of two agents talking). Either
  *  way they never take the channel+day path. */
-const ROOM_CHANNELS = Object.freeze(new Set([CHANNELS.A2A, "group"]));
+const ROOM_CHANNELS = Object.freeze(new Set([CHANNELS.A2A, "group", CHANNELS.RUNTIME]));
 
 /**
  * May the panel rewind this channel+day thread — i.e. offer "regenerate" and
