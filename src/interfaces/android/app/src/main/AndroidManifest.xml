@@ -27,6 +27,13 @@
          by hand, and that is a system decision, not one an app may make for
          them. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- APX is not on Play, so nothing else can hand it a new version. This is
+         what lets the app offer its own update instead of sending the owner to
+         a browser to re-download a file they already have an app for. It does
+         NOT install anything silently: Android still shows its own installer
+         screen and, the first time, makes the owner allow this source by hand.
+         That prompt cannot be skipped without Play, and should not be. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -109,6 +116,20 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- How the downloaded APK reaches the system installer. A file:// URI
+             has been illegal across app boundaries since Android 7 (it throws
+             FileUriExposedException), so the installer is handed a content://
+             one it is granted read access to for that one intent. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <receiver
             android:name=".CarMessageActionReceiver"

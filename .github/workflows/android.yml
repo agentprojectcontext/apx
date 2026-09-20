@@ -159,6 +159,21 @@ jobs:
           echo "sha=$(cut -d' ' -f1 dist-apk/apx.apk.sha256)" >> "$GITHUB_OUTPUT"
           echo "size=$(du -h dist-apk/apx.apk | cut -f1)" >> "$GITHUB_OUTPUT"
 
+          # The same facts as a machine can read them. The phone's "is there a
+          # new version" check goes through the daemon, which reads THIS rather
+          # than scraping the release title and notes — those are prose, they
+          # are written for a person, and a wording change would silently stop
+          # every phone from ever seeing an update again.
+          jq -n \
+            --arg v "${{ steps.version.outputs.name }}" \
+            --arg code "${{ steps.version.outputs.code }}" \
+            --arg sha "$(cut -d' ' -f1 dist-apk/apx.apk.sha256)" \
+            --arg size "$(stat -c%s dist-apk/apx.apk)" \
+            --arg commit "$GITHUB_SHA" \
+            '{version: $v, version_code: ($code|tonumber), sha256: $sha,
+              size: ($size|tonumber), commit: $commit}' \
+            > dist-apk/apx-android.json
+
       # Kept whether or not the release happens: on a fork this is the artifact,
       # and on main it is the record of what was published.
       - uses: actions/upload-artifact@v4
@@ -201,7 +216,8 @@ jobs:
             gh release create android-latest --title "APX Android $VERSION" --notes "$notes" \
               --target "$GITHUB_SHA" --latest=false
           fi
-          gh release upload android-latest dist-apk/apx.apk dist-apk/apx.apk.sha256 --clobber
+          gh release upload android-latest \
+            dist-apk/apx.apk dist-apk/apx.apk.sha256 dist-apk/apx-android.json --clobber
 
       # The APK moves a handful of times a year, so this one is never filtered:
       # a new build of the app is exactly what someone joined the server to hear

@@ -55,6 +55,10 @@ public final class MainActivity extends Activity {
 
     private ApxPreferences preferences;
     private WebView webView;
+    // What the daemon last said is published, or null while nothing is known.
+    // Null is NOT "up to date": the menu says "buscar actualizaciones" until
+    // something has actually answered.
+    private ApkUpdate.Available pendingUpdate;
     private TravelStatusBanner travelBanner;
     // -1 = not asked yet. The banner must not print "0 pendientes" before the
     // daemon has answered.
@@ -334,6 +338,12 @@ public final class MainActivity extends Activity {
             webView.resumeTimers();
         }
         updateTravelBanner();
+        // Quietly, once per foregrounding: nobody opens a phone app in order to
+        // check for its updates, so the app has to be the one that notices.
+        // `false` = say nothing unless there IS one — a "you are up to date"
+        // toast every time you switch back to APX is noise with no decision in
+        // it.
+        checkForUpdate(false);
     }
 
     @Override
@@ -862,9 +872,16 @@ public final class MainActivity extends Activity {
             : ApxPreferences.SOURCE_ANDROID_AUTO.equals(preferences.travelSource())
                 ? "✓ Android Auto conectado"
                 : "✓ Viaje de Maps detectado";
+        // Says the answer on the row, so the menu tells you whether there is
+        // an update without being asked twice.
+        String updateAction = pendingUpdate == null
+            ? "Buscar actualizaciones (" + BuildConfig.VERSION_NAME + ")"
+            : pendingUpdate.updateAvailable()
+                ? "● Actualizar a " + pendingUpdate.version()
+                : "✓ Al día (" + BuildConfig.VERSION_NAME + ")";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, notifyChannelsAction(), drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Ver o cambiar la conexión"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, notifyChannelsAction(), drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", updateAction, "Recargar /mobile", "Ver o cambiar la conexión"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
                 if (which == 2) showNotifyChannels();
@@ -878,17 +895,162 @@ public final class MainActivity extends Activity {
                     if (Build.VERSION.SDK_INT >= 26) startForegroundService(test); else startService(test);
                     Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
                 }
-                if (which == 7) openMobile("/mobile");
+                if (which == 7) checkForUpdate(true);
+                if (which == 8) openMobile("/mobile");
                 // Opening this screen used to clear the pairing first, so the
                 // connection was already gone before anything was typed — and
                 // with no way back, because `onBackPressed` on a screen with no
                 // WebView closes the app. Looking at the address is not a
                 // decision to leave the daemon. Nothing is replaced until a new
                 // pairing actually succeeds (savePairing, below).
-                if (which == 8) showPairing(null, null, false);
+                if (which == 9) showPairing(null, null, false);
             })
             .setNegativeButton("Cerrar", null)
             .show();
+    }
+
+    // ── Updating itself ──────────────────────────────────────────────────────
+    //
+    // APX is not on Play. Nothing is going to tell this phone it is out of
+    // date, and the only way to update used to be: leave the app, open a
+    // browser, find the release, download a file, tap it. For an app that is
+    // already on screen and already talking to the daemon that knows the
+    // answer, that is four steps too many.
+
+    /**
+     * Ask the daemon what is published, and do something about the answer.
+     *
+     * @param loud the owner asked. Shows "looking…", and says so either way.
+     *             Quiet (on resume) speaks only when there IS an update — a
+     *             toast saying nothing changed is a toast with no decision in
+     *             it, and it would fire every time you switch back to APX.
+     */
+    private void checkForUpdate(boolean loud) {
+        if (!preferences.paired()) {
+            if (loud) Toast.makeText(this, "Vinculá el teléfono primero.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (loud) Toast.makeText(this, "Buscando actualizaciones…", Toast.LENGTH_SHORT).show();
+        ApkUpdate.check(preferences.daemonUrl(), preferences.token(), new ApkUpdate.CheckCallback() {
+            @Override
+            public void onChecked(ApkUpdate.Available available) {
+                runOnUiThread(() -> {
+                    pendingUpdate = available;
+                    if (available.updateAvailable()) offerUpdate(available);
+                    else if (loud) {
+                        Toast.makeText(
+                            MainActivity.this,
+                            "Ya estás en la última (" + BuildConfig.VERSION_NAME + ").",
+                            Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onCheckFailed(String message) {
+                // Never silently treated as "up to date" — the phone that most
+                // needs telling is the one whose owner is not looking.
+                Log.w("APXUpdate", "check failed: " + message);
+                if (loud) {
+                    runOnUiThread(() ->
+                        Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show());
+                }
+            }
+        });
+    }
+
+    /** What is new, how big it is, and the one button that does it. */
+    private void offerUpdate(ApkUpdate.Available available) {
+        String size = available.size() > 0
+            ? String.format(java.util.Locale.US, " · %.1f MB", available.size() / 1048576.0)
+            : "";
+        new AlertDialog.Builder(this)
+            .setTitle("APX " + available.version())
+            .setMessage(
+                "Tenés la " + BuildConfig.VERSION_NAME + "." + size
+                + "\n\nSe instala encima de esta: el vínculo con el daemon, los permisos "
+                + "y la configuración quedan como están."
+            )
+            .setPositiveButton("Actualizar", (dialog, which) -> startUpdate(available))
+            .setNegativeButton("Ahora no", null)
+            .show();
+    }
+
+    /**
+     * Download, then hand the file to Android's installer.
+     *
+     * The unknown-sources permission is asked for BEFORE the download, not
+     * after: nobody should wait for five megabytes to land on a screen they are
+     * about to be bounced off. It is a per-app switch and there is no way to
+     * install without it outside Play.
+     */
+    private void startUpdate(ApkUpdate.Available available) {
+        if (!ApkUpdate.canInstall(this)) {
+            new AlertDialog.Builder(this)
+                .setTitle("Permitir instalar desde APX")
+                .setMessage(
+                    "Android pide este permiso una sola vez, para que APX pueda reemplazarse "
+                    + "a sí misma. Después volvé acá y tocá Actualizar."
+                )
+                .setPositiveButton("Abrir ajustes", (dialog, which) -> {
+                    try {
+                        startActivity(ApkUpdate.unknownSourcesSettings(this));
+                    } catch (RuntimeException noScreen) {
+                        Toast.makeText(this, "Este Android no expone ese ajuste.", Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton("Cancelar", null)
+                .show();
+            return;
+        }
+
+        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        bar.setIndeterminate(true);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        bar.setPadding(pad, pad, pad, pad);
+        AlertDialog progress = new AlertDialog.Builder(this)
+            .setTitle("Bajando APX " + available.version())
+            .setView(bar)
+            .setCancelable(false)
+            .create();
+        progress.show();
+
+        ApkUpdate.download(this, available, new ApkUpdate.DownloadCallback() {
+            @Override
+            public void onProgress(int percent) {
+                runOnUiThread(() -> {
+                    if (percent < 0) { bar.setIndeterminate(true); return; }
+                    bar.setIndeterminate(false);
+                    bar.setProgress(percent);
+                });
+            }
+
+            @Override
+            public void onDownloaded(java.io.File apk) {
+                runOnUiThread(() -> {
+                    progress.dismiss();
+                    try {
+                        startActivity(ApkUpdate.installIntent(MainActivity.this, apk));
+                    } catch (RuntimeException error) {
+                        Toast.makeText(
+                            MainActivity.this,
+                            "No pude abrir el instalador: " + error.getMessage(),
+                            Toast.LENGTH_LONG
+                        ).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onDownloadFailed(String message) {
+                runOnUiThread(() -> {
+                    progress.dismiss();
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     /** Is APX exempt from Doze / App Standby right now? */

@@ -50,7 +50,11 @@ test("looking at the connection is not a decision to leave the daemon", () => {
   // Nothing is destroyed on the way in. The stored pairing is replaced only by
   // a NEW one that actually succeeded.
   assert.doesNotMatch(activity, /preferences\.clearPairing\(\);\s*\n\s*showPairing/);
-  assert.match(activity, /if \(which == 8\) showPairing\(null, null, false\);/);
+  // The index moves whenever the menu grows a row (it did when "Actualizar"
+  // landed above it). Pinned to the LABEL's position rather than to a number,
+  // so the next row added fails this in a way that names what happened.
+  assert.match(activity, /if \(which == 9\) showPairing\(null, null, false\);/);
+  assert.match(activity, /"Ver o cambiar la conexión"/);
   assert.match(activity, /preferences\.savePairing\(base, token\)/);
 
   // Two ways out, and both mean the same thing: the button for a thumb, the

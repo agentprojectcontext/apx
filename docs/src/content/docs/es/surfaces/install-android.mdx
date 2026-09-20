@@ -211,8 +211,25 @@ veces y en el menú de desarrollador tildá **Fuentes desconocidas**.
 
 ## Actualizar
 
-Instalá el APK nuevo encima del viejo: `apx android install` otra vez, o bajarlo
-y tocarlo. El pairing, la configuración y los permisos se mantienen.
+**Desde la app.** Menú de APX → **Buscar actualizaciones**. Si hay una versión
+nueva te la ofrece, la baja, la verifica contra el sha256 publicado y se la pasa
+al instalador de Android. La app también mira sola cada vez que la abrís, y sólo
+habla cuando hay algo que instalar.
+
+La primera vez Android pide permiso para que APX pueda instalar apps. Es un
+permiso por app, se concede una sola vez y no hay forma de saltearlo fuera de
+Play —ni debería haberla: una app que puede reemplazarse a sí misma sin que le
+pregunten a nadie puede reemplazarse por cualquier cosa.
+
+**Sin la app.** Instalá el APK nuevo encima del viejo: `apx android install` otra
+vez, o bajarlo y tocarlo. El pairing, la configuración y los permisos se
+mantienen igual.
+
+<Aside type="tip">
+  Después de actualizar por fuera de la app conviene abrirla una vez: en algunos
+  Android el servicio de notificaciones queda caído hasta que alguien la abre, y
+  desde afuera eso no se ve como un problema.
+</Aside>
 
 <Aside type="caution">
   Android identifica una app por su clave de firma. Un APK firmado con otra clave

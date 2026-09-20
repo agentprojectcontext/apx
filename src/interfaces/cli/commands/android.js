@@ -22,13 +22,13 @@ import { promisify } from "node:util";
 
 import { readConfig, effectivePort } from "#core/config/index.js";
 import { apxHome } from "#core/config/paths.js";
+import { APK_URL as PUBLISHED_APK_URL, publishedApk } from "#core/android-release.js";
 import { http } from "../http.js";
 
 const run = promisify(execFile);
 
 /** Where the published APK lives. A pointer tag, so this link never moves. */
-export const APK_URL =
-  "https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk";
+export const APK_URL = PUBLISHED_APK_URL;
 
 const c = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",
@@ -516,26 +516,15 @@ async function pairOverCable(bin, device, port, args = {}) {
 }
 
 /**
- * The version of the published APK, read from the release the download link
- * points at. Best-effort: no network, no answer, and status says nothing rather
- * than claiming the phone is current.
+ * The version of the published APK. Best-effort: no network, no answer, and
+ * status says nothing rather than claiming the phone is current.
+ *
+ * Shared with the daemon (`GET /api/android/latest`, which is how the PHONE
+ * asks the same question) so the cable and the app can never disagree about
+ * what the newest build is.
  */
 async function publishedVersion() {
-  try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(
-      "https://api.github.com/repos/agentprojectcontext/apx/releases/tags/android-latest",
-      { signal: ctrl.signal, headers: { accept: "application/vnd.github+json" } },
-    );
-    clearTimeout(t);
-    if (!res.ok) return null;
-    const rel = await res.json();
-    // The release title is "APX Android <version>" — see .github/workflows/android.yml.
-    return /APX Android\s+(\S+)/.exec(rel?.name || "")?.[1] || null;
-  } catch {
-    return null;
-  }
+  return (await publishedApk({ timeoutMs: 4000 }))?.version || null;
 }
 
 // ── status ───────────────────────────────────────────────────────────────────
@@ -566,8 +555,9 @@ export async function cmdAndroidStatus() {
   const code = /versionCode=(\d+)/.exec(out)?.[1];
   if (version) {
     console.log(`  ${fmt.green("●")} APX installed ${fmt.dim(`${version} (code ${code})`)}`);
-    // The phone cannot ask GitHub what the newest APK is, and the daemon has no
-    // reason to. This is the one place that can see both numbers at once.
+    // Over the cable this is the one place that sees both numbers at once
+    // without the phone doing anything. The phone can now ask on its own too —
+    // the daemon answers it from this same cache (api/android.js).
     const published = await publishedVersion();
     if (published && published !== version) {
       console.log(`  ${fmt.yellow("○")} the published APK is ${fmt.bold(published)} — ${fmt.cyan("apx android install")}`);
