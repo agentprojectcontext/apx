@@ -10,6 +10,7 @@ import type { InboxRow } from "../../lib/api/inbox";
  *   /m/chat/:pid/:slug/:session              a chat, on one specific session
  *   /m/tasks                                 every project's tasks
  *   /m/commitments                           every project's promises
+ *   /m/attention                             what is waiting on you, everywhere
  *   /m/team/:pid                             one project's team
  *
  * `/m` and not `/mobile`, and each surface named after WHAT IT SHOWS rather
@@ -39,6 +40,8 @@ export const MOBILE_ROOT = "/m";
 export const CHAT_ROOT = `${MOBILE_ROOT}/chat`;
 export const TASKS_ROOT = `${MOBILE_ROOT}/tasks`;
 export const COMMITMENTS_ROOT = `${MOBILE_ROOT}/commitments`;
+/** Everything waiting on the owner, from every list at once. */
+export const ATTENTION_ROOT = `${MOBILE_ROOT}/attention`;
 
 /**
  * The pre-`/m` spelling, kept alive by a redirect rather than by a second set

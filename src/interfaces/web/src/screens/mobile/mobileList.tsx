@@ -22,8 +22,11 @@ export function MobileListHeader({
 }: {
   title: string;
   actions?: ReactNode;
-  query: string;
-  onQuery: (v: string) => void;
+  /** Omit BOTH to get a header with no search box. A screen that is meant to be
+   *  short by construction (the notification centre) has nothing to search, and
+   *  an input that filters three rows is 40px of chrome earning nothing. */
+  query?: string;
+  onQuery?: (v: string) => void;
   searchPlaceholder?: string;
   /** Chips row under the search box. */
   filters?: ReactNode;
@@ -40,15 +43,17 @@ export function MobileListHeader({
         <h1 className="text-xl font-semibold">{title}</h1>
         <div className="flex items-center gap-1">{actions}</div>
       </div>
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-fg" />
-        <input
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder={searchPlaceholder ?? t("inbox.search")}
-          className="h-10 w-full rounded-full border border-border bg-muted/30 pl-9 pr-3 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
-        />
-      </div>
+      {onQuery && (
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-fg" />
+          <input
+            value={query ?? ""}
+            onChange={(e) => onQuery(e.target.value)}
+            placeholder={searchPlaceholder ?? t("inbox.search")}
+            className="h-10 w-full rounded-full border border-border bg-muted/30 pl-9 pr-3 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
+          />
+        </div>
+      )}
       {filters && (
         // Chips scroll sideways rather than wrapping: five states wrapped onto
         // a second line push the first row of the list off a small screen.

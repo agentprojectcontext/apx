@@ -37,10 +37,13 @@ import {
   DONE_COLUMN, columnHook, normalizeColumns, isColumnId, projectColumns, readColumnCatalog,
 } from "#core/tasks/columns.js";
 import { readAgents } from "#core/apc/parser.js";
+import { resolveOwnerName } from "#core/identity/self.js";
+import { readTaskReads, decorateTaskUnread, markTasksRead } from "#core/stores/task-reads.js";
 import { readProjectConfig, writeProjectConfig } from "../project-config.js";
 import { mentionedAgents, runCommentMentions } from "#core/tasks/comment-turn.js";
 import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
-import { pageEnvelope } from "./shared.js";
+import { pageEnvelope, asyncRoute } from "./shared.js";
+import { broadcastReadMarks } from "../events-ws.js";
 
 /** What the board says when a column has an agent but no instruction. */
 function defaultHookLine(label) {
@@ -69,7 +72,7 @@ export function register(api, { project, projects, config, plugins, registries }
   // Global tasks across every project, newest first. Returns a { meta, data }
   // envelope. Paginated via ?limit & ?offset; with no limit, data is the full
   // set as one page.
-  api.get("/tasks", (req, res) => {
+  api.get("/tasks", asyncRoute(async (req, res) => {
     const { state, tag, agent, due_before, due_after, status, updated_since, parent } = req.query;
 
     // Resolve the registered projects to what core needs, dropping any the
@@ -87,6 +90,12 @@ export function register(api, { project, projects, config, plugins, registries }
     }
 
     const { tasks, skipped } = listTasksAcrossProjects(entries, {
+      // Who "@Manu" is, so a comment that names the owner can raise the badge
+      // that says so. Resolved here and passed down: core stays free of config
+      // imports, and a thread keeps saying who was addressed on the day it was
+      // written.
+      owner_name: resolveOwnerName(),
+      sort: req.query.sort === "attention" ? "attention" : undefined,
       // "all" is passed THROUGH, not turned into undefined: listTasks reads a
       // missing state as "open only", so mapping all→undefined made the
       // aggregated view's All chip show exactly the same rows as Open.
@@ -100,11 +109,15 @@ export function register(api, { project, projects, config, plugins, registries }
       ...(parent !== undefined ? { parent } : {}),
     });
 
-    const envelope = pageEnvelope(tasks, req.query);
+    // Blue dot: has anyone else touched this card since it was last opened,
+    // on ANY device. The marks live in the daemon, not in localStorage — see
+    // core/stores/task-reads.js.
+    const marks = await readTaskReads();
+    const envelope = pageEnvelope(decorateTaskUnread(tasks, marks), req.query);
     // Say when a project could not be read rather than quietly showing less.
     if (skipped.length) envelope.meta = { ...(envelope.meta || {}), skipped };
     res.json(envelope);
-  });
+  }));
 
   // The vocabulary every board shares. Editing it here renames/adds/removes a
   // column for every project at once, which is the point: "QA" has to mean the
@@ -163,11 +176,13 @@ export function register(api, { project, projects, config, plugins, registries }
 
   // Per-project tasks. Returns a { meta, data } envelope; with no ?limit the
   // data array is the full filtered set (one page).
-  api.get("/projects/:pid/tasks", (req, res) => {
+  api.get("/projects/:pid/tasks", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { state, tag, agent, due_before, due_after, status, updated_since, parent } = req.query;
     const all = listTasks(p.storagePath, {
+      owner_name: resolveOwnerName(),
+      sort: req.query.sort === "attention" ? "attention" : undefined,
       state: state || undefined,
       tag: tag || undefined,
       agent: agent || undefined,
@@ -177,8 +192,25 @@ export function register(api, { project, projects, config, plugins, registries }
       updated_since: updated_since || undefined,
       ...(parent !== undefined ? { parent } : {}),
     });
-    res.json(pageEnvelope(all, req.query));
-  });
+    const marks = await readTaskReads();
+    res.json(pageEnvelope(decorateTaskUnread(all, marks, p.id), req.query));
+  }));
+
+  // "I looked at these." One body shape for one card or fifty, the way
+  // /inbox/read works, because the phone marks a list and the panel marks the
+  // card it opened.
+  //
+  // Each row carries the `activity_at` the READER had in hand, not `now`: a
+  // comment that landed between the fetch and this call has not been read by
+  // anybody and must stay unread.
+  api.post("/tasks/read", asyncRoute(async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+    if (!rows) return res.status(400).json({ error: "rows must be an array" });
+    const marked = await markTasksRead(rows);
+    // Only when something moved: this frame makes every open panel revalidate.
+    if (marked) broadcastReadMarks();
+    res.json({ ok: true, marked });
+  }));
 
   api.post("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);

@@ -194,6 +194,13 @@ export const en = {
     no_folders:  "No folders.",
   },
   mobile: {
+    tab_attention: "Waiting",
+    tab_attention_badge: "{count} waiting on you",
+    attention_empty: "Nothing waiting. You are up to date.",
+    attention_awaiting: "They asked you",
+    attention_chats: "Unread chats",
+    attention_unread_tasks: "Tasks with news",
+    attention_blocked: "Blocked on you",
     back: "Back",
     sessions: "Sessions",
     no_sessions: "No saved sessions yet.",
@@ -2609,6 +2616,8 @@ export const en = {
   },
 
   tasks: {
+    // The card is waiting on the OWNER: its newest comment named them.
+    awaits_you: "Needs a reply",
     category_general: "Task",
     category_trip: "Errand on the way",
     location_label: "Place",
