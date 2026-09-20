@@ -6,6 +6,24 @@ import { http } from "../http";
 // reading.
 export type MilestoneState = "open" | "done" | "failed" | "dropped";
 
+/**
+ * What a STEP can be, which is more than a declared milestone can.
+ *
+ * "superseded": its own sender replaced it — the same text sent twice, or
+ * another message seconds later. Kept so the row count still matches the chat,
+ * counted as nothing, because nobody is waiting on it.
+ *
+ * "running": being written as you read this. Not in the transcript at all (the
+ * request is on disk before the model is called, so a live turn and one the
+ * daemon died inside look identical there) — the daemon's register of live
+ * turns is what decides it, and the API applies it on the way out.
+ */
+export type StepState = MilestoneState | "superseded" | "running";
+
+/** Why a step was superseded. The two read differently to the person who caused
+ *  them: "you sent this twice" is worth noticing, "you changed your mind" is not. */
+export type SupersededReason = "repeated" | "replaced";
+
 /** One step the agent DECLARED (mark_milestone). */
 export type MilestoneEntry = {
   id: string;
@@ -34,7 +52,8 @@ export type TimelineEntry = {
   kind: "derived" | "declared";
   index?: number;
   title: string;
-  state: MilestoneState;
+  state: StepState;
+  superseded_reason?: SupersededReason | null;
   started_at: string | null;
   ended_at?: string | null;
   answered?: boolean;
@@ -49,7 +68,14 @@ export type TimelineEntry = {
   milestones: MilestoneEntry[];
 };
 
-export type TimelineStats = { total: number; open: number; done: number; failed: number };
+export type TimelineStats = {
+  total: number;
+  open: number;
+  done: number;
+  failed: number;
+  superseded: number;
+  running: number;
+};
 
 export type Timeline = {
   entries: TimelineEntry[];

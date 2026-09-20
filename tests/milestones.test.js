@@ -21,8 +21,10 @@ const {
   listMilestones, milestoneStats,
 } = await import("#core/stores/milestones.js");
 const { deriveSteps, stepTitle } = await import("#core/milestones/derive.js");
-const { mergeTimeline, timelineStats, conversationTimeline, projectTimeline } =
-  await import("#core/milestones/index.js");
+const {
+  mergeTimeline, timelineStats, entryState, markRunningStep,
+  conversationTimeline, projectTimeline,
+} = await import("#core/milestones/index.js");
 const { startConversation, appendTurn } = await import("#core/stores/conversations.js");
 
 let STORE;
@@ -216,7 +218,10 @@ test("a request nobody answered is OPEN — this is the half-finished work nothi
   assert.equal(steps[0].answered, false);
 });
 
-test("asking again before an answer closes the first step as open", () => {
+// Nine minutes is load-bearing here: a request its sender replaced inside the
+// superseded window is bookkeeping, and only one left WAITING is the thing this
+// state reports. See the block below.
+test("asking again long after no answer came closes the first step as open", () => {
   const steps = deriveSteps([
     turn("user", "2026-09-19T10:00:00Z", "render it"),
     turn("user", "2026-09-19T10:09:00Z", "hello?"),
@@ -225,6 +230,165 @@ test("asking again before an answer closes the first step as open", () => {
   assert.equal(steps.length, 2);
   assert.equal(steps[0].state, "open");
   assert.equal(steps[1].state, "done");
+});
+
+// --------------------------------------------------------------------------
+// superseded — the requests nobody was waiting on
+// --------------------------------------------------------------------------
+//
+// Measured before it was written: across 372 conversations on a real machine,
+// 39 steps had no answer after them and 28 were closed by another message from
+// the same person — 11 of those the identical text sent a second time. Counting
+// all of that as half-finished work is how an alarm count becomes furniture.
+
+test("the same request sent again did not go unanswered — it was sent again", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "podes ver el mcp?"),
+    turn("user", "2026-09-19T10:00:07Z", "podes ver el mcp?"),
+    turn("assistant", "2026-09-19T10:00:20Z", "sí, lo veo"),
+  ]);
+  assert.equal(steps[0].state, "superseded");
+  assert.equal(steps[0].superseded_reason, "repeated");
+  assert.equal(steps[1].state, "done");
+});
+
+// The clock must NOT get a vote on a resend. A person who waits ten minutes and
+// then pastes their question again has still asked one question, and the real
+// data has resends at three seconds and at ten minutes.
+test("a resend is a resend however long its sender waited first", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "raro no veo tus tools ejecutandose"),
+    turn("user", "2026-09-19T10:10:00Z", "raro no veo tus tools ejecutandose"),
+  ]);
+  assert.equal(steps[0].state, "superseded");
+  assert.equal(steps[0].superseded_reason, "repeated");
+});
+
+test("a resend survives a retype — case and spacing are not a different question", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "Podes ver el MCP?"),
+    turn("user", "2026-09-19T10:08:00Z", "podes ver  el mcp?\n"),
+  ]);
+  assert.equal(steps[0].superseded_reason, "repeated");
+});
+
+test("a request replaced seconds later was never left waiting", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "corre una tool de timing de 5 segundos"),
+    turn("user", "2026-09-19T10:00:05Z", "contame en dos renglones qué es APX"),
+    turn("assistant", "2026-09-19T10:00:30Z", "APX es…"),
+  ]);
+  assert.equal(steps[0].state, "superseded");
+  assert.equal(steps[0].superseded_reason, "replaced");
+});
+
+// The case that started this: "pará" is not abandoned work, it is a person
+// stopping one and saying never mind six seconds later.
+test("a stop followed by a retraction is not half-finished work", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "para"),
+    turn("user", "2026-09-19T10:00:06Z", "no era eso ya esta tranqui"),
+    turn("assistant", "2026-09-19T10:00:12Z", "dale"),
+  ]);
+  assert.equal(steps[0].state, "superseded");
+  assert.deepEqual(timelineStats(mergeTimeline(steps, [])).open, 0);
+});
+
+test("past the window it is waiting again, not replacing", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "dale termina el video"),
+    turn("user", "2026-09-19T10:00:31Z", "?"),
+  ]);
+  assert.equal(steps[0].state, "open", "31s is outside the 30s window");
+  assert.equal(steps[0].superseded_reason, null);
+});
+
+// WORK VETOES IT. A request that already spent tool calls and never answered
+// lost that spend, and the next message does not give it back.
+test("a request that already ran tools stays open however fast it was replaced", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T10:00:00Z", "render it"),
+    turn("tool", "2026-09-19T10:00:01Z", JSON.stringify({ tool: "run_shell", result: {} })),
+    turn("user", "2026-09-19T10:00:03Z", "render it"),
+  ]);
+  assert.equal(steps[0].state, "open");
+  assert.equal(steps[0].tools.total, 1);
+});
+
+test("a superseded step is kept, so the count still matches the chat", () => {
+  const entries = mergeTimeline(
+    deriveSteps([
+      turn("user", "2026-09-19T10:00:00Z", "a"),
+      turn("user", "2026-09-19T10:00:02Z", "a"),
+      turn("assistant", "2026-09-19T10:00:09Z", "ok"),
+    ]),
+    []
+  );
+  const stats = timelineStats(entries);
+  assert.equal(stats.total, 2, "both rows are there");
+  assert.equal(stats.superseded, 1);
+  assert.equal(stats.open, 0, "and the superseded one is not an alarm");
+});
+
+// --------------------------------------------------------------------------
+// running — the turn being written as you look at it
+// --------------------------------------------------------------------------
+
+test("the last unanswered step is the one a live turn is writing", () => {
+  const steps = markRunningStep(
+    deriveSteps([
+      turn("user", "2026-09-19T10:00:00Z", "render it"),
+      turn("assistant", "2026-09-19T10:00:30Z", "done"),
+      turn("user", "2026-09-19T10:01:00Z", "now upload it"),
+    ])
+  );
+  assert.equal(steps[0].state, "done");
+  assert.equal(steps[1].state, "running");
+});
+
+test("a chat whose last request was answered has nothing in flight to mark", () => {
+  const steps = markRunningStep(
+    deriveSteps([
+      turn("user", "2026-09-19T10:00:00Z", "render it"),
+      turn("assistant", "2026-09-19T10:00:30Z", "done"),
+    ])
+  );
+  assert.equal(steps[0].state, "done");
+});
+
+test("only the LAST step is in flight — an older open one stays open", () => {
+  const steps = markRunningStep(
+    deriveSteps([
+      turn("user", "2026-09-19T10:00:00Z", "render it"),
+      turn("user", "2026-09-19T10:30:00Z", "hello?"),
+      turn("assistant", "2026-09-19T10:30:10Z", "sorry"),
+      turn("user", "2026-09-19T10:31:00Z", "now upload it"),
+    ])
+  );
+  assert.equal(steps[0].state, "open", "abandoned half an hour ago and still abandoned");
+  assert.equal(steps[2].state, "running");
+});
+
+test("a running turn is not counted as work nobody did", () => {
+  const entries = mergeTimeline(
+    markRunningStep(deriveSteps([turn("user", "2026-09-19T10:00:00Z", "render it")])),
+    []
+  );
+  const stats = timelineStats(entries);
+  assert.equal(stats.running, 1);
+  assert.equal(stats.open, 0);
+});
+
+// The bug this outranking exists for: an agent declares its steps as it goes,
+// so a turn in progress ALWAYS has open milestones under it. Reporting that as
+// open is how "being answered right now" got announced as abandoned.
+test("a turn in flight reports running even with its own steps still open", () => {
+  const entries = mergeTimeline(
+    markRunningStep(deriveSteps([turn("user", "2026-09-19T10:00:00Z", "render it")])),
+    [startMilestone(STORE, { title: "Rendering", state: "open", started_at: "2026-09-19T10:00:05Z" })]
+  );
+  assert.equal(entryState(entries[0]), "running");
+  assert.equal(timelineStats(entries).open, 0);
 });
 
 test("a failed tool makes the step failed, not done", () => {

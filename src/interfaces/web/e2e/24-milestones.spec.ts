@@ -36,11 +36,14 @@ const step = (over: Record<string, unknown> = {}) => ({
 });
 
 function statsFor(entries: { state: string }[]) {
+  const count = (name: string) => entries.filter((e) => e.state === name).length;
   return {
     total: entries.length,
-    open: entries.filter((e) => e.state === "open").length,
-    done: entries.filter((e) => e.state === "done").length,
-    failed: entries.filter((e) => e.state === "failed").length,
+    open: count("open"),
+    done: count("done"),
+    failed: count("failed"),
+    superseded: count("superseded"),
+    running: count("running"),
   };
 }
 
@@ -75,6 +78,79 @@ test.describe("timeline", () => {
     await expect(page.getByTestId("milestone-row")).toHaveCount(2);
     await expect(page.getByTestId("milestone-row").nth(1)).toHaveText(/Never answered/);
     expect(errors).toHaveLength(0);
+  });
+
+  // WHAT "OPEN" HAD COME TO MEAN. Measured across 372 real conversations: of 39
+  // unanswered steps, 28 were closed by another message from the same person and
+  // 11 of those were the identical text sent again. An alarm count that is
+  // mostly "you pressed send twice" is one people stop reading — so these two
+  // states exist to keep it out of the count without hiding the rows.
+  test("a request its sender replaced is shown, greyed, and not an alarm", async ({ page }) => {
+    await stubTimeline(page, [
+      step({ title: "podes ver el mcp?", state: "superseded", answered: false, superseded_reason: "repeated", tools: { total: 0, failed: 0, names: [] } }),
+      step({ title: "podes ver el mcp?", started_at: "2026-09-18T10:00:07Z" }),
+    ]);
+    await page.goto("/p/7");
+
+    const rail = page.getByTestId("milestone-rail");
+    await expect(rail).toContainText("2 steps");
+    await expect(rail).not.toContainText("open");
+    await expect(page.getByTestId("milestone-row")).toHaveCount(2);
+    await expect(page.getByTestId("milestone-row").first()).toHaveAttribute("data-milestone-state", "superseded");
+    await expect(page.getByTestId("milestone-row").first()).toHaveText(/Sent twice/);
+  });
+
+  test("a request replaced seconds after it was sent says which of the two it was", async ({ page }) => {
+    await stubTimeline(page, [
+      step({ title: "corre una tool de timing", state: "superseded", answered: false, superseded_reason: "replaced", tools: { total: 0, failed: 0, names: [] } }),
+      step({ title: "contame qué es APX", started_at: "2026-09-18T10:00:05Z" }),
+    ]);
+    await page.goto("/p/7");
+    await expect(page.getByTestId("milestone-row").first()).toHaveText(/You replaced this/);
+  });
+
+  // A turn in flight is not abandoned work. The request is on disk before the
+  // model is called, so from the file alone the chat being answered right now
+  // and one the daemon died inside look the same — which is how the panel came
+  // to announce "never answered" over the request it was busy answering.
+  test("a turn being written says so instead of reading as never answered", async ({ page }) => {
+    await stubTimeline(page, [
+      step(),
+      step({ title: "Upload the recap", state: "running", answered: false, started_at: "2026-09-18T11:00:00Z", tools: { total: 1, failed: 0, names: [] } }),
+    ]);
+    await page.goto("/p/7");
+
+    const rail = page.getByTestId("milestone-rail");
+    await expect(rail).toContainText("Working on it");
+    await expect(rail).not.toContainText("open");
+
+    const row = page.getByTestId("milestone-row").nth(1);
+    await expect(row).toHaveAttribute("data-milestone-state", "running");
+    await expect(row).not.toHaveText(/Never answered/);
+  });
+
+  // The precedence that had to be spelled out: an agent declares its steps as it
+  // goes, so a turn in progress ALWAYS carries open milestones. Letting those
+  // report upward is exactly the bug.
+  test("a running turn stays running even with its own steps still open", async ({ page }) => {
+    // Two rows, because a rail with one uneventful step draws nothing at all —
+    // that rule is asserted on its own below and is not what this is about.
+    await stubTimeline(page, [
+      step({ title: "Write the caption" }),
+      step({
+        title: "Render the reel",
+        state: "running",
+        answered: false,
+        started_at: "2026-09-18T11:00:00Z",
+        milestones: [{ id: "m1", state: "open", title: "Rendering", track: "Reel", detail: null, started_at: "2026-09-18T11:05:00Z", updated_at: "2026-09-18T11:05:00Z", closed_at: null, note: null, channel: "web", conversation_id: "c1", agent: "magui" }],
+      }),
+    ]);
+    await page.goto("/p/7");
+    await expect(page.getByTestId("milestone-row").nth(1)).toHaveAttribute("data-milestone-state", "running");
+    await expect(page.getByTestId("milestone-declared")).toHaveCount(1);
+    // The declared row keeps its own amber dot — the step is what is running,
+    // not everything inside it.
+    await expect(page.getByTestId("milestone-rail")).not.toContainText("1 open");
   });
 
   test("a failed step reads as failed without opening anything", async ({ page }) => {

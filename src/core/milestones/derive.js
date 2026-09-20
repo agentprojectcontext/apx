@@ -16,11 +16,26 @@
 // and it survives a turn that ran twenty-four iterations — which is the case
 // this exists for.
 //
-// THE OUTCOME IS THE POINT. A step is `done`, `failed`, or `open`, and `open`
-// is the one that earns the feature: a request with no answer after it is work
-// that was left half-finished — a daemon restart mid-turn, an engine that never
-// came back, a tool that hung. Nothing in the product said so before this; the
-// chat simply stopped and the reader had to notice the absence themselves.
+// THE OUTCOME IS THE POINT. A step is `done`, `failed`, `superseded` or `open`,
+// and `open` is the one that earns the feature: a request with no answer after
+// it is work that was left half-finished — a daemon restart mid-turn, an engine
+// that never came back, a tool that hung. Nothing in the product said so before
+// this; the chat simply stopped and the reader had to notice the absence
+// themselves.
+//
+// WHICH IS WHY `superseded` HAD TO EXIST. "No answer after it" is also the shape
+// of a person typing twice, and the first reading of real data said so: of 39
+// unanswered steps across 372 conversations, 28 were closed by another message
+// from the same person and ELEVEN of those were the identical text sent again.
+// A rail whose alarm count is mostly "you pressed send twice" is a rail people
+// stop reading, which is the exact failure the feature was built to fix. So a
+// request that its own sender replaced is not an alarm — it is bookkeeping, and
+// it is kept (the step count must still match the chat) without being counted.
+//
+// A step never reaches `running` here. That one is not in the transcript at all
+// — nothing on disk distinguishes "nobody ever answered" from "being answered
+// right now" — so it is applied a layer up, by whoever holds the daemon's
+// register of live turns (core/milestones/index.js).
 //
 // A DECLARED milestone (core/stores/milestones.js) is richer and says what the
 // agent thought it was doing. This runs whether or not anything was declared,
@@ -28,6 +43,20 @@
 
 /** How long a derived title may be before it stops being scannable. */
 const TITLE_MAX = 120;
+
+/**
+ * Within this of its own start, a replaced request was never waiting on anybody.
+ *
+ * MEASURED, NOT PICKED. Over every conversation on this machine the gap from an
+ * unanswered request to the message that replaced it is bimodal: a cluster at
+ * 0-20s (corrections, double sends, a "pará") and a long tail from 45s to four
+ * HOURS, and the tail is full of the real thing — "segui" with no answer for 45
+ * minutes, a background-job wake-up that sat for 232 until its sender asked
+ * "¿terminó?". 30s sits in the empty middle. Erring low is deliberate: calling
+ * a hang "superseded" hides the one event this feature exists to show, while
+ * calling a correction "open" only costs an amber dot somebody dismisses.
+ */
+export const SUPERSEDED_WINDOW_MS = 30_000;
 
 /** Roles that carry no work and no request — they are scaffolding. */
 const IGNORED_ROLES = new Set(["system", "compact"]);
@@ -117,6 +146,7 @@ function emptyStep(turn, index) {
     index,
     title: stepTitle(turn.content),
     state: "open",
+    superseded_reason: null,
     started_at: turn.ts || null,
     ended_at: null,
     answered: false,
@@ -141,14 +171,55 @@ function attr(turn, key) {
 }
 
 /**
+ * Two requests reduced to the form in which "the same thing again" is decidable.
+ *
+ * Case-folded and whitespace-flattened, and nothing else: a resend is normally
+ * byte-identical, so the only job here is to survive a retype. Anything cleverer
+ * (stripping punctuation, stemming) starts merging requests that a person wrote
+ * on purpose as two.
+ */
+function sameRequest(a, b) {
+  const norm = (v) => String(v || "").replace(/\s+/g, " ").trim().toLowerCase();
+  const left = norm(a);
+  return !!left && left === norm(b);
+}
+
+/**
+ * Why this unanswered request is not an abandonment — or null, when it is one.
+ *
+ * "repeated": the same text arrived again. Decided on equality and NOT on the
+ * clock, because the resends in real data span three seconds to ten minutes —
+ * a person who gives up waiting and pastes their question again is still a
+ * person who sent one question, however long they waited first.
+ *
+ * "replaced": something else arrived while nobody could reasonably have
+ * answered yet. This one is the clock's.
+ *
+ * WORK VETOES BOTH. A request that already ran tools spent something, and if no
+ * answer followed, that spend was lost — which is worth a reader's attention
+ * whatever came next. (No such step exists in the data this was measured on:
+ * all 28 had run nothing. The veto costs nothing today and is the difference
+ * between a rule that is right and a rule that has been lucky.)
+ */
+function supersededReason(step, request, next) {
+  if (!next || step.answered || step.tools.total > 0) return null;
+  if (sameRequest(request, next.content)) return "repeated";
+  const from = Date.parse(step.started_at || "");
+  const to = Date.parse(next.ts || "");
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null;
+  return to >= from && to - from <= SUPERSEDED_WINDOW_MS ? "replaced" : null;
+}
+
+/**
  * Close a step. `answered` decides between a finished step and an abandoned
- * one; the tool tally decides between finished-well and finished-badly.
+ * one; the tool tally decides between finished-well and finished-badly — unless
+ * the request was never left waiting at all, which `supersededReason` decides.
  *
  * The assistant row's own `tool_summary` wins when it is there: it was written
  * by the run itself and counts calls the transcript may not carry (a turn whose
  * tool rows were trimmed still knows what it ran).
  */
-function closeStep(step, { assistant = null } = {}) {
+function closeStep(step, { assistant = null, supersededBy = null, request = "" } = {}) {
   if (assistant) {
     step.answered = true;
     step.ended_at = assistant.ts || step.ended_at;
@@ -187,6 +258,15 @@ function closeStep(step, { assistant = null } = {}) {
     step.agent = attr(assistant, "agent_name") || attr(assistant, "agent") || step.agent;
     step.model = attr(assistant, "model") || step.model;
   }
+  const superseded = supersededReason(step, request, supersededBy);
+  if (superseded) {
+    step.state = "superseded";
+    // The reason is carried, not folded into the state, because the two read
+    // differently to the person who caused them: "you sent this twice" is a
+    // thing to notice, "you changed your mind" is not.
+    step.superseded_reason = superseded;
+    return step;
+  }
   step.state = !step.answered ? "open" : step.tools.failed > 0 ? "failed" : "done";
   return step;
 }
@@ -202,15 +282,23 @@ function closeStep(step, { assistant = null } = {}) {
 export function deriveSteps(turns) {
   const steps = [];
   let current = null;
+  // The open step's request, in the sender's own bytes. `title` cannot stand in
+  // for it: it is truncated at 120 characters and has had headers and code
+  // fences taken out of it, so two long requests that differ only past the cut
+  // would compare equal and one would be swallowed as a resend.
+  let request = "";
 
   for (const turn of Array.isArray(turns) ? turns : []) {
     if (!turn || IGNORED_ROLES.has(turn.role)) continue;
 
     if (turn.role === "user") {
-      // A second request with no answer between them closes the first as open —
-      // that IS the shape of "I asked again because nothing came back".
-      if (current) steps.push(closeStep(current));
+      // A second request with no answer between them closes the first — as
+      // `open` when it was left waiting, and as `superseded` when this message
+      // is what stopped it waiting. Both shapes are "user, user" on disk and
+      // only the pair decides which, so the replacing turn goes in with it.
+      if (current) steps.push(closeStep(current, { supersededBy: turn, request }));
       current = emptyStep(turn, steps.length);
+      request = String(turn.content || "");
       continue;
     }
 
@@ -220,6 +308,7 @@ export function deriveSteps(turns) {
     // nobody watched.
     if (!current) {
       current = emptyStep({ ts: turn.ts, content: "" }, steps.length);
+      request = "";
     }
 
     if (turn.role === "tool") {
@@ -233,9 +322,13 @@ export function deriveSteps(turns) {
     if (turn.role === "assistant") {
       steps.push(closeStep(current, { assistant: turn }));
       current = null;
+      request = "";
     }
   }
 
+  // Nothing follows the last step, so nothing can have superseded it: it is
+  // `open` if it was never answered, and whether that means abandoned or still
+  // being written is not decidable from the transcript (see the header).
   if (current) steps.push(closeStep(current));
   return steps;
 }

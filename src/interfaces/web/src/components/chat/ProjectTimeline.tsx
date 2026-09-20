@@ -113,6 +113,8 @@ export function ProjectTimeline({ pid, limit, moreHref }: Props) {
       open: entries.filter((e) => e.state === "open").length,
       done: entries.filter((e) => e.state === "done").length,
       failed: entries.filter((e) => e.state === "failed" || e.milestones.some((m) => m.state === "failed")).length,
+      superseded: entries.filter((e) => e.state === "superseded").length,
+      running: entries.filter((e) => e.state === "running").length,
     }),
     [entries]
   );

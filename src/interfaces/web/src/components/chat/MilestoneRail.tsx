@@ -1,9 +1,9 @@
 import type React from "react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { AlertCircle, ArrowUpRight, Check, ChevronRight, Circle, Route } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Check, ChevronRight, Circle, CornerDownRight, Loader2, Route } from "lucide-react";
 import { cn } from "../../lib/cn";
-import type { MilestoneState, TimelineEntry, TimelineStats } from "../../lib/api/milestones";
+import type { StepState, TimelineEntry, TimelineStats } from "../../lib/api/milestones";
 import { t } from "../../i18n";
 
 // What a long chat looks like from the outside.
@@ -27,28 +27,74 @@ import { t } from "../../i18n";
 // It does not render at all for a chat with one step and nothing wrong: a rail
 // that says "1 step, done" next to the answer it is describing is furniture.
 
-const DOT: Record<MilestoneState, string> = {
+// AMBER IS FOR THINGS THAT NEED SOMEBODY, and only `open` is one. A superseded
+// request goes grey — it is there so the rail's count still matches the chat,
+// not to be acted on — and a running one goes to the same muted blue-ish
+// treatment the rest of the panel uses for in-progress work. Painting either of
+// them amber is what made two thirds of this rail's alarms noise.
+const DOT: Record<StepState, string> = {
   done: "text-emerald-700 dark:text-emerald-400",
   failed: "text-rose-700 dark:text-rose-400",
   open: "text-amber-700 dark:text-amber-400",
+  running: "text-muted-foreground",
+  superseded: "text-muted-foreground/60",
   dropped: "text-muted-foreground",
 };
 
-function StateDot({ state }: { state: MilestoneState }) {
+function StateDot({ state }: { state: StepState }) {
   const className = cn("size-3.5 shrink-0", DOT[state]);
   if (state === "done") return <Check className={className} aria-hidden />;
   if (state === "failed") return <AlertCircle className={className} aria-hidden />;
+  if (state === "running") return <Loader2 className={cn(className, "animate-spin")} aria-hidden />;
+  if (state === "superseded") return <CornerDownRight className={className} aria-hidden />;
   return <Circle className={className} aria-hidden />;
 }
 
-/** The state a row REPORTS, which is not always its own: an agent that declared
- *  a failure inside a turn that otherwise answered cleanly is the more specific
- *  witness, and a row showing green over it would be actively misleading. */
-function reportedState(entry: TimelineEntry): MilestoneState {
+/**
+ * The state a row REPORTS, which is not always its own.
+ *
+ * A declared milestone that disagrees wins: an agent that says "the render
+ * failed" inside a turn that otherwise answered cleanly is the more specific
+ * witness, and a row showing green over it would be actively misleading.
+ *
+ * `running` outranks even that — and mirrors `entryState` in
+ * core/milestones/index.js, which decides the same thing for the counts. A turn
+ * in progress has open milestones under it by construction (the agent declared
+ * steps it has not closed, because it is still in them), so letting those
+ * report upward is precisely how "being answered right now" came out as
+ * abandoned. The declared rows underneath keep their own dots regardless.
+ */
+function reportedState(entry: TimelineEntry): StepState {
+  if (entry.state === "running") return "running";
   if (entry.milestones.some((m) => m.state === "failed")) return "failed";
   if (entry.state === "failed") return "failed";
   if (entry.milestones.some((m) => m.state === "open")) return "open";
   return entry.state;
+}
+
+/** The one line under a step that says what its state MEANS — or nothing, for
+ *  the states that speak for themselves. */
+function StateNote({ entry, state }: { entry: TimelineEntry; state: StepState }) {
+  if (state === "running") {
+    return <div className="text-[11px] text-muted-foreground">{t("milestones.running_now")}</div>;
+  }
+  if (state === "superseded") {
+    return (
+      <div className="text-[11px] text-muted-foreground/70">
+        {entry.superseded_reason === "repeated"
+          ? t("milestones.superseded_repeated")
+          : t("milestones.superseded_replaced")}
+      </div>
+    );
+  }
+  if (state === "open" && !entry.answered) {
+    return (
+      <div className="text-[11px] text-amber-700 dark:text-amber-400">
+        {t("milestones.never_answered")}
+      </div>
+    );
+  }
+  return null;
 }
 
 function clock(iso: string | null | undefined): string {
@@ -87,7 +133,12 @@ function Row({ entry, href }: { entry: TimelineEntry; href?: string | null }) {
               <ArrowUpRight className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" aria-hidden />
             </NavLink>
           ) : (
-            <span className={cn("truncate text-[12px]", !entry.title && "text-muted-foreground")}>
+            <span
+              className={cn(
+                "truncate text-[12px]",
+                (!entry.title || state === "superseded") && "text-muted-foreground",
+              )}
+            >
               {entry.title || t("milestones.unnamed_step")}
             </span>
           )}
@@ -110,11 +161,7 @@ function Row({ entry, href }: { entry: TimelineEntry; href?: string | null }) {
           </div>
         )}
 
-        {state === "open" && !entry.answered && (
-          <div className="text-[11px] text-amber-700 dark:text-amber-400">
-            {t("milestones.never_answered")}
-          </div>
-        )}
+        <StateNote entry={entry} state={state} />
 
         {entry.milestones.length > 0 && (
           <ul className="mt-0.5 flex flex-col gap-0.5">
@@ -206,6 +253,14 @@ export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUne
             {stats.failed === 1
               ? t("milestones.failed_count_one")
               : t("milestones.failed_count", { n: stats.failed })}
+          </span>
+        )}
+        {/* Not an alarm and not a colour — just the reason the last row has no
+            outcome yet, so a collapsed rail does not read as one step short. */}
+        {stats.running > 0 && (
+          <span className="flex items-center gap-1 text-muted-foreground">
+            · <Loader2 className="size-3 shrink-0 animate-spin" aria-hidden />
+            {t("milestones.running_now")}
           </span>
         )}
       </button>

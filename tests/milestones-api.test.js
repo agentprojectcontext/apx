@@ -19,6 +19,8 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // APX_HOME, not HOME alone
 
 const { register } = await import("../src/host/daemon/api/milestones.js");
 const { startConversation, appendTurn } = await import("#core/stores/conversations.js");
+const { startActiveTurn, endActiveTurn, convTurnKey, threadTurnKey, superAgentTurnKey } =
+  await import("../src/host/daemon/active-turns.js");
 
 async function boot() {
   const store = fs.mkdtempSync(path.join(TMP_HOME, "proj-"));
@@ -238,6 +240,181 @@ test("an unknown project is a 404 on every route", async () => {
     assert.equal((await api.get("/api/projects/99/milestones")).status, 404);
     assert.equal((await api.post("/api/projects/99/milestones", { title: "x" })).status, 404);
   } finally {
+    await api.close();
+  }
+});
+
+// --------------------------------------------------------------------------
+// a turn in flight
+// --------------------------------------------------------------------------
+//
+// THE FILE CANNOT ANSWER THIS. A request is appended to the conversation before
+// the model is called, so a chat being answered right now and one the daemon
+// died inside a week ago are the same bytes on disk: a user turn with nothing
+// after it. Only this process knows the difference, which is why the route —
+// not core — is where the register is read, and why it needs a test that goes
+// through the socket.
+
+test("a chat with a turn in flight says so instead of calling it unanswered", async () => {
+  const api = await boot();
+  const conv = startConversation({
+    storagePath: api.store, agentSlug: "rocky", engine: "mock:test", system: "sys",
+  });
+  appendTurn({ filePath: conv.path, role: "user", content: "render the reel" });
+  const live = startActiveTurn(convTurnKey("1", conv.id), {
+    project_id: "1", agent_slug: "rocky", conversation_id: conv.id,
+  });
+  try {
+    const got = await api.get(`/api/projects/1/agents/rocky/conversations/${conv.id}/milestones`);
+    assert.equal(got.body.entries[0].state, "running");
+    assert.equal(got.body.stats.running, 1);
+    assert.equal(got.body.stats.open, 0, "nothing for a reader to chase — it is being written");
+  } finally {
+    endActiveTurn(live.id);
+    await api.close();
+  }
+});
+
+test("the same chat reads as open once the turn is gone", async () => {
+  const api = await boot();
+  const conv = startConversation({
+    storagePath: api.store, agentSlug: "rocky", engine: "mock:test", system: "sys",
+  });
+  appendTurn({ filePath: conv.path, role: "user", content: "render the reel" });
+  const live = startActiveTurn(convTurnKey("1", conv.id), {
+    project_id: "1", agent_slug: "rocky", conversation_id: conv.id,
+  });
+  endActiveTurn(live.id);
+  try {
+    const got = await api.get(`/api/projects/1/agents/rocky/conversations/${conv.id}/milestones`);
+    assert.equal(got.body.entries[0].state, "open", "the turn ended without answering");
+    assert.equal(got.body.stats.open, 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test("a live turn on ANOTHER chat does not make this one look busy", async () => {
+  const api = await boot();
+  const mine = startConversation({
+    storagePath: api.store, agentSlug: "rocky", engine: "mock:test", system: "sys",
+  });
+  const other = startConversation({
+    storagePath: api.store, agentSlug: "rocky", engine: "mock:test", system: "sys",
+  });
+  appendTurn({ filePath: mine.path, role: "user", content: "render the reel" });
+  const live = startActiveTurn(convTurnKey("1", other.id), {
+    project_id: "1", agent_slug: "rocky", conversation_id: other.id,
+  });
+  try {
+    const got = await api.get(`/api/projects/1/agents/rocky/conversations/${mine.id}/milestones`);
+    assert.equal(got.body.entries[0].state, "open");
+  } finally {
+    endActiveTurn(live.id);
+    await api.close();
+  }
+});
+
+test("a ledger thread in flight reports running too", async () => {
+  const api = await boot();
+  const day = "2026-09-19";
+  // The global store, stamped with project_id — the same placement the thread
+  // test above documents. Anywhere else and this route answers 404.
+  const dir = path.join(process.env.APX_HOME, "messages", "web");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, `${day}.jsonl`),
+    JSON.stringify({
+      ts: `${day}T10:00:00Z`, channel: "web", direction: "in", type: "user",
+      body: "armá el reel", meta: { project_id: "1" },
+    }) + "\n"
+  );
+  const live = startActiveTurn(threadTurnKey("1", "web", day), {
+    project_id: "1", channel: "web", thread_id: day,
+  });
+  try {
+    const got = await api.get(`/api/projects/1/super-agent/threads/web/${day}/milestones`);
+    assert.equal(got.status, 200);
+    assert.equal(got.body.entries[0].state, "running");
+  } finally {
+    endActiveTurn(live.id);
+    await api.close();
+  }
+});
+
+// --------------------------------------------------------------------------
+// superseded, over the wire
+// --------------------------------------------------------------------------
+
+test("a request its sender replaced is kept but is not counted as open", async () => {
+  const api = await boot();
+  const conv = startConversation({
+    storagePath: api.store, agentSlug: "rocky", engine: "mock:test", system: "sys",
+  });
+  appendTurn({ filePath: conv.path, role: "user", content: "podes ver el mcp?" });
+  appendTurn({ filePath: conv.path, role: "user", content: "podes ver el mcp?" });
+  appendTurn({ filePath: conv.path, role: "assistant", content: "sí" });
+  try {
+    const got = await api.get(`/api/projects/1/agents/rocky/conversations/${conv.id}/milestones`);
+    assert.equal(got.body.entries.length, 2, "both rows are shown");
+    assert.equal(got.body.entries[0].state, "superseded");
+    assert.equal(got.body.entries[0].superseded_reason, "repeated");
+    assert.equal(got.body.stats.open, 0);
+    assert.equal(got.body.stats.superseded, 1);
+  } finally {
+    await api.close();
+  }
+});
+
+// The key the super-agent's own chat actually uses. It has no conversation id,
+// so its live turn is registered per project+channel and carries the day as
+// thread_id — a route that only knew `threadTurnKey` reported everything except
+// the chat most likely to be open while a turn is running.
+test("the super-agent's own chat reports running on its own key", async () => {
+  const api = await boot();
+  const day = "2026-09-17";
+  const dir = path.join(process.env.APX_HOME, "messages", "web");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, `${day}.jsonl`),
+    JSON.stringify({
+      ts: `${day}T10:00:00Z`, channel: "web", direction: "in", type: "user",
+      body: "contame el estado", meta: { project_id: "1" },
+    }) + "\n"
+  );
+  const live = startActiveTurn(superAgentTurnKey("1", "web"), {
+    project_id: "1", channel: "web", thread_id: day,
+  });
+  try {
+    const got = await api.get(`/api/projects/1/super-agent/threads/web/${day}/milestones`);
+    assert.equal(got.body.entries[0].state, "running");
+  } finally {
+    endActiveTurn(live.id);
+    await api.close();
+  }
+});
+
+test("a live super-agent turn says nothing about yesterday's thread", async () => {
+  const api = await boot();
+  const day = "2026-09-16";
+  const dir = path.join(process.env.APX_HOME, "messages", "web");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, `${day}.jsonl`),
+    JSON.stringify({
+      ts: `${day}T10:00:00Z`, channel: "web", direction: "in", type: "user",
+      body: "contame el estado", meta: { project_id: "1" },
+    }) + "\n"
+  );
+  // Live on the same channel, but writing into a LATER day's thread.
+  const live = startActiveTurn(superAgentTurnKey("1", "web"), {
+    project_id: "1", channel: "web", thread_id: "2026-09-17",
+  });
+  try {
+    const got = await api.get(`/api/projects/1/super-agent/threads/web/${day}/milestones`);
+    assert.equal(got.body.entries[0].state, "open", "that turn is not this thread's");
+  } finally {
+    endActiveTurn(live.id);
     await api.close();
   }
 });
