@@ -239,6 +239,7 @@ export const es = {
     tab_attention: "Avisos",
     tab_attention_badge: "{count} esperando tu respuesta",
     attention_empty: "Nada esperando. Todo al día.",
+    attention_overdue: "Vencidas",
     attention_awaiting: "Te preguntaron",
     attention_chats: "Chats sin leer",
     attention_unread_tasks: "Tasks con novedades",

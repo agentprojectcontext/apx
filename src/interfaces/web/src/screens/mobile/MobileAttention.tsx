@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import useSWR from "swr";
 import { useNavigate } from "react-router-dom";
-import { BellOff, Hand, ListTodo, PauseCircle } from "lucide-react";
+import { BellOff, CalendarClock, Hand, ListTodo, PauseCircle } from "lucide-react";
 import { Loading } from "../../components/ui";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { Tasks, type GlobalTaskEntry } from "../../lib/api/tasks";
@@ -65,15 +65,30 @@ export function MobileAttention() {
     [inboxRows, view.prefs, scope.prefs],
   );
 
+  /**
+   * Overdue, and therefore the thing this screen owes you most.
+   *
+   * The Tasks tab has always carried a badge counting exactly this — open, due
+   * on or before today — and it counted across EVERY project while the list it
+   * sends you to is grouped by date and paginated. So the number was real and
+   * the row behind it could be anywhere: "esa 1 task que está ahí marcada,
+   * porque no lo veo" (Manu, 2026-09-20). A count you cannot resolve to a name
+   * is a count you learn to ignore.
+   */
+  const overdue = useMemo(() => tasks.filter((x) => isOverdue(x) && !x.awaits_owner), [tasks]);
   const awaiting = useMemo(() => tasks.filter((x) => x.awaits_owner), [tasks]);
   const unreadTasks = useMemo(
-    () => tasks.filter((x) => x.unread && !x.awaits_owner),
+    () => tasks.filter((x) => x.unread && !x.awaits_owner && !isOverdue(x)),
     [tasks],
   );
-  const blocked = useMemo(() => tasks.filter((x) => x.blocked_by_owner && !x.awaits_owner), [tasks]);
+  const blocked = useMemo(
+    () => tasks.filter((x) => x.blocked_by_owner && !x.awaits_owner && !isOverdue(x)),
+    [tasks],
+  );
 
   const loading = (inboxLoading && !inboxRows.length) || (tasksLoading && !data);
-  const empty = !loading && !unreadChats.length && !awaiting.length && !unreadTasks.length && !blocked.length;
+  const empty = !loading && !unreadChats.length && !awaiting.length
+    && !overdue.length && !unreadTasks.length && !blocked.length;
 
   const openTask = (task: GlobalTaskEntry) => {
     // The task list is where a task can be answered, commented on and closed.
@@ -102,6 +117,17 @@ export function MobileAttention() {
             <ul className="divide-y divide-border/60">
               {awaiting.map((task) => (
                 <AttentionTask key={`${task.project_id}-${task.id}`} task={task} tone="ask" onOpen={() => openTask(task)} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {overdue.length > 0 && (
+          <section data-testid="mobile-attention-overdue">
+            <MobileGroupHeader label={t("mobile.attention_overdue")} count={overdue.length} />
+            <ul className="divide-y divide-border/60">
+              {overdue.map((task) => (
+                <AttentionTask key={`${task.project_id}-${task.id}`} task={task} tone="late" onOpen={() => openTask(task)} />
               ))}
             </ul>
           </section>
@@ -151,14 +177,25 @@ export function MobileAttention() {
   );
 }
 
+/** Open, and its due date has passed. The local calendar day, because that is
+ *  the granularity a due date is written in. */
+function isOverdue(task: GlobalTaskEntry): boolean {
+  if (task.state !== "open" || !task.due) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return String(task.due).slice(0, 10) < today;
+}
+
 const TONE_ICON = {
   ask: Hand,
+  late: CalendarClock,
   new: ListTodo,
   blocked: PauseCircle,
 } as const;
 
 const TONE_CLASS = {
   ask: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  late: "bg-red-500/15 text-red-600 dark:text-red-400",
   new: "bg-muted text-muted-fg",
   blocked: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
 } as const;
@@ -217,6 +254,10 @@ export function useAttentionCount(): number {
   // Chats + what ASKED you something. Deliberately not counting `blocked`: it
   // has been owed since Tuesday and would pin a number to this tab that never
   // goes down, which is the badge everyone learns to ignore.
-  const asking = (data?.items ?? []).filter((x) => x.awaits_owner || x.unread).length;
+  // What asked you something, what is unread, and what is LATE — the three a
+  // number can send you to a named row for. Deliberately not counting
+  // `blocked`: it has been owed since Tuesday and would pin a figure to this
+  // tab that never goes down, which is the badge everyone learns to ignore.
+  const asking = (data?.items ?? []).filter((x) => x.awaits_owner || x.unread || isOverdue(x)).length;
   return chats + asking;
 }
