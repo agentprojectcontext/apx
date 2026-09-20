@@ -1,3 +1,10 @@
+## [1.114.1](https://github.com/agentprojectcontext/apx/compare/v1.114.0...v1.114.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **ci:** el anuncio no manda botones, que Discord se come sin avisar ([f2a813b](https://github.com/agentprojectcontext/apx/commit/f2a813be6a92801a142eefae031b8bb656ada5a8))
+
 # [1.114.0](https://github.com/agentprojectcontext/apx/compare/v1.113.0...v1.114.0) (2026-09-20)
 
 
