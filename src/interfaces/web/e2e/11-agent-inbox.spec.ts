@@ -268,7 +268,22 @@ test.describe("agent inbox", () => {
   ];
 
   /** The inbox rows above, with the project list they name, so a badge can
-   *  resolve a real name instead of falling back to the bare id. */
+   *  resolve a real name instead of falling back to the bare id.
+   *
+   * AND THE CONVERSATIONS THEY OPEN. The rows are invented, so whatever the
+   * chat pane loads for them was never stubbed and went to the real daemon —
+   * which meant these tests timed the machine's own ledger. On the author's
+   * laptop the super-agent row (auto-selected on load, because it is the
+   * newest) resolved to a real Telegram day: a 782 KB response, fetched twice,
+   * 1.7s of it. Where the row does NOT exist — any clean runner — it is a 404
+   * instead, which SWR retries with a backoff. Either way the click-to-header
+   * assertion below was sitting at up to ~6s against a 10s budget, on a runner
+   * the playwright config itself documents as ~2.5x slower than a laptop. It
+   * went green or red on luck, and on 2026-09-20 the luck ran out.
+   *
+   * Empty and well-shaped, matching the two response bodies in
+   * api/conversations.js: the question here is whether the header keeps the
+   * project, and no message has ever been part of answering it. */
   const routeProvenance = async (page: import("@playwright/test").Page) => {
     await page.route(
       (url) => url.pathname === "/api/inbox",
@@ -277,6 +292,21 @@ test.describe("agent inbox", () => {
     await page.route(
       (url) => url.pathname === "/api/projects",
       (route) => route.fulfill({ json: PROJECTS }),
+    );
+    await page.route(
+      (url) => /^\/api\/projects\/[^/]+\/agents\/[^/]+\/conversations\/[^/]+$/.test(url.pathname),
+      (route) => route.fulfill({
+        json: {
+          id: "conversation-linus", agent_slug: "linus", channel: "web",
+          messages: [], meta: { channel: "web" }, active_turn: null,
+        },
+      }),
+    );
+    await page.route(
+      (url) => /^\/api\/projects\/[^/]+\/super-agent\/threads\/[^/]+\/[^/]+$/.test(url.pathname),
+      (route) => route.fulfill({
+        json: { id: "2026-08-29", channel: "telegram", title: "APX", messages: [], active_turn: null },
+      }),
     );
   };
 
