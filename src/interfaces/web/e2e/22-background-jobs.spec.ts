@@ -220,11 +220,6 @@ test.describe("background jobs", () => {
     // device has not read. They used to take turns in one 12px slot, so the
     // louder one erased the other. Manu: "el punto azul con la señal de proceso
     // segundo plano podrían ir doble (ambas a la vez)".
-    await page.addInitScript(() =>
-      // A seeded store with no mark for this row = something new here. Without
-      // the baseline the first load counts everything as already seen.
-      localStorage.setItem("apx.chat.read.v1", JSON.stringify({ seeded: true, marks: {} })),
-    );
     await page.route((url) => url.pathname === "/api/projects", (route) =>
       route.fulfill({ json: [{ id: 7, name: "Northwind", path: "/p", kind: "company", agents: 2, apx_id: "nw1", storage_path: "/p" }] }));
     await page.route((url) => url.pathname === "/api/inbox", (route) =>
@@ -232,8 +227,19 @@ test.describe("background jobs", () => {
         json: [
           // The newest row takes the selection — and a row you are LOOKING at
           // is read by definition, so the one under test has to be the other.
-          quietRow,
-          { ...a2aRow, preview_at: new Date(Date.now() - 60_000).toISOString(), last_activity_at: new Date(Date.now() - 60_000).toISOString() },
+          { ...quietRow, unread: false },
+          // `unread` comes from the DAEMON now (core/stores/read-marks.js): what
+          // has been read belongs to the conversation, not to the browser
+          // reading it, so that one person with a laptop and a phone is not told
+          // about the same forty chats twice. This used to be set up by seeding
+          // `apx.chat.read.v1` in localStorage — a store that no longer exists,
+          // which is why the row kept its job mark and quietly lost its dot.
+          {
+            ...a2aRow,
+            unread: true,
+            preview_at: new Date(Date.now() - 60_000).toISOString(),
+            last_activity_at: new Date(Date.now() - 60_000).toISOString(),
+          },
         ],
       }));
     await page.route((url) => url.pathname === "/api/jobs", (route) =>
