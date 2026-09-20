@@ -5,7 +5,7 @@ import { installStance, onInstallStateChange, promptInstall } from "../../lib/pw
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { CommunityCard } from "../../components/common/CommunityCard";
-import { chatPath, keyFor, pidOf } from "./routes";
+import { AGENTS_ROOT, chatPath, keyFor, pidOf } from "./routes";
 import { LINKS } from "../../constants";
 import { inboxRowKey } from "../../lib/chat-read";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
@@ -37,6 +37,7 @@ export function MobileChatList({
    *  not in this (web-only) list yet. */
   onNew: () => void;
 }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [prefsOpen, setPrefsOpen] = useState(false);
   // Inside the app the WebView is already laid out below the system bars, so
@@ -88,6 +89,19 @@ export function MobileChatList({
               className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
             >
               <SquarePen size={19} />
+            </button>
+            {/* The directory. It lives here rather than in the tab bar because
+                it is how you START a conversation — the same reason the
+                composer button is next to it — and a fifth tab for a list you
+                open once a week is a thumb target taken from one you use. */}
+            <button
+              type="button"
+              onClick={() => navigate(AGENTS_ROOT)}
+              aria-label={t("mobile.agents_title")}
+              data-testid="mobile-open-agents"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+            >
+              <Users size={19} />
             </button>
             <button
               type="button"

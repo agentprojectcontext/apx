@@ -11,6 +11,7 @@ import type { InboxRow } from "../../lib/api/inbox";
  *   /m/tasks                                 every project's tasks
  *   /m/commitments                           every project's promises
  *   /m/attention                             what is waiting on you, everywhere
+ *   /m/agents                                every agent, as a contact list
  *   /m/team/:pid                             one project's team
  *
  * `/m` and not `/mobile`, and each surface named after WHAT IT SHOWS rather
@@ -42,6 +43,9 @@ export const TASKS_ROOT = `${MOBILE_ROOT}/tasks`;
 export const COMMITMENTS_ROOT = `${MOBILE_ROOT}/commitments`;
 /** Everything waiting on the owner, from every list at once. */
 export const ATTENTION_ROOT = `${MOBILE_ROOT}/attention`;
+
+/** Every agent in every project, as a contact list. */
+export const AGENTS_ROOT = `${MOBILE_ROOT}/agents`;
 
 /**
  * The pre-`/m` spelling, kept alive by a redirect rather than by a second set
