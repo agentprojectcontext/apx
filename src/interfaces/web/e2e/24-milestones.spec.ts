@@ -47,12 +47,34 @@ function statsFor(entries: { state: string }[]) {
   };
 }
 
+// A deep link, so which chat is open does not depend on what the machine
+// running the test happens to have.
+//
+// THIS IS WHY THE BADGE TEST WAS RED IN CI AND GREEN EVERYWHERE ELSE. With no
+// params, ChatTab opens a `live` session on the super-agent and then auto-picks
+// the project's most recent chat once the lists land. On a developer's machine
+// project 7 is a real project with real chats, one gets picked, and the
+// timeline has a conversation to ask about. On a clean runner there is nothing
+// to pick, `useMilestones` never gets a target, never fetches — and a badge
+// that renders off the counts simply is not there.
+//
+// With `agent` + `conv` in the URL the selection is decided on the first render
+// from the URL alone, before any list is fetched, so every assertion below is
+// about the timeline instead of about the fixture's luck.
+const CHAT = "/p/7/chat?agent=magui&conv=c1";
+
 async function stubTimeline(page: import("@playwright/test").Page, entries: unknown[]) {
   await page.route((url) => url.pathname === "/api/projects", (route) =>
     route.fulfill({ json: PROJECTS }));
   await page.route(
     (url) => url.pathname.endsWith("/milestones"),
     (route) => route.fulfill({ json: { entries, stats: statsFor(entries as { state: string }[]) } }),
+  );
+  // Empty lists on purpose: this is the clean-runner shape, so a test that
+  // needs a chat has to say which one rather than inheriting whatever is there.
+  await page.route(
+    (url) => /\/conversations$/.test(url.pathname) || /\/super-agent\/threads$/.test(url.pathname),
+    (route) => route.fulfill({ json: [] }),
   );
 }
 
@@ -288,7 +310,7 @@ test.describe("timeline", () => {
       step(),
       step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z" }),
     ]);
-    await page.goto("/p/7/chat");
+    await page.goto(CHAT);
 
     const toggle = page.getByTestId("chat-timeline-toggle");
     await expect(toggle).toBeVisible();
@@ -328,7 +350,7 @@ test.describe("timeline", () => {
       step(),
       step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z" }),
     ]);
-    await page.goto("/p/7/chat");
+    await page.goto(CHAT);
 
     await page.getByTestId("chat-timeline-toggle").click();
     const panel = page.getByTestId("chat-timeline-panel");
@@ -349,7 +371,7 @@ test.describe("timeline", () => {
   // vanish — that reads as broken. It says so instead.
   test("an uneventful chat still opens, and says there is nothing", async ({ page }) => {
     await stubTimeline(page, []);
-    await page.goto("/p/7/chat");
+    await page.goto(CHAT);
     await page.getByTestId("chat-timeline-toggle").click();
     await expect(page.getByTestId("chat-timeline-panel")).toContainText("Nothing recorded");
   });
