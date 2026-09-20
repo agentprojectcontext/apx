@@ -201,7 +201,7 @@ export const en = {
     runtimes_running: "Running",
     runtimes_finished: "Finished",
     runtimes_empty: "None launched yet.",
-    runtimes_unknown: "unknown engine",
+    runtimes_unknown: "Unknown engine",
     runtimes_started: "Started",
     runtimes_completed: "Finished",
     runtimes_cwd: "Folder",
