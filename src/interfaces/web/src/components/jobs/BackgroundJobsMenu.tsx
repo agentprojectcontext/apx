@@ -135,6 +135,10 @@ export function BackgroundJobsMenu({
     )
     : all;
   const idle = jobs.length === 0;
+  // Same glyph as the controls beside it in a chat header (ChatTab's `ctlIcon`,
+  // which is 16 on the phone too — see the note there); the smaller one in the
+  // window's top strip, where everything is small.
+  const glyph = compact ? 16 : 13;
 
   const projectName = (id: BackgroundJob["project_id"]) =>
     projects.find((p) => String(p.id) === String(id))?.name || null;
@@ -175,7 +179,16 @@ export function BackgroundJobsMenu({
           data-state-running={idle ? "false" : "true"}
           aria-label={idle ? t("jobs.tip_idle") : t("jobs.tip", { n: jobs.length })}
           className={cn(
-            "flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] tabular-nums hover:bg-accent",
+            "flex shrink-0 items-center justify-center gap-1 tabular-nums",
+            // In a chat header it is one of three controls in a row and takes
+            // their box — a round 32px one, wider than tall only by the digit
+            // it carries; in the window's top strip it stays the small square
+            // chip that strip is made of.
+            compact
+              // Both feedbacks, because this header is read on both surfaces:
+              // hover where there is a pointer, active where a hover would stick.
+              ? "h-8 min-w-8 rounded-full px-1.5 text-[11px] hover:bg-accent/60 active:bg-accent/60"
+              : "rounded-md px-1.5 py-1 text-[11px] hover:bg-accent",
             // Two conditions of ONE control. At rest it recedes into the row of
             // muted glyphs beside it — there to be read, not to be noticed; with
             // work on it, it takes the colour the rest of the panel already uses
@@ -192,21 +205,20 @@ export function BackgroundJobsMenu({
               itself, a pile of work that happens to be empty — and the spinner
               belongs to the one state that IS spinning. */}
           {idle ? (
-            <SquareStack size={13} />
+            <SquareStack size={glyph} />
           ) : (
-            <LoaderCircle size={13} className="animate-spin motion-reduce:animate-none" />
+            <LoaderCircle size={glyph} className="animate-spin motion-reduce:animate-none" />
           )}
-          {/* In a thread header the count alone is a mystery glyph beside a
-              wrench; the word is what makes it a status. Globally it stays a
-              bare count, because it stands for work in chats you are not
-              reading and shares a strip with four other icon-sized controls. */}
-          {compact
-            ? idle
-              ? t("chat_ui.jobs_running_none")
-              : jobs.length === 1
-                ? t("chat_ui.jobs_running_one")
-                : t("chat_ui.jobs_running", { n: jobs.length })
-            : jobs.length}
+          {/* THE NUMBER, everywhere. The header used to spell it out — "No
+              tasks", "1 task running" — on the theory that a bare count beside
+              a wrench is a mystery glyph. On a phone that theory cost the
+              width of the two controls next to it and still read as a label
+              rather than a status. Manu: "arriba tasks no debe decir nada…
+              cuando hay un task o más ahí sí sale 1, 2 o número y si no hay
+              podés poner incluso 0 y ya". The word survives where it was
+              always the one that explained things: the tooltip and the
+              aria-label. */}
+          {jobs.length}
         </DropdownMenuTrigger>
       </Tip>
       <DropdownMenuContent align="end" sideOffset={6} className="max-h-[60vh] w-80 overflow-y-auto">
