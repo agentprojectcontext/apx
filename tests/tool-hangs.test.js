@@ -14,7 +14,7 @@
 //   3. STOP DID NOT REACH A RUNNING TOOL. The abort signal was only read
 //      between iterations, so cancelling during a long call did nothing until
 //      the call returned on its own.
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -28,6 +28,26 @@ const { shellCommand, killChild } = await import("#core/util/shell.js");
 const { runToolWithWatchdog, resolveToolDeadline, TOOL_DEADLINE_MS } =
   await import("#core/agent/loop/tool-watchdog.js");
 const runShell = (await import("#core/agent/tools/handlers/run-shell.js")).default;
+
+// Hold the event loop open for as long as this file runs.
+//
+// The watchdog unref()s both of its timers on purpose — a hang detector must
+// never be the thing keeping a process alive (tool-watchdog.js). The cost of
+// that lands here: a test awaiting a handler that never settles has nothing
+// ref'd pending, so Node is free to exit cleanly in the middle of it.
+//
+// When it does, every test still queued is reported as "Promise resolution is
+// still pending but the event loop has already resolved" — INCLUDING the
+// synchronous ones (`resolveToolDeadline`), and that is the tell: a test with
+// no promise in it cannot fail that way, so what went away was the process,
+// not any single test. Run 35489025270 lost all twelve like that on
+// 2026-09-20 while this file passed 23/23 locally, which is the shape of the
+// bug: it depends on whether anything else happens to be pending, so it is
+// green until the day it is not.
+//
+// One ref'd handle removes the choice. It changes nothing being tested.
+const keepAlive = setInterval(() => {}, 60_000);
+after(() => clearInterval(keepAlive));
 
 function projectsStub(root) {
   const rec = { id: "1", name: "tmp", path: root, storagePath: root };
