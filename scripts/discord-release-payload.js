@@ -61,7 +61,8 @@ function fitLines(lines, extra) {
   return out.join("\n");
 }
 
-export function buildPayload(version, repo, notes) {
+export function buildPayload(version, repo, notes, opts = {}) {
+  const { credits = [], roleId = "", previous = "" } = opts;
   const release = `https://github.com/${repo}/releases/tag/v${version}`;
   const sections = [];
   let current = null;
@@ -86,28 +87,74 @@ export function buildPayload(version, repo, notes) {
     if (budget <= 0) break;
   }
 
+  // Who wrote it. Bots are dropped: semantic-release authors the version commit
+  // of every single release, so thanking it is thanking the machine that posted
+  // the message.
+  const people = credits.filter((c) => c && !/\[bot\]$|^semantic-release-bot$/.test(c));
+  if (people.length && fields.length < MAX_FIELDS) {
+    const names = people.map((c) => `[@${c}](https://github.com/${c})`);
+    fields.push({ name: "Credits", value: `Gracias a ${listJoin(names)}.`.slice(0, FIELD_MAX) });
+  }
+
+  const compare = previous
+    ? `https://github.com/${repo}/compare/v${previous}...v${version}`
+    : release;
+
   return {
     username: "APX",
+    // A line outside the embed, the way release bots do it: it is what shows in
+    // the sidebar and in a notification, where an embed's title does not.
+    content: `${roleId ? `<@&${roleId}> ` : ""}**APX** v${version}`,
     embeds: [
       {
-        title: `APX v${version}`,
+        // The emoji is the release TYPE at a glance. It earns its place now
+        // that patches are announced too: most weeks the channel is patches,
+        // and a minor should not have to be read to be noticed.
+        title: `${isPatch(version, previous) ? "🔧" : "🚀"} v${version}`,
         url: release,
         color: BRAND,
         description:
           "`npm install -g @agentprojectcontext/apx`\n" +
-          `[Changelog](https://github.com/${repo}/blob/main/CHANGELOG.md) · [Release](${release})`,
+          `[Changelog](https://github.com/${repo}/blob/main/CHANGELOG.md) · [Diff](${compare})`,
         // Nothing to show when the notes could not be read — an embed with a
         // title and an install line is still a correct announcement.
         ...(fields.length ? { fields } : {}),
       },
     ],
+    // A link button, which needs no application to handle it — unlike a button
+    // with a custom_id, nothing has to be listening. Discord may still refuse
+    // components from a plain channel webhook, so the caller posts this, and on
+    // a rejection posts again with `components` removed. The announcement is
+    // never lost to a decoration.
+    components: [
+      {
+        type: 1,
+        components: [
+          { type: 2, style: 5, label: "Changelog", url: `https://github.com/${repo}/blob/main/CHANGELOG.md` },
+          { type: 2, style: 5, label: "Release", url: release },
+        ],
+      },
+    ],
   };
+}
+
+/** "a, b y c" — the Oxford-less Spanish list the Credits line reads as. */
+function listJoin(items) {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+/** Patch = only the third number moved. Unknown previous → treated as not one. */
+function isPatch(version, previous) {
+  if (!previous) return false;
+  const a = String(previous).split("."), b = String(version).split(".");
+  return a[0] === b[0] && a[1] === b[1];
 }
 
 // Run as a command: notes on stdin, payload on stdout. Imported by the test,
 // which must not trigger any of this.
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-  const [, , version, repo] = process.argv;
+  const [, , version, repo, previous = "", roleId = ""] = process.argv;
   const notes = await new Promise((resolve) => {
     let buf = "";
     process.stdin.setEncoding("utf8");
@@ -115,5 +162,8 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
     process.stdin.on("end", () => resolve(buf));
     if (process.stdin.isTTY) resolve("");
   });
-  process.stdout.write(JSON.stringify(buildPayload(version, repo, notes)));
+  const credits = String(process.env.APX_RELEASE_CREDITS || "")
+    .split(/[,\s]+/)
+    .filter(Boolean);
+  process.stdout.write(JSON.stringify(buildPayload(version, repo, notes, { credits, roleId, previous })));
 }
