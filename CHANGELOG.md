@@ -1,3 +1,12 @@
+# [1.114.0](https://github.com/agentprojectcontext/apx/compare/v1.113.0...v1.114.0) (2026-09-20)
+
+
+### Features
+
+* **ci:** Discord se entera de todos los releases, también de los patches ([768611d](https://github.com/agentprojectcontext/apx/commit/768611def44a5944c5e08bcf9eb4998a73086594))
+* **ci:** el anuncio de Discord cuenta qué cambió, no dónde leerlo ([db5b07d](https://github.com/agentprojectcontext/apx/commit/db5b07d02f65975cb0e35816082b3bc685e1c5ec))
+* **ci:** el anuncio dice de qué tipo es el release, quién lo escribió y lleva botones ([b3e6867](https://github.com/agentprojectcontext/apx/commit/b3e6867c845d44317929ed24bcf94dc7f84b80ec))
+
 # [1.113.0](https://github.com/agentprojectcontext/apx/compare/v1.112.0...v1.113.0) (2026-09-20)
 
 
