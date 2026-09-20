@@ -12,6 +12,7 @@ import type { InboxRow } from "../../lib/api/inbox";
  *   /m/commitments                           every project's promises
  *   /m/attention                             what is waiting on you, everywhere
  *   /m/agents                                every agent, as a contact list
+ *   /m/runtimes                              what Claude Code and friends ran
  *   /m/team/:pid                             one project's team
  *
  * `/m` and not `/mobile`, and each surface named after WHAT IT SHOWS rather
@@ -46,6 +47,9 @@ export const ATTENTION_ROOT = `${MOBILE_ROOT}/attention`;
 
 /** Every agent in every project, as a contact list. */
 export const AGENTS_ROOT = `${MOBILE_ROOT}/agents`;
+
+/** Sessions run by an external engine (Claude Code, Codex…). */
+export const RUNTIMES_ROOT = `${MOBILE_ROOT}/runtimes`;
 
 /**
  * The pre-`/m` spelling, kept alive by a redirect rather than by a second set

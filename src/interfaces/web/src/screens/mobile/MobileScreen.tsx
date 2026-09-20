@@ -6,6 +6,7 @@ import { MobileTasks } from "./MobileTasks";
 import { MobileCommitments } from "./MobileCommitments";
 import { MobileAttention } from "./MobileAttention";
 import { MobileAgents } from "./MobileAgents";
+import { MobileRuntimes } from "./MobileRuntimes";
 import { MobileTabBar } from "./MobileTabBar";
 import { NewChatSheet } from "./NewChatSheet";
 import { chatPath, findRow, keyFor, pidOf, CHAT_ROOT } from "./routes";
@@ -45,6 +46,7 @@ export function MobileScreen() {
       <Route path="commitments" element={<Tabbed><MobileCommitments /></Tabbed>} />
       <Route path="attention" element={<Tabbed><MobileAttention /></Tabbed>} />
       <Route path="agents" element={<Tabbed><MobileAgents /></Tabbed>} />
+      <Route path="runtimes" element={<Tabbed><MobileRuntimes /></Tabbed>} />
       {/* `/m` itself, and anything unrecognised, is the chat list — not a 404
           screen inside an app whose whole job is a handful of lists. */}
       <Route path="*" element={<Navigate to={CHAT_ROOT} replace />} />

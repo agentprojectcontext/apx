@@ -250,6 +250,7 @@ export default {
       storageRoot: p.storagePath,
       agentSlug: actor,
       runtime,
+      cwd: runCwd,
       title: `Runtime: ${runtime}${agent ? ` (${agent.slug})` : ""}`,
     });
 
