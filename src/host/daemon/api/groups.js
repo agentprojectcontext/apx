@@ -6,6 +6,9 @@
 // turn as a streamed mention-cascade.
 //
 //   POST /projects/:pid/groups                     create { title, participants } → { id }
+//                                                  …or PROMOTE the chat you are in:
+//                                                  { from: { agent, conversation } } — a 1:1
+//                                                  { from: { thread } }              — an a2a pair
 //   POST /projects/:pid/groups/:gid/participants   add an agent { slug }
 //   POST /projects/:pid/groups/:gid/message/stream owner speaks → NDJSON cascade
 //
@@ -19,6 +22,7 @@ import {
   createGroupThread, addGroupParticipant, removeGroupParticipant, readProjectGroupThread, truncateGroupThread,
   lastGroupOwnerMedia, GROUP_CHANNEL,
 } from "#core/stores/messages.js";
+import { promoteConversationToGroup, promoteA2AThreadToGroup } from "#core/stores/group-promote.js";
 import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
 import {
@@ -43,7 +47,7 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/groups", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { title, participants, members } = req.body || {};
+    const { title, participants, members, from } = req.body || {};
 
     // Cross-project rooms (inbox / mobile): `members: [{ project_id, slug }]`.
     // Same-project rooms keep the old `participants: string[]` shape.
@@ -73,7 +77,68 @@ export function register(api, { projects, project, config, plugins, registries }
       slugs = (Array.isArray(participants) ? participants : []).filter((s) => known.has(s));
     }
 
+    // An a2a pair becoming a room seats WHOEVER the pair already holds, so it is
+    // the one create that needs no `participants` at all — checked before the
+    // "at least one agent" guard below, which every other shape must pass.
+    const fromThread = typeof from?.thread === "string" ? from.thread.trim() : "";
+    if (fromThread) {
+      try {
+        const out = promoteA2AThreadToGroup({
+          storagePath: p.storagePath,
+          logMessage: p.logMessage,
+          threadId: fromThread,
+          knownAgents: readAgents(p.path).map((a) => a.slug),
+          participants: slugs,
+          title: title || null,
+          homes,
+        });
+        try { projects.rebuild(p.id); } catch { /* best-effort */ }
+        return res.status(201).json({
+          id: out.id, channel: "group", title: title || out.participants.join(" · "),
+          participants: out.participants, imported: out.imported, from: out.from,
+          ...(homes ? { homes } : {}),
+        });
+      } catch (e) {
+        return res.status(400).json({ error: e.message });
+      }
+    }
+
     if (slugs.length < 1) return res.status(400).json({ error: "at least one existing agent required" });
+
+    // PROMOTING the chat you are in, rather than opening a second one beside it.
+    // `from: { agent, conversation }` names the 1:1 being converted; its
+    // transcript is replayed onto the new room and the file is archived with a
+    // pointer to where it went. See core/stores/group-promote.js for why this
+    // is a replay and not a link.
+    const fromAgent = typeof from?.agent === "string" ? from.agent.trim() : "";
+    const fromConv = typeof from?.conversation === "string" ? from.conversation.trim() : "";
+    if (fromAgent || fromConv) {
+      if (!fromAgent || !fromConv)
+        return res.status(400).json({ error: "from needs both agent and conversation" });
+      if (!readAgents(p.path).some((a) => a.slug === fromAgent))
+        return res.status(404).json({ error: "agent not found" });
+      try {
+        const out = promoteConversationToGroup({
+          storagePath: p.storagePath,
+          logMessage: p.logMessage,
+          agentSlug: fromAgent,
+          conversationId: fromConv,
+          participants: slugs,
+          title: title || null,
+          homes,
+        });
+        try { projects.rebuild(p.id); } catch { /* best-effort */ }
+        const roster = [...new Set([fromAgent, ...slugs])];
+        return res.status(201).json({
+          id: out.id, channel: "group", title: title || roster.join(" · "),
+          participants: roster, imported: out.imported, from: out.from,
+          ...(homes ? { homes } : {}),
+        });
+      } catch (e) {
+        return res.status(400).json({ error: e.message });
+      }
+    }
+
     try {
       const id = createGroupThread(p.logMessage, { title: title || null, participants: slugs, homes });
       try { projects.rebuild(p.id); } catch { /* best-effort */ }

@@ -413,6 +413,9 @@ export function ChatTab({
           gid = await addToGroup(inv.slug);
           if (!gid) return;
         }
+      } else if (isA2A && selected.kind === "thread") {
+        gid = await promoteA2A(inv.slug);
+        if (!gid) return;
       } else if (inv.slug !== activeAgent?.slug) {
         gid = await escalateToGroup(inv.slug);
         if (!gid) return;
@@ -426,6 +429,15 @@ export function ChatTab({
       // Ctrl+Enter means the same thing in a room as it does in a 1:1 chat:
       // wait behind what is running instead of interrupting it.
       await groupSend(selected.threadId, text, media, opts);
+      return;
+    }
+    // The owner joining a pair: it becomes a room, and this line is the first
+    // thing said in it. See promoteA2A — without this the message went out on
+    // the web channel and vanished from the thread it was typed into.
+    if (isA2A && selected.kind === "thread") {
+      const gid = await promoteA2A();
+      if (!gid) return;
+      await groupSend(gid, text, media, opts);
       return;
     }
     if (activeIsRoby) {
@@ -508,12 +520,58 @@ export function ChatTab({
     }
   };
 
-  // Escalate a 1:1 with a project agent into a group by pulling someone in.
+  // Invite someone into a 1:1: the chat you are in BECOMES the room.
+  //
+  // It used to open a fresh, empty group and leave you in it, with the
+  // conversation you were having still in the agent's own file and invisible
+  // from the room — so the agent that just walked in had no idea what had been
+  // said, and neither did the room. Manu, 2026-09-20: "en vez de invitarlo y ya
+  // convertir ese chat en grupo, arma otro chat en grupo y eso rompe todo."
+  //
+  // `from` is what makes it a conversion: the daemon replays the transcript onto
+  // the room's ledger and archives the file (core/stores/group-promote.js). A
+  // chat with nothing in it yet (`kind: "live"`) has nothing to carry, so it
+  // opens a room the ordinary way.
   const escalateToGroup = async (slug: string): Promise<string | null> => {
     const base = activeAgent?.slug;
     if (!base) return null;
     try {
-      const g = await Groups.create(pid, { participants: [base, slug] });
+      const from = selected.kind === "conv"
+        ? { agent: selected.agentSlug, conversation: selected.convId }
+        : conversationId
+          ? { agent: base, conversation: conversationId }
+          : undefined;
+      const g = await Groups.create(pid, {
+        participants: [base, slug],
+        ...(from ? { from } : {}),
+      });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+      void mutate(`/api/projects/${pid}/agents/${base}/conversations`);
+      selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
+      return g.id;
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+      return null;
+    }
+  };
+
+  // Speaking in an a2a pair turns it into a room you are in.
+  //
+  // An a2a thread is two agents talking and has no seat for the owner: typing
+  // into this pane used to send a super-agent WEB turn, so the line left the
+  // thread it was written in and landed on another channel — from here it just
+  // disappeared. "Los agent to agent para mí son grupo, entonces cuando empiezo
+  // a hablar deberían convertirse en grupo" (Manu, 2026-09-20). The daemon
+  // seats whichever ends of the pair are agents of this project and carries the
+  // exchange across, so the room opens with the conversation already in it.
+  const promoteA2A = async (slug?: string): Promise<string | null> => {
+    if (selected.kind !== "thread" || selected.channel !== "a2a") return null;
+    try {
+      const g = await Groups.create(pid, {
+        from: { thread: selected.threadId },
+        // Inviting somebody is the same conversion, with one more seat.
+        ...(slug ? { participants: [slug] } : {}),
+      });
       void mutate(`/api/projects/${pid}/super-agent/threads`);
       selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
       return g.id;
@@ -524,15 +582,23 @@ export function ChatTab({
   };
 
   // Who "add someone" offers: in a group, every agent not already in it; in a
-  // 1:1 with a project agent, every other project agent (adding one makes it a
-  // group). Not offered for the super-agent or a2a threads.
+  // 1:1 with a project agent, every other project agent; in an a2a pair, every
+  // agent not already one of the two. Not offered for the super-agent.
   // activeAgent is only set for a 1:1 with a project agent (undefined for threads
   // and the super-agent), so it alone marks the escalate-able case.
-  const canAddPeople = isGroup || (!activeIsRoby && !!activeAgent);
+  //
+  // Every one of the three CONVERTS the chat you are in rather than opening a
+  // second one beside it — a group gains a member, a 1:1 and a pair become a
+  // room carrying their own transcript.
+  const a2aParticipants = isA2A ? (conversationMeta?.participants ?? []) : [];
+  const canAddPeople = isGroup || isA2A || (!activeIsRoby && !!activeAgent);
   const addCandidates = isGroup
     ? agentList.filter((a) => !groupParticipants.includes(a.slug))
-    : agentList.filter((a) => a.slug !== activeAgent?.slug);
-  const onPickAdd = (slug: string) => (isGroup ? addToGroup(slug) : escalateToGroup(slug));
+    : isA2A
+      ? agentList.filter((a) => !a2aParticipants.includes(a.slug))
+      : agentList.filter((a) => a.slug !== activeAgent?.slug);
+  const onPickAdd = (slug: string) =>
+    isGroup ? addToGroup(slug) : isA2A ? promoteA2A(slug) : escalateToGroup(slug);
 
   // "New session" header button: reset the pane but stay with the current
   // agent (Roby for channel threads / the super-agent, else the project agent).
@@ -1453,7 +1519,14 @@ export function ChatTab({
                 onRegenerate={regenerateHandler}
                 onEdit={editHandler}
                 faceFor={faceFor}
-                showSpeaker={isGroup}
+                // A room names its speaker ABOVE the bubble — and an a2a pair
+                // IS a room: two agents talking, both of them "somebody else".
+                // Manu, 2026-09-20: "los agent to agent para mí son grupo …
+                // debería tener el diseño de grupo que muestra el usuario
+                // arriba y la cita abajo." Under the 1:1 layout the speaker
+                // went in the footer chip, which is the one place that cannot
+                // tell two agents apart at a glance.
+                showSpeaker={isMultiThread}
                 nameOf={(slug) => agentList.find((a) => a.slug === slug)?.name || slug}
                 showTools={showTools}
                 compact={compact}
