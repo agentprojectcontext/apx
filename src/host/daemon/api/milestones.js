@@ -33,7 +33,49 @@ import {
   getMilestone,
   listMilestones,
 } from "#core/stores/milestones.js";
+import {
+  getActiveTurnByKey,
+  convTurnKey,
+  threadTurnKey,
+  superAgentTurnKey,
+  listActiveTurns,
+} from "../active-turns.js";
 import { asyncRoute, readThreadMessages } from "./shared.js";
+
+// A TURN IN FLIGHT IS NOT AN ABANDONED ONE, and the transcript cannot tell them
+// apart: the request is written to the conversation before the model is called,
+// so the chat you are looking at RIGHT NOW ends in a user turn with nothing
+// after it — the same three bytes a daemon that died mid-turn leaves behind.
+// Rendered from the file alone, the panel announced "never answered" over the
+// request it was busy answering.
+//
+// The register of live turns is the only place that knows, and it is this
+// process's memory: not a store, not reachable from core. So it is read here
+// and the fact is handed down.
+// ONE ROUTE, TWO KEYS. A group room and an a2a thread are addressed by
+// `threadTurnKey`, but the super-agent's own chat is not: it has no
+// conversation id, so its live turn is keyed per project+channel
+// (`superAgentTurnKey`) and carries the day as `thread_id`. Checking only the
+// first shape meant Roby's chat — the one most likely to be open while a turn
+// runs — was the one place this never reported.
+//
+// The day still has to match. A live turn keyed on the channel says nothing
+// about YESTERDAY's thread, and marking that one running would be a new lie in
+// place of the old one.
+function threadIsRunning(projectId, channel, id) {
+  if (getActiveTurnByKey(threadTurnKey(projectId, channel, id))) return true;
+  const sa = getActiveTurnByKey(superAgentTurnKey(projectId, channel));
+  return !!sa && sa.thread_id === id;
+}
+
+function runningConversationIds(projectId) {
+  const ids = new Set();
+  for (const turn of listActiveTurns({ projectId })) {
+    if (turn.conversation_id) ids.add(turn.conversation_id);
+    if (turn.thread_id) ids.add(turn.thread_id);
+  }
+  return ids;
+}
 
 export function register(api, { project }) {
   api.get("/projects/:pid/milestones", asyncRoute(async (req, res) => {
@@ -46,6 +88,7 @@ export function register(api, { project }) {
         since: req.query.since || sinceDaysAgo(),
         until: req.query.until || null,
         limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
+        runningIds: runningConversationIds(p.id),
       })
     );
   }));
@@ -60,6 +103,7 @@ export function register(api, { project }) {
           storagePath: p.storagePath,
           agentSlug: req.params.slug,
           conversationId: req.params.id,
+          running: !!getActiveTurnByKey(convTurnKey(p.id, req.params.id)),
         })
       );
     })
@@ -83,7 +127,11 @@ export function register(api, { project }) {
       channel: req.params.channel,
       thread_id: req.params.id,
     });
-    res.json(timelineFromTurns(thread.messages || [], declared));
+    res.json(
+      timelineFromTurns(thread.messages || [], declared, {
+        running: threadIsRunning(p.id, req.params.channel, req.params.id),
+      })
+    );
   });
 
   api.post("/projects/:pid/milestones", (req, res) => {

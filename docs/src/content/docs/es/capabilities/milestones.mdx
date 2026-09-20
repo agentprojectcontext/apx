@@ -29,16 +29,34 @@ llamada olvidada cuesta detalle, nunca la vista entera.
 
 ## El resultado es el punto
 
-Cada entrada lleva uno de tres estados, y los dos que no son `done` son la razón de que esto exista.
+Cada entrada lleva un estado, y el que no es ni `done` ni `failed` es la razón de que esto exista.
 
 | Estado | Qué significa |
 |---|---|
 | `done` | Terminó y funcionó. |
 | `failed` | Terminó y no funcionó. Falló una tool, o el agente lo dijo. |
 | `open` | Nunca terminó. Un pedido sin respuesta después — un restart en medio del turno, un motor que no volvió, una tool colgada. |
+| `running` | Se está respondiendo ahora mismo. |
+| `superseded` | Lo reemplazaste vos: el mismo mensaje dos veces, u otro a los pocos segundos. |
 
 `open` es el que nada reportaba antes. El chat simplemente se cortaba, y la ausencia la tenías que
 notar vos.
+
+### Por qué existen los dos últimos
+
+Porque sin ellos `open` dejaba de significar algo. Medido sobre 372 conversaciones reales: de 39
+pasos sin respuesta después, **28 los cerró otro mensaje de la misma persona**, y 11 de esos eran
+el mismo texto mandado de nuevo. Un contador que dice sobre todo "apretaste enviar dos veces" es un
+contador que se deja de mirar — que es exactamente la falla que esto venía a arreglar.
+
+Así que un pedido que reemplazó quien lo mandó queda `superseded`: se sigue mostrando, para que la
+cuenta de pasos coincida con el chat, pero en gris y sin contar.
+
+`running` es la otra mitad. Tu pedido se escribe en la conversación *antes* de llamar al modelo, así
+que en disco un chat que está siendo respondido y uno donde el daemon se murió en el medio se ven
+igual: un pedido sin nada después. El panel anunciaba "nunca se respondió" sobre el mismo pedido que
+estaba respondiendo. Sólo el registro de turnos vivos del daemon distingue los dos casos, y es lo
+que decide este estado.
 
 <Aside type="note">
 Un paso marcado `dropped` se cargó por error — deliberadamente **no** es lo mismo que `failed`.

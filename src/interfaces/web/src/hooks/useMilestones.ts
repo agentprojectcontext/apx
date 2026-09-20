@@ -50,7 +50,7 @@ export function useMilestones(pid: string, selected: ChatKey, conversationId?: s
 
   return {
     entries: data?.entries ?? [],
-    stats: data?.stats ?? { total: 0, open: 0, done: 0, failed: 0 },
+    stats: data?.stats ?? { total: 0, open: 0, done: 0, failed: 0, superseded: 0, running: 0 },
     loading: isLoading,
     error,
     reload: mutate,

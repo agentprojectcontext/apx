@@ -70,28 +70,73 @@ export function mergeTimeline(steps, milestones) {
 }
 
 /**
+ * The state a merged entry REPORTS, which is not always the one it holds.
+ *
+ * A declared milestone that disagrees with its step wins, because it is the
+ * more specific witness: an agent that says "the render failed" inside a turn
+ * that answered normally is describing something a green row would hide.
+ *
+ * `running` outranks even that, and it is the only thing that does. A turn
+ * still being written has open milestones under it BY CONSTRUCTION — the agent
+ * declared steps it has not closed yet, because it is in the middle of them —
+ * and reporting that as "open" is how a turn in progress came to be announced
+ * as abandoned work. Its outcome is not decided, so the row says so; the
+ * declared rows underneath keep their own dots and stay readable.
+ */
+export function entryState(entry) {
+  const declared = Array.isArray(entry.milestones) ? entry.milestones : [];
+  if (entry.state === "running") return "running";
+  if (declared.some((m) => m.state === "failed")) return "failed";
+  if (entry.state === "failed") return "failed";
+  if (declared.some((m) => m.state === "open")) return "open";
+  return entry.state;
+}
+
+/**
  * Roll a merged entry list up into the line a header shows.
  *
- * A step's state is its own unless it carries declared milestones that
- * disagree: an agent that says "the render failed" inside a turn that answered
- * normally is the more specific witness, and a rail that showed that step green
- * would be actively misleading.
+ * `open` counts only what somebody has to do something about. A superseded
+ * request is finished business — its sender replaced it — and a running one is
+ * being answered as the count is read; folding either into `open` is what made
+ * the number too noisy to act on.
  */
 export function timelineStats(entries) {
   const list = Array.isArray(entries) ? entries : [];
-  const states = list.map((e) => {
-    const declared = Array.isArray(e.milestones) ? e.milestones : [];
-    if (declared.some((m) => m.state === "failed")) return "failed";
-    if (e.state === "failed") return "failed";
-    if (declared.some((m) => m.state === "open")) return "open";
-    return e.state;
-  });
+  const states = list.map(entryState);
+  const count = (name) => states.filter((s) => s === name).length;
   return {
     total: states.length,
-    open: states.filter((s) => s === "open").length,
-    done: states.filter((s) => s === "done").length,
-    failed: states.filter((s) => s === "failed").length,
+    open: count("open"),
+    done: count("done"),
+    failed: count("failed"),
+    superseded: count("superseded"),
+    running: count("running"),
   };
+}
+
+/**
+ * Mark the step a live turn is writing right now.
+ *
+ * NOTHING ON DISK SAYS THIS. The request is appended to the conversation before
+ * the model is called (host/daemon/agent-chat-turn.js), so from the transcript
+ * alone a turn that started two seconds ago and one the daemon died in the
+ * middle of a week ago are the same three bytes: a user turn with nothing after
+ * it. The distinction lives in the daemon's register of live turns, which is
+ * runtime state and cannot be reached from here — so the fact is passed in and
+ * core stays ignorant of how the caller knows it.
+ *
+ * Only the LAST derived step can be the one in flight, and only if it is still
+ * unanswered. A live turn nobody asked for (a wake-up, a routine) has written
+ * no request yet and so has no row to mark — correctly, since there is nothing
+ * to say about it beyond what the chat is already showing.
+ */
+export function markRunningStep(steps) {
+  for (let i = steps.length - 1; i >= 0; i -= 1) {
+    if (steps[i].kind === "declared") continue;
+    if (steps[i].state === "open" && !steps[i].answered) steps[i].state = "running";
+    break;
+  }
+  return steps;
 }
 
 /**
@@ -99,8 +144,10 @@ export function timelineStats(entries) {
  * only needs them read as steps — the thread route, where which of three stores
  * holds a thread is the adapter's business and not core's.
  */
-export function timelineFromTurns(turns, declared = []) {
-  const entries = mergeTimeline(deriveSteps(turns), declared);
+export function timelineFromTurns(turns, declared = [], { running = false } = {}) {
+  const steps = deriveSteps(turns);
+  if (running) markRunningStep(steps);
+  const entries = mergeTimeline(steps, declared);
   return { entries, stats: timelineStats(entries) };
 }
 
@@ -108,12 +155,14 @@ export function timelineFromTurns(turns, declared = []) {
  * The timeline of ONE chat: the derived spine of that conversation file, with
  * whatever the agent declared inside it.
  *
+ * @param {boolean} [running] — whether a turn is being written into this chat
+ *        as the call is made. See `markRunningStep`: the transcript cannot say.
  * @returns {Promise<{entries: object[], stats: object}>} — an empty timeline,
  *          never null, for a conversation that does not exist. A chat with no
  *          file yet is a chat with no steps, which is a true answer; making the
  *          caller branch on null buys nothing.
  */
-export async function conversationTimeline({ storagePath, agentSlug, conversationId }) {
+export async function conversationTimeline({ storagePath, agentSlug, conversationId, running = false }) {
   const file = conversationPath(storagePath, agentSlug, conversationId);
   let turns = [];
   try {
@@ -122,7 +171,9 @@ export async function conversationTimeline({ storagePath, agentSlug, conversatio
     turns = [];
   }
   const declared = listMilestones(storagePath, { conversation_id: conversationId });
-  const entries = mergeTimeline(deriveSteps(turns), declared);
+  const steps = deriveSteps(turns);
+  if (running) markRunningStep(steps);
+  const entries = mergeTimeline(steps, declared);
   return { entries, stats: timelineStats(entries) };
 }
 
@@ -145,6 +196,11 @@ export async function projectTimeline({
   since = sinceDaysAgo(),
   until = null,
   limit = 200,
+  // Which conversations (and ledger threads — they share the id space here) are
+  // being written into right now. A Set of ids rather than a callback: the
+  // caller has the register and core has the rows, and data crossing that seam
+  // stays inspectable in a test where a function would not.
+  runningIds = null,
 } = {}) {
   // The ledger and the milestone store are both under the project's storage
   // root — `messages/` and `milestones/` beside each other. Taking one path and
@@ -198,6 +254,7 @@ export async function projectTimeline({
       agent_slug: thread.agent,
       conversation_id: thread.conversation_id,
     }));
+    if (thread.conversation_id && runningIds?.has(thread.conversation_id)) markRunningStep(steps);
     const mine = thread.conversation_id ? byConversation.get(thread.conversation_id) || [] : [];
     entries.push(...mergeTimeline(steps, mine));
     if (thread.conversation_id) byConversation.delete(thread.conversation_id);
