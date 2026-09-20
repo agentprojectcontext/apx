@@ -37,6 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # The version is worked out from the commits since it last moved, so
+          # the history has to be here: a depth-1 checkout makes every build
+          # look like the first one and the number never advances.
+          fetch-depth: 0
 
       # The runner image already ships the Android SDK; only the JDK has to be
       # chosen, and it must match the app's sourceCompatibility (17).
@@ -46,12 +51,52 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Read the app version
+      # The phone app is its own release, so it needs its own version — and
+      # while that number was typed by hand it simply stopped moving: 0.3.0 was
+      # built and announced twice on 2026-09-20 because a change landed and
+      # nobody edited the line. Work it out the way semantic-release works out
+      # npm's, from the commit subjects, by the same rules (.releaserc.json).
+      # `gradle.properties` stays the source of truth for where we are; the
+      # step at the end of this job writes the new number back into it.
+      - name: Work out the app version
         id: version
-        working-directory: src/interfaces/android
         run: |
-          name=$(sed -n 's/^apxAppVersion=//p' gradle.properties)
-          echo "name=${name:-0.1.0}" >> "$GITHUB_OUTPUT"
+          current=$(sed -n 's/^apxAppVersion=//p' src/interfaces/android/gradle.properties)
+          current=${current:-0.1.0}
+
+          # Where the number last moved. `-S` finds the commit that introduced
+          # this exact value, and everything after it is what this build is.
+          since=$(git log -1 --format=%H -S"apxAppVersion=$current" \
+                    -- src/interfaces/android/gradle.properties)
+          range=${since:+$since..}HEAD
+
+          # Only commits that touched the app. A fix to the daemon is not a new
+          # phone build, and the path filter above already decided that.
+          subjects=$(git log $range --format=%s -- src/interfaces/android)
+          bodies=$(git log $range --format=%B -- src/interfaces/android)
+
+          bump=none
+          if printf '%s\n' "$subjects" | grep -qE '^(fix|perf|revert)(\([^)]*\))?!?:'; then
+            bump=patch
+          fi
+          # minor last: it outranks patch. BREAKING is a minor here too — an
+          # unusual setting this repo made deliberately, see rules/releasing.md.
+          if printf '%s\n' "$subjects" | grep -qE '^feat(\([^)]*\))?!?:' \
+             || printf '%s\n' "$subjects" | grep -qE '^[a-z]+(\([^)]*\))?!:' \
+             || printf '%s\n' "$bodies"   | grep -qE '^BREAKING CHANGE:'; then
+            bump=minor
+          fi
+
+          maj=${current%%.*}; rest=${current#*.}; min=${rest%%.*}; pat=${rest#*.}
+          case "$bump" in
+            minor) min=$((min + 1)); pat=0 ;;
+            patch) pat=$((pat + 1)) ;;
+          esac
+          name="$maj.$min.$pat"
+
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "APX Android $current -> $name ($bump)" >> "$GITHUB_STEP_SUMMARY"
           # A versionCode may never go backwards: Android refuses an APK whose
           # code is not greater than the installed one, and there is no way out
           # but an uninstall, which deletes that phone's pairing.
@@ -197,6 +242,32 @@ jobs:
           }' > payload.json
           curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
             && echo "announced Android $VERSION"
+
+      # Written back only once the APK is actually out there, so a build that
+      # failed to publish does not burn a number. `[skip ci]` is load-bearing:
+      # this file lives under the same path filter that starts this workflow,
+      # so without it the bot's own commit would build the app again, forever.
+      - name: Record the new version
+        if: >-
+          steps.version.outputs.bump != 'none'
+          && steps.keystore.outputs.present == 'true'
+          && github.ref == 'refs/heads/main'
+        env:
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          sed -i "s/^apxAppVersion=.*/apxAppVersion=$VERSION/" src/interfaces/android/gradle.properties
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/interfaces/android/gradle.properties
+          git commit -m "chore(android-release): $VERSION [skip ci]"
+          # Several people and agents push to main here, so the tip may have
+          # moved while this job built. Rebase once and try again; if it still
+          # will not go, say so and do NOT fail the build — the APK is already
+          # published, and the next run recomputes the same number from the
+          # same commits rather than losing it.
+          git pull --rebase --quiet origin main || true
+          git push origin HEAD:main \
+            || echo "::warning::could not record $VERSION in gradle.properties — next run will recompute it"
 
       - name: Summary
         run: |

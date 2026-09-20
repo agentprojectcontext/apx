@@ -374,10 +374,26 @@ put a change on the phone with its pairing intact is to push it: a commit to
 which signs the APK and force-moves the `android-latest` release tag. Then
 `apx android install`.
 
-**The version is generated, never typed.** The name comes from `apxAppVersion`
-in `gradle.properties`; the versionCode is `date -u +%y%m%d%H`, because a code
-that goes backwards is an APK Android refuses forever and the only cure is the
-uninstall above. Do not hand-edit either in a commit.
+**Both halves of the version are generated. Neither is typed.** The versionCode
+is `date -u +%y%m%d%H` — monotonic, and a code that goes backwards is an APK
+Android refuses forever with no cure but the uninstall above. The version NAME
+is worked out by the workflow from the commit subjects since it last moved,
+using the same rules npm uses (`.releaserc.json`: `feat` and a breaking note
+are minor, `fix`/`perf`/`revert` are patch, everything else releases nothing),
+counting only commits that touched `src/interfaces/android/`. It is then
+written back into `apxAppVersion` in a `chore(android-release): <v> [skip ci]`
+commit — the same shape semantic-release uses for `package.json`, and the
+`[skip ci]` matters because `gradle.properties` sits under the path filter that
+starts this workflow.
+
+So: **do not edit `apxAppVersion` by hand**, and do give the commit the right
+type, because that is now the only thing deciding the app's number. Until
+2026-09-20 the name WAS typed, and the predictable happened — 0.3.0 was built
+and announced twice, because a change landed and nobody edited the line.
+
+The two releases remain separate: semantic-release versions the npm package,
+this versions the phone app, and they share nothing but a repo (see
+[`releasing.md`](releasing.md)). The numbers are not expected to match.
 
 With two phones plugged in, every `adb` needs a target — `export
 ANDROID_SERIAL=<serial>` once beats `-s` on each call.
