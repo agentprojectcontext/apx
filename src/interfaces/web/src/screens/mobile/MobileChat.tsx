@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { ChatTab } from "../project/ChatTab";
 import type { ChatKey } from "../../components/chat/ChatList";
-import { selectionFromParam, agentCardUrl } from "./routes";
+import { selectionFromParam, chatInProjectUrl } from "./routes";
 import type { InboxRow } from "../../lib/api/inbox";
 
 /**
@@ -74,7 +74,7 @@ export function MobileChat({
         /* Same reason as the inbox: the list this came from is every project's
            at once, so the chat it opens has to keep saying which one. */
         showProject
-        onOpenInProject={() => window.open(agentCardUrl(row), "_blank", "noopener")}
+        onOpenInProject={() => window.open(chatInProjectUrl(row), "_blank", "noopener")}
         onBack={onBack}
         onSelectionChange={onPickSession}
         initialSelection={selection}

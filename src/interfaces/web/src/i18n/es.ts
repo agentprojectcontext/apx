@@ -2114,6 +2114,8 @@ export const es = {
     working:             "{name} está trabajando…",
     typing_generic:      "Escribiendo…",
     working_generic:     "Trabajando…",
+    turn_running_tool:   "Ejecutando {tool}…",
+    turn_tokens:         "{n} tokens",
     actions_count:       "{n} acciones",
     actions_count_one:   "1 acción",
     jobs_running:        "{n} tareas en ejecución",

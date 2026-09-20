@@ -535,6 +535,10 @@ export interface ActiveTurn {
   thread_id?: string;
   model?: string;
   started_at?: string;
+  /** What the turn has spent so far — the running total, updated once per
+   *  iteration, so a chat opened mid-answer shows the same number the pane
+   *  that sent it is watching. */
+  usage?: ChatUsage;
   /** Ordered visible work captured by the daemon for a mid-turn reload. */
   parts?: Array<
     | { kind: "text"; text: string; streaming?: boolean }
@@ -800,6 +804,8 @@ export interface ChatStreamEvent {
   from_fallback?: boolean;
   tools?: string[];
   streak?: number;
+  // turn_usage: what the turn has spent up to this iteration (running total).
+  usage?: ChatUsage;
   // tool_start / tool_result / tool_deduped
   trace?: ToolTrace;
   // skill_inspector: which skills the per-turn RAG loaded/hinted this turn

@@ -41,6 +41,10 @@ function publicTurn(rec) {
     thread_id: rec.thread_id,
     model: rec.model,
     started_at: rec.started_at,
+    // What it has spent so far. A client that opens the chat mid-turn gets the
+    // same number the sending pane is watching, instead of a blank that fills
+    // in only when the turn ends.
+    ...(rec.usage ? { usage: rec.usage } : {}),
     // The text alone is not enough to re-open a multi-step turn: it loses the
     // actual tools and makes a still-working turn look idle. Keep the compact,
     // render-ready timeline alongside it; abort hooks and private keys remain
@@ -135,6 +139,18 @@ export function appendActiveTurn(id, delta) {
 export function recordActiveTurnEvent(id, event) {
   const rec = byId.get(id);
   if (!rec || !event) return;
+  // Two facts about the turn that are not steps IN it, so they update the
+  // record rather than appending to the timeline: which engine is actually
+  // answering (the configured one can be a router, and a fallback changes it
+  // mid-turn) and what it has spent so far.
+  if (event.type === "model_start" || event.type === "model_routed") {
+    if (event.model) rec.model = event.model;
+    return;
+  }
+  if (event.type === "turn_usage") {
+    if (event.usage) rec.usage = { ...event.usage };
+    return;
+  }
   if (event.type === "assistant_text" && event.text) {
     const last = rec.parts.at(-1);
     if (last?.kind === "text" && last.streaming) {
@@ -199,6 +215,13 @@ export function recordActiveTurnEvent(id, event) {
 export function isVisibleTurnEvent(event) {
   if (!event) return false;
   if (event.type === "assistant_text") return !!event.text;
+  // Not steps of the timeline, but part of what a live turn SAYS about itself
+  // while it runs: the engine that is answering and the tokens it has spent.
+  // A follower used to learn the model only when the turn ended — which is
+  // exactly backwards for the question it answers ("¿con qué modelo está
+  // escribiendo esto?"), and worse when routing swapped engines mid-turn.
+  if (event.type === "model_start" || event.type === "model_routed") return !!event.model;
+  if (event.type === "turn_usage") return !!event.usage;
   return (
     event.type === "tool_start" ||
     event.type === "tool_result" ||

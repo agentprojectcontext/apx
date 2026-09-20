@@ -667,6 +667,24 @@ export async function runAgent({
     totalUsage.input_tokens += result.usage?.input_tokens || 0;
     totalUsage.output_tokens += result.usage?.output_tokens || 0;
 
+    // WHAT THE TURN HAS SPENT SO FAR, said out loud at every iteration.
+    //
+    // The usage used to travel on the final event alone, which meant the one
+    // moment you actually want the number — a turn that has been running for
+    // two minutes and is on its ninth tool — was the one moment nobody could
+    // see it. Manu, watching a chat write: "el tiempo demorado y si se puede
+    // cuántos tokens va consumiendo".
+    //
+    // It is the running TOTAL, not this call's delta, so a consumer that misses
+    // an event (or joins mid-turn) still shows a true number rather than a
+    // count that has to be reassembled. The final `usage` is the same object
+    // one iteration later, so nothing has to be reconciled at the end.
+    await emitProgress(onEvent, {
+      type: "turn_usage",
+      usage: { ...totalUsage },
+      iteration: iter + 1,
+    });
+
     // The model thinking out loud. Adapters keep it out of `text` so no
     // surface can leak it by forgetting to strip; it rides its own event for
     // the ones that want to show it on purpose, and is ignored by the rest.

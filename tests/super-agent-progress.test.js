@@ -4,6 +4,11 @@ import { ProjectManager } from "#host/daemon/db.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
+/** The turn's STEPS, in order. `turn_usage` rides the same channel and is not
+ *  one: it is the running token total, emitted once per model call so a live
+ *  surface can show what an answer is costing before it lands. */
+const steps = (events) => events.filter((e) => e.type !== "turn_usage").map((e) => e.type);
+
 test("runSuperAgent emits progress events as tools execute", async () => {
   const root = makeTempProject({ name: "Progress Project" });
   const projects = new ProjectManager({ engines: {} });
@@ -27,16 +32,25 @@ test("runSuperAgent emits progress events as tools execute", async () => {
     });
 
     assert.match(result.text, /\[mock:mock\] received/);
-    assert.deepEqual(events.map((event) => event.type), [
+    // `turn_usage` is an accounting note, not a step of the turn: the running
+    // total, once per model call, so a surface can say what an answer is
+    // costing WHILE it is being written. The step vocabulary is read without
+    // it; it gets its own assertion below.
+    assert.deepEqual(steps(events), [
       "model_start",
       "tool_start",
       "tool_result",
       "model_start",
     ]);
-    assert.equal(events[1].trace.tool, "list_projects");
-    assert.equal(events[1].trace.pending, true);
-    assert.equal(events[2].trace.tool, "list_projects");
-    assert.ok(events[2].trace.result[0].name);
+    const spend = events.filter((e) => e.type === "turn_usage");
+    assert.equal(spend.length, 2, "one running total per model call");
+    assert.ok(spend.every((e) => e.usage && typeof e.usage.input_tokens === "number"));
+    const started = events.find((e) => e.type === "tool_start");
+    const finished = events.find((e) => e.type === "tool_result");
+    assert.equal(started.trace.tool, "list_projects");
+    assert.equal(started.trace.pending, true);
+    assert.equal(finished.trace.tool, "list_projects");
+    assert.ok(finished.trace.result[0].name);
   } finally {
     cleanupTempProject(root);
   }
@@ -66,17 +80,16 @@ test("completionContract: loop keeps going until the model calls finish", async 
 
     // The finish summary becomes the final text — not the mock's echo.
     assert.equal(result.text, "done after tools");
-    const types = events.map((e) => e.type);
     // A real tool ran, then the turn ended via the finish summary.
-    assert.deepEqual(types, [
+    assert.deepEqual(steps(events), [
       "model_start",
       "tool_start",
       "tool_result",
       "model_start",
       "assistant_text",
     ]);
-    assert.equal(events[1].trace.tool, "list_projects");
-    assert.equal(events[4].text, "done after tools");
+    assert.equal(events.find((e) => e.type === "tool_start").trace.tool, "list_projects");
+    assert.equal(events.find((e) => e.type === "assistant_text").text, "done after tools");
   } finally {
     cleanupTempProject(root);
   }
@@ -108,12 +121,14 @@ test("loop reserves the final step for a tool-free, model-authored wrap-up", asy
     assert.ok(result.text && result.text.trim().length > 0, "wrap-up text must be non-empty");
     assert.match(result.text, /\[mock:mock\] received/);
 
-    const types = events.map((e) => e.type);
+    const types = steps(events);
     // The last model turn is flagged as the wrap-up, and no tool ran on it:
     // exactly the 2 looped tool calls (steps 1 and 2) produced tool_results.
     assert.ok(types.includes("final_wrapup"), "a final_wrapup step must run");
     assert.equal(types.filter((t) => t === "tool_result").length, 2);
-    // Nothing executes after the wrap-up — it's the closing step.
+    // Nothing executes after the wrap-up — it's the closing step. Measured
+    // over STEPS: the wrap-up's own spend is reported after it, and a note
+    // about what just happened is not something happening next.
     assert.equal(types[types.length - 1], "final_wrapup");
   } finally {
     cleanupTempProject(root);
