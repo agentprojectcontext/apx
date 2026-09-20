@@ -98,6 +98,23 @@ test("the badge and the offer are driven by one answer, and lead somewhere", () 
   assert.match(settings, /navFooter=\{<UpdateOffer \/>\}/);
   assert.match(offer, /if \(!newer\) return null;/);
 
+  // The badge is an arrow and nothing else, so the tooltip is the only place it
+  // can say what the arrow means.
+  assert.match(rail, /title=\{updateAvailable \? t\("update\.pending"\) : t\("nav\.settings"\)\}/);
+
+  // The footer is pinned and the SECTIONS scroll. Left as the last child of the
+  // column it was simply clipped on a short window — in the DOM, off the
+  // screen, which is the same as not being there.
+  const nav = read("src/interfaces/web/src/components/common/TabNav.tsx");
+  assert.match(nav, /flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto/);
+  assert.match(nav, /\{footer && !collapsed && <div className="mt-3 w-full shrink-0 px-0\.5">/);
+
+  // Written for a 176px rail: one line per thing, and no label that wraps.
+  assert.match(offer, /whitespace-nowrap/);
+  // The reassurance about the daemon restarting matters once, while it happens
+  // — it is a tooltip on the button, not a fourth line of the card.
+  assert.match(offer, /<Tip content=\{t\("update\.daemon_tip"\)\}/);
+
   // The button hands the command to the Code terminal. It does NOT press Enter:
   // `apx update` stops the daemon that serves this terminal, so a real update
   // kills the connection showing it. A prepared command is honest about who
