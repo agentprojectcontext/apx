@@ -8,6 +8,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useTaskColumns } from "./useTaskColumns";
 import { columnLabel } from "./columns";
+import { assigneeOptions, priorityOptions, reminderOptions } from "./taskFields";
 import { t } from "../../i18n";
 import type { TaskCategory, TaskEntry, TaskLocation } from "../../types/daemon";
 import { TASK_CATEGORY_ORDER, categoryIsLocatable, categoryLabel } from "./taskStatus";
@@ -347,16 +348,13 @@ export function TaskFormDialog({
         </Field>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t("tasks.field_agent")}>
+          <Field label={t("tasks.field_assignee")}>
             <UiSelect
+              data-testid="task-form-agent"
               value={agent}
               onChange={setAgent}
               disabled={!pid}
-              options={[
-                { value: "", label: t("tasks.agent_none") },
-                { value: "human", label: "👤 Humano (Owner)" },
-                ...(agents ?? []).map((a) => ({ value: a.slug, label: a.name || a.slug })),
-              ]}
+              options={assigneeOptions(agents)}
             />
           </Field>
           <Field label={t("project.global_tasks.field_due")}>
@@ -365,29 +363,11 @@ export function TaskFormDialog({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Prioridad">
-            <UiSelect
-              value={priority}
-              onChange={setPriority}
-              options={[
-                { value: "low", label: "⚪ Baja" },
-                { value: "normal", label: "🟢 Normal" },
-                { value: "high", label: "🟠 Alta" },
-                { value: "urgent", label: "🔴 Urgente" },
-              ]}
-            />
+          <Field label={t("tasks.field_priority")}>
+            <UiSelect value={priority} onChange={setPriority} options={priorityOptions()} />
           </Field>
-          <Field label="Recordatorio">
-            <UiSelect
-              value={reminderFrequency}
-              onChange={setReminderFrequency}
-              options={[
-                { value: "none", label: "Sin recordatorio" },
-                { value: "once", label: "Una vez" },
-                { value: "daily", label: "Diario" },
-                { value: "weekly", label: "Semanal" },
-              ]}
-            />
+          <Field label={t("tasks.field_reminder")}>
+            <UiSelect value={reminderFrequency} onChange={setReminderFrequency} options={reminderOptions()} />
           </Field>
         </div>
 

@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import useSWR from "swr";
-import { Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AtSign, Send } from "lucide-react";
 import { Tasks } from "../../lib/api";
-import { Agents } from "../../lib/api/agents";
 import { Button, Textarea } from "../ui";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { useToast } from "../Toast";
 import { relativeWhen } from "../../lib/when";
+import { SUPER_AGENT_SLUG, useMentionables } from "./useMentionables";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentFace, TaskComment } from "../../types/daemon";
@@ -23,6 +22,11 @@ import type { AgentFace, TaskComment } from "../../types/daemon";
  * tools and writes back another comment. That happens server-side and takes as
  * long as the work takes, so the POST returns as soon as YOUR comment is
  * stored and we poll for the replies (see `waitForReplies`).
+ *
+ * WHO YOU CAN MENTION IS SHOWN, not remembered. Typing "@" opens the roster and
+ * a tap completes it. The feature was unusable anywhere you could not already
+ * recite the slugs — which on a phone is everywhere: the hint said "mention an
+ * agent with @" and then asked you to guess the handle.
  */
 const THREAD_MAX_H = "max-h-72";
 
@@ -33,6 +37,23 @@ const POLL_FOR_MS = 3 * 60 * 1000;
 function authorName(by: string | null, faces: Map<string, AgentFace>) {
   if (!by || by === "owner") return t("tasks.comment_owner");
   return faces.get(by)?.name || by;
+}
+
+/**
+ * The "@word" being typed at the caret, if any.
+ *
+ * Only ever the token the caret is INSIDE, and only when it starts the word —
+ * an email address in the middle of a sentence is not a mention, and neither is
+ * an "@" you already finished and walked away from.
+ */
+function mentionAt(text: string, caret: number): { from: number; query: string } | null {
+  const upto = text.slice(0, caret);
+  const at = upto.lastIndexOf("@");
+  if (at < 0) return null;
+  if (at > 0 && !/\s/.test(upto[at - 1])) return null;
+  const query = upto.slice(at + 1);
+  if (/[\s@]/.test(query)) return null;
+  return { from: at, query };
 }
 
 export function TaskComments({
@@ -47,14 +68,28 @@ export function TaskComments({
   const toast = useToast();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // Open with no query = the "@" button was pressed; a query = it is being typed.
+  const [picking, setPicking] = useState<{ from: number; query: string } | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const box = useRef<HTMLTextAreaElement | null>(null);
   const polling = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // One request for the roster, shared with every other screen on this project.
-  // It is what lets a comment wear the agent's real face instead of an initial.
-  const { data: agents } = useSWR(pid ? `/api/projects/${pid}/agents` : null, () => Agents.list(pid));
-  const faces = new Map<string, AgentFace>(
-    (agents ?? []).map((a) => [a.slug, { slug: a.slug, icon: a.icon, emoji: a.emoji, name: a.name || a.slug }]),
+  // One request for the roster, shared with every other screen on this project,
+  // plus the super-agent. It is what lets a comment wear the agent's real face
+  // instead of an initial, and what the mention list is drawn from.
+  const roster = useMentionables(pid);
+  const faces = useMemo(
+    () => new Map<string, AgentFace>(roster.map((a) => [a.slug!, a])),
+    [roster],
+  );
+
+  const q = (picking?.query ?? "").toLowerCase();
+  const matches = useMemo(
+    () => (picking
+      ? roster.filter((a) =>
+          !q || `${a.slug} ${a.name}`.toLowerCase().includes(q))
+      : []),
+    [picking, q, roster],
   );
 
   // Newest comment in view. A thread you have to scroll to see the reply you
@@ -86,6 +121,44 @@ export function TaskComments({
     }, POLL_MS);
   };
 
+  const type = (value: string, caret: number) => {
+    setText(value);
+    setPicking(mentionAt(value, caret));
+  };
+
+  /** Swap the half-typed "@qa" for the real handle and a trailing space. */
+  const complete = (slug: string) => {
+    const at = picking?.from ?? text.length;
+    const after = at + 1 + (picking?.query.length ?? 0);
+    const next = `${text.slice(0, at)}@${slug} ${text.slice(after)}`;
+    setText(next);
+    setPicking(null);
+    // The caret belongs after what was just inserted, or the next keystroke
+    // lands wherever it happened to be and re-opens the picker.
+    requestAnimationFrame(() => {
+      const el = box.current;
+      if (!el) return;
+      const pos = at + slug.length + 2;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  /** The "@" button: the phone has no keyboard shortcut and no hover. */
+  const openPicker = () => {
+    const el = box.current;
+    const caret = el?.selectionStart ?? text.length;
+    const pad = caret > 0 && !/\s$/.test(text.slice(0, caret)) ? " " : "";
+    const next = `${text.slice(0, caret)}${pad}@${text.slice(caret)}`;
+    setText(next);
+    setPicking({ from: caret + pad.length, query: "" });
+    requestAnimationFrame(() => {
+      const pos = caret + pad.length + 1;
+      box.current?.focus();
+      box.current?.setSelectionRange(pos, pos);
+    });
+  };
+
   const send = async () => {
     const body = text.trim();
     if (!body || busy) return;
@@ -93,6 +166,7 @@ export function TaskComments({
     try {
       const { summoned } = await Tasks.comment(pid, taskId, body);
       setText("");
+      setPicking(null);
       onChanged();
       if (summoned?.length) {
         toast.info(t("tasks.comment_summoned", { who: summoned.map((s) => `@${s}`).join(", ") }));
@@ -135,20 +209,73 @@ export function TaskComments({
           </div>
         )}
 
-        <div className={cn("flex items-end gap-2 p-2", comments.length > 0 && "border-t border-border")}>
+        {/* The roster, ABOVE the composer: on a phone the keyboard owns the
+            bottom half of the screen, and a list under the box is behind it. */}
+        {picking && (
+          <div
+            data-testid="task-mention-list"
+            className={cn(
+              "max-h-44 overflow-y-auto border-t border-border bg-muted/20 p-1",
+              comments.length > 0 && "border-t",
+            )}
+          >
+            {matches.length === 0 ? (
+              <p className="px-2 py-2 text-[11px] text-muted-fg">{t("tasks.mention_empty")}</p>
+            ) : matches.map((a) => (
+              <button
+                key={a.slug}
+                type="button"
+                data-testid={`task-mention-${a.slug}`}
+                onClick={() => complete(a.slug!)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/60 active:bg-accent"
+              >
+                <AgentAvatar {...a} size={20} />
+                <span className="min-w-0 flex-1 truncate text-xs font-medium">{a.name}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-fg">
+                  @{a.slug}
+                  {a.slug === SUPER_AGENT_SLUG ? ` · ${t("agents_ui.super_agent_badge")}` : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className={cn("flex items-end gap-2 p-2", (comments.length > 0 || picking) && "border-t border-border")}>
           <Textarea
+            ref={box}
             rows={2}
             value={text}
             data-testid="task-comment-input"
             placeholder={t("tasks.comment_ph")}
             className="text-xs"
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => type(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+            // The caret can move without the text changing (arrows, a tap), and
+            // the picker follows the caret, not the keystroke.
+            onSelect={(e) => {
+              const el = e.currentTarget;
+              setPicking(mentionAt(el.value, el.selectionStart ?? el.value.length));
+            }}
             // Enter sends, Shift+Enter breaks the line — the same contract as
-            // every other composer in the panel.
+            // every other composer in the panel. With the picker open Enter
+            // takes the first match instead, which is what every @ box does.
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); }
+              if (e.key === "Escape" && picking) { e.preventDefault(); setPicking(null); return; }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (picking && matches.length) complete(matches[0].slug!);
+                else void send();
+              }
             }}
           />
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-label={t("tasks.mention_insert")}
+            data-testid="task-comment-mention"
+            onClick={openPicker}
+          >
+            <AtSign size={13} />
+          </Button>
           <Button
             size="sm"
             variant="primary"

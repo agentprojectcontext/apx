@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { Activity } from "lucide-react";
 import { Milestones, type Timeline, type TimelineEntry } from "../../lib/api/milestones";
 import { Button, FilterChips } from "../ui";
+import { cn } from "../../lib/cn";
 import { MilestoneRail } from "./MilestoneRail";
 import { t } from "../../i18n";
 
@@ -78,9 +79,18 @@ interface Props {
   limit?: number;
   /** Where "view all" goes. Omitted on the screen that already IS all of it. */
   moreHref?: string;
+  /**
+   * Fill the height the caller gives it rather than ending with its last row.
+   *
+   * For the Overview, where this shares a row with the agent map: the map is
+   * much taller, and two cards of visibly different heights read as a layout
+   * bug rather than as two panels. Needs a parent that bounds the height — a
+   * stretched grid row does.
+   */
+  fill?: boolean;
 }
 
-export function ProjectTimeline({ pid, limit, moreHref }: Props) {
+export function ProjectTimeline({ pid, limit, moreHref, fill = false }: Props) {
   const [range, setRange] = useState<RangeId>("week");
   const [onlyUnfinished, setOnlyUnfinished] = useState(false);
 
@@ -120,7 +130,10 @@ export function ProjectTimeline({ pid, limit, moreHref }: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-3" data-testid="project-timeline">
+    <div
+      className={cn("flex flex-col gap-3", fill && "min-h-0 flex-1")}
+      data-testid="project-timeline"
+    >
       {/* The range is one chip row (FilterChips is mutually exclusive, which a
           range is); "Unfinished only" is a separate toggle because it crosses
           the range rather than competing with it. */}
@@ -155,6 +168,7 @@ export function ProjectTimeline({ pid, limit, moreHref }: Props) {
           entries={entries}
           stats={stats}
           defaultOpen
+          grow={fill}
           chatHref={(e) => chatHrefFor(pid, e)}
           footer={
             hidden > 0 && moreHref ? (

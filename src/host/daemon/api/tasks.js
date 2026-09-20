@@ -299,7 +299,7 @@ export function register(api, { project, projects, config, plugins, registries }
 
     // Resolved here, not in the store: the roster lives with the project and
     // the thread should record who was actually reachable on the day.
-    const mentions = mentionedAgents(text, p.path, by);
+    const mentions = mentionedAgents(text, p.path, by, config);
     let task;
     try {
       task = addComment(p.storagePath, req.params.id, { by, text, mentions });

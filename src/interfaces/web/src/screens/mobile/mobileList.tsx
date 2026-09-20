@@ -1,5 +1,5 @@
-import { type ReactNode } from "react";
-import { Search } from "lucide-react";
+import { useRef, type ReactNode } from "react";
+import { Plus, Search } from "lucide-react";
 import { isNativeShell } from "../../lib/net";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -83,6 +83,92 @@ export function MobileChip({
       )}
     >
       {children}
+    </button>
+  );
+}
+
+/**
+ * The round "+" the list screens put in their header.
+ *
+ * Its own component because it is the same control on every one of them, and
+ * because for a while it was on NONE of them: the phone could tick a task off
+ * and reschedule a promise, but the only way to WRITE one down was the desktop
+ * panel — which is the opposite of where you are when you agree to something.
+ */
+export function MobileNewButton({ onClick, label, testId }: {
+  onClick: () => void;
+  label: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      data-testid={testId}
+      className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground active:bg-primary/90"
+    >
+      <Plus size={19} />
+    </button>
+  );
+}
+
+/**
+ * A row you can push aside to get at its verbs.
+ *
+ * Done with a scroll container and snap points rather than touch maths: the
+ * browser already knows how to tell a sideways drag from the vertical one that
+ * belongs to the list, and every hand-rolled version of this gets that wrong on
+ * the diagonal. The row is one snap point, the buttons are the next.
+ *
+ * The buttons are REAL buttons sitting next to the row, not an overlay — so
+ * they are reachable by keyboard and by a screen reader even where nobody can
+ * swipe at all.
+ */
+export function SwipeRow({ children, actions }: {
+  children: ReactNode;
+  /** Gets a `close` that slides the row back over its verbs. */
+  actions: (close: () => void) => ReactNode;
+}) {
+  const track = useRef<HTMLDivElement | null>(null);
+  const close = () => track.current?.scrollTo({ left: 0, behavior: "smooth" });
+  return (
+    <li className="active:bg-accent/50">
+      <div
+        ref={track}
+        // overscroll-x-contain so pushing a row aside never turns into the
+        // browser's back gesture.
+        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+      >
+        <div className="flex w-full shrink-0 snap-start">{children}</div>
+        <div className="flex shrink-0 snap-end">{actions(close)}</div>
+      </div>
+    </li>
+  );
+}
+
+/** One verb behind a row. Full height, thumb-wide, colour says which. */
+export function SwipeAction({ icon, label, onClick, tone, testId }: {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  tone: "done" | "drop" | "warn";
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className={cn(
+        "flex w-[5.5rem] flex-col items-center justify-center gap-1 text-[11px] font-semibold text-white",
+        tone === "done" ? "bg-emerald-600 active:bg-emerald-700"
+          : tone === "warn" ? "bg-amber-600 active:bg-amber-700"
+          : "bg-red-600 active:bg-red-700",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
     </button>
   );
 }

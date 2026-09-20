@@ -113,6 +113,41 @@ test("mentionedAgents resolves agent slugs and ignores everything else", () => {
   assert.deepEqual(mentionedAgents("@qa me respondo", root, "qa"), []);
 });
 
+// The super-agent is a participant like any other, but only where it exists:
+// an @mention that resolves to an agent with no model is a comment that gets an
+// error for an answer, which is worse than not offering it at all.
+test("the super-agent is mentionable only where it is configured", () => {
+  const on = { super_agent: { enabled: true, name: "Roby", model: "x:y" } };
+  assert.deepEqual(mentionedAgents("@super_agent fijate", root, "owner", on), ["super_agent"]);
+  // By its NAME too — that is what the picker writes and what a person types.
+  assert.deepEqual(mentionedAgents("@Roby fijate", root, "owner", on), ["super_agent"]);
+  // No config, no model, or switched off: it is not on the roster.
+  assert.deepEqual(mentionedAgents("@super_agent fijate", root), []);
+  assert.deepEqual(mentionedAgents("@super_agent fijate", root, "owner", { super_agent: { enabled: true } }), []);
+  assert.deepEqual(
+    mentionedAgents("@super_agent fijate", root, "owner", { super_agent: { enabled: false, model: "x:y" } }),
+    [],
+  );
+});
+
+test("mentioning the super-agent runs ITS turn, not a project agent's", async () => {
+  const config = { super_agent: { enabled: true, name: "Roby", model: "x:y" } };
+  const t = createTask(storagePath, { title: "Revisar el homelab" });
+  const seen = [];
+
+  const said = await runCommentMentions({
+    p, config, taskId: t.id, seed: ["super_agent", "qa"], author: "owner",
+    runTurn: async ({ slug }) => { seen.push(`agent:${slug}`); return "qa listo"; },
+    runSuperTurn: async () => { seen.push("super"); return { text: "miré los dos proyectos" }; },
+  });
+
+  assert.deepEqual(seen, ["super", "agent:qa"]);
+  assert.deepEqual(said.map((s) => s.slug), ["super_agent", "qa"]);
+  const thread = getTask(storagePath, t.id).comments;
+  assert.equal(thread[0].by, "super_agent");
+  assert.match(thread[0].text, /los dos proyectos/);
+});
+
 test("a mention runs the agent and posts its reply as a comment", async () => {
   const t = createTask(storagePath, { title: "Revisar el flujo" });
   addComment(storagePath, t.id, { by: "owner", text: "@qa probá esto", mentions: ["qa"] });

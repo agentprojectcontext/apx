@@ -1,16 +1,27 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Check, ExternalLink, ListTodo, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ExternalLink, ListTodo, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { StatusBadge, StatusIcon, effectiveStatus, statusTint } from "../../components/tasks/taskStatus";
 import { useToast } from "../../components/Toast";
 import { Loading } from "../../components/ui";
+import { UiSelect } from "../../components/UiSelect";
 import { Tasks, type GlobalTaskEntry } from "../../lib/api/tasks";
+import { Agents } from "../../lib/api/agents";
 import { TaskComments } from "../../components/tasks/TaskComments";
 import { TaskSubtasks } from "../../components/tasks/TaskSubtasks";
-import { DueChip, MobileChip, MobileGroupHeader, MobileListHeader, dueBucketLabel, groupByDue } from "./mobileList";
+import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
+import { assigneeOptions, priorityOptions, reminderOptions } from "../../components/tasks/taskFields";
+import { useTaskColumns } from "../../components/tasks/useTaskColumns";
+import { columnLabel } from "../../components/tasks/columns";
+import { useProjects } from "../../hooks/useProjects";
+import {
+  DueChip, MobileChip, MobileGroupHeader, MobileListHeader, MobileNewButton,
+  SwipeAction, SwipeRow, dueBucketLabel, groupByDue,
+} from "./mobileList";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import type { TaskEntry, TaskStatus } from "../../types/daemon";
 
 type State = "open" | "done" | "dropped" | "all";
 const STATES: State[] = ["open", "done", "dropped", "all"];
@@ -37,6 +48,11 @@ export function MobileTasks() {
   const [query, setQuery] = useState("");
   const [pages, setPages] = useState(1);
   const [open, setOpen] = useState<GlobalTaskEntry | null>(null);
+  // Writing one down, and fixing one. The same dialog the panel uses — a second
+  // form for the phone is two places for "what a task can have" to disagree.
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
+  const { projects } = useProjects();
 
   const limit = PAGE * pages;
   const { data, isLoading, mutate } = useSWR(
@@ -76,6 +92,13 @@ export function MobileTasks() {
         query={query}
         onQuery={setQuery}
         searchPlaceholder={t("mobile.tasks_search")}
+        actions={
+          <MobileNewButton
+            label={t("mobile.new_task")}
+            testId="mobile-task-new"
+            onClick={() => setAdding(true)}
+          />
+        }
         filters={STATES.map((s) => (
           <MobileChip
             key={s}
@@ -133,7 +156,20 @@ export function MobileTasks() {
         <div className="h-4" />
       </div>
 
-      <TaskSheet task={open} onClose={() => setOpen(null)} onChanged={() => void mutate()} />
+      <TaskSheet
+        task={open}
+        onClose={() => setOpen(null)}
+        onChanged={() => void mutate()}
+        onEdit={(pid, task) => { setOpen(null); setEditing({ pid, task }); }}
+      />
+
+      <TaskFormDialog
+        open={adding || !!editing}
+        onClose={() => { setAdding(false); setEditing(null); }}
+        projects={projects}
+        editing={editing}
+        onSaved={() => void mutate()}
+      />
     </div>
   );
 }
@@ -145,6 +181,10 @@ export function MobileTasks() {
  * the commonest one: on a phone, "done" is what you do while walking, and
  * open-sheet-find-button-tap is not that. The status square is the target now,
  * padded out to a thumb, and undo rides the toast.
+ *
+ * Pushing the row aside gets you the other verb — dropping it — without the
+ * sheet either. Tapping still opens the sheet, which is where everything else
+ * about a task lives.
  */
 function TaskRow({ task, onOpen, onChanged }: {
   task: GlobalTaskEntry;
@@ -158,28 +198,62 @@ function TaskRow({ task, onOpen, onChanged }: {
   const pid = String(task.project_id);
   const isOpen = task.state === "open";
 
-  const tick = async () => {
+  /** Run a verb, tell the list, and offer the way back. */
+  const run = async (fn: () => Promise<unknown>, label: string, undo: () => Promise<unknown>) => {
     try {
-      await (isOpen ? Tasks.done(pid, task.id) : Tasks.reopen(pid, task.id));
+      await fn();
       onChanged();
-      toast.success(
-        t(isOpen ? "project.tasks.done" : "project.tasks.reopen"),
-        {
-          label: t("tasks.undo"),
-          onClick: () => {
-            (isOpen ? Tasks.reopen(pid, task.id) : Tasks.done(pid, task.id))
-              .then(onChanged)
-              .catch(() => toast.error(t("common.error_generic")));
-          },
+      toast.success(label, {
+        label: t("tasks.undo"),
+        onClick: () => {
+          undo().then(onChanged).catch(() => toast.error(t("common.error_generic")));
         },
-      );
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.error_generic"));
     }
   };
 
+  const tick = () => (isOpen
+    ? run(() => Tasks.done(pid, task.id), t("project.tasks.done"), () => Tasks.reopen(pid, task.id))
+    : run(() => Tasks.reopen(pid, task.id), t("project.tasks.reopen"), () => Tasks.done(pid, task.id)));
+
   return (
-    <li className="flex items-start active:bg-accent/50">
+    <SwipeRow
+      actions={(close) => (isOpen ? (
+        <>
+          <SwipeAction
+            tone="done"
+            icon={<Check size={18} />}
+            label={t("mobile.swipe_done")}
+            testId={`mobile-task-swipe-done-${task.id}`}
+            onClick={() => { close(); void tick(); }}
+          />
+          <SwipeAction
+            tone="drop"
+            icon={<Trash2 size={18} />}
+            label={t("mobile.swipe_drop")}
+            testId={`mobile-task-swipe-drop-${task.id}`}
+            onClick={() => {
+              close();
+              void run(
+                () => Tasks.drop(pid, task.id),
+                t("tasks.dropped_label"),
+                () => Tasks.reopen(pid, task.id),
+              );
+            }}
+          />
+        </>
+      ) : (
+        <SwipeAction
+          tone="done"
+          icon={<RotateCcw size={18} />}
+          label={t("mobile.swipe_reopen")}
+          testId={`mobile-task-swipe-reopen-${task.id}`}
+          onClick={() => { close(); void tick(); }}
+        />
+      ))}
+    >
       {/* Its own control, outside the row button: a button inside a button is
           invalid, and this one has to win the tap. */}
       <button
@@ -214,7 +288,7 @@ function TaskRow({ task, onOpen, onChanged }: {
           </span>
         </span>
       </button>
-    </li>
+    </SwipeRow>
   );
 }
 
@@ -224,13 +298,20 @@ function TaskRow({ task, onOpen, onChanged }: {
  * A sheet and not a route: on a phone the list is the place, and the verbs
  * (done / reopen / drop) are the whole reason to open a task at all. Sending
  * you to a second screen for one tap costs a back gesture and your scroll.
+ *
+ * IT EDITS, IT DOES NOT ONLY DISPLAY. The four decisions you change from a
+ * phone — where it is, who has it, how much it presses, whether it nags — are
+ * pickers right here, the same ones the panel's detail shows. This used to be a
+ * read-only card whose only way to change anything was a link to the desktop
+ * panel, which on a phone is not a way.
  */
 function TaskSheet({
-  task, onClose, onChanged,
+  task, onClose, onChanged, onEdit,
 }: {
   task: GlobalTaskEntry | null;
   onClose: () => void;
   onChanged: () => void;
+  onEdit: (pid: string, task: TaskEntry) => void;
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -242,7 +323,13 @@ function TaskSheet({
     task ? `/api/projects/${pid}/tasks/${task.id}` : null,
     () => Tasks.get(pid, task!.id),
   );
+  const { statuses } = useTaskColumns(task ? pid : undefined);
+  const { data: agents } = useSWR(task ? `/api/projects/${pid}/agents` : null, () => Agents.list(pid));
   if (!task) return null;
+
+  // The freshest copy wins: a picker that has just written a value must show
+  // it, and the list row behind this sheet is a page old by then.
+  const live = full ?? (task as TaskEntry);
 
   const act = async (fn: () => Promise<unknown>, label: string) => {
     setBusy(true);
@@ -258,28 +345,90 @@ function TaskSheet({
     }
   };
 
+  /** A field edit: stays open, because you usually set two of them at once. */
+  const edit = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await fn();
+      void mutateFull();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error_generic"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Sheet open onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="bottom" className="max-h-[85vh] gap-0 rounded-t-2xl p-0" data-testid="mobile-task-sheet">
         <SheetHeader className="gap-2 border-b border-border px-4 pb-3 pt-4">
           <SheetTitle className="pr-8 text-left text-base leading-snug">{task.title}</SheetTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={effectiveStatus(task)} />
-            {task.due && (
-              <span className="text-[11px] text-muted-fg">
-                {t("project.tasks.due")} {String(task.due).slice(0, 10)}
-              </span>
-            )}
+            <StatusBadge status={effectiveStatus(live)} />
+            <span className="text-[11px] text-muted-fg">{task.project_name?.split("/").pop()}</span>
           </div>
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm">
-          {task.description
-            ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{task.description}</p>
-            : <p className="text-muted-fg">{t("tasks.description_empty")}</p>}
-          {task.body?.trim() ? (
+          {/* The pickers first: they are why the sheet is open on a phone. */}
+          {live.state === "open" && (
+            <div className="grid grid-cols-2 gap-3">
+              <SheetSelect label={t("tasks.field_status")} testId="mobile-task-status">
+                <UiSelect
+                  value={live.status ?? "pending"}
+                  disabled={busy}
+                  onChange={(v) => void edit(() => Tasks.status(pid, task.id, v as TaskStatus))}
+                  options={statuses.map((c) => ({ value: c.id, label: columnLabel(c) }))}
+                />
+              </SheetSelect>
+              <SheetSelect label={t("tasks.field_assignee")} testId="mobile-task-assignee">
+                <UiSelect
+                  value={live.agent ?? ""}
+                  disabled={busy}
+                  onChange={(v) => void edit(() => Tasks.patch(pid, task.id, { agent: v || null }))}
+                  options={assigneeOptions(agents)}
+                />
+              </SheetSelect>
+              <SheetSelect label={t("tasks.field_priority")} testId="mobile-task-priority">
+                <UiSelect
+                  value={live.priority ?? "normal"}
+                  disabled={busy}
+                  onChange={(v) => void edit(() => Tasks.patch(pid, task.id, { priority: v as TaskEntry["priority"] }))}
+                  options={priorityOptions()}
+                />
+              </SheetSelect>
+              <SheetSelect label={t("tasks.field_reminder")} testId="mobile-task-reminder">
+                <UiSelect
+                  value={live.reminder_frequency ?? "none"}
+                  disabled={busy}
+                  onChange={(v) => void edit(() => Tasks.patch(pid, task.id, { reminder_frequency: v as TaskEntry["reminder_frequency"] }))}
+                  options={reminderOptions()}
+                />
+              </SheetSelect>
+              {/* A date is a native picker on a phone — the one control here
+                  that is genuinely better than its desktop version. */}
+              <SheetSelect label={t("project.tasks.due")} testId="mobile-task-due">
+                <input
+                  type="date"
+                  value={live.due ? String(live.due).slice(0, 10) : ""}
+                  disabled={busy}
+                  data-testid="mobile-task-due-input"
+                  onChange={(e) => void edit(() => Tasks.patch(pid, task.id, { due: e.target.value || null }))}
+                  className="h-9 w-full rounded-lg border border-border bg-background px-2 text-[13px] outline-none focus:border-primary/50"
+                />
+              </SheetSelect>
+            </div>
+          )}
+
+          <div className="mt-4">
+            {live.description
+              ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{live.description}</p>
+              : <p className="text-muted-fg">{t("tasks.description_empty")}</p>}
+          </div>
+          {live.body?.trim() ? (
             <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-muted/20 px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">
-              {task.body}
+              {live.body}
             </p>
           ) : null}
 
@@ -301,9 +450,9 @@ function TaskSheet({
               onChanged={() => { void mutateFull(); onChanged(); }}
             />
           </div>
-          {!!task.tags?.length && (
+          {!!live.tags?.length && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {task.tags.map((tag) => (
+              {live.tags.map((tag) => (
                 <span key={tag} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-fg">
                   {tag}
                 </span>
@@ -312,13 +461,12 @@ function TaskSheet({
           )}
           <dl className="mt-4 space-y-1.5 text-xs text-muted-fg">
             <Field label={t("nav.project")} value={task.project_name} />
-            <Field label={t("tasks.field_agent")} value={task.agent || t("tasks.agent_none_short")} />
             <Field label={t("tasks.field_created")} value={task.created_at?.slice(0, 16).replace("T", " ")} />
           </dl>
         </div>
 
         <div className="flex shrink-0 gap-2 border-t border-border px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-          {task.state === "open" ? (
+          {live.state === "open" ? (
             <>
               <SheetAction
                 icon={<Check size={16} />}
@@ -346,8 +494,17 @@ function TaskSheet({
               onClick={() => act(() => Tasks.reopen(pid, task.id), t("tasks.state_open"))}
             />
           )}
-          {/* The panel, for everything this sheet deliberately does not do:
-              editing the prompt, reassigning the agent, reading the thread. */}
+          {/* The full form, for the fields that do not fit a sheet: the title,
+              the two bodies, the tags, the place an errand happens. */}
+          <button
+            type="button"
+            onClick={() => onEdit(pid, live)}
+            aria-label={t("common.edit")}
+            data-testid="mobile-task-edit"
+            className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-fg active:bg-accent/60"
+          >
+            <Pencil size={16} />
+          </button>
           <a
             href={`/p/${pid}/tasks?task=${encodeURIComponent(task.id)}`}
             target="_blank"
@@ -360,6 +517,20 @@ function TaskSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** One labelled picker in the sheet's grid. */
+function SheetSelect({ label, children, testId }: {
+  label: string;
+  children: React.ReactNode;
+  testId?: string;
+}) {
+  return (
+    <div className="space-y-1" data-testid={testId}>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-fg">{label}</div>
+      {children}
+    </div>
   );
 }
 

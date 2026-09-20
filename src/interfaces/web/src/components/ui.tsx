@@ -2,7 +2,7 @@
 // components in ./ui/* — they keep a small, stable API (variant/tone/size,
 // Dialog open/onClose, Field label/hint) so call sites don't churn, while the
 // actual rendering comes from base-ui (proper focus, portaling, a11y).
-import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { ComponentProps, ReactNode, ButtonHTMLAttributes, InputHTMLAttributes } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 import { t } from "../i18n";
@@ -58,7 +58,10 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <SInput {...props} />;
 }
 
-export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+// ComponentProps, not TextareaHTMLAttributes: in React 19 `ref` is an ordinary
+// prop, and a composer that has to move the caret (the @-mention picker in
+// TaskComments) needs to reach the element.
+export function Textarea(props: ComponentProps<"textarea">) {
   return <STextarea {...props} />;
 }
 
