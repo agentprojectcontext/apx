@@ -52,6 +52,19 @@ export const AGENTS_ROOT = `${MOBILE_ROOT}/agents`;
 export const RUNTIMES_ROOT = `${MOBILE_ROOT}/runtimes`;
 
 /**
+ * One runtime session, opened from the chat list.
+ *
+ * A session is a room on the `runtime` channel, so the inbox lists it next to
+ * every other conversation — but it does not go through the chat pane's thread
+ * machinery (which is built around an agent answering). It opens on the
+ * runtimes screen, which already knows how to talk to an engine.
+ */
+export function runtimeRoomPath(pid: string | number, sessionId: string): string {
+  const q = new URLSearchParams({ session: sessionId, pid: String(pid) });
+  return `${RUNTIMES_ROOT}?${q.toString()}`;
+}
+
+/**
  * The pre-`/m` spelling, kept alive by a redirect rather than by a second set
  * of routes — one place to translate, and nothing downstream has to know two
  * shapes. `/mobile` alone is the list, which is now `/m/chat`.

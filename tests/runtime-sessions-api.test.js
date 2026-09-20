@@ -43,7 +43,7 @@ function makeApp(root) {
     config: { host: "127.0.0.1", port: 7430, super_agent: { permission_mode: "total" } },
     token: "",
   });
-  return { app, id, storage: projects.get(id).storagePath };
+  return { app, id, projects, storage: projects.get(id).storagePath };
 }
 
 /** A finished session on disk, the way call_runtime leaves one. */
@@ -186,6 +186,49 @@ test("the detail carries the notes the runtime left; the list does not", async (
 
     const detail = await fetch(`${baseUrl}/api/projects/${id}/runtime-sessions/${s.id}`).then((r) => r.json());
     assert.match(detail.body, /Lo que fui anotando/);
+  } finally {
+    server.close();
+    cleanupTempProject(root);
+  }
+});
+
+test("a session is a room in the chat list, wearing the engine's face", async () => {
+  const root = makeTempProject({ name: "Rooms" });
+  const { app, id, projects, storage } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const { openRuntimeRoom, appendRuntimePrompt, appendRuntimeReply } =
+      await import("#core/stores/runtime-room.js");
+    // THE APP'S OWN manager, not a second one over the same folder: storagePath
+    // hangs off the registration, so a fresh ProjectManager writes the rows
+    // into a different `~/.apx/projects/<id>` from the one the API reads.
+    const p = projects.get(id);
+
+    openRuntimeRoom(p.logMessage, {
+      session_id: "s-room-1", runtime: "claude-code", cwd: "/tmp/repo",
+      title: "arreglá el login", launched_by: "roby",
+    });
+    appendRuntimePrompt(p.logMessage, "s-room-1", { body: "arreglá el login", authored_by: "roby" });
+    appendRuntimeReply(p.logMessage, "s-room-1", { runtime: "claude-code", body: "listo" });
+
+    const rows = await fetch(`${baseUrl}/api/inbox?limit=50`).then((r) => r.json());
+    const room = (rows.data || []).find((r) => r.kind === "runtime");
+    assert.ok(room, "the session shows up in the one list that shows every conversation");
+    assert.equal(room.conversation_id, "s-room-1");
+    assert.equal(room.channel, "runtime");
+    assert.equal(room.agent_slug, "runtime:s-room-1");
+    assert.equal(room.agent_name, "arreglá el login", "titled by what it is DOING");
+    // No branch in the row component: AgentAvatar ships a logo per engine, so
+    // the engine's name in `agent_icon` is what makes the row recognisable.
+    assert.equal(room.agent_icon, "claude-code");
+
+    const thread = await fetch(
+      `${baseUrl}/api/projects/${id}/runtime-rooms/s-room-1`,
+    ).then((r) => r.json());
+    assert.equal(thread.messages.length, 2);
+    assert.equal(thread.messages[0].on_behalf_of, "owner", "Roby asked in Manu's name");
+    assert.equal(thread.messages[1].agent, "claude-code", "and the engine answered as itself");
+    void storage;
   } finally {
     server.close();
     cleanupTempProject(root);

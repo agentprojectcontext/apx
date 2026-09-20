@@ -32,6 +32,37 @@ export interface RuntimeSession {
   body?: string;
 }
 
+/** One line of a session's conversation, as the room shapes it. */
+export interface RuntimeRoomMessage {
+  role: "user" | "assistant" | "tool" | "system";
+  content: string;
+  ts?: string;
+  /** The speaker's stable id: an agent's slug, or the engine's name. */
+  agent?: string;
+  agent_name?: string;
+  /** "engine" when the runtime itself said it; "agent" when an agent did. */
+  actor_kind?: string;
+  /**
+   * Set on a prompt an AGENT wrote: it reached the engine as the owner's, because
+   * `claude -p` has exactly one user and does not care who typed the words.
+   */
+  on_behalf_of?: string;
+}
+
+/** A session as a conversation — the three voices in one list. */
+export interface RuntimeRoom {
+  id: string;
+  channel: string;
+  runtime: string | null;
+  cwd: string | null;
+  launched_by: string | null;
+  title: string;
+  participants: string[];
+  messages: RuntimeRoomMessage[];
+  project_id: number | string;
+  project_name: string;
+}
+
 export const Runtimes = {
   /** Every project's sessions, newest first. */
   list: (limit = 60) =>
@@ -39,6 +70,16 @@ export const Runtimes = {
 
   get: (pid: string, id: string) =>
     http.get<RuntimeSession>(`/api/projects/${pid}/runtime-sessions/${encodeURIComponent(id)}`),
+
+  /**
+   * The session as a CONVERSATION, not as a record.
+   *
+   * `get` answers "what is this session" — engine, folder, exit code, the notes
+   * it left. This answers "what was said in it", which is the half that was
+   * missing: a launch used to leave a receipt you could read and not answer.
+   */
+  room: (pid: string, id: string) =>
+    http.get<RuntimeRoom>(`/api/projects/${pid}/runtime-rooms/${encodeURIComponent(id)}`),
 
   /**
    * Say more to a session — straight to the engine.

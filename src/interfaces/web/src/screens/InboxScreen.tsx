@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { RuntimeConversation } from "../components/runtime/RuntimeConversation";
+import { AgentAvatar } from "../components/agents/AgentAvatar";
 import { EyeOff, Eye, Inbox } from "lucide-react";
 import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
@@ -207,6 +209,35 @@ export function InboxScreen() {
       <section className="flex min-w-0 flex-1 flex-col">
         {!selected ? (
           <Empty fill icon={Inbox}>{t("inbox.empty")}</Empty>
+        ) : selected.kind === "runtime" && selected.conversation_id ? (
+          /* A coding session is a room like the others in this list, but the one
+             answering is an ENGINE, not an agent: there is no turn to take, no
+             roster to mention, and writing into it resumes the session rather
+             than asking anybody to relay. So it renders its own conversation
+             here instead of being forced through ChatTab, which is built around
+             an agent's turn and would have opened a conversation file that does
+             not exist (`runtime:<id>` owns none).
+
+             The same component the phone uses, deliberately: a second transcript
+             renderer would be free to disagree with the first about who said
+             what, which is the confusion this whole room exists to end. */
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+              <AgentAvatar icon={selected.agent_icon} emoji={null} name={selected.runtime || "?"} size={32} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{selected.agent_name}</p>
+                <p className="truncate text-xs text-muted-fg">
+                  {[selected.runtime, selected.conversation_id, selected.project_name?.split("/").pop(), selected.cwd]
+                    .filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            </div>
+            <RuntimeConversation
+              projectId={selected.project_id ?? 0}
+              sessionId={selected.conversation_id}
+              runtime={selected.runtime}
+            />
+          </div>
         ) : (
           /* Remounted per selection: the chat surface holds its own session
              state, and carrying one agent's stream into another agent's pane

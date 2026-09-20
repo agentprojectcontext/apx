@@ -5,6 +5,7 @@ import { apcProjectFile } from "#core/apc/paths.js";
 import {
   closeRuntimeSession,
   createRuntimeSession,
+  readRuntimeSession,
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
 import { writePendingCallback, deletePendingCallback } from "#core/stores/runtime-callbacks.js";
@@ -17,11 +18,17 @@ import { getRuntime, RUNTIME_IDS } from "#core/runtimes/index.js";
 import { runtimeLooksLikeFailure, runtimeAvailability } from "#core/runtimes/outcome.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 import { readJson } from "#core/util/json-file.js";
+import { resolveAgentName } from "#core/identity/self.js";
 import {
   postRuntimeLaunch,
   postRuntimeResult,
   runtimeThreadCanCarry,
 } from "#core/agent/runtime-thread.js";
+import {
+  openRuntimeRoom,
+  appendRuntimePrompt,
+  appendRuntimeReply,
+} from "#core/stores/runtime-room.js";
 import fs from "node:fs";
 
 const log = loggerFor("call_runtime");
@@ -159,7 +166,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, globalConfig = {}, promptAuthor = null, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
     await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
 
     // Async delivery sink: on Telegram we can push the runtime's result back to
@@ -257,6 +264,56 @@ export default {
     const resume = buildResumePreamble(resume_session_id);
     const effectivePrompt = resume.text ? resume.text + prompt : prompt;
 
+    // WHO IS WRITING TO THE RUNTIME.
+    //
+    // From the engine's side there is one user: `claude -p` reads a prompt and
+    // does not care who typed it, so the owner's message and an agent's arrive
+    // identically. The room is the only place that difference survives, so it
+    // is recorded here — and it comes from the handler CONTEXT, never from the
+    // tool's arguments, because a model must not be able to sign somebody
+    // else's name to a message.
+    // The super-agent's name comes from the ONE resolver every other surface
+    // reads (identity.json first, config second): a room that called it "apx"
+    // while the chat list beside it said "Roby" would be the same speaker
+    // wearing two names, two rows apart.
+    const authoredBy = promptAuthor || agent?.slug || resolveAgentName(globalConfig);
+
+    // CONTINUING A SESSION STAYS IN THE SAME ROOM.
+    //
+    // `call_runtime` mints a fresh session record on every run, resumed or not:
+    // a record is one invocation, and each one has its own exit code, its own
+    // transcript and its own folder. The ROOM is the conversation, and a
+    // conversation that opened a new thread every time you answered it would
+    // not be one. So when the id being resumed names an APX session in this
+    // project, that is the room this run writes into.
+    let roomId = session.id;
+    if (resume_session_id) {
+      try {
+        if (readRuntimeSession(p.storagePath, resume_session_id)) roomId = resume_session_id;
+      } catch { /* an engine id, or a session from elsewhere — a fresh room it is */ }
+    }
+
+    // The room exists before the runtime has produced anything, the same way a
+    // group room exists before anyone speaks: a session that takes forty
+    // minutes is otherwise forty minutes of nothing in the chat list, and the
+    // prompt is what tells you WHICH session is still working.
+    try {
+      if (roomId === session.id) {
+        openRuntimeRoom(p.logMessage, {
+          session_id: roomId,
+          runtime,
+          cwd: runCwd,
+          title: String(prompt || "").trim().split("\n")[0].slice(0, 80) || null,
+          launched_by: authoredBy,
+        });
+      }
+      appendRuntimePrompt(p.logMessage, roomId, { body: prompt, authored_by: authoredBy });
+    } catch (e) {
+      // A room is a record, not a dependency: a failed write must never take
+      // down the session it was describing.
+      log.error(`runtime room write failed: ${e.message}`, { apc_session: session.id });
+    }
+
     log.info(`spawn ${runtime}`, {
       apc_session: session.id,
       agent: actor,
@@ -294,34 +351,19 @@ export default {
           result: failure.failed ? `failed: ${failure.reason}` : result,
         });
 
-        p.logMessage({
-          agent_slug: actor,
-          channel: "runtime",
-          direction: "in",
-          author: "user",
-          body: effectivePrompt,
-          meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id, resume_session_id: resume_session_id || null },
-        });
         // attribution-exempt: external runtime (claude/codex/…) stdout — APX did not make the model call, so it has no model/usage to record.
-        p.logMessage({
-          agent_slug: actor,
-          channel: "runtime",
-          direction: "out",
-          type: "agent",
-          actor_id: agent?.slug || runtime,
-          actor_kind: agent?.slug ? "agent" : "engine",
-          author: agent?.slug || runtime,
+        //
+        // Signed by the ENGINE, always. This used to read
+        // `actor_id: agent?.slug || runtime` — so whenever an agent launched
+        // the session, Claude's own answer was filed under that agent's name
+        // and rendered in its bubble. That is precisely the confusion the room
+        // exists to end: "el agente habla como agente pero claude recibe como
+        // yo mismo, y yo veo los 3 tipos".
+        appendRuntimeReply(p.logMessage, roomId, {
+          runtime,
           body: r.output || "",
-          meta: {
-            runtime,
-            exit_code: r.exitCode,
-            external_session_path: r.externalSessionPath || null,
-            session_id: r.sessionId || null,
-            apc_session: session.id,
-            invoked_by: "super_agent_tool",
-            failed: failure.failed || false,
-            failure_reason: failure.failed ? failure.reason : null,
-          },
+          ok: !failure.failed,
+          error: failure.failed ? failure.reason : null,
         });
 
         if (failure.failed) {
@@ -367,6 +409,13 @@ export default {
         };
       } catch (e) {
         log.error(`${runtime} run threw: ${e.message}`, { apc_session: session.id });
+        // The room hears about it too. A thrown spawn used to write nothing at
+        // all, which in a chat reads as a question nobody ever answered.
+        try {
+          appendRuntimeReply(p.logMessage, roomId, {
+            runtime, body: "", ok: false, error: e.message,
+          });
+        } catch {}
         try {
           closeRuntimeSession({
             filePath: session.path,

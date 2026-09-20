@@ -32,10 +32,15 @@ import { CHANNELS } from "#core/constants/channels.js";
  *
  * `routine` keeps its own delivery path (writing here would double every run
  * into the inbox — the same rule api/super-agent.js applies to turns), and the
- * two room channels are project-scoped ledgers addressed by thread id, not by
+ * room channels are project-scoped ledgers addressed by thread id, not by
  * channel + day: `appendGlobalMessage` has nowhere to put a row for them.
+ *
+ * `runtime` is a room for the same reason and one more: it is where the session
+ * ALREADY narrates itself (core/stores/runtime-room.js). Answering a session
+ * from inside its own room and then filing a "🚀 lancé una sesión" notice about
+ * it, in that same room, is the conversation telling you about itself.
  */
-const NO_THREAD = new Set([CHANNELS.ROUTINE, CHANNELS.A2A, "group"]);
+const NO_THREAD = new Set([CHANNELS.ROUTINE, CHANNELS.A2A, "group", CHANNELS.RUNTIME]);
 
 /** Can a launched session narrate itself into this channel? */
 export function runtimeThreadCanCarry(channel) {

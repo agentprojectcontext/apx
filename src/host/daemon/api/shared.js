@@ -51,6 +51,11 @@ export const A2A_SLUG_PREFIX = "a2a:";
 // Same idea for group rooms: the inbox mints `group:<id>` so a group thread has
 // a stable handle in the same lists as individual and a2a rows.
 export const GROUP_SLUG_PREFIX = "group:";
+// And for a launched runtime session (Claude Code, Codex, OpenCode…), which is
+// a room of its own on the `runtime` channel: `runtime:<apc_session>`. Same
+// contract — a read handle minted by the inbox and recognised by the routes
+// that open a thread, never something written back to.
+export const RUNTIME_SLUG_PREFIX = "runtime:";
 
 /** The pair id inside a synthetic a2a slug, or null for an ordinary agent. */
 export function a2aSlugThreadId(slug) {

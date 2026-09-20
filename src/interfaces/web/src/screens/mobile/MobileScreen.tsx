@@ -9,7 +9,7 @@ import { MobileAgents } from "./MobileAgents";
 import { MobileRuntimes } from "./MobileRuntimes";
 import { MobileTabBar } from "./MobileTabBar";
 import { NewChatSheet } from "./NewChatSheet";
-import { chatPath, findRow, keyFor, pidOf, CHAT_ROOT } from "./routes";
+import { chatPath, findRow, keyFor, pidOf, runtimeRoomPath, CHAT_ROOT } from "./routes";
 import { useInbox } from "../../hooks/useInbox";
 import { Loading } from "../../components/ui";
 import type { InboxRow } from "../../lib/api/inbox";
@@ -72,7 +72,17 @@ function ListRoute() {
   // chat opens whichever thread is newest — tapping the row labelled WhatsApp
   // landed you in Telegram. The row knows which thread it is; the path has to
   // carry it.
-  const openChat = (row: InboxRow) => navigate(chatPath(pidOf(row), row.agent_slug, keyFor(row)));
+  const openChat = (row: InboxRow) => {
+    // A runtime session is a room like any other in this list, but the one who
+    // answers is an engine, not an agent — so it opens on the runtimes screen,
+    // which knows how to write to one, instead of the chat pane, which is built
+    // around an agent taking a turn.
+    if (row.kind === "runtime" && row.conversation_id) {
+      navigate(runtimeRoomPath(pidOf(row), row.conversation_id));
+      return;
+    }
+    navigate(chatPath(pidOf(row), row.agent_slug, keyFor(row)));
+  };
   if (isLoading) return <Busy />;
   return (
     <>

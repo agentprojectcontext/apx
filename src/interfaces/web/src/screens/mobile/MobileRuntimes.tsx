@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
-import { CircleAlert, CircleCheck, Loader, SendHorizontal, TerminalSquare } from "lucide-react";
+import { CircleAlert, CircleCheck, Loader, TerminalSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Loading } from "../../components/ui";
-import { useToast } from "../../components/Toast";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import { Runtimes, type RuntimeSession } from "../../lib/api/runtimes";
+import { RuntimeConversation } from "../../components/runtime/RuntimeConversation";
 import { MobileChip, MobileGroupHeader, MobileListHeader } from "./mobileList";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
@@ -31,13 +32,35 @@ export function MobileRuntimes() {
   const [query, setQuery] = useState("");
   const [onlyFailed, setOnlyFailed] = useState(false);
   const [open, setOpen] = useState<RuntimeSession | null>(null);
+  const [params, setParams] = useSearchParams();
 
-  const { data, isLoading, mutate } = useSWR(
+  const { data, isLoading } = useSWR(
     "mobile-runtimes",
     () => Runtimes.list(PAGE),
     { revalidateOnFocus: true, keepPreviousData: true, refreshInterval: 15000 },
   );
   const sessions = useMemo(() => data?.items ?? [], [data]);
+
+  // Opened from the chat list. The inbox lists a session as a room like every
+  // other conversation, and tapping it has to land ON that session — not on a
+  // list with it somewhere in the middle.
+  const wanted = params.get("session");
+  useEffect(() => {
+    if (!wanted || open?.id === wanted) return;
+    const row = sessions.find((s) => s.id === wanted);
+    if (row) setOpen(row);
+  }, [wanted, sessions, open]);
+
+  const closeSheet = () => {
+    setOpen(null);
+    if (params.has("session")) {
+      const next = new URLSearchParams(params);
+      next.delete("session");
+      next.delete("pid");
+      // `replace`: closing a sheet is not a place you should have to go BACK out of.
+      setParams(next, { replace: true });
+    }
+  };
 
   const q = query.trim().toLowerCase();
   const shown = useMemo(() => {
@@ -101,7 +124,7 @@ export function MobileRuntimes() {
         <div className="h-4" />
       </div>
 
-      <RuntimeSheet session={open} onClose={() => setOpen(null)} onSent={() => void mutate()} />
+      <RuntimeSheet session={open} onClose={closeSheet} />
     </div>
   );
 }
@@ -144,42 +167,23 @@ function RuntimeRow({ session, onOpen }: { session: RuntimeSession; onOpen: () =
 }
 
 /** One session: what it was asked, how it ended, and a box to say more. */
-function RuntimeSheet({ session, onClose, onSent }: {
+function RuntimeSheet({ session, onClose }: {
   session: RuntimeSession | null;
   onClose: () => void;
-  onSent: () => void;
 }) {
-  const toast = useToast();
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-
   const { data: full } = useSWR(
     session ? `/api/projects/${session.project_id}/runtime-sessions/${session.id}` : null,
     () => Runtimes.get(String(session!.project_id), session!.id),
   );
+  // The session as a CONVERSATION. The record above says what this session IS;
+  // this says what was said in it, which is the half that was missing — a
+  // launch used to leave a receipt you could read and not answer.
 
   if (!session) return null;
   const live = full ?? session;
 
-  const send = async () => {
-    const prompt = text.trim();
-    if (!prompt) return;
-    setBusy(true);
-    try {
-      await Runtimes.continue_(String(session.project_id), session.id, prompt);
-      toast.success(t("mobile.runtimes_sent"));
-      setText("");
-      onSent();
-      onClose();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("common.error_generic"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <Sheet open={!!session} onOpenChange={(v) => { if (!v) { setText(""); onClose(); } }}>
+    <Sheet open={!!session} onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="bottom" className="flex max-h-[88vh] flex-col p-0">
         <SheetHeader className="shrink-0 space-y-2 border-b border-border px-4 pb-3 pt-4">
           <div className="flex items-center gap-3">
@@ -213,13 +217,6 @@ function RuntimeSheet({ session, onClose, onSent }: {
               ))}
           </dl>
 
-          {live.result && (
-            <div className="mt-3 space-y-1">
-              <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_result")}</span>
-              <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-2 text-[12px] leading-relaxed">{live.result}</p>
-            </div>
-          )}
-
           {"body" in live && live.body ? (
             <div className="mt-3 space-y-1">
               <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_notes")}</span>
@@ -228,32 +225,14 @@ function RuntimeSheet({ session, onClose, onSent }: {
           ) : null}
         </div>
 
-        {/* Straight to the engine. Not a message to the agent that launched it —
-            it reopens THIS session, with its own context. */}
-        <div className="shrink-0 space-y-1 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="flex items-end gap-2">
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={2}
-              placeholder={t("mobile.runtimes_reply_ph", { runtime: session.runtime || "runtime" })}
-              data-testid="mobile-runtime-composer"
-              className="min-h-[42px] flex-1 resize-none rounded-lg border border-border bg-muted/30 px-3 py-2 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
-            />
-            <button
-              type="button"
-              onClick={() => void send()}
-              disabled={busy || !text.trim()}
-              data-testid="mobile-runtime-send"
-              aria-label={t("mobile.runtimes_send")}
-              className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-fg disabled:opacity-50"
-            >
-              <SendHorizontal size={17} />
-            </button>
-          </div>
-          <p className="text-[11px] text-muted-fg">{t("mobile.runtimes_reply_hint")}</p>
-        </div>
+        <RuntimeConversation
+          projectId={session.project_id}
+          sessionId={session.id}
+          runtime={session.runtime}
+          className="min-h-[38vh] border-t border-border"
+        />
       </SheetContent>
     </Sheet>
   );
 }
+
