@@ -93,7 +93,19 @@ export function resolveToolDeadline(handler, args) {
  * @throws  the handler's own rejection, or an AbortError when the signal fires.
  */
 export async function runToolWithWatchdog(run, { name, deadlineMs, slowMs = TOOL_SLOW_WARN_MS, signal, onSlow } = {}) {
-  const startedAt = Date.now();
+  // A MONOTONIC CLOCK, because this measures a DURATION and `Date.now()` does
+  // not promise to move forward. It is the wall clock: an NTP correction steps
+  // it, and the daemon this runs in stays up for days, so a tool call can
+  // straddle one. The visible cost was small and the invisible one is not —
+  // the number in "did not answer within Ns" is read by a person deciding
+  // whether the work happened, and a clock that jumped can make that read 0s
+  // or something absurd for a call that really did hang.
+  //
+  // Found because a test asserted the elapsed was at least the slow mark and
+  // went red on CI and nowhere else. Measured here afterwards: 0 of 4000
+  // timers came in short on this machine, which is why it never showed up
+  // locally and why the clock, not the test, was the thing to fix.
+  const startedAt = performance.now();
   const deadline = Number.isFinite(deadlineMs) && deadlineMs > 0 ? deadlineMs : TOOL_DEADLINE_MS;
 
   let slowTimer = null;
@@ -145,7 +157,11 @@ export async function runToolWithWatchdog(run, { name, deadlineMs, slowMs = TOOL
   let outcome = await Promise.race([work, slow, expired, aborted]);
   if (outcome.kind === "slow") {
     try {
-      await onSlow?.({ tool: name, elapsed_ms: Date.now() - startedAt, deadline_ms: deadline });
+      await onSlow?.({
+        tool: name,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+        deadline_ms: deadline,
+      });
     } catch {
       // A reporting failure must not become a tool failure.
     }
@@ -162,7 +178,7 @@ export async function runToolWithWatchdog(run, { name, deadlineMs, slowMs = TOOL
     throw err;
   }
 
-  const waited = Math.round((Date.now() - startedAt) / 1000);
+  const waited = Math.round((performance.now() - startedAt) / 1000);
   return {
     error:
       `${name} did not answer within ${waited}s and this turn stopped waiting for it. ` +

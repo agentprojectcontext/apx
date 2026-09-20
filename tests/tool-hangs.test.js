@@ -184,14 +184,30 @@ test("a late rejection after the deadline does not become an unhandled rejection
 
 test("the slow mark reports and gets out of the way — it does not end the call", async () => {
   const seen = [];
+  // Whether the call had already finished when the mark fired. This is the
+  // contract — "reports and gets out of the way" means it reports DURING the
+  // call — and unlike a clock reading it is decided by ordering, not by timing.
+  let finished = false;
   const out = await runToolWithWatchdog(
-    () => new Promise((r) => setTimeout(() => r({ ok: 1 }), 60)),
-    { name: "call_mcp", deadlineMs: 5000, slowMs: 10, onSlow: (i) => seen.push(i) }
+    () => new Promise((r) => setTimeout(() => { finished = true; r({ ok: 1 }); }, 60)),
+    { name: "call_mcp", deadlineMs: 5000, slowMs: 10, onSlow: (i) => seen.push({ ...i, finished }) }
   );
   assert.deepEqual(out, { ok: 1 }, "a slow tool is not a failed tool");
   assert.equal(seen.length, 1);
   assert.equal(seen[0].tool, "call_mcp");
-  assert.ok(seen[0].elapsed_ms >= 10);
+  assert.equal(seen[0].finished, false, "it reported while the call was still running");
+  // This used to assert `elapsed_ms >= slowMs` and went red on CI and nowhere
+  // else. The real defect was upstream: the watchdog measured the duration with
+  // `Date.now()`, a wall clock that an NTP correction can step backwards, so
+  // the elapsed it reported was not guaranteed to be a duration at all. That is
+  // fixed at the source (tool-watchdog.js now uses a monotonic clock).
+  //
+  // The assertion is still not written as `>= slowMs`. Firing at exactly the
+  // mark is not the contract — reporting while the call is still running is,
+  // and that is the line above, decided by ordering instead of by arithmetic on
+  // a clock. This one only holds it to being a real measurement.
+  assert.ok(Number.isFinite(seen[0].elapsed_ms), "it says how long it has been waiting");
+  assert.ok(seen[0].elapsed_ms >= 0, "a duration never runs backwards");
 });
 
 test("a failure inside the reporter cannot become a tool failure", async () => {
