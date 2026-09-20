@@ -152,6 +152,34 @@ test("a long request is cut on a word boundary", () => {
   assert.ok(!/\srend…$/.test(title), "should not end mid-word");
 });
 
+// Seen on real data the day this shipped: twelve scheduled runs in a row all
+// titled "Automation ID: r_… Automation memory: /Users/…". The runner prepends a
+// machine header (core/routines/header.js) and the instruction starts under it,
+// so titling from the top of the body names the plumbing instead of the work —
+// and fills the rail while saying nothing, which is worse than no title.
+test("a scheduled run is titled by its instruction, not by the automation header", () => {
+  const body = [
+    "Automation ID: r_tmnxat",
+    "Automation memory: /path/to/apx/projects/default/routines/r_tmnxat/memory.md",
+    "Last run: 2026-09-18T23:31:00.000Z (1789774260000)",
+    "This run (UTC): 2026-09-19T04:31:01.445Z (1789792261445)",
+    "",
+    "Review the backlog and pick one item to move forward.",
+  ].join("\n");
+  assert.equal(stepTitle(body), "Review the backlog and pick one item to move forward.");
+});
+
+test("a header with nothing under it does not blank the title", () => {
+  const onlyHeader = "Automation ID: r_x\nLast run: never";
+  assert.match(stepTitle(onlyHeader), /Automation ID/);
+});
+
+// The strip is anchored on the literal header field, not on "looks like a
+// key: value block" — a request of its own that opens that way keeps its words.
+test("a real request that opens on a labelled line keeps it", () => {
+  assert.equal(stepTitle("Note: check the deploy first"), "Note: check the deploy first");
+});
+
 test("an empty request yields an empty title rather than an invented one", () => {
   assert.equal(stepTitle(""), "");
   assert.equal(stepTitle("   "), "");
@@ -222,13 +250,24 @@ test("the assistant row's own tool_summary wins — it counts calls the transcri
   assert.equal(steps[0].model, "anthropic:claude");
 });
 
-test("an agent-initiated turn is still a step — those are the runs nobody watched", () => {
+// A routine delivering into an agent's chat has no request in front of it. The
+// step is real and has content; only the label is missing, and "Unnamed step"
+// over a row full of work is the worst of both.
+test("an agent-initiated turn is named by what it said, not left blank", () => {
   const steps = deriveSteps([
-    turn("assistant", "2026-09-19T06:00:00Z", "morning report", { tool_summary: { total: 3, failed: 0, tools: [] } }),
+    turn("assistant", "2026-09-19T06:00:00Z", "Morning report: three items moved.", { tool_summary: { total: 3, failed: 0, tools: [] } }),
   ]);
   assert.equal(steps.length, 1);
-  assert.equal(steps[0].title, "");
+  assert.equal(steps[0].title, "Morning report: three items moved.");
   assert.equal(steps[0].state, "done");
+});
+
+test("a request still wins over the answer when there is one", () => {
+  const steps = deriveSteps([
+    turn("user", "2026-09-19T06:00:00Z", "what moved today?"),
+    turn("assistant", "2026-09-19T06:00:09Z", "Three items moved."),
+  ]);
+  assert.equal(steps[0].title, "what moved today?");
 });
 
 // The same turn arrives in two shapes: a conversation FILE keeps attribution
