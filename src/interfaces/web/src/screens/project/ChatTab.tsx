@@ -671,11 +671,26 @@ export function ChatTab({
     : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
-  // The DATE half of the thread id. A thread that belongs to one person carries
-  // them in its id too, and handing that whole string to a date formatter is
-  // how the header ends up reading "Invalid Date".
+  // WHEN THIS SESSION IS FROM, asked of every source in turn.
+  //
+  // The date half of the thread id first: a super-agent thread IS a day, and a
+  // thread that belongs to one person carries them in its id too, which is how
+  // handing that whole string to a date formatter ended up reading "Invalid
+  // Date". But an id that is not a day at all — a room, an a2a pair — left the
+  // header with no date, and so did a conversation opened by deep link, where
+  // there is no list row to have carried one. Half the chats said when they
+  // were from and half said nothing. Manu, 2026-09-20: "podrían tener fecha,
+  // pero algunos tienen y otros no, podría tenerlo todos".
+  //
+  // So: the day in the id, then the file's own `started`, then whatever row
+  // opened it, and finally the one source every chat with anything in it has —
+  // the first thing said in it. A chat where nobody has said anything yet
+  // still shows nothing, which is the honest answer: it is not from a day yet.
   const createdIso =
-    selected.kind === "thread" ? threadDate(selected.threadId) : selectedMeta?.createdAt;
+    (selected.kind === "thread" ? threadDate(selected.threadId) : undefined) ||
+    conversationMeta?.started ||
+    selectedMeta?.createdAt ||
+    msgs[0]?.ts;
 
   // What this session is CALLED. The loaded file (or thread) knows its own
   // name, including the one the reader gave it; the list row is only what
@@ -1413,8 +1428,22 @@ export function ChatTab({
             the last line can always be scrolled clear of the field — floating
             over the text is only an improvement while you can still read the
             line you are answering. */}
-        <div className="relative flex min-h-0 flex-1">
-        <div className="relative min-h-0 flex-1">
+        {/* The row that holds the conversation and, when it is open, the
+            timeline beside it.
+
+            `min-w-0` ON THE CONVERSATION IS LOAD-BEARING, and leaving it off is
+            what broke every chat the moment this row appeared. A flex item
+            defaults to `min-width: auto`, which means "never shrink below your
+            content" — so a long line, a code block or a wide tool row pushed
+            this div past the pane instead of wrapping inside it, the transcript
+            ran off the right edge, and on a phone the panel (absolute inset-0
+            of this row) was laid over a box wider than the screen. Same class
+            of bug as the `min-h-0` two lines down, in the other axis.
+
+            `overflow-hidden` is the belt to that braces: the row never becomes
+            a horizontal scroller, whatever a message contains. */}
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        <div className="relative min-h-0 min-w-0 flex-1">
           <div ref={scrollerRef} className="h-full overflow-y-auto overflow-x-hidden">
             {msgs.length || queued.length ? (
               <MessageList

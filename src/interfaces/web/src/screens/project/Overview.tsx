@@ -126,48 +126,50 @@ export function Overview({ pid }: { pid: string }) {
         </Section>
       </div>
 
-      {/* Quick links. Above the two panels below rather than wedged between
-          them: they are a nav strip, and a nav strip halfway down the page is
-          something you scroll PAST on the way to the thing you came for. */}
+      {/* WHAT IT HAS DONE beside WHO IT IS MADE OF, on one row. Reading one
+          against the other is the point — a stalled step next to the agent that
+          owns it — and that only works while both are on screen.
+
+          It needed the cap to be viable. The first attempt put the whole range
+          here: 85 steps at half width, every line truncated mid-sentence, and
+          the agent map squeezed into a column it could not lay out in. With the
+          newest ten it is a panel, not a transcript, and the two sit level.
+
+          One column below `lg`, where two would make both unreadable rather
+          than comparable. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        {/* What the project has actually been through, across every chat. The
+            per-chat rail cannot answer "which conversation did that stall in" —
+            you have to already know. This is where a request nobody answered and
+            a step the agent recorded as failed become findable. */}
+        <Section
+          title={t("milestones.title")}
+          description={t("milestones.description")}
+          className="!p-4"
+        >
+          {/* A GLANCE, not the whole thing. A real week came back 85 steps
+              long — the transcript again in a different shape. The newest
+              handful, and the way to the rest is the screen built for it. */}
+          <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
+        </Section>
+
+        {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
+            (memory / threads / tasks / heartbeats), connected by hierarchy. */}
+        {agentList.length > 0 && (
+          <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
+            <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
+          </Section>
+        )}
+      </div>
+
+      {/* Quick links, UNDER the two panels. They are a nav strip: somewhere to
+          go next, read once you have finished reading the page — not something
+          to scroll past on the way to it. */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Card title={t("project.overview.chat")} value={t("project.overview.chat_value")} href={`/p/${pid}/chat`} icon={MessagesSquare} />
         <Card title={t("project.overview.mcps")} value={mcps.data?.length ?? "…"} href={`/p/${pid}/mcps`} icon={Puzzle} />
         <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
       </div>
-
-      {/* FULL WIDTH EACH, and the side-by-side pair that used to be here was
-          the mistake. The argument for it was good — what the project HAS DONE
-          beside who it is MADE OF, read one against the other — and the pixels
-          disagreed: at half width a step's own sentence truncated mid-line
-          ("Run April's daily Moltbook editorial session through the APX MCP
-          server named…") while the agent map was squeezed into a column it
-          could not lay out in. Two things cramped side by side are not more
-          comparable than two things stacked; they are just both harder to read.
-          The cap above is what keeps them a scroll apart rather than a page. */}
-
-      {/* What the project has actually been through, across every chat. The
-          per-chat rail cannot answer "which conversation did that stall in" —
-          you have to already know. This is where a request nobody answered and
-          a step the agent recorded as failed become findable. */}
-      <Section
-        title={t("milestones.title")}
-        description={t("milestones.description")}
-        className="!p-4"
-      >
-        {/* A GLANCE, not the whole thing. A real week came back 85 steps
-            long — the transcript again in a different shape, pushing the rest
-            of the page off the bottom. The newest handful, and the way to the
-            rest is the screen built for it. */}
-        <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
-      </Section>
-
-      {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
-          (memory / threads / tasks / heartbeats), connected by hierarchy. */}
-      {agentList.length > 0 && (
-        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
-          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
-        </Section>
-      )}
     </div>
   );
 }
