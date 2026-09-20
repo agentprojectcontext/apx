@@ -268,6 +268,7 @@ jobs:
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           BEFORE: ${{ steps.before.outputs.v }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           after=$(node -p "require('./package.json').version")
           # Same trim as android.yml: a pasted secret carries whatever the
@@ -283,15 +284,17 @@ jobs:
           if [ "${BEFORE%.*}" = "${after%.*}" ]; then
             echo "v$after is a patch — not announced"; exit 0
           fi
-          jq -n --arg v "$after" --arg repo "$GITHUB_REPOSITORY" '{
-            username: "APX",
-            embeds: [{
-              title: "APX v\($v)",
-              url: "https://github.com/\($repo)/releases/tag/v\($v)",
-              color: 4176208,
-              description: "`npm install -g @agentprojectcontext/apx`",
-              fields: [{ name: "What changed", value: "[CHANGELOG](https://github.com/\($repo)/blob/main/CHANGELOG.md)" }]
-            }]
-          }' > payload.json
+          # The notes semantic-release just wrote ARE the announcement — the
+          # message used to be an install line and a link to CHANGELOG.md, so
+          # the only way to learn what landed was to leave Discord.
+          #
+          # Never fatal: the release has already happened and cannot be undone
+          # by a failure here, so an unreachable API costs the detail, not the
+          # message. The builder handles empty notes.
+          notes="$(gh release view "v$after" --json body -q .body 2>/dev/null || true)"
+          if [ -z "$notes" ]; then
+            echo "::warning::could not read the notes for v$after — announcing without them"
+          fi
+          printf '%s' "$notes" | node scripts/discord-release-payload.js "$after" "$GITHUB_REPOSITORY" > payload.json
           curl -sS -f -X POST -H "Content-Type: application/json" -d @payload.json "$WEBHOOK" \
             && echo "announced v$after"
