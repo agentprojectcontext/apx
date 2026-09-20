@@ -121,6 +121,35 @@ export function agentCardUrl(row: InboxRow): string {
 }
 
 /**
+ * THIS CONVERSATION, seen inside its project.
+ *
+ * "Abrir en el proyecto" used to hand out `agentCardUrl`, which for a project
+ * agent is its ficha — a different screen, answering a different question, with
+ * the conversation you were reading nowhere on it. Manu, 2026-09-20: "open
+ * project debería abrir el chat pero en project y ahora abre el agente". A
+ * pair, a room and the super-agent already landed on their chat; only the
+ * commonest row of all did not.
+ *
+ * The agent's own card is still one menu entry away — see `agentCardUrl`.
+ */
+export function chatInProjectUrl(row: InboxRow): string {
+  if (row.kind === "super_agent") {
+    const ch = row.channel || "web";
+    const id = row.conversation_id || "";
+    return id
+      ? `/p/0/chat?channel=${encodeURIComponent(ch)}&thread=${encodeURIComponent(id)}`
+      : "/p/0/chat";
+  }
+  const pid = row.project_id ?? 0;
+  if (row.kind === "a2a" || row.kind === "group") return agentCardUrl(row);
+  const q = new URLSearchParams({ agent: row.agent_slug });
+  // The session, when the row names one. Without it the project opens the
+  // agent's newest chat, which is not necessarily the one being read.
+  if (row.conversation_id) q.set("conv", row.conversation_id);
+  return `/p/${pid}/chat?${q.toString()}`;
+}
+
+/**
  * Where a row opens by default: the super-agent has channel threads, a project
  * agent has conversation files, and either can have neither yet.
  */

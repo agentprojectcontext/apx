@@ -117,28 +117,38 @@ test("only the phone drops the avatar off every bubble", () => {
   assert.match(phone, /bare\s*\n\s*compact/, "the phone surface is the only caller that sets it");
 });
 
-test("a turn being written says so, in the reader's language", () => {
+test("a turn being written says what it IS doing, not that it is doing it", () => {
   const bubble = web("components", "chat", "MessageBubble.tsx");
+  const status = web("components", "chat", "TurnStatus.tsx");
   const es = web("i18n", "es.ts");
   const en = web("i18n", "en.ts");
 
-  // A bare "…" is the same glyph the app uses for truncation everywhere else,
-  // so a turn being written read as one that had been cut off.
-  assert.match(bubble, /flex w-fit items-center gap-1\.5 self-start/, "the status hugs its words");
-  assert.match(es, /typing:\s+"\{name\} está escribiendo…"/);
-  assert.match(en, /typing:\s+"\{name\} is typing…"/);
+  // The pill said "Romi está escribiendo…" and nothing else — an answer to the
+  // one question nobody had, since the bubble is right there. The line under a
+  // live turn carries the questions a two-minute turn actually raises: which
+  // model, how long, what it has spent, and which step it is on.
+  assert.match(bubble, /!mine && msg\.pending && \(\s*\n\s*<TurnStatus/, "pending is the only condition");
+  assert.doesNotMatch(bubble, /function Typing\(/, "the old pill is gone, not merely unused");
+  assert.match(status, /if \(msg\.model\) fields\.push\(msg\.model\)/, "the model, first and foremost");
+  assert.match(status, /fmtElapsed\(elapsed\)/);
+  assert.match(status, /chat_ui\.turn_tokens/);
+  // Every field is absent when unknown rather than drawn as a placeholder: a
+  // line reading "—" three times looks broken, and the model is a second away.
+  assert.match(status, /tokens > 0/);
 
-  // And it stays for the WHOLE turn, not just until the first part lands. A
-  // turn that has been running shell commands for two minutes otherwise shows a
-  // list of finished steps and nothing saying more is coming.
-  assert.match(bubble, /!mine && msg\.pending && \(\s*\n\s*<Typing/, "pending is the only condition");
-  assert.match(
-    bubble,
-    /msg\.parts\.length === 0 \? "chat_ui\.typing" : "chat_ui\.working"/,
-    "writing and working are different words",
-  );
+  // What it is doing is READ OFF the work, never declared: a turn whose tools
+  // have all come back must not still claim to be running them.
+  assert.match(status, /last\.status === "running"/);
+  assert.match(es, /turn_running_tool:\s+"Ejecutando \{tool\}…"/);
+  assert.match(en, /turn_running_tool:\s+"Running \{tool\}…"/);
+  // The sentence the pill used to be survives where it still works: spoken.
+  assert.match(status, /aria-label=\{spoken\}/);
   assert.match(es, /working:\s+"\{name\} está trabajando…"/);
   assert.match(en, /working:\s+"\{name\} is working…"/);
+
+  // This chat's jobs, not the window's: ten jobs in other projects say nothing
+  // about the turn being read here.
+  assert.match(status, /useThreadJobs\(jobScope\?\.threadId, jobScope\?\.conversationId\)/);
 });
 
 test("theme and language are reachable from the screen the phone lands on", () => {
@@ -212,7 +222,17 @@ test("one set of chat actions, dressed for the room it is in", () => {
   // session folds behind one ⋯ — with the session it acts on named at the top,
   // the way the project's right-click menu does, or the menu is four verbs with
   // no subject.
-  assert.match(tab, /\{t\("inbox\.open_in_project"\)\} <ArrowUpRight/);
+  // Not in the header any more: it was the one thing on that row that was not
+  // a glyph, 160px spent on a way OUT of the screen being read. It is a menu
+  // entry now — and it opens THIS CHAT inside its project, where it used to
+  // open the agent's ficha, a different screen without the conversation on it.
+  assert.doesNotMatch(tab, /\{t\("inbox\.open_in_project"\)\} <ArrowUpRight/);
+  assert.match(tab, /key: "open-project",[\s\S]{0,120}label: t\("inbox\.open_in_project"\)/);
+  assert.match(tab, /key: "view-agent",[\s\S]{0,120}label: t\("project\.chat\.view_agent"\)/);
+  assert.match(
+    web("screens", "InboxScreen.tsx"),
+    /onOpenInProject=\{\(\) => navigate\(chatInProjectUrl\(selected\)\)\}/,
+  );
   // One rule for every control in the strip — tasks, tools, add-person, ⋯.
   // Three sizes in one row is what made add-person look enormous beside the
   // other two. And the SMALL box on the phone as well, against the usual

@@ -35,14 +35,27 @@ test("isVisibleTurnEvent picks exactly the timeline, on every surface", () => {
     true,
   );
 
+  // Not steps of the timeline, but part of what a running turn says about
+  // ITSELF, and a follower is exactly who needs them: the engine answering (a
+  // router can pick any of several, and a fallback swaps it mid-turn) and what
+  // it has spent so far. Both used to arrive only when the turn was over —
+  // which is the one moment the question stops being interesting.
+  assert.equal(isVisibleTurnEvent({ type: "model_start", model: "mock" }), true);
+  assert.equal(isVisibleTurnEvent({ type: "model_routed", model: "zen:big-pickle" }), true);
+  assert.equal(
+    isVisibleTurnEvent({ type: "turn_usage", usage: { input_tokens: 10, output_tokens: 2 } }),
+    true,
+  );
+
   // Tokens travel as `delta` frames; sending them twice would double the text.
   assert.equal(isVisibleTurnEvent({ type: "assistant_delta", delta: "ho" }), false);
   // The thinking is never pushed to a surface that did not ask for it.
   assert.equal(isVisibleTurnEvent({ type: "assistant_reasoning", reasoning: "hmm" }), false);
-  assert.equal(isVisibleTurnEvent({ type: "model_start", model: "mock" }), false);
   // Nothing to show is not a step.
   assert.equal(isVisibleTurnEvent({ type: "assistant_text", text: "" }), false);
   assert.equal(isVisibleTurnEvent({ type: "tool_start", trace: {} }), false);
+  assert.equal(isVisibleTurnEvent({ type: "model_start" }), false);
+  assert.equal(isVisibleTurnEvent({ type: "turn_usage" }), false);
   assert.equal(isVisibleTurnEvent(null), false);
 });
 

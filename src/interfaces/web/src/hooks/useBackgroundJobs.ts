@@ -58,6 +58,28 @@ export function useBackgroundJobs(projectId?: string | number | null) {
   };
 }
 
+/** One stable empty array, so a chat with no scope does not hand its consumers
+ *  a fresh identity on every render. */
+const NO_JOBS: BackgroundJob[] = [];
+
+/**
+ * The jobs THIS chat left running — the list, for the surfaces that name them.
+ *
+ * Same unscoped fetch as everything else here (one SWR key for the whole
+ * screen), filtered by the two addresses a job can be filed under: the a2a pair
+ * it opened, or the conversation a shell command was launched from.
+ */
+export function useThreadJobs(threadId?: string | null, conversationId?: string | null): BackgroundJob[] {
+  const { jobs } = useBackgroundJobs();
+  if (!threadId && !conversationId) return NO_JOBS;
+  const mine = jobs.filter(
+    (j) =>
+      (!!threadId && j.thread === threadId) ||
+      (!!conversationId && j.origin?.conversation_id === conversationId),
+  );
+  return mine.length ? mine : NO_JOBS;
+}
+
 /**
  * Is an agent running work it started from THIS thread?
  *
@@ -72,15 +94,8 @@ export function useBackgroundJobs(projectId?: string | number | null) {
  * correctly instead of reading an empty project-scoped cache.
  */
 export function useThreadJobRunning(threadId?: string | null, conversationId?: string | null): boolean {
-  const { jobs } = useBackgroundJobs();
-  if (!threadId && !conversationId) return false;
-  return jobs.some(
-    (j) =>
-      (!!threadId && j.thread === threadId) ||
-      // A shell job has no pair thread — it belongs to the CHAT it was launched
-      // from, and that row deserves the same mark for the same reason: from
-      // outside, an agent with a render running looks like an agent doing
-      // nothing.
-      (!!conversationId && j.origin?.conversation_id === conversationId),
-  );
+  // A shell job has no pair thread — it belongs to the CHAT it was launched
+  // from, and that row deserves the same mark for the same reason: from
+  // outside, an agent with a render running looks like an agent doing nothing.
+  return useThreadJobs(threadId, conversationId).length > 0;
 }

@@ -2098,6 +2098,10 @@ export const en = {
     working:             "{name} is working…",
     typing_generic:      "Typing…",
     working_generic:     "Working…",
+    // The live line under a turn still being written: which engine, how
+    // long, what it has spent, and which step it is on.
+    turn_running_tool:   "Running {tool}…",
+    turn_tokens:         "{n} tokens",
     actions_count:       "{n} actions",
     actions_count_one:   "1 action",
     jobs_running:        "{n} tasks running",

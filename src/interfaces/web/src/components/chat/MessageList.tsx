@@ -6,6 +6,7 @@ import { Empty } from "../ui";
 import { getLocale, t } from "../../i18n";
 import { dayLabel, startsNewDay } from "../../lib/chat-dates";
 import type { AgentFace } from "../agents/AgentAvatar";
+import type { JobScope } from "./TurnStatus";
 import type { ChatMsg, QueuedTurn } from "../../hooks/useChat";
 
 interface Props {
@@ -48,6 +49,9 @@ interface Props {
    *  single run by definition (a routine execution), where a lone "Hoy" at the
    *  top is a label for something nobody wondered about. */
   dayDividers?: boolean;
+  /** Which chat this is, forwarded to the status line under a running turn so
+   *  it can count the background work THIS conversation left out. */
+  jobScope?: JobScope;
 }
 
 /** How close to the end still counts as being at it. A couple of lines of
@@ -70,6 +74,7 @@ export function MessageList({
   compact,
   onAtBottomChange,
   dayDividers = true,
+  jobScope,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   // Whether the reader is at the end. Read synchronously by the effect below,
@@ -178,6 +183,7 @@ export function MessageList({
             // every bubble is noise, and on a phone it is noise that costs the
             // model name its half of the footer line.
             dayInDivider={dayDividers}
+            jobScope={jobScope}
           />
         </Fragment>
       ))}

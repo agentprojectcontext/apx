@@ -10,6 +10,7 @@ import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
 import { InteractiveOptions } from "./InteractiveOptions";
+import { TurnStatus, type JobScope } from "./TurnStatus";
 import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
 import { textOf, type ChatMsg, type ChatPart } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
@@ -56,9 +57,13 @@ interface Props {
    *  prints the time alone. Without it every older bubble has to carry its own
    *  `dd/mm`, which on a phone is what pushes the model name off the line. */
   dayInDivider?: boolean;
+  /** Which chat this is, for the live status line under a running turn: it
+   *  counts the background work THIS conversation left out. Absent → the line
+   *  still draws, without that field. */
+  jobScope?: JobScope;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider, jobScope }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
   // mid-thread ("X joined the chat") changed the hook count for that row and React
@@ -352,18 +357,13 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             that stopped mid-thought. The pill stays for the whole turn and goes
             when the turn does. */}
         {!mine && msg.pending && (
-          <Typing label={
-            (() => {
-              const name = face?.name || msg.agent || "";
-              const key = msg.parts.length === 0 ? "chat_ui.typing" : "chat_ui.working";
-              // In a group the speaker header already names them right above, so
-              // the pill drops the name ("está escribiendo…"). In a 1:1 the pill
-              // is the only place it's named, so keep it ("Candela está escribiendo…").
-              return showSpeaker || !name
-                ? t(`${key}_generic` as "chat_ui.typing_generic")
-                : t(key, { name });
-            })()
-          } />
+          <TurnStatus
+            msg={msg}
+            face={face}
+            name={face?.name || msg.agent || undefined}
+            jobScope={jobScope}
+            compact={compact}
+          />
         )}
 
         {/* One line under the bubble: who answered on the left, when it did and
@@ -495,30 +495,6 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
           </div>
         </div>}
       </div>
-    </div>
-  );
-}
-
-/** "escribiendo…" / "trabajando…" — the word in the reader's language, with the
- *  dots doing the waiting. Three spans on staggered delays rather than a CSS
- *  animation of the text itself, so a screen reader gets one stable label
- *  instead of a glyph that changes three times a second. */
-function Typing({ label }: { label: string }) {
-  return (
-    // w-fit, not the stretched full-width bubble every other assistant turn
-    // gets: a two-word status painted across the whole column reads as a
-    // message that arrived empty.
-    <div className="flex w-fit items-center gap-1.5 self-start rounded-2xl rounded-bl-sm bg-surface-soft px-3 py-2 text-sm text-muted-foreground">
-      <span>{label}</span>
-      <span aria-hidden className="flex items-center gap-[3px]">
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="size-1 animate-bounce rounded-full bg-current"
-            style={{ animationDelay: `${i * 140}ms`, animationDuration: "1s" }}
-          />
-        ))}
-      </span>
     </div>
   );
 }

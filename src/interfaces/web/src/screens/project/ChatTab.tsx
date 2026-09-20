@@ -761,12 +761,28 @@ export function ChatTab({
     ? () => navigate(`/p/${pid}/agents/${encodeURIComponent(agentViewSlug)}`)
     : undefined;
   const openAgentAction = onOpenInProject || openAgentView;
-  const openAgentActionMeta = openAgentAction
+  // TWO DIFFERENT PLACES, and they used to be one entry that could only be one
+  // of them. "Abrir en el proyecto" means THIS CHAT, seen inside its project —
+  // it took you to the agent's ficha instead, which is a different screen
+  // answering a different question, and the conversation you were reading was
+  // nowhere on it. Manu: "open project debería abrir el chat pero en project y
+  // ahora abre el agente… también necesitamos menú de ver agente". So the two
+  // stand side by side: the chat where it lives, and the agent behind it.
+  const openInProjectMeta = onOpenInProject
     ? {
         key: "open-project",
-        icon: onOpenInProject ? ArrowUpRight : Eye,
-        label: t(onOpenInProject ? "inbox.open_in_project" : "project.chat.view_agent"),
-        onClick: openAgentAction,
+        icon: ArrowUpRight,
+        label: t("inbox.open_in_project"),
+        onClick: onOpenInProject,
+        disabled: false,
+      }
+    : null;
+  const viewAgentMeta = openAgentView
+    ? {
+        key: "view-agent",
+        icon: Eye,
+        label: t("project.chat.view_agent"),
+        onClick: openAgentView,
         disabled: false,
       }
     : null;
@@ -791,10 +807,10 @@ export function ChatTab({
   // What the ⋯ holds: everything that edits THIS session. Described once, so
   // the phone and the desktop cannot drift into offering different things.
   const menuActions = [
-    // Face + ⋯ both offer the same escape hatch (inbox → project, or chat →
-    // agent ficha). Always in the menu so it is not only a discoverable click
-    // on the blob.
-    ...(openAgentActionMeta ? [openAgentActionMeta] : []),
+    // The two ways out, always in the menu rather than only as a click on the
+    // blob: this conversation inside its project, and the agent's own ficha.
+    ...(openInProjectMeta ? [openInProjectMeta] : []),
+    ...(viewAgentMeta ? [viewAgentMeta] : []),
     ...(compact ? [newSessionAction] : []),
     ...(storedSession
       ? [
@@ -1247,25 +1263,23 @@ export function ChatTab({
                 )}
               </div>
             )}
-            {/* Inbox only: leave the inbox axis in words. Inside a project the
-                face + ⋯ already open the agent ficha — a second labeled button
-                just repeats "you are already here". */}
-            {onOpenInProject && !compact && (
-              <Button variant="ghost" size="sm" onClick={onOpenInProject}>
-                {t("inbox.open_in_project")} <ArrowUpRight size={13} />
-              </Button>
-            )}
+            {/* "Abrir en el proyecto" USED to stand here in words, and it was
+                the one thing on this row that was not a glyph — 160px of
+                header spent on a way OUT of the screen you are reading. It
+                lives in the ⋯ now, where the rest of the verbs are. Manu:
+                "Open in project lo sacás y lo dejás dentro del menú
+                contextual… quedaría solo iconos y alguna palabra". */}
             {!compact && (
               <Tip content={newSessionAction.label}>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   aria-label={newSessionAction.label}
                   disabled={newSessionAction.disabled}
                   onClick={newSessionAction.onClick}
+                  className={cn(ctlBtn, "disabled:pointer-events-none disabled:opacity-40")}
                 >
-                  <RotateCcw size={13} />
-                </Button>
+                  <RotateCcw size={ctlIcon} />
+                </button>
               </Tip>
             )}
             {(menuActions.length > 0 || deleteAction) && (
@@ -1339,6 +1353,15 @@ export function ChatTab({
                 compact={compact}
                 bottomInset={bottomInset}
                 onAtBottomChange={setAtBottom}
+                // Same two addresses the header's counter uses, so the line
+                // under a running turn counts THIS chat's work and not the
+                // window's. A chat that cannot own an a2a job passes null
+                // rather than the sentinel: here an unscoped read would be a
+                // global count claiming to be local.
+                jobScope={{
+                  threadId: isA2A && selected.kind === "thread" ? selected.threadId : null,
+                  conversationId,
+                }}
               />
             ) : loadingThread ? (
               /* A chat you have not opened before is blank for as long as its

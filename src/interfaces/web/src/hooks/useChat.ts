@@ -73,7 +73,9 @@ export interface ChatMsg {
     exit_code?: number | null;
     command?: string;
   } | null;
-  /** Token accounting from the `final` event. */
+  /** Token accounting. Live while the turn runs (`turn_usage`, the running
+   *  total at each iteration) and final at the end — the same number, so the
+   *  status line and the footer never disagree. */
   usage?: ChatUsage;
   /** You stopped this turn. What is here is what it had done — real work, kept
    *  on purpose so the message that interrupted it reads this as its history. */
@@ -686,6 +688,12 @@ function activeTurnMsg(active?: ActiveTurn | null): ChatMsg | null {
     local: true,
     pending: true,
     ...(active.agent_slug ? { agent: active.agent_slug, agentId: active.agent_slug } : {}),
+    // What the live line under the bubble is made of. Both were dropped here
+    // until now, so a chat opened mid-turn showed a running answer that could
+    // not say which engine was writing it or what it had spent — the two facts
+    // the status line exists for.
+    ...(active.model ? { model: active.model } : {}),
+    ...(active.usage ? { usage: active.usage } : {}),
   };
 }
 
@@ -710,6 +718,11 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
   switch (ev.type) {
     case "model_start":
       return ev.model ? { ...turn, model: ev.model } : turn;
+    // The running total, once per iteration. Live rather than at the end: the
+    // moment you want to know what a turn is costing is while it is still
+    // spending it.
+    case "turn_usage":
+      return ev.usage ? { ...turn, usage: ev.usage } : turn;
     case "model_routed": {
       const next = ev.model ? { ...turn, model: ev.model } : turn;
       return ev.from_fallback

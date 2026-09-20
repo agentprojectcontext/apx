@@ -5,7 +5,7 @@ import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList } from "../components/inbox/InboxList";
 import { inboxRowKey, markRowRead } from "../lib/chat-read";
-import { agentCardUrl, urlLooksAt } from "./mobile/routes";
+import { chatInProjectUrl, urlLooksAt } from "./mobile/routes";
 import { NewChatSheet } from "./mobile/NewChatSheet";
 import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
@@ -228,7 +228,7 @@ export function InboxScreen() {
                data, so getting from a conversation to its project must always
                be one click — it just lives in the thread's own button row now
                instead of a header duplicating the agent's name above it. */
-            onOpenInProject={() => navigate(agentCardUrl(selected))}
+            onOpenInProject={() => navigate(chatInProjectUrl(selected))}
           />
         )}
       </section>
