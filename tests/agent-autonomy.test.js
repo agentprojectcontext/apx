@@ -122,3 +122,38 @@ test("an agent with no card at all is handled", () => {
 test("the default mode is the cautious one", () => {
   assert.equal(DEFAULT_PERMISSION_MODE, PERMISSION_MODES.AUTOMATICO);
 });
+
+// ── The message a blocked agent has to relay ────────────────────────────────
+//
+// 2026-09-20. `productor-reels` carried `autonomy: automatico` while the
+// machine ran on `total`, so its own card NARROWED it — and a specialist whose
+// entire deliverable is a file in `briefs/` could not write one. In a group
+// room there is no confirmation dialog to raise, so the guard threw, and the
+// agent told the owner "ya mandé las solicitudes de confirmación": a request
+// that did not exist, to a queue that does not exist, for three files that were
+// never written. The error is what the model reads; if it does not say that
+// nothing is pending, the model assumes something is.
+test("with no dialog to ask through, the refusal says nothing is pending", async () => {
+  const guard = createPermissionGuard(
+    { super_agent: { permission_mode: "automatico" } },
+    { requestConfirmation: null },
+  );
+  await assert.rejects(
+    () => guard("write_file", { dangerous: true, args: { path: "briefs/reel-20.md" } }),
+    (e) => {
+      assert.match(e.message, /NO request was sent and none is pending/);
+      assert.match(e.message, /did not happen/);
+      assert.match(e.message, /automatico/, "it names the mode that blocked it");
+      assert.match(e.message, /autonomy to "total"/, "and what would let it through");
+      return true;
+    },
+  );
+});
+
+test("an agent on total is not gated at all — its card is what decides", async () => {
+  const guard = createPermissionGuard(
+    { super_agent: { permission_mode: "total" } },
+    { requestConfirmation: null },
+  );
+  await guard("write_file", { dangerous: true, args: { path: "briefs/reel-20.md" } });
+});

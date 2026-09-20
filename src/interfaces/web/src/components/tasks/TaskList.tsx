@@ -168,9 +168,39 @@ export function TaskList({
                 className="min-w-0 flex-1 py-2 pl-1.5 pr-2.5 text-left"
               >
                 <div className="flex items-center gap-2">
+                  {/* Unread first, and it takes its space whether or not it is
+                      lit, so reading a row does not reflow the list. Same blue,
+                      same meaning as on a chat and on the phone — one dot,
+                      wherever you are standing. */}
+                  <span
+                    aria-hidden
+                    data-testid={task.unread ? `task-unread-${task.id}` : undefined}
+                    className={cn("size-1.5 shrink-0 rounded-full", task.unread ? "bg-sky-500" : "bg-transparent")}
+                  />
                   <CategoryIcon category={task.category} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</span>
+                  <span className={cn(
+                    "min-w-0 flex-1 truncate text-sm",
+                    task.unread && task.state === "open" ? "font-semibold" : "font-medium",
+                  )}>
+                    {task.title}
+                  </span>
+                  {task.awaits_owner && (
+                    <span
+                      data-testid={`task-awaits-${task.id}`}
+                      className="shrink-0 rounded bg-sky-500/15 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400"
+                    >
+                      {t("tasks.awaits_you")}
+                    </span>
+                  )}
                 </div>
+                {/* Who spoke last, and about what. The row counted comments and
+                    named none of them, so triaging meant opening each one. */}
+                {task.last_comment && (
+                  <div className="mt-0.5 truncate pl-[18px] text-[10px] text-muted-fg">
+                    <b className="font-medium text-fg/70">{task.last_comment.by || "?"}:</b>{" "}
+                    {task.last_comment.text}
+                  </div>
+                )}
                 <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
                   <span className="flex min-w-0 items-center gap-1.5">
                     {/* The status in words, not only as the colour of the square

@@ -50,6 +50,20 @@ function mediaMeta(media) {
   };
 }
 
+/**
+ * What the running turn has DONE so far, kept on its own abort controller.
+ *
+ * The next inbound message finds it there: interrupting is only half of "pará y
+ * seguí con esto otro" — the turn that replaces this one has to know which
+ * tools already ran, or it repeats them. Conversation history cannot carry that
+ * (it filters tool rows out on purpose), so the controller does.
+ */
+function rememberEffect(abortCtrl, ev) {
+  if (ev?.type !== "tool_result" || !ev.trace?.tool) return;
+  if (!Array.isArray(abortCtrl.effects)) abortCtrl.effects = [];
+  abortCtrl.effects.push({ tool: ev.trace.tool, args: ev.trace.args, result: ev.trace.result });
+}
+
 export async function handleUpdate(self, u) {
     self.lastUpdateAt = nowIso();
 
@@ -94,6 +108,8 @@ export async function handleUpdate(self, u) {
     // Media handlers rewrite it further down; a resend is plain text, so the raw
     // field is enough here.
     let text = msg.text || msg.caption || "";
+    /** Set when THIS message stopped a turn that was already working. */
+    let interrupted = null;
     if (isMobilitySilenceCommand(text)) silenceMobilityToday();
 
     // Default Interrupt: a new message aborts the running turn for this chat —
@@ -145,6 +161,25 @@ export async function handleUpdate(self, u) {
       }
       if (prev) {
         self.log(`telegram[${self.channel.name}] interrupting previous request for chat ${chat_id}`);
+        // WHAT THE INTERRUPTED TURN HAD ALREADY DONE.
+        //
+        // Aborting is the easy half and has worked for a while: a new message
+        // stops the running turn. The half that was missing is continuity —
+        // "que continúes con la nueva info que mande" (Manu, 2026-09-20). The
+        // replacement turn used to start blind: the conversation history filters
+        // tool rows out on purpose (they once ate 84% of a thread's context), so
+        // the work the aborted turn had already done was invisible to it. It
+        // would cheerfully send the same WhatsApp again, or file the same task
+        // twice.
+        //
+        // So the effects travel. `priorEffects` seeds the side-effect ledger,
+        // which answers a repeat with "already done" instead of doing it again
+        // — the same mechanism a resumed turn uses after a restart.
+        interrupted = {
+          text: prev.text || "",
+          effects: Array.isArray(prev.effects) ? prev.effects.slice(-20) : [],
+          seconds: Math.round((Date.now() - (prev.startedAt || Date.now())) / 1000),
+        };
         prev.abort();
       }
     }
@@ -153,6 +188,8 @@ export async function handleUpdate(self, u) {
     // inbound can tell "do something else" from "are you still there".
     abortCtrl.text = text;
     abortCtrl.startedAt = Date.now();
+    // Every tool this turn completes, in order. Empty until it runs one.
+    abortCtrl.effects = [];
     if (chat_id) self.activeRequests.set(chat_id, abortCtrl);
 
     // ── Incoming media ────────────────────────────────────────────────────
@@ -449,6 +486,7 @@ export async function handleUpdate(self, u) {
       // nobody owns the fact that a turn is running.
       const onEvent = async (ev) => {
         turn?.onEvent(ev);
+        rememberEffect(abortCtrl, ev);
         return streamToChat(ev);
       };
 
@@ -482,6 +520,7 @@ export async function handleUpdate(self, u) {
         const sa = await runTelegramSuperAgent(self, {
           chat_id,
           attachments,
+          interrupted,
           prompt: slashed.handled ? slashed.prompt : text,
           previousMessages,
           target,

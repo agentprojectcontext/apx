@@ -78,6 +78,11 @@ export let NUDGES_PATH;
 /** What has been READ, for the whole install rather than one browser.
  *  See core/stores/read-marks.js. */
 export let READ_MARKS_PATH;
+/** The same question for TASK threads — which ones have activity nobody has
+ *  looked at. A second file and not a second section of the first because the
+ *  two are keyed differently (a conversation vs a project + task) and pruned
+ *  against different volumes. See core/stores/task-reads.js. */
+export let TASK_READS_PATH;
 /** Mobility preferences such as "do not mention more trips today". */
 export let MOBILITY_PATH;
 
@@ -127,6 +132,7 @@ function rebuild(home) {
   AGENT_VAULT_DIR = path.join(home, "agents");
   NUDGES_PATH = path.join(home, "nudges.json");
   READ_MARKS_PATH = path.join(home, "read-marks.json");
+  TASK_READS_PATH = path.join(home, "task-reads.json");
   MOBILITY_PATH = path.join(home, "mobility.json");
   LOG_DIR = path.join(home, "logs");
   APX_LOG_PATH = path.join(LOG_DIR, "apx.log");

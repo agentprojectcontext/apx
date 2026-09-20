@@ -1,4 +1,5 @@
 // Agent CRUD + per-agent memory.
+//   GET  /agents                                    — every agent, every project (the Directory)
 //   GET  /projects/:pid/agents
 //   GET  /projects/:pid/agents/:slug                — also returns memory.md
 //   POST /projects/:pid/agents                      — create from slug
@@ -32,8 +33,8 @@ import {
   writeAgentMemory,
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
-import { readPacks, planPackInstall, installPack, takenAgentNames } from "#core/apc/agent-packs.js";
-import { pickAgentName } from "#core/apc/agent-names.js";
+import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
+import { pickAgentName, takenAgentNames } from "#core/apc/agent-names.js";
 import { pickBlob, isBlobKey } from "#core/apc/agent-identity.js";
 import { vaultDisplayStrings, localizePack } from "#core/apc/vault-strings.js";
 import { readConfig } from "#core/config/index.js";
@@ -91,12 +92,18 @@ function attachAgentStats(p, agents) {
 // list is fetched on open by two screens. Cut on a line break when there is one
 // nearby, so the preview ends on a sentence instead of mid-word.
 const PROMPT_PREVIEW_CHARS = 900;
-function promptPreview(body) {
+
+// The directory's cap. A phone row clamps the prompt to two lines, so 900 there
+// would be ~700 characters shipped per agent to draw ~80 — across every agent
+// in every project, in a list that refreshes on focus.
+const DIRECTORY_PREVIEW_CHARS = 320;
+
+function promptPreview(body, max = PROMPT_PREVIEW_CHARS) {
   const text = String(body || "").trim();
-  if (text.length <= PROMPT_PREVIEW_CHARS) return text;
-  const cut = text.slice(0, PROMPT_PREVIEW_CHARS);
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
   const nl = cut.lastIndexOf("\n");
-  return (nl > PROMPT_PREVIEW_CHARS * 0.6 ? cut.slice(0, nl) : cut).trimEnd();
+  return (nl > max * 0.6 ? cut.slice(0, nl) : cut).trimEnd();
 }
 
 export function register(api, { projects, project }) {
@@ -291,6 +298,51 @@ export function register(api, { projects, project }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // EVERY agent in EVERY project, in one request — the roster the phone's
+  // Directory is a directory OF.
+  //
+  // The inbox (api/inbox.js) looks like this list and is a different thing: it
+  // lists CONVERSATIONS, so it carries only agents somebody has already talked
+  // to, and it knows nothing about an agent's area, its place in the tree, or
+  // what its prompt says. A directory has to show the whole roster — including
+  // the agent nobody has opened yet, which is exactly the one you go looking
+  // for when you open a directory.
+  //
+  // One `readAgents` per project rather than a client fanning out to
+  // /projects/:pid/agents N times: the phone has no cheap way to learn the
+  // project list, wait for it, and then issue N requests without drawing an
+  // empty screen through all of them.
+  api.get("/agents", (_req, res) => {
+    const rows = [];
+    for (const entry of projects.list()) {
+      let roster = [];
+      try {
+        roster = readAgents(entry.path);
+      } catch {
+        // A project whose folder moved or lost its .apc must not blank out the
+        // whole directory — the inbox carries the same rule (its `skipped`).
+        continue;
+      }
+      for (const a of roster) {
+        // What the agent is actually TOLD. The per-project list omits it and
+        // the detail route is one request per agent, so a list that wants to
+        // show the top of each prompt had no way to get it short of N calls.
+        const full = String(a.body || "").trim();
+        const preview = promptPreview(full, DIRECTORY_PREVIEW_CHARS);
+        rows.push({
+          ...agentToResponse(a),
+          project_id: entry.id,
+          project_name: entry.name || entry.path,
+          project_path: entry.path,
+          system_preview: preview,
+          system_bytes: Buffer.byteLength(full, "utf8"),
+          system_more: preview.length < full.length,
+        });
+      }
+    }
+    res.json(rows);
   });
 
   api.get("/projects/:pid/agents", (req, res) => {

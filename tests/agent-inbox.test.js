@@ -261,6 +261,50 @@ test("the super-agent row says when it last spoke, not when it was last written 
   }
 });
 
+test("the super-agent row opens under the project its chat happened in", () => {
+  // THE 404 THIS CLOSES. The row is built from an UNSCOPED read of the ledger —
+  // every project's chats at once — and it used to report `project_id: null`
+  // for all of them. The phone reads that as project 0 (`row.project_id ?? 0`),
+  // and `GET /projects/0/super-agent/threads/web/<day>` scopes: a web day
+  // written inside another project is not project 0's thread to read, so the
+  // daemon answered `404: thread not found` over an empty pane.
+  //
+  // Manu, 2026-09-20, with a screenshot of exactly that: "Te veo charlando pero
+  // no me abre el post."
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    seedGlobalThread("web", "2026-08-03", [
+      { ts: "2026-08-03T10:00:00Z", type: "user", body: "algo de acme", meta: { project_id: "alpha" } },
+      { ts: "2026-08-03T10:01:00Z", type: "agent", body: "hecho", actor_id: SUPERAGENT_ACTOR_ID, meta: { project_id: "alpha" } },
+    ]);
+    const row = listAgentInbox([p], { channel: "web" }).rows.find((r) => r.kind === "super_agent");
+    assert.equal(row.conversation_id, "2026-08-03");
+    assert.equal(row.project_id, "alpha", "the row has to name the project the thread lives in");
+    // …and the preview is that project's conversation, not a merge of every
+    // project that wrote on the same day.
+    assert.equal(row.preview, "hecho");
+  } finally {
+    cleanup(p);
+  }
+});
+
+test("a channel with no project of its own still opens in the default workspace", () => {
+  // Telegram, desktop and deck write one daemon-wide channel: those chats are
+  // the default workspace's, which is the "0" the phone was already falling
+  // back to — so nothing about them moves.
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    seedGlobalThread("telegram", "2026-08-04", [
+      { ts: "2026-08-04T10:00:00Z", type: "user", body: "status?" },
+      { ts: "2026-08-04T10:01:00Z", type: "agent", body: "all quiet.", actor_id: SUPERAGENT_ACTOR_ID },
+    ]);
+    const row = listAgentInbox([p], { channel: "telegram" }).rows.find((r) => r.kind === "super_agent");
+    assert.equal(row.project_id, "0");
+  } finally {
+    cleanup(p);
+  }
+});
+
 test("agents are ordered most-recent-first across projects", () => {
   const a = makeProject("alpha", ["older"]);
   const b = makeProject("beta", ["newer"]);

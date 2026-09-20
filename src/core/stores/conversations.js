@@ -405,6 +405,11 @@ export function setConversationMeta(storagePath, agentSlug, idOrFilename, patch 
 
   if ("title" in patch) write("title", patch.title || undefined);
   if ("archived" in patch) write("archived", patch.archived ? "true" : undefined);
+  // Where this chat went on. Written when a 1:1 is promoted into a room
+  // (core/stores/group-promote.js): the transcript now lives on that room's
+  // ledger, and a file that was carried somewhere should say where, or the
+  // archive reads as a conversation that simply stopped.
+  if ("promoted_to_group" in patch) write("promoted_to_group", patch.promoted_to_group || undefined);
   fs.writeFileSync(p, text);
   return true;
 }

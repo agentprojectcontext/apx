@@ -171,6 +171,9 @@ export async function runTelegramSuperAgent(self, {
   chat_id, prompt, previousMessages, target, author, authorId, relationshipBlock,
   allowedTools, contextNote, signal, onEvent, backgroundResultSink = null,
   attachments = [],
+  // Set when THIS message stopped a turn that was already working:
+  // `{ text, effects, seconds }`. See the interrupt block in dispatch.js.
+  interrupted = null,
 }) {
   const confirmAdapter = createTelegramConfirmAdapter({
     token: resolveBotToken(self.channel),
@@ -203,6 +206,24 @@ export async function runTelegramSuperAgent(self, {
     if (skillTrace) {
       try { await onEvent?.({ type: "skill_inspector", inspector: skillTrace }); } catch { /* best-effort */ }
     }
+  }
+
+  // Continuity across an interrupt. The abort already worked; what was missing
+  // is that the replacement turn started blind — history filters tool rows out
+  // on purpose, so it could not see that the turn it displaced had already sent
+  // the message or filed the task. Two halves: the ledger stops it REPEATING
+  // the work (priorEffects), and this note lets it SPEAK about it instead of
+  // pretending the last two minutes did not happen.
+  if (interrupted?.text) {
+    const did = (interrupted.effects || []).map((e) => e.tool).filter(Boolean);
+    contextNote = mergeContextNote(contextNote, [
+      `Te interrumpieron: el usuario mandó este mensaje mientras trabajabas en "${String(interrupted.text).slice(0, 300)}"`,
+      `(llevabas ${interrupted.seconds || 0}s).`,
+      did.length
+        ? `Ya habías ejecutado: ${[...new Set(did)].join(", ")}. NO lo repitas — eso ya pasó.`
+        : "No habías ejecutado ninguna tool todavía.",
+      "Seguí con lo nuevo que te pide. Si lo anterior quedó a medias y sigue teniendo sentido, decilo en una línea.",
+    ].join(" "));
   }
 
   const result = await runSuperAgent({
@@ -249,6 +270,9 @@ export async function runTelegramSuperAgent(self, {
     // config.super_agent.telegram_max_iters.
     maxIters: Number(self.globalConfig?.super_agent?.telegram_max_iters) || TELEGRAM_TOOL_ITERS,
     skipSkillsHint,
+    // Seeds the side-effect ledger, so a tool the interrupted turn already ran
+    // answers "already done" instead of running twice.
+    priorEffects: interrupted?.effects || [],
   });
   // Rides back with the reply so the ledger row can carry it — that row is what
   // draws the skill badges when the thread is reopened anywhere else.

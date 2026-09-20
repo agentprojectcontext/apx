@@ -55,6 +55,7 @@ import { register as registerDeliveries } from "./api/deliveries.js";
 import { register as registerArtifacts } from "./api/artifacts.js";
 import { register as registerArtifactPreview } from "./api/artifact-preview.js";
 import { register as registerTasks } from "./api/tasks.js";
+import { register as registerRuntimeSessions } from "./api/runtime-sessions.js";
 import { register as registerCommitments } from "./api/commitments.js";
 import { register as registerMilestones } from "./api/milestones.js";
 import { register as registerOrganization } from "./api/organization.js";
@@ -202,6 +203,7 @@ export function buildApi({
   registerArtifacts(api, ctx);
   registerArtifactPreview(api, ctx);
   registerTasks(api, ctx);
+  registerRuntimeSessions(api, ctx);
   registerCommitments(api, ctx);
   registerMilestones(api, ctx);
   registerOrganization(api, ctx);

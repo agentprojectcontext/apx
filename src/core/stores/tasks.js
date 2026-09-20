@@ -22,6 +22,13 @@ import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/task-categories.js";
 import {
+  activityAt,
+  awaitsOwner,
+  blockedByOwner,
+  commentPreview,
+  ownerAliasesFrom,
+} from "#core/tasks/attention.js";
+import {
   normalizeTaskAssignee,
   normalizeTaskPriority,
   normalizeTaskReminderFrequency,
@@ -314,7 +321,7 @@ function childIndex(tasks) {
  * with their full threads is a payload nobody on that screen reads, and the
  * phone pays for it twice.
  */
-function row(task, idx) {
+function row(task, idx, aliases) {
   const kids = idx.get(task.id);
   const { comments, ...rest } = task;
   return {
@@ -322,7 +329,41 @@ function row(task, idx) {
     comment_count: comments.length,
     subtask_count: kids?.total || 0,
     subtask_done: kids?.done || 0,
+    // What on this card is asking for something (core/tasks/attention.js).
+    // Computed HERE, where the thread is still in hand: `row` drops `comments`,
+    // and every surface that wanted to know who spoke last was re-reading the
+    // whole event log to find out — or, more often, not asking at all and
+    // showing "3 comentarios".
+    activity_at: activityAt(task),
+    awaits_owner: awaitsOwner(task, aliases),
+    blocked_by_owner: blockedByOwner(task),
+    last_comment: commentPreview(task, aliases),
   };
+}
+
+/**
+ * The order the owner asked for: what is new on top, what is stuck on them at
+ * the bottom.
+ *
+ * "Las más actualizadas arriba […] y más abajo las que ya se trabaron por mí"
+ * (2026-09-20). Three bands, then newest-activity inside each one:
+ *
+ *   1. waiting on the owner   — somebody asked them something and is waiting
+ *   2. everything else        — moving on its own
+ *   3. blocked on the owner   — owed, but not news
+ *
+ * Band 3 sinking is not a demotion: a task that has sat on the owner since
+ * Tuesday is not what a list sorted by news should open with. It is collected
+ * where what you owe belongs — the notification centre — and `blocked_by_owner`
+ * is the same field that puts it there.
+ */
+function byAttention(a, b) {
+  const band = (t) => (t.awaits_owner ? 0 : t.blocked_by_owner ? 2 : 1);
+  const d = band(a) - band(b);
+  if (d !== 0) return d;
+  const at = (t) => t.activity_at || t.updated_at || t.created_at || "";
+  const t = at(b).localeCompare(at(a));
+  return t !== 0 ? t : String(b.id || "").localeCompare(String(a.id || ""));
 }
 
 /** List tasks with optional filters. */
@@ -330,7 +371,8 @@ export function listTasks(storagePath, opts = {}) {
   const events = readAllEvents(storagePath);
   const all = [...projectState(events).values()];
   const idx = childIndex(all);
-  const tasks = all.map((t) => row(t, idx));
+  const aliases = ownerAliasesFrom(opts.owner_name || null);
+  const tasks = all.map((t) => row(t, idx, aliases));
 
   let out = tasks;
   if (opts.state && opts.state !== "all") {
@@ -366,7 +408,7 @@ export function listTasks(storagePath, opts = {}) {
   if (opts.updated_since) {
     out = out.filter((t) => (t.updated_at || t.created_at || "") >= opts.updated_since);
   }
-  out.sort(byNewest);
+  out.sort(opts.sort === "attention" ? byAttention : byNewest);
   if (opts.limit && Number.isFinite(opts.limit)) {
     out = out.slice(0, opts.limit);
   }
@@ -411,7 +453,10 @@ export function listTasksAcrossProjects(projects, opts = {}) {
     }
   }
 
-  tasks.sort(byNewest);
+  // The merge re-sorts with the SAME comparator the per-project list used —
+  // otherwise asking for attention order across projects silently returns
+  // newest order, which is the shape the caller is least likely to check.
+  tasks.sort(perProject.sort === "attention" ? byAttention : byNewest);
   return {
     tasks: Number.isFinite(limit) && limit > 0 ? tasks.slice(0, limit) : tasks,
     skipped,

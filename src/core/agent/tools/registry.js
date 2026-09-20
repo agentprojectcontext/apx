@@ -80,7 +80,7 @@ import obsidianWriteNote from "./handlers/obsidian-write-note.js";
 import obsidianListNotes from "./handlers/obsidian-list-notes.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
-import { TOOLS, CODE_CHANNEL_TOOLS } from "./names.js";
+import { TOOLS, CODE_CHANNEL_TOOLS, WHATSAPP_CHANNEL_TOOLS } from "./names.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 const NATIVE_TOOLS = [
@@ -421,6 +421,14 @@ const schemaName = (s) => s?.function?.name || s?.name;
 
 // Code-channel base = BASE + git_* tools. Pre-computed once.
 const CODE_BASE_TOOL_NAMES = new Set([...BASE_TOOL_NAMES, ...CODE_CHANNEL_TOOLS]);
+
+// WhatsApp base = BASE + send_whatsapp. Telegram gets `send_telegram` in the
+// base set for exactly this reason; WhatsApp was left out and its channel
+// prompt never knew.
+const WHATSAPP_BASE_TOOL_NAMES = new Set([...BASE_TOOL_NAMES, ...WHATSAPP_CHANNEL_TOOLS]);
+const WHATSAPP_BASE_TOOL_SCHEMAS = ALL_TOOLS
+  .filter((t) => WHATSAPP_BASE_TOOL_NAMES.has(t.name))
+  .map((t) => t.schema);
 const CODE_BASE_TOOL_SCHEMAS = ALL_TOOLS
   .filter((t) => CODE_BASE_TOOL_NAMES.has(t.name))
   .map((t) => t.schema);
@@ -437,6 +445,7 @@ const CODE_BASE_TOOL_SCHEMAS = ALL_TOOLS
 export function schemasForChannel(channel, { full = false } = {}) {
   if (full || FULL_CHANNELS.has(channel)) return TOOL_SCHEMAS;
   if (CODE_CHANNELS.has(channel)) return CODE_BASE_TOOL_SCHEMAS;
+  if (channel === CHANNELS.WHATSAPP) return WHATSAPP_BASE_TOOL_SCHEMAS;
   return BASE_TOOL_SCHEMAS;
 }
 

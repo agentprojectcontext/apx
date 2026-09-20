@@ -262,6 +262,30 @@ tarde ves lo mismo: los pasos quedan guardados con el turno, no solo streameados
 y olvidados. Prosa progreso sigue visible, pero no vuelve al prompt siguiente;
 sólo respuesta final entra historial conversación.
 
+#### Invitar a alguien convierte el chat en grupo
+
+Una conversación nunca se abandona para empezar otra. Sumar un agente a un 1:1
+**convierte ese chat**: la transcripción pasa a una sala de grupo, el agente que
+entra puede leer todo lo que se dijo antes de que llegara, y el 1:1 queda
+archivado con un puntero a dónde sigue.
+
+Un **par agente-a-agente** también es una sala — dos agentes hablando — así que
+se dibuja como tal, con cada hablante nombrado arriba de su burbuja en vez de
+etiquetado abajo. No tiene asiento para vos hasta que lo quieras: apenas escribís
+en un par, también se convierte, sentando a los que sean agentes de este proyecto
+(el asiento del super-agente pasa a ser el tuyo), y tu línea es lo primero que se
+dice en la sala nueva.
+
+#### Un par que está trabajando lo dice
+
+Un turno agente-a-agente es un loop de herramientas completo que puede durar
+minutos. Sin importar cómo arrancó — por HTTP, o porque un agente llamó a
+`send_to_agent` / `call_agent`, incluido el trabajo que quedó corriendo de
+fondo — el par muestra la misma narración en vivo que cualquier otro chat: dice
+que alguien está respondiendo antes del primer token, las herramientas aparecen
+mientras corren, y **Stop** llega al trabajo. Cancelar un job de fondo frena a su
+peer por la misma razón.
+
 Un chat que arrancás dentro de un proyecto queda listado en ese proyecto. El
 workspace Base sigue mostrando todos los hilos de todos los canales; un proyecto
 muestra los que se abrieron desde él, más los hilos de canal (Telegram, Desktop)

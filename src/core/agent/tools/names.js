@@ -231,6 +231,22 @@ export const NATIVE_TOOL_NAMES = new Set([
  * Listed separately so registry.js can promote them into the base set when
  * the channel is a coding surface, without touching the chat base.
  */
+/**
+ * Tools a WHATSAPP turn starts with, on top of the base set.
+ *
+ * `send_whatsapp` was not in `BASE_TOOL_NAMES` and whatsapp is not a
+ * FULL_CHANNEL, so the one tool the channel exists to use did not travel in the
+ * request — while `prompts/channels/whatsapp.md` talked to the agent about
+ * `send_whatsapp`, `option` and `react_to` as if they were loaded, and the
+ * lazy-tools block showed it the NAME with no schema. That is the documented
+ * worst case of lazy tools (see run-agent.js): the model invents the call,
+ * burns iterations, and falls back to prose — which reads, from the other end,
+ * as an agent that answered and never sent anything.
+ */
+export const WHATSAPP_CHANNEL_TOOLS = Object.freeze([
+  TOOLS.SEND_WHATSAPP,
+]);
+
 export const CODE_CHANNEL_TOOLS = Object.freeze([
   TOOLS.WRITE_ARTIFACT,
   TOOLS.LIST_ARTIFACTS,

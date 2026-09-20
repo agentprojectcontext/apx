@@ -26,7 +26,9 @@ import {
   stuckNudgeSignal,
 } from "./stuck-detector.js";
 import { createGreetingGuard } from "./loop/greeting-guard.js";
+import { clampRunawayText } from "./runaway-text.js";
 import { createSideEffectLedger } from "./loop/side-effects.js";
+import { argsSatisfySchema } from "./loop/unloaded-tool.js";
 import { runToolWithWatchdog, resolveToolDeadline } from "./loop/tool-watchdog.js";
 import {
   describeTurnImages,
@@ -413,16 +415,24 @@ export async function runAgent({
    * informed. It also closes a gap: the role gate (`allowedTools`) only ever
    * filtered the schemas the model was SENT, so a guessed name walked straight
    * past it into the handler map, which holds every tool regardless.
+   *
+   * Returns null when the call may simply PROCEED — the tool is now activated
+   * and the arguments already satisfy the schema, so bouncing would only ask
+   * the model to resend what it already sent. See loop/unloaded-tool.js for why
+   * that round trip was not free.
    */
-  const revealUnloadedTool = (session, name) => {
+  const revealUnloadedTool = (session, name, args) => {
     const r = session.activate({ names: [name] });
     if (r.denied?.length) return { error: `tool "${name}" is not available to you` };
     if (r.unknown?.length) return { error: `unknown tool: ${name}` };
     const schema = session.pending.find((sc) => (sc?.function?.name || sc?.name) === name);
+    const fits = argsSatisfySchema(schema, args);
+    if (fits.ok) return null;
     return {
       error: `tool "${name}" was not loaded, so you called it without its schema — nothing ran.`,
       activated: name,
       schema: schema?.function || schema || null,
+      why: fits.reason,
       note: "Ya está cargada. Llamala de nuevo usando exactamente los parámetros de arriba.",
     };
   };
@@ -495,7 +505,12 @@ export async function runAgent({
   // strip any later one. Belt-and-suspenders over the action-discipline prompt
   // rule (which strong models follow but gemini-flash et al. often ignore).
   const greetingGuard = createGreetingGuard();
-  const dedupeGreeting = (text) => greetingGuard.apply(text);
+  // Two post-processors on the same seam, for the same reason: what a sampler
+  // does at the end of a turn is not always a message. `clampRunawayText` clips
+  // a degenerate run (one emoji, several thousand times) down to something a
+  // channel can carry and a browser can paint — see runaway-text.js for the
+  // turn that produced it. Ordinary text passes through untouched.
+  const settleTurnText = (text) => clampRunawayText(greetingGuard.apply(text));
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
   // "Never end on silence": a model call that returns no tool calls AND no
@@ -786,7 +801,7 @@ export async function runAgent({
       break;
     }
 
-    const visibleText = dedupeGreeting(cleanTextOfPseudoToolCalls(lastText, callableNames).trim());
+    const visibleText = settleTurnText(cleanTextOfPseudoToolCalls(lastText, callableNames).trim());
     if (visibleText) {
       await emitProgress(onEvent, { type: "assistant_text", text: visibleText, iteration: iter + 1 });
     }
@@ -868,6 +883,10 @@ export async function runAgent({
         // A decline becomes a normal error observation — the model sees the
         // rejection and can re-plan, mirroring OpenHands' rejection flow.
         let riskDenied = null;
+        // Did anything actually HAPPEN? Only a handler that ran can have had an
+        // effect, and only an effect is worth remembering (see the record call
+        // at the end of this block).
+        let ranForReal = true;
         if (riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
           const description = buildConfirmDescription(name, args);
           const requestConfirmation = toolHandlerCtx?.requestConfirmation;
@@ -893,16 +912,23 @@ export async function runAgent({
         }
         if (riskDenied) {
           toolResult = { error: riskDenied };
+          ranForReal = false;
         } else {
           try {
             const handler = handlers[name];
-            if (!handler) toolResult = { error: `unknown tool: ${name}` };
+            // Whether the HANDLER ran. A refusal decided before it — unknown
+            // tool, a schema the model never had and whose arguments do not fit
+            // — changed nothing in the world, and must not be recorded as a
+            // call that did (see the `sideEffects.record` below).
+            let bounced = null;
+            if (!handler) bounced = { error: `unknown tool: ${name}` };
             // Suppression comes first: a suppressed tool was REMOVED from the
             // schema set on purpose, and telling the model it merely wasn't
             // loaded would invite it to activate the tool and send twice.
             else if (toolSession && !suppressed.has(name) && !schemaOnTheWire(name)) {
-              toolResult = revealUnloadedTool(toolSession, name);
+              bounced = revealUnloadedTool(toolSession, name, args);
             }
+            if (bounced) { toolResult = bounced; ranForReal = false; }
             // Under a watchdog, not a bare await. A handler that never settles
             // used to hang the turn permanently — past its own timeout, past
             // Stop, with the daemon up and reporting healthy. See
@@ -934,7 +960,17 @@ export async function runAgent({
             if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
           }
         }
-        sideEffects.record(sig, summarizeForTrace(toolResult), { name, args });
+        // Only a call that RAN goes into the ledger.
+        //
+        // It used to record every outcome, including the ones that explicitly
+        // did nothing — and the dedup that reads it answers a repeat with
+        // `{ok: true, deduped: true, previous}`. So a tool bounced for its
+        // schema, then retried with the same arguments, came back as "already
+        // done": on 2026-09-20 that is precisely how `call_runtime` reported
+        // four launches that never happened, and how the agent came to tell the
+        // owner that sessions were running. A refusal must leave the retry
+        // possible; the dedup is there to stop a SECOND effect, not a first one.
+        if (ranForReal) sideEffects.record(sig, summarizeForTrace(toolResult), { name, args });
       }
 
       // A tool may return images for the MODEL to see (view_media loads a skill
@@ -1002,7 +1038,7 @@ export async function runAgent({
     // assistant text and exit the loop.
     if (finishSummary !== null) {
       if (finishSummary) {
-        lastText = dedupeGreeting(finishSummary) || "";
+        lastText = settleTurnText(finishSummary) || "";
         if (lastText) await emitProgress(onEvent, { type: "assistant_text", text: lastText, iteration: iter + 1 });
       }
       break;
@@ -1050,8 +1086,9 @@ export async function runAgent({
   }
 
   return {
-    // Strip a final greeting if an earlier segment in this turn already greeted.
-    text: dedupeGreeting(lastText),
+    // Last pass over what the turn says: strip a greeting an earlier segment
+    // already made, and clip a run the sampler could not stop repeating.
+    text: settleTurnText(lastText),
     usage: totalUsage,
     name: agentName,
     trace,

@@ -189,12 +189,31 @@ test("threads: a project sees its own chats, not another project's", () => {
   assert.equal(mine.length, 1);
   assert.equal(mine[0].messages, 2, "only this project's turns count");
   assert.equal(mine[0].title, "algo de postbeam");
+  assert.equal(mine[0].project, "8", "a thread says which project's view it is");
 
   const theirs = listGlobalThreads({ project: "9", _globalMessagesDir: base });
   assert.equal(theirs[0].title, "algo de acme");
+  assert.equal(theirs[0].project, "9");
 
-  // Base (no filter) still sees the whole day.
-  assert.equal(listGlobalThreads({ _globalMessagesDir: base })[0].messages, 4);
+  // UNSCOPED — the cross-project view the agent inbox takes — splits the same
+  // day by project instead of merging it into one pile.
+  //
+  // Merging was not a harmless summary: the inbox listed the merged row, said
+  // it belonged to no project, and the phone opened it as project 0 — where
+  // the detail route, which DOES scope, answered `404: thread not found` over
+  // an empty pane. Seen 2026-09-20 on a web day written inside another project.
+  const all = listGlobalThreads({ _globalMessagesDir: base });
+  assert.equal(all.length, 2, "one thread per project, not one merged day");
+  assert.deepEqual(all.map((t) => t.project).sort(), ["8", "9"]);
+  assert.ok(all.every((t) => t.messages === 2), "each side keeps its own turns");
+  // …and each one is readable under the project it claims, which is the whole
+  // point: the row the inbox hands out must open.
+  for (const th of all) {
+    assert.ok(
+      readGlobalThread({ channel: "web", date: th.id, project: th.project, _globalMessagesDir: base }),
+      `thread listed for project ${th.project} does not open there`,
+    );
+  }
 });
 
 test("threads: unstamped rows belong to the default workspace, not to every project", () => {

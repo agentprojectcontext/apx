@@ -10,6 +10,9 @@ import type { InboxRow } from "../../lib/api/inbox";
  *   /m/chat/:pid/:slug/:session              a chat, on one specific session
  *   /m/tasks                                 every project's tasks
  *   /m/commitments                           every project's promises
+ *   /m/attention                             what is waiting on you, everywhere
+ *   /m/agents                                every agent, as a contact list
+ *   /m/runtimes                              what Claude Code and friends ran
  *   /m/team/:pid                             one project's team
  *
  * `/m` and not `/mobile`, and each surface named after WHAT IT SHOWS rather
@@ -39,6 +42,14 @@ export const MOBILE_ROOT = "/m";
 export const CHAT_ROOT = `${MOBILE_ROOT}/chat`;
 export const TASKS_ROOT = `${MOBILE_ROOT}/tasks`;
 export const COMMITMENTS_ROOT = `${MOBILE_ROOT}/commitments`;
+/** Everything waiting on the owner, from every list at once. */
+export const ATTENTION_ROOT = `${MOBILE_ROOT}/attention`;
+
+/** Every agent in every project, as a contact list. */
+export const AGENTS_ROOT = `${MOBILE_ROOT}/agents`;
+
+/** Sessions run by an external engine (Claude Code, Codex…). */
+export const RUNTIMES_ROOT = `${MOBILE_ROOT}/runtimes`;
 
 /**
  * The pre-`/m` spelling, kept alive by a redirect rather than by a second set
@@ -136,9 +147,14 @@ export function chatInProjectUrl(row: InboxRow): string {
   if (row.kind === "super_agent") {
     const ch = row.channel || "web";
     const id = row.conversation_id || "";
+    // The project the THREAD lives in, not a hardcoded 0. A web day written
+    // inside another project is not project 0's to read — the detail route
+    // scopes, and "open in project" was sending every super-agent row to a
+    // workspace that 404s on half of them.
+    const pid = row.project_id ?? 0;
     return id
-      ? `/p/0/chat?channel=${encodeURIComponent(ch)}&thread=${encodeURIComponent(id)}`
-      : "/p/0/chat";
+      ? `/p/${pid}/chat?channel=${encodeURIComponent(ch)}&thread=${encodeURIComponent(id)}`
+      : `/p/${pid}/chat`;
   }
   const pid = row.project_id ?? 0;
   if (row.kind === "a2a" || row.kind === "group") return agentCardUrl(row);

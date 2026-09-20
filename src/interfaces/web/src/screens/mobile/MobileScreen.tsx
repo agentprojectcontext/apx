@@ -4,6 +4,9 @@ import { MobileChatList } from "./MobileChatList";
 import { MobileChat } from "./MobileChat";
 import { MobileTasks } from "./MobileTasks";
 import { MobileCommitments } from "./MobileCommitments";
+import { MobileAttention } from "./MobileAttention";
+import { MobileAgents } from "./MobileAgents";
+import { MobileRuntimes } from "./MobileRuntimes";
 import { MobileTabBar } from "./MobileTabBar";
 import { NewChatSheet } from "./NewChatSheet";
 import { chatPath, findRow, keyFor, pidOf, CHAT_ROOT } from "./routes";
@@ -12,7 +15,7 @@ import { Loading } from "../../components/ui";
 import type { InboxRow } from "../../lib/api/inbox";
 
 /**
- * The phone surface: three tabs, and one chat at a time.
+ * The phone surface: four tabs, and one chat at a time.
  *
  * The admin panel squeezed into 400px spends a third of the width on a module
  * rail and wraps captions one word per line. This is not that panel made
@@ -21,8 +24,8 @@ import type { InboxRow } from "../../lib/api/inbox";
  * time, with the session switcher living INSIDE a chat instead of being a
  * second sidebar you have to leave.
  *
- * Three tabs and not more. Chats, tasks, promises: the things that are ABOUT
- * you and are true across every project. Everything the panel does that is
+ * Four tabs and not more. Chats, tasks, promises and what is waiting on you:
+ * the things that are ABOUT you and are true across every project. Everything the panel does that is
  * about a project — routines, code, agents, settings — stays on the desktop
  * route, because a phone is not where you configure anything.
  *
@@ -41,6 +44,9 @@ export function MobileScreen() {
       <Route path="chat/:pid/:slug/:session" element={<ChatRoute />} />
       <Route path="tasks" element={<Tabbed><MobileTasks /></Tabbed>} />
       <Route path="commitments" element={<Tabbed><MobileCommitments /></Tabbed>} />
+      <Route path="attention" element={<Tabbed><MobileAttention /></Tabbed>} />
+      <Route path="agents" element={<Tabbed><MobileAgents /></Tabbed>} />
+      <Route path="runtimes" element={<Tabbed><MobileRuntimes /></Tabbed>} />
       {/* `/m` itself, and anything unrecognised, is the chat list — not a 404
           screen inside an app whose whole job is a handful of lists. */}
       <Route path="*" element={<Navigate to={CHAT_ROOT} replace />} />

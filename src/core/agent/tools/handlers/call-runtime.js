@@ -17,6 +17,12 @@ import { getRuntime, RUNTIME_IDS } from "#core/runtimes/index.js";
 import { runtimeLooksLikeFailure, runtimeAvailability } from "#core/runtimes/outcome.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 import { readJson } from "#core/util/json-file.js";
+import {
+  postRuntimeLaunch,
+  postRuntimeResult,
+  runtimeThreadCanCarry,
+} from "#core/agent/runtime-thread.js";
+import fs from "node:fs";
 
 const log = loggerFor("call_runtime");
 
@@ -129,6 +135,10 @@ export default {
         properties: {
           project: { type: "string" },
           agent: { type: "string", description: "APC agent slug. MANDATORY OMIT if you are acting as yourself (APX/vos mismo/default). Use ONLY if the user named a specific agent from AGENTS.md." },
+          cwd: {
+            type: "string",
+            description: "Absolute path the runtime runs IN. Defaults to the project's own folder. Pass it whenever the work is in a repo that is not an APX project (a code task almost always is): naming the path inside the prompt does NOT move the runtime, it just starts in the wrong place and spends its first minutes looking for the repo.",
+          },
           runtime: {
             type: "string",
             enum: RUNTIME_IDS,
@@ -142,14 +152,14 @@ export default {
           timeout_s: { type: "integer", description: "seconds before SIGTERM. Foreground default 300; background runs default to 3600 (1h)." },
           background: {
             type: "boolean",
-            description: "Run detached instead of blocking this turn. On Telegram this is the DEFAULT (runtimes like claude-code can take many minutes to an hour; blocking would freeze the super-agent). Returns immediately with status:\"launched\"; when the runtime finishes, its result is delivered to this same chat as an automatic message. Set false ONLY when you genuinely need the runtime's output within THIS turn for an immediate follow-up (short tasks).",
+            description: "Run detached instead of blocking this turn. This is the DEFAULT on every channel that has a thread to write back to (runtimes like claude-code can take many minutes to an hour; blocking would freeze the super-agent). Returns immediately with status:\"launched\"; when the runtime finishes, its result is delivered to this same chat as an automatic message. Set false ONLY when you genuinely need the runtime's output within THIS turn for an immediate follow-up (short tasks).",
           },
         },
         required: ["runtime", "prompt"],
       },
     },
   },
-  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
     await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
 
     // Async delivery sink: on Telegram we can push the runtime's result back to
@@ -160,10 +170,15 @@ export default {
     const chatId = channelMeta?.chatId ?? null;
     const tgChannelName = channelMeta?.channelName ?? null;
     const telegramPlugin = channel === "telegram" && chatId != null ? plugins?.get?.("telegram") : null;
-    // We can report a late result either by re-entering the super-agent (A2A,
-    // preferred — the agent relays in its own voice) or by a direct channel
-    // send (fallback). Either makes background mode viable.
-    const canCallback = !!backgroundResultSink || !!telegramPlugin;
+    // We can report a late result three ways, in order of how well it reads:
+    // re-entering the super-agent (A2A — it relays in its own voice), a direct
+    // channel send, or a row the session writes into this channel's thread
+    // itself (core/agent/runtime-thread.js). Any of them makes background mode
+    // viable, and the third one exists on every channel with a thread — which
+    // is why a session launched from the panel is no longer run synchronously
+    // against the 300s foreground deadline it cannot survive.
+    const canPostToThread = runtimeThreadCanCarry(channel);
+    const canCallback = !!backgroundResultSink || !!telegramPlugin || canPostToThread;
     // Background by default when we can call back; the model opts out with
     // background:false when it needs the output inside this same turn.
     const runInBackground = canCallback && background !== false;
@@ -181,6 +196,32 @@ export default {
         agents: readAgents(projects.get(entry.id).path).map((a) => a.slug),
       }));
       return { error: `agent "${slug}" not found in selected project`, directory };
+    }
+
+    // WHERE the runtime actually starts.
+    //
+    // It used to be `p.path`, always — the APX project's own folder — while the
+    // model, asked to work on a repo, wrote the repo's path into the PROMPT.
+    // That reads as an instruction and moves nothing: on 2026-09-20 six Claude
+    // Code sessions meant for the apx checkout opened in
+    // `~/.apx/projects/default` instead, and the owner watching it said so
+    // plainly ("estás lanzándolo sin path, es sobre apx folder"). A repo is
+    // usually not an APX project, so requiring one was requiring the wrong
+    // thing; `cwd` is checked here rather than trusted, because a path that
+    // does not exist becomes a runtime that starts in a surprising place.
+    let runCwd = p.path;
+    if (cwd) {
+      const resolved = path.resolve(String(cwd));
+      let dir = false;
+      try { dir = fs.statSync(resolved).isDirectory(); } catch { dir = false; }
+      if (!dir) {
+        return {
+          error: `cwd "${cwd}" is not a directory that exists`,
+          hint: "Pass an absolute path to the repo's root, or omit cwd to run in the project's own folder.",
+          project_path: p.path,
+        };
+      }
+      runCwd = resolved;
     }
 
     let rt;
@@ -209,6 +250,7 @@ export default {
       storageRoot: p.storagePath,
       agentSlug: actor,
       runtime,
+      cwd: runCwd,
       title: `Runtime: ${runtime}${agent ? ` (${agent.slug})` : ""}`,
     });
 
@@ -235,7 +277,7 @@ export default {
         const r = await rt.run({
           system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
           prompt: effectivePrompt,
-          cwd: p.path,
+          cwd: runCwd,
           timeoutMs: effectiveTimeoutS * 1000,
         });
 
@@ -348,6 +390,17 @@ export default {
       deletePendingCallback(session.id);
       const body = res.error ? "" : String(res.result || res.output || "").trim();
 
+      // The session's OWN row in the thread, written before we try to get an
+      // agent to narrate it. Two reasons it goes first: it is the only delivery
+      // that does not depend on somebody else's machinery working (a sink that
+      // throws, a Telegram send that 4xxs), and it is the one the owner asked
+      // for — the engine's answer, in its own bubble, whether or not Roby ever
+      // gets around to summarising it.
+      postRuntimeResult({
+        channel, project: p, runtime, sessionId: session.id,
+        ok: !res.error, text: body, error: res.error,
+      });
+
       if (backgroundResultSink) {
         // A2A report phrased for Roby (not the end user). Roby decides how to
         // relay it and whether a next step is needed.
@@ -396,6 +449,14 @@ export default {
           who,
         });
       }
+      // Say it started, in the thread, now. A session can run for an hour; the
+      // alternative is an hour in which the only evidence that anything was
+      // launched is the agent's own claim that it was — which is exactly the
+      // claim that turned out to be false on 2026-09-20.
+      postRuntimeLaunch({
+        channel, project: p, runtime, sessionId: session.id,
+        cwd: runCwd, prompt: effectivePrompt, background: true,
+      });
       // Fire-and-forget: don't await into the turn. runToCompletion never
       // rejects, so this promise is safe un-awaited; the result is pushed to the
       // chat when the runtime exits.
@@ -404,15 +465,30 @@ export default {
         runtime,
         agent: agent?.slug || null,
         apc_session: session.id,
+        cwd: runCwd,
         status: "launched",
         background: true,
         note:
-          `La sesión de ${runtime} arrancó en segundo plano y puede tardar varios minutos u horas. ` +
+          `La sesión de ${runtime} arrancó en segundo plano (en ${runCwd}) y puede tardar varios minutos u horas. ` +
           `NO esperes ni vuelvas a llamar a call_runtime para esto: el resultado llegará AUTOMÁTICAMENTE a este chat cuando termine. ` +
           `Respondé al usuario ahora, en una línea, avisándole que la lanzaste y que le vas a avisar acá cuando esté lista.`,
       };
     }
 
-    return await runToCompletion();
+    // Foreground: the model asked for the output inside this turn. The thread
+    // still gets both rows — the launch one so a session that outlives the turn
+    // is not invisible while it runs, and the result one through deliverCallback.
+    postRuntimeLaunch({
+      channel, project: p, runtime, sessionId: session.id,
+      cwd: runCwd, prompt: effectivePrompt, background: false,
+    });
+    const outcome = await runToCompletion();
+    postRuntimeResult({
+      channel, project: p, runtime, sessionId: session.id,
+      ok: !outcome.error,
+      text: outcome.error ? "" : String(outcome.result || outcome.output || "").trim(),
+      error: outcome.error,
+    });
+    return { ...outcome, cwd: runCwd };
   },
 };

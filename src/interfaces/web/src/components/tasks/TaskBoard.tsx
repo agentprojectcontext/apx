@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { ListTree, MessageSquare } from "lucide-react";
 import { Tasks } from "../../lib/api";
@@ -30,7 +30,7 @@ import type { TaskEntry } from "../../types/daemon";
 const BOARD_LIMIT = 300;
 
 export function TaskBoard({
-  pid, columns, state, selectedId, onSelect, onChanged, refreshKey,
+  pid, columns, state, selectedId, onSelect, onChanged, refreshKey, onItems,
 }: {
   /** Undefined on the aggregated view: every project at once. */
   pid?: string;
@@ -46,19 +46,46 @@ export function TaskBoard({
   onChanged: () => void;
   /** Bumped by the parent to force a refetch after an outside change. */
   refreshKey?: number;
+  /**
+   * The rows this board is showing, handed back up.
+   *
+   * The detail pane next door needs the SELECTED row — which project it belongs
+   * to, what it is called — and the screen used to look it up in the list's
+   * paged query. The board fetches its own 300 and the list fetches one page of
+   * 20, so any card past the first page resolved to nothing and the screen's
+   * "heal a stale selection" effect snapped the selection back to the top of
+   * the list. In practice: the first two columns were clickable and the rest
+   * were not.
+   */
+  onItems?: (items: TaskEntry[]) => void;
 }) {
   const toast = useToast();
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
 
-  const key = `board:${pid ?? "all"}:${state}:${refreshKey ?? 0}`;
+  // The refresh key is NOT part of the SWR key. It used to be, and every bump
+  // minted a brand-new key with an empty cache: `isLoading` went true and the
+  // whole board was replaced by a spinner. Revalidating the SAME key keeps the
+  // cards on screen while the answer comes back, which is the difference
+  // between a board that updates and a board that blinks.
+  const key = `board:${pid ?? "all"}:${state}`;
   const { data, isLoading, mutate } = useSWR(key, () =>
     pid
       ? Tasks.listPage(pid, { state, limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items)
       : Tasks.globalPage({ state, limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items),
-  );
+  { keepPreviousData: true });
+
+  // Mount already fetches; only a CHANGE in the key asks for a second trip.
+  const seenRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (seenRefresh.current === refreshKey) return;
+    seenRefresh.current = refreshKey;
+    void mutate();
+  }, [refreshKey, mutate]);
 
   const live = (data ?? []) as TaskEntry[];
+
+  useEffect(() => { onItems?.(live); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   const rowPid = (task: TaskEntry) => pid ?? String((task as GlobalTaskEntry).project_id ?? "");
 
   const refresh = () => { void mutate(); onChanged(); };
@@ -82,7 +109,9 @@ export function TaskBoard({
     }
   };
 
-  if (isLoading) return <Loading />;
+  // Only when there is genuinely nothing to draw. With `keepPreviousData` a
+  // filter switch keeps the old columns up until the new ones land.
+  if (isLoading && !data) return <Loading />;
 
   return (
     <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3" data-testid="task-board">

@@ -21,7 +21,7 @@
 //      depends on the model remembering to report is a report that goes missing
 //      exactly when it matters.
 import { CHANNELS } from "#core/constants/channels.js";
-import { appendGlobalMessage, readGlobalMessages } from "#core/stores/messages.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { resolveTurnSkills } from "#core/agent/skills/turn-skills.js";
 import { buildWhatsAppRelationshipBlock } from "./relationship.js";
@@ -36,11 +36,11 @@ import {
   learnOwnerAliases,
   senderAddresses,
   REPLY_POLICIES,
-  normalizeJid,
   contactKeyFor,
   isIgnorableJid,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
+import { threadFor } from "./thread.js";
 import { messageText, readInteractive } from "./interactive.js";
 import { describeSticker } from "./stickers.js";
 import { captureRequest } from "./capture.js";
@@ -145,6 +145,35 @@ const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Tests only: forget what was said in which chat. */
 export function _resetSettle() {
   latestPerChat.clear();
+}
+
+// ── The turn queue ──────────────────────────────────────────────────────────
+//
+// `chatJid|senderJid` → the messages parked behind the turn that is running for
+// that conversation. Present means "a turn is in flight"; the array is what it
+// will answer next. In memory for the same reason the debounce is: it describes
+// the next few minutes, and a restart is a new conversation anyway.
+const pendingTurns = new Map();
+
+// How many messages may pile up behind one turn, and how many follow-up turns
+// one inbound message may cause. Both are floors against a flood, not policy:
+// beyond them the messages are still logged and still visible, they simply do
+// not each buy a model call.
+const MAX_PARKED = 10;
+const MAX_FOLLOW_UP_ROUNDS = 5;
+
+/** The attachments of a batch of parked messages, in the order they arrived. */
+function mergeMedia(medias) {
+  const attachments = [];
+  for (const m of medias) {
+    if (m?.attachment) attachments.push(m.attachment);
+  }
+  return { attachments };
+}
+
+/** Tests only: forget which conversations have a turn running. */
+export function _resetTurnQueue() {
+  pendingTurns.clear();
 }
 
 function shouldReport(kind, jid) {
@@ -333,6 +362,69 @@ export async function handleWhatsAppMessage(m, ctx) {
     return;
   }
 
+  // ── One turn at a time per conversation ──────────────────────────────────
+  //
+  // The debounce above only covers the 2.5s BEFORE a turn starts. The owner's
+  // turn may run for six minutes, and anything written inside those minutes
+  // used to start a SECOND turn beside the first: two model calls, neither
+  // able to see the other's message or the other's reply, both answering.
+  //
+  // That is what it looked like on 2026-09-16. Manu wrote "desglosalo y
+  // mandame el detalle por telegram", then the audio with the four points
+  // eight seconds later. Two answers came back: "Ya está, desglosé los cuatro
+  // puntos" and, thirteen seconds after it, "¿Qué es lo que querés que
+  // desglose? No tengo el contexto inmediato". Both were true about the turn
+  // that wrote them, and together they read as an assistant that had lost the
+  // plot — which is exactly how it was described: "se le hace un lío".
+  //
+  // So a turn holds the conversation while it runs, and whatever arrives
+  // behind it is parked. When the turn lands, the parked messages get ONE more
+  // turn between them, and that turn reads the thread — which by then holds
+  // the first reply. Writing while it is thinking is now the ordinary thing it
+  // looks like: you say more, and the next answer takes it all in.
+  //
+  // Keyed by chat AND sender, so serialising never crosses people: in a group
+  // two participants still get their own turns, and a sealed turn is never
+  // handed somebody else's message.
+  const queueKey = `${chatJid}|${senderJid}`;
+  const queued = pendingTurns.get(queueKey);
+  if (queued) {
+    // Capped: a flood should not become a queue of model calls. The rows are
+    // on the ledger either way, so nothing is lost — only un-answered.
+    if (queued.length < MAX_PARKED) queued.push({ body, media });
+    log(`whatsapp: ${sender.name} wrote while a turn was running — that turn answers this too`);
+    return;
+  }
+  pendingTurns.set(queueKey, []);
+
+  try {
+    await answerTurn({ body, media });
+    // Drain. Bounded, because a conversation where every answer earns another
+    // message is a conversation, not a backlog — after a few rounds the next
+    // inbound message starts a turn of its own like any other.
+    for (let round = 0; round < MAX_FOLLOW_UP_ROUNDS; round++) {
+      const next = pendingTurns.get(queueKey);
+      if (!next?.length) break;
+      const batch = next.splice(0, next.length);
+      await session.setTyping(chatJid, true);
+      await answerTurn({
+        body: batch.map((x) => x.body).filter(Boolean).join("\n"),
+        media: mergeMedia(batch.map((x) => x.media)),
+      });
+    }
+  } finally {
+    pendingTurns.delete(queueKey);
+    await session.setTyping(chatJid, false);
+  }
+
+  /**
+   * Answer once: run the turn, send what it said, and tell the owner about it.
+   *
+   * A closure rather than a free function because everything it needs — who
+   * wrote, under which policy, into which chat — was settled before the first
+   * turn started and does not change between rounds. Only the words do.
+   */
+  async function answerTurn({ body: turnBody, media: turnMedia }) {
   let reply = "";
   let turn = null;
   // A turn on this channel gets a DEADLINE, because the alternative is silence
@@ -352,12 +444,13 @@ export async function handleWhatsAppMessage(m, ctx) {
   const deadlineMs = thirdParty
     ? Number(wa.third_party_deadline_ms) || THIRD_PARTY_DEADLINE_MS
     : Number(wa.turn_deadline_ms) || OWNER_DEADLINE_MS;
+  const attachments = turnMedia?.attachment ? [turnMedia.attachment] : (turnMedia?.attachments || []);
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(new Error("turn deadline")), deadlineMs);
   try {
     turn = thirdParty
-      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, signal: abort.signal })
-      : await runOwnerTurn({ ctx, sender, chatJid, body, media, signal: abort.signal });
+      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body: turnBody, attachments, signal: abort.signal })
+      : await runOwnerTurn({ ctx, sender, chatJid, body: turnBody, attachments, signal: abort.signal });
     reply = turn?.text || "";
     // Aborted mid-flight: whatever came back is a fragment of a turn that was
     // cut, not an answer. Fall through to the never-silent floor.
@@ -371,12 +464,16 @@ export async function handleWhatsAppMessage(m, ctx) {
     //
     // The OWNER gets one too. They are in the conversation like anyone else,
     // and telling them on Telegram while their own WhatsApp stays blank is how
-    // a hang reads as the assistant having stopped working at all.
+    // a hang reads as the assistant having stopped working at all. That last
+    // sentence used to be contradicted two lines below it: a turn that TIMED
+    // OUT answered the owner, and a turn that THREW handed them the empty
+    // string, which sends nothing. A crash is the failure they are most likely
+    // to meet — and the one where silence looks most like being ignored.
     reply = thirdParty
       ? "Perdón, ahora no puedo contestarte bien. Te respondo en un rato."
       : timedOut
         ? "Se me colgó ese pedido y lo corté para no dejarte esperando. Probá de nuevo o decímelo por Telegram."
-        : "";
+        : "Se me rompió el turno acá y no llegué a contestarte. Repetímelo o decímelo por Telegram.";
     await notifyOwner(
       timedOut
         ? `Corté por tiempo el turno de WhatsApp con ${sender.name} (${Math.round(deadlineMs / 1000)}s sin respuesta).`
@@ -385,7 +482,6 @@ export async function handleWhatsAppMessage(m, ctx) {
     );
   } finally {
     clearTimeout(timer);
-    await session.setTyping(chatJid, false);
   }
 
   if (reply && reply.trim()) {
@@ -419,7 +515,7 @@ export async function handleWhatsAppMessage(m, ctx) {
   if (thirdParty) {
     try {
       suggestion = await captureRequest({
-        body,
+        body: turnBody,
         sender,
         chatJid,
         caps: resolveCapabilities(globalConfig, findWhatsAppContact(globalConfig, senderJid)),
@@ -444,9 +540,10 @@ export async function handleWhatsAppMessage(m, ctx) {
         `\nConfirmalo en Settings → WhatsApp → Pendientes.`
       : "";
     await notifyOwner(
-      `WhatsApp · ${sender.name}: ${clip(body, 220)}\n→ le contesté: ${clip(reply, 220) || "(nada)"}${askLine}`,
+      `WhatsApp · ${sender.name}: ${clip(turnBody, 220)}\n→ le contesté: ${clip(reply, 220) || "(nada)"}${askLine}`,
       { kind: "whatsapp_relay", sender_jid: senderJid, suggestion_id: suggestion?.id || null }
     );
+  }
   }
 }
 
@@ -502,7 +599,7 @@ export async function handleOwnWhatsAppMessage(m, ctx) {
 /**
  * The owner's own turn: this is Roby, on WhatsApp instead of Telegram.
  */
-async function runOwnerTurn({ ctx, sender, chatJid, body, media, signal }) {
+async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], signal }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   // The per-turn skill decision. This channel never made it, so the owner
   // asking here got a prompt with no matching skill in it while the same
@@ -519,7 +616,7 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, media, signal }) {
     ...(skills.contextNote ? { contextNote: skills.contextNote } : {}),
     skipSkillsHint: skills.skipSkillsHint,
     previousMessages: threadFor(chatJid, { limit: CONTACT_HISTORY_TURNS * 2 }),
-    attachments: media.attachment ? [media.attachment] : [],
+    attachments,
     channel: CHANNELS.WHATSAPP,
     relationshipBlock: buildWhatsAppRelationshipBlock(sender, globalConfig),
     channelMeta: { chatJid, whatsapp: true },
@@ -543,7 +640,7 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, media, signal }) {
  * else — a shared history across contacts would hand one person what another
  * said without any prompt ever leaking a thing.
  */
-async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, signal }) {
+async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, attachments = [], signal }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   const r = await runSuperAgent({
     globalConfig,
@@ -552,7 +649,7 @@ async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, sig
     registries,
     prompt: body,
     previousMessages: threadFor(chatJid, { limit: CONTACT_HISTORY_TURNS, senderJid }),
-    attachments: media.attachment ? [media.attachment] : [],
+    attachments,
     channel: CHANNELS.WHATSAPP,
     audience: "third_party",
     relationshipBlock: buildWhatsAppRelationshipBlock(sender, globalConfig),
@@ -566,27 +663,6 @@ async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, sig
  * One conversation, as turns. Filtered by the CHAT, so a group is a thread and
  * a person is a thread, and neither can see the other.
  */
-export function threadFor(chatJid, { limit = 12, senderJid = null } = {}) {
-  let records = [];
-  try {
-    records = readGlobalMessages({ channel: CHANNELS.WHATSAPP, limit: 400 }) || [];
-  } catch {
-    return [];
-  }
-  const wanted = normalizeJid(chatJid);
-  return records
-    .filter((r) => {
-      const chat = normalizeJid(r.meta?.chat_jid);
-      if (!chat || chat !== wanted) return false;
-      // Belt and braces for a sealed turn: even inside one chat, only rows that
-      // belong to this correspondent count.
-      if (senderJid && normalizeJid(r.meta?.sender_jid) !== normalizeJid(senderJid)) return false;
-      return r.type === "user" || r.type === "agent";
-    })
-    .slice(-limit)
-    .map((r) => ({ role: r.direction === "in" ? "user" : "assistant", content: r.body || "" }))
-    .filter((t) => t.content);
-}
 
 /**
  * Keep a contact's profile picture on their roster row.
@@ -626,3 +702,6 @@ const shortJid = (jid) => String(jid || "").split("@")[0];
 export function _resetReportThrottle() {
   lastReported.clear();
 }
+
+// Re-exported for callers that have always imported it from the dispatcher.
+export { threadFor };
