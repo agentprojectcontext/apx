@@ -126,33 +126,41 @@ export function Overview({ pid }: { pid: string }) {
         </Section>
       </div>
 
-      {/* What the project has actually been through, across every chat. The
-          per-chat rail cannot answer "which conversation did that stall in" —
-          you have to already know. This is where a request nobody answered and
-          a step the agent recorded as failed become findable. */}
-      <Section
-        title={t("milestones.title")}
-        description={t("milestones.description")}
-        className="!p-4"
-      >
-        <ProjectTimeline pid={pid} />
-      </Section>
-
-      {/* Quick links */}
+      {/* Quick links. Above the two panels below rather than wedged between
+          them: they are a nav strip, and a nav strip halfway down the page is
+          something you scroll PAST on the way to the thing you came for. */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Card title={t("project.overview.chat")} value={t("project.overview.chat_value")} href={`/p/${pid}/chat`} icon={MessagesSquare} />
         <Card title={t("project.overview.mcps")} value={mcps.data?.length ?? "…"} href={`/p/${pid}/mcps`} icon={Puzzle} />
         <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
       </div>
 
-      {/* Team brain — full-width at the bottom. Collapsed: the agent map.
-          Expanded: every agent's full sub-brain (memory / threads / tasks /
-          heartbeats), all connected by hierarchy. */}
-      {agentList.length > 0 && (
-        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
-          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
+      {/* The two views of the same project, side by side: what it HAS DONE and
+          who it is MADE OF. Reading one against the other is the point — a
+          stalled step next to the agent that owns it — and stacked full-width
+          they were a scroll apart. One column below `lg`, where two would make
+          both unreadable rather than comparable. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        {/* What the project has actually been through, across every chat. The
+            per-chat rail cannot answer "which conversation did that stall in" —
+            you have to already know. This is where a request nobody answered and
+            a step the agent recorded as failed become findable. */}
+        <Section
+          title={t("milestones.title")}
+          description={t("milestones.description")}
+          className="!p-4"
+        >
+          <ProjectTimeline pid={pid} />
         </Section>
-      )}
+
+        {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
+            (memory / threads / tasks / heartbeats), connected by hierarchy. */}
+        {agentList.length > 0 && (
+          <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
+            <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
+          </Section>
+        )}
+      </div>
     </div>
   );
 }
