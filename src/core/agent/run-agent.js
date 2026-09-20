@@ -26,6 +26,7 @@ import {
   stuckNudgeSignal,
 } from "./stuck-detector.js";
 import { createGreetingGuard } from "./loop/greeting-guard.js";
+import { clampRunawayText } from "./runaway-text.js";
 import { createSideEffectLedger } from "./loop/side-effects.js";
 import { runToolWithWatchdog, resolveToolDeadline } from "./loop/tool-watchdog.js";
 import {
@@ -495,7 +496,12 @@ export async function runAgent({
   // strip any later one. Belt-and-suspenders over the action-discipline prompt
   // rule (which strong models follow but gemini-flash et al. often ignore).
   const greetingGuard = createGreetingGuard();
-  const dedupeGreeting = (text) => greetingGuard.apply(text);
+  // Two post-processors on the same seam, for the same reason: what a sampler
+  // does at the end of a turn is not always a message. `clampRunawayText` clips
+  // a degenerate run (one emoji, several thousand times) down to something a
+  // channel can carry and a browser can paint — see runaway-text.js for the
+  // turn that produced it. Ordinary text passes through untouched.
+  const settleTurnText = (text) => clampRunawayText(greetingGuard.apply(text));
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
   // "Never end on silence": a model call that returns no tool calls AND no
@@ -786,7 +792,7 @@ export async function runAgent({
       break;
     }
 
-    const visibleText = dedupeGreeting(cleanTextOfPseudoToolCalls(lastText, callableNames).trim());
+    const visibleText = settleTurnText(cleanTextOfPseudoToolCalls(lastText, callableNames).trim());
     if (visibleText) {
       await emitProgress(onEvent, { type: "assistant_text", text: visibleText, iteration: iter + 1 });
     }
@@ -1002,7 +1008,7 @@ export async function runAgent({
     // assistant text and exit the loop.
     if (finishSummary !== null) {
       if (finishSummary) {
-        lastText = dedupeGreeting(finishSummary) || "";
+        lastText = settleTurnText(finishSummary) || "";
         if (lastText) await emitProgress(onEvent, { type: "assistant_text", text: lastText, iteration: iter + 1 });
       }
       break;
@@ -1050,8 +1056,9 @@ export async function runAgent({
   }
 
   return {
-    // Strip a final greeting if an earlier segment in this turn already greeted.
-    text: dedupeGreeting(lastText),
+    // Last pass over what the turn says: strip a greeting an earlier segment
+    // already made, and clip a run the sampler could not stop repeating.
+    text: settleTurnText(lastText),
     usage: totalUsage,
     name: agentName,
     trace,

@@ -63,6 +63,21 @@ interface Props {
   jobScope?: JobScope;
 }
 
+/** How much of one message the transcript paints before asking.
+ *  Well past any answer anyone writes — this is a ceiling on pathology, not a
+ *  length policy. */
+const LONG_TEXT_CAP = 8000;
+
+/** `slice` that never cuts a surrogate pair in half: half an emoji is a
+ *  replacement glyph, which is a rendering bug in place of the one being
+ *  avoided. */
+function safeSlice(text: string, n: number): string {
+  if (text.length <= n) return text;
+  const code = text.charCodeAt(n - 1);
+  const cut = code >= 0xd800 && code <= 0xdbff ? n - 1 : n;
+  return text.slice(0, cut);
+}
+
 export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider, jobScope }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
@@ -71,6 +86,8 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // exactly where notices appear, so the crash was on the feature's own path.
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  // Opened by hand for a message long enough that painting it stops the tab.
+  const [showAll, setShowAll] = useState(false);
   // The edit box is as tall as what's being edited. It used to size itself off
   // the number of NEWLINES in the draft, so a long message written as one
   // paragraph — which is most of them — got two squashed rows with a scrollbar.
@@ -208,15 +225,46 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             would eat their asterisks and line breaks. The first/last child
             margins are zeroed so the block spacing does not double up with the
             bubble's own py-2. */}
-        {mine ? (
-          renderMentions(visibleText(part.text))
-        ) : (
-          <MarkdownPreview
-            content={visibleText(part.text)}
-            mentions
-            className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-          />
-        )}
+        {(() => {
+          // A BUBBLE HAS A CEILING, and it is not cosmetic.
+          //
+          // On 2026-09-20 a turn ended with one emoji repeated several thousand
+          // times. A colour-font glyph is an image, so laying out tens of
+          // thousands of them does not make the transcript slow — it stops the
+          // tab, and the thread simply never appears ("no se ve el chat mejor
+          // dicho el thread"). The daemon clips that at the source now
+          // (core/agent/runaway-text.js), but every message written BEFORE that
+          // is still on disk and is still opened every time the thread is, so
+          // the surface has to survive one on its own.
+          //
+          // Clipped, never dropped: the rest is one click away and the button
+          // says how much there is. Nothing is hidden, and nothing is a wall
+          // the reader cannot get past.
+          const full = visibleText(part.text);
+          const over = full.length - LONG_TEXT_CAP;
+          const clip = !showAll && over > 0;
+          const shown = clip ? safeSlice(full, LONG_TEXT_CAP) : full;
+          return (
+            <>
+              {mine ? renderMentions(shown) : (
+                <MarkdownPreview
+                  content={shown}
+                  mentions
+                  className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                />
+              )}
+              {clip && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="mt-2 block text-[11px] text-muted-fg underline underline-offset-2 hover:text-foreground"
+                >
+                  {t("project.chat.long_clipped", { n: over })} · {t("project.chat.long_show")}
+                </button>
+              )}
+            </>
+          );
+        })()}
       </div>
     ) : null;
 
