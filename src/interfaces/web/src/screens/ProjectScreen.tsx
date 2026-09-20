@@ -6,6 +6,8 @@ import {
   MessagesSquare, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2, Cable,
   Building2, FileText, FolderTree, Sparkles, Handshake,
+  // Aliased: `Route` is already react-router's, imported above.
+  Route as TimelineIcon,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -28,6 +30,7 @@ import { ConfigTab } from "./project/ConfigTab";
 import { AgentsTab } from "./project/AgentsTab";
 import { RoutinesTab } from "./project/RoutinesTab";
 import { TasksTab } from "./project/TasksTab";
+import { TimelineTab } from "./project/TimelineTab";
 import { McpsTab } from "./project/McpsTab";
 import { IntegrationsTab } from "./project/IntegrationsTab";
 import { VarsTab } from "./project/VarsTab";
@@ -97,6 +100,9 @@ export function ProjectScreen() {
         title: t("base.nav_activity"),
         items: [
           { key: "chat", label: t("project.nav.chat"), icon: MessagesSquare },
+          // Next to chat and sessions on purpose: all three answer "what has
+          // been going on", and this is the one that answers it in four lines.
+          { key: "timeline", label: t("project.nav.timeline"), icon: TimelineIcon },
           { key: "sessions", label: t("base.sessions_title"), icon: History },
           { key: "logs", label: t("project.nav.logs"), icon: ScrollText },
         ],
@@ -196,6 +202,7 @@ export function ProjectScreen() {
             switch, and the chat pane owns real state (which conversation is
             open, the loaded messages). Without the key you land on the new
             project still reading the old one's chat. */}
+        <Route path="timeline"     element={<TimelineTab pid={pid} />} />
         <Route path="chat"         element={<ChatTab key={pid} pid={pid} />} />
         <Route path="*"            element={<Overview pid={pid} />} />
       </Routes>

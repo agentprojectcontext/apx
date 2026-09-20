@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wrench, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Route as RouteIcon, Trash2, UserPlus, Wrench, X } from "lucide-react";
 import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
-import { MilestoneRail } from "../../components/chat/MilestoneRail";
+import { ChatTimelinePanel } from "../../components/chat/ChatTimelinePanel";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { PendingTurns } from "../../components/chat/PendingTurns";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
@@ -277,6 +277,9 @@ export function ChatTab({
   useChatVisibility(visibleActivityKey);
 
   const milestones = useMilestones(pid, selected, conversationId, streaming);
+  // Off by default: the transcript is what you came for. The button carries
+  // the counts, so a chat with something open says so without being opened.
+  const [timelineOpen, setTimelineOpen] = useState(false);
 
   const isA2A = selected.kind === "thread" && selected.channel === "a2a";
   const isGroup = selected.kind === "thread" && selected.channel === "group";
@@ -1163,6 +1166,43 @@ export function ChatTab({
               conversationId={conversationId}
               compact
             />
+            {/* The way in to this chat's timeline — and, closed, the only place
+                that says there is something to look at.
+
+                SAME BOX AS THE OTHER THREE (ctlBtn/ctlIcon): this row is one
+                strip of controls, and a button drawn at its own size is the
+                complaint that produced those two constants in the first place.
+                So the counts do NOT widen it — they ride as a dot on the
+                corner, which is what a badge is for. A chat with a step still
+                open reports it without being opened, and the header still fits
+                a phone. */}
+            <div className="relative shrink-0">
+              <Tip content={t("milestones.open_panel")}>
+                <button
+                  type="button"
+                  data-testid="chat-timeline-toggle"
+                  aria-pressed={timelineOpen}
+                  aria-label={t("milestones.open_panel")}
+                  onClick={() => setTimelineOpen((v) => !v)}
+                  className={cn(ctlBtn, timelineOpen && "bg-primary/12 text-primary")}
+                >
+                  <RouteIcon size={ctlIcon} />
+                </button>
+              </Tip>
+              {milestones.stats.failed > 0 || milestones.stats.open > 0 ? (
+                <span
+                  data-testid="chat-timeline-badge"
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none absolute -right-0.5 -top-0.5 grid min-w-3.5 place-items-center",
+                    "rounded-full px-1 text-[9px] font-semibold leading-[14px] tabular-nums text-white",
+                    milestones.stats.failed > 0 ? "bg-rose-600" : "bg-amber-600",
+                  )}
+                >
+                  {milestones.stats.failed || milestones.stats.open}
+                </span>
+              ) : null}
+            </div>
             {/* ONE CONTROL, not a glyph explaining a switch beside it. The
                 wrench already IS the thing being turned on, so the switch was
                 a second widget restating it — and on a phone the pair cost as
@@ -1328,17 +1368,9 @@ export function ChatTab({
             the last line can always be scrolled clear of the field — floating
             over the text is only an improvement while you can still read the
             line you are answering. */}
+        <div className="relative flex min-h-0 flex-1">
         <div className="relative min-h-0 flex-1">
           <div ref={scrollerRef} className="h-full overflow-y-auto overflow-x-hidden">
-            {/* What this chat has actually been through, above the transcript
-                it summarises. Collapsed, and absent entirely for a short chat
-                that went fine — see MilestoneRail for why it earns the space
-                only when there is something to follow or something wrong. */}
-            {milestones.entries.length > 0 && (
-              <div className="px-3 pt-2">
-                <MilestoneRail entries={milestones.entries} stats={milestones.stats} />
-              </div>
-            )}
             {msgs.length || queued.length ? (
               <MessageList
                 msgs={msgs}
@@ -1482,6 +1514,18 @@ export function ChatTab({
               }
             />
           </div>
+        </div>
+
+        {/* Beside the conversation on a wide screen, over it on a narrow one —
+            see ChatTimelinePanel for why that is one component and not two. */}
+        {timelineOpen && (
+          <ChatTimelinePanel
+            entries={milestones.entries}
+            stats={milestones.stats}
+            loading={milestones.loading}
+            onClose={() => setTimelineOpen(false)}
+          />
+        )}
         </div>
       </section>
 

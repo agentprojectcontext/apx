@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { NavLink } from "react-router-dom";
 import useSWR from "swr";
 import { Activity } from "lucide-react";
 import { Milestones, type Timeline, type TimelineEntry } from "../../lib/api/milestones";
@@ -47,7 +48,39 @@ function unfinished(e: TimelineEntry): boolean {
   return e.milestones.some((m) => m.state === "open" || m.state === "failed");
 }
 
-export function ProjectTimeline({ pid }: { pid: string }) {
+/**
+ * The chat a step happened in, as a URL — or null when there is no honest one.
+ *
+ * Addressed the way the chat screen reads its own selection (`queryForChat`):
+ * an agent's conversation is `agent` + `conv`. A step with no conversation id —
+ * the super-agent's own threads, a milestone recorded outside one — gets no
+ * link rather than a guess, because a link that opens the wrong chat is worse
+ * than a row you have to find yourself.
+ *
+ * `agent_slug`, never `agent`: the latter is the display name the turn showed.
+ */
+function chatHrefFor(pid: string, e: TimelineEntry): string | null {
+  if (!e.conversation_id || !e.agent_slug) return null;
+  const q = new URLSearchParams({ agent: e.agent_slug, conv: e.conversation_id });
+  return `/p/${pid}/chat?${q.toString()}`;
+}
+
+interface Props {
+  pid: string;
+  /**
+   * Show only the newest N steps, and put the way to the rest in `moreHref`.
+   *
+   * The glance on the Overview is a GLANCE: a real week came back 85 steps
+   * long, which is not a summary of anything — it is the transcript again, in
+   * a different shape, pushing everything under it off the page. The screen of
+   * its own is where the whole range belongs, so it passes no cap.
+   */
+  limit?: number;
+  /** Where "view all" goes. Omitted on the screen that already IS all of it. */
+  moreHref?: string;
+}
+
+export function ProjectTimeline({ pid, limit, moreHref }: Props) {
   const [range, setRange] = useState<RangeId>("week");
   const [onlyUnfinished, setOnlyUnfinished] = useState(false);
 
@@ -58,10 +91,18 @@ export function ProjectTimeline({ pid }: { pid: string }) {
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
 
-  const entries = useMemo(() => {
+  const filtered = useMemo(() => {
     const all = data?.entries ?? [];
     return onlyUnfinished ? all.filter(unfinished) : all;
   }, [data, onlyUnfinished]);
+
+  // The NEWEST n, not the first n: the timeline reads forward, so a cap taken
+  // off the front would show the oldest steps of the range and hide today's.
+  const entries = useMemo(
+    () => (limit && filtered.length > limit ? filtered.slice(-limit) : filtered),
+    [filtered, limit],
+  );
+  const hidden = filtered.length - entries.length;
 
   // Recomputed rather than taken from the response: the response counts the
   // whole range, and once a filter is on, a header describing a different set
@@ -108,7 +149,23 @@ export function ProjectTimeline({ pid }: { pid: string }) {
           {t("milestones.empty")}
         </p>
       ) : (
-        <MilestoneRail entries={entries} stats={stats} defaultOpen />
+        <MilestoneRail
+          entries={entries}
+          stats={stats}
+          defaultOpen
+          chatHref={(e) => chatHrefFor(pid, e)}
+          footer={
+            hidden > 0 && moreHref ? (
+              <NavLink
+                to={moreHref}
+                data-testid="timeline-view-all"
+                className="text-muted-fg hover:text-foreground hover:underline"
+              >
+                {t("milestones.view_more", { n: hidden })}
+              </NavLink>
+            ) : null
+          }
+        />
       )}
     </div>
   );
