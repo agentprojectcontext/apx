@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import useSWR from "swr";
 import { Tasks } from "../../lib/api";
 import { DONE_COLUMN, type BoardColumn } from "./columns";
@@ -24,8 +25,11 @@ export function useTaskColumns(pid?: string) {
     { revalidateOnFocus: false },
   );
 
-  const columns: BoardColumn[] = data?.columns ?? [];
+  // Memoised for the same reason useProjects is: a derived array rebuilt on
+  // every render makes every dependency array that holds it fire on every
+  // render, which is how a form dialog ended up resetting itself.
+  const columns: BoardColumn[] = useMemo(() => data?.columns ?? [], [data]);
   /** Pickable statuses, in the project's own order. */
-  const statuses = columns.filter((c) => c.id !== DONE_COLUMN);
+  const statuses = useMemo(() => columns.filter((c) => c.id !== DONE_COLUMN), [columns]);
   return { columns, statuses };
 }

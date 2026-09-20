@@ -6,6 +6,7 @@ import { AgentAvatar } from "../agents/AgentAvatar";
 import { useToast } from "../Toast";
 import { relativeWhen } from "../../lib/when";
 import { SUPER_AGENT_SLUG, useMentionables } from "./useMentionables";
+import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentFace, TaskComment } from "../../types/daemon";
@@ -21,7 +22,12 @@ import type { AgentFace, TaskComment } from "../../types/daemon";
  * @-mentioning an agent hands it the task: it runs a real turn with its own
  * tools and writes back another comment. That happens server-side and takes as
  * long as the work takes, so the POST returns as soon as YOUR comment is
- * stored and we poll for the replies (see `waitForReplies`).
+ * stored and the reply arrives later — PUSHED, not polled. The cascade already
+ * announces every comment it writes on the live feed (core/tasks/comment-turn
+ * emits a message event carrying the task id as its thread), so the thread
+ * listens instead of asking. It used to re-fetch every 4s for three minutes,
+ * and because the parent's `onChanged` also refreshes the board, a summoned
+ * agent turned the whole Tasks screen into something that blinked at you.
  *
  * WHO YOU CAN MENTION IS SHOWN, not remembered. Typing "@" opens the roster and
  * a tap completes it. The feature was unusable anywhere you could not already
@@ -29,10 +35,6 @@ import type { AgentFace, TaskComment } from "../../types/daemon";
  * agent with @" and then asked you to guess the handle.
  */
 const THREAD_MAX_H = "max-h-72";
-
-/** How long to keep watching for a summoned agent's reply, and how often. */
-const POLL_MS = 4000;
-const POLL_FOR_MS = 3 * 60 * 1000;
 
 function authorName(by: string | null, faces: Map<string, AgentFace>) {
   if (!by || by === "owner") return t("tasks.comment_owner");
@@ -72,7 +74,6 @@ export function TaskComments({
   const [picking, setPicking] = useState<{ from: number; query: string } | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
   const box = useRef<HTMLTextAreaElement | null>(null);
-  const polling = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // One request for the roster, shared with every other screen on this project,
   // plus the super-agent. It is what lets a comment wear the agent's real face
@@ -99,27 +100,21 @@ export function TaskComments({
     if (el) el.scrollTop = el.scrollHeight;
   }, [comments.length]);
 
-  // Stop polling when the pane closes or the task changes — an interval that
-  // outlives its component keeps re-fetching a task nobody is looking at.
-  useEffect(() => () => { if (polling.current) clearInterval(polling.current); }, [taskId]);
-
   /**
-   * Watch for the summoned agents' replies. There is no push channel for a
-   * task, and the alternative (awaiting the run inside the POST) times out on
-   * the phone and gets retried into a second, duplicate run.
+   * A summoned agent's reply, pushed.
+   *
+   * comment-turn.js announces every comment it writes with the TASK id in the
+   * event's `thread` — the one place on the a2a channel where that field is not
+   * a day file — so "did my task move" is an exact match and not a guess. A
+   * resync (the socket was down) revalidates once, like everywhere else.
+   *
+   * Always on, not armed by a send: the reply can also come from a cascade
+   * somebody else started, from the phone, or from a routine. The socket is the
+   * panel's one shared connection, so listening costs nothing.
    */
-  const waitForReplies = () => {
-    if (polling.current) clearInterval(polling.current);
-    const started = Date.now();
-    polling.current = setInterval(() => {
-      if (Date.now() - started > POLL_FOR_MS) {
-        if (polling.current) clearInterval(polling.current);
-        polling.current = null;
-        return;
-      }
-      onChanged();
-    }, POLL_MS);
-  };
+  useLiveMessages((events) => {
+    if (events.some((ev) => ev.scope === "resync" || ev.thread === taskId)) onChanged();
+  });
 
   const type = (value: string, caret: number) => {
     setText(value);
@@ -170,7 +165,6 @@ export function TaskComments({
       onChanged();
       if (summoned?.length) {
         toast.info(t("tasks.comment_summoned", { who: summoned.map((s) => `@${s}`).join(", ") }));
-        waitForReplies();
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.error_generic"));

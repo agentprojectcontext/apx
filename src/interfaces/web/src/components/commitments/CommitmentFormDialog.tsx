@@ -42,13 +42,23 @@ export function CommitmentFormDialog({
   const pid = editing?.pid ?? fixedPid ?? target;
   const current = editing?.commitment;
 
+  // Reset on OPEN. `projects` is not a dependency on purpose — see the same
+  // effect in TaskFormDialog: it is a fresh array on every render of the screen
+  // above, so depending on it here emptied the form under whoever was typing.
   useEffect(() => {
     if (!open) return;
     setWho(current?.counterparty ?? "");
     setWhat(current?.body ?? "");
     setDue(current?.due ? String(current.due).slice(0, 10) : "");
-    setTarget(fixedPid ?? String(projects?.[0]?.id ?? ""));
-  }, [open, current, fixedPid, projects]);
+    setTarget(fixedPid ?? "");
+  }, [open, current, fixedPid]);
+
+  // The project picker's default, on the cross-project screen only, and only
+  // onto an empty target.
+  useEffect(() => {
+    if (!open || fixedPid || current) return;
+    setTarget((prev) => prev || String(projects?.[0]?.id ?? ""));
+  }, [open, fixedPid, current, projects]);
 
   const save = async () => {
     if (!who.trim() || !what.trim() || !pid) return;
