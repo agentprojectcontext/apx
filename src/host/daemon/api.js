@@ -28,6 +28,7 @@ import {
 import { register as registerTools } from "./api/tools.js";
 import { register as registerHealth } from "./api/health.js";
 import { register as registerUpdate } from "./api/update.js";
+import { register as registerAndroid } from "./api/android.js";
 import { register as registerProjects } from "./api/projects.js";
 import { register as registerAgents } from "./api/agents.js";
 import { register as registerSessions } from "./api/sessions.js";
@@ -173,6 +174,7 @@ export function buildApi({
 
   // ---- Is there a newer APX? ---------------------------------------
   registerUpdate(api, ctx);
+  registerAndroid(api);
 
   // ---- Projects + per-project surfaces -----------------------------
   registerProjects(api, ctx);

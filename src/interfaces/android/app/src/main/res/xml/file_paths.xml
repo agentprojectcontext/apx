@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the FileProvider is allowed to hand out.
+
+  ONE directory, and it is the app's own cache. The downloaded APK is the only
+  file APX ever shares with another app, it is worthless the moment it is
+  installed, and a provider scoped to `.` would offer every file the app owns
+  to anything holding a URI it guessed.
+-->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

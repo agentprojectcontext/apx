@@ -204,8 +204,24 @@ developer menu tick **Unknown sources**.
 
 ## Updating
 
-Install the new APK over the old one — `apx android install` again, or download
-it and tap it. Your pairing, settings and permissions survive.
+**From the app.** APX's menu → **Buscar actualizaciones**. If there is a newer
+version it offers it, downloads it, checks it against the published sha256 and
+hands it to Android's installer. The app also looks on its own every time you
+open it, and speaks only when there is something to install.
+
+The first time, Android asks for permission to let APX install apps. It is a
+per-app switch, granted once, and there is no way around it outside Play — nor
+should there be: an app that can replace itself without anyone being asked can
+replace itself with anything.
+
+**Without the app.** Install the new APK over the old one — `apx android install`
+again, or download it and tap it. Your pairing, settings and permissions survive.
+
+<Aside type="tip">
+  After updating from outside the app, open it once: on some Android builds the
+  notification service stays down until someone does, and nothing about that
+  looks broken from the outside.
+</Aside>
 
 <Aside type="caution">
   Android identifies an app by its signing key. An APK signed with a different
