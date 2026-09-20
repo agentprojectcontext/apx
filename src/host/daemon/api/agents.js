@@ -33,8 +33,8 @@ import {
   writeAgentMemory,
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
-import { readPacks, planPackInstall, installPack, takenAgentNames } from "#core/apc/agent-packs.js";
-import { pickAgentName } from "#core/apc/agent-names.js";
+import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
+import { pickAgentName, takenAgentNames } from "#core/apc/agent-names.js";
 import { pickBlob, isBlobKey } from "#core/apc/agent-identity.js";
 import { vaultDisplayStrings, localizePack } from "#core/apc/vault-strings.js";
 import { readConfig } from "#core/config/index.js";

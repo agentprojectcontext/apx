@@ -8,6 +8,7 @@ import {
 } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
+import { newAgentName } from "#core/apc/agent-names.js";
 import { http } from "../http.js";
 import { readStdinSync } from "../stdin.js";
 import { resolveProjectId, resolveProjectRoot } from "./project.js";
@@ -119,6 +120,14 @@ export async function cmdAgentAdd(args) {
 
   const fields = {};
   const f = args.flags;
+  // A name, always — `--name` or one from the pool. Without it every surface
+  // prints the slug instead ("cfo / cfo"), which is the address, not a name.
+  // Same rule the daemon API and the vault importer already follow.
+  fields.Name = newAgentName({
+    name: f.name && f.name !== true ? String(f.name) : null,
+    slug,
+    roster: existing,
+  });
   if (f.role && f.role !== true)        fields.Role = f.role;
   if (f.model && f.model !== true)      fields.Model = f.model;
   if (f.language && f.language !== true) fields.Language = f.language;
