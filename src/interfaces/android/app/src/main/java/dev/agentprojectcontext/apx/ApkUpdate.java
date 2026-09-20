@@ -73,17 +73,24 @@ final class ApkUpdate {
      *
      * `installed` goes along so the daemon answers the actual question rather
      * than two numbers to compare here.
+     *
+     * `force` ONLY when the owner pressed the row. It makes the daemon skip its
+     * cache and go to GitHub, which is right when somebody is standing there
+     * waiting and wrong on every other call: the silent check runs on every
+     * foregrounding, and forcing it there turned an hour-cached answer into a
+     * GitHub round trip several times a day, per phone. That is slow enough to
+     * lose the race against the menu opening — the row still said "Buscar
+     * actualizaciones" twelve seconds in — and it spends an anonymous rate
+     * limit of 60/hour that every paired phone shares.
      */
-    static void check(String daemonUrl, String token, CheckCallback callback) {
+    static void check(String daemonUrl, String token, boolean force, CheckCallback callback) {
         if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) {
             callback.onCheckFailed("Este teléfono todavía no está vinculado.");
             return;
         }
         HttpUrlBuilder url = new HttpUrlBuilder(daemonUrl + "/api/android/latest")
-            .param("installed", BuildConfig.VERSION_NAME)
-            // The owner is standing there wondering, which is exactly when an
-            // hour-old cached answer is the wrong one.
-            .param("force", "1");
+            .param("installed", BuildConfig.VERSION_NAME);
+        if (force) url.param("force", "1");
         Request request = new Request.Builder()
             .url(url.toString())
             .header("Authorization", "Bearer " + token)
