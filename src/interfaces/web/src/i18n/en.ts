@@ -859,6 +859,10 @@ export const en = {
       copy:        "Copy",
       copied:      "Copied.",
       stopped_marker: " [stopped]",
+      // A message long enough to freeze the tab is drawn clipped until asked
+      // for. See MessageBubble — the run of emoji that started this.
+      long_clipped: "Very long message — {n} more characters",
+      long_show:    "Show all of it",
       create_agent:   "Create agent",
       view_agent:     "View agent",
       create_agent_title: "Create agent",

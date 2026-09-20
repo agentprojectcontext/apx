@@ -875,6 +875,8 @@ export const es = {
       copy:        "Copiar",
       copied:      "Copiado.",
       stopped_marker: " [detenido]",
+      long_clipped: "Mensaje muy largo — {n} caracteres más",
+      long_show:    "Mostrarlo entero",
       create_agent:   "Crear agente",
       view_agent:     "Ver agente",
       create_agent_title: "Crear agente",

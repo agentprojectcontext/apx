@@ -778,7 +778,7 @@ function newGroupId() {
  *  several projects, each speaker's home project is recorded so the turn runner
  *  can load the right `.apc` agent (and memory) instead of only the host's roster.
  */
-export function createGroupThread(logMessage, { participants = [], title = null, homes = null } = {}) {
+export function createGroupThread(logMessage, { participants = [], title = null, homes = null, ts = null, from = null } = {}) {
   const slugs = [...new Set(participants.filter(Boolean))];
   if (!slugs.length) throw new Error("a group needs at least one agent");
   const group_id = newGroupId();
@@ -787,7 +787,18 @@ export function createGroupThread(logMessage, { participants = [], title = null,
     : {};
   logMessage({
     channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
-    body: "", meta: { group_id, kind: "group_created", participants: slugs, title, ...homesMeta },
+    body: "",
+    // Stamped before the first replayed line when a room is a PROMOTED 1:1:
+    // `groupRows` sorts by ts, and a creation row dated after the history it
+    // introduces makes the roster arrive in the middle of its own transcript.
+    ...(ts ? { ts } : {}),
+    meta: {
+      group_id, kind: "group_created", participants: slugs, title, ...homesMeta,
+      // Where this room came from, when it is not new: `{ agent, conversation }`
+      // of the 1:1 it grew out of. Kept so the room can say so and so the old
+      // chat can be found from the new one.
+      ...(from ? { from } : {}),
+    },
   });
   return group_id;
 }
@@ -805,17 +816,22 @@ export function addGroupParticipant(logMessage, group_id, participants, added = 
 /** Append the owner's line. `type:"user"` → the viewer renders it as sent-by-me.
  *  `media` (the `{media_kind, local_path, …}` shape from readTurnAttachments) is
  *  folded into meta so the transcript renders the photo/file the owner sent. */
-export function appendGroupOwnerMessage(logMessage, group_id, body, media = null) {
+export function appendGroupOwnerMessage(logMessage, group_id, body, media = null, { ts = null } = {}) {
   return logMessage({
     channel: GROUP_CHANNEL, direction: "in", type: "user", author: "owner",
     actor_kind: "user", body, meta: { group_id, ...(media || {}) },
+    // Normally "now" — the owner is typing. An explicit `ts` is for REPLAYED
+    // history (a 1:1 promoted into a room): those lines were said when they
+    // were said, and stamping them now would file yesterday's conversation as
+    // today's and reorder the transcript around it.
+    ...(ts ? { ts } : {}),
   });
 }
 
 /** Append one agent's reply, attributed to it and carrying who summoned it.
  *  `media` is what it attached to this reply (attach_media) — archived and
  *  folded into meta so the room shows the image, not just the sentence. */
-export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null, trace = [], media = [] }) {
+export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null, trace = [], media = [], ts = null }) {
   const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
   const toolSummary = summarizeToolTrace(steps);
   for (const step of steps) {
@@ -829,6 +845,8 @@ export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reas
   return logMessage({
     channel: GROUP_CHANNEL, direction: "out", type: "agent", agent_slug: slug, author: slug,
     actor_kind: "agent", body,
+    // See appendGroupOwnerMessage: only replayed history passes one.
+    ...(ts ? { ts } : {}),
     meta: {
       group_id,
       final: true,
@@ -1737,20 +1755,38 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
       // One day file becomes one thread per person in it. For every channel but
       // WhatsApp that is a single group keyed `null` — the plain date — so this
       // is the same loop it always was, run once.
+      //
+      // …and per PROJECT, when nobody narrowed to one. An UNSCOPED read is the
+      // cross-project view the agent inbox takes, and the web channel is used
+      // from every project: merging them produced a row that could not be
+      // opened. The inbox listed the super-agent's latest web day, said it
+      // belonged to no project (so the phone opened it as project 0), and the
+      // detail route — which DOES scope — answered `404: thread not found`
+      // because every row in that day had been written inside another project.
+      // Manu, 2026-09-20: "Te veo charlando pero no me abre el post", with a
+      // screenshot of that exact 404 over an empty pane.
+      //
+      // A scoped read has already been filtered to one project, so the key is
+      // constant there and this is the same single group it always was.
       const groups = new Map();
       for (const r of msgs) {
-        const key = rowContact(r, ch);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(r);
+        const home = rowProject(r) ?? DEFAULT_THREAD_PROJECT;
+        const key = `${rowContact(r, ch) ?? ""}\u0000${home}`;
+        if (!groups.has(key)) groups.set(key, { contact: rowContact(r, ch), project: home, rows: [] });
+        groups.get(key).rows.push(r);
       }
 
-      for (const [contact, rows] of groups) {
+      for (const { contact, project: home, rows } of groups.values()) {
         const id = threadId(m[1], contact);
         const over = meta[threadKey(ch, id)] || {};
         if (over.archived && !includeArchived) continue;
         out.push({
           id,
           channel: ch,
+          // WHICH project's view this thread belongs to — the answer the detail
+          // route needs and the reason a row is openable at all. Always set, so
+          // a caller never has to guess "0" for it.
+          project: home,
           ...(contact ? { contact, contact_name: contactName(rows) } : {}),
           // What the reader called it wins over the first thing that was said.
           title: over.title || threadTitle(ch, id, contact, rows),
