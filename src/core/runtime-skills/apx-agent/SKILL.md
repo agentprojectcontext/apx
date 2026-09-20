@@ -38,7 +38,7 @@ If you are the super-agent, you have native tools for the agent lifecycle — us
 
 | Tool | Does | Notes |
 |---|---|---|
-| `create_agent` | Creates the agent **with its system prompt** in one call | `system` is **required** — it refuses a body-less agent. Pass `slug` + `system`; add `role`/`skills`/`area`/`model` as needed. Omit `tools` unless narrowing. |
+| `create_agent` | Creates the agent **with its system prompt** in one call | `system` is **required** — it refuses a body-less agent. Pass `slug` + `system`; add `role`/`skills`/`area`/`model` as needed. Omit `tools` unless narrowing, and `name` unless you have a person's name in mind (see below). |
 | `set_agent_prompt` | Replaces an existing agent's prompt | Keeps every frontmatter field. |
 | `configure_agent` | Edits frontmatter (model, type, area, role, skills, …) | Keeps the prompt. Only the fields you pass change; empty string clears one. |
 | `rename_agent` | Renames the agent — display name **and** slug — and repoints everything aimed at the old slug | The ONLY safe way to rename. Pass `name` (the slug follows) or `slug`. Master/orchestrator agents and the super-agent only. |
@@ -54,6 +54,15 @@ The slug is the agent's physical key: it names `.apc/agents/<slug>.md`, the runt
 `rename_agent({ agent, name })` is the same operation the web's rename button runs — it moves the files, carries the memory and repoints every one of those pointers. It answers with `repointed` (what moved, per store) and `still_mentions`: prose in somebody's prompt or memory that names the agent the old way. That part is deliberately NOT rewritten — a slug is usually an ordinary word — so fix those with `set_agent_prompt` if they matter.
 
 Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` → optionally `write_agent_memory({ agent: slug, content: "..." })` to seed progress → `remember_routine(...)` for any schedule. One tool each, no shell, prompt inline.
+
+## The name is a person; the job is the role
+
+`cfo` is the address — the filename, what a `Parent` points at, what a2a and an @mention carry. **`name` is who they are, and it is a person's name: Luis, Karla, Nora.** The job goes in `role`, the one line about it in `description`. Fold the job into the name and every surface says the address twice — "productor-reels · Productor Reels", a group bubble headed with a filename.
+
+- **Omit `name` and APX picks one** nobody on this machine is using, out of the same pool the vault importer draws from (`assets/agent-names.json`). That is the normal case: you rarely have a reason to prefer a name.
+- A name that is only the slug spelled out is read as the ROLE it actually is, and the agent is named from the pool. Nothing you wrote is lost — but don't rely on it: write the role in `role`.
+- `create_agent` answers with the `name` the agent ended up with. Use it when you talk about them.
+- An `area` the project has never heard of is **created**, and the agent gets a role on the org chart. So `area` is worth passing, not worth inventing twice — call `list_agents`/`org` first and reuse the area that exists.
 
 ## Identity: typology, area, role, avatar
 
