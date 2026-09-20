@@ -62,6 +62,11 @@ test("the corner says one thing at a time, in a deliberate order", () => {
   assert.match(stack, /\[&>\*:first-child\]:relative/);
   assert.match(stack, /\[&>\*:not\(:first-child\)\]:top-0/);
   assert.match(stack, /\[&>\*:not\(:first-child\)\]:pointer-events-none/);
+  // And the BOX itself is transparent to clicks. It draws nothing and covers
+  // the whole bottom-right corner; without this it ate every click that landed
+  // there, and e2e failed in specs that never mention these cards.
+  assert.match(stack, /"pointer-events-none fixed bottom-4 right-4/);
+  assert.match(stack, /\[&>\*:first-child\]:pointer-events-auto/);
   // Deep enough to hint, not deep enough to be a pile.
   assert.match(stack, /\[&>\*:nth-child\(n\+4\)\]:hidden/);
   const order = ["NotifyNudge", "CommunityCard", "UpdateBanner", "StarCard"]

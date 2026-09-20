@@ -735,12 +735,17 @@ export function CodeScreen() {
     const wantPid = searchParams.get("pid");
     const cmd = searchParams.get("cmd");
     const edit = searchParams.get("edit");
-    if (!wantPid || (!cmd && !edit)) return;
-    // Wait until the requested project is active so the command/edit targets it.
-    if (String(pid) !== String(wantPid)) {
+    if (!cmd && !edit) return;
+    // A project is only REQUIRED when the caller names one. The settings offer
+    // hands over `apx update`, which is a global command with no project to
+    // belong to — demanding a pid there would mean inventing one.
+    if (wantPid && String(pid) !== String(wantPid)) {
       setPid(String(wantPid));
       return;
     }
+    // Still waiting for the default project to land; the terminal runs inside
+    // one, so there is nothing to hand the command to yet.
+    if (!pid) return;
     deepLinkDone.current = true;
     if (edit) openArtifact(edit);
     if (cmd) runInTerminal(cmd.endsWith(" ") ? cmd : cmd + " ");
