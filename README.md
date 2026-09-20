@@ -1,4 +1,8 @@
 <p align="center">
+  <a href="https://discord.gg/vxdZuT5WuE"><img src="assets/discord-ribbon.svg" alt="Join the APX community on Discord — discord.gg/vxdZuT5WuE" width="820"></a>
+</p>
+
+<p align="center">
   <img src="assets/banner.svg" alt="APX — Agent Project eXecutable" width="820">
 </p>
 
