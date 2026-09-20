@@ -213,7 +213,19 @@ test("one set of chat actions, dressed for the room it is in", () => {
   // the way the project's right-click menu does, or the menu is four verbs with
   // no subject.
   assert.match(tab, /\{t\("inbox\.open_in_project"\)\} <ArrowUpRight/);
-  assert.match(tab, /<MoreVertical size=\{compact \? 20 : 16\} \/>/);
+  // One rule for every control in the strip — tasks, tools, add-person, ⋯.
+  // Three sizes in one row is what made add-person look enormous beside the
+  // other two. And the SMALL box on the phone as well, against the usual
+  // grow-it-for-the-thumb rule: four 40px circles left the session name three
+  // letters wide, and reading whose session this is matters more here than a
+  // fatter target. The phone keeps the touch feedback, not the size.
+  assert.match(tab, /const ctlIcon = 16;/);
+  assert.match(tab, /const ctlBtn = cn\(/);
+  assert.match(tab, /"flex size-8 shrink-0 items-center justify-center rounded-full text-muted-fg"/);
+  assert.match(tab, /compact \? "active:bg-accent\/60" : "hover:bg-accent\/60"/);
+  assert.match(tab, /<MoreVertical size=\{ctlIcon\} \/>/);
+  assert.match(tab, /<UserPlus size=\{ctlIcon\} \/>/);
+  assert.match(tab, /<Wrench size=\{ctlIcon\} \/>/);
   assert.match(tab, /<DropdownMenuLabel[\s\S]{0,140}\{convLabel \|\| t\("mobile\.live_session"\)\}/);
   // Destroying is below a line, on its own: it is the one that cannot be undone.
   assert.match(tab, /<DropdownMenuSeparator \/>[\s\S]{0,200}deleteAction\.onClick/);
