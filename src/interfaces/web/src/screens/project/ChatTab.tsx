@@ -995,7 +995,7 @@ export function ChatTab({
         {hideHeader ? null : <header
           data-testid="chat-header"
           className={cn(
-            "flex shrink-0 items-center justify-between gap-3 border-b border-border",
+            "flex shrink-0 flex-col border-b border-border",
             // The phone pays for the notch here rather than in a second header
             // of its own: one implementation, two frames around it.
             //
@@ -1004,19 +1004,26 @@ export function ChatTab({
             // a SECOND time and the chat opens with a band of empty space the
             // list it came from does not have. Same condition the phone list
             // uses for its own header.
-            compact
-              ? cn("gap-2 px-2 pb-2", isNativeShell() ? "pt-1.5" : "pt-[max(0.5rem,env(safe-area-inset-top))]")
-              : "px-3 py-2",
+            compact && (isNativeShell() ? "pt-1.5" : "pt-[max(0.5rem,env(safe-area-inset-top))]"),
           )}
         >
+        <div className={cn(
+          "flex items-center justify-between",
+          compact ? "gap-2 px-2 pb-1.5" : "gap-3 px-3 py-2",
+        )}>
           {onBack && (
             <button
               type="button"
               onClick={onBack}
               aria-label={t("mobile.back")}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+              className={ctlBtn}
             >
-              <ChevronLeft size={22} />
+              {/* The one glyph in this header that is not 16px. A chevron is a
+                  thin stroke with nothing inside it, so at the strip's size it
+                  reads a size smaller than the solid glyphs beside it — and it
+                  is the control reached for most. The BOX is what cost width,
+                  and that is now the same 32px as the rest. */}
+              <ChevronLeft size={20} />
             </button>
           )}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
@@ -1098,8 +1105,15 @@ export function ChatTab({
               )}
               {/* Who answered, where, and when — three facts, each short. Kept
                   on one line and truncated as a whole, so a long agent name
-                  cannot push the channel and the date onto a second row. */}
-              <p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-fg">
+                  cannot push the channel and the date onto a second row.
+
+                  ON THE PHONE this line keeps only the WHO. Four facts in an
+                  11px line squeezed beside a 36px face is how "Roby · tecnomanu
+                  · web · 20/9/2026" became "R… · tecno… · web": every one of
+                  them truncated, so the line said nothing four times over.
+                  Where and when moved to the band under the header, which has
+                  the whole width to say them in. */}
+              {(!isMultiThread || !compact) && <p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-fg">
                 {/* For a2a the picker above already names both agents, so the
                     meta line skips the "who" and leads with the channel. */}
                 {!isMultiThread && <span className="truncate">{agentLabel}</span>}
@@ -1118,15 +1132,15 @@ export function ChatTab({
                     own badge beside the channel's and never folded into it:
                     they answer different questions, and the default workspace
                     answers neither (ProjectTag draws nothing for it). */}
-                {showProject && (
+                {showProject && !compact && (
                   <ProjectTag projectId={pid} name={project?.name} />
                 )}
-                <span className="shrink-0">· {shownChannel}</span>
-                {createdIso && <span className="shrink-0">· {formatDate(createdIso)}</span>}
+                {!compact && <span className="shrink-0">· {shownChannel}</span>}
+                {createdIso && !compact && <span className="shrink-0">· {formatDate(createdIso)}</span>}
                 {conversationMeta?.engine && !compact && (
                   <span className="truncate">· {conversationMeta.engine}</span>
                 )}
-              </p>
+              </p>}
             </div>
           </div>
 
@@ -1360,6 +1374,37 @@ export function ChatTab({
               </DropdownMenu>
             )}
           </div>
+        </div>
+        {/* WHERE THIS CONVERSATION IS, on its own band under the header.
+
+            The phone's header was trying to be four things at once inside the
+            width left over by a face and five controls: the session, the
+            agent, the project and the channel. Manu, 2026-09-20: "podrías
+            sumar una sección luego del título, así dividida por una línea
+            gris… con el nombre del proyecto y el canal. Arriba quedaría la
+            sesión y el nombre del agente, y en la barra esa sólo el proyecto
+            con el cuadro y el ícono de carpeta, y el canal al final."
+
+            So the top row answers WHO and WHICH SESSION, and the band answers
+            WHERE — with the whole width to do it, which is what stops the
+            project from being "tecno…". Left and right rather than a list,
+            because they are two different questions: which project this came
+            from, and which channel it came in on.
+
+            The phone only. A desktop header has room for one line that says
+            all of it, and a second band there would be furniture. */}
+        {compact && (
+          <div
+            data-testid="chat-header-where"
+            className="flex items-center gap-2 border-t border-border/60 px-2 py-1 text-[10px] text-muted-fg"
+          >
+            {showProject && <ProjectTag projectId={pid} name={project?.name} />}
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+              <span className="uppercase tracking-wide">{shownChannel}</span>
+              {createdIso && <span>· {formatDate(createdIso)}</span>}
+            </span>
+          </div>
+        )}
         </header>}
 
         {/* The thread and the dock share the same box: the composer HOVERS over
