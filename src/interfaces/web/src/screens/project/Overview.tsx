@@ -137,7 +137,20 @@ export function Overview({ pid }: { pid: string }) {
 
           One column below `lg`, where two would make both unreadable rather
           than comparable. */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+      {/* Quick links, ABOVE the two panels: three short rows of nav that cost
+          almost no height, over two tall ones that are read rather than
+          scanned. Under them they sat past the fold of the taller card. */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        <Card title={t("project.overview.chat")} value={t("project.overview.chat_value")} href={`/p/${pid}/chat`} icon={MessagesSquare} />
+        <Card title={t("project.overview.mcps")} value={mcps.data?.length ?? "…"} href={`/p/${pid}/mcps`} icon={Puzzle} />
+        <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
+      </div>
+
+      {/* Stretched, not top-aligned: the agent map is much taller than ten
+          steps, and two cards ending at different heights read as a layout bug
+          rather than as two panels. The timeline fills the row instead — rows
+          at the top, the way to the rest pinned at the bottom. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* What the project has actually been through, across every chat. The
             per-chat rail cannot answer "which conversation did that stall in" —
             you have to already know. This is where a request nobody answered and
@@ -146,11 +159,12 @@ export function Overview({ pid }: { pid: string }) {
           title={t("milestones.title")}
           description={t("milestones.description")}
           className="!p-4"
+          fullHeight
         >
           {/* A GLANCE, not the whole thing. A real week came back 85 steps
               long — the transcript again in a different shape. The newest
               handful, and the way to the rest is the screen built for it. */}
-          <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
+          <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} fill />
         </Section>
 
         {/* Collapsed: the agent map. Expanded: every agent's full sub-brain
@@ -162,14 +176,6 @@ export function Overview({ pid }: { pid: string }) {
         )}
       </div>
 
-      {/* Quick links, UNDER the two panels. They are a nav strip: somewhere to
-          go next, read once you have finished reading the page — not something
-          to scroll past on the way to it. */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <Card title={t("project.overview.chat")} value={t("project.overview.chat_value")} href={`/p/${pid}/chat`} icon={MessagesSquare} />
-        <Card title={t("project.overview.mcps")} value={mcps.data?.length ?? "…"} href={`/p/${pid}/mcps`} icon={Puzzle} />
-        <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
-      </div>
     </div>
   );
 }

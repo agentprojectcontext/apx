@@ -37,10 +37,18 @@ export const Tasks = {
         `/api/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
       )
       .then((b) => unwrapPage<TaskEntry>(b)),
-  globalPage: ({ state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: string }) =>
+  globalPage: (
+    { state, limit, offset, status, due_before }:
+    { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: string; due_before?: string },
+  ) =>
     http
       .get<unknown>(
-        `/api/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
+        `/api/tasks?state=${state}&limit=${limit}&offset=${offset}`
+        + (status ? `&status=${status}` : "")
+        // Inclusive, compared as a string against whatever `due` was written as
+        // — so callers asking for "up to today" pass the end of today, not its
+        // date, or a task stored as a full ISO timestamp falls out.
+        + (due_before ? `&due_before=${encodeURIComponent(due_before)}` : ""),
       )
       .then((b) => unwrapPage<GlobalTaskEntry>(b)),
   get:    (pid: string, id: string) => http.get<TaskEntry>(`/api/projects/${pid}/tasks/${id}`),

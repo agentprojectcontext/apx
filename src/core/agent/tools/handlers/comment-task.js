@@ -36,7 +36,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, channelMeta }) => async (args = {}) => {
+  makeHandler: ({ projects, channelMeta, globalConfig }) => async (args = {}) => {
     const { task, text, project } = args;
     if (!task) return missingArg("comment_task", "task", { required: ["task", "text"], optional: ["project"] }, args);
     if (!text || !String(text).trim()) {
@@ -55,7 +55,7 @@ export default {
       // generic id would make every agent's notes indistinguishable in a thread
       // whose entire value is knowing who said what.
       const by = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
-      const mentions = mentionedAgents(text, p.path, by);
+      const mentions = mentionedAgents(text, p.path, by, globalConfig);
       const result = addComment(p.storagePath, task, { by, text, mentions });
       if (!result) return { error: `task not found: ${task}` };
       return {

@@ -207,9 +207,18 @@ interface Props {
   /** Rendered under the last row. The cross-chat glance shows a slice and puts
    *  the way to the rest here; the full screen passes nothing. */
   footer?: React.ReactNode;
+  /**
+   * Fill the height the caller gives it instead of being as tall as its rows.
+   *
+   * For a rail sitting beside something taller — the Overview, where it shares
+   * a row with the agent map. Left to itself the two cards end at different
+   * heights and the row reads as broken; growing puts the rows at the top and
+   * the footer link at the bottom, which is where a reader looks for it anyway.
+   */
+  grow?: boolean;
 }
 
-export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUneventful = true, chatHref, footer }: Props) {
+export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUneventful = true, chatHref, footer, grow = false }: Props) {
   const [manual, setManual] = useState<boolean | null>(null);
   const open = manual ?? defaultOpen;
 
@@ -219,7 +228,10 @@ export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUne
   return (
     <div
       data-testid="milestone-rail"
-      className="w-full overflow-hidden rounded-lg border border-border bg-muted/20"
+      className={cn(
+        "w-full overflow-hidden rounded-lg border border-border bg-muted/20",
+        grow && "flex min-h-0 flex-1 flex-col",
+      )}
     >
       <button
         type="button"
@@ -266,7 +278,14 @@ export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUne
       </button>
 
       {open && (
-        <ul className="flex flex-col border-t border-border/60 px-2.5 py-2 [&>li:last-child>div:first-child>span]:hidden">
+        <ul
+          className={cn(
+            "flex flex-col border-t border-border/60 px-2.5 py-2 [&>li:last-child>div:first-child>span]:hidden",
+            // Only the grown shape scrolls: a rail as tall as its rows has
+            // nothing to scroll, and a scroller there would clip the last one.
+            grow && "min-h-0 flex-1 overflow-y-auto",
+          )}
+        >
           {entries.map((entry, i) => (
             <Row
               key={`${entry.kind}-${entry.started_at}-${i}`}
@@ -277,7 +296,9 @@ export function MilestoneRail({ entries, stats, defaultOpen = false, hideWhenUne
         </ul>
       )}
       {open && footer ? (
-        <div className="border-t border-border/60 px-2.5 py-1.5 text-[12px]">{footer}</div>
+        <div className={cn("border-t border-border/60 px-2.5 py-1.5 text-[12px]", grow && "shrink-0")}>
+          {footer}
+        </div>
       ) : null}
     </div>
   );

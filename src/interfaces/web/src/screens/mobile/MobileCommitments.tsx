@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { CalendarClock, Check, ExternalLink, Handshake, Trash2, X } from "lucide-react";
+import { CalendarClock, Check, ExternalLink, Handshake, Pencil, Trash2, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { CommitmentBadge, CommitmentIcon, commitmentFace, commitmentTint } from "../../components/commitments/commitmentState";
 import { useToast } from "../../components/Toast";
 import { Loading } from "../../components/ui";
-import { Commitments, type CommitmentState, type GlobalCommitmentEntry } from "../../lib/api/commitments";
-import { DueChip, MobileChip, MobileGroupHeader, MobileListHeader, dueBucketLabel, groupByDue } from "./mobileList";
+import { Commitments, type CommitmentEntry, type CommitmentState, type GlobalCommitmentEntry } from "../../lib/api/commitments";
+import { CommitmentFormDialog } from "../../components/commitments/CommitmentFormDialog";
+import { useProjects } from "../../hooks/useProjects";
+import {
+  DueChip, MobileChip, MobileGroupHeader, MobileListHeader, MobileNewButton,
+  SwipeAction, SwipeRow, dueBucketLabel, groupByDue,
+} from "./mobileList";
 import { SheetAction } from "./MobileTasks";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -32,6 +37,12 @@ export function MobileCommitments() {
   const [query, setQuery] = useState("");
   const [pages, setPages] = useState(1);
   const [open, setOpen] = useState<GlobalCommitmentEntry | null>(null);
+  // Writing one down is the half the phone was missing. It is also the half
+  // that matters most here: the moment you promise something is a conversation,
+  // not a desk — and an unrecorded promise is the only kind that gets missed.
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ pid: string; commitment: CommitmentEntry } | null>(null);
+  const { projects } = useProjects();
 
   const limit = PAGE * pages;
   const { data, isLoading, mutate } = useSWR(
@@ -67,6 +78,13 @@ export function MobileCommitments() {
         query={query}
         onQuery={setQuery}
         searchPlaceholder={t("mobile.commitments_search")}
+        actions={
+          <MobileNewButton
+            label={t("mobile.new_commitment")}
+            testId="mobile-commitment-new"
+            onClick={() => setAdding(true)}
+          />
+        }
         filters={FILTERS.map((s) => (
           <MobileChip
             key={s}
@@ -96,7 +114,12 @@ export function MobileCommitments() {
             )}
             <ul className="divide-y divide-border/60">
               {group.rows.map((c) => (
-                <CommitmentRow key={`${c.project_id}-${c.id}`} commitment={c} onOpen={() => setOpen(c)} />
+                <CommitmentRow
+                  key={`${c.project_id}-${c.id}`}
+                  commitment={c}
+                  onOpen={() => setOpen(c)}
+                  onChanged={() => void mutate()}
+                />
               ))}
             </ul>
           </section>
@@ -115,15 +138,77 @@ export function MobileCommitments() {
         <div className="h-4" />
       </div>
 
-      <CommitmentSheet commitment={open} onClose={() => setOpen(null)} onChanged={() => void mutate()} />
+      <CommitmentSheet
+        commitment={open}
+        onClose={() => setOpen(null)}
+        onChanged={() => void mutate()}
+        onEdit={(pid, c) => { setOpen(null); setEditing({ pid, commitment: c }); }}
+      />
+
+      <CommitmentFormDialog
+        open={adding || !!editing}
+        onClose={() => { setAdding(false); setEditing(null); }}
+        projects={projects}
+        editing={editing}
+        onSaved={() => void mutate()}
+      />
     </div>
   );
 }
 
-function CommitmentRow({ commitment, onOpen }: { commitment: GlobalCommitmentEntry; onOpen: () => void }) {
+/**
+ * One promise in the list, with "kept" and "missed" a push aside.
+ *
+ * Only those two, and only while it is open. Rescheduling needs a date and
+ * dropping says nobody was ever waiting — neither is a thing to do by accident
+ * with a thumb, so both stay in the sheet.
+ */
+function CommitmentRow({ commitment, onOpen, onChanged }: {
+  commitment: GlobalCommitmentEntry;
+  onOpen: () => void;
+  onChanged: () => void;
+}) {
+  const toast = useToast();
   const face = commitmentFace(commitment);
+  const pid = String(commitment.project_id);
+
+  const run = async (fn: () => Promise<unknown>, label: string) => {
+    try {
+      await fn();
+      onChanged();
+      toast.success(label);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error_generic"));
+    }
+  };
+
   return (
-    <li>
+    <SwipeRow
+      actions={(close) => (commitment.state === "open" ? (
+        <>
+          <SwipeAction
+            tone="done"
+            icon={<Check size={18} />}
+            label={t("mobile.swipe_kept")}
+            testId={`mobile-commitment-swipe-kept-${commitment.id}`}
+            onClick={() => {
+              close();
+              void run(() => Commitments.kept(pid, commitment.id), t("project.commitments.face.kept"));
+            }}
+          />
+          <SwipeAction
+            tone="warn"
+            icon={<X size={18} />}
+            label={t("mobile.swipe_missed")}
+            testId={`mobile-commitment-swipe-missed-${commitment.id}`}
+            onClick={() => {
+              close();
+              void run(() => Commitments.missed(pid, commitment.id), t("project.commitments.face.missed"));
+            }}
+          />
+        </>
+      ) : null)}
+    >
       <button
         type="button"
         onClick={onOpen}
@@ -151,7 +236,7 @@ function CommitmentRow({ commitment, onOpen }: { commitment: GlobalCommitmentEnt
           </span>
         </span>
       </button>
-    </li>
+    </SwipeRow>
   );
 }
 
@@ -163,11 +248,13 @@ function CommitmentRow({ commitment, onOpen }: { commitment: GlobalCommitmentEnt
  * until when" is how a promise disappears), so the date is the action.
  */
 function CommitmentSheet({
-  commitment, onClose, onChanged,
+  commitment, onClose, onChanged, onEdit,
 }: {
   commitment: GlobalCommitmentEntry | null;
   onClose: () => void;
   onChanged: () => void;
+  /** The full form — the name and the wording, which is what comes out wrong. */
+  onEdit: (pid: string, commitment: CommitmentEntry) => void;
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -305,6 +392,7 @@ function CommitmentSheet({
                   testId="mobile-commitment-drop"
                   onClick={() => act(() => Commitments.drop(pid, commitment.id), t("project.commitments.dropped_toast"))}
                 />
+                <EditButton onClick={() => onEdit(pid, commitment)} />
                 <PanelLink pid={pid} id={commitment.id} />
               </div>
             </div>
@@ -316,12 +404,27 @@ function CommitmentSheet({
               <p className="min-w-0 flex-1 self-center text-xs text-muted-fg">
                 {t("mobile.commitment_closed")}
               </p>
+              <EditButton onClick={() => onEdit(pid, commitment)} />
               <PanelLink pid={pid} id={commitment.id} />
             </div>
           )}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function EditButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={t("common.edit")}
+      data-testid="mobile-commitment-edit"
+      className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-fg active:bg-accent/60"
+    >
+      <Pencil size={16} />
+    </button>
   );
 }
 

@@ -23,7 +23,10 @@ import { parseMentions } from "#core/agent/group/turn-resolver.js";
 import { runAgentTurn } from "#core/agent/run-turn.js";
 import { readAgents } from "#core/apc/parser.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
+import { OWNER_ACTOR_ID, SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
+import { isSuperAgentEnabled } from "#core/agent/prompt-builder.js";
+import { resolveAgentName } from "#core/identity/index.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { addComment, getTask } from "#core/stores/tasks.js";
 import { nowIso } from "#core/util/time.js";
@@ -38,13 +41,23 @@ const displayName = (a) => a.fields?.Name || a.slug;
 
 /**
  * Everyone addressable on a task in this project: the owner (who can be named
- * but never summoned) plus every agent the project declares.
+ * but never summoned), the super-agent, and every agent the project declares.
+ *
+ * THE SUPER-AGENT IS ONE OF THEM. It used to be the one participant you could
+ * not hand a task to, which made no sense from the phone: it is the agent that
+ * knows every project, and the whole reason to tag someone on a task is that
+ * you are not at the desk to do it yourself. It only appears when it is
+ * actually configured — a mention that resolves to an agent with no model is a
+ * comment that gets an error for an answer.
  */
-export function taskParticipants(projectPath) {
+export function taskParticipants(projectPath, config = null) {
   let agents = [];
   try { agents = readAgents(projectPath); } catch { agents = []; }
   return [
     { slug: OWNER_ACTOR_ID, name: "Owner", kind: "owner" },
+    ...(isSuperAgentEnabled(config)
+      ? [{ slug: SUPERAGENT_ACTOR_ID, name: resolveAgentName(config), kind: "agent" }]
+      : []),
     ...agents.map((a) => ({ slug: a.slug, name: displayName(a), kind: "agent" })),
   ];
 }
@@ -54,8 +67,8 @@ export function taskParticipants(projectPath) {
  * WRITE time and store them on the comment — the roster can change, and the
  * thread should keep saying who was actually pulled in that day.
  */
-export function mentionedAgents(text, projectPath, authorSlug = OWNER_ACTOR_ID) {
-  return parseMentions(text || "", taskParticipants(projectPath), authorSlug);
+export function mentionedAgents(text, projectPath, authorSlug = OWNER_ACTOR_ID, config = null) {
+  return parseMentions(text || "", taskParticipants(projectPath, config), authorSlug);
 }
 
 /** The task, rendered for a model that has never seen it. */
@@ -165,6 +178,40 @@ async function runRealTurn({
 }
 
 /**
+ * The super-agent's version of the same turn.
+ *
+ * It does not go through `runAgentTurn`: the super-agent is not a project
+ * agent, it has no `.apc` entry and no per-agent conversation file — it is the
+ * daemon's own loop, and the one that can reach every project at once. What it
+ * shares with the block above is the CONTRACT: same task block, same thread,
+ * same "you were tagged, do the work, be short" instruction, so a reply reads
+ * the same whoever wrote it.
+ */
+async function runSuperAgentCommentTurn({
+  from, task, participants, nameFor, projectName,
+  cfg, projects, plugins, registries, signal,
+}) {
+  const me = resolveAgentName(cfg);
+  const others = participants.filter((x) => x.kind === "agent" && x.slug !== SUPERAGENT_ACTOR_ID);
+  const directive = from === OWNER_ACTOR_ID
+    ? `The owner tagged you (@${SUPERAGENT_ACTOR_ID}) on this task. Act on the last comment, then reply.`
+    : `${nameFor(from)} tagged you (@${SUPERAGENT_ACTOR_ID}) on this task. Act on the last comment, then reply.`;
+
+  const result = await runSuperAgent({
+    globalConfig: cfg,
+    projects, plugins, registries,
+    prompt: `${taskBlock(task, projectName)}${threadBlock(task, nameFor)}\n\n---\n${directive}`,
+    // The web channel's prompt, for the same reason the project agents use it:
+    // the reply is read in a panel, not spoken and not sent to Telegram.
+    channel: CHANNELS.WEB,
+    contextNote: systemBlock({ me, others, taskTitle: task.title }),
+    maxIters: groupToolIters(cfg),
+    signal,
+  });
+  return { text: result?.text || "", model: result?.model || null, usage: result?.usage };
+}
+
+/**
  * Run the mention cascade for the newest comment on a task.
  *
  * Fire-and-forget from a route: every reply is persisted as it lands, so a
@@ -180,6 +227,9 @@ async function runRealTurn({
  *        Injectable model call, same trick the group resolver uses: the cascade
  *        and its ceiling are the part worth testing, and neither needs an
  *        engine. Production always uses the real turn.
+ * @param {Function} [args.runSuperTurn]
+ *        Same, for the super-agent — it runs through the daemon's own loop and
+ *        not through a project agent's.
  * @returns {Promise<Array<{slug, text}>>}
  */
 export async function runCommentMentions({
@@ -187,26 +237,35 @@ export async function runCommentMentions({
   projects, plugins, registries, config, signal = null,
   maxTurns = MAX_COMMENT_TURNS,
   runTurn = runRealTurn,
+  runSuperTurn = runSuperAgentCommentTurn,
 }) {
-  const participants = taskParticipants(p.path);
+  // The super-agent reads the GLOBAL config (it is the daemon's own loop, not
+  // this project's), so it is resolved from `config` and not from `p.config`.
+  const participants = taskParticipants(p.path, config);
   const agents = new Map();
   try {
     for (const a of readAgents(p.path)) agents.set(a.slug, a);
   } catch { /* no roster → nothing to summon */ }
+  const superAgent = isSuperAgentEnabled(config);
+  const summonable = (slug) => agents.has(slug) || (superAgent && slug === SUPERAGENT_ACTOR_ID);
 
-  const nameFor = (who) =>
-    !who || who === OWNER_ACTOR_ID ? "Owner" : (agents.get(who) ? displayName(agents.get(who)) : who);
+  const nameFor = (who) => {
+    if (!who || who === OWNER_ACTOR_ID) return "Owner";
+    if (who === SUPERAGENT_ACTOR_ID) return resolveAgentName(config);
+    return agents.get(who) ? displayName(agents.get(who)) : who;
+  };
 
   const cfg = p.config || config;
   const projectName = p.name || p.path || String(p.id);
   const said = [];
-  const queue = (seed || []).filter((s) => agents.has(s)).map((slug) => ({ slug, from: author }));
+  const queue = (seed || []).filter(summonable).map((slug) => ({ slug, from: author }));
 
   while (queue.length && said.length < maxTurns) {
     if (signal?.aborted) break;
     const { slug, from } = queue.shift();
     const agent = agents.get(slug);
-    if (!agent) continue;
+    const isSuper = !agent && slug === SUPERAGENT_ACTOR_ID && superAgent;
+    if (!agent && !isSuper) continue;
 
     // Re-read every hop: an earlier speaker's comment is already persisted, so
     // the next one sees what was just said.
@@ -219,10 +278,15 @@ export async function runCommentMentions({
     try {
       // A test's stub may hand back a bare string; the real one returns what
       // answered and what it spent.
-      const out = await runTurn({
-        p, agent, slug, from, task, participants, nameFor, projectName,
-        cfg, projects, plugins, registries, signal,
-      });
+      const out = await (isSuper
+        ? runSuperTurn({
+            from, task, participants, nameFor, projectName,
+            cfg: config, projects, plugins, registries, signal,
+          })
+        : runTurn({
+            p, agent, slug, from, task, participants, nameFor, projectName,
+            cfg, projects, plugins, registries, signal,
+          }));
       if (typeof out === "string") reply = out.trim();
       else { reply = (out?.text || "").trim(); model = out?.model || null; usage = out?.usage || null; }
     } catch (e) {
@@ -247,7 +311,7 @@ export async function runCommentMentions({
     });
 
     for (const to of next) {
-      if (!agents.has(to)) continue;
+      if (!summonable(to)) continue;
       if (queue.some((q) => q.slug === to)) continue;
       logHandover(p, { from: slug, to, taskId, text: reply, model, usage });
       queue.push({ slug: to, from: slug });

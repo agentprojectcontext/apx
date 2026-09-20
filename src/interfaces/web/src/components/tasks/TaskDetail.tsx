@@ -13,6 +13,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint } from "./taskStatus";
 import { useTaskColumns } from "./useTaskColumns";
+import { assigneeOptions, isOwnerAssignee, priorityLabel, priorityOptions, reminderOptions } from "./taskFields";
 import { columnLabel } from "./columns";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
@@ -146,10 +147,10 @@ export function TaskDetail({
           <span className="font-mono text-[10px]">{task.id}</span>
           {task.priority && task.priority !== "normal" && (
             <Badge tone={task.priority === "urgent" ? "danger" : task.priority === "high" ? "warning" : "muted"}>
-              {task.priority === "urgent" ? "🔴 Urgente" : task.priority === "high" ? "🟠 Alta" : "⚪ Baja"}
+              {priorityLabel(task.priority)}
             </Badge>
           )}
-          {task.agent && <span>{task.agent === "human" || task.agent === "owner" ? "👤 @human" : `@${task.agent}`}</span>}
+          {task.agent && <span>{isOwnerAssignee(task.agent) ? t("tasks.assignee_owner") : `@${task.agent}`}</span>}
           {due && (
             <span className={cn(overdue && cn("font-medium", toneText.red))}>
               {t("project.global_tasks.field_due")} {due}
@@ -228,43 +229,31 @@ export function TaskDetail({
               />
             </div>
             <div className="space-y-1">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_agent")}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_assignee")}</div>
               <UiSelect
                 data-testid="task-agent-select"
                 value={task.agent ?? ""}
                 onChange={(v) => act(() => Tasks.patch(pid, task.id, { agent: v || null }))}
-                options={[
-                  { value: "", label: t("tasks.agent_none") },
-                  { value: "human", label: "👤 Humano (Owner)" },
-                  ...(agents ?? []).map((a) => ({ value: a.slug, label: a.name || a.slug })),
-                ]}
+                options={assigneeOptions(agents)}
               />
               <p className="text-[10px] text-muted-fg">{t("tasks.agent_hint")}</p>
             </div>
             <div className="space-y-1">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">Prioridad</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_priority")}</div>
               <UiSelect
+                data-testid="task-priority-select"
                 value={task.priority ?? "normal"}
                 onChange={(v) => act(() => Tasks.patch(pid, task.id, { priority: v as TaskEntry["priority"] }))}
-                options={[
-                  { value: "low", label: "⚪ Baja" },
-                  { value: "normal", label: "🟢 Normal" },
-                  { value: "high", label: "🟠 Alta" },
-                  { value: "urgent", label: "🔴 Urgente" },
-                ]}
+                options={priorityOptions()}
               />
             </div>
             <div className="space-y-1">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">Recordatorio</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_reminder")}</div>
               <UiSelect
+                data-testid="task-reminder-select"
                 value={task.reminder_frequency ?? "none"}
                 onChange={(v) => act(() => Tasks.patch(pid, task.id, { reminder_frequency: v as TaskEntry["reminder_frequency"] }))}
-                options={[
-                  { value: "none", label: "Sin recordatorio" },
-                  { value: "once", label: "Una vez" },
-                  { value: "daily", label: "Diario" },
-                  { value: "weekly", label: "Semanal" },
-                ]}
+                options={reminderOptions()}
               />
             </div>
           </div>

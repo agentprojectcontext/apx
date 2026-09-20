@@ -24,9 +24,21 @@ export function MobileTabBar() {
   const counts = useTabCounts();
   const unreadChats = useUnreadChats();
   const tabs = [
-    { to: CHAT_ROOT,        icon: MessagesSquare, label: t("mobile.tab_chats"),       badge: unreadChats, tone: "unread" as const, testId: "mobile-tab-chats" },
-    { to: TASKS_ROOT,       icon: ListTodo,       label: t("mobile.tab_tasks"),       badge: counts.openTasks, testId: "mobile-tab-tasks" },
-    { to: COMMITMENTS_ROOT, icon: Handshake,      label: t("mobile.tab_commitments"), badge: counts.overdue,   tone: "danger" as const, testId: "mobile-tab-commitments" },
+    {
+      to: CHAT_ROOT, icon: MessagesSquare, label: t("mobile.tab_chats"),
+      badge: unreadChats, tone: "unread" as const, testId: "mobile-tab-chats",
+      badgeLabel: t("mobile.tab_chats_badge", { count: unreadChats }),
+    },
+    {
+      to: TASKS_ROOT, icon: ListTodo, label: t("mobile.tab_tasks"),
+      badge: counts.dueTasks, testId: "mobile-tab-tasks",
+      badgeLabel: t("mobile.tab_tasks_badge", { count: counts.dueTasks }),
+    },
+    {
+      to: COMMITMENTS_ROOT, icon: Handshake, label: t("mobile.tab_commitments"),
+      badge: counts.overdue, tone: "danger" as const, testId: "mobile-tab-commitments",
+      badgeLabel: t("mobile.tab_commitments_badge", { count: counts.overdue }),
+    },
   ];
 
   return (
@@ -53,7 +65,7 @@ export function MobileTabBar() {
             <>
               <span className="relative">
                 <tab.icon size={21} strokeWidth={isActive ? 2.4 : 1.9} />
-                {tab.badge > 0 && <Badge count={tab.badge} tone={tab.tone} />}
+                {tab.badge > 0 && <Badge count={tab.badge} tone={tab.tone} label={tab.badgeLabel} />}
               </span>
               <span className={cn("leading-none", isActive && "font-semibold")}>{tab.label}</span>
             </>
@@ -67,14 +79,21 @@ export function MobileTabBar() {
 /**
  * The number on the icon.
  *
- * Two different numbers on purpose: tasks show how many are open (a workload),
- * commitments show how many are LATE (a person waiting). An "open promises"
- * count would sit there permanently and stop meaning anything — the whole point
- * of the red one is that it should normally not be there.
+ * ALL THREE COUNT SOMETHING YOU HAVE TO DO NOW. Tasks used to show every open
+ * one, which on a real backlog is a permanent two-digit number: it said "31"
+ * for weeks and nobody could tell you whether that meant unread, due, or owed
+ * — a badge you cannot read is decoration. It counts what is due today or
+ * already late, which is the same question the list's first two groups answer.
+ *
+ * Each one carries a sentence saying what it counts, because a number floating
+ * over an icon can say it to a screen reader even when it cannot say it to an
+ * eye.
  */
-function Badge({ count, tone }: { count: number; tone?: "danger" | "unread" }) {
+function Badge({ count, tone, label }: { count: number; tone?: "danger" | "unread"; label?: string }) {
   return (
     <span
+      title={label}
+      aria-label={label}
       className={cn(
         "absolute -right-2.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold leading-4 tabular-nums",
         tone === "danger" ? "bg-red-600 text-white"
@@ -88,6 +107,13 @@ function Badge({ count, tone }: { count: number; tone?: "danger" | "unread" }) {
   );
 }
 
+/** End of today, as a string that sorts against however `due` was written. */
+function endOfToday(): string {
+  const d = new Date();
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${day}T23:59:59.999Z`;
+}
+
 /**
  * Both counts in one place, shared by every screen that draws the bar.
  *
@@ -97,8 +123,8 @@ function Badge({ count, tone }: { count: number; tone?: "danger" | "unread" }) {
  */
 function useTabCounts() {
   const { data: tasks } = useSWR(
-    "mobile-tabbar-open-tasks",
-    () => Tasks.globalPage({ state: "open", limit: 1, offset: 0 }),
+    "mobile-tabbar-due-tasks",
+    () => Tasks.globalPage({ state: "open", limit: 1, offset: 0, due_before: endOfToday() }),
     { refreshInterval: 60_000, revalidateOnFocus: true, shouldRetryOnError: false },
   );
   const { data: overdue } = useSWR(
@@ -106,5 +132,5 @@ function useTabCounts() {
     () => Commitments.globalPage({ state: "open", overdue: true, limit: 1, offset: 0 }),
     { refreshInterval: 60_000, revalidateOnFocus: true, shouldRetryOnError: false },
   );
-  return { openTasks: tasks?.total ?? 0, overdue: overdue?.total ?? 0 };
+  return { dueTasks: tasks?.total ?? 0, overdue: overdue?.total ?? 0 };
 }
