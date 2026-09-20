@@ -2,33 +2,93 @@ import { spawn } from "node:child_process";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 import { DEFAULT_JOB_TIMEOUT_S } from "#core/stores/background-jobs.js";
 import { runShellInBackground, MAX_SHELL_JOB_TIMEOUT_S } from "#core/agent/shell/background.js";
+import { shellCommand, killChild } from "#core/util/shell.js";
 import { resolveProject, safePathJoin } from "../helpers.js";
 
+/** The longest a FOREGROUND command may be asked to wait. The tool's own
+ *  ceiling, and the number the loop's watchdog is derived from below. */
+const MAX_FOREGROUND_TIMEOUT_S = 600;
+const DEFAULT_FOREGROUND_TIMEOUT_S = 60;
+
+// Run a command and wait for it.
+//
+// EVERY EXIT FROM HERE HAS TO SETTLE THE PROMISE, and one of them did not.
+// There was no `error` listener — the background sibling has had one all along,
+// this path never did — and a spawn that cannot start (no `sh` on the box,
+// which is every Windows install without Git Bash; a cwd that no longer exists;
+// a full process table) fails asynchronously with ENOENT.
+//
+// The part that is easy to get wrong, and worth writing down because it was got
+// wrong here first: an unlistened `error` on a ChildProcess is THROWN, and the
+// throw happens inside the same tick that would go on to emit `close`. So
+// `close` never arrives. (With a listener attached, `error` is followed by
+// `close(-2)` — which is what a probe written with a listener shows, and why
+// the first read of this bug was talked out of itself. Measured both ways,
+// 2026-09-19.)
+//
+// The result in production: the daemon's uncaughtException handler logs the
+// ENOENT and keeps running by design, and this promise never settles. The turn
+// waits forever — past the tool's own timeout, which only sends a signal and
+// resolves nothing, and past Stop, which the loop only read between tool calls.
+// The chat simply never answers again. Reported from the outside on 2026-09-18
+// as an action that "hangs waiting and will not let you interrupt or cancel".
+//
+// So: `error` settles with a NAMED failure the caller turns into an error
+// result, `close` settles, the timeout escalates to SIGKILL so a child that
+// ignores SIGTERM cannot hold `close` back indefinitely, and an abort settles
+// on its own rather than waiting for a kill to be honoured — whether the person
+// has stopped waiting is a different question from whether the process died.
 function run(command, { cwd, timeoutMs, abortSignal }) {
   return new Promise((resolve) => {
-    const child = spawn("sh", ["-lc", command], { cwd, env: process.env });
+    const { file, args, options } = shellCommand(command, { login: true });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let settled = false;
+    let cancelKill = null;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cancelKill?.();
+      abortSignal?.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+
+    let child;
+    try {
+      child = spawn(file, args, { cwd, env: process.env, ...options });
+    } catch (e) {
+      // Synchronous throws (an invalid cwd on some platforms) never reach the
+      // `error` event at all.
+      return resolve({ code: null, signal: null, timedOut: false, stdout: "", stderr: "", spawnError: e?.message || String(e) });
+    }
+
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      cancelKill = killChild(child);
     }, timeoutMs);
 
+    // Stop has to land even if the child refuses to die: the point of the abort
+    // is that the PERSON stops waiting, which is not the same question as
+    // whether the process did.
     const onAbort = () => {
-      child.kill("SIGTERM");
+      cancelKill = killChild(child);
+      finish({ code: null, signal: "SIGTERM", timedOut, stdout, stderr, aborted: true });
     };
     if (abortSignal) {
       if (abortSignal.aborted) onAbort();
       else abortSignal.addEventListener("abort", onAbort, { once: true });
     }
 
-    child.stdout.on("data", (d) => { stdout += d.toString(); });
-    child.stderr.on("data", (d) => { stderr += d.toString(); });
+    child.stdout?.on("data", (d) => { stdout += d.toString(); });
+    child.stderr?.on("data", (d) => { stderr += d.toString(); });
+    child.on("error", (e) => {
+      finish({ code: null, signal: null, timedOut, stdout, stderr, spawnError: e?.message || String(e) });
+    });
     child.on("close", (code, signal) => {
-      clearTimeout(timer);
-      abortSignal?.removeEventListener("abort", onAbort);
-      resolve({ code, signal, timedOut, stdout, stderr });
+      finish({ code, signal, timedOut, stdout, stderr });
     });
   });
 }
@@ -181,17 +241,45 @@ export default {
 
     const result = await run(command, {
       cwd: workingDir,
-      timeoutMs: Math.max(1, Math.min(timeout_s ?? 60, 600)) * 1000,
+      timeoutMs: foregroundTimeoutS(timeout_s) * 1000,
       abortSignal,
     });
+    // A command that never started is an ERROR, not an exit code of null with
+    // empty output. The model reads `stdout: ""` as "it ran and printed
+    // nothing" and carries on building on a step that did not happen — which is
+    // how a Windows box with no `sh` produced a turn that believed its own work.
+    if (result.spawnError) {
+      return {
+        error: `the command could not be started: ${result.spawnError}`,
+        command,
+        cwd: workingDir,
+        shell: shellCommand(command, { login: true }).file,
+      };
+    }
     return {
       exit_code: result.code,
       signal: result.signal,
       timed_out: result.timedOut,
+      ...(result.aborted ? { aborted: true } : {}),
       stdout: result.stdout.slice(0, 12000),
       stderr: result.stderr.slice(0, 12000),
       truncated: result.stdout.length > 12000 || result.stderr.length > 12000,
       cwd: workingDir,
     };
   },
+
+  // What the loop's watchdog gives this tool before it calls the call hung
+  // (core/agent/loop/tool-watchdog.js). Derived from the tool's OWN ceiling
+  // rather than guessed: a watchdog that fires earlier than the timeout the
+  // tool is honouring would kill legitimate work, and one that never fires is
+  // the bug this whole file is about. Background launches return immediately,
+  // so only the foreground wait is in question.
+  deadlineMs: ({ background, timeout_s } = {}) =>
+    (background ? 30 : foregroundTimeoutS(timeout_s) + 30) * 1000,
 };
+
+/** The foreground wait, clamped to the tool's own ceiling. One home for the
+ *  number so the watchdog above and the timer in `run` cannot disagree. */
+function foregroundTimeoutS(timeout_s) {
+  return Math.max(1, Math.min(Number(timeout_s) || DEFAULT_FOREGROUND_TIMEOUT_S, MAX_FOREGROUND_TIMEOUT_S));
+}

@@ -58,6 +58,79 @@ export function resolveExecChannel(args) {
   return CHANNELS.CLI;
 }
 
+/**
+ * Who `POST /turns/abort` should be told to stop, for a turn this command
+ * started.
+ *
+ * The daemon addresses a running turn the way the client that started it can
+ * name it (see api/turns.js): a code session by its id, the super-agent by the
+ * CHANNEL it is speaking on — its thread IS the channel. `apx exec` knows both
+ * of those, which is why Ctrl+C can now do something about them.
+ *
+ * `-a <slug>` is the one shape with no answer here, and the null is deliberate
+ * rather than a shrug: that route (`POST /agents/:slug/exec`) does not register
+ * an active turn at all, so there is nothing on the daemon side to abort and
+ * pretending otherwise would be worse than saying so. The caller prints the
+ * truth instead.
+ */
+export function execAbortTarget({ channel, codeSessionId = null, agentSlug = null }) {
+  if (codeSessionId) return { code_session_id: codeSessionId };
+  if (agentSlug) return null;
+  return channel ? { channel } : null;
+}
+
+/**
+ * Make Ctrl+C stop the TURN, not just this process.
+ *
+ * Before this, SIGINT killed the CLI and left the run going: the daemon kept
+ * calling tools, kept spending tokens and persisted its answer into a thread
+ * nobody was watching, while the person who pressed the key reasonably believed
+ * they had cancelled something. The Stop button in the web panel has reached
+ * `POST /turns/abort` for a while; the terminal had no way to say it.
+ *
+ * Two presses, because the first one has work to do: it asks the daemon to stop
+ * and waits a moment for the answer. Somebody who does not want to wait presses
+ * again and gets the process killed outright.
+ */
+function installInterrupt({ pid, target, onCancel }) {
+  const ctrl = new AbortController();
+  let pressed = 0;
+
+  const onSigint = () => {
+    pressed += 1;
+    if (pressed > 1) {
+      process.stderr.write("\n— saliendo\n");
+      process.exit(130);
+    }
+    process.stderr.write("\n— cancelando el turno…\n");
+    ctrl.abort();
+    onCancel?.();
+    if (!target) {
+      process.stderr.write(
+        "— ojo: este turno no se puede cancelar desde acá y sigue corriendo en el daemon\n"
+      );
+      return;
+    }
+    http
+      .post(`/api/projects/${pid}/turns/abort`, target)
+      .then((r) => {
+        process.stderr.write(
+          r?.aborted ? "— turno cancelado\n" : "— el turno ya había terminado\n"
+        );
+      })
+      .catch((e) => {
+        process.stderr.write(`— no se pudo cancelar: ${e.message}\n`);
+      });
+  };
+
+  process.on("SIGINT", onSigint);
+  return {
+    signal: ctrl.signal,
+    interrupted: () => pressed > 0,
+    dispose: () => process.off("SIGINT", onSigint),
+  };
+}
+
 // Braille spinner frames for the live "pensando…" indicator.
 const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const dim = (s) => `\x1b[2m${s}\x1b[0m`;
@@ -176,13 +249,19 @@ async function runCodeSessionTurn({ args, pid, prompt, model }) {
   }
 
   const status = createExecStatus();
+  const interrupt = installInterrupt({
+    pid,
+    target: execAbortTarget({ channel: CHANNELS.CODE, codeSessionId: sid }),
+    onCancel: () => status.clear(),
+  });
   status.start();
   let result;
   try {
     result = await http.streamPost(
       `/api/projects/${pid}/code/sessions/${sid}/chat/stream`,
       { prompt, channel: CHANNELS.CODE, cwd: process.cwd(), confirm: false },
-      (event) => status.set(labelForEvent(event))
+      (event) => status.set(labelForEvent(event)),
+      { signal: interrupt.signal }
     );
   } catch (e) {
     // Name the session even on failure: the user turn is already stored there,
@@ -193,6 +272,19 @@ async function runCodeSessionTurn({ args, pid, prompt, model }) {
     throw e;
   } finally {
     status.clear();
+    interrupt.dispose();
+  }
+
+  // A cancelled turn is not a failed one. It has no reply because the person
+  // asked for it to stop, and reporting that as an error (exit 1, "ended
+  // without a reply") would make Ctrl+C look like a bug.
+  if (interrupt.interrupted()) {
+    if (result?.text) process.stdout.write(result.text + "\n");
+    process.stderr.write(
+      `\n— cancelado | code session ${sid} | ${http.baseUrl()}/code\n`
+    );
+    process.exitCode = 130;
+    return;
   }
 
   // A turn that produced no text is a failed turn, not an empty answer. Saying
@@ -256,18 +348,29 @@ export async function cmdExec(args) {
     // round-trip (which the CLI can't answer), keeping the same semantics as the
     // blocking POST /super-agent/chat endpoint.
     const status = createExecStatus();
+    const interrupt = installInterrupt({
+      pid,
+      target: execAbortTarget({ channel }),
+      onCancel: () => status.clear(),
+    });
     status.start();
     let result;
     try {
       result = await http.streamPost(
         `/api/projects/${pid}/super-agent/chat/stream`,
         { ...body, confirm: false },
-        (event) => status.set(labelForEvent(event))
+        (event) => status.set(labelForEvent(event)),
+        { signal: interrupt.signal }
       );
     } finally {
       status.clear();
+      interrupt.dispose();
     }
     process.stdout.write((result?.text ?? "") + "\n");
+    if (interrupt.interrupted()) {
+      process.exitCode = 130;
+      return;
+    }
     if (process.stderr.isTTY || args.flags.verbose) {
       process.stderr.write(
         `\n— ${result?.name || "super-agent"} | model=${result?.trace ? "tools" : "engine"} | in=${result?.usage?.input_tokens || "?"} out=${result?.usage?.output_tokens || "?"}${result?.model ? ` | ${result.model}` : ""}\n`
@@ -276,7 +379,17 @@ export async function cmdExec(args) {
     return;
   }
 
-  const result = await http.post(`/api/projects/${pid}/agents/${slug}/exec`, body);
+  // `-a <slug>` is the one path with no cancel behind it: POST /agents/:slug/exec
+  // registers no active turn, so there is nothing for /turns/abort to find.
+  // The handler is installed anyway so Ctrl+C SAYS that, instead of killing the
+  // CLI and leaving the person to assume the run stopped with it.
+  const interrupt = installInterrupt({ pid, target: execAbortTarget({ channel, agentSlug: slug }) });
+  let result;
+  try {
+    result = await http.post(`/api/projects/${pid}/agents/${slug}/exec`, body);
+  } finally {
+    interrupt.dispose();
+  }
 
   process.stdout.write(result.text + "\n");
   if (process.stderr.isTTY || args.flags.verbose) {

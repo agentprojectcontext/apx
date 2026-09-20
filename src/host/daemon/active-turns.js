@@ -156,6 +156,18 @@ export function recordActiveTurnEvent(id, event) {
     });
     return;
   }
+  // A call that has been running long enough to look stuck. It carries no
+  // result and adds no part — it MARKS the row already on screen, which is the
+  // whole point: a chat that has been silent for four minutes should say which
+  // step it is silent on rather than looking frozen.
+  if (event.type === "tool_slow" && event.trace?.id) {
+    const part = rec.parts.findLast((item) => item.kind === "tool" && item.id === event.trace.id);
+    if (part && part.status === "running") {
+      part.slow = true;
+      part.elapsed_ms = event.elapsed_ms || null;
+    }
+    return;
+  }
   if (event.type === "tool_result" && event.trace?.id) {
     const failed = !!event.trace.result && typeof event.trace.result === "object" && !!event.trace.result.error;
     const part = rec.parts.findLast((item) => item.kind === "tool" && item.id === event.trace.id);
@@ -187,7 +199,11 @@ export function recordActiveTurnEvent(id, event) {
 export function isVisibleTurnEvent(event) {
   if (!event) return false;
   if (event.type === "assistant_text") return !!event.text;
-  return (event.type === "tool_start" || event.type === "tool_result") && !!event.trace?.id;
+  return (
+    event.type === "tool_start" ||
+    event.type === "tool_result" ||
+    event.type === "tool_slow"
+  ) && !!event.trace?.id;
 }
 
 /** Stop tracking. Idempotent — the finally block and an error path both call it. */

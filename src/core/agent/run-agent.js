@@ -27,6 +27,7 @@ import {
 } from "./stuck-detector.js";
 import { createGreetingGuard } from "./loop/greeting-guard.js";
 import { createSideEffectLedger } from "./loop/side-effects.js";
+import { runToolWithWatchdog, resolveToolDeadline } from "./loop/tool-watchdog.js";
 import {
   describeTurnImages,
   providerWiresVision,
@@ -884,8 +885,32 @@ export async function runAgent({
             else if (toolSession && !suppressed.has(name) && !schemaOnTheWire(name)) {
               toolResult = revealUnloadedTool(toolSession, name);
             }
-            else toolResult = await handler(args);
+            // Under a watchdog, not a bare await. A handler that never settles
+            // used to hang the turn permanently — past its own timeout, past
+            // Stop, with the daemon up and reporting healthy. See
+            // loop/tool-watchdog.js for why the deadline is where it is.
+            else {
+              toolResult = await runToolWithWatchdog(() => handler(args), {
+                name,
+                deadlineMs: resolveToolDeadline(handler, args),
+                signal,
+                onSlow: (info) =>
+                  emitProgress(onEvent, {
+                    type: "tool_slow",
+                    ...info,
+                    // Addressed like every other tool frame, so a follower can
+                    // mark the row it already has instead of appending a
+                    // second one for the same call.
+                    trace: { id: traceId, tool: name },
+                    iteration: iter + 1,
+                  }),
+              });
+            }
           } catch (e) {
+            // An abort is not a failed tool call. Folding it into `{error}`
+            // would let the loop carry on and run the REST of this iteration's
+            // tools after the person already said stop.
+            if (e?.name === "AbortError") throw e;
             toolResult = { error: e.message };
           } finally {
             if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
