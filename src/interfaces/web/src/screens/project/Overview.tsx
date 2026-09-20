@@ -150,7 +150,11 @@ export function Overview({ pid }: { pid: string }) {
           description={t("milestones.description")}
           className="!p-4"
         >
-          <ProjectTimeline pid={pid} />
+          {/* A GLANCE, not the whole thing. A real week came back 85 steps
+              long — the transcript again in a different shape, pushing the rest
+              of the page off the bottom. The newest handful, and the way to the
+              rest is the screen built for it. */}
+          <ProjectTimeline pid={pid} limit={10} moreHref={`/p/${pid}/timeline`} />
         </Section>
 
         {/* Collapsed: the agent map. Expanded: every agent's full sub-brain

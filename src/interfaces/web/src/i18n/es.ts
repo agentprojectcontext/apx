@@ -269,6 +269,7 @@ export const es = {
     empty:           "No hay nada registrado en este rango.",
     empty_chat:      "Todavía no hay nada registrado en este chat.",
     open_panel:      "Recorrido",
+    view_more:       "{n} más — verlos todos",
     range_today:     "Hoy",
     range_week:      "7 días",
     range_month:     "30 días",
