@@ -11,8 +11,21 @@
 // phone, is read, and cannot be recalled — unlike a task or a file, the mistake
 // is instantly in another person's hands.
 import { normalizeJid, findWhatsAppContact } from "#core/identity/whatsapp.js";
+import { CHANNELS } from "#core/constants/channels.js";
+import { threadFor } from "#core/channels/whatsapp/thread.js";
 import fs from "node:fs";
 import { findStickerByMeaning, stickerFile } from "#core/channels/whatsapp/stickers.js";
+
+/** The last few turns of a chat, as plain `who: what` lines. Best-effort: the
+ *  ledger is a record, and a send must not fail because it could not be read. */
+function recentThread(jid, limit = 6) {
+  try {
+    return threadFor(jid, { limit })
+      .map((m) => `${m.role === "user" ? "ellos" : "vos"}: ${String(m.content).slice(0, 200)}`);
+  } catch {
+    return [];
+  }
+}
 
 export default {
   name: "send_whatsapp",
@@ -23,7 +36,10 @@ export default {
       description:
         "Send a WhatsApp message to one person. `to` is a phone number (any format) or a JID. " +
         "Plain text only — WhatsApp renders no markdown, so asterisks and backticks arrive literally. " +
-        "Keep it to what a person would type. There is no undo: it is delivered the moment you call this.",
+        "Keep it to what a person would type. There is no undo: it is delivered the moment you call this. " +
+        "Called from ANOTHER channel, the result hands you `thread_tail`: the last few turns you and that " +
+        "person exchanged on WhatsApp. Read it before you report back — a conversation was already going, " +
+        "and answering as if it were not is how a thread loses its thread.",
       parameters: {
         type: "object",
         properties: {
@@ -74,7 +90,7 @@ export default {
     },
   },
   makeHandler: (ctx) => async (args = {}) => {
-    const { plugins, requirePermission, globalConfig } = ctx;
+    const { plugins, requirePermission, globalConfig, channel, channelMeta } = ctx;
     const { to, text, confirmed = false } = args;
 
     const jid = normalizeJid(to);
@@ -93,8 +109,30 @@ export default {
     // The confirmation names the recipient, not just the text: the failure mode
     // worth catching here is the right message to the wrong person.
     const known = findWhatsAppContact(globalConfig, jid);
+    /**
+     * Answering the thread you are standing in is not a dangerous action.
+     *
+     * The gate exists for the failure worth catching — the right message to the
+     * WRONG person — and it earns its keep everywhere else. Inside a WhatsApp
+     * turn, replying to the very chat that just wrote to you is not that: it is
+     * the only thing the channel does.
+     *
+     * And it could not ask. `permission_mode` defaults to `automatico`, the
+     * WhatsApp turn wires no confirmation dialog, so the guard THREW — the
+     * model read "Action requires user confirmation" as one more failed tool
+     * and went on to tell the owner it had answered. Manu, 2026-09-20: "vos
+     * estuviste hablando con ella re tranquila, de repente te dejó un mensaje,
+     * se te trabó todo, y ahora no le puedes responder".
+     *
+     * Any OTHER recipient still goes through the gate, unchanged.
+     */
+    const replyingToThisThread =
+      channel === CHANNELS.WHATSAPP &&
+      !!channelMeta?.chatJid &&
+      normalizeJid(channelMeta.chatJid) === jid;
+
     await requirePermission("send_whatsapp", {
-      dangerous: true,
+      dangerous: !replyingToThisThread,
       confirmed,
       // What the human approving this will actually see happen on the other
       // phone. For an option that is the tap, not the (ignored) `text`.
@@ -183,6 +221,34 @@ export default {
       // turn — it is on the ledger row too, so a later reader can match them.
       ...(res?.id ? { message_id: res.id } : {}),
       logged: true,
+      // The conversation this message just joined — only when the turn is NOT a
+      // WhatsApp one, because a WhatsApp turn already has this thread as its
+      // history (dispatch.js `threadFor`) and repeating it is context spent
+      // twice.
+      //
+      // Manu, 2026-09-20: "sería bueno que en tu skill misma sepas o recuerdes
+      // revisar los últimos mensajes para tener contexto, porque a veces le
+      // contestás cualquiera cuando podrías saber que venías hablando". From
+      // Telegram, the agent had no cheap way to know what had been said, so it
+      // answered into the void and then described the void to the owner.
+      ...(channel === CHANNELS.WHATSAPP ? {} : { thread_tail: recentThread(jid) }),
     };
   },
+
+  /**
+   * The watchdog's ceiling for one send — well under the TURN's.
+   *
+   * These two were inverted. `session.js` calls Baileys' `sendMessage` with no
+   * timeout of its own, and with no `deadlineMs` here the watchdog fell back to
+   * its 15-minute default, while the WhatsApp owner turn dies at 6 (see
+   * `OWNER_DEADLINE_MS`). So the TURN was aborted first and the send outlived
+   * it: the owner got the canned "se me colgó ese pedido" while the message was
+   * still on its way, and if it landed afterwards nothing logged it, because the
+   * context that would have written the ledger row was gone. Message delivered,
+   * ledger empty — the 2026-09-09 incident `outbox.js` documents in its header.
+   *
+   * 90s is long for a socket that is healthy and short enough that the turn is
+   * still alive to hear the answer and say something true about it.
+   */
+  deadlineMs: 90_000,
 };
