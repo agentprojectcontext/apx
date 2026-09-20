@@ -313,17 +313,6 @@ jobs:
           }
           code="$(post payload.json)"
           if [ "$code" -ge 400 ]; then
-            # The buttons are the one part that may not be allowed: Discord only
-            # takes message components from an application-owned webhook, and a
-            # webhook made from the channel settings is not one. Whether THIS
-            # webhook qualifies cannot be known from here, so it is attempted
-            # and the announcement falls back rather than being lost to a
-            # decoration.
-            echo "::warning::Discord refused the message with buttons (HTTP $code): $(cat /tmp/discord-response.json)"
-            node -e 'const p=JSON.parse(require("fs").readFileSync("payload.json","utf8")); delete p.components; process.stdout.write(JSON.stringify(p))' > payload-plain.json
-            code="$(post payload-plain.json)"
-          fi
-          if [ "$code" -ge 400 ]; then
             echo "::warning::Discord rejected the announcement (HTTP $code): $(cat /tmp/discord-response.json)"
             exit 0
           fi
