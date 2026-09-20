@@ -348,6 +348,37 @@ unset, and the only SDK carrying `platforms/android-35` and `build-tools/35.0.0`
 is the Homebrew commandlinetools one. The SDK under `proyectos_varios/android-lab`
 is NOT it: platform-tools and system images only, nothing that compiles.
 
+That debug loop only fits a phone that is **not** already carrying a release
+build. Manu's A55 is: the installed APK is signed `CN=Manuel .D. Bruña`, and
+Android identifies an app by its signing key, so `adb install -r` of a
+debug-signed APK fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only way
+through is an uninstall, which deletes that phone's pairing AND every system
+grant it took a dialog to get — notification listener, overlay, battery
+exemption, Android Auto consent. Check before you build:
+
+```bash
+adb shell pm path dev.agentprojectcontext.apx        # then pull it, and:
+$ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs <apk>
+```
+
+**A signed APK comes from CI, not from here.** The keystore is
+`apx-release.jks`, one directory ABOVE the repo
+(`proyectos_varios/agentprojectcontext/`) so it can never be committed, and its
+two passwords exist only as the GitHub secrets `ANDROID_KEYSTORE_PASSWORD` and
+`ANDROID_KEY_PASSWORD` — nothing on this machine has them, and nobody should be
+asked to paste them into a session. (The alias, `apx`, is deliberately NOT a
+secret: it is in the signing block of every APK, and registering it would make
+GitHub redact the string "apx" from every log line in this repo.) So the way to
+put a change on the phone with its pairing intact is to push it: a commit to
+`main` touching `src/interfaces/android/**` runs `.github/workflows/android.yml`,
+which signs the APK and force-moves the `android-latest` release tag. Then
+`apx android install`.
+
+**The version is generated, never typed.** The name comes from `apxAppVersion`
+in `gradle.properties`; the versionCode is `date -u +%y%m%d%H`, because a code
+that goes backwards is an APK Android refuses forever and the only cure is the
+uninstall above. Do not hand-edit either in a commit.
+
 With two phones plugged in, every `adb` needs a target — `export
 ANDROID_SERIAL=<serial>` once beats `-s` on each call.
 
