@@ -480,6 +480,15 @@ test("the header leads with the session, and says who under it", () => {
   assert.match(tab, /<span className="truncate">\{agentLabel\}<\/span>/);
   assert.match(tab, /\{!compact && <span className="shrink-0">· \{shownChannel\}<\/span>\}/);
   assert.match(tab, /createdIso && !compact && <span className="shrink-0">· \{formatDate\(createdIso\)\}/);
+  // EVERY chat is from a day, so every header says which. The date used to be
+  // read off the thread id alone — which is a day only for the super-agent's
+  // threads — so a room, an a2a pair and a deep-linked conversation showed
+  // none at all. Each source in turn, ending at the one every chat with
+  // anything in it has: the first thing said in it.
+  assert.match(
+    tab,
+    /threadDate\(selected\.threadId\) : undefined\) \|\|\s*\n\s*conversationMeta\?\.started \|\|\s*\n\s*selectedMeta\?\.createdAt \|\|\s*\n\s*msgs\[0\]\?\.ts/,
+  );
 
   // On the PHONE that same line keeps only the WHO, and where/when move to a
   // band of their own under the header: four facts sharing an 11px line beside
