@@ -7,6 +7,7 @@ import {
   AGENT_TYPE_VALUES, BLOB_KEYS, isBlobKey, normalizeAgentType, pickBlob,
 } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
+import { PERMISSION_MODES, normalizeAutonomy } from "#core/constants/permissions.js";
 import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
 import { newAgentName } from "#core/apc/agent-names.js";
 import { http } from "../http.js";
@@ -82,6 +83,58 @@ function readTypeFlag(flags) {
 }
 
 /**
+ * `--autonomy <total|automatico|permiso|inherit>`.
+ *
+ * The one field the panel could write and the CLI could not, which made it the
+ * field nobody could explain: an agent that "has every tool and inherits full
+ * auto" still refused to write a file, because its own `Autonomy: automatico`
+ * overrides the global mode and a room has no confirmation dialog to ask in.
+ * The fix was two seconds of editing in the web and unreachable from a
+ * terminal, a script or the agent skill.
+ *
+ * Returns `undefined` (the flag was not passed — change nothing), `null`
+ * (clear it: go back to inheriting the project's mode) or the mode itself.
+ *
+ * A typo THROWS instead of being dropped. normalizeAutonomy fails closed by
+ * returning undefined, which is the right answer for a stored field being read
+ * back — it must never silently WIDEN an agent — and the wrong one for a person
+ * at a prompt, who would be told "Updated" and get nothing.
+ */
+function readAutonomyFlag(flags) {
+  const raw = flagValue(flags, "autonomy");
+  if (raw === null) return undefined;
+  const v = raw.trim().toLowerCase();
+  if (v === "inherit" || v === "heredar" || v === "none") return null;
+  const mode = normalizeAutonomy(v);
+  if (mode === undefined) {
+    throw new Error(
+      `invalid --autonomy "${raw}" — one of: ${Object.values(PERMISSION_MODES).join(", ")}` +
+      `, or "inherit" to follow the project's permission mode`
+    );
+  }
+  return mode;
+}
+
+/**
+ * `--master` / `--no-master`: the crown, on its own.
+ *
+ * The panel has had a switch for it beside the typology, not inside it —
+ * `is_master: isMaster || type === "orchestrator"` — so an assistant that leads
+ * a project can be marked one there. The CLI could only reach it sideways, by
+ * declaring the agent an orchestrator, which also changes what it IS.
+ */
+function readMasterFlag(flags) {
+  if (flags?.["no-master"]) return false;
+  const raw = flags?.master;
+  if (raw === undefined) return undefined;
+  if (raw === true) return true;
+  const v = String(raw).trim().toLowerCase();
+  if (["true", "yes", "si", "sí", "1"].includes(v)) return true;
+  if (["false", "no", "0"].includes(v)) return false;
+  throw new Error(`invalid --master "${raw}" — pass --master, or --no-master to take it away`);
+}
+
+/**
  * The agent's avatar: a blob preset key. `--icon <key>` pins one, otherwise one
  * is drawn from the presets this project isn't using yet — an agent with no
  * `Icon` renders as a grey lettered disc in every surface, which is what every
@@ -137,7 +190,13 @@ export async function cmdAgentAdd(args) {
     if (area) fields.Area = area;
   }
   if (f.parent && f.parent !== true)    fields.Parent = String(f.parent);
+  if (f.emoji && f.emoji !== true)      fields.Emoji = String(f.emoji);
   if (f.skills && f.skills !== true)    fields.Skills = String(f.skills).split(",").map((s) => s.trim()).filter(Boolean);
+  // Omitted ⇒ the field is not written at all, and the agent inherits the
+  // project's permission mode. Declaring one on create would freeze every new
+  // agent to whatever the mode happened to be that afternoon.
+  const autonomy = readAutonomyFlag(f);
+  if (autonomy) fields.Autonomy = autonomy;
 
   const type = readTypeFlag(f);
   if (type) {
@@ -146,6 +205,8 @@ export async function cmdAgentAdd(args) {
     // together on create, so the CLI can't be the one that disagrees.
     if (type === "orchestrator") fields.Master = true;
   }
+  // The crown without the typology, the way the panel's switch does it.
+  if (readMasterFlag(f) === true) fields.Master = true;
   // Every agent gets a face, same as the daemon API does. Drawn from the blobs
   // this project isn't using yet so the team stays distinguishable.
   fields.Icon = resolveIconFlag(f, existing);
@@ -210,7 +271,7 @@ export async function cmdAgentSet(args) {
   };
   let touched = false;
   for (const [key, flag] of [
-    ["Role", "role"], ["Model", "model"], ["Language", "language"],
+    ["Name", "name"], ["Role", "role"], ["Model", "model"], ["Language", "language"],
     ["Description", "description"], ["Emoji", "emoji"],
     ["Parent", "parent"],
   ]) {
@@ -242,10 +303,30 @@ export async function cmdAgentSet(args) {
     touched = true;
   }
 
+  const master = readMasterFlag(f);
+  if (master !== undefined) {
+    // `Primary` is the older spelling and `is_master` still reads both, so
+    // taking the crown away has to take away the one that is not there either.
+    if (master) fields.Master = true;
+    else { delete fields.Master; delete fields.Primary; }
+    touched = true;
+  }
+
+  // `--autonomy inherit` REMOVES the field rather than writing a word meaning
+  // "nothing", because an undeclared Autonomy is what inheriting is: run-turn
+  // folds the agent's answer over the project's, and there has to be a way back
+  // to not answering.
+  const autonomy = readAutonomyFlag(f);
+  if (autonomy !== undefined) {
+    if (autonomy === null) delete fields.Autonomy;
+    else fields.Autonomy = autonomy;
+    touched = true;
+  }
+
   const prompt = readPromptFlag(f);
   if (prompt === null && !touched) {
     throw new Error(
-      "apx agent set: nothing to change — pass --prompt/--prompt-file or a field flag (--role, --model, --description, …)"
+      "apx agent set: nothing to change — pass --prompt/--prompt-file or a field flag (--name, --role, --model, --autonomy, --description, …)"
     );
   }
 
