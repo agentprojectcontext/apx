@@ -1,3 +1,31 @@
+# [1.115.0](https://github.com/agentprojectcontext/apx/compare/v1.114.1...v1.115.0) (2026-09-20)
+
+
+### Bug Fixes
+
+* **agent:** el watchdog mide con un reloj que no puede retroceder ([e5fcfc5](https://github.com/agentprojectcontext/apx/commit/e5fcfc5ddf29c74054f4041e13fd12423f10755e))
+* **agent:** un turno colgado ahora termina, se ve y se puede cortar ([f47d752](https://github.com/agentprojectcontext/apx/commit/f47d752025984aca49c63508262ed8a1c48ea15a))
+* **android:** el chequeo silencioso de update usa la cache, no GitHub ([c46d321](https://github.com/agentprojectcontext/apx/commit/c46d32189378daac2a153708173ea1f89c0ee38d))
+* **android:** si la página no carga, la salida a la conexión está en pantalla ([4e6aa3e](https://github.com/agentprojectcontext/apx/commit/4e6aa3e7d523e60cdba007abce67767f0a9eb8bb))
+* **android:** una IP que dejó de existir ya no te manda a revisar el DNS ([acaa6a2](https://github.com/agentprojectcontext/apx/commit/acaa6a23d4f0b162f69093a080617864b6489f70))
+* **e2e:** el chat ya no tiene un switch, y el spec seguía manejando ese rol ([e59248f](https://github.com/agentprojectcontext/apx/commit/e59248f9688a340da838c0610ca0ab0191994b98))
+* **inbox:** leer un chat en un aparato lo deja leído en todos ([c8a35de](https://github.com/agentprojectcontext/apx/commit/c8a35deb169be2d646264f6ec3473dd21f2bc855))
+* **milestones:** un hito sin conversación deja de colgarse de un hilo ajeno ([5c8665b](https://github.com/agentprojectcontext/apx/commit/5c8665b3780bb2b131fe301aa626d1c01d7be54b))
+* **milestones:** una corrida programada se titula por su instrucción, no por el header ([26033a7](https://github.com/agentprojectcontext/apx/commit/26033a736e507863a81e9e02cc5899c3b475709f))
+* **web:** el chat se desbordaba a lo ancho desde que el recorrido va al costado ([a43dd85](https://github.com/agentprojectcontext/apx/commit/a43dd85729e17c49ae7ec866b19f9512398bfacc))
+* **web:** todos los chats dicen de qué día son, no la mitad ([4b51331](https://github.com/agentprojectcontext/apx/commit/4b51331ab24db15dccc8ad096ebe08212e20c9b2))
+
+
+### Features
+
+* **android:** la app se actualiza sola, desde adentro ([53038c2](https://github.com/agentprojectcontext/apx/commit/53038c20538fbbc91ab0c0a3d816cf466a52590a))
+* **milestones:** un chat largo ahora tiene un recorrido que se puede seguir ([1c56c71](https://github.com/agentprojectcontext/apx/commit/1c56c71f2a6b9e391f1c32d635daf06e523d645d))
+* **tasks:** al super-agente también se lo podés citar en un comentario ([21905ac](https://github.com/agentprojectcontext/apx/commit/21905ac2f900d66b0ada0367ab6892fc008266e7))
+* **timeline:** 'abierto' ahora quiere decir que algo quedó esperando ([6e04abe](https://github.com/agentprojectcontext/apx/commit/6e04abec77343294d6c7e758757250409bc332ba))
+* **web:** el recorrido del Resumen muestra los últimos, y cada paso abre su chat ([0aba744](https://github.com/agentprojectcontext/apx/commit/0aba744f915019db0f0ae1a1c6b17803dff8d53d))
+* **web:** el recorrido es su propia pantalla, y una sidebar al lado del chat ([46292e5](https://github.com/agentprojectcontext/apx/commit/46292e5a326e5f16cc68f12393a825fc7f5e2e8b))
+* **web:** un turno en vivo dice con qué modelo escribe, hace cuánto y qué gastó ([d551796](https://github.com/agentprojectcontext/apx/commit/d5517962b5fddaece0b65bab3193f6b392203393))
+
 ## [1.114.1](https://github.com/agentprojectcontext/apx/compare/v1.114.0...v1.114.1) (2026-09-20)
 
 
