@@ -139,4 +139,86 @@ test.describe("timeline", () => {
     await expect(page.getByTestId("project-timeline")).toBeVisible();
     await expect(page.getByTestId("milestone-rail")).toHaveCount(0);
   });
+
+  // The timeline has three homes and they answer different questions: a glance
+  // on the Overview, a place of its own to work in, and — inside a chat — the
+  // thing you read AGAINST the messages that produced it.
+  test("it has a place of its own in the project menu", async ({ page }) => {
+    await stubTimeline(page, [
+      step(),
+      step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z" }),
+    ]);
+    await page.goto("/p/7/timeline");
+    await expect(page.getByTestId("project-timeline")).toBeVisible();
+    await expect(page.getByTestId("milestone-rail")).toContainText("1 open");
+  });
+
+  test("a chat opens it beside the conversation, and closes it again", async ({ page }) => {
+    await stubTimeline(page, [
+      step(),
+      step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z" }),
+    ]);
+    await page.goto("/p/7/chat");
+
+    const toggle = page.getByTestId("chat-timeline-toggle");
+    await expect(toggle).toBeVisible();
+    // Closed, the button is the only thing that says there is something to look
+    // at — so it carries the count rather than waiting to be opened.
+    await expect(toggle).toContainText("1");
+    await expect(page.getByTestId("chat-timeline-panel")).toHaveCount(0);
+
+    await toggle.click();
+    const panel = page.getByTestId("chat-timeline-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Stalled thing");
+    // Beside the conversation, not over it: the transcript stays readable, which
+    // is the whole reason this is a side panel and not a dialog.
+    const share = await panel.evaluate(
+      (el) => el.getBoundingClientRect().width / el.parentElement!.getBoundingClientRect().width,
+    );
+    expect(share).toBeLessThan(0.6);
+
+    await page.getByTestId("chat-timeline-close").click();
+    await expect(page.getByTestId("chat-timeline-panel")).toHaveCount(0);
+  });
+
+  // Below the two-column breakpoint there is no room for a side panel, so the
+  // same component covers the conversation instead and is dismissed with the X.
+  //
+  // Asserted at 700px rather than at a phone's 390: this screen puts the chat
+  // LIST beside the thread, and at 390 the list takes the width and the thread
+  // pane has none — nothing to cover. The phone surface (/m/chat, which is what
+  // the APK loads) hides that list, so the thread has the full width and this
+  // same rule applies; what is pinned here is the rule.
+  test("below the two-column width it covers the conversation, and the X closes it", async ({ page }) => {
+    await page.setViewportSize({ width: 700, height: 780 });
+    await stubTimeline(page, [
+      step(),
+      step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z" }),
+    ]);
+    await page.goto("/p/7/chat");
+
+    await page.getByTestId("chat-timeline-toggle").click();
+    const panel = page.getByTestId("chat-timeline-panel");
+    await expect(panel).toBeVisible();
+    // The contract is "it covers its container", not any particular number of
+    // pixels — measured against the pane it sits in, so the assertion does not
+    // move every time the chat list changes width.
+    const share = await panel.evaluate(
+      (el) => el.getBoundingClientRect().width / el.parentElement!.getBoundingClientRect().width,
+    );
+    expect(share).toBeGreaterThan(0.95);
+
+    await page.getByTestId("chat-timeline-close").click();
+    await expect(page.getByTestId("chat-timeline-panel")).toHaveCount(0);
+  });
+
+  // A panel somebody OPENED must not decide there was nothing worth showing and
+  // vanish — that reads as broken. It says so instead.
+  test("an uneventful chat still opens, and says there is nothing", async ({ page }) => {
+    await stubTimeline(page, []);
+    await page.goto("/p/7/chat");
+    await page.getByTestId("chat-timeline-toggle").click();
+    await expect(page.getByTestId("chat-timeline-panel")).toContainText("Nothing recorded");
+  });
 });

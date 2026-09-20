@@ -267,6 +267,8 @@ export const es = {
     title:           "Recorrido",
     description:     "Qué se pidió, qué se hizo y qué quedó abierto — en todos los chats.",
     empty:           "No hay nada registrado en este rango.",
+    empty_chat:      "Todavía no hay nada registrado en este chat.",
+    open_panel:      "Recorrido",
     range_today:     "Hoy",
     range_week:      "7 días",
     range_month:     "30 días",
@@ -696,6 +698,7 @@ export const es = {
     nav: {
       overview: "Overview",
       chat:     "Chat",
+      timeline: "Recorrido",
       group:    "Grupo",
       config:   "Config",
       telegram: "Telegram",
