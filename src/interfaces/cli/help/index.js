@@ -234,10 +234,11 @@ export const HELP_TOPICS = new Map(Object.entries({
   "agent add": topic({
     title: "apx agent add",
     summary: "Create a project-local agent definition, with its system prompt.",
-    usage: ["apx agent add <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b] [--icon <blob>] [--parent <slug>] [--project <name|id|path>]"],
+    usage: ["apx agent add <slug> [--prompt <text>|-] [--prompt-file <path>] [--name <name>] [--type <type>] [--role <role>] [--area <area>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b] [--icon <blob>] [--parent <slug>] [--project <name|id|path>]"],
     options: [
       ["--prompt <text>", "The agent's system prompt (its instructions). Use `-` to read it from stdin."],
       ["--prompt-file <path>", "Read the system prompt from a file."],
+      ["--name <name>", "The agent's display name — a person's name; the job goes in --role. Omitted means one is picked from the pool, like a vault import does."],
       ["--type <type>", `Typology: ${AGENT_TYPE_VALUES.join(" | ")}. 'orchestrator' also marks the agent as master.`],
       ["--role <role>", "Role — a role slug from `apx org show`, or free text."],
       ["--area <area>", "Org-chart area slug from `apx org show` (growth, not Growth). Display names are slugified on write."],

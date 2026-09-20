@@ -17,7 +17,8 @@ import { writeAgentFile, ensureAgentDir, removeImportedAgent } from "#core/apc/s
 import { setFrontmatterField } from "#core/apc/frontmatter.js";
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
-import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
+import { newAgentName } from "#core/apc/agent-names.js";
+import { createArea, createRole, readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { repointAgentReferences, findStaleAgentMentions } from "./agent-rename-refs.js";
 import { normalizeAutonomy } from "#core/constants/permissions.js";
 
@@ -33,7 +34,7 @@ export { normalizeAutonomy };
 // blob this project isn't already using so a team stays distinguishable.
 export function buildNewAgentFields(projectPath, spec = {}, roster = []) {
   const {
-    name, role, model, language, description, skills, tools,
+    slug, name, role, model, language, description, skills, tools,
     is_master, parent, type, area, emoji, icon, autonomy,
   } = spec;
   const typeVal = normalizeAgentType(type);
@@ -44,7 +45,12 @@ export function buildNewAgentFields(projectPath, spec = {}, roster = []) {
     ? icon
     : pickBlob({ taken: roster.map((a) => a.fields?.Icon).filter(Boolean) });
   return {
-    Name: name || null,
+    // Every agent gets a NAME, for the same reason it gets a face: the slug is
+    // an address, and a surface with nothing else to print prints the address
+    // — "cfo / cfo", "savia-agent · Savia Implementation Agent", a group bubble
+    // headed `productor-reels`. The vault importer has named its installs from
+    // the start; this is that rule everywhere else (core/apc/agent-names.js).
+    Name: newAgentName({ name, slug, roster }),
     Role: role || null,
     Model: model || null,
     Language: language || null,
@@ -90,11 +96,62 @@ export function createAgent(project, spec = {}, { requireSystem = false } = {}) 
   }
   const roster = readAgents(project.path);
   if (roster.find((a) => a.slug === slug)) throw new Error(`agent ${slug} already exists`);
+  // Before the fields are built, because `Area` is resolved against the areas
+  // that exist and an unknown one is written as a slug pointing at nothing.
+  ensureArea(project.path, spec.area);
   const fields = buildNewAgentFields(project.path, spec, roster);
   writeAgentFile(project.path, slug, fields, typeof system === "string" ? system : "");
   ensureAgentDir(project.path, slug);
   ensureAgentRuntimeDir(project, slug);
+  ensureRole(project.path, slug, fields);
   return slug;
+}
+
+/**
+ * The area an agent is being placed in, created if this project has never
+ * heard of it. `resolveAreaSlug` slugifies anything it does not recognise, so
+ * without this an agent lands in an area that exists nowhere: the team view
+ * groups it under a heading the Structure screen cannot show or edit.
+ *
+ * @returns {string|null} the area slug, or null when none was asked for
+ */
+function ensureArea(root, area) {
+  const raw = String(area || "").trim();
+  if (!raw) return null;
+  const org = readOrganization(root);
+  const areaSlug = resolveAreaSlug(raw, org);
+  if (!areaSlug || (org.areas || []).some((a) => a.slug === areaSlug)) return areaSlug;
+  // An area asked for by slug ("growth") still needs a title to be shown by.
+  const name = raw === areaSlug
+    ? raw.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : raw;
+  try {
+    return createArea(root, { slug: areaSlug, name }).slug;
+  } catch {
+    // Raced, or already there under another name — resolveAreaSlug finds it.
+    return areaSlug;
+  }
+}
+
+/**
+ * A role in the project's structure for the agent that was just created — the
+ * same thing installPack does for every member of a team, and for the same
+ * reason: an agent that exists only in the agent list is invisible to the
+ * org chart, which is where the question "who does what here" is answered.
+ * Best-effort: a role under that slug already existing is not an error.
+ */
+function ensureRole(root, slug, fields) {
+  const name = fields.Role || fields.Name || slug;
+  try {
+    createRole(root, {
+      slug,
+      name,
+      area: fields.Area || null,
+      description: fields.Description || null,
+    });
+  } catch {
+    // Already there (or its area is not) — the agent is created either way.
+  }
 }
 
 // Strip a trailing " (2)" / "-2" style copy marker so cloning a clone doesn't
