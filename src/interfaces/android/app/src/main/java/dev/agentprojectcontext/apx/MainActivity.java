@@ -23,7 +23,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -59,6 +61,10 @@ public final class MainActivity extends Activity {
     private int tripPlaceCount = -1;
     private boolean travelReceiverRegistered;
     private boolean waitingForOverlay;
+    // Did the page we are showing actually finish loading? The native menu is
+    // reached through the page's own JS bridge, so a page that never loaded is a
+    // screen with no way off it — see onBackPressed.
+    private boolean pageLoaded;
     private String pendingPath = "/mobile";
     private final BroadcastReceiver travelReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -415,6 +421,43 @@ public final class MainActivity extends Activity {
                 startActivity(new Intent(Intent.ACTION_VIEW, target));
                 return true;
             }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                // Only for the WebView that is still on screen: an error swaps
+                // this one out for the failure screen below, and the load it
+                // was in the middle of still finishes afterwards.
+                if (view == webView) pageLoaded = true;
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (!request.isForMainFrame()) return;
+                // Read the request NOW and swap the screen on the next tick:
+                // taking the WebView out of the view tree from inside its own
+                // callback is the kind of thing that works until it does not,
+                // and `request` is only guaranteed valid for this call.
+                final Uri address = request.getUrl();
+                final String reason = networkReason(error);
+                view.post(() -> showLoadFailure(address, reason));
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
+                // Sub-resources fail on their own all the time and the page
+                // survives them; only the document itself failing is fatal.
+                if (!request.isForMainFrame()) return;
+                // And only at an address APX asked for. The daemon answers 404
+                // for a route the panel does not know while STILL serving the
+                // shell (host/daemon/api/web.js), so the panel can render its
+                // own styled 404 — a status this screen must not steal. The
+                // app itself only ever opens /mobile, which the daemon does
+                // know, so a 404 there means whatever is listening is not APX.
+                if (!openedByApx(request.getUrl())) return;
+                final Uri address = request.getUrl();
+                final String reason = httpReason(response.getStatusCode());
+                view.post(() -> showLoadFailure(address, reason));
+            }
         });
         frame.addView(webView, new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -426,7 +469,143 @@ public final class MainActivity extends Activity {
 
         String safePath = path != null && path.startsWith("/mobile") ? path : "/mobile";
         String target = preferences.daemonUrl() + safePath + "#token=" + Uri.encode(preferences.token());
+        pageLoaded = false;
         webView.loadUrl(target);
+    }
+
+    /**
+     * The page did not load. Say so in APX's own words, with a way off it.
+     *
+     * What used to happen here was whatever Chromium paints when a load fails:
+     * a white "Página web no disponible", a net:: code, and the daemon URL —
+     * bearer token and all — printed underneath it. Being ugly was the small
+     * half. The big half is that the native menu is reached through the page's
+     * OWN JavaScript bridge (AndroidBridge.openOptions), so a page that never
+     * loads is a phone that cannot be re-pointed at anything: the one screen
+     * that fixes the problem sat behind the thing that was broken. Manu,
+     * 2026-09-20, after the Mac's DHCP lease moved and the app kept asking for
+     * the old address: "no pudo ni editar eso con el error que me da".
+     *
+     * `webView = null` is deliberate: this screen replaced it, so back means
+     * "try again" rather than closing the app (onBackPressed).
+     */
+    private void showLoadFailure(Uri address, String reason) {
+        webView = null;
+        pageLoaded = false;
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setPadding(dp(28), dp(56), dp(28), dp(24));
+        root.setBackgroundColor(Color.rgb(13, 17, 16));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.apx_logo);
+        logo.setContentDescription("APX");
+        logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(112)
+        );
+        logoParams.bottomMargin = dp(16);
+        root.addView(logo, logoParams);
+
+        TextView title = text("No se pudo abrir APX", 26, Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(title, matchWrap());
+
+        TextView why = text(reason, 15, Color.LTGRAY);
+        why.setPadding(0, dp(12), 0, dp(16));
+        root.addView(why, matchWrap());
+
+        // The address WITHOUT its fragment: the token rides in `#token=` and
+        // the old error page put it on screen in full, where a screenshot or a
+        // shoulder carries it away.
+        TextView where = text(addressLabel(address), 14, GREEN);
+        where.setPadding(dp(14), dp(12), dp(14), dp(12));
+        where.setBackgroundColor(PANEL);
+        root.addView(where, matchWrap());
+
+        Button retry = button("Reintentar");
+        retry.setOnClickListener(ignored -> openMobile(pendingPath));
+        LinearLayout.LayoutParams retryParams = matchWrap();
+        retryParams.topMargin = dp(24);
+        root.addView(retry, retryParams);
+
+        // The whole point of this screen. An address that stopped working is
+        // almost always an address that has to be typed again.
+        Button connection = new Button(this);
+        connection.setText("Ver o cambiar la conexión");
+        connection.setAllCaps(false);
+        connection.setTextColor(Color.LTGRAY);
+        connection.setBackgroundColor(Color.TRANSPARENT);
+        connection.setOnClickListener(ignored -> showPairing(null, null, false));
+        LinearLayout.LayoutParams connectionParams = matchWrap();
+        connectionParams.topMargin = dp(8);
+        root.addView(connection, connectionParams);
+
+        setContentView(root);
+    }
+
+    /**
+     * Is this a URL the app itself navigated to, rather than a link inside the
+     * panel? `openMobile` only ever loads /mobile, so anything else came from
+     * the page and belongs to the page's own error handling.
+     */
+    private boolean openedByApx(Uri address) {
+        String path = address == null ? null : address.getPath();
+        return path != null && path.startsWith("/mobile");
+    }
+
+    /** The address it tried, with the token fragment cut off. */
+    private String addressLabel(Uri address) {
+        if (address == null) return preferences.daemonUrl();
+        String shown = address.toString();
+        int cut = shown.indexOf('#');
+        return cut >= 0 ? shown.substring(0, cut) : shown;
+    }
+
+    /**
+     * Why the phone could not reach the daemon, in words rather than a net:: code.
+     *
+     * The address APX is paired to is a promise the network cannot always keep:
+     * a LAN address is a DHCP lease that gets handed to somebody else, and a
+     * tailnet name needs Tailscale actually connected on this phone. Naming
+     * which of those it looks like is the difference between a screen that
+     * blames the app and one that says where to go.
+     */
+    private String networkReason(WebResourceError error) {
+        int code = error == null ? 0 : error.getErrorCode();
+        if (code == WebViewClient.ERROR_HOST_LOOKUP) {
+            return "Ese nombre no resuelve desde este teléfono. Si es una dirección de Tailscale, fijate que Tailscale esté conectado acá.";
+        }
+        if (code == WebViewClient.ERROR_CONNECT || code == WebViewClient.ERROR_IO) {
+            return "Nadie contestó en esa dirección. Suele pasar cuando la computadora cambió de IP en la red, o cuando el daemon está apagado.";
+        }
+        if (code == WebViewClient.ERROR_TIMEOUT) {
+            return "La computadora no contestó a tiempo. Puede estar dormida, o fuera de esta red.";
+        }
+        if (code == WebViewClient.ERROR_FAILED_SSL_HANDSHAKE) {
+            return "No se pudo establecer la conexión segura con esa dirección.";
+        }
+        CharSequence detail = error == null ? null : error.getDescription();
+        return detail == null || detail.length() == 0
+            ? "No se pudo llegar a la computadora donde corre APX."
+            : "No se pudo llegar a la computadora donde corre APX (" + detail + ").";
+    }
+
+    /** The daemon answered, and what it said was not the panel. */
+    private String httpReason(int status) {
+        if (status == 401 || status == 403) {
+            return "El daemon está ahí pero no aceptó esta vinculación. Hay que vincular el teléfono de nuevo.";
+        }
+        if (status == 404) {
+            return "Hay algo escuchando en esa dirección, pero no es el panel de APX.";
+        }
+        if (status >= 500) {
+            return "El daemon contestó con un error (" + status + "). Mirá `apx daemon status` en la computadora.";
+        }
+        return "El daemon contestó " + status + " en vez del panel.";
     }
 
     private void updateTravelBanner() {
@@ -844,6 +1023,11 @@ public final class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) { webView.goBack(); return; }
+        // A page that never finished loading carries no bridge, so the native
+        // menu — the only way to the connection — cannot be opened from it.
+        // Back is the one gesture left on such a screen: spend it on the menu
+        // instead of on closing the app.
+        if (webView != null && !pageLoaded) { showNativeMenu(); return; }
         // On the pairing screen (no WebView) with a pairing already in hand,
         // back means "leave this screen", not "leave the app" — which is what
         // super.onBackPressed() does, and what made this screen a dead end.
