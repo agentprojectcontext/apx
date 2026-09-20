@@ -595,7 +595,9 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
         update={updateAvailable}
         active={location.pathname === "/settings" || location.pathname.startsWith("/settings/")}
         onClick={() => onSelect("/settings")}
-        title={t("nav.settings")}
+        // The badge draws an arrow and nothing else; the tooltip is where it
+        // gets to say what the arrow is about.
+        title={updateAvailable ? t("update.pending") : t("nav.settings")}
       />
       {/* Docs — opens the hosted documentation site in a new tab. */}
       <Tip content={t("settings_ui.documentation")} side="right">

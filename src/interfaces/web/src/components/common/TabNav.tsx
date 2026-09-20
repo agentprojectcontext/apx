@@ -72,10 +72,15 @@ export function TabNav({ sections, active, onChange, collapsed = false, footer }
   return (
     <nav
       className={cn(
-        "hidden md:flex shrink-0 flex-col gap-1 py-3 transition-all",
+        "hidden md:flex shrink-0 flex-col py-3 transition-all",
         collapsed ? "w-12 items-center px-1" : "w-44 px-2",
       )}
     >
+      {/* The sections scroll; the footer does not. Without this the footer was
+          simply the last thing in the column, so on a short window it fell off
+          the bottom edge — present in the DOM, clipped on screen, which is the
+          same as absent. */}
+      <div className={cn("flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto", collapsed && "items-center")}>
       {sections.map((section, si) => (
         <div key={si} className={cn("w-full", si > 0 && "mt-2")}>
           {!collapsed && section.title && (
@@ -121,7 +126,8 @@ export function TabNav({ sections, active, onChange, collapsed = false, footer }
           </div>
         </div>
       ))}
-      {footer && !collapsed && <div className="mt-3 w-full px-0.5">{footer}</div>}
+      </div>
+      {footer && !collapsed && <div className="mt-3 w-full shrink-0 px-0.5">{footer}</div>}
     </nav>
   );
 }
