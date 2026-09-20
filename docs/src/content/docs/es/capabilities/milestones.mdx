@@ -1,0 +1,107 @@
+---
+title: Recorrido
+description: El registro seguible de por dónde pasó un chat largo — pasos con resultado, para que lo que falló o quedó por la mitad se vea en vez de quedar enterrado.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+Un chat donde se construyó algo de verdad es difícil de leer después. Cuarenta turnos, cientos de
+llamadas a tools, y la respuesta a "¿dónde terminó esto?" en algún lugar del medio. Scrollear para
+atrás no es la solución: lo que querés es la **forma** del trabajo — se pidió, se analizó, se
+renderizó, se entregó. Cuatro líneas para cuatro horas.
+
+El **recorrido** es eso. No es un resumen: no se genera nada, no cuesta una llamada al modelo
+dibujarlo, y cada entrada es algo que efectivamente pasó, en el orden en que pasó, con el resultado
+que tuvo.
+
+## Dos fuentes
+
+Los **pasos derivados** salen de los turnos mismos. Un pedido, más el trabajo que provocó, más la
+respuesta que recibió, es un paso — por muchas iteraciones que hayan sido. Esto corre en todos los
+chats, se haya declarado algo o no, así que el recorrido nunca está vacío.
+
+Los **hitos declarados** los pone el agente. Cuando una fase realmente termina, lo dice con la tool
+`mark_milestone`, y ese paso queda colgado del pedido que lo produjo. Más rico, y opcional: una
+llamada olvidada cuesta detalle, nunca la vista entera.
+
+## El resultado es el punto
+
+Cada entrada lleva uno de tres estados, y los dos que no son `done` son la razón de que esto exista.
+
+| Estado | Qué significa |
+|---|---|
+| `done` | Terminó y funcionó. |
+| `failed` | Terminó y no funcionó. Falló una tool, o el agente lo dijo. |
+| `open` | Nunca terminó. Un pedido sin respuesta después — un restart en medio del turno, un motor que no volvió, una tool colgada. |
+
+`open` es el que nada reportaba antes. El chat simplemente se cortaba, y la ausencia la tenías que
+notar vos.
+
+<Aside type="note">
+Un paso marcado `dropped` se cargó por error — deliberadamente **no** es lo mismo que `failed`.
+Nunca se intentó nada, así que contarlo como una falla arruinaría el único número acá que vale la
+pena leer.
+</Aside>
+
+## Dónde se ve
+
+**Dentro de un chat**, como un riel colapsado arriba de la conversación. La línea del encabezado
+lleva los números por los que vale interrumpir — cuántos pasos, cuántos siguen abiertos, cuántos
+fallaron — así que si no hay nada mal nunca lo abrís. Un chat corto que salió bien no dibuja riel.
+
+<Screenshot alt="El riel del recorrido colapsado arriba de un chat" />
+
+**Cruzando chats**, en el Resumen del proyecto. Esta es la mitad que el riel por chat no puede
+contestar: no sabés en qué conversación se trabó. Filtrá por **Sólo lo no terminado** y lo que queda
+es el trabajo del que alguien todavía tiene que ocuparse, haya llegado por el canal que haya llegado.
+
+<Screenshot alt="El recorrido del proyecto con el filtro de no terminado" />
+
+## `mark_milestone`
+
+El agente registra un paso con una sola llamada. Tres a seis pasos para una tarde de trabajo está
+bien; treinta es ruido.
+
+| Parámetro | Qué es |
+|---|---|
+| `title` | El paso en una línea corta, en pasado — "Reel analizado". |
+| `state` | `done` (por defecto), `open`, `failed`, `dropped`. |
+| `track` | Grupo opcional — la pieza de trabajo a la que pertenecen estos pasos. |
+| `detail` | Un par de oraciones opcionales que el lector puede desplegar. |
+| `note` | Nota opcional sobre el resultado. En `failed`, qué salió mal. |
+| `milestone` | Un id de una llamada anterior, para cerrar un paso abierto antes. |
+
+Por defecto es `done` porque un paso normalmente se registra cuando ya terminó. Cada llamada
+devuelve los hitos todavía abiertos del chat, así que un turno posterior puede cerrar uno sin
+necesitar una segunda tool para buscar los ids.
+
+## Almacenamiento
+
+Los hitos declarados viven en `~/.apx/projects/<apxId>/milestones/YYYY-MM.jsonl`, un archivo por
+mes, append-only — la misma forma que tasks y commitments. El estado es el plegado del stream de
+eventos.
+
+Deliberadamente **no** se escriben en el ledger de mensajes: todo lo que está ahí vuelve como un
+turno de conversación en el armado del próximo prompt, y un registro *sobre* una conversación no es
+algo que alguien haya dicho en ella.
+
+Los pasos derivados no se guardan en ningún lado. Se leen de la conversación en el momento, que es
+justamente lo que impide que alguna vez estén en desacuerdo con ella.
+
+## API
+
+```
+GET   /api/projects/:pid/milestones?since=ISO&until=ISO&limit=N
+GET   /api/projects/:pid/agents/:slug/conversations/:id/milestones
+GET   /api/projects/:pid/super-agent/threads/:channel/:id/milestones
+POST  /api/projects/:pid/milestones                 { title, state?, track?, … }
+POST  /api/projects/:pid/milestones/:id/close       { state, note? }
+PATCH /api/projects/:pid/milestones/:id             { patch: {...} }
+```
+
+La vista cruzada se arma desde el ledger — un archivo por día — así que un rango cuesta sus propios
+días en vez de todas las conversaciones que el proyecto tuvo alguna vez. Por eso toma un rango y no
+"todo".

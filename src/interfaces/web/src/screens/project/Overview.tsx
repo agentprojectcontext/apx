@@ -7,6 +7,7 @@ import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
 import { BrainGraph, type BrainNode, type BrainEdge, agentPreview, routinePreview, clipPreview } from "./AgentBrainGraph";
 import { ProjectProfileNotice } from "../../components/config/ProjectProfileCard";
+import { ProjectTimeline } from "../../components/chat/ProjectTimeline";
 import { useProject } from "../../hooks/useProjects";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
@@ -124,6 +125,18 @@ export function Overview({ pid }: { pid: string }) {
           )}
         </Section>
       </div>
+
+      {/* What the project has actually been through, across every chat. The
+          per-chat rail cannot answer "which conversation did that stall in" —
+          you have to already know. This is where a request nobody answered and
+          a step the agent recorded as failed become findable. */}
+      <Section
+        title={t("milestones.title")}
+        description={t("milestones.description")}
+        className="!p-4"
+      >
+        <ProjectTimeline pid={pid} />
+      </Section>
 
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">

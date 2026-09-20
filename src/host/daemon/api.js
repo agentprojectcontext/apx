@@ -55,6 +55,7 @@ import { register as registerArtifacts } from "./api/artifacts.js";
 import { register as registerArtifactPreview } from "./api/artifact-preview.js";
 import { register as registerTasks } from "./api/tasks.js";
 import { register as registerCommitments } from "./api/commitments.js";
+import { register as registerMilestones } from "./api/milestones.js";
 import { register as registerOrganization } from "./api/organization.js";
 import { register as registerProjectFiles } from "./api/files-project.js";
 import { register as registerConfig } from "./api/config.js";
@@ -200,6 +201,7 @@ export function buildApi({
   registerArtifactPreview(api, ctx);
   registerTasks(api, ctx);
   registerCommitments(api, ctx);
+  registerMilestones(api, ctx);
   registerOrganization(api, ctx);
   registerProjectFiles(api, ctx);
   registerConfig(api, ctx);

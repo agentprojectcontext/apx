@@ -1,0 +1,106 @@
+---
+title: Timeline
+description: A followable record of what a long chat went through — steps with outcomes, so work that failed or was left half-finished is visible instead of buried.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+A chat where something real got built is hard to read afterwards. Forty turns, hundreds of tool
+calls, and the answer to "where did that end up" somewhere in the middle of it. Scrolling back is
+not the answer — what you want is the **shape** of the work: asked, analysed, rendered, delivered.
+Four lines for four hours.
+
+The **timeline** is that. It is not a summary: nothing is generated, nothing costs a model call to
+render, and every entry is a thing that actually happened, in the order it happened, with the
+outcome it had.
+
+## Two sources
+
+**Derived steps** come from the turns themselves. One request, plus the work it caused, plus the
+answer it got, is one step — however many iterations it took. This runs on every chat, whether or
+not anything was ever declared, so a timeline is never empty.
+
+**Declared milestones** come from the agent. When a phase genuinely ends, it says so with the
+`mark_milestone` tool, and that step hangs under the request that produced it. Richer, and
+optional: a forgotten call costs detail, never the whole view.
+
+## Outcomes are the point
+
+Every entry carries one of three states, and the two that are not `done` are why this exists.
+
+| State | What it means |
+|---|---|
+| `done` | It finished and it worked. |
+| `failed` | It finished and it did not. A tool errored, or the agent said so. |
+| `open` | It never finished. A request with no answer after it — a restart mid-turn, an engine that never came back, a tool that hung. |
+
+`open` is the one nothing in the product reported before. The chat simply stopped, and you had to
+notice the absence yourself.
+
+<Aside type="note">
+A step recorded as `dropped` was filed by mistake — it is deliberately **not** the same as
+`failed`. Nothing was ever attempted, so counting it as a failure would ruin the only numbers here
+worth reading.
+</Aside>
+
+## Where to see it
+
+**Inside a chat**, as a collapsed rail above the transcript. The header line carries the counts
+worth interrupting for — how many steps, how many still open, how many failed — so if nothing is
+wrong you never open it. A short chat that went fine draws no rail at all.
+
+<Screenshot alt="The timeline rail collapsed above a chat transcript" />
+
+**Across chats**, in the project's Overview. This is the half the per-chat rail cannot answer: you
+do not know which conversation stalled. Filter to **Unfinished only** and what is left is the work
+somebody still has to do something about, whichever channel it arrived on.
+
+<Screenshot alt="The project timeline with the unfinished filter on" />
+
+## `mark_milestone`
+
+The agent records a step with one tool call. Three to six steps for an afternoon of work is right;
+thirty is noise.
+
+| Parameter | Meaning |
+|---|---|
+| `title` | The step in one short line, past tense — "Reel analysed". |
+| `state` | `done` (default), `open`, `failed`, `dropped`. |
+| `track` | Optional group — the piece of work these steps belong to. |
+| `detail` | Optional couple of sentences a reader can expand. |
+| `note` | Optional note on the outcome. On `failed`, what went wrong. |
+| `milestone` | An id from a previous call, to close a step opened earlier. |
+
+The default is `done` because a step is usually recorded once it is already over. Every call hands
+back the chat's still-open milestones, so a later turn can close one without a second tool to look
+the ids up.
+
+## Storage
+
+Declared milestones live in `~/.apx/projects/<apxId>/milestones/YYYY-MM.jsonl`, one file per month,
+append-only — the same shape as tasks and commitments. State is the fold of the event stream.
+
+They are deliberately **not** written into the message ledger: anything in there comes back as a
+conversation turn on the next prompt build, and a record *about* a conversation is not something
+anybody said in it.
+
+Derived steps are stored nowhere. They are read from the transcript on request, which is what keeps
+them from ever disagreeing with it.
+
+## API
+
+```
+GET   /api/projects/:pid/milestones?since=ISO&until=ISO&limit=N
+GET   /api/projects/:pid/agents/:slug/conversations/:id/milestones
+GET   /api/projects/:pid/super-agent/threads/:channel/:id/milestones
+POST  /api/projects/:pid/milestones                 { title, state?, track?, … }
+POST  /api/projects/:pid/milestones/:id/close       { state, note? }
+PATCH /api/projects/:pid/milestones/:id             { patch: {...} }
+```
+
+The cross-chat view is built from the ledger — one file per day — so a range costs its own days
+rather than every conversation the project has ever had. That is why it takes a range and not
+"everything".

@@ -252,6 +252,26 @@ export const en = {
     // the laptop does not, so the same channel deserves opposite answers.
     channels_hint: "Which channels may ring this device. The phone starts with Telegram off — the app is already on it.",
   },
+  milestones: {
+    rail_title:      "Timeline",
+    steps_count:     "{n} steps",
+    steps_count_one: "1 step",
+    open_count:      "{n} open",
+    open_count_one:  "1 open",
+    failed_count:    "{n} failed",
+    failed_count_one: "1 failed",
+    unnamed_step:    "Unnamed step",
+    never_answered:  "Never answered",
+    title:           "Timeline",
+    description:     "What was asked, what got done, and what was left open — across every chat.",
+    empty:           "Nothing recorded in this range.",
+    range_today:     "Today",
+    range_week:      "7 days",
+    range_month:     "30 days",
+    only_unfinished: "Unfinished only",
+    open_chat:       "Open the chat",
+  },
+
   inbox: {
     search: "Search",
     no_match: "Nothing matches",

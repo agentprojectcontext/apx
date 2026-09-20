@@ -12,6 +12,7 @@ import addMcp from "./handlers/add-mcp.js";
 import completeTask from "./handlers/complete-task.js";
 import commentTask from "./handlers/comment-task.js";
 import markCommitment from "./handlers/mark-commitment.js";
+import markMilestone from "./handlers/mark-milestone.js";
 import addProject from "./handlers/add-project.js";
 import listMcps from "./handlers/list-mcps.js";
 import listMcpTools from "./handlers/list-mcp-tools.js";
@@ -96,6 +97,7 @@ const NATIVE_TOOLS = [
   addMcp,
   completeTask,
   markCommitment,
+  markMilestone,
   addProject,
   listMcps,
   listMcpTools,
@@ -267,6 +269,12 @@ export const BASE_TOOL_NAMES = new Set([
   // in the watcher's signal list forever (secretary-watch has been reporting
   // one dead commitment from July 2025 on every run since August).
   TOOLS.MARK_COMMITMENT,
+  // Milestones. Hot for the reason the whole feature exists: a step is recorded
+  // IN PASSING, at the moment a phase ends, and a tool the model has to
+  // discover first is a tool it reaches for after the moment has gone. A chat
+  // whose timeline is only written when the model happened to have the schema
+  // loaded is a timeline with holes exactly where the work got interesting.
+  TOOLS.MARK_MILESTONE,
   // Files + basic shell — frequent enough on chat to keep hot.
   TOOLS.READ_FILE,
   TOOLS.WRITE_FILE,
@@ -321,6 +329,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.ADD_MCP]:             "mcp",
   [TOOLS.COMPLETE_TASK]:       "tasks",
   [TOOLS.MARK_COMMITMENT]:     "tasks",
+  [TOOLS.MARK_MILESTONE]:      "tasks",
   [TOOLS.ADD_PROJECT]:         "projects",
   [TOOLS.CALL_AGENT]:          "agents",
   [TOOLS.SEND_TO_AGENT]:       "agents",
@@ -577,7 +586,15 @@ export function makeToolHandlers(ctx) {
       }),
     }),
   };
-  return Object.fromEntries(ALL_TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));
+  return Object.fromEntries(ALL_TOOLS.map((tool) => {
+    const handler = tool.makeHandler(toolCtx);
+    // A tool's own ceiling, carried from the module onto the bound function so
+    // the loop's watchdog can read it (loop/tool-watchdog.js). It rides on the
+    // function because that is all the loop ever holds — the alternative was a
+    // second name→deadline map, i.e. a place for the two to disagree.
+    if (tool.deadlineMs !== undefined) handler.deadlineMs = tool.deadlineMs;
+    return [tool.name, handler];
+  }));
 }
 
 // Diagnostic helper — useful for `apx daemon status` or debug logging.

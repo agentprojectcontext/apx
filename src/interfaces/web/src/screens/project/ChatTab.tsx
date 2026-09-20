@@ -6,6 +6,7 @@ import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
+import { MilestoneRail } from "../../components/chat/MilestoneRail";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { PendingTurns } from "../../components/chat/PendingTurns";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
@@ -41,6 +42,7 @@ import { threadDate } from "../../lib/thread-id";
 import { DELIVERED_CHANNELS } from "../../lib/channels";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
+import { useMilestones } from "../../hooks/useMilestones";
 import { showTools as readShowTools, setShowTools as writeShowTools, showToolsKey } from "../../lib/chat-prefs";
 import {
   conversationActivityKey,
@@ -273,6 +275,8 @@ export function ChatTab({
       : liveActivityKey(pid, selected.agentSlug);
   }, [pid, selected, conversationId, activeIsRoby]);
   useChatVisibility(visibleActivityKey);
+
+  const milestones = useMilestones(pid, selected, conversationId, streaming);
 
   const isA2A = selected.kind === "thread" && selected.channel === "a2a";
   const isGroup = selected.kind === "thread" && selected.channel === "group";
@@ -1294,6 +1298,15 @@ export function ChatTab({
             line you are answering. */}
         <div className="relative min-h-0 flex-1">
           <div ref={scrollerRef} className="h-full overflow-y-auto overflow-x-hidden">
+            {/* What this chat has actually been through, above the transcript
+                it summarises. Collapsed, and absent entirely for a short chat
+                that went fine — see MilestoneRail for why it earns the space
+                only when there is something to follow or something wrong. */}
+            {milestones.entries.length > 0 && (
+              <div className="px-3 pt-2">
+                <MilestoneRail entries={milestones.entries} stats={milestones.stats} />
+              </div>
+            )}
             {msgs.length || queued.length ? (
               <MessageList
                 msgs={msgs}
