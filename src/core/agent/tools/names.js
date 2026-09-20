@@ -66,6 +66,11 @@ export const TOOLS = Object.freeze({
   MARK_COMMITMENT:     "mark_commitment",
   REMEMBER_ROUTINE:    "remember_routine",
 
+  // Milestones — the steps a chat went through, so a long one can be followed
+  // afterwards. Not a task (nobody is meant to do it; it already happened) and
+  // not a commitment (there is no counterparty waiting).
+  MARK_MILESTONE:      "mark_milestone",
+
   // Routines
   LIST_ROUTINES:       "list_routines",
   RUN_ROUTINE:         "run_routine",
@@ -204,6 +209,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.RECORD_COMMITMENT,
   TOOLS.UPDATE_COMMITMENT,
   TOOLS.LIST_COMMITMENTS,
+  TOOLS.MARK_MILESTONE,
   TOOLS.REMEMBER_ROUTINE,
   TOOLS.LIST_ROUTINES,
   TOOLS.RUN_ROUTINE,
@@ -307,6 +313,9 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.UPDATE_TASK,
   TOOLS.RECORD_COMMITMENT,
   TOOLS.UPDATE_COMMITMENT,
+  // A milestone recorded twice is two steps in the rail saying the same thing,
+  // which is the one way this feature can make a chat HARDER to follow.
+  TOOLS.MARK_MILESTONE,
   TOOLS.REMEMBER_ROUTINE,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,

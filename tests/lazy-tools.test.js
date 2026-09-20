@@ -34,7 +34,14 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // to `apx send … --deliver`, which BLOCKS the whole turn until the other side
   // answers. That is not hypothetical, it is what froze one agent for ten
   // minutes waiting on another while both looked dead from every surface.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 34);
+  // 35 with mark_milestone (~+220 tokens). A step is recorded IN PASSING, at
+  // the moment a phase ends, and discovery does not work that way: a model
+  // reaches for discover_tools when it knows it needs something, and it never
+  // knows it needs a milestone tool. Lightweight channels are also exactly
+  // where the feature earns its keep — a long Telegram turn is the one you
+  // cannot follow — so a version of this that is hot on web and cold on
+  // Telegram is a timeline with holes in precisely the chats that need one.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 35);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.

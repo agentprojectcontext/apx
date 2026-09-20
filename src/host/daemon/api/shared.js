@@ -10,6 +10,12 @@ import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { slugifyName } from "#core/stores/organization.js";
+import {
+  GROUP_CHANNEL,
+  readGlobalThread,
+  readProjectA2AThread,
+  readProjectGroupThread,
+} from "#core/stores/messages.js";
 import { apiPath, isApiPath } from "./prefix.js";
 
 export const nowIso = () =>
@@ -278,6 +284,25 @@ export function makeTopProjectResolver(projects) {
 
 // Pick the memory.md to use when /memory is called without an agent ref.
 // Prefer the first agent's runtime-local memory; else project-level .apc/memory.md.
+/**
+ * The messages of one super-agent-shaped thread, whichever store holds it.
+ *
+ * THREE STORES, ONE QUESTION. An a2a thread is keyed by the participant pair
+ * and a group room by its id, so both live in the PROJECT ledger; every other
+ * channel is a global channel+date thread. The branch was written out inside
+ * `GET /super-agent/threads/:channel/:id` and needed by the timeline route too,
+ * and a second copy of a three-way store decision is a second place for it to
+ * drift — one of them learns about a new channel kind and the other does not.
+ *
+ * Returns the thread as its store shapes it (messages already in
+ * `{role, content, ts, …}` form), or null when there is none.
+ */
+export function readThreadMessages({ storagePath, projectId, channel, id }) {
+  if (channel === CHANNELS.A2A) return readProjectA2AThread(storagePath, id);
+  if (channel === GROUP_CHANNEL) return readProjectGroupThread(storagePath, id);
+  return readGlobalThread({ channel, date: id, project: String(projectId) });
+}
+
 export function resolveMemoryPath(p) {
   const firstAgent = readAgents(p.path)[0];
   if (firstAgent) return agentMemoryPath(p, firstAgent.slug);

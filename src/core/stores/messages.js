@@ -17,6 +17,7 @@
 // SQL cache then reads every project day file in order.
 
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
 import { CHANNELS } from "../constants/channels.js";
@@ -448,6 +449,63 @@ export function readProjectMessages(projectRoot, { channel, agent_slug, since, l
   }
   all.sort((a, b) => (b.ts || "").localeCompare(a.ts || ""));
   return all.slice(0, Math.min(limit, 1000));
+}
+
+/**
+ * Ledger rows for a DATE RANGE, oldest first, reading only the day files that
+ * fall inside it.
+ *
+ * The sibling above filters by `since` after parsing, so it opens every day
+ * file a project has ever written whatever range you ask for. That is fine for
+ * "the last 50 messages" and wrong for a view that runs on a request path: the
+ * timeline asks for a week and would pay for a year. Day files are named by
+ * their day, so the range is answerable from the file names alone.
+ *
+ * Async (rule 15) because both callers are request handlers.
+ *
+ * @param {string} projectRoot
+ * @param {object} [range]
+ * @param {string} [range.since]  ISO lower bound, inclusive
+ * @param {string} [range.until]  ISO upper bound, inclusive
+ * @param {number} [range.limit]  keep the NEWEST n, returned oldest-first
+ */
+export async function readProjectMessagesInRange(projectRoot, { since, until, limit = 5000 } = {}) {
+  const dir = path.join(projectRoot, "messages");
+  let names = [];
+  try {
+    names = await fsp.readdir(dir);
+  } catch {
+    return [];
+  }
+  const fromDay = since ? String(since).slice(0, 10) : null;
+  const toDay = until ? String(until).slice(0, 10) : null;
+
+  const days = names
+    .filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .filter((f) => {
+      const day = f.slice(0, 10);
+      if (fromDay && day < fromDay) return false;
+      if (toDay && day > toDay) return false;
+      return true;
+    })
+    .sort();
+
+  const all = [];
+  for (const f of days) {
+    let text = "";
+    try {
+      text = await fsp.readFile(path.join(dir, f), "utf8");
+    } catch {
+      continue; // a file that vanished mid-read is one day missing, not a failure
+    }
+    for (const m of parseDayJsonl(text)) {
+      if (since && m.ts < since) continue;
+      if (until && m.ts > until) continue;
+      all.push(m);
+    }
+  }
+  all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  return Number.isFinite(limit) && limit > 0 ? all.slice(-limit) : all;
 }
 
 export function searchProjectMessages(projectRoot, query, limit = 50) {

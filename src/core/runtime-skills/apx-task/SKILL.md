@@ -151,6 +151,16 @@ back as `pending` — a move reported as done that never happened.
 Commitments are the sibling type and have the same shape: `record_commitment`,
 `list_commitments`, `update_commitment`, `mark_commitment`. See `apx-commitment`.
 
+**Three record types, one question each.** Getting this wrong fills the wrong list and the right one stays empty:
+
+| Type | The question that picks it | Tool |
+|---|---|---|
+| task | Is there something still TO DO? | `create_task` |
+| commitment | Did you promise it to a NAMED PERSON? | `record_commitment` |
+| milestone | Did a phase of work just END? | `mark_milestone` |
+
+A milestone is not a to-do — it already happened, and nobody is meant to act on it. It exists so a chat that ran forty turns can be followed afterwards: `mark_milestone({ title: "Reel analysed" })` when the phase ends, three to six times over an afternoon's work, not per tool call. Default state is `done`; use `failed` when it did not work — that is the one that tells the owner something was left half-finished, and it is the whole reason the type exists. Pass `track` to group the steps of one piece of work. Every call hands back the chat's still-open milestones, so a later turn can close one by id without a second lookup.
+
 ## Anti-examples
 
 ```bash
