@@ -192,8 +192,17 @@ test("the phone keys rows by channel too, like the desktop rail", () => {
 test("tapping a row opens THAT thread, not the agent's newest one", () => {
   // /mobile/chat/-/super_agent with no session opens whatever the inbox thinks
   // is latest — so the row labelled WhatsApp opened Telegram.
+  //
+  // The call used to be spelled out here as `chatPath(pidOf(row),
+  // row.agent_slug, keyFor(row))`, once per surface. That is how a runtime room
+  // — whose slug owns no conversation file — reached a 404 through five
+  // different doors on 2026-09-20: fixing the chat list left the other four.
+  // `rowPath` is that expression plus the one branch, in one place, and the
+  // assertion moved with it.
   const screen = webSrc("screens", "mobile", "MobileScreen.tsx");
-  assert.match(screen, /chatPath\(pidOf\(row\), row\.agent_slug, keyFor\(row\)\)/);
+  assert.match(screen, /navigate\(rowPath\(row\)\)/);
+  const routes = webSrc("screens", "mobile", "routes.ts");
+  assert.match(routes, /return chatPath\(pidOf\(row\), row\.agent_slug, key \?\? keyFor\(row\)\)/);
 });
 
 test("an empty list says WHICH kind of empty it is", () => {

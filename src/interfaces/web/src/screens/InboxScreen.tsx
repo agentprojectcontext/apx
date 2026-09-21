@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RuntimeConversation } from "../components/runtime/RuntimeConversation";
-import { AgentAvatar } from "../components/agents/AgentAvatar";
-import { EyeOff, Eye, Inbox } from "lucide-react";
+import { RuntimeRoomView } from "../components/runtime/RuntimeConversation";
+import { EyeOff, Eye, Inbox, TerminalSquare } from "lucide-react";
 import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList } from "../components/inbox/InboxList";
@@ -186,6 +185,21 @@ export function InboxScreen() {
         onSelect={setSelected}
         onNew={() => setNewOpen(true)}
         action={
+          <>
+          {/* The sessions archive. The list beside it already holds the recent
+              rooms; this is every run there has ever been, and until now the
+              only way in was typing the URL. */}
+          <Tip content={t("mobile.runtimes_title")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={t("mobile.runtimes_title")}
+              data-testid="inbox-open-runtimes"
+              onClick={() => navigate("/runtimes")}
+            >
+              <TerminalSquare size={14} />
+            </Button>
+          </Tip>
           <Tip content={includeEmpty ? t("inbox.hide_quiet") : t("inbox.show_quiet")}>
             <Button
               size="sm"
@@ -196,6 +210,7 @@ export function InboxScreen() {
               {includeEmpty ? <EyeOff size={14} /> : <Eye size={14} />}
             </Button>
           </Tip>
+          </>
         }
       />
 
@@ -204,6 +219,11 @@ export function InboxScreen() {
         onClose={() => setNewOpen(false)}
         onPick={openLive}
         onGroupCreated={(info) => void openGroup(info)}
+        /* Same as the phone: the session is running, so show it. */
+        onRuntimeStarted={(info) => {
+          setNewOpen(false);
+          navigate(`/runtimes?session=${encodeURIComponent(info.session_id)}&pid=${info.project_id}`);
+        }}
       />
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -221,23 +241,12 @@ export function InboxScreen() {
              The same component the phone uses, deliberately: a second transcript
              renderer would be free to disagree with the first about who said
              what, which is the confusion this whole room exists to end. */
-          <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-              <AgentAvatar icon={selected.agent_icon} emoji={null} name={selected.runtime || "?"} size={32} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{selected.agent_name}</p>
-                <p className="truncate text-xs text-muted-fg">
-                  {[selected.runtime, selected.conversation_id, selected.project_name?.split("/").pop(), selected.cwd]
-                    .filter(Boolean).join(" · ")}
-                </p>
-              </div>
-            </div>
-            <RuntimeConversation
-              projectId={selected.project_id ?? 0}
-              sessionId={selected.conversation_id}
-              runtime={selected.runtime}
-            />
-          </div>
+          <RuntimeRoomView
+            projectId={selected.project_id ?? 0}
+            sessionId={selected.conversation_id}
+            runtime={selected.runtime}
+            projectName={selected.project_name}
+          />
         ) : (
           /* Remounted per selection: the chat surface holds its own session
              state, and carrying one agent's stream into another agent's pane

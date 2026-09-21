@@ -106,31 +106,82 @@ test("the default embed timeout leaves room for a cold model load", () => {
 });
 
 test("embedOne: a slow-but-alive engine is waited for; an explicit timeout still wins", async () => {
-  // Stands in for a cold Ollama: answers correctly, just not instantly.
-  let calls = 0;
+  // Asserted against the CALL's own progress, not against a clock. The first
+  // version of this test slept 250ms in the handler, cut the second call at
+  // 30ms, and then demanded that both requests had reached the server — three
+  // wall-time bets that only hold on an idle machine. Under a full `preflight`
+  // the 30ms abort can fire before the socket is even connected, so the server
+  // never sees the second request and the test fails on perfectly good code,
+  // which teaches everyone to re-run it instead of reading it.
+  //
+  // So nothing here sleeps: the fake engine answers only when the TEST releases
+  // it. "Slow" means "has not answered yet", which is what the chain is really
+  // being asked about, and the whole story is an ordered list of facts.
+  const events = [];
+  let received = 0;
+  const stray = [];
+  let handOverSlowRequest;
+  const slowRequest = new Promise((resolve) => { handOverSlowRequest = resolve; });
+
   const server = http.createServer((req, res) => {
-    calls += 1;
-    setTimeout(() => {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ embedding: [3, 4, 0] }));
-    }, 250);
+    // Only the first request is part of the story. Whether the short-timeout
+    // call's socket ever reaches this handler before its own abort IS the race
+    // this test used to lose, so nothing below depends on it.
+    if (++received === 1) {
+      events.push("engine received the slow request");
+      handOverSlowRequest(res);
+    } else {
+      stray.push(res);
+    }
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base_url = `http://127.0.0.1:${server.address().port}`;
   const cfgWith = (extra) => ({
     memory: { embeddings: { provider: "ollama", mode: "single", ollama: { model: "m", base_url, ...extra } } },
   });
+
   try {
-    // No timeout_ms → the generous default → the slow engine answers and wins.
-    const ok = await embedOne("una imagen de un zorro", { globalConfig: cfgWith({}) });
+    // No timeout_ms → the generous default. The call is left in flight with its
+    // request sitting unanswered on the server.
+    const slow = embedOne("una imagen de un zorro", { globalConfig: cfgWith({}) });
+    slow.then((r) => events.push(`slow call resolved: ${r.embedder}`));
+    const slowRes = await slowRequest;
+
+    // An explicit timeout_ms is still honoured — the default is a floor under
+    // the engine, not a ceiling over the config. tf can only come from the call
+    // being cut short here: the engine is reachable (it is holding a request
+    // open) and it is in the chain, which is the half of the old `calls === 2`
+    // assertion that can be checked without racing a stopwatch.
+    const chain = await selectEmbedChain({ globalConfig: cfgWith({ timeout_ms: 1 }) });
+    assert.deepEqual(chain.map((c) => c.provider), ["ollama"], "the short call had a real engine to cut");
+    const cut = await embedOne("una imagen de un zorro", { globalConfig: cfgWith({ timeout_ms: 1 }) });
+    events.push(`short call gave up: ${cut.embedder}`);
+    assert.equal(cut.embedder, "tf", "an explicit timeout_ms must still be able to cut a call short");
+
+    // The order is the point: the short call has already given up while the
+    // generous one is still waiting on an engine that has not said a word.
+    assert.ok(
+      !events.some((e) => e.startsWith("slow call resolved")),
+      `the generous call must still be waiting, got ${JSON.stringify(events)}`,
+    );
+
+    // The engine answers at last — late, but alive — and beats the tf floor.
+    events.push("test answered the slow request");
+    slowRes.writeHead(200, { "content-type": "application/json" });
+    slowRes.end(JSON.stringify({ embedding: [3, 4, 0] }));
+    const ok = await slow;
     assert.equal(ok.embedder, "ollama:m", "a slow engine that ANSWERS must beat the tf floor");
     assert.equal(ok.dim, 3);
 
-    // An explicit timeout is still honoured — this is a floor, not a ceiling.
-    const cut = await embedOne("una imagen de un zorro", { globalConfig: cfgWith({ timeout_ms: 30 }) });
-    assert.equal(cut.embedder, "tf", "an explicit timeout_ms must still be able to cut a call short");
-    assert.equal(calls, 2, "both calls must have reached the server");
+    assert.deepEqual(events, [
+      "engine received the slow request",
+      "short call gave up: tf",
+      "test answered the slow request",
+      "slow call resolved: ollama:m",
+    ]);
   } finally {
+    for (const res of stray) res.destroy();
+    server.closeAllConnections();
     await new Promise((r) => server.close(r));
   }
 });

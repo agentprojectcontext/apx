@@ -9,6 +9,7 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { DesktopScreen } from "./screens/modules/DesktopScreen";
 import { CodeScreen } from "./screens/modules/CodeScreen";
 import { WhatsAppScreen } from "./screens/modules/WhatsAppScreen";
+import { MobileRuntimes } from "./screens/mobile/MobileRuntimes";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { MobileScreen } from "./screens/mobile/MobileScreen";
@@ -159,6 +160,10 @@ function Shell() {
               <Route path="/settings/*" element={<SettingsScreen />} />
               <Route path="/desktop/*"  element={<DesktopScreen />} />
               <Route path="/code/*"     element={<CodeScreen />} />
+              {/* The code sessions as a LIST, at desktop width. The same
+                  screen the phone shows, minus the phone's tab bar: Manu asked
+                  for the access, not for a second list to keep in step. */}
+              <Route path="/runtimes"   element={<MobileRuntimes />} />
               <Route path="/whatsapp"   element={<WhatsAppScreen />} />
               <Route path="/p/:pid/*"   element={<ProjectScreen />} />
               <Route path="*"           element={<NotFound />} />

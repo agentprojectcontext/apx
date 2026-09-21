@@ -122,10 +122,12 @@ test("both surfaces can pick which channels ring them", () => {
 
 test("the tap lands on the inbox row's own path, not a hand-built URL", () => {
   const notify = webSrc("lib", "notify.ts");
-  assert.match(notify, /import \{ chatPath, keyFor, pidOf, queryForChat, urlLooksAt \} from "\.\.\/screens\/mobile\/routes"/);
-  // Built from the same helpers the inbox row navigates with — on the phone
-  // surface. The desktop shape is pinned in its own test below.
-  assert.match(notify, /return chatPath\(pidOf\(row\), row\.agent_slug, key\)/);
+  assert.match(notify, /import \{ keyFor, queryForChat, urlLooksAt, rowPath \} from "\.\.\/screens\/mobile\/routes"/);
+  // The SAME function the inbox row navigates with — on the phone surface. It
+  // used to be the expression `chatPath(pidOf(row), …)` written out here and
+  // in every other surface, which is how a runtime room reached a 404 through
+  // five doors at once (2026-09-20). The desktop shape is pinned below.
+  assert.match(notify, /return rowPath\(row, key\)/);
 });
 
 test("the service worker owns the click and focuses one app instead of opening a second", () => {
@@ -259,7 +261,7 @@ test("the tap lands in the shape of the surface that raised it", () => {
   // …and the panel's own modules, which used to live under /m, are excluded by
   // name so a 27-inch screen one render early on /m/code is not a phone.
   assert.match(channels, /PANEL_MODULES_UNDER_M/);
-  assert.match(notify, /if \(isPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
+  assert.match(notify, /if \(isPhoneSurface\(\)\) return rowPath\(row, key\);/);
   assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{queryForChat\(key\)\.toString\(\)\}`/);
   // The desktop route has no "no project" sentinel — the super-agent is in 0.
   assert.match(notify, /const pid = row\.project_id \?\? 0;/);

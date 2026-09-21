@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/u
 import { Loading } from "../../components/ui";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import { Runtimes, type RuntimeSession } from "../../lib/api/runtimes";
-import { RuntimeConversation } from "../../components/runtime/RuntimeConversation";
+import { RuntimeRoomView } from "../../components/runtime/RuntimeConversation";
 import { MobileChip, MobileGroupHeader, MobileListHeader } from "./mobileList";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
@@ -166,73 +166,37 @@ function RuntimeRow({ session, onOpen }: { session: RuntimeSession; onOpen: () =
   );
 }
 
-/** One session: what it was asked, how it ended, and a box to say more. */
+/** One session, as the chat it is. The paperwork lives behind the ℹ. */
 function RuntimeSheet({ session, onClose }: {
   session: RuntimeSession | null;
   onClose: () => void;
 }) {
-  const { data: full } = useSWR(
-    session ? `/api/projects/${session.project_id}/runtime-sessions/${session.id}` : null,
-    () => Runtimes.get(String(session!.project_id), session!.id),
-  );
-  // The session as a CONVERSATION. The record above says what this session IS;
-  // this says what was said in it, which is the half that was missing — a
-  // launch used to leave a receipt you could read and not answer.
-
   if (!session) return null;
-  const live = full ?? session;
-
   return (
     <Sheet open={!!session} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <SheetContent side="bottom" className="flex max-h-[88vh] flex-col p-0">
-        <SheetHeader className="shrink-0 space-y-2 border-b border-border px-4 pb-3 pt-4">
-          <div className="flex items-center gap-3">
-            <AgentAvatar icon={session.runtime} emoji={null} name={session.runtime || "?"} size={40} />
-            <div className="min-w-0 flex-1">
-              <SheetTitle className="truncate text-left text-base">
-                {session.runtime || t("mobile.runtimes_unknown")}
-              </SheetTitle>
-              <p className="truncate text-xs text-muted-fg">
-                {[session.id, session.project_name?.split("/").pop()].filter(Boolean).join(" · ")}
-              </p>
-            </div>
-            <StatusIcon session={session} className="size-5" />
-          </div>
+      {/* `data-[side=bottom]:` — NOT a plain `h-[88vh]`. The sheet's own variant
+            sets `data-[side=bottom]:h-auto`, and a data-attribute selector wins
+            on specificity, so the plain class was ignored: a long session grew
+            the sheet to 9193px and pushed its own ✕ off the top of the screen
+            with no way to close it (Manu, 2026-09-20). */}
+        <SheetContent side="bottom" className="flex data-[side=bottom]:h-[88vh] flex-col gap-0 rounded-t-2xl p-0">
+        {/* The title is the room's own header, so the sheet does not draw a
+            second one above it. Screen readers still get one. */}
+        <SheetHeader className="sr-only">
+          <SheetTitle>{session.runtime || t("mobile.runtimes_unknown")}</SheetTitle>
         </SheetHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]" data-testid="mobile-runtime-facts">
-            {([
-              [t("mobile.runtimes_started"), live.started],
-              [t("mobile.runtimes_completed"), live.completed],
-              [t("mobile.runtimes_cwd"), live.cwd],
-              [t("mobile.runtimes_agent"), live.agent],
-            ] as [string, string | null | undefined][])
-              .filter(([, v]) => v)
-              .map(([label, value]) => (
-                <div key={label} className="contents">
-                  <dt className="text-muted-fg">{label}</dt>
-                  <dd className="min-w-0 break-all">{value}</dd>
-                </div>
-              ))}
-          </dl>
-
-          {"body" in live && live.body ? (
-            <div className="mt-3 space-y-1">
-              <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_notes")}</span>
-              <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-2 text-[12px] leading-relaxed text-muted-fg">{live.body}</p>
-            </div>
-          ) : null}
-        </div>
-
-        <RuntimeConversation
+        {/* The sessions list is where a RUN is the subject, so this keeps the
+            execution detail on screen. The chat-shaped view is what the chat
+            list opens — a different question about the same session. */}
+        <RuntimeRoomView
+          variant="detail"
           projectId={session.project_id}
           sessionId={session.id}
           runtime={session.runtime}
-          className="min-h-[38vh] border-t border-border"
+          projectName={session.project_name}
+          onClose={onClose}
         />
       </SheetContent>
     </Sheet>
   );
 }
-

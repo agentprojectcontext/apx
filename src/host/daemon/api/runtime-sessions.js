@@ -27,7 +27,8 @@ import {
 } from "#core/stores/runtime-sessions.js";
 import { readProjectRuntimeRoom, listProjectRuntimeRooms } from "#core/stores/runtime-room.js";
 import { makeToolHandlers } from "#core/agent/tools/registry.js";
-import { RUNTIME_IDS } from "#core/runtimes/index.js";
+import { RUNTIME_IDS, getRuntime } from "#core/runtimes/index.js";
+import { runtimeAvailability } from "#core/runtimes/outcome.js";
 import { asyncRoute, pageEnvelope } from "./shared.js";
 
 /** A list is a list: the notes a runtime left in its file are the detail's. */
@@ -40,7 +41,40 @@ function row(session, entry) {
   };
 }
 
+// Which engines this machine can actually start, cached.
+//
+// The probe spawns every coding CLI on the box to reach a verdict, which is
+// fine once and absurd on every render of a menu. Two minutes is long enough
+// that opening the sheet twice costs one probe, and short enough that
+// installing Codex and coming back shows it.
+const ENGINES_TTL_MS = 2 * 60_000;
+let enginesCache = { at: 0, rows: null };
+
+async function installedEngines() {
+  if (enginesCache.rows && Date.now() - enginesCache.at < ENGINES_TTL_MS) return enginesCache.rows;
+  const rows = [];
+  for (const id of RUNTIME_IDS) {
+    let ok = false;
+    try {
+      const rt = getRuntime(id);
+      ok = rt ? (await runtimeAvailability(id, rt)).ok === true : false;
+    } catch {
+      ok = false;
+    }
+    rows.push({ id, installed: ok });
+  }
+  enginesCache = { at: Date.now(), rows };
+  return rows;
+}
+
 export function register(api, { projects, project, plugins, config }) {
+  // What you can start a session WITH. The panel needs it to draw the menu, and
+  // a menu that offers an engine this machine does not have is a menu whose
+  // first tap is an error.
+  api.get("/runtime-engines", asyncRoute(async (_req, res) => {
+    res.json({ engines: await installedEngines() });
+  }));
+
   api.get("/runtime-sessions", (req, res) => {
     const limit = Number(req.query.limit) || 100;
     const rows = [];
@@ -96,6 +130,57 @@ export function register(api, { projects, project, plugins, config }) {
     if (!p) return;
     res.json(pageEnvelope(listProjectRuntimeRooms(p.storagePath), req.query));
   });
+
+  /**
+   * Start a session from the panel — the mirror of `continue`.
+   *
+   * Asked for on 2026-09-20, right after the rooms landed: "¿podemos iniciar
+   * uno nuevo desde acá? ¿un nuevo claude, opencode o codex?". It is the same
+   * handler with no `resume_session_id`: everything that makes a launch safe
+   * and visible already lives there (the permission gate, the session record,
+   * the cwd check, the room it opens), so this route decides two things only —
+   * which engine, and where it runs.
+   *
+   * `cwd` defaults to the project's own folder, and that default is the whole
+   * reason the field is here: on 2026-09-20 nine sessions opened in the APX
+   * project's folder while their prompts described a repo somewhere else.
+   */
+  api.post("/projects/:pid/runtime-sessions", asyncRoute(async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const prompt = String(req.body?.prompt || "").trim();
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    const runtime = String(req.body?.runtime || "").trim();
+    if (!RUNTIME_IDS.includes(runtime)) {
+      return res.status(400).json({ error: `unknown runtime "${runtime}"`, runtimes: RUNTIME_IDS });
+    }
+    const cwd = typeof req.body?.cwd === "string" && req.body.cwd.trim() ? req.body.cwd.trim() : p.path;
+
+    const handlers = makeToolHandlers({
+      projects,
+      plugins,
+      registries: null,
+      globalConfig: config,
+      channel: "runtime",
+      // The owner typed this. See the note on `continue`: it rides in the
+      // handler context, never in the tool's arguments.
+      promptAuthor: "owner",
+    });
+
+    const out = await handlers.call_runtime({
+      project: String(p.id),
+      runtime,
+      prompt,
+      cwd,
+      // Detached: a coding session is minutes to an hour, and the room is where
+      // the answer lands. Waiting on it would be the 300s deadline again.
+      background: true,
+      confirmed: true,
+    });
+
+    if (out?.error) return res.status(502).json(out);
+    res.status(202).json(out);
+  }));
 
   api.post("/projects/:pid/runtime-sessions/:id/continue", asyncRoute(async (req, res) => {
     const p = project(req, res);

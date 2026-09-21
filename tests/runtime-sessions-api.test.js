@@ -234,3 +234,67 @@ test("a session is a room in the chat list, wearing the engine's face", async ()
     cleanupTempProject(root);
   }
 });
+
+test("starting a session from the panel is the owner's, and it opens its own room", async () => {
+  const root = makeTempProject({ name: "Nueva" });
+  const { app, id, projects } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "apx-start-bin-"));
+  const oldPath = process.env.PATH;
+  try {
+    fs.writeFileSync(path.join(bin, "aider"), "#!/bin/sh\necho 'arrancada'\n", { mode: 0o755 });
+    fs.chmodSync(path.join(bin, "aider"), 0o755);
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const bad = await fetch(`${baseUrl}/api/projects/${id}/runtime-sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ runtime: "no-such-engine", prompt: "x" }),
+    });
+    assert.equal(bad.status, 400, "an engine this daemon cannot spawn is refused, not guessed");
+
+    const res = await fetch(`${baseUrl}/api/projects/${id}/runtime-sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ runtime: "aider", prompt: "arrancá con esto" }),
+    });
+    assert.equal(res.status, 202, "launched, not awaited: a coding session is minutes, not a request");
+    const out = await res.json();
+    assert.ok(out.apc_session, "it says which session it opened");
+
+    const { listProjectRuntimeRooms } = await import("#core/stores/runtime-room.js");
+    const room = listProjectRuntimeRooms(projects.get(id).storagePath)
+      .find((r) => r.id === out.apc_session);
+    assert.ok(room, "and that session has a room");
+    assert.equal(room.launched_by, "owner", "the owner started it — not whatever agent the tool defaults to");
+    assert.equal(room.title, "arrancá con esto");
+    // cwd defaults to the project's own folder. It is the field that mattered
+    // most on 2026-09-20: nine sessions opened somewhere else entirely.
+    assert.ok(room.cwd, "a room remembers where it opened");
+  } finally {
+    process.env.PATH = oldPath;
+    fs.rmSync(bin, { recursive: true, force: true });
+    server.close();
+    cleanupTempProject(root);
+  }
+});
+
+test("the engine menu only offers what this machine can actually start", async () => {
+  const root = makeTempProject({ name: "Engines" });
+  const { app } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const out = await fetch(`${baseUrl}/api/runtime-engines`).then((r) => r.json());
+    assert.ok(Array.isArray(out.engines) && out.engines.length, "it answers with the catalogue");
+    for (const e of out.engines) {
+      assert.equal(typeof e.id, "string");
+      assert.equal(typeof e.installed, "boolean");
+    }
+    // A menu that offers an engine this machine does not have is a menu whose
+    // first tap is an error — the panel filters on this flag.
+    assert.ok(out.engines.some((e) => e.id === "claude-code"), "claude-code is in the catalogue");
+  } finally {
+    server.close();
+    cleanupTempProject(root);
+  }
+});
