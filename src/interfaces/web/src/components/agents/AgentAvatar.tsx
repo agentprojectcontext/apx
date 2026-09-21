@@ -143,14 +143,28 @@ export function AgentAvatar({
 
   const logo = CLI_LOGOS[label.toLowerCase()] || CLI_LOGOS[(icon || "").toLowerCase()];
   if (logo) {
+    // Inset inside its slot, not filling it.
+    //
+    // A brand mark is a saturated disc edge to edge; a blob is artwork with air
+    // around it. Drawn at the same number of pixels the logo reads far bigger,
+    // and a chat list where two of the rows are coding sessions looked like the
+    // sessions had been given oversized icons — "los iconos crecieron por
+    // alguna razón y son gigantes" (Manu, 2026-09-20). The SLOT keeps the size
+    // it was handed, so every avatar column still lines up; only the ink
+    // shrinks, to the weight the blobs beside it carry.
     return (
-      <img
-        src={logo}
-        alt=""
+      <span
         aria-hidden
-        className={cn("shrink-0 rounded-full object-cover", className)}
+        className={cn("inline-flex shrink-0 items-center justify-center", className)}
         style={{ width: size, height: size }}
-      />
+      >
+        <img
+          src={logo}
+          alt=""
+          className="rounded-full object-cover"
+          style={{ width: Math.round(size * 0.84), height: Math.round(size * 0.84) }}
+        />
+      </span>
     );
   }
 

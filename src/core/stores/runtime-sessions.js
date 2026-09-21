@@ -131,6 +131,21 @@ export function listRuntimeSessions(storageRoot, opts = {}) {
         // every historical session as "unknown".
         done: !!meta.completed,
         failed: /⚠️|error|failed/i.test(String(meta.status || meta.result || "")),
+        // STILL OPEN IS NOT STILL RUNNING.
+        //
+        // A record closes when the run ends, and nothing closes it when the run
+        // does not end — the daemon was killed mid-flight, the machine slept,
+        // the process died past the point that writes `completed`. The file
+        // then says "🔄 In progress" for ever, and a list that trusted it
+        // showed two sessions as running eleven and twenty-three days after
+        // they stopped (Manu, 2026-09-20: "por qué estos dos se ven corriendo
+        // si ya terminaron?").
+        //
+        // No registry can answer this across a restart, but arithmetic can: a
+        // run cannot outlive its own deadline, and the longest one APX hands
+        // out is the background hour. Past the window below the process is
+        // gone whatever the file says.
+        abandoned: !meta.completed && startedLongerAgoThan(meta.started, ABANDONED_AFTER_MS),
         mtime: safeStatMtime(full),
       });
     }
@@ -151,6 +166,25 @@ export function readRuntimeSession(storageRoot, id, opts = {}) {
   }
   const end = text.indexOf("\n---", 4);
   return { ...row, body: end === -1 ? "" : text.slice(end + 4).trim() };
+}
+
+/**
+ * How long an open record stays believable.
+ *
+ * Six hours against a background deadline of one: generous enough that a run
+ * given a raised `timeout_s` is never called dead while it is working, short
+ * enough that yesterday's crash does not still read as live work. A run that
+ * legitimately outlives this is mislabelled until it closes — which is the
+ * cheaper of the two mistakes, because the other one hides a failure.
+ */
+const ABANDONED_AFTER_MS = 6 * 60 * 60 * 1000;
+
+/** `started` is an ISO stamp written at spawn; anything unparseable is treated
+ *  as old, because a record with no start and no end is not a live run. */
+function startedLongerAgoThan(started, ms) {
+  const at = Date.parse(String(started || ""));
+  if (!Number.isFinite(at)) return true;
+  return Date.now() - at > ms;
 }
 
 function safeStatMtime(p) {

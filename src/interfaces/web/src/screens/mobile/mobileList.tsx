@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { Plus, Search } from "lucide-react";
+import { ArrowLeft, Plus, Search } from "lucide-react";
 import { isNativeShell } from "../../lib/net";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -15,6 +15,7 @@ import { t } from "../../i18n";
 export function MobileListHeader({
   title,
   actions,
+  onBack,
   query,
   onQuery,
   searchPlaceholder,
@@ -22,6 +23,15 @@ export function MobileListHeader({
 }: {
   title: string;
   actions?: ReactNode;
+  /** A way out, for a screen that is not one of the tabs.
+   *
+   *  The tab bar is the way back from Chats, Tasks, Promesas and Avisos, so
+   *  those need nothing. A screen you REACH from one of them — the sessions
+   *  list, opened from the chat list's `>_` — has no tab of its own lighting
+   *  up, and without this there is no way off it but the browser's own chrome,
+   *  which the installed app does not have: "no veo el botón de volver" (Manu,
+   *  2026-09-20). */
+  onBack?: () => void;
   /** Omit BOTH to get a header with no search box. A screen that is meant to be
    *  short by construction (the notification centre) has nothing to search, and
    *  an input that filters three rows is 40px of chrome earning nothing. */
@@ -40,8 +50,21 @@ export function MobileListHeader({
       native ? "pt-1.5" : "pt-[max(0.75rem,env(safe-area-inset-top))]",
     )}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        <div className="flex items-center gap-1">{actions}</div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              data-testid="mobile-list-back"
+              aria-label={t("mobile.back")}
+              className="-ml-2 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-fg transition-colors active:bg-accent/60"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          )}
+          <h1 className="min-w-0 truncate text-xl font-semibold">{title}</h1>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">{actions}</div>
       </div>
       {onQuery && (
         <div className="relative">

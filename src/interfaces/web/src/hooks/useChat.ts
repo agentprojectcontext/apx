@@ -58,6 +58,16 @@ export interface ChatMsg {
   agentId?: string;
   /** Group only: which agent's @mention pulled this speaker in ("traído por X"). */
   reason?: string;
+  /**
+   * This turn was written by an agent and DELIVERED as the owner's.
+   *
+   * Only a coding session has this shape. From the engine's side `claude -p`
+   * has exactly one user and does not care who typed the words, so a prompt
+   * Roby sent and a prompt the owner sent arrive identically — and a room that
+   * drew them identically would be claiming the owner said things he never
+   * said. The value is who it went out AS (the owner).
+   */
+  onBehalfOf?: string;
   /** A group system notice ("joined"/"left") — rendered as a centred line, not a
    *  bubble. `who` is the agent slug it is about. */
   event?: "joined" | "left";

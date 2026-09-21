@@ -25,6 +25,12 @@ export interface RuntimeSession {
   done: boolean;
   /** It closed badly (non-zero exit, a timeout, a refusal). */
   failed: boolean;
+  /**
+   * It never closed, and too long has passed for anything to still be running
+   * it. The record says "in progress" because nothing was alive to write the
+   * ending — not because work is happening.
+   */
+  abandoned?: boolean;
   mtime: number;
   project_id: number | string;
   project_name: string;

@@ -202,6 +202,26 @@ export function register(api, { projects }) {
         perChannel: !channel,
       });
 
+      // WHAT TO CALL THE PROJECT A ROW COMES FROM.
+      //
+      // A super-agent row knows WHICH project its conversation belongs to — a
+      // web day written inside project 4 is not project 0's thread to read —
+      // but the store that builds it has no project registry to name it with,
+      // so it ships `project_name: null` beside a bare id. The panel's badge
+      // falls back to the id when the name is missing, and the phone spent a
+      // day showing Roby's chat tagged "4" instead of "tecnomanu" (Manu,
+      // 2026-09-20: "roby dice 4 en varios lados").
+      //
+      // Resolved here because this is where the registry already is, and keyed
+      // by STRING: `listGlobalThreads` stamps the id as it read it, a string,
+      // while the project entries carry numbers.
+      const byProject = new Map(entries.map((e) => [String(e.id), e]));
+      const named0 = rows.map((r) => {
+        if (r.project_name || r.project_id == null) return r;
+        const e = byProject.get(String(r.project_id));
+        return e ? { ...r, project_name: e.name, project_path: e.path } : r;
+      });
+
       // The super-agent's display name lives in identity.json, and core must not
       // reach for it — resolve it here, at the surface (AGENTS.md rule 4).
       const cfg = readConfig();
@@ -211,7 +231,7 @@ export function register(api, { projects }) {
       // WhatsApp rows all reading "Roby · WhatsApp" tell the reader nothing
       // about which conversation each one is; "Magui", "Carlos", "Manu" do.
       // The badge under the name still says it was Roby who answered.
-      const named = rows.map((r) => {
+      const named = named0.map((r) => {
         if (r.kind !== "super_agent") return r;
         const who = resolveContact(r, cfg);
         const face = contactFaceFor(r, cfg);

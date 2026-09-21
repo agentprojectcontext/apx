@@ -339,6 +339,14 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 <CornerDownRight size={11} /> {t("project.groups.pulled_by", { name: nameOf ? nameOf(msg.reason) : msg.reason })}
               </span>
             )}
+            {/* An agent's words that reached the other side as the owner's.
+                Beside the name, not instead of it: both halves are true and
+                dropping either one is a lie about who spoke. */}
+            {msg.onBehalfOf && (
+              <span className="shrink-0 rounded bg-sky-500/15 px-1 py-px text-[10px] font-medium text-sky-700 dark:text-sky-300">
+                {t("mobile.runtimes_on_behalf")}
+              </span>
+            )}
           </div>
         )}
 

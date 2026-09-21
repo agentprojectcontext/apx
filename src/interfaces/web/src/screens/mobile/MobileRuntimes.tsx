@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
-import { CircleAlert, CircleCheck, Loader, TerminalSquare } from "lucide-react";
+import { CircleAlert, CircleCheck, Loader, PlugZap, TerminalSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Loading } from "../../components/ui";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
@@ -28,7 +28,7 @@ const PAGE = 60;
  * that session — same engine, same folder, its own title and last prompt as
  * context — and the new run narrates itself back into the chat it belongs to.
  */
-export function MobileRuntimes() {
+export function MobileRuntimes({ onBack }: { onBack?: () => void }) {
   const [query, setQuery] = useState("");
   const [onlyFailed, setOnlyFailed] = useState(false);
   const [open, setOpen] = useState<RuntimeSession | null>(null);
@@ -75,11 +75,22 @@ export function MobileRuntimes() {
 
   // Running first — those are the ones you might still want to say something
   // to. The rest keep the newest-first order the daemon sent.
+  //
+  // THREE GROUPS, NOT TWO. An open record is not a running process: nothing
+  // closes the file when the daemon is killed mid-run, so "🔄 In progress"
+  // outlives the run by however long the file sits there. Reading it as
+  // "running" put a session from eleven days ago at the top of the screen under
+  // a spinner — "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu,
+  // 2026-09-20). The daemon now says which open records are too old to be live
+  // (`abandoned`), and those get a shelf of their own rather than being folded
+  // in with the runs that finished — they did not finish, they were cut off.
   const groups = useMemo(() => {
-    const live = shown.filter((s) => !s.done);
+    const live = shown.filter((s) => !s.done && !s.abandoned);
+    const cut = shown.filter((s) => !s.done && s.abandoned);
     const past = shown.filter((s) => s.done);
     return [
       ...(live.length ? [{ key: "live", label: t("mobile.runtimes_running"), rows: live }] : []),
+      ...(cut.length ? [{ key: "cut", label: t("mobile.runtimes_abandoned"), rows: cut }] : []),
       ...(past.length ? [{ key: "past", label: t("mobile.runtimes_finished"), rows: past }] : []),
     ];
   }, [shown]);
@@ -88,6 +99,7 @@ export function MobileRuntimes() {
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <MobileListHeader
         title={t("mobile.runtimes_title")}
+        onBack={onBack}
         query={query}
         onQuery={setQuery}
         searchPlaceholder={t("mobile.runtimes_search")}
@@ -129,8 +141,11 @@ export function MobileRuntimes() {
   );
 }
 
-/** Running / done / failed, in one glyph. */
+/** Running / cut off / done / failed, in one glyph. The spinner is reserved for
+ *  work that is actually happening: an open record nothing is running any more
+ *  gets the unplugged mark, because a spinner is a promise that it will move. */
 function StatusIcon({ session, className }: { session: RuntimeSession; className?: string }) {
+  if (session.abandoned) return <PlugZap className={cn("size-4 text-muted-fg", className)} />;
   if (!session.done) return <Loader className={cn("size-4 animate-spin text-primary", className)} />;
   if (session.failed) return <CircleAlert className={cn("size-4 text-amber-500", className)} />;
   return <CircleCheck className={cn("size-4 text-emerald-500", className)} />;
