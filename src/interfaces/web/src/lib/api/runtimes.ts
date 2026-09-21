@@ -81,6 +81,25 @@ export const Runtimes = {
   room: (pid: string, id: string) =>
     http.get<RuntimeRoom>(`/api/projects/${pid}/runtime-rooms/${encodeURIComponent(id)}`),
 
+  /** Which engines this machine can actually start (probed by the daemon, cached). */
+  engines: () =>
+    http.get<{ engines: { id: string; installed: boolean }[] }>("/api/runtime-engines")
+      .then((b) => b.engines || []),
+
+  /**
+   * Start a new session — the mirror of `continue_`.
+   *
+   * `cwd` is the folder the engine opens in, and leaving it out means the
+   * project's own. It matters more than it looks: on 2026-09-20 nine sessions
+   * opened in the APX project's folder while their prompts described a repo
+   * somewhere else, and spent their first minutes looking for it.
+   */
+  start: (pid: string, body: { runtime: string; prompt: string; cwd?: string }) =>
+    http.post<{ status?: string; apc_session: string; cwd?: string }>(
+      `/api/projects/${pid}/runtime-sessions`,
+      body,
+    ),
+
   /**
    * Say more to a session — straight to the engine.
    *

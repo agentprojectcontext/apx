@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { SendHorizontal } from "lucide-react";
+import { ArrowLeft, Info, SendHorizontal, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { useToast } from "../Toast";
 import { Runtimes, type RuntimeRoomMessage } from "../../lib/api/runtimes";
@@ -8,29 +9,68 @@ import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
 /**
- * A launched coding session, as a conversation you can answer.
+ * A launched coding session, as a chat.
  *
- * Shared by the phone (inside the runtimes sheet) and the panel (inline in the
- * inbox pane) because it is the same conversation: the alternative was a second
- * transcript renderer, free to disagree with the first about who said what —
- * which is the exact confusion this screen exists to end.
+ * It opened as a FICHA first — folder, start, finish, launched-by, notes, then
+ * the transcript underneath — because the screen it grew out of was a list of
+ * session records. Manu, the moment he opened one from the chat list: "no
+ * entiendo por qué se ve así y no como un chat común… esta data de carpeta,
+ * arrancó, terminó, podría ser un botón de info". He is right: a room reached
+ * from a list of conversations is a conversation, and the paperwork is what you
+ * ask for, not what you are handed.
+ *
+ * So the facts are behind the ℹ, and the only ones that stay on screen are the
+ * two that say WHICH session this is: the engine, and the folder it opened in.
+ * The folder is on the header for a reason of its own — nine sessions on
+ * 2026-09-20 ran in the wrong one and nothing on screen said so.
+ *
+ * Shared by the phone and the panel, deliberately: a second transcript renderer
+ * would be free to disagree with the first about who said what, which is the
+ * confusion this room exists to end.
  */
-export function RuntimeConversation({ projectId, sessionId, runtime, className }: {
+export function RuntimeRoomView({
+  projectId, sessionId, runtime, projectName, variant = "chat", onBack, onClose, className,
+}: {
   projectId: string | number;
   sessionId: string;
   runtime?: string | null;
+  projectName?: string | null;
+  /**
+   * WHICH OF THE TWO THINGS A SESSION IS.
+   *
+   * "chat" — reached from the list of conversations, so it IS one: bubbles, a
+   *   back button, and the paperwork behind the ℹ. "no entiendo por qué se ve
+   *   así y no como un chat común" (Manu, 2026-09-20).
+   * "detail" — reached from the sessions list, where the run itself is the
+   *   subject: the execution facts on screen, transcript underneath. That view
+   *   was right and the first pass took it away from both. "sacaste la info en
+   *   esta vista que estaba bien".
+   */
+  variant?: "chat" | "detail";
+  onBack?: () => void;
+  onClose?: () => void;
   className?: string;
 }) {
   const toast = useToast();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const { data: room, mutate } = useSWR(
     `/api/projects/${projectId}/runtime-rooms/${sessionId}`,
     () => Runtimes.room(String(projectId), sessionId),
     { refreshInterval: 10000, keepPreviousData: true },
   );
+  // The record: only the ℹ sheet reads it, so it is fetched only when opened.
+  // In "detail" they are the point of the screen, so they load with it; in
+  // "chat" they are behind the ℹ and cost nothing until it is opened.
+  const { data: facts } = useSWR(
+    variant === "detail" || infoOpen ? `/api/projects/${projectId}/runtime-sessions/${sessionId}` : null,
+    () => Runtimes.get(String(projectId), sessionId),
+  );
+
   const engine = room?.runtime || runtime || "runtime";
+  const cwd = room?.cwd || null;
 
   const send = async () => {
     const prompt = text.trim();
@@ -52,7 +92,53 @@ export function RuntimeConversation({ projectId, sessionId, runtime, className }
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
+      {/* The thread's own bar, the same shape every other thread header has.
+          The second line is the FOLDER, not the project: two sessions of the
+          same engine in the same project are told apart by where they opened. */}
+      <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            data-testid="runtime-back"
+            aria-label={t("mobile.back")}
+            className="-ml-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-fg transition-colors active:bg-accent/60 hover:text-fg"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
+        <AgentAvatar icon={engine} emoji={null} name={engine} size={28} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{engine}</p>
+          <p className="truncate text-[11px] text-muted-fg" title={cwd || undefined}>
+            {[cwd, projectName || room?.project_name, sessionId].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        {variant === "chat" && (
+        <button
+          type="button"
+          onClick={() => setInfoOpen(true)}
+          data-testid="runtime-info"
+          aria-label={t("mobile.runtimes_info")}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-fg transition-colors active:bg-accent/60 hover:text-fg"
+        >
+          <Info size={17} />
+        </button>
+        )}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-fg transition-colors active:bg-accent/60 hover:text-fg"
+          >
+            <X size={17} />
+          </button>
+        )}
+      </header>
+
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3" data-testid="runtime-thread">
+        {variant === "detail" && <RuntimeFacts {...{ engine, cwd, facts, room, projectName }} />}
         {room?.messages?.length
           ? room.messages.map((m, i) => <RuntimeLine key={`${m.ts || i}-${i}`} msg={m} />)
           : <p className="text-[12px] text-muted-fg">{t("mobile.runtimes_empty_thread")}</p>}
@@ -83,7 +169,62 @@ export function RuntimeConversation({ projectId, sessionId, runtime, className }
         </div>
         <p className="text-[11px] text-muted-fg">{t("mobile.runtimes_reply_hint")}</p>
       </div>
+
+      {/* The paperwork, on request. Bottom sheet on both surfaces: it is the
+          same set of facts, and a second layout for the panel would be a second
+          place for them to fall out of date. */}
+      <Sheet open={infoOpen} onOpenChange={setInfoOpen}>
+        <SheetContent side="bottom" className="max-h-[70vh] gap-0 rounded-t-2xl p-0">
+          <SheetHeader className="border-b border-border px-4 pb-3 pt-4">
+            <SheetTitle className="text-left text-base">{t("mobile.runtimes_info")}</SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 overflow-y-auto px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <RuntimeFacts {...{ engine, cwd, facts, room, projectName }} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+/** What this run WAS: engine, folder, who started it, when it began and ended,
+ *  and whatever notes it left. On screen in "detail", behind the ℹ in "chat" —
+ *  one block either way, because two would be two things to keep in step. */
+function RuntimeFacts({ engine, cwd, facts, room, projectName }: {
+  engine: string;
+  cwd: string | null;
+  facts?: { started?: string | null; completed?: string | null; body?: string } | null;
+  room?: { launched_by?: string | null; project_name?: string } | null;
+  projectName?: string | null;
+}) {
+  return (
+    <>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[12px]" data-testid="runtime-facts">
+        {([
+          [t("mobile.runtimes_new_engine"), engine],
+          [t("mobile.runtimes_cwd"), cwd],
+          [t("nav.project"), projectName || room?.project_name],
+          [t("mobile.runtimes_agent"), room?.launched_by],
+          [t("mobile.runtimes_started"), facts?.started],
+          [t("mobile.runtimes_completed"), facts?.completed],
+        ] as [string, string | null | undefined][])
+          .filter(([, v]) => v)
+          .map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-muted-fg">{label}</dt>
+              <dd className="min-w-0 break-all">{value}</dd>
+            </div>
+          ))}
+      </dl>
+      {facts?.body ? (
+        <div className="mt-3 space-y-1">
+          <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_notes")}</span>
+          <p className="whitespace-pre-wrap rounded-lg bg-muted/40 p-2 text-[12px] leading-relaxed text-muted-fg">
+            {facts.body}
+          </p>
+        </div>
+      ) : null}
+    </>
   );
 }
 

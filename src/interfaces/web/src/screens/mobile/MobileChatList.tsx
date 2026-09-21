@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, Users, X } from "lucide-react";
+import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, Users, X, TerminalSquare } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { CommunityCard } from "../../components/common/CommunityCard";
-import { AGENTS_ROOT, chatPath, keyFor, pidOf } from "./routes";
+import { AGENTS_ROOT, RUNTIMES_ROOT, chatPath, keyFor, pidOf } from "./routes";
 import { LINKS } from "../../constants";
 import { inboxRowKey } from "../../lib/chat-read";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
@@ -102,6 +102,19 @@ export function MobileChatList({
               className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
             >
               <Users size={19} />
+            </button>
+            {/* The code sessions, as a LIST. The chat list holds the recent
+                ones as rooms; this is the archive — every run, with its exit
+                code and the folder it opened in — and until now the only way
+                in was typing the URL. */}
+            <button
+              type="button"
+              onClick={() => navigate(RUNTIMES_ROOT)}
+              aria-label={t("mobile.runtimes_title")}
+              data-testid="mobile-open-runtimes"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+            >
+              <TerminalSquare size={19} />
             </button>
             <button
               type="button"

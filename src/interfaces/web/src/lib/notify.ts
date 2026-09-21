@@ -29,7 +29,7 @@ import { isSecure } from "./net";
 import { channelEnabled, isPhoneSurface } from "./channels";
 // Pure URL helpers, no React: the tap has to land on the same path the inbox
 // row would have navigated to, and there is exactly one place that knows it.
-import { chatPath, keyFor, pidOf, queryForChat, urlLooksAt } from "../screens/mobile/routes";
+import { keyFor, queryForChat, urlLooksAt, rowPath } from "../screens/mobile/routes";
 
 const PREF_KEY = "apx.notify.agents";
 
@@ -210,7 +210,7 @@ export async function sendTestNotification(): Promise<boolean> {
  */
 export function conversationUrl(row: InboxRow): string {
   const key = keyFor(row);
-  if (isPhoneSurface()) return chatPath(pidOf(row), row.agent_slug, key);
+  if (isPhoneSurface()) return rowPath(row, key);
   // The desktop route has no "no project" sentinel: the super-agent lives in
   // workspace 0 there, which is the same place its own sidebar opens it from.
   const pid = row.project_id ?? 0;

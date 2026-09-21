@@ -59,7 +59,14 @@ export const RUNTIMES_ROOT = `${MOBILE_ROOT}/runtimes`;
  * machinery (which is built around an agent answering). It opens on the
  * runtimes screen, which already knows how to talk to an engine.
  */
+export const RUNTIME_ROOM_ROOT = `${MOBILE_ROOT}/runtime`;
+
 export function runtimeRoomPath(pid: string | number, sessionId: string): string {
+  return `${RUNTIME_ROOM_ROOT}/${encodeURIComponent(String(pid))}/${encodeURIComponent(sessionId)}`;
+}
+
+/** The sessions LIST, opened on one of them — the floating detail. */
+export function runtimeDetailPath(pid: string | number, sessionId: string): string {
   const q = new URLSearchParams({ session: sessionId, pid: String(pid) });
   return `${RUNTIMES_ROOT}?${q.toString()}`;
 }
@@ -125,6 +132,27 @@ export function chatPath(pid: string, slug: string, key?: ChatKey): string {
   return session ? `${base}/${encodeURIComponent(session)}` : base;
 }
 
+/**
+ * WHERE A ROW OPENS. One function, because there are five callers.
+ *
+ * Every surface that turns an inbox row into a destination used to call
+ * `chatPath(pidOf(row), row.agent_slug, keyFor(row))` by hand — the chat list,
+ * the attention tab, a notification's deep link. That was fine while every row
+ * was an agent's conversation. A runtime room is not: its slug is the synthetic
+ * `runtime:<id>`, which owns no conversation file, so the chat pane opened on a
+ * 404 and an empty composer ("conversation not found", 2026-09-20). Patching
+ * the chat list alone left the other four doors open, which is how it was
+ * reported from the attention tab twenty minutes later.
+ *
+ * So the branch lives here and the callers ask.
+ */
+export function rowPath(row: InboxRow, key?: ChatKey): string {
+  if (row.kind === "runtime" && row.conversation_id) {
+    return runtimeRoomPath(pidOf(row), row.conversation_id);
+  }
+  return chatPath(pidOf(row), row.agent_slug, key ?? keyFor(row));
+}
+
 export function teamPath(pid: string): string {
   return `${MOBILE_ROOT}/team/${encodeURIComponent(pid)}`;
 }
@@ -138,6 +166,11 @@ export function teamPath(pid: string): string {
 export function agentCardUrl(row: InboxRow): string {
   if (row.kind === "super_agent") return "/p/0/chat";
   const pid = row.project_id ?? 0;
+  // A runtime room has no agent card: nobody on the roster is in it. The
+  // session itself is the only thing there is to open.
+  if (row.kind === "runtime" && row.conversation_id) {
+    return runtimeRoomPath(pid, row.conversation_id);
+  }
   if (row.kind === "a2a" || row.kind === "group") {
     return `/p/${pid}/chat?channel=${row.kind}&thread=${encodeURIComponent(row.conversation_id || "")}`;
   }
@@ -170,7 +203,7 @@ export function chatInProjectUrl(row: InboxRow): string {
       : `/p/${pid}/chat`;
   }
   const pid = row.project_id ?? 0;
-  if (row.kind === "a2a" || row.kind === "group") return agentCardUrl(row);
+  if (row.kind === "a2a" || row.kind === "group" || row.kind === "runtime") return agentCardUrl(row);
   const q = new URLSearchParams({ agent: row.agent_slug });
   // The session, when the row names one. Without it the project opens the
   // agent's newest chat, which is not necessarily the one being read.
@@ -210,6 +243,24 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
  */
 export function urlLooksAt(href: string, row: InboxRow): boolean {
   const url = new URL(href, "http://localhost");
+
+  // A runtime room lives on the runtimes screen with the session in the query,
+  // not on a chat path. Without this it answers "no" while the room is open on
+  // screen, and the bell rings for the message you are looking at.
+  if (row.kind === "runtime") {
+    const id = row.conversation_id || "";
+    // Two places show the same room: its own chat route, and the sessions list
+    // with it open. Reading it in either one means you have read it.
+    // `RUNTIME_ROOM_ROOT + "/"`, not the bare prefix: `/m/runtimes` starts with
+    // `/m/runtime`, so a bare startsWith swallowed the LIST's url into the
+    // room branch and answered no for it.
+    if (url.pathname.startsWith(`${RUNTIME_ROOM_ROOT}/`)) {
+      return decodeURIComponent(url.pathname.split("/").pop() || "") === id;
+    }
+    if (url.pathname.startsWith(RUNTIMES_ROOT)) return url.searchParams.get("session") === id;
+    return false;
+  }
+
   const key = keyFor(row);
 
   // Both spellings: a notification raised before this rename still carries

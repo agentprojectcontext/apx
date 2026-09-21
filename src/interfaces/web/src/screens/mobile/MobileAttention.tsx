@@ -11,7 +11,7 @@ import { projectEnabledIn } from "../../lib/provenance";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { useProjectPrefs } from "../../hooks/useProjectPrefs";
 import { useInbox } from "../../hooks/useInbox";
-import { chatPath, keyFor, pidOf, TASKS_ROOT } from "./routes";
+import { rowPath, TASKS_ROOT } from "./routes";
 import { MobileGroupHeader, MobileListHeader } from "./mobileList";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -142,7 +142,7 @@ export function MobileAttention() {
                   key={inboxRowKey(row)}
                   row={row}
                   variant="touch"
-                  onSelect={(r) => navigate(chatPath(pidOf(r), r.agent_slug, keyFor(r)))}
+                  onSelect={(r) => navigate(rowPath(r))}
                 />
               ))}
             </ul>
