@@ -145,7 +145,7 @@ export function listRuntimeSessions(storageRoot, opts = {}) {
         // run cannot outlive its own deadline, and the longest one APX hands
         // out is the background hour. Past the window below the process is
         // gone whatever the file says.
-        abandoned: !meta.completed && startedLongerAgoThan(meta.started, ABANDONED_AFTER_MS),
+        abandoned: isAbandonedSession(meta),
         mtime: safeStatMtime(full),
       });
     }
@@ -177,7 +177,7 @@ export function readRuntimeSession(storageRoot, id, opts = {}) {
  * legitimately outlives this is mislabelled until it closes — which is the
  * cheaper of the two mistakes, because the other one hides a failure.
  */
-const ABANDONED_AFTER_MS = 6 * 60 * 60 * 1000;
+export const ABANDONED_AFTER_MS = 6 * 60 * 60 * 1000;
 
 /** `started` is an ISO stamp written at spawn; anything unparseable is treated
  *  as old, because a record with no start and no end is not a live run. */
@@ -185,6 +185,19 @@ function startedLongerAgoThan(started, ms) {
   const at = Date.parse(String(started || ""));
   if (!Number.isFinite(at)) return true;
   return Date.now() - at > ms;
+}
+
+/**
+ * Is this record still open, and too old for anything to be running it?
+ *
+ * Exported so every surface answers it the same way. The CLI has its own
+ * session reader and printed 🔄 off the stored `status` line, so `apx session
+ * list` was still calling an eleven-day-old record "in progress" after the
+ * panel had stopped — the same lie through a different door, and Manu's
+ * standing rule is that the CLI and the web say the same thing.
+ */
+export function isAbandonedSession({ completed, started } = {}) {
+  return !completed && startedLongerAgoThan(started, ABANDONED_AFTER_MS);
 }
 
 function safeStatMtime(p) {

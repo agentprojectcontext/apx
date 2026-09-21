@@ -8,7 +8,7 @@ import { Composer } from "../chat/Composer";
 import { useToast } from "../Toast";
 import { Runtimes, type RuntimeRoomMessage } from "../../lib/api/runtimes";
 import type { ChatMsg } from "../../hooks/useChat";
-import { countSaying, toChatMsgs } from "../../lib/runtime-room";
+import { countSaying, isAnswering, toChatMsgs } from "../../lib/runtime-room";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
@@ -84,10 +84,15 @@ export function RuntimeRoomView({
   const { data: room, mutate } = useSWR(
     `/api/projects/${projectId}/runtime-rooms/${sessionId}`,
     () => Runtimes.room(String(projectId), sessionId),
-    // Faster while a turn of ours is in flight: this is the only signal the
-    // answer has landed, and ten seconds of a spinner that is already stale is
-    // the difference between "it is working" and "it is stuck".
-    { refreshInterval: sent ? 4000 : 10000, keepPreviousData: true },
+    {
+      // Fast while the engine owes an answer, slow once it has given one.
+      // The poll IS the delivery here — a run lands in the room and nothing
+      // pushes — so four seconds of staleness is the difference between "it is
+      // working" and "it is stuck", and ten is plenty for a finished session
+      // nobody is waiting on.
+      refreshInterval: (data) => (isAnswering(data?.messages ?? []) ? 4000 : 10000),
+      keepPreviousData: true,
+    },
   );
   // The record: only the ℹ sheet reads it, so it is fetched only when opened.
   // In "detail" they are the point of the screen, so they load with it; in
@@ -112,6 +117,12 @@ export function RuntimeRoomView({
     if (landed) setSent(null);
   }, [landed]);
 
+  // The waiting bubble is decided inside `toChatMsgs`, off the room itself —
+  // deliberately NOT passed to the composer as `streaming`. That would swap
+  // send for a stop button, and nothing here can call an engine back: a stop
+  // that does nothing is worse than no stop. Writing to a session while it
+  // works is allowed on purpose — "si yo le digo que se colgó" is exactly the
+  // message that must get through.
   const msgs = useMemo(
     () => toChatMsgs(lines, engine, landed ? null : sent),
     [lines, engine, landed, sent],

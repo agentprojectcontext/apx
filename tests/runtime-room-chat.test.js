@@ -16,9 +16,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { toChatMsgs, countSaying } = await import(
+const { toChatMsgs, countSaying, isAnswering, STILL_ANSWERING_MS } = await import(
   path.join(ROOT, "src/interfaces/web/src/lib/runtime-room.ts")
 );
+
+/** "Now" for the tests: the transcript below ends at 10:09 on 2026-09-20. */
+const T = (hhmm) => Date.parse(`2026-09-20T${hhmm}:00Z`);
 
 const ENGINE = "claude-code";
 
@@ -75,7 +78,7 @@ test("a sent turn is on screen before the poll brings it back, with the engine s
   // The gap this closes: the composer clears on send, the room is polled, and
   // for as long as the run takes there was NOTHING — which reads as a message
   // that failed to send.
-  const msgs = toChatMsgs(LINES, ENGINE, { text: "y el lint?", ts: "2026-09-20T10:10:00Z" });
+  const msgs = toChatMsgs(LINES, ENGINE, { text: "y el lint?", ts: "2026-09-20T10:10:00Z" }, T("10:10"));
   assert.equal(msgs.length, 6);
   assert.equal(msgs[4].role, "user");
   assert.equal(msgs[4].parts[0].text, "y el lint?");
@@ -85,6 +88,51 @@ test("a sent turn is on screen before the poll brings it back, with the engine s
   assert.equal(msgs[5].pending, true);
   assert.equal(msgs[5].agent, ENGINE);
   assert.deepEqual(msgs[5].parts, []);
+});
+
+test("the waiting bubble is the ROOM's answer, not this tab's", () => {
+  // The bug this exists for: the prompt reaches the ledger IMMEDIATELY —
+  // `appendRuntimePrompt` runs before the engine is even spawned — so an
+  // indicator hung off the locally-held turn switched off on the next poll,
+  // four seconds into a run that takes minutes. "No veo si está contestando"
+  // (Manu, 2026-09-20), and that is the half of it a local flag cannot fix.
+  const asked = [...LINES, { role: "user", content: "y el lint?", ts: "2026-09-20T10:10:00Z" }];
+  assert.equal(isAnswering(asked, T("10:12")), true, "a prompt with nothing under it is being worked on");
+
+  // And it survives the local turn being let go: no `pending`, still waiting.
+  const msgs = toChatMsgs(asked, ENGINE, null, T("10:12"));
+  assert.equal(msgs[msgs.length - 1].pending, true);
+  assert.equal(msgs.filter((m) => m.pending).length, 1, "one waiting bubble, never two");
+});
+
+test("a session somebody else launched shows as working too", () => {
+  // The room is the source, so a session Roby opened a minute ago reads as
+  // live on a screen that never sent anything — and survives a refresh, which
+  // a flag in a component cannot.
+  const theirs = [{
+    role: "assistant", content: "arreglá el build", ts: "2026-09-20T10:10:00Z",
+    agent: "apx", agent_name: "APX", actor_kind: "agent", on_behalf_of: "owner",
+  }];
+  assert.equal(isAnswering(theirs, T("10:11")), true);
+});
+
+test("an answered room is not waiting on anything", () => {
+  assert.equal(isAnswering(LINES, T("10:10")), false, "the engine spoke last");
+  assert.equal(toChatMsgs(LINES, ENGINE, null, T("10:10")).some((m) => m.pending), false);
+  assert.equal(isAnswering([], T("10:10")), false, "an empty room waits on nobody");
+});
+
+test("a prompt older than the deadline stops spinning", () => {
+  // The other direction, and the one a naive "last row is a prompt" gets
+  // wrong: a run that died without writing its answer, or a room from May
+  // opened out of the archive, would show a spinner for ever. A spinner is a
+  // promise that something will move.
+  const asked = [...LINES, { role: "user", content: "y el lint?", ts: "2026-09-20T10:10:00Z" }];
+  const wayLater = T("10:10") + STILL_ANSWERING_MS + 1000;
+  assert.equal(isAnswering(asked, wayLater), false);
+  assert.equal(toChatMsgs(asked, ENGINE, null, wayLater).some((m) => m.pending), false);
+  // A row with no timestamp at all cannot be argued to be recent.
+  assert.equal(isAnswering([{ role: "user", content: "?" }], T("10:10")), false);
 });
 
 test("the locally-held turn is let go once the ledger has it — by count, not by presence", () => {
