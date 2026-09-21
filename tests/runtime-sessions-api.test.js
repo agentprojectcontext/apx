@@ -338,6 +338,63 @@ test("starting a session from the panel is the owner's, and it opens its own roo
   }
 });
 
+test("a launch from the panel is DETACHED — the request does not wait out the run", async () => {
+  // THE BUG THIS EXISTS FOR. The route asks for `background: true` and says so
+  // in a comment ("waiting on it would be the 300s deadline again"), but the
+  // handler only honours it when it has somewhere to deliver a late result —
+  // and the test for that, `runtimeThreadCanCarry`, answers a different
+  // question: "should a receipt go in this channel's day thread?". For a room
+  // channel that is no, because the room already holds both sides. Reading one
+  // as the other silently turned every panel launch back into a foreground run
+  // against a 300s deadline a coding session cannot survive.
+  //
+  // The session's own room IS the delivery path — `runToCompletion` writes the
+  // engine's answer into it either way — so this asserts the only thing that
+  // tells the two modes apart from outside: a detached launch answers before
+  // the engine does.
+  const root = makeTempProject({ name: "Detached" });
+  const { app, id } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "apx-detach-bin-"));
+  const oldPath = process.env.PATH;
+  const SLEEP_S = 3;
+  try {
+    // Instant for the availability probe (`--version`), slow for a real run.
+    // Without the split the 3s belongs to the probe, which BOTH modes wait on,
+    // and the test measures the wrong thing.
+    fs.writeFileSync(
+      path.join(bin, "aider"),
+      `#!/bin/sh\ncase "$1" in --version) echo 'aider 0.0.0'; exit 0;; esac\nsleep ${SLEEP_S}\necho 'tarde'\n`,
+      { mode: 0o755 },
+    );
+    fs.chmodSync(path.join(bin, "aider"), 0o755);
+    process.env.PATH = `${bin}${path.delimiter}${oldPath}`;
+
+    const started = Date.now();
+    const res = await fetch(`${baseUrl}/api/projects/${id}/runtime-sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ runtime: "aider", prompt: "algo que tarda" }),
+    });
+    const elapsed = Date.now() - started;
+    const out = await res.json();
+
+    assert.equal(res.status, 202);
+    assert.equal(out.status, "launched", "it reports a launch, not a finished run");
+    assert.equal(out.background, true);
+    assert.equal(out.output, undefined, "a detached launch has no output yet — that is the point");
+    assert.ok(
+      elapsed < SLEEP_S * 1000,
+      `the request came back in ${elapsed}ms, before the ${SLEEP_S}s run: it did not wait`,
+    );
+  } finally {
+    process.env.PATH = oldPath;
+    fs.rmSync(bin, { recursive: true, force: true });
+    server.close();
+    cleanupTempProject(root);
+  }
+});
+
 test("the engine menu only offers what this machine can actually start", async () => {
   const root = makeTempProject({ name: "Engines" });
   const { app } = makeApp(root);

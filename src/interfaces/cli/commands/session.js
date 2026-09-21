@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { findApfRoot, readAgents } from "#core/apc/parser.js";
 import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import { generateSessionId } from "#core/stores/sessions.js";
+import { isAbandonedSession } from "#core/stores/runtime-sessions.js";
 import { projectStorageRoot } from "#core/config/index.js";
 import { http } from "../http.js";
 import { readStdinSync } from "../stdin.js";
@@ -68,10 +69,26 @@ function findSessionById(root, id) {
   return null;
 }
 
-function statusEmoji(status) {
+/**
+ * What a session's state LOOKS like, in one glyph.
+ *
+ * `status` is what the file says, and the file says "🔄 In progress" for ever
+ * when nothing closed it — the daemon was killed mid-run, the machine slept,
+ * the process died past the point that writes `completed`. So the row is asked
+ * the same question the panel asks (`isAbandonedSession`) before the stored
+ * line is believed: 🔄 is reserved for work that could still be happening.
+ *
+ * `apx session list` was showing 🔄 for a record from eleven days earlier,
+ * which is the same thing the sessions list was doing before 2026-09-20 —
+ * "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu).
+ */
+function statusEmoji(session) {
+  const status = typeof session === "string" ? session : session?.status || "";
   if (/complete/i.test(status)) return "✅";
-  if (/in.progress/i.test(status)) return "🔄";
   if (/stale|closed/i.test(status)) return "⚠️";
+  if (/in.progress/i.test(status)) {
+    return typeof session === "string" || !isAbandonedSession(session) ? "🔄" : "⛔";
+  }
   return "❓";
 }
 
@@ -152,7 +169,7 @@ export function cmdSessionList(args) {
   );
   for (const s of sessions) {
     console.log(
-      `${s.id.padEnd(16)} ${statusEmoji(s.status).padEnd(2)} ${s.agent.padEnd(12)} ${s.title.slice(0, 60)}`
+      `${s.id.padEnd(16)} ${statusEmoji(s).padEnd(2)} ${s.agent.padEnd(12)} ${s.title.slice(0, 60)}`
     );
   }
 }

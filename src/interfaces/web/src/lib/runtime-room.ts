@@ -13,6 +13,39 @@ export interface PendingTurn {
   ts: string;
 }
 
+/**
+ * How long a prompt with no answer under it still counts as being worked on.
+ *
+ * The background deadline APX hands a coding session is one hour, so past that
+ * the engine is not coming back and a spinner would be a promise nobody can
+ * keep. It bounds the other direction too: opening a room from May whose last
+ * row happens to be a prompt must not show it as live.
+ */
+export const STILL_ANSWERING_MS = 60 * 60 * 1000;
+
+/** Did the ENGINE say this, as opposed to the owner or an agent? */
+function isEngineReply(m: RuntimeRoomMessage): boolean {
+  return m.actor_kind === "engine";
+}
+
+/**
+ * Is the engine working on the last thing said to it?
+ *
+ * Read off the ROOM, not off what this tab happens to have sent: a session Roby
+ * launched a minute ago is just as much in flight as one typed here, and the
+ * answer has to survive a refresh. The room ends in a prompt exactly while
+ * there is no reply under it — which is the whole of the question — bounded by
+ * the deadline so a dead run does not spin for ever.
+ */
+export function isAnswering(lines: RuntimeRoomMessage[], now = Date.now()): boolean {
+  const said = lines.filter((m) => m.role !== "tool" && m.role !== "system");
+  const last = said[said.length - 1];
+  if (!last || isEngineReply(last)) return false;
+  const at = Date.parse(String(last.ts || ""));
+  if (!Number.isFinite(at)) return false;
+  return now - at < STILL_ANSWERING_MS;
+}
+
 /** How many turns in the room already say exactly this. */
 export function countSaying(lines: RuntimeRoomMessage[], text: string): number {
   return lines.filter((m) => String(m.content || "").trim() === text).length;
@@ -35,14 +68,21 @@ export function countSaying(lines: RuntimeRoomMessage[], text: string): number {
  * claude recibe como yo mismo, y yo veo los 3 tipos: mi mensaje, el del agente
  * y el de claude".
  *
- * `pending` is this tab's own turn, sent and not yet in the ledger: the prompt
- * plus an empty engine turn marked as running, which is what puts "está
- * contestando" on screen for the minutes a run takes.
+ * `pending` is this tab's own turn, sent and not yet in the ledger — the gap
+ * between pressing send and the next poll, in which the words had left the
+ * composer and were nowhere on screen.
+ *
+ * The "está contestando" line is a SEPARATE question and comes from the room
+ * itself (`isAnswering`): the prompt reaches the ledger immediately, long
+ * before the engine finishes, so hanging the indicator off the locally-held
+ * turn would have switched it off within four seconds of a run that takes
+ * minutes — and shown nothing at all for a session somebody else launched.
  */
 export function toChatMsgs(
   lines: RuntimeRoomMessage[],
   engine: string,
   pending?: PendingTurn | null,
+  now = Date.now(),
 ): ChatMsg[] {
   const out: ChatMsg[] = [];
   for (const m of lines) {
@@ -66,7 +106,12 @@ export function toChatMsgs(
   }
   if (pending) {
     out.push({ role: "user", parts: [{ kind: "text", text: pending.text }], ts: pending.ts, local: true });
-    out.push({ role: "assistant", parts: [], ts: pending.ts, agent: engine, agentId: engine, pending: true });
+  }
+  // One waiting bubble, whoever is being waited on. `pending` means this tab
+  // just sent and the ledger has not caught up; otherwise the room answers it.
+  if (pending || isAnswering(lines, now)) {
+    const ts = pending?.ts || lines[lines.length - 1]?.ts || "";
+    out.push({ role: "assistant", parts: [], ts, agent: engine, agentId: engine, pending: true });
   }
   return out;
 }

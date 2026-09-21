@@ -29,6 +29,7 @@ import {
   appendRuntimePrompt,
   appendRuntimeReply,
 } from "#core/stores/runtime-room.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import fs from "node:fs";
 
 const log = loggerFor("call_runtime");
@@ -185,7 +186,22 @@ export default {
     // is why a session launched from the panel is no longer run synchronously
     // against the 300s foreground deadline it cannot survive.
     const canPostToThread = runtimeThreadCanCarry(channel);
-    const canCallback = !!backgroundResultSink || !!telegramPlugin || canPostToThread;
+    // A FOURTH PATH, AND THE ONE THE PANEL USES: the session's own room.
+    //
+    // `runToCompletion` writes the engine's answer into the room with
+    // `appendRuntimeReply`, awaited or not — so for a session launched ON the
+    // runtime channel there is always somewhere for a late result to land, and
+    // it is the very surface the person is looking at.
+    //
+    // This had to be said separately because `runtimeThreadCanCarry` answers a
+    // DIFFERENT question: "should a launch/result receipt go into this
+    // channel's day thread?" — which is no for a room channel, since the room
+    // already holds both sides. Reading one answer as the other is what silently
+    // turned the panel's `background: true` into a foreground run against the
+    // 300s deadline, while the route that asked for it said in a comment that
+    // waiting "would be the 300s deadline again".
+    const canPostToRoom = channel === CHANNELS.RUNTIME;
+    const canCallback = !!backgroundResultSink || !!telegramPlugin || canPostToThread || canPostToRoom;
     // Background by default when we can call back; the model opts out with
     // background:false when it needs the output inside this same turn.
     const runInBackground = canCallback && background !== false;

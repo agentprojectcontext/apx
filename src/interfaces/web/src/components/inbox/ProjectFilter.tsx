@@ -1,7 +1,8 @@
 import { Folder } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { OptionFilter } from "./OptionFilter";
-import { isDefaultProject, projectLabel, type ProjectOption } from "../../lib/provenance";
+import { isDefaultProject, type ProjectOption } from "../../lib/provenance";
+import { useProjects } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
 /**
@@ -60,11 +61,29 @@ export function ProjectTag({
   className,
 }: {
   projectId: number | string | null | undefined;
+  /** What the row called it. Optional: a row that does not know is looked up. */
   name?: string | null;
   className?: string;
 }) {
+  // THE BADGE NAMES THE PROJECT, OR IT DOES NOT DRAW.
+  //
+  // Callers hand over whatever their row happens to carry, and several rows
+  // carry an id with no name: the super-agent's threads, the group the panel
+  // has just created, the placeholder a chat opened from a URL builds before
+  // the inbox has answered. `projectLabel` fell back to the id, so those wore
+  // a badge reading "4" — which does not look like a missing name, it looks
+  // like the agent has been renamed: "¿qué pasó con Roby que ahora se llama
+  // 4?" (Manu, 2026-09-20). Fixing the one row that produced it left the other
+  // doors open, the same way five surfaces each built a runtime destination by
+  // hand the week before.
+  //
+  // So the lookup lives HERE, against the registry every screen already has,
+  // and a project this panel cannot name draws nothing at all. A bare id on a
+  // badge is worse than no badge: it is noise that reads as a bug.
+  const { projects } = useProjects();
   if (isDefaultProject(projectId)) return null;
-  const label = projectLabel(projectId, name);
+  const known = projects.find((p) => String(p.id) === String(projectId));
+  const label = name || known?.name || null;
   if (!label) return null;
   return (
     <span
