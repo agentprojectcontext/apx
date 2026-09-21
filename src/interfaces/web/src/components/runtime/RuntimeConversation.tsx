@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { ArrowLeft, Info, SendHorizontal, X } from "lucide-react";
+import { ArrowLeft, Info, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet";
-import { AgentAvatar } from "../agents/AgentAvatar";
+import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
+import { MessageList } from "../chat/MessageList";
+import { Composer } from "../chat/Composer";
 import { useToast } from "../Toast";
 import { Runtimes, type RuntimeRoomMessage } from "../../lib/api/runtimes";
+import type { ChatMsg } from "../../hooks/useChat";
+import { countSaying, toChatMsgs } from "../../lib/runtime-room";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
@@ -24,6 +28,16 @@ import { t } from "../../i18n";
  * The folder is on the header for a reason of its own — nine sessions on
  * 2026-09-20 ran in the wrong one and nothing on screen said so.
  *
+ * AND IT IS THE PANEL'S OWN CHAT, not a second one that looks like it. The
+ * first pass hand-rolled bubbles and a textarea, and every difference was a
+ * bug: the draft stayed in the box after sending ("no sale el mensaje"), there
+ * was nothing on screen between sending and the answer landing ("no veo si está
+ * contestando"), and the thread had none of the day dividers, markdown, copy or
+ * attachment handling every other thread has. "¿Por qué no usamos el modo chat
+ * normal pero con ruta runtime?" (Manu, 2026-09-20) — so it does: `MessageList`
+ * and `Composer`, the same two components the agent chats are made of, over the
+ * room's own messages.
+ *
  * Shared by the phone and the panel, deliberately: a second transcript renderer
  * would be free to disagree with the first about who said what, which is the
  * confusion this room exists to end.
@@ -38,9 +52,9 @@ export function RuntimeRoomView({
   /**
    * WHICH OF THE TWO THINGS A SESSION IS.
    *
-   * "chat" — reached from the list of conversations, so it IS one: bubbles, a
-   *   back button, and the paperwork behind the ℹ. "no entiendo por qué se ve
-   *   así y no como un chat común" (Manu, 2026-09-20).
+   * "chat" — reached from the list of conversations, so it IS one: the real
+   *   chat surface, a back button, and the paperwork behind the ℹ. "no entiendo
+   *   por qué se ve así y no como un chat común" (Manu, 2026-09-20).
    * "detail" — reached from the sessions list, where the run itself is the
    *   subject: the execution facts on screen, transcript underneath. That view
    *   was right and the first pass took it away from both. "sacaste la info en
@@ -52,14 +66,28 @@ export function RuntimeRoomView({
   className?: string;
 }) {
   const toast = useToast();
-  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  /**
+   * The prompt this tab just sent, held until the room comes back carrying it.
+   *
+   * A run takes minutes and the room is polled, so between the send and the
+   * next poll there was nothing on screen at all: the words were gone from the
+   * composer and not yet in the thread, which reads as a message that failed to
+   * send. Held here, the turn appears the instant it is sent and the engine's
+   * pending reply sits under it — and both are dropped the moment the poll
+   * returns a room that already contains the prompt, so nothing is ever drawn
+   * twice.
+   */
+  const [sent, setSent] = useState<{ text: string; ts: string; seen: number } | null>(null);
 
   const { data: room, mutate } = useSWR(
     `/api/projects/${projectId}/runtime-rooms/${sessionId}`,
     () => Runtimes.room(String(projectId), sessionId),
-    { refreshInterval: 10000, keepPreviousData: true },
+    // Faster while a turn of ours is in flight: this is the only signal the
+    // answer has landed, and ten seconds of a spinner that is already stale is
+    // the difference between "it is working" and "it is stuck".
+    { refreshInterval: sent ? 4000 : 10000, keepPreviousData: true },
   );
   // The record: only the ℹ sheet reads it, so it is fetched only when opened.
   // In "detail" they are the point of the screen, so they load with it; in
@@ -71,19 +99,44 @@ export function RuntimeRoomView({
 
   const engine = room?.runtime || runtime || "runtime";
   const cwd = room?.cwd || null;
+  const lines = useMemo(() => room?.messages ?? [], [room]);
 
-  const send = async () => {
+  // Our own turn is dropped as soon as the room has it: the ledger is the
+  // truth, and a local copy that outlived it would double the message.
+  //
+  // By COUNT, not by presence. Asking the same thing twice — "dale", "seguí" —
+  // is ordinary, and a presence check would see the first copy already in the
+  // thread and drop the second one off the screen the instant it was sent.
+  const landed = !!sent && countSaying(lines, sent.text) > sent.seen;
+  useEffect(() => {
+    if (landed) setSent(null);
+  }, [landed]);
+
+  const msgs = useMemo(
+    () => toChatMsgs(lines, engine, landed ? null : sent),
+    [lines, engine, landed, sent],
+  );
+
+  // Who to draw beside a turn: the engine wears its brand mark, an agent its
+  // own name. One resolver so the thread and the header cannot disagree.
+  const faceFor = (m: ChatMsg): AgentFace => ({
+    slug: m.agentId,
+    name: m.agent || engine,
+    icon: m.agentId === engine ? engine : null,
+  });
+
+  const send = async (text: string) => {
     const prompt = text.trim();
     if (!prompt) return;
     setBusy(true);
+    setSent({ text: prompt, ts: new Date().toISOString(), seen: countSaying(lines, prompt) });
     try {
       await Runtimes.continue_(String(projectId), sessionId, prompt);
-      toast.success(t("mobile.runtimes_sent"));
-      setText("");
-      // Stay in the room: the answer lands here, and closing on send was right
-      // only while this was a form rather than a conversation.
       void mutate();
     } catch (e) {
+      // The turn never left, so neither should the words: put them back rather
+      // than leaving a bubble on screen for something that did not happen.
+      setSent(null);
       toast.error(e instanceof Error ? e.message : t("common.error_generic"));
     } finally {
       setBusy(false);
@@ -137,37 +190,39 @@ export function RuntimeRoomView({
         )}
       </header>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3" data-testid="runtime-thread">
-        {variant === "detail" && <RuntimeFacts {...{ engine, cwd, facts, room, projectName }} />}
-        {room?.messages?.length
-          ? room.messages.map((m, i) => <RuntimeLine key={`${m.ts || i}-${i}`} msg={m} />)
-          : <p className="text-[12px] text-muted-fg">{t("mobile.runtimes_empty_thread")}</p>}
-      </div>
+      {variant === "detail" ? (
+        // The run is the subject here, so the facts lead and the transcript
+        // follows in the compact shape a record has — this screen is read, not
+        // scrolled through.
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3" data-testid="runtime-thread">
+          <RuntimeFacts {...{ engine, cwd, facts, room, projectName }} />
+          {lines.length
+            ? lines.map((m, i) => <RuntimeLine key={`${m.ts || i}-${i}`} msg={m} />)
+            : <p className="text-[12px] text-muted-fg">{t("mobile.runtimes_empty_thread")}</p>}
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto" data-testid="runtime-thread">
+          <MessageList
+            msgs={msgs}
+            compact
+            showSpeaker
+            showTools={false}
+            faceFor={faceFor}
+            onCopy={(text) => void navigator.clipboard?.writeText(text)}
+          />
+        </div>
+      )}
 
       {/* Straight to the engine. Not a message to the agent that launched it —
           it reopens THIS session, with its own context. */}
-      <div className="shrink-0 space-y-1 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-end gap-2">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={2}
-            placeholder={t("mobile.runtimes_reply_ph", { runtime: engine })}
-            data-testid="runtime-composer"
-            className="min-h-[42px] flex-1 resize-none rounded-lg border border-border bg-muted/30 px-3 py-2 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
-          />
-          <button
-            type="button"
-            onClick={() => void send()}
-            disabled={busy || !text.trim()}
-            data-testid="runtime-send"
-            aria-label={t("mobile.runtimes_send")}
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-fg disabled:opacity-50"
-          >
-            <SendHorizontal size={17} />
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-fg">{t("mobile.runtimes_reply_hint")}</p>
+      <div className="shrink-0 border-t border-border">
+        <Composer
+          onSend={(text) => void send(text)}
+          onStop={() => { /* the engine owns its run; nothing here can call it back */ }}
+          streaming={busy}
+          placeholder={t("mobile.runtimes_reply_ph", { runtime: engine })}
+          context={<span className="px-1 text-[11px] text-muted-fg">{t("mobile.runtimes_reply_hint")}</span>}
+        />
       </div>
 
       {/* The paperwork, on request. Bottom sheet on both surfaces: it is the
@@ -229,25 +284,14 @@ function RuntimeFacts({ engine, cwd, facts, room, projectName }: {
 }
 
 /**
- * One line of a session, in whichever of the three voices said it.
- *
- * From the engine's side there is ONE user: `claude -p` takes a prompt and does
- * not care who typed it, so a prompt Roby sent and a prompt the owner sent
- * arrived identically. The room is the only place that difference survives, and
- * this is where it gets drawn:
- *
- *   the owner  → their own bubble, on the right, like any chat
- *   an agent   → its own name, on the left, tagged "en tu nombre" — because
- *                that is exactly what it was
- *   the engine → its own name and its own logo, on the left
- *
- * Asked for in those words on 2026-09-20: "el agente habla como agente pero
- * claude recibe como yo mismo, y yo veo los 3 tipos: mi mensaje, el del agente
- * y el de claude".
+ * One line of a session in the RECORD's shape — tight, unstyled, readable in a
+ * column beside the execution facts. The chat shape is `toChatMsgs` (lib/runtime-room.ts); this
+ * is what the sessions list shows under the ficha, where a full chat surface
+ * would bury the thing the screen is for.
  */
 export function RuntimeLine({ msg }: { msg: RuntimeRoomMessage }) {
   if (msg.role === "tool") return null;
-  const mine = msg.role === "user";
+  const mine = msg.role === "user" && !msg.on_behalf_of;
   const who = msg.agent_name || msg.agent || "";
   const isEngine = msg.actor_kind === "engine";
   return (

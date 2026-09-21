@@ -47,7 +47,7 @@ export function MobileScreen() {
       <Route path="commitments" element={<Tabbed><MobileCommitments /></Tabbed>} />
       <Route path="attention" element={<Tabbed><MobileAttention /></Tabbed>} />
       <Route path="agents" element={<Tabbed><MobileAgents /></Tabbed>} />
-      <Route path="runtimes" element={<Tabbed><MobileRuntimes /></Tabbed>} />
+      <Route path="runtimes" element={<Tabbed><RuntimesRoute /></Tabbed>} />
       {/* No tab bar: a thread is a place you are IN, and the chat pane has none
           either. The way out is the back button in its header. */}
       <Route path="runtime/:pid/:id" element={<MobileRuntimeRoom />} />
@@ -56,6 +56,17 @@ export function MobileScreen() {
       <Route path="*" element={<Navigate to={CHAT_ROOT} replace />} />
     </Routes>
   );
+}
+
+/** The sessions list, with a way back to where it is reached from.
+ *
+ *  It is not one of the four tabs — the chat list's `>_` is the door — so
+ *  nothing in the tab bar lights up on it and nothing in it led anywhere. The
+ *  back arrow goes where you came from, and to the chat list when the screen
+ *  was opened cold (a notification, a bookmark, the app resuming on it). */
+function RuntimesRoute() {
+  const navigate = useNavigate();
+  return <MobileRuntimes onBack={() => (window.history.length > 1 ? navigate(-1) : navigate(CHAT_ROOT))} />;
 }
 
 /** A list screen plus the bar that moves between them. */

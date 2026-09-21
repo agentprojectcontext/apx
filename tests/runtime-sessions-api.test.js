@@ -104,6 +104,65 @@ test("a session that was killed reads as failed, not as finished", () => {
   }
 });
 
+test("a record nothing ever closed stops claiming to be running", () => {
+  // Nothing writes `completed` when the run does not end: the daemon is killed
+  // mid-flight, the machine sleeps, the process dies past the point that closes
+  // the file. The record then says "🔄 In progress" for ever, and the list
+  // showed two sessions under a spinner eleven and twenty-three days after they
+  // stopped — "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu,
+  // 2026-09-20). A run cannot outlive its own deadline, so time is the answer.
+  const root = makeTempProject({ name: "Uno", agents: [] });
+  try {
+    const fresh = createRuntimeSession({
+      projectRoot: root, storageRoot: root, agentSlug: "apx", runtime: "claude-code", cwd: "/tmp",
+    });
+    // Just launched: open, and believably so.
+    let row = listRuntimeSessions(root).find((r) => r.id === fresh.id);
+    assert.equal(row.done, false);
+    assert.equal(row.abandoned, false, "a run that started seconds ago is running");
+
+    // The same record, with its start backdated a day. Still open, no longer
+    // credible: the deadline APX hands out is an hour.
+    const text = fs.readFileSync(fresh.path, "utf8");
+    const old = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    fs.writeFileSync(fresh.path, text.replace(/^started: .*$/m, `started: ${old}`));
+    row = listRuntimeSessions(root).find((r) => r.id === fresh.id);
+    assert.equal(row.done, false, "it never closed — the record is not rewritten");
+    assert.equal(row.abandoned, true, "and it is not running either");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("a record with no start at all is not a live run", () => {
+  // Written by an older APX, or truncated. Unparseable has to fall on the side
+  // that does not invent work in progress.
+  const root = makeTempProject({ name: "Uno", agents: [] });
+  try {
+    const s = createRuntimeSession({
+      projectRoot: root, storageRoot: root, agentSlug: "apx", runtime: "codex", cwd: "/tmp",
+    });
+    const text = fs.readFileSync(s.path, "utf8");
+    fs.writeFileSync(s.path, text.replace(/^started: .*$/m, "started: "));
+    const row = listRuntimeSessions(root).find((r) => r.id === s.id);
+    assert.equal(row.abandoned, true);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("a finished session is never called abandoned, however old", () => {
+  const root = makeTempProject({ name: "Uno", agents: [] });
+  try {
+    seed(root);
+    const [row] = listRuntimeSessions(root);
+    assert.equal(row.done, true);
+    assert.equal(row.abandoned, false, "it closed — that is the whole difference");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
 test("GET /runtime-sessions lists them newest first, with the project on each", async () => {
   const root = makeTempProject({ name: "Uno", agents: [] });
   const { app, id, storage } = makeApp(root);

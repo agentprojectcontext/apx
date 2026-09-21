@@ -15,13 +15,23 @@ export function MobileRuntimeRoom() {
   const { pid = "0", id = "" } = useParams();
   const navigate = useNavigate();
   return (
-    <RuntimeRoomView
-      variant="chat"
-      projectId={pid}
-      sessionId={id}
-      // Back to where you came from, and to the chat list when there is no
-      // history to go back to (a notification's deep link opens cold).
-      onBack={() => (window.history.length > 1 ? navigate(-1) : navigate(CHAT_ROOT))}
-    />
+    // The room is `flex-1` inside a COLUMN, and this is that column.
+    //
+    // Without it `flex-1` resolved against a plain block: the room grew to the
+    // height of the whole transcript — 1988px inside an 812px screen — so the
+    // composer sat a thousand pixels below the fold and the thread scrolled the
+    // page instead of itself. Same failure as the 9193px sheet the day before,
+    // and the same lesson: `flex-1` is a claim on a parent's spare height, and
+    // a parent that is not a flex container has none to give.
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <RuntimeRoomView
+        variant="chat"
+        projectId={pid}
+        sessionId={id}
+        // Back to where you came from, and to the chat list when there is no
+        // history to go back to (a notification's deep link opens cold).
+        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate(CHAT_ROOT))}
+      />
+    </div>
   );
 }

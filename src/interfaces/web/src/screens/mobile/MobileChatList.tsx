@@ -70,7 +70,8 @@ export function MobileChatList({
     .filter((r) => match(r.agent_name) || match(r.agent_slug) || match(r.project_name));
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+    // `relative`: the compose button floats over this screen (see below).
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
       <header className={cn(
         "shrink-0 border-b border-border px-4 pb-3",
         androidOptions ? "pt-1.5" : "pt-[max(0.75rem,env(safe-area-inset-top))]",
@@ -79,17 +80,8 @@ export function MobileChatList({
             They used to live only in the desktop panel's Web module, which on a
             phone means leaving the app to change how the app looks. */}
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold">{t("inbox.title")}</h1>
+          <h1 className="min-w-0 truncate text-xl font-semibold">{t("mobile.chats_title")}</h1>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onNew}
-              aria-label={t("mobile.new_chat")}
-              data-testid="mobile-new-chat"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
-            >
-              <SquarePen size={19} />
-            </button>
             {/* The directory. It lives here rather than in the tab bar because
                 it is how you START a conversation — the same reason the
                 composer button is next to it — and a fifth tab for a list you
@@ -180,7 +172,7 @@ export function MobileChatList({
       <AskToInstallRow rows={rows} />
       <CommunityCard variant="inline" />
 
-      <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+      <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+5rem)]">
         {shownRows.map((row) => (
           <InboxRowItem
             /* The CHANNEL is part of a row's identity, and leaving it out of the
@@ -212,6 +204,25 @@ export function MobileChatList({
           </p>
         )}
       </div>
+
+      {/* WRITING SOMETHING NEW IS A THUMB ACTION, NOT A HEADER ONE.
+          It sat in the top-right row with the directory, the sessions list and
+          settings — four round buttons squeezing the title until "Bandeja de
+          agentes" wrapped onto a second line, and all of them at the far end of
+          a reach from the bottom of a phone. Manu, 2026-09-20: "el botón de más
+          podría ser un círculo flotante abajo de todo antes de la barra de menú,
+          así se libera un poco la botonera superior y no se rompe el título".
+          Inside this screen rather than over the tab bar, so it rides above the
+          list and stops where the nav begins. */}
+      <button
+        type="button"
+        onClick={onNew}
+        aria-label={t("mobile.new_chat")}
+        data-testid="mobile-new-chat"
+        className="absolute bottom-4 right-4 z-20 flex size-14 items-center justify-center rounded-full bg-primary text-primary-fg shadow-lg shadow-black/25 transition-transform active:scale-95"
+      >
+        <SquarePen size={22} />
+      </button>
 
       <PrefsDialog open={prefsOpen} onClose={() => setPrefsOpen(false)} />
     </div>

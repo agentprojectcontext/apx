@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Search, TerminalSquare, Users } from "lucide-react";
+import { Loader2, MessageSquare, Search, TerminalSquare, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { AgentAvatar, SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
 import { useInbox } from "../../hooks/useInbox";
@@ -253,14 +253,25 @@ export function NewChatSheet({
           </div>
         ) : mode === "runtime" ? (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {engines === null && <p className="text-sm text-muted-fg">{t("common.loading")}</p>}
-            {engines !== null && !installed.length && (
-              <p className="text-sm text-muted-fg" data-testid="new-runtime-none">{t("mobile.runtimes_none_installed")}</p>
-            )}
-            {!!installed.length && (
-              <>
+            {/* THE FORM IS THERE BEFORE THE ENGINES ARE.
+                Finding out which coding CLIs this machine has means spawning
+                every one of them, which takes seconds — and the whole sheet
+                used to wait behind it, showing one word. Everything you can
+                decide without that answer is decidable now: "podría ir dejando
+                elegir proyecto, carpeta y texto y deja el botón de arrancar
+                gris hasta que aparezcan los engines y se seleccione alguno"
+                (Manu, 2026-09-20). Only the engine row waits, and only the
+                button stays locked. */}
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_new_engine")}</span>
+                  {engines === null ? (
+                    <div className="flex items-center gap-2 py-1 text-[13px] text-muted-fg" data-testid="new-runtime-engines-loading">
+                      <Loader2 size={14} className="animate-spin" />
+                      {t("mobile.runtimes_engines_loading")}
+                    </div>
+                  ) : !installed.length ? (
+                    <p className="py-1 text-[13px] text-muted-fg" data-testid="new-runtime-none">{t("mobile.runtimes_none_installed")}</p>
+                  ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {installed.map((e) => (
                       <button
@@ -278,6 +289,7 @@ export function NewChatSheet({
                       </button>
                     ))}
                   </div>
+                  )}
                 </label>
 
                 <label className="space-y-1">
@@ -320,17 +332,19 @@ export function NewChatSheet({
 
                 {error && <p className="text-[12px] text-red-500">{error}</p>}
 
+                {/* Locked until there is something to start and an engine to
+                    start it with — including while the probe is still running,
+                    which is the one case a plain "is a prompt typed?" check got
+                    wrong. */}
                 <button
                   type="button"
                   onClick={() => void startRuntime()}
-                  disabled={creating || !runtimePrompt.trim() || !engine}
+                  disabled={creating || !runtimePrompt.trim() || !engine || engines === null}
                   data-testid="new-runtime-start"
                   className="h-10 rounded-lg bg-primary px-4 text-[15px] font-medium text-primary-fg disabled:opacity-50"
                 >
                   {t("mobile.runtimes_new_start")}
                 </button>
-              </>
-            )}
           </div>
         ) : (
           <>
