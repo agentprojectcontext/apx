@@ -57,6 +57,12 @@ API keys y base URLs para cada proveedor de LLM soportado:
 }
 ```
 
+### Residencia del modelo Ollama
+
+APX manda `keep_alive: -1` en cada request de chat a Ollama. Una vez que APX carga un modelo, Ollama lo mantiene en memoria, así los turnos siguientes evitan carga en frío. Liberalo explícitamente con `ollama stop <model>` o reiniciá Ollama.
+
+Esto aplica sólo a modelos llamados por APX. Si host no tiene RAM o VRAM disponible suficiente, Ollama igual puede descargar modelo inactivo para cargar otro.
+
 ### Proxy de salida por motor
 
 Cualquier motor acepta un `proxy`, y sale por ahí solamente el tráfico de ese

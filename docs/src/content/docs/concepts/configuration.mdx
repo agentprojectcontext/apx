@@ -57,6 +57,12 @@ API keys and base URLs for every supported LLM provider:
 }
 ```
 
+### Ollama model residency
+
+APX sends `keep_alive: -1` with every Ollama chat request. Once APX loads a model, Ollama keeps it in memory, so later turns avoid a cold model load. Stop it explicitly with `ollama stop <model>` or restart Ollama to free that memory.
+
+This applies only to models APX calls. A host without enough available RAM or VRAM can still make Ollama unload an idle model to load another one.
+
 ### Per-engine egress proxy
 
 Any engine accepts a `proxy`, and only that engine's traffic goes through it:

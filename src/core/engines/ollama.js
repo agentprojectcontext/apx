@@ -7,6 +7,10 @@ function baseUrl(config) {
   return config.base_url || process.env.OLLAMA_HOST || "http://localhost:11434";
 }
 
+// A negative keep_alive asks Ollama to retain the loaded model indefinitely.
+// This is sent per request, so it takes precedence over the server default.
+const KEEP_ALIVE_FOREVER = -1;
+
 /**
  * Tool calls, in the shape Ollama actually accepts.
  *
@@ -132,6 +136,7 @@ export default {
         model,
         messages: fullMessages,
         stream: true,
+        keep_alive: KEEP_ALIVE_FOREVER,
         options: { temperature, num_predict: maxTokens },
       };
       const res = await fetch(url, {
@@ -172,6 +177,7 @@ export default {
       model,
       messages: fullMessages,
       stream: false,
+      keep_alive: KEEP_ALIVE_FOREVER,
       options: { temperature, num_predict: maxTokens },
     };
     if (Array.isArray(tools) && tools.length > 0) {
