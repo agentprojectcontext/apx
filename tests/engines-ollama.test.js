@@ -212,3 +212,40 @@ test("ollama: arguments that are not valid JSON do not take the turn down", asyn
   // them, and losing the whole turn is worse than either.
   assert.deepEqual(captured.body.messages[0].tool_calls[0].function.arguments, {});
 });
+
+test("ollama: keeps the model resident for streamed and non-streamed chats", async () => {
+  const original = global.fetch;
+  const bodies = [];
+  global.fetch = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    if (bodies.length === 1) {
+      return {
+        ok: true,
+        json: async () => ({ message: { role: "assistant", content: "ok" } }),
+      };
+    }
+    const encoder = new TextEncoder();
+    return {
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('{"message":{"content":"ok"},"done":true}\n'));
+          controller.close();
+        },
+      }),
+    };
+  };
+  try {
+    await ollama.chat({ model: "m", messages: [{ role: "user", content: "one" }] });
+    await ollama.chat({
+      model: "m",
+      messages: [{ role: "user", content: "two" }],
+      onToken: () => {},
+    });
+  } finally {
+    global.fetch = original;
+  }
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].keep_alive, -1, "non-streamed chats retain the model");
+  assert.equal(bodies[1].keep_alive, -1, "streamed chats retain the model");
+});
