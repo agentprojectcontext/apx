@@ -622,3 +622,54 @@ test("openai-compatible: reasoning streams on its own callback, never onToken", 
     globalThis.fetch = originalFetch;
   }
 });
+
+// A turn with NO tools at all — a sealed WhatsApp reply, a summary. It used to
+// be refused like a narrow agent, so every contact's reply skipped the router's
+// #1 and fell to whatever was left (2026-09-23: a local 8B model, 157 s).
+test("zen: a tool-free call meets the gate with declarations it cannot call", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+
+  const bodies = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => { bodies.push(JSON.parse(opts.body)); return zenResponse("hola!"); };
+  try {
+    const r = await zen.chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "hola" }],
+      config: { api_key: "zen-key" },
+    });
+    assert.equal(r.text, "hola!");
+    assert.deepEqual(bodies[0].tools.map((t) => t.function.name), ["bash", "read"]);
+    assert.equal(bodies[0].tool_choice, "none", "declared, never callable");
+    assert.equal(bodies[0].stream, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("zen: a tool call on a tool-free call is dropped, or rotated past when it is all there is", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
+  const call = { index: 0, id: "c1", type: "function", function: { name: "bash", arguments: "{}" } };
+
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => zenResponse("", [
+      { choices: [{ delta: { content: "te cuento" } }] },
+      { choices: [{ delta: { tool_calls: [call] }, finish_reason: "tool_calls" }] },
+    ]);
+    const r = await zen.chat({ model: "big-pickle", messages: [{ role: "user", content: "hola" }], config: { api_key: "k" } });
+    assert.equal(r.text, "te cuento");
+    assert.equal(r.tool_calls.length, 0, "nothing to dispatch it to");
+
+    globalThis.fetch = async () => zenResponse("", [
+      { choices: [{ delta: { tool_calls: [call] }, finish_reason: "tool_calls" }] },
+    ]);
+    const err = await zen.chat({ model: "big-pickle", messages: [{ role: "user", content: "hola" }], config: { api_key: "k" } })
+      .catch((e) => e);
+    assert.ok(err instanceof Error);
+    assert.equal(isRetryableEngineError(err), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
