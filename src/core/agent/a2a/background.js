@@ -76,7 +76,12 @@ export function wakeText(job) {
     return (
       `${head}${recap}\n\nTheir answer:\n${String(job.result || "").slice(0, 6000)}\n\n` +
       `Pick up where you left off and act on this. You are not waiting on anything any more — ` +
-      `if this closes the task, say so; if it opens the next step, take it.`
+      `if this closes the task, say so; if it opens the next step, take it.\n\n` +
+      `What you write now is YOUR OWN note on the outcome. It is NOT sent to ${job.to}: ` +
+      `they already answered and are not waiting on you. Do not acknowledge, thank or confirm ` +
+      `receipt to them — that restarts a conversation nobody needs. Message them again only ` +
+      `with a genuinely NEW request, and if the answer reports a failure, report it rather ` +
+      `than asking them to try again.`
     );
   }
 
@@ -152,6 +157,12 @@ export async function deliverWake(job, { project, config, projects, plugins, reg
       // ping-pong the depth wall exists to stop — and a wake-up is exactly
       // where it would restart, since it is a fresh turn either way.
       depth: (Number(job.depth) || 0) + 1,
+      // The woken turn's output is the waiter's own note, NOT a reply to the
+      // peer. Filed as a reply it landed in the peer's inbox as "Recibido…",
+      // the peer answered "Confirmado…", and one status report became a
+      // four-message ping-pong of full tool loops (2026-09-23: ~230 a2a
+      // messages in 50 minutes, most of them acknowledgements).
+      wakeFor: job.id,
     });
     return { delivered: true };
   } catch (e) {

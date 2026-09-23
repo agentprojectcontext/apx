@@ -137,6 +137,11 @@ needs an answer to.
 The wake-up is an ordinary a2a message in the other direction, so the request and
 its answer live in one thread — there is nowhere new to look.
 
+What the woken sender writes is filed as **its own note**, not as a reply: the
+peer already answered and is waiting on nothing. Filing it as a reply used to put
+"received, thanks" in the peer's inbox, the peer confirmed back, and one answer
+turned into a round of acknowledgements, each a full tool loop.
+
 ### What the sender keeps, and what it does not
 
 A woken turn is a **new** turn. It gets the reply, a recap of what was asked, and
@@ -152,10 +157,18 @@ work is unrecoverable. The sender is told not to report such a job as done.
 | Limit | Value | Why |
 |---|---|---|
 | Jobs open per agent | 3 | Bounds how WIDE the fan-out goes |
-| Hand-off depth | 3 | Bounds how DEEP it goes; counted across turns and wake-ups |
+| Hand-off depth | 3 | Bounds how DEEP it goes; counted across turns, wake-ups, `call_agent` and `apx send` |
+| Tool steps per peer turn | 20 (`super_agent.a2a_max_iters`) | A peer that runs out answers with what it did and what is left; the sender decides whether to continue |
 | Job lifetime | 1 hour by default | Past it the job is cut off and the sender told |
 
 Both limits come back as a message the agent can act on, never as a crash.
+
+A turn nobody is watching — an a2a reply, a routine — also **stops on a spent
+plan**. When a provider answers that the account's usage limit is reached (not a
+passing rate limit), that model cools down for an hour (`super_agent.quota_cooldown_min`),
+the unwatched turn ends instead of spending the rest of the fallback chain, and
+the owner gets one Telegram line saying so. A chat with a person in it still
+falls through to the next model.
 
 ### Seeing what is running
 

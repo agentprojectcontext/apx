@@ -13,6 +13,10 @@ export default {
   async chat({ system, messages, model = "mock", tools, signal }) {
     const forcedStatus = String(model).match(/^fail-(\d{3})$/)?.[1];
     if (forcedStatus) throw new Error(`mock ${forcedStatus}: forced test failure`);
+    // `mock:quota-exhausted` → an account whose plan is spent, worded the way
+    // the ChatGPT backend words it. A 429 like a burst, but NOT one to rotate
+    // past on an unwatched turn — see agent/quota.js.
+    if (model === "quota-exhausted") throw new Error("mock 429: The usage limit has been reached");
     const last = [...messages].reverse().find((m) => m.role === "user");
     const userText = last?.content || "";
     // `[mock:slow:<ms>]` → hold each step for <ms> before answering, and honor

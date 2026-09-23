@@ -15,6 +15,8 @@ export interface EnginePreset {
   known_models: string[];
   /** Engine answers with no api_key of its own (Ollama, Zen, mock). */
   key_optional?: boolean;
+  /** A fixed provider (the ChatGPT/Claude plans): shown, never offered as a new engine. */
+  locked?: boolean;
 }
 
 export interface EnginePresets {

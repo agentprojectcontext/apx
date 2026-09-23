@@ -70,15 +70,18 @@ export function ProviderCard({
   const active = provider.is_active !== false;
 
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  // A string, so the effect below re-runs when the TARGET changes, not every
+  // time the parent hands down a new provider object.
+  const authTarget = planAuthTarget(provider);
 
   useEffect(() => {
     if (!plan) return;
     let cancelled = false;
-    Engines.authStatus(planAuthTarget(provider))
+    Engines.authStatus(authTarget)
       .then((s) => { if (!cancelled) setLoggedIn(!!s.logged_in); })
       .catch(() => { if (!cancelled) setLoggedIn(false); });
     return () => { cancelled = true; };
-  }, [plan, provider.slug, provider.engine]);
+  }, [plan, authTarget]);
 
   if (plan) {
     return (

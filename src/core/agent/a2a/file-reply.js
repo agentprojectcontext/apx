@@ -44,6 +44,9 @@ export function fileA2AReply(project, {
   model,
   usage,
   trace,
+  // false = the speaker's own note: filed on its side of the thread only, never
+  // put in the other party's inbox. A woken waiter's reaction to an answer.
+  deliverToPeer = true,
 }) {
   const replyTs = ts || new Date().toISOString();
   const replyId = shortId("a2a");
@@ -72,16 +75,18 @@ export function fileA2AReply(project, {
     ts: replyTs,
     external_id: replyId,
   });
-  project.logMessage({
-    agent_slug: from,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    author: to,
-    body,
-    meta: { from: to, ...(via ? { via } : {}) },
-    ts: replyTs,
-    external_id: replyId,
-  });
+  if (deliverToPeer) {
+    project.logMessage({
+      agent_slug: from,
+      channel: CHANNELS.A2A,
+      direction: "in",
+      author: to,
+      body,
+      meta: { from: to, ...(via ? { via } : {}) },
+      ts: replyTs,
+      external_id: replyId,
+    });
+  }
   return { ts: replyTs, id: replyId };
 }
 
@@ -96,6 +101,7 @@ export async function runPeerAndFileReply({
   to,
   via,
   extraMeta,
+  deliverToPeer = true,
   onEvent,
   replyFn,
   replyArgs,
@@ -119,6 +125,7 @@ export async function runPeerAndFileReply({
       to,
       via,
       extraMeta,
+      deliverToPeer,
       body: result?.text || "",
       model: result?.model,
       usage: result?.usage,
@@ -132,6 +139,7 @@ export async function runPeerAndFileReply({
       to,
       via,
       extraMeta,
+      deliverToPeer,
       body: `did not answer: ${e.message}`,
       failed: true,
       failureReason: e.message,

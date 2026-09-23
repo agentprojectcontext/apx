@@ -11,6 +11,7 @@
 // (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY).
 // Ollama needs no key, just a base_url (default http://localhost:11434).
 
+import { recordLlmCall } from "#core/stores/llm-usage.js";
 import anthropic from "./anthropic.js";
 import openai from "./openai.js";
 import groq from "./groq.js";
@@ -76,7 +77,7 @@ export function getAdapter(provider) {
   return a;
 }
 
-export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice, signal, onToken, onReasoningToken }) {
+export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice, signal, onToken, onReasoningToken, attribution = null }) {
   const { provider, model } = resolveProvider(modelId);
   const providerCfg = (config && config.engines && config.engines[provider]) || {};
   // `provider` here is the slug the user configured, which only coincides with
@@ -92,19 +93,35 @@ export async function callEngine({ modelId, system, messages, config, temperatur
   const providerCap = Number(providerCfg.default_max_tokens) || 0;
   const callerCap = Number(maxTokens) || 0;
   const effectiveMaxTokens = Math.max(callerCap, providerCap) || 2048;
-  return adapter.chat({
-    system,
-    messages,
-    model,
-    temperature,
-    maxTokens: effectiveMaxTokens,
-    tools,
-    toolChoice,
-    config: providerCfg,
-    signal,
-    onToken,
-    onReasoningToken,
-  });
+  // Every call is recorded — success or failure — so "what spent this
+  // account" has an answer (core/stores/llm-usage.js). `attribution` is the
+  // caller's {channel, agent, project}, when it knows them.
+  const started = Date.now();
+  // `mock` is the test engine: recording it would fill a developer's real
+  // usage log with fake calls from any test run without an APX_HOME sandbox.
+  const record = (row) => { if (adapter.id !== "mock") recordLlmCall({ modelId, ...row, attribution }); };
+  try {
+    const out = await adapter.chat({
+      system,
+      messages,
+      model,
+      temperature,
+      maxTokens: effectiveMaxTokens,
+      tools,
+      toolChoice,
+      config: providerCfg,
+      signal,
+      onToken,
+      onReasoningToken,
+    });
+    record({ ms: Date.now() - started, ok: true, usage: out?.usage });
+    return out;
+  } catch (e) {
+    if (e?.name !== "AbortError") {
+      record({ ms: Date.now() - started, ok: false, error: e?.message || e });
+    }
+    throw e;
+  }
 }
 
 export const ENGINE_IDS = Object.keys(ADAPTERS);

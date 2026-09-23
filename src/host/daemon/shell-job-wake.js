@@ -109,7 +109,7 @@ export async function wakeShellJob(job, {
     return { woken: false, reason: "agent gone" };
   }
 
-  const modelId = await resolveAgentModel({ agent, config: project.config || config });
+  const modelId = await resolveAgentModel({ agent, config: project.config || config, autonomous: true });
   if (!modelId) {
     log?.(`shell-job-wake: cannot wake ${job.from} for ${job.id} — the agent has no model`);
     return { woken: false, reason: "no model" };

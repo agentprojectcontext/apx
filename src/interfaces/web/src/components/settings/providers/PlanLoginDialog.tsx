@@ -224,7 +224,7 @@ export function PlanLoginDialog({
             <Button
               variant="primary"
               onClick={startLogin}
-              loading={busy || phase === "starting"}
+              loading={busy}
               disabled={!canStart}
             >
               <LogIn className="size-3.5" /> {loggedIn ? t("plan_login.relogin") : t("plan_login.login")}
