@@ -289,3 +289,12 @@ test("mentioning yourself or the owner summons nobody", () => {
   const r = summonFromAgentComment({ p, taskId: t.id, mentions: ["dev", "owner"], author: "dev", run: async () => {} });
   assert.deepEqual(r, { summoned: [], skipped: null });
 });
+
+test("a cascade an agent started runs its turns as unwatched; the owner's does not", async () => {
+  const t = createTask(storagePath, { title: "x" });
+  const seen = [];
+  const runTurn = async ({ unwatched }) => { seen.push(unwatched); return "hecho"; };
+  await runCommentMentions({ p, taskId: t.id, seed: ["qa"], author: "dev", runTurn });
+  await runCommentMentions({ p, taskId: t.id, seed: ["qa"], author: "owner", runTurn });
+  assert.deepEqual(seen, [true, false]);
+});

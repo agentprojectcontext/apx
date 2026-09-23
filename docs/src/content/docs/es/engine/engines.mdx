@@ -160,10 +160,10 @@ apx usage resume                # levantar la pausa ya
 
 ### El freno de gasto
 
-El trabajo en segundo plano — rutinas y agentes hablando entre sí — tiene un techo de llamadas al
-modelo por hora, contado sobre la última hora, global y por proyecto. Si lo pasa, ese trabajo se
-pausa (30 minutos por defecto) y te llega una sola línea por Telegram; tus propios chats nunca se
-pausan. Los límites están en `super_agent.spend_breaker`:
+El trabajo en segundo plano — rutinas, agentes hablando entre sí e hilos de tareas que los agentes
+se pasan — tiene un techo de llamadas al modelo por hora, contado sobre la última hora, global y por
+proyecto. Si lo pasa, ese trabajo se pausa (30 minutos por defecto) y te llega una sola línea por
+Telegram. Tus propios chats nunca se pausan, ni un agente al que estás esperando desde uno de ellos. Los límites están en `super_agent.spend_breaker`:
 
 ```json
 { "super_agent": { "spend_breaker": {

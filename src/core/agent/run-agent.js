@@ -2,7 +2,7 @@ import { CHANNELS } from "#core/constants/channels.js";
 import { callEngine } from "../engines/index.js";
 import {
   isQuotaExhaustedError,
-  isAutonomousChannel,
+  isUnwatchedTurn,
   markQuotaExhausted,
   quotaCooldown,
   quotaStopError,
@@ -337,7 +337,7 @@ export async function runAgent({
   // A turn nobody is watching does not run on what is left after an account
   // ran dry — see quota.js. Two ways to be there: the model it was pinned to
   // is itself cooling down, or the router skipped a spent account to get here.
-  const autonomous = isAutonomousChannel(toolHandlerCtx?.channel);
+  const autonomous = isUnwatchedTurn(toolHandlerCtx?.channel, toolHandlerCtx?.channelMeta);
   const explicitModels = [...new Set((retryFirst || []).filter((m) => typeof m === "string" && m.includes(":")))];
   // The router's own #1. Also the line between "a model the owner picked for
   // this turn" and "the model the whole fleet shares".
@@ -663,6 +663,7 @@ export async function runAgent({
             channel: toolHandlerCtx?.channel || null,
             agent: toolHandlerCtx?.channelMeta?.agentSlug || agentName || null,
             project: toolHandlerCtx?.channelMeta?.projectId ?? null,
+            unwatched: autonomous,
           },
         });
       } catch (e) {

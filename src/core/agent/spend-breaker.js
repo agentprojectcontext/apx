@@ -15,6 +15,11 @@
 // pause. `apx usage resume` (POST /api/usage/breaker/resume) lifts it by hand.
 import { isAutonomousChannel } from "./quota.js";
 
+// `unwatched` is the caller's answer when it has one (see quota.js
+// isUnwatchedTurn: a comment turn one agent started for another is unwatched on
+// the web channel; a delegation the owner waits on is watched on a2a).
+const counts = (channel, unwatched) => (typeof unwatched === "boolean" ? unwatched : isAutonomousChannel(channel));
+
 export const SPEND_DEFAULTS = Object.freeze({
   enabled: true,
   // Engine calls, not turns: a turn is one call per tool round. A busy normal
@@ -45,8 +50,10 @@ export function spendLimits(config) {
 // would trip it again on the very next one.
 function expire(now) {
   if (paused && paused.until <= now) {
+    // Only the calls that tripped it: a project pause ending must not erase
+    // what every other project spent in the same hour.
+    calls = paused.scope === "global" ? [] : calls.filter((c) => c.project !== paused.project);
     paused = null;
-    calls = [];
   }
 }
 
@@ -64,25 +71,30 @@ export function onSpendTrip(fn) {
  * Count one engine call. Only unwatched channels count; anything else is a
  * no-op. Trips the breaker when this call crosses a limit.
  */
-export function noteEngineCall({ channel, project = null, config = null, now = Date.now() } = {}) {
-  if (!isAutonomousChannel(channel)) return;
+export function noteEngineCall({ channel, unwatched, project = null, config = null, now = Date.now() } = {}) {
+  if (!counts(channel, unwatched)) return;
   const limits = spendLimits(config);
   if (!limits.enabled) return;
   expire(now);
   prune(now);
-  // While paused, a refused call is not spending anything: not counted.
-  if (paused) return;
   const key = project == null ? null : String(project);
+  // A call the pause refuses spends nothing: not counted. Only THAT call — a
+  // pause on one project must not stop the count for every other one.
+  if (paused && (paused.scope === "global" || paused.project === key)) return;
   calls.push({ t: now, project: key });
 
   const total = calls.length;
   const forProject = key == null ? 0 : calls.filter((c) => c.project === key).length;
   let trip = null;
+  // A global trip outranks a project pause already in place; a second project
+  // does not replace the first (one notice at a time).
+  if (paused && paused.scope === "global") return;
   if (total > limits.calls_per_hour) trip = { scope: "global", project: null, count: total, limit: limits.calls_per_hour };
   else if (key != null && forProject > limits.project_calls_per_hour) {
     trip = { scope: "project", project: key, count: forProject, limit: limits.project_calls_per_hour };
   }
   if (!trip) return;
+  if (paused && trip.scope === "project") return;
   paused = { ...trip, until: now + limits.pause_min * 60 * 1000, since: now, noticed: false };
   if (listener) {
     try {
@@ -95,8 +107,8 @@ export function noteEngineCall({ channel, project = null, config = null, now = D
  * The pause that applies to a turn on `channel` in `project`, or null. A turn
  * with a person in it is never paused.
  */
-export function spendPause({ channel, project = null, now = Date.now() } = {}) {
-  if (!isAutonomousChannel(channel)) return null;
+export function spendPause({ channel, unwatched, project = null, now = Date.now() } = {}) {
+  if (!counts(channel, unwatched)) return null;
   expire(now);
   if (!paused) return null;
   if (paused.scope === "project" && String(project ?? "") !== paused.project) return null;

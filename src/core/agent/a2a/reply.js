@@ -226,9 +226,12 @@ export async function replyAsAgent({
   depth = 0,
   // True when this turn is a background job waking its waiter (deliverWake).
   wake = false,
+  // The owner is waiting on this answer from a live chat: the quota stop and
+  // the spend breaker must treat the turn as theirs (quota.js isUnwatchedTurn).
+  watched = false,
   runAgentTurnFn = runAgentTurn,
 }) {
-  const modelId = await resolveAgentModel({ agent: toAgent, config, autonomous: true });
+  const modelId = await resolveAgentModel({ agent: toAgent, config, autonomous: !watched });
   if (!modelId) {
     throw new Error(
       `no model for agent ${toAgent?.slug || "?"} (no override, no router default)`
@@ -282,6 +285,7 @@ export async function replyAsAgent({
       to: selfAddress || toAgent.slug,
       mode,
       a2aDepth: depth,
+      ...(watched ? { unwatched: false } : {}),
     },
     tools: true,
     projects,
@@ -327,6 +331,8 @@ export async function replyAsSuperAgent({
   onEvent = null,
   depth = 0,
   wake = false,
+  // See replyAsAgent: the owner waiting on this from a live chat.
+  watched = false,
   runSuperAgentFn = runSuperAgent,
 }) {
   const selfAddress = canonicalPeerAddress(peer);
@@ -353,6 +359,7 @@ export async function replyAsSuperAgent({
       to: selfAddress,
       mode,
       a2aDepth: depth,
+      ...(watched ? { unwatched: false } : {}),
     },
     completionContract: mode === "code",
     signal,

@@ -48,7 +48,15 @@ const HOUR_MS = 60 * 60 * 1000;
 // cascade running right now. In memory: about the next hour, like the spend
 // breaker's count.
 const taskTurns = new Map();
-const activeCascades = new Set();
+// A count, not a set: an owner's cascade and an agent's can overlap on one
+// task, and the first to finish must not clear the guard for the other.
+const activeCascades = new Map();
+const enterCascade = (key) => activeCascades.set(key, (activeCascades.get(key) || 0) + 1);
+const leaveCascade = (key) => {
+  const n = (activeCascades.get(key) || 0) - 1;
+  if (n > 0) activeCascades.set(key, n);
+  else activeCascades.delete(key);
+};
 const taskKey = (p, taskId) => `${p.storagePath}|${taskId}`;
 
 function turnsThisHour(key, now = Date.now()) {
@@ -174,7 +182,7 @@ function logHandover(p, { from, to, taskId, text, model, usage }) {
 /** The real thing: one summoned agent's turn, with its own tools. */
 async function runRealTurn({
   p, agent, slug, from, task, participants, nameFor, projectName,
-  cfg, projects, plugins, registries, signal,
+  cfg, projects, plugins, registries, signal, unwatched = false,
 }) {
   const modelId = await resolveAgentModel({ agent, config: cfg, autonomous: true });
   if (!modelId) throw new Error(`no model for agent ${slug}`);
@@ -195,6 +203,11 @@ async function runRealTurn({
     prompt: `${taskBlock(task, projectName)}${threadBlock(task, nameFor)}\n\n---\n${directive}`,
     previousMessages: [],
     channel: CHANNELS.WEB,
+    // The web channel picks the PROMPT (a panel reads it), not whether anybody
+    // is looking: a cascade an agent started is unwatched, and the spend
+    // breaker and the quota stop have to see it as such (quota.js
+    // isUnwatchedTurn). One the owner started they are driving.
+    channelMeta: { unwatched, projectId: p.id ?? null },
     // Same reasoning as the group: the channel picks the PROMPT, but one comment
     // can fan out into several of these runs, so the budget is the fan-out-aware
     // one.
@@ -218,7 +231,7 @@ async function runRealTurn({
  */
 async function runSuperAgentCommentTurn({
   from, task, participants, nameFor, projectName,
-  cfg, projects, plugins, registries, signal,
+  cfg, projects, plugins, registries, signal, unwatched = false, projectId = null,
 }) {
   const me = resolveAgentName(cfg);
   const others = participants.filter((x) => x.kind === "agent" && x.slug !== SUPERAGENT_ACTOR_ID);
@@ -233,6 +246,7 @@ async function runSuperAgentCommentTurn({
     // The web channel's prompt, for the same reason the project agents use it:
     // the reply is read in a panel, not spoken and not sent to Telegram.
     channel: CHANNELS.WEB,
+    channelMeta: { unwatched, projectId },
     contextNote: systemBlock({ me, others, taskTitle: task.title }),
     maxIters: groupToolIters(cfg),
     signal,
@@ -292,7 +306,7 @@ export async function runCommentMentions({
   const key = taskKey(p, taskId);
   // The owner drives their own thread; agents handing work on are capped.
   const capped = author !== OWNER_ACTOR_ID;
-  activeCascades.add(key);
+  enterCascade(key);
   try {
   while (queue.length && said.length < maxTurns) {
     if (signal?.aborted) break;
@@ -316,11 +330,11 @@ export async function runCommentMentions({
       const out = await (isSuper
         ? runSuperTurn({
             from, task, participants, nameFor, projectName,
-            cfg: config, projects, plugins, registries, signal,
+            cfg: config, projects, plugins, registries, signal, unwatched: capped, projectId: p.id ?? null,
           })
         : runTurn({
             p, agent, slug, from, task, participants, nameFor, projectName,
-            cfg, projects, plugins, registries, signal,
+            cfg, projects, plugins, registries, signal, unwatched: capped,
           }));
       if (typeof out === "string") reply = out.trim();
       else { reply = (out?.text || "").trim(); model = out?.model || null; usage = out?.usage || null; }
@@ -354,7 +368,7 @@ export async function runCommentMentions({
     }
   }
   } finally {
-    activeCascades.delete(key);
+    leaveCascade(key);
   }
 
   return said;
@@ -386,10 +400,13 @@ export function summonFromAgentComment({
   if (turnsThisHour(key) >= MAX_TASK_TURNS_PER_HOUR) return { summoned: [], skipped: "hourly_cap" };
   // Marked now, not when the run starts: two comments in the same tick must
   // not both see an idle thread.
-  activeCascades.add(key);
+  enterCascade(key);
   Promise.resolve()
     .then(() => run({ p, taskId, seed: want, author, projects, plugins, registries, config }))
-    .catch(() => { /* a failed summon is written into the thread */ })
-    .finally(() => activeCascades.delete(key));
+    // A failed TURN is written into the thread by the cascade itself; this
+    // only catches a failure before the first turn (no roster, no task), and
+    // the comment that asked is on the thread either way.
+    .catch(() => {})
+    .finally(() => leaveCascade(key));
   return { summoned: want, skipped: null };
 }
