@@ -1,3 +1,28 @@
+# [1.117.0](https://github.com/agentprojectcontext/apx/compare/v1.116.0...v1.117.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **agent:** el prompt extra del super-agente se suma al base en vez de reemplazarlo ([39a0b6e](https://github.com/agentprojectcontext/apx/commit/39a0b6e7865d86d091f62fd39c1497d691cc8869))
+* **agent:** un modelo propio que falla pasa por el [#1](https://github.com/agentprojectcontext/apx/issues/1) del router, y la cuota se enfría por cuenta ([d43ca71](https://github.com/agentprojectcontext/apx/commit/d43ca711b0a7924bdc03490dc5d6c3b6821bddd5))
+* **engines:** una llamada que se queda muda se corta igual en todos los proveedores y la cadena sigue ([783ff12](https://github.com/agentprojectcontext/apx/commit/783ff1225fb0470b04a7121e65d9c52b8bde6cfc))
+* **routines:** los avisos al dueño salen en su idioma y un corte de red no pierde la entrega ([dad04ea](https://github.com/agentprojectcontext/apx/commit/dad04ea150c2a5bcf1137c7d1f929dc2268e7289))
+* **runtime:** la sala de código es el chat del panel, y "corriendo" quiere decir corriendo ([8a98345](https://github.com/agentprojectcontext/apx/commit/8a9834514a3b71056e7f801ee05cdcb427a5e4c6))
+* **runtime:** la sesión del panel vuelve a correr detached, y el "contestando" lo dice la sala ([6b3e664](https://github.com/agentprojectcontext/apx/commit/6b3e664c90d652a10506b0adcdf352f1f75b3464))
+* **web:** el panel de proveedores de plan vuelve a pasar tsc y lint:web ([de9015d](https://github.com/agentprojectcontext/apx/commit/de9015d571d9863a66c472ee4172f4ac3bed2539))
+* **web:** el panel del super-agente lee su modelo propio y no lo pisa al guardar ([e74d17b](https://github.com/agentprojectcontext/apx/commit/e74d17bb7f809c5cdb4e8adc34473f407261bb20))
+
+
+### Features
+
+* **agent:** la flota deja de quemar cuentas en cascadas de a2a ([7087214](https://github.com/agentprojectcontext/apx/commit/70872142e318b02b9766808a0461be62aa8a2c53)), closes [#1](https://github.com/agentprojectcontext/apx/issues/1)
+* **agent:** un modelo fijo puede seguir por la cadena del router o fallar, a elección ([794b2a6](https://github.com/agentprojectcontext/apx/commit/794b2a687bb898f1016edb32d2fdf1bf6ab047ed))
+* **engines:** los planes de ChatGPT y Claude son engines, con login propio de APX ([3e96f50](https://github.com/agentprojectcontext/apx/commit/3e96f50021f3d8db2081d36b2327bde7d034cc09))
+* **ollama:** implement model residency for Ollama chat requests ([94aa06d](https://github.com/agentprojectcontext/apx/commit/94aa06dfa1321548573d40e5b737abf402dd4ad7))
+* **routines:** cada rutina puede elegir su modelo, y si falla vuelve al del agente ([01a4b66](https://github.com/agentprojectcontext/apx/commit/01a4b6636267fab61ebc88de1d9b66434eda8401))
+* **runtime:** la sesión se abre como chat desde chats, y como ficha desde la lista ([f990e69](https://github.com/agentprojectcontext/apx/commit/f990e693b513ec81cd3440b47ae27ee8f9c1f86b))
+* **runtime:** una sesión de código es un chat, con las tres voces adentro ([313e718](https://github.com/agentprojectcontext/apx/commit/313e71829cc54df8ec0138a7b82feacb410f89a7))
+
 # [1.116.0](https://github.com/agentprojectcontext/apx/compare/v1.115.0...v1.116.0) (2026-09-20)
 
 
