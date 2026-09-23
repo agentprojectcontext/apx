@@ -44,4 +44,45 @@ export const Engines = {
   // daemon sends no history, tools or skills with it.
   test: (body: { provider: string; model: string; message?: string }) =>
     http.post<EngineTestResult>("/api/engines/test", body),
+
+  authStatus: (target: string) =>
+    http.get<{
+      target: string;
+      logged_in: boolean;
+      path?: string;
+      account_id?: string;
+      broken?: boolean;
+      error?: string;
+      login_cmd?: string;
+    }>(`/api/engines/auth/${encodeURIComponent(target)}`),
+
+  authLoginStart: (target: string) =>
+    http.post<{
+      target: string;
+      flow: "device_code" | "pkce";
+      user_code?: string;
+      device_auth_id?: string;
+      interval_s?: number;
+      verification_url?: string;
+      session_id?: string;
+      auth_url?: string;
+    }>(`/api/engines/auth/${encodeURIComponent(target)}/login/start`, {}),
+
+  authLoginPoll: (target: string, body: { device_auth_id: string; user_code: string }) =>
+    http.post<{ done: boolean; path?: string; account_id?: string }>(
+      `/api/engines/auth/${encodeURIComponent(target)}/login/poll`,
+      body,
+    ),
+
+  authLoginComplete: (target: string, body: { session_id: string; code: string }) =>
+    http.post<{ done: boolean; path?: string }>(
+      `/api/engines/auth/${encodeURIComponent(target)}/login/complete`,
+      body,
+    ),
+
+  authLogout: (target: string) =>
+    http.post<{ ok: boolean; path?: string }>(
+      `/api/engines/auth/${encodeURIComponent(target)}/logout`,
+      {},
+    ),
 };

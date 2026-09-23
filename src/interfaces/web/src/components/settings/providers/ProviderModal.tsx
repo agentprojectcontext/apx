@@ -7,10 +7,12 @@ import { UiSelect } from "../../UiSelect";
 import { ModelCombobox } from "../../ModelCombobox";
 import { Engines } from "../../../lib/api";
 import { isSecretMarker, secretSuffix } from "../../../lib/secrets";
-import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, engineStyle, type EngineType } from "./typeStyles";
+import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, creatableEngineOptions, engineStyle, type EngineType } from "./typeStyles";
 import type { Provider } from "./types";
 import { t } from "../../../i18n";
 import { toneText } from "../../../lib/tone";
+import codexLogo from "../../../assets/cli/codex.webp";
+import claudeLogo from "../../../assets/cli/claude.webp";
 
 export interface ProviderSaveResult {
   provider: Provider;
@@ -198,6 +200,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
         default_max_tokens: f.default_max_tokens,
         is_active: f.is_active,
         thinking: f.thinking,
+        locked: initial?.locked || f.engine === "codex-plus" || f.engine === "claude-subscription" || undefined,
         context_limit_tokens: f.context_limit_tokens || undefined,
         model_context_limits: modelLimits,
         pricing,
@@ -315,6 +318,75 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
   const keyPlaceholder = existingKey ? t("providers_modal.api_key_set", { suffix: keySuffix ?? "" }) : "sk-…";
   const isOllama = f.engine === "ollama";
   const apiKeyEnv = ENGINE_PRESETS[f.engine]?.api_key_env;
+  const isFixedPlan = !!(initial?.locked || f.engine === "codex-plus" || f.engine === "claude-subscription");
+  const isClaudePlan = f.engine === "claude-subscription" || initial?.slug === "claude-subscription";
+  const planTitle = isClaudePlan ? "Claude (Max)" : "ChatGPT/Codex";
+  const planDescKey = isClaudePlan ? "providers_modal.claude_plan_desc" : "providers_modal.codex_plan_desc";
+  const planHintKey = isClaudePlan ? "providers_modal.claude_plan_hint" : "providers_modal.codex_plan_hint";
+  const planLoginKey = isClaudePlan ? "providers_modal.claude_login_help" : "providers_modal.codex_login_help";
+  const engineSelectOptions = (isEdit && isFixedPlan
+    ? ENGINE_OPTIONS
+    : creatableEngineOptions()
+  ).map((o) => ({ value: o.value, label: o.label, icon: engineStyle(ENGINE_ICONS, o.value) }));
+
+  // Fixed plan cards: login mechanic only — no DIY API form.
+  if (isFixedPlan && isEdit) {
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        title={t("providers_modal.edit_title", { name: planTitle })}
+        description={t(planDescKey)}
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+            <Button variant="primary" onClick={submit} loading={busy}>{t("common.save")}</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-border">
+              <img src={isClaudePlan ? claudeLogo : codexLogo} alt="" className="size-10 object-contain" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{planTitle}</p>
+              <p className="text-xs text-muted-fg">{t(planHintKey)}</p>
+            </div>
+          </div>
+
+          <Field label={t("providers_modal.model_label")} hint={isClaudePlan ? undefined : t("providers_modal.codex_model_hint")}>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <ModelCombobox
+                  value={f.default_model}
+                  onChange={(v) => up({ default_model: v })}
+                  options={modelOptions}
+                  className="flex-1"
+                />
+                <Tip content={t("providers_modal.list_models_hint")}>
+                  <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} aria-label={t("providers_modal.list_models_hint")}>
+                    {loadingModels ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                    {t("providers_modal.load_models")}
+                  </Button>
+                </Tip>
+              </div>
+              {modelError && <p className={`text-[11px] ${toneText.amber}`}>{modelError}</p>}
+            </div>
+          </Field>
+
+          <Switch checked={f.is_active} onChange={(v) => up({ is_active: v })} label={t("providers_modal.active_label")} />
+
+          <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-fg">
+            {t(planLoginKey)}
+          </p>
+
+          {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
+        </div>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog
@@ -365,7 +437,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                 <UiSelect
                   value={f.engine}
                   onChange={(v) => changeEngine(v as EngineType)}
-                  options={ENGINE_OPTIONS.map((o) => ({ value: o.value, label: o.label, icon: engineStyle(ENGINE_ICONS, o.value) }))}
+                  options={engineSelectOptions}
                 />
               </Field>
             </div>

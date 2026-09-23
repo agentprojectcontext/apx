@@ -14,6 +14,154 @@ export function register(api, { config }) {
   // provider forms from here so model lists never drift between surfaces.
   api.get("/engines/presets", (_req, res) => res.json({ presets: ENGINE_PRESETS }));
 
+  // Plan OAuth status (APX-owned stores under ~/.apx/auth/). Login stays CLI:
+  // `apx auth chatgpt-codex login` / `apx auth claude login`.
+  api.get("/engines/auth/:target", asyncRoute(async (req, res) => {
+    const target = String(req.params.target || "").toLowerCase();
+    if (target === "chatgpt-codex" || target === "codex" || target === "codex-plus") {
+      const { readApxCodexAuth, chatgptCodexAuthPath, resolveApxCodexCreds } =
+        await import("#core/engines/codex-plus-oauth.js");
+      const stored = readApxCodexAuth();
+      if (!stored) {
+        return res.json({
+          target: "chatgpt-codex",
+          logged_in: false,
+          path: chatgptCodexAuthPath(),
+          login_cmd: "apx auth chatgpt-codex login",
+        });
+      }
+      try {
+        const creds = await resolveApxCodexCreds();
+        return res.json({
+          target: "chatgpt-codex",
+          logged_in: true,
+          path: creds.auth_path,
+          account_id: creds.account_id,
+          expires_at: creds.expires_at || null,
+          source: "apx",
+          login_cmd: "apx auth chatgpt-codex login",
+        });
+      } catch (e) {
+        return res.json({
+          target: "chatgpt-codex",
+          logged_in: false,
+          broken: true,
+          error: e.message,
+          path: chatgptCodexAuthPath(),
+          login_cmd: "apx auth chatgpt-codex login",
+        });
+      }
+    }
+    if (target === "claude" || target === "claude-subscription") {
+      const { readApxClaudeAuth, claudeSubscriptionAuthPath, resolveApxClaudeCreds } =
+        await import("#core/engines/claude-subscription-oauth.js");
+      const stored = readApxClaudeAuth();
+      if (!stored) {
+        return res.json({
+          target: "claude-subscription",
+          logged_in: false,
+          path: claudeSubscriptionAuthPath(),
+          login_cmd: "apx auth claude login",
+        });
+      }
+      try {
+        const creds = await resolveApxClaudeCreds();
+        return res.json({
+          target: "claude-subscription",
+          logged_in: true,
+          path: creds.auth_path,
+          expires_at_ms: creds.expires_at_ms || null,
+          source: "apx",
+          login_cmd: "apx auth claude login",
+        });
+      } catch (e) {
+        return res.json({
+          target: "claude-subscription",
+          logged_in: false,
+          broken: true,
+          error: e.message,
+          path: claudeSubscriptionAuthPath(),
+          login_cmd: "apx auth claude login",
+        });
+      }
+    }
+    return res.status(404).json({ error: `unknown auth target "${target}"` });
+  }));
+
+  // Web login: start / poll / complete / logout for plan OAuth.
+  api.post("/engines/auth/:target/login/start", asyncRoute(async (req, res) => {
+    const target = String(req.params.target || "").toLowerCase();
+    if (target === "chatgpt-codex" || target === "codex" || target === "codex-plus") {
+      const { startCodexDeviceLogin } = await import("#core/engines/codex-plus-oauth.js");
+      const started = await startCodexDeviceLogin();
+      return res.json({
+        target: "chatgpt-codex",
+        flow: "device_code",
+        user_code: started.user_code,
+        device_auth_id: started.device_auth_id,
+        interval_s: started.interval_s,
+        verification_url: started.verification_url,
+      });
+    }
+    if (target === "claude" || target === "claude-subscription") {
+      const { startClaudePkceLogin } = await import("#core/engines/claude-subscription-oauth.js");
+      const started = startClaudePkceLogin();
+      return res.json({
+        target: "claude-subscription",
+        flow: "pkce",
+        session_id: started.session_id,
+        auth_url: started.auth_url,
+      });
+    }
+    return res.status(404).json({ error: `unknown auth target "${target}"` });
+  }));
+
+  api.post("/engines/auth/:target/login/poll", asyncRoute(async (req, res) => {
+    const target = String(req.params.target || "").toLowerCase();
+    if (!(target === "chatgpt-codex" || target === "codex" || target === "codex-plus")) {
+      return res.status(400).json({ error: "poll only for chatgpt-codex" });
+    }
+    const { device_auth_id, user_code } = req.body || {};
+    const {
+      pollCodexDeviceLoginOnce,
+      exchangeCodexDeviceCode,
+    } = await import("#core/engines/codex-plus-oauth.js");
+    const step = await pollCodexDeviceLoginOnce({ device_auth_id, user_code });
+    if (step.status === "pending") return res.json({ done: false });
+    const done = await exchangeCodexDeviceCode({
+      authorization_code: step.authorization_code,
+      code_verifier: step.code_verifier,
+    });
+    return res.json({ done: true, path: done.path, account_id: done.account_id });
+  }));
+
+  api.post("/engines/auth/:target/login/complete", asyncRoute(async (req, res) => {
+    const target = String(req.params.target || "").toLowerCase();
+    if (!(target === "claude" || target === "claude-subscription")) {
+      return res.status(400).json({ error: "complete only for claude" });
+    }
+    const { session_id, code } = req.body || {};
+    const { completeClaudePkceLogin } = await import("#core/engines/claude-subscription-oauth.js");
+    const done = await completeClaudePkceLogin({ session_id, code });
+    return res.json({ done: true, path: done.path });
+  }));
+
+  api.post("/engines/auth/:target/logout", asyncRoute(async (req, res) => {
+    const target = String(req.params.target || "").toLowerCase();
+    if (target === "chatgpt-codex" || target === "codex" || target === "codex-plus") {
+      const { clearApxCodexAuth, chatgptCodexAuthPath } = await import("#core/engines/codex-plus-oauth.js");
+      clearApxCodexAuth();
+      return res.json({ ok: true, path: chatgptCodexAuthPath() });
+    }
+    if (target === "claude" || target === "claude-subscription") {
+      const { clearApxClaudeAuth, claudeSubscriptionAuthPath } =
+        await import("#core/engines/claude-subscription-oauth.js");
+      clearApxClaudeAuth();
+      return res.json({ ok: true, path: claudeSubscriptionAuthPath() });
+    }
+    return res.status(404).json({ error: `unknown auth target "${target}"` });
+  }));
+
   api.post("/engines/models", asyncRoute(async (req, res) => {
     const b = req.body || {};
     const engine = String(b.engine || "").toLowerCase();
