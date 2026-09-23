@@ -57,11 +57,16 @@ function a2aEtiquette({ selfAddress, peerAddress, config, wake = false }) {
   if (isOrchestrator) {
     lines.push(
       "You are the orchestrator: YOU decide whether, how and when the owner hears about this — using your own channel and tools, respecting quiet-hours. Don't relay noise; relay what the owner actually needs.",
+      // 2026-09-23: routine briefs tagged [status] arrived here as full turns,
+      // were read as orders and delegated, and every answer woke this turn
+      // again. A report is filed and folded into the brief; work it implies
+      // becomes a task, which its owner takes up on their own turn.
+      "A report from a routine or an agent (`status`, `fyi`) is not a request to act now. Do not hand it on to other agents from this turn: if it implies work, create a task assigned to whoever should do it (or comment on the existing task, mentioning them), and leave telling the owner to the brief unless it truly cannot wait.",
     );
   } else {
     lines.push(
       "Do NOT notify the owner directly from this turn (no `apx telegram send`, no direct owner ping).",
-      `You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to ${superName} (\`apx send <you> default "…" --deliver\` or \`apx send <you> ${superName.toLowerCase()} "…" --deliver\`) and let ${superName} decide how and when to tell them. Tag urgency: \`--severity blocker\` for a critical alert (${superName} pings the owner in the act, crossing quiet-hours), \`--severity status\`/\`fyi\` for a normal notice that rides the digest. Otherwise just do your part and reply here.`,
+      `You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to ${superName} and let ${superName} decide how and when to tell them. A normal notice is FILED, not delivered: \`apx send <you> ${superName.toLowerCase()} "…" --severity status\` (or \`fyi\`) — no \`--deliver\`, it rides the digest and opens nobody's turn. Only a critical alert delivers: \`--severity blocker --deliver --background\` (${superName} pings the owner in the act, crossing quiet-hours). Work for another agent is a task assigned to them, not a message. Otherwise just do your part and reply here.`,
     );
   }
   if (secretaryActive) {
