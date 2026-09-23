@@ -23,6 +23,8 @@ export interface Provider {
   /** false = ask this provider not to reason before answering. Undefined leaves
    *  the provider's own default alone. */
   thinking?: boolean;
+  /** Built-in / plan provider — UI shows a lock and refuses delete. */
+  locked?: boolean;
   context_limit_tokens?: number;
   model_context_limits?: Record<string, number>;
   pricing?: ProviderPricing;

@@ -17,6 +17,7 @@ import {
 import { collectSecretValues, registerSecretValues } from "#core/config/secret-values.js";
 import { isBlobKey, resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { broadcastSuperAgentAvatar } from "../events-ws.js";
+import { isLockedProvider } from "#core/engines/presets.js";
 
 export function register(api, { config, scheduler, plugins }) {
   api.get("/admin/config", (_req, res) => {
@@ -40,6 +41,16 @@ export function register(api, { config, scheduler, plugins }) {
       cfg = readConfig();
     } catch (e) {
       return res.status(500).json({ error: e.message });
+    }
+    if (Array.isArray(unset)) {
+      for (const k of unset) {
+        const m = /^engines\.([^.]+)$/.exec(k);
+        if (m && isLockedProvider(m[1], cfg.engines)) {
+          return res.status(400).json({
+            error: `provider "${m[1]}" is locked and cannot be deleted`,
+          });
+        }
+      }
     }
     if (set && typeof set === "object") {
       for (const [k, v] of Object.entries(set)) {
