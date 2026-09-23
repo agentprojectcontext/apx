@@ -430,3 +430,60 @@ test("the peer's own turn knows how deep the chain is, not just the job record",
   const wake = await until(() => peer.calls[1], "the wake-up");
   assert.equal(wake.depth, 3, "and the wake-up counts one hop further");
 });
+
+// ── The acknowledgement ping-pong (2026-09-23) ──────────────────────────────
+// A status report woke the super-agent; it answered "Recibido…", which was
+// filed as a reply INTO the peer's inbox; the peer's next turn answered
+// "Confirmado…"; and one report became four full tool loops. ~230 a2a messages
+// in fifty minutes, most of them acknowledgements, until the ChatGPT account
+// ran out. The answer still wakes the waiter — what it says back does not.
+test("a wake-up is delivered as a wake, and says the waiter's words go nowhere", async () => {
+  fresh();
+  const peer = recorder();
+  sendInBackground({ project, from: "ansel", to: "roby", body: "estado?", wake: true, messagePeerFn: peer.fn });
+  const wake = await until(() => peer.calls[1], "the wake-up");
+  assert.ok(wake.wakeFor, "messagePeer is told this is a wake-up, not a new message");
+  assert.match(wake.body, /NOT sent to roby/);
+  assert.match(wake.body, /Do not acknowledge/);
+});
+
+test("the woken turn's answer is its own note, never put in the peer's inbox", async () => {
+  const { messagePeer } = await import("#core/agent/a2a/delegate.js");
+  const { appendMessageToFs, readProjectMessages } = await import("#core/stores/messages.js");
+  const storagePath = fs.mkdtempSync(path.join(TMP_HOME, "wake-store-"));
+  const p = { ...project, storagePath, logMessage: (m) => appendMessageToFs({ projectRoot: storagePath, ...m }) };
+  let seen = null;
+  await messagePeer({
+    project: p, from: "roby", to: "ansel", body: "[background job bg_x] …", config: {},
+    wakeFor: "bg_x",
+    replyFn: async (args) => { seen = args; return { text: "Recibido, gracias.", model: "test:model" }; },
+  });
+  const rows = readProjectMessages(storagePath, { channel: "a2a", limit: 50 });
+  const intoRoby = rows.filter((r) => r.agent_slug === "roby" && r.direction === "in");
+  assert.equal(intoRoby.length, 0, "roby's inbox gets nothing — roby is waiting on nothing");
+  const note = rows.find((r) => r.agent_slug === "ansel" && r.direction === "out");
+  assert.equal(note.body, "Recibido, gracias.");
+  assert.equal(note.meta.not_sent, true);
+  assert.equal(note.meta.wake_for, "bg_x");
+  // And the woken turn is told the same thing its prompt used to contradict.
+  assert.equal(seen.wake, true);
+});
+
+test("the a2a etiquette of a woken turn does not claim its output goes back", async () => {
+  const { buildA2AReplySystem } = await import("#core/agent/a2a/reply.js");
+  const base = { toAgent: { slug: "ansel", fields: {} }, fromAgent: { slug: "roby" }, config: {} };
+  assert.match(buildA2AReplySystem(base), /Your output IS the reply/);
+  const woken = buildA2AReplySystem({ ...base, wake: true });
+  assert.doesNotMatch(woken, /Your output IS the reply/);
+  assert.match(woken, /NOT sent to roby/);
+});
+
+test("a blocking send hits the same depth wall as a background one", async () => {
+  fresh();
+  // A woken turn runs at depth 2. It could not send in the background but
+  // could block-send, and that extra hop was the "Confirmado y registrado".
+  const out = await handlerFor({ agentSlug: "ansel", a2aDepth: 2 })({ to: "roby", message: "¿confirmás?" });
+  assert.match(out.error, /depth limit \(3\) reached/);
+  const bg = await handlerFor({ agentSlug: "ansel", a2aDepth: 2 })({ to: "roby", message: "x", background: true });
+  assert.match(bg.error, /depth limit \(3\) reached/);
+});

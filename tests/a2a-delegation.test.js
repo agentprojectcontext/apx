@@ -158,3 +158,42 @@ test("a dead peer still files the tools it already ran", async () => {
   assert.equal(reply.meta.trace[0].tool, "rename_agent");
   cleanupTempProject(p.path);
 });
+
+// A project agent delegating is filed as ITSELF. `delegateToAgent` defaulted
+// `from` to the super-agent and `call_agent` never passed one, so when Kai
+// asked Bridget something the thread said super_agent → bridget, Bridget
+// answered "Hola Roby", and the owner read a conversation that never happened.
+test("a delegation made by a project agent is filed under that agent", async () => {
+  const p = project();
+  let seen = null;
+  const out = await delegateToAgent({
+    project: p, agent: AGENT, prompt: "Pasame el brief.", config: {},
+    from: "kai", depth: 2,
+    replyFn: async (args) => { seen = args; return { text: "Va.", model: "test:model" }; },
+  });
+  assert.equal(out.thread, a2aThreadId("kai", "jaro"));
+  const inbound = rows(p).find((r) => r.direction === "in" && r.agent_slug === "jaro");
+  assert.equal(inbound.author, "kai");
+  assert.equal(inbound.meta.from, "kai");
+  // The recipient is told who is really asking…
+  assert.equal(seen.peerAddress, "kai");
+  assert.equal(seen.fromAgent.slug, "kai");
+  // …and its own hand-offs keep counting the chain instead of restarting it.
+  assert.equal(seen.depth, 2);
+  cleanupTempProject(p.path);
+});
+
+test("call_agent takes its sender and depth from the running turn", async () => {
+  const { default: callAgent } = await import("#core/agent/tools/handlers/call-agent.js");
+  const p = project();
+  const projects = { get: () => p, list: () => [{ id: p.id, name: "northwind", path: p.path }], current: () => p };
+  // Calling yourself is refused before anything is filed.
+  const asJaro = callAgent.makeHandler({ projects, globalConfig: {}, channelMeta: { agentSlug: "jaro" } });
+  await assert.rejects(asJaro({ agent: "jaro", prompt: "hola" }), /that is you/);
+  // A chain that is already at the wall gets an answer, not another hop.
+  const deep = callAgent.makeHandler({ projects, globalConfig: {}, channelMeta: { agentSlug: "kai", a2aDepth: 2 } });
+  const out = await deep({ agent: "jaro", prompt: "Revisá esto." });
+  assert.match(out.error, /depth limit/);
+  assert.equal(rows(p).length, 0, "nothing filed for a refused hop");
+  cleanupTempProject(p.path);
+});

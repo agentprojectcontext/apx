@@ -1,4 +1,12 @@
+import { CHANNELS } from "#core/constants/channels.js";
 import { callEngine } from "../engines/index.js";
+import {
+  isQuotaExhaustedError,
+  isAutonomousChannel,
+  markQuotaExhausted,
+  quotaCooldown,
+  quotaStopError,
+} from "./quota.js";
 import {
   extractPseudoToolCalls,
   extractBareFunctionCalls,
@@ -196,6 +204,22 @@ const WRAPUP_SIGNAL =
   "Talk like a person giving a quick status update. Do NOT emit a tool call, " +
   "JSON, or system jargon like \"iteration\" or \"limit\".]";
 
+// The same closing for an a2a turn, addressed to who is actually there: the
+// AGENT that asked. It reads the answer and decides — hand the work back with
+// more room, do it another way, or stop and tell the owner. "Ask the user
+// whether to keep going" put that question to nobody.
+const A2A_WRAPUP_SIGNAL =
+  "[Internal turn note — this is NOT from the agent who asked. You've taken " +
+  "many tool steps and the task isn't finished; no more tools will run now. " +
+  "Write the agent who asked you ONE short closing message:\n" +
+  "- What you actually did and found so far, and what you did NOT resolve. " +
+  "Read the tool results above; do not claim anything you didn't do.\n" +
+  "- Say plainly that it is taking more than expected, and what continuing " +
+  "would still need.\n" +
+  "- If something failed (an API, an MCP, a permission), name it: that is a " +
+  "reason to stop and report, not to retry.\n" +
+  "They decide whether to ask you to continue. Do NOT emit a tool call or JSON.]";
+
 // How many times one turn may be nudged past an output-limit truncation before
 // we let it end. A model that answers with a wall of prose every time is not
 // going to start acting on the third try, and the wrap-up still fires.
@@ -264,6 +288,9 @@ export async function runAgent({
   // Content-routed model for this turn (selectModelByRules). Unlike
   // overrideModel it is health-checked and falls back down the chain.
   preferredModel = null,
+  // Why preferredModel is preferred — "content_rules" or "self_model" — so the
+  // routing event says what actually picked it.
+  preferredBy = "content_rules",
   toolSchemas,
   makeToolHandlers,
   toolHandlerCtx,
@@ -294,9 +321,19 @@ export async function runAgent({
   // resumed turn re-sending the WhatsApp the cut-off one already sent.
   priorEffects = [],
 }) {
-  const routing = await resolveActiveModel(globalConfig, { overrideModel, preferredModel });
+  const routing = await resolveActiveModel(globalConfig, { overrideModel, preferredModel, preferredBy });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
   let activeModel = routing.modelId;
+  // A turn nobody is watching does not run on what is left after an account
+  // ran dry — see quota.js. Two ways to be there: the model it was pinned to
+  // is itself cooling down, or the router skipped a spent account to get here.
+  const autonomous = isAutonomousChannel(toolHandlerCtx?.channel);
+  if (autonomous) {
+    const pinned = quotaCooldown(activeModel);
+    const skipped = (routing.tried || []).find((t) => t.quota);
+    if (pinned) throw quotaStopError(activeModel, pinned.reason, pinned.until);
+    if (skipped) throw quotaStopError(skipped.modelId, skipped.quota.reason, skipped.quota.until);
+  }
 
   // Build the chain to walk on retryable failures: everything in
   // fallbackModels() that isn't `activeModel` already AND wasn't already
@@ -567,11 +604,27 @@ export async function runAgent({
           ...params,
           messages: messagesForModel(params.messages, activeModel, globalConfig),
           modelId: activeModel,
+          attribution: {
+            channel: toolHandlerCtx?.channel || null,
+            agent: toolHandlerCtx?.channelMeta?.agentSlug || agentName || null,
+            project: toolHandlerCtx?.channelMeta?.projectId ?? null,
+          },
         });
       } catch (e) {
         if (signal?.aborted || e?.name === "AbortError") throw e;
+        if (isQuotaExhaustedError(e)) {
+          markQuotaExhausted(activeModel, e, { config: globalConfig });
+          if (autonomous) {
+            const cool = quotaCooldown(activeModel);
+            throw quotaStopError(activeModel, e.message, cool?.until);
+          }
+        }
         if (!allowRetry || retryChain.length === 0 || !isRetryableEngineError(e)) throw e;
-        const nextModel = retryChain.shift();
+        let nextModel = retryChain.shift();
+        // Skip accounts already known to be spent rather than paying one more
+        // failed call each to find out again.
+        while (nextModel && quotaCooldown(nextModel)) nextModel = retryChain.shift();
+        if (!nextModel) throw e;
         await emitProgress(onEvent, {
           type: "engine_failed",
           model: activeModel,
@@ -635,7 +688,10 @@ export async function runAgent({
         // turn it must answer — far more reliable than a system suffix on weak
         // models. Ephemeral: built fresh here, never persisted to history.
         messages: isFinalWrapUp
-          ? [...conversation, { role: "user", content: WRAPUP_SIGNAL }]
+          ? [...conversation, {
+              role: "user",
+              content: toolHandlerCtx?.channel === CHANNELS.A2A ? A2A_WRAPUP_SIGNAL : WRAPUP_SIGNAL,
+            }]
           : conversation,
         config: globalConfig,
         // On the wrap-up step we withhold tools entirely so the model must

@@ -11,6 +11,7 @@
 //
 // Same classifier as the loop (retry.js), same chain (model-router.js), so the
 // two agree about what "retryable" means and which model comes next.
+import { isQuotaExhaustedError, markQuotaExhausted, quotaCooldown } from "./quota.js";
 import { callEngine } from "../engines/index.js";
 import { fallbackModels, isFallbackEnabled } from "./model-router.js";
 import { messagesForModel } from "./model-capabilities.js";
@@ -32,6 +33,10 @@ export async function callEngineWithFallback({ modelId, config, ...rest }, { onR
     ? fallbackModels(config).filter((m) => m && m !== modelId)
     : [];
   let active = modelId;
+  // The caller's model may be an account already known to be spent (the
+  // compactor hit ollama's monthly limit four times in three minutes on
+  // 2026-09-23). Start on the first one that is not.
+  while (quotaCooldown(active) && chain.length) active = chain.shift();
   for (;;) {
     try {
       const out = await callEngine({
@@ -43,8 +48,11 @@ export async function callEngineWithFallback({ modelId, config, ...rest }, { onR
       return { ...out, model: active };
     } catch (e) {
       if (e?.name === "AbortError" || rest.signal?.aborted) throw e;
+      if (isQuotaExhaustedError(e)) markQuotaExhausted(active, e, { config });
       if (!chain.length || !isRetryableEngineError(e)) throw e;
-      const next = chain.shift();
+      let next = chain.shift();
+      while (next && quotaCooldown(next)) next = chain.shift();
+      if (!next) throw e;
       try {
         onRotate?.({ model: active, reason: shortRetryReason(e), retry_with: next });
       } catch {

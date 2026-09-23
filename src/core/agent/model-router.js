@@ -6,6 +6,7 @@
 // ids and the algorithm of trying the chain in order. Per-provider details
 // are owned by the provider.
 import { adapterForSlug, getAdapter } from "../engines/index.js";
+import { quotaCooldown } from "./quota.js";
 
 export function parseModelId(modelId) {
   if (typeof modelId !== "string" || !modelId) {
@@ -188,7 +189,7 @@ export function selectModelByRules(
 /**
  * Pick first healthy model following configured provider order.
  */
-export async function resolveActiveModel(globalConfig, { overrideModel = null, preferredModel = null, timeoutMs } = {}) {
+export async function resolveActiveModel(globalConfig, { overrideModel = null, preferredModel = null, preferredBy = "content_rules", timeoutMs } = {}) {
   if (overrideModel) {
     const { provider } = parseModelId(overrideModel);
     return {
@@ -231,6 +232,13 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, p
         continue;
       }
       const candidateModel = parseModelId(modelId).model;
+      // An account known to be spent is not probed: its health check passes
+      // (the key is fine) and the call then fails, once per turn. See quota.js.
+      const cool = quotaCooldown(modelId);
+      if (cool) {
+        tried.push({ provider, modelId, healthy: false, reason: "quota exhausted", quota: cool });
+        continue;
+      }
       const health = await checkProviderHealth(provider, globalConfig, healthMs, { candidateModel });
       tried.push({
         provider,
@@ -246,7 +254,7 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, p
           modelId,
           provider,
           fromFallback: !isPrimary && modelId !== preferred,
-          ...(modelId === preferred ? { routedBy: "content_rules" } : {}),
+          ...(modelId === preferred ? { routedBy: preferredBy } : {}),
           tried,
         };
       }
@@ -260,8 +268,8 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, p
       provider,
       fromFallback: false,
       forced: true,
-      routedBy: "content_rules",
-      tried: [{ provider, modelId: preferred, healthy: true, reason: "content_rules" }],
+      routedBy: preferredBy,
+      tried: [{ provider, modelId: preferred, healthy: true, reason: preferredBy }],
     };
   }
 

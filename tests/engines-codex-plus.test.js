@@ -228,3 +228,47 @@ test("callEngine routes codex-plus:<model> to the adapter (mocked fetch)", async
     }
   });
 });
+
+test("reasoning effort: provider default, per-model @suffix wins, unknown suffix untouched", async () => {
+  const { splitModelEffort } = await import("#core/engines/codex-plus.js");
+  assert.deepEqual(splitModelEffort("gpt-5.6-luna", {}), { model: "gpt-5.6-luna", effort: null });
+  assert.deepEqual(splitModelEffort("gpt-5.6-luna", { reasoning_effort: "medium" }), { model: "gpt-5.6-luna", effort: "medium" });
+  assert.deepEqual(splitModelEffort("gpt-5.6-luna@high", { reasoning_effort: "medium" }), { model: "gpt-5.6-luna", effort: "high" });
+  assert.deepEqual(splitModelEffort("gpt-5.6-luna@turbo", {}), { model: "gpt-5.6-luna@turbo", effort: null });
+});
+
+test("the effort reaches the wire, and the suffix does not", async () => {
+  await withIsolatedApxHome(async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-plus-"));
+    const authPath = writeAuth(dir);
+    const prevFetch = globalThis.fetch;
+    const sent = [];
+    globalThis.fetch = async (_url, init) => {
+      sent.push(JSON.parse(init.body));
+      const enc = new TextEncoder();
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(enc.encode('data: {"type":"response.output_text.delta","delta":"ok"}\n' +
+            'data: {"type":"response.completed","response":{"status":"completed"}}\n'));
+          controller.close();
+        },
+      });
+      return { ok: true, body, text: async () => "" };
+    };
+    try {
+      const call = (modelId, engineCfg = {}) => callEngine({
+        modelId, system: "s", messages: [{ role: "user", content: "ping" }],
+        config: { engines: { "codex-plus": { auth_path: authPath, ...engineCfg } } },
+      });
+      await call("codex-plus:gpt-5.6-luna@medium");
+      await call("codex-plus:gpt-5.6-luna", { reasoning_effort: "low" });
+      await call("codex-plus:gpt-5.6-luna");
+      assert.equal(sent[0].model, "gpt-5.6-luna");
+      assert.deepEqual(sent[0].reasoning, { effort: "medium", summary: "auto" });
+      assert.deepEqual(sent[1].reasoning, { effort: "low", summary: "auto" });
+      assert.equal(sent[2].reasoning, undefined, "unset leaves the backend default alone");
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+  });
+});

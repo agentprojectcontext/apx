@@ -73,13 +73,18 @@ Three things that matter when you background something:
   need in order to act on the answer into the message itself.
 - **Do not poll.** Never call `send_to_agent` again for the same thing, and never
   "check" on it. You will be woken; asking again just opens a second exchange.
+- **What you write when woken is your own note, not a reply.** It is not sent
+  back to the peer — they answered and are waiting on nothing. Do not thank
+  them or confirm receipt; message them again only with a genuinely new request.
 - **A failure wakes you too**, and says so in as many words. If the peer never
   answered, the job timed out, or the daemon restarted while it ran, you are told
   that plainly and there is no result to use. Do not report such a job as done.
 
 Each agent may leave **3** jobs running at once, and a chain of agents handing
-work to each other stops at **3** hand-offs deep. Both limits come back as a
-message you can act on, not as a crash.
+work to each other stops at **3** hand-offs deep — waiting or backgrounded, via
+`send_to_agent` or `call_agent`. Both limits come back as a message you can act
+on, not as a crash. A peer's own turn gets **20** tool steps; if it runs out it
+answers with what it did and what is left, and you decide whether to continue.
 
 ### The same thing for a long COMMAND
 

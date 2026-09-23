@@ -244,6 +244,9 @@ export async function cmdSend(args) {
       ...(model ? { model } : {}),
       ...(usage ? { usage } : {}),
       ...(requested_by ? { requested_by } : {}),
+      // Set by run_shell when an agent inside an a2a exchange shells out, so
+      // this send counts as one more hop of that chain instead of a new one.
+      ...(Number(process.env.APX_A2A_DEPTH) > 0 ? { _depth: Number(process.env.APX_A2A_DEPTH) } : {}),
     }, waitMs ? { timeoutMs: waitMs } : {});
   }
 

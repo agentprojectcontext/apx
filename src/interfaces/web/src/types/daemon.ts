@@ -733,6 +733,9 @@ export interface SuperAgentConfig {
   name: string;
   icon: string;
   model: string;
+  // The super-agent's own model, apart from the router default (`model`, which
+  // inheriting agents use). "" = same as the router.
+  self_model?: string;
   system: string;
   permission_mode: string;
   allowed_tools: string[];

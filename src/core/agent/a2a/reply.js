@@ -44,7 +44,7 @@ export function a2aReplyCommand({ selfAddress, peerAddress }) {
  *  not "answer the owner", and must not ping the owner directly. What reaches
  *  the owner, and when, is the orchestrator's (Roby's) call, through its own
  *  channel and quiet-hours. */
-function a2aEtiquette({ selfAddress, peerAddress, config }) {
+function a2aEtiquette({ selfAddress, peerAddress, config, wake = false }) {
   const selfName = String(selfAddress || "").toLowerCase().split("#")[0].split(":")[0];
   const configuredName = (resolveAgentName(config) || "").toLowerCase();
   const isOrchestrator = ORCHESTRATOR_SLUGS.has(selfName) || (configuredName && selfName === configuredName);
@@ -73,6 +73,20 @@ function a2aEtiquette({ selfAddress, peerAddress, config }) {
   // reply — a model returns text, a CLI writes stdout — and APX files that as
   // the reply. A peer that also shells out `apx send` with the same answer
   // files the exchange twice and starts a second, overlapping thread.
+  // A woken waiter is not answering anybody. The message is the ANSWER to work
+  // it started, and its output is filed as its own note (deliverWake) — so the
+  // "your output is the reply" rule below would be a lie that invites exactly
+  // the "Recibido" it used to send back.
+  if (wake) {
+    lines.push(
+      [
+        "## This is an answer you were waiting for",
+        `${peerAddress} finished the work you handed them. What you write now is your own note on the outcome: it is NOT sent to ${peerAddress}, who is waiting on nothing.`,
+        "Do not acknowledge or thank them. Act on the result, or report it — and if it is a failure, report it instead of asking them to try again.",
+      ].join("\n"),
+    );
+    return lines.join("\n\n");
+  }
   lines.push(
     [
       "## How to answer",
@@ -101,6 +115,7 @@ export function buildA2AReplySystem({
   selfAddress = null,
   peerAddress = null,
   mode = "chat",
+  wake = false,
 }) {
   const self = selfAddress || toAgent.slug;
   const peer = peerAddress || fromAgent.slug;
@@ -119,7 +134,7 @@ export function buildA2AReplySystem({
       "concrete changes, concrete commands — not a summary of the area.",
     );
   }
-  parts.push(a2aEtiquette({ selfAddress: self, peerAddress: peer, config }));
+  parts.push(a2aEtiquette({ selfAddress: self, peerAddress: peer, config, wake }));
   if (projectPath && toAgent.slug) {
     // Same file buildAgentSystem injects — an A2A turn must not read a
     // different memory than a normal turn, or the agent contradicts itself
@@ -204,9 +219,11 @@ export async function replyAsAgent({
   // `channelMeta.a2aDepth`, which is what `send_to_agent` reads to decide
   // whether this agent may hand the work on again. See messagePeer's `depth`.
   depth = 0,
+  // True when this turn is a background job waking its waiter (deliverWake).
+  wake = false,
   runAgentTurnFn = runAgentTurn,
 }) {
-  const modelId = await resolveAgentModel({ agent: toAgent, config });
+  const modelId = await resolveAgentModel({ agent: toAgent, config, autonomous: true });
   if (!modelId) {
     throw new Error(
       `no model for agent ${toAgent?.slug || "?"} (no override, no router default)`
@@ -221,6 +238,7 @@ export async function replyAsAgent({
     selfAddress,
     peerAddress: peer,
     mode,
+    wake,
   });
 
   const p = project || {
@@ -303,11 +321,12 @@ export async function replyAsSuperAgent({
   signal = null,
   onEvent = null,
   depth = 0,
+  wake = false,
   runSuperAgentFn = runSuperAgent,
 }) {
   const selfAddress = canonicalPeerAddress(peer);
   const contextNote = [
-    a2aEtiquette({ selfAddress, peerAddress: fromAddress, config }),
+    a2aEtiquette({ selfAddress, peerAddress: fromAddress, config, wake }),
     mode === "code"
       ? "This exchange was explicitly opened as a CODING session. Do the requested work under the normal permission policy, verify it, then reply with the result."
       : "This exchange is agent coordination. Use tools only when the message requires action; otherwise answer directly.",

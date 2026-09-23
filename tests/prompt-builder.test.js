@@ -289,3 +289,17 @@ test("the rule reaches a project agent too, not just the super-agent", () => {
   );
   assert.match(agentSystem, /One conversation, several places/);
 });
+
+// 2026-09-23: agents hit a broken Cheto MCP and "re-verified" it for an hour —
+// by API, then CLI, then by asking another agent to try — until the ChatGPT
+// account ran out. The base prompt told them "if a tool errors, retry with
+// different arguments before asking the user". A system that is down is not
+// an argument to vary: the rule now says to stop and report.
+test("a failing system is reported, not routed around", () => {
+  const base = loadDefaultSystemPrompt();
+  assert.doesNotMatch(base, /retry with different arguments before asking the user/);
+  assert.match(base, /do not route around it/);
+  const a2a = buildChannelContextBlock("a2a", { from: "kai", to: "bridget" });
+  assert.match(a2a, /do not hand it to another agent to retry/);
+  assert.match(a2a, /Do not acknowledge an answer/);
+});

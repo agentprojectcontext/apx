@@ -14,6 +14,7 @@
 // `inherit` used to reach `callEngine` as a literal model id, which parses as a
 // provider-less name and fails the run. It is a marker, never a model.
 import { resolveActiveModel } from "./model-router.js";
+import { quotaStopError } from "./quota.js";
 
 const INHERIT = "inherit";
 
@@ -42,17 +43,28 @@ export function isInheritedModel(model) {
  * the super-agent (which walks the fallback chain and skips unhealthy
  * providers). Returns `null` when nothing is configured anywhere.
  */
-export async function resolveAgentModel({ agent, config, override } = {}) {
+export async function resolveAgentModel({ agent, config, override, autonomous = false } = {}) {
   // Per-call override (the chat picker) wins only when it is a real model
   // id. `inherit` / empty from the picker means "use the agent's card", not
   // "call a provider named inherit". The agent's own `Model: inherit` then
   // falls through to the router.
   const forced = agentForcedModel({ fields: { Model: override ?? "" } }) || agentForcedModel(agent);
   if (forced) return forced;
+  let routing;
   try {
-    const routing = await resolveActiveModel(config);
-    return routing?.modelId || null;
+    routing = await resolveActiveModel(config);
   } catch {
     return null;
   }
+  // `autonomous`: nobody is watching this turn (a routine, an a2a reply, a
+  // task-comment summons, a background wake). If the router only got here by
+  // skipping an account whose usage limit is spent, the turn stops instead of
+  // running on the fallback chain — see agent/quota.js. Only for an agent that
+  // INHERITS: one pinned to its own model chose it, and that model may be a
+  // free local one with nothing to do with the account that ran out.
+  if (autonomous) {
+    const skipped = (routing?.tried || []).find((t) => t.quota);
+    if (skipped) throw quotaStopError(skipped.modelId, skipped.quota.reason, skipped.quota.until);
+  }
+  return routing?.modelId || null;
 }

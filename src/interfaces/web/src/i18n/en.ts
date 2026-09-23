@@ -684,6 +684,8 @@ export const en = {
       enabled_label: "Super-agent enabled",
       model_active:  "Active model (router)",
       model_configure: "Configure in Models",
+      self_model: "Own model",
+      self_model_hint: "Auto = the router default, the same model inheriting agents use. Pick one to give only the super-agent a different model; if it fails, it falls back down the router chain.",
       behavior_subtitle: "Super-agent behavior. Model and fallback chain are configured in the Model Router.",
     },
 

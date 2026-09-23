@@ -11,6 +11,7 @@ import { PERMISSION_MODES } from "../../constants";
 import { t } from "../../i18n";
 import { AgentIconPicker } from "../agents/AgentFormFields";
 import { SUPER_AGENT_ICON } from "../agents/AgentAvatar";
+import { ModelPicker } from "../chat/ModelPicker";
 
 export function SuperAgentPanel() {
   const toast = useToast();
@@ -24,6 +25,7 @@ export function SuperAgentPanel() {
   const [personality, setPersonality] = useState("");
   const [icon, setIcon] = useState(SUPER_AGENT_ICON);
   const [perm, setPerm] = useState<string>("permiso");
+  const [selfModel, setSelfModel] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function SuperAgentPanel() {
     setSystem(superAgent.system || "");
     setPerm(superAgent.permission_mode || "permiso");
     setIcon(superAgent.icon || SUPER_AGENT_ICON);
+    setSelfModel(superAgent.self_model || "");
   }, [superAgent]);
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export function SuperAgentPanel() {
         "super_agent.system":           system,
         "super_agent.permission_mode":  perm,
         "super_agent.icon":             icon,
+        "super_agent.self_model":       selfModel,
       }, ["super_agent.name"]);
       await saveIdentity({ personality });
       toast.success(t("settings.super_agent.saved"));
@@ -74,6 +78,14 @@ export function SuperAgentPanel() {
             <Cpu size={13} /> {t("settings.super_agent.model_configure")}
           </Button>
         </div>
+
+        {/* Its OWN model: the router's #1 above is also what every agent with
+            `Model: inherit` runs on, so it cannot double as the super-agent's. */}
+        <Field label={t("settings.super_agent.self_model")} hint={t("settings.super_agent.self_model_hint")}>
+          <div className="w-fit rounded-md border border-border px-2 py-1" data-testid="super-agent-self-model">
+            <ModelPicker value={selfModel} onChange={setSelfModel} disabled={busy} />
+          </div>
+        </Field>
 
         <Field label={t("settings.super_agent.permission_mode")}>
           <UiSelect value={perm} onChange={setPerm} options={PERMISSION_MODES.map((m) => ({ value: m, label: m }))} />

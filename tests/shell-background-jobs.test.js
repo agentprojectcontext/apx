@@ -269,3 +269,24 @@ test("the store cleans up after itself", () => {
   assert.equal(readJob(out.job_id), null);
   assert.equal(fs.existsSync(log), false, "the log goes with the record it belongs to");
 });
+
+// An agent inside an a2a exchange that shells out `apx send … --deliver`
+// opened an exchange the daemon could not tie to the one it was in: the CLI
+// always sent depth 0, so the chain restarted and the depth wall never held on
+// that path. run_shell hands the depth to the shell; `apx send` sends it back.
+test("a foreground command inside an a2a turn sees the chain depth", async () => {
+  const ctx = {
+    projects: { list: () => [PROJECT], get: () => PROJECT },
+    requirePermission: async () => {},
+    channel: "a2a",
+    channelMeta: { agentSlug: "reels", a2aDepth: 2, projectPath: TMP_HOME },
+  };
+  const out = await runShell.makeHandler(ctx)({ command: 'printf "%s" "$APX_A2A_DEPTH"', project: "tecnomanu" });
+  assert.equal(String(out.stdout).trim(), "2");
+  const outside = await runShell.makeHandler({ ...ctx, channel: "web", channelMeta: { agentSlug: "reels" } })({
+    command: 'printf "[%s]" "$APX_A2A_DEPTH"', project: "tecnomanu",
+  });
+  assert.equal(String(outside.stdout).trim(), "[]", "outside an exchange there is no chain to count");
+  const cli = fs.readFileSync(new URL("../src/interfaces/cli/commands/a2a.js", import.meta.url), "utf8");
+  assert.match(cli, /_depth: Number\(process\.env\.APX_A2A_DEPTH\)/, "and `apx send` sends it back as _depth");
+});

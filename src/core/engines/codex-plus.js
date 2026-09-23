@@ -116,6 +116,26 @@ function toResponsesInput(messages) {
   return input;
 }
 
+// Reasoning effort the Codex backend accepts. Two places can set it: the
+// provider config (`engines.chatgpt-codex.reasoning_effort`, the default for
+// every call) and an `@<effort>` suffix on the model id
+// (`chatgpt-codex:gpt-5.6-luna@medium`), which wins — so one agent can think
+// harder than another on the same plan without a second provider entry.
+// Unset = the backend's own default. An unknown suffix is left on the model
+// id, where the backend rejects it loudly, rather than silently dropped.
+export const CODEX_EFFORTS = Object.freeze(["minimal", "low", "medium", "high", "xhigh"]);
+
+export function splitModelEffort(model, config = {}) {
+  const raw = String(model || "");
+  const at = raw.lastIndexOf("@");
+  if (at > 0) {
+    const suffix = raw.slice(at + 1).toLowerCase();
+    if (CODEX_EFFORTS.includes(suffix)) return { model: raw.slice(0, at), effort: suffix };
+  }
+  const fromConfig = String(config?.reasoning_effort || "").toLowerCase();
+  return { model: raw, effort: CODEX_EFFORTS.includes(fromConfig) ? fromConfig : null };
+}
+
 function extractInstructions(system, messages) {
   if (system) return String(system);
   const first = messages?.[0];
@@ -298,8 +318,9 @@ const engine = {
     const input = toResponsesInput(messages);
     const responseTools = toResponsesTools(tools);
 
+    const { model: wireModel, effort } = splitModelEffort(model, config);
     const body = {
-      model,
+      model: wireModel,
       instructions,
       input,
       store: false,
@@ -311,6 +332,7 @@ const engine = {
       /chatgpt\.com$/i.test(new URL(base.includes("://") ? base : `https://${base}`).hostname) &&
       base.includes("/backend-api/codex");
     if (maxTokens && !official) body.max_output_tokens = maxTokens;
+    if (effort) body.reasoning = { effort, summary: "auto" };
     if (responseTools) {
       body.tools = responseTools;
       body.tool_choice =
