@@ -17,8 +17,10 @@ process.env.HOME = tmpHome;
 
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 const { createTask, addComment, doneTask, getTask, listTasks } = await import("#core/stores/tasks.js");
-const { mentionedAgents, runCommentMentions, MAX_COMMENT_TURNS } =
-  await import("#core/tasks/comment-turn.js");
+const {
+  mentionedAgents, runCommentMentions, MAX_COMMENT_TURNS, MAX_TASK_TURNS_PER_HOUR,
+  summonFromAgentComment, _resetTaskTurnCaps,
+} = await import("#core/tasks/comment-turn.js");
 
 let storagePath;
 let root;
@@ -37,6 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  _resetTaskTurnCaps();
   try { fs.rmSync(storagePath, { recursive: true, force: true }); } catch { /* gone */ }
   try { cleanupTempProject(root); } catch { /* gone */ }
 });
@@ -229,4 +232,60 @@ test("an unknown or unmentioned seed summons nobody", async () => {
   });
   assert.deepEqual(said, []);
   assert.deepEqual(getTask(storagePath, t.id).comments, []);
+});
+
+// ── agents handing a task on (the prompt's "work for another agent is a task") ──
+
+test("an agent's comment that mentions someone summons them, off the caller's turn", async () => {
+  const t = createTask(storagePath, { title: "revisá el deploy" });
+  const runs = [];
+  const r = summonFromAgentComment({
+    p, taskId: t.id, mentions: ["qa"], author: "dev",
+    run: async (args) => { runs.push(args); },
+  });
+  assert.deepEqual(r, { summoned: ["qa"], skipped: null });
+  assert.equal(runs.length, 0, "not run inside the caller's turn");
+  await new Promise((res) => setImmediate(res));
+  assert.equal(runs.length, 1);
+  assert.deepEqual(runs[0].seed, ["qa"]);
+  assert.equal(runs[0].author, "dev");
+});
+
+test("no second cascade on a thread that already has one running", async () => {
+  const t = createTask(storagePath, { title: "x" });
+  let release;
+  const hold = new Promise((res) => { release = res; });
+  const first = summonFromAgentComment({ p, taskId: t.id, mentions: ["qa"], author: "dev", run: () => hold });
+  assert.deepEqual(first.summoned, ["qa"]);
+  const second = summonFromAgentComment({ p, taskId: t.id, mentions: ["qa"], author: "dev", run: async () => {} });
+  assert.equal(second.skipped, "cascade_running");
+  release();
+  await hold;
+  await new Promise((res) => setImmediate(res));
+  const third = summonFromAgentComment({ p, taskId: t.id, mentions: ["qa"], author: "dev", run: async () => {} });
+  assert.deepEqual(third.summoned, ["qa"], "free again once it ended");
+});
+
+test("agents mentioning each other on a task stop at the hourly ceiling; the owner is not capped", async () => {
+  const t = createTask(storagePath, { title: "ping pong" });
+  const pingPong = async ({ slug }) => (slug === "qa" ? "@dev seguí vos" : "@qa seguí vos");
+  let total = 0;
+  // Agent-started cascades, one after another, as agents keep handing it on.
+  for (let i = 0; i < 5; i++) {
+    total += (await runCommentMentions({ p, taskId: t.id, seed: ["qa"], author: "dev", runTurn: pingPong })).length;
+  }
+  assert.equal(total, MAX_TASK_TURNS_PER_HOUR, "agents get the hour's share and no more");
+  assert.equal(
+    summonFromAgentComment({ p, taskId: t.id, mentions: ["qa"], author: "dev", run: async () => {} }).skipped,
+    "hourly_cap",
+  );
+  // The owner drives their own thread.
+  const owner = await runCommentMentions({ p, taskId: t.id, seed: ["qa"], author: "owner", runTurn: pingPong });
+  assert.equal(owner.length, MAX_COMMENT_TURNS);
+});
+
+test("mentioning yourself or the owner summons nobody", () => {
+  const t = createTask(storagePath, { title: "x" });
+  const r = summonFromAgentComment({ p, taskId: t.id, mentions: ["dev", "owner"], author: "dev", run: async () => {} });
+  assert.deepEqual(r, { summoned: [], skipped: null });
 });

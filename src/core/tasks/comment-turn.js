@@ -34,6 +34,35 @@ import { nowIso } from "#core/util/time.js";
 /** One comment can produce at most this many agent replies, cascade included. */
 export const MAX_COMMENT_TURNS = 4;
 
+/**
+ * Agent turns one task may start in an hour when the work is being handed on
+ * by AGENTS. A comment from the owner is not capped — they are the one driving
+ * the thread — but agents mentioning each other on a task nobody is watching
+ * is exactly the ping-pong the a2a cascade of 2026-09-23 was, moved to a new
+ * address. This is its ceiling.
+ */
+export const MAX_TASK_TURNS_PER_HOUR = 8;
+const HOUR_MS = 60 * 60 * 1000;
+
+// `storagePath|taskId` → timestamps of summoned turns, and the tasks with a
+// cascade running right now. In memory: about the next hour, like the spend
+// breaker's count.
+const taskTurns = new Map();
+const activeCascades = new Set();
+const taskKey = (p, taskId) => `${p.storagePath}|${taskId}`;
+
+function turnsThisHour(key, now = Date.now()) {
+  const kept = (taskTurns.get(key) || []).filter((t) => t > now - HOUR_MS);
+  taskTurns.set(key, kept);
+  return kept.length;
+}
+
+/** Test seam. */
+export function _resetTaskTurnCaps() {
+  taskTurns.clear();
+  activeCascades.clear();
+}
+
 /** Keep a reply readable in a side panel — see the "no huge deploy" rule below. */
 const REPLY_CHAR_HINT = 700;
 
@@ -236,6 +265,7 @@ export async function runCommentMentions({
   p, taskId, seed, author = OWNER_ACTOR_ID,
   projects, plugins, registries, config, signal = null,
   maxTurns = MAX_COMMENT_TURNS,
+  maxTaskTurnsPerHour = MAX_TASK_TURNS_PER_HOUR,
   runTurn = runRealTurn,
   runSuperTurn = runSuperAgentCommentTurn,
 }) {
@@ -259,9 +289,14 @@ export async function runCommentMentions({
   const projectName = p.name || p.path || String(p.id);
   const said = [];
   const queue = (seed || []).filter(summonable).map((slug) => ({ slug, from: author }));
-
+  const key = taskKey(p, taskId);
+  // The owner drives their own thread; agents handing work on are capped.
+  const capped = author !== OWNER_ACTOR_ID;
+  activeCascades.add(key);
+  try {
   while (queue.length && said.length < maxTurns) {
     if (signal?.aborted) break;
+    if (capped && turnsThisHour(key) >= maxTaskTurnsPerHour) break;
     const { slug, from } = queue.shift();
     const agent = agents.get(slug);
     const isSuper = !agent && slug === SUPERAGENT_ACTOR_ID && superAgent;
@@ -300,6 +335,7 @@ export async function runCommentMentions({
     const next = parseMentions(reply, participants, slug);
     addComment(p.storagePath, taskId, { by: slug, text: reply, mentions: next });
     said.push({ slug, text: reply });
+    taskTurns.set(key, [...(taskTurns.get(key) || []), Date.now()]);
     // attribution-exempt: this is the live-feed SIGNAL, not a ledger insertion.
     // It carries "the thread moved" and nothing else — the row it announces was
     // written by addComment above, and the a2a mirror below is where the model
@@ -317,6 +353,43 @@ export async function runCommentMentions({
       queue.push({ slug: to, from: slug });
     }
   }
+  } finally {
+    activeCascades.delete(key);
+  }
 
   return said;
+}
+
+/**
+ * An AGENT's comment that mentions somebody: summon them, off the caller's
+ * turn. This is the hand-off the prompt asks for ("work for another agent is a
+ * task — comment on it mentioning them"), and it used to summon nobody.
+ *
+ * Two walls, both about the thread running unattended:
+ *   - a task with a cascade already running does not get a second one — the
+ *     running one reads the thread, this comment included, and its ceiling
+ *     stays the only ceiling on that thread;
+ *   - a task past MAX_TASK_TURNS_PER_HOUR summons nobody until the hour rolls.
+ * Neither drops the comment: it is written either way, and read on the
+ * mentioned agent's next turn.
+ *
+ * Returns `{ summoned, skipped }` so the calling agent is told the truth.
+ */
+export function summonFromAgentComment({
+  p, taskId, mentions, author, projects, plugins, registries, config,
+  run = runCommentMentions,
+}) {
+  const want = [...new Set(mentions || [])].filter((m) => m && m !== author && m !== OWNER_ACTOR_ID);
+  if (!want.length) return { summoned: [], skipped: null };
+  const key = taskKey(p, taskId);
+  if (activeCascades.has(key)) return { summoned: [], skipped: "cascade_running" };
+  if (turnsThisHour(key) >= MAX_TASK_TURNS_PER_HOUR) return { summoned: [], skipped: "hourly_cap" };
+  // Marked now, not when the run starts: two comments in the same tick must
+  // not both see an idle thread.
+  activeCascades.add(key);
+  Promise.resolve()
+    .then(() => run({ p, taskId, seed: want, author, projects, plugins, registries, config }))
+    .catch(() => { /* a failed summon is written into the thread */ })
+    .finally(() => activeCascades.delete(key));
+  return { summoned: want, skipped: null };
 }
