@@ -90,6 +90,31 @@ export const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx status"],
     examples: ["apx status"],
   }),
+  auth: topic({
+    title: "apx auth",
+    summary: "Plan OAuth logins owned by APX (separate refresh-token families from CLIs).",
+    usage: [
+      "apx auth chatgpt-codex <login|status|logout>",
+      "apx auth claude <login|status|logout>",
+    ],
+    commands: [
+      ["chatgpt-codex login", "Device-code ChatGPT/Codex Plus → ~/.apx/auth/chatgpt-codex.json"],
+      ["chatgpt-codex status", "Show APX Codex login + token TTL"],
+      ["chatgpt-codex logout", "Clear APX Codex tokens (CLI untouched)"],
+      ["claude login", "PKCE Claude Max (+ extra credits) → ~/.apx/auth/claude-subscription.json"],
+      ["claude status", "Show APX Claude login + token TTL"],
+      ["claude logout", "Clear APX Claude tokens (Claude Code CLI untouched)"],
+    ],
+    options: [["--no-open", "Do not open the browser automatically"]],
+    examples: [
+      "apx auth chatgpt-codex login",
+      "apx auth chatgpt-codex status",
+      "apx auth claude login",
+    ],
+    description:
+      "Codex and Claude subscription auth live under ~/.apx/auth/ so refreshing never logs out " +
+      "the coding CLIs. Claude requires Max + purchased extra usage credits (Pro alone fails).",
+  }),
   update: topic({
     title: "apx update",
     summary: "Check for a published APX update and upgrade the global install.",
@@ -2349,6 +2374,7 @@ export function buildHelp(version) {
     hCmd("apx init [path]",            36, "--name \"<name>\"  initialize a new APC project"),
     hCmd("apx setup",                  36, "interactive wizard: provider → model → channels → daemon  (alias: install)"),
     hCmd("apx status",                 36, "full system status: daemon, super-agent, engines, telegram, projects"),
+    hCmd("apx auth",                   36, "plan OAuth: chatgpt-codex | claude  (login|status|logout)"),
     hCmd("apx update",                 36, "check for updates and upgrade  (alias: upgrade)"),
 
     hSec("Projects"),

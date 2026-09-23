@@ -20,7 +20,7 @@
 // selectable has to tell "you never gave me a key" apart from "the key is
 // there and the call failed". Zen ships a built-in default key ("public"),
 // Ollama and mock need none at all — so none of them is ever "unconfigured".
-/** @typedef {{ base_url: string, default_model: string, api_key_env: string, known_models: string[], key_optional?: boolean }} EnginePreset */
+/** @typedef {{ base_url: string, default_model: string, api_key_env: string, known_models: string[], key_optional?: boolean, locked?: boolean }} EnginePreset */
 
 /** @type {Record<string, EnginePreset>} */
 export const ENGINE_PRESETS = {
@@ -140,6 +140,35 @@ export const ENGINE_PRESETS = {
       "gpt-5-nano",
     ],
   },
+  // ChatGPT / Codex Plus via APX OAuth (~/.apx/auth/chatgpt-codex.json).
+  // Billing hits the plan; APX owns the agent loop (Telegram, tools, stream).
+  "codex-plus": {
+    key_optional: true,
+    locked: true,
+    base_url: "https://chatgpt.com/backend-api/codex",
+    default_model: "gpt-5.6-luna",
+    api_key_env: "",
+    known_models: [
+      "gpt-5.6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.5",
+      "gpt-6-astra",
+    ],
+  },
+  // Claude Max (+ extra usage credits) via APX PKCE OAuth.
+  "claude-subscription": {
+    key_optional: true,
+    locked: true,
+    base_url: "https://api.anthropic.com",
+    default_model: "claude-sonnet-4-5",
+    api_key_env: "",
+    known_models: [
+      "claude-opus-4-6",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+    ],
+  },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },
 };
@@ -147,4 +176,17 @@ export const ENGINE_PRESETS = {
 /** Known models for one engine, or [] if the engine is dynamic/unknown. */
 export function knownModels(engine) {
   return ENGINE_PRESETS[engine]?.known_models ?? [];
+}
+
+/**
+ * Built-in / plan engines that must stay in config (UI shows a lock, PATCH
+ * refuses to unset them). A provider row is locked when its own `locked`
+ * flag is set, or when its adapter preset marks `locked: true`.
+ */
+export function isLockedProvider(slug, enginesCfg = {}) {
+  if (slug === "chatgpt-codex" || slug === "especial" || slug === "claude-subscription") return true;
+  const row = (enginesCfg && enginesCfg[slug]) || {};
+  if (row.locked === true) return true;
+  const engineId = row.engine || slug;
+  return ENGINE_PRESETS[engineId]?.locked === true;
 }

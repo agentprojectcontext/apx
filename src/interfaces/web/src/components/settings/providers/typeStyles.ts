@@ -6,7 +6,7 @@ import { toneChip } from "../../../lib/tone";
 // The engines this build ships styling for.
 export type KnownEngine =
   | "anthropic" | "openai" | "gemini" | "groq" | "cerebras"
-  | "openrouter" | "ollama" | "azure" | "zen" | "mock" | "custom";
+  | "openrouter" | "ollama" | "azure" | "zen" | "codex-plus" | "claude-subscription" | "mock" | "custom";
 
 // Any adapter id the daemon reports is valid, not just the ones above: core can
 // register an engine (src/core/engines/index.js) and the panel has to offer it
@@ -25,6 +25,8 @@ export const ENGINE_GRADIENTS: Record<KnownEngine, string> = {
   ollama:     "from-amber-600 to-orange-600",
   azure:      "from-blue-600 to-cyan-600",
   zen:        "from-fuchsia-600 to-purple-600",
+  "codex-plus": "from-emerald-700 to-lime-600",
+  "claude-subscription": "from-orange-600 to-amber-500",
   mock:       "from-slate-600 to-gray-600",
   custom:     "from-slate-600 to-gray-600",
 };
@@ -39,6 +41,8 @@ export const ENGINE_BADGES: Record<KnownEngine, string> = {
   ollama:     toneChip.amber,
   azure:      toneChip.blue,
   zen:        toneChip.violet,
+  "codex-plus": toneChip.emerald,
+  "claude-subscription": toneChip.orange,
   mock:       toneChip.slate,
   custom:     toneChip.slate,
 };
@@ -56,9 +60,18 @@ export const ENGINE_OPTIONS: { value: EngineType; label: string }[] = [
   { value: "ollama",     label: "Ollama" },
   { value: "azure",      label: "Azure OpenAI" },
   { value: "zen",        label: "OpenCode Zen" },
+  // codex-plus is NOT listed here for create — it is the fixed ChatGPT/Codex
+  // provider (chatgpt-codex), not a DIY engine. Label still resolves via presets.
   { value: "mock",       label: "Mock (test)" },
   { value: "custom",     label: "Custom" },
 ];
+
+/** Engines a user may pick when creating a new provider card. */
+export function creatableEngineOptions() {
+  return ENGINE_OPTIONS.filter(
+    (o) => !ENGINE_PRESETS[o.value]?.locked && o.value !== "codex-plus" && o.value !== "claude-subscription"
+  );
+}
 
 /** Style for an engine, falling back to the generic look for an unknown one. */
 export function engineStyle<T>(map: Record<KnownEngine, T>, value: string | null | undefined): T {
@@ -67,7 +80,7 @@ export function engineStyle<T>(map: Record<KnownEngine, T>, value: string | null
 }
 
 // Icon per engine (lucide name). Used in provider cards + selects.
-import { Sparkles, Bot, Gem, Zap, Cpu, GitBranch, Server, Cloud, Leaf, FlaskConical, Wrench } from "lucide-react";
+import { Sparkles, Bot, Gem, Zap, Cpu, GitBranch, Server, Cloud, Leaf, FlaskConical, Wrench, Terminal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const ENGINE_ICONS: Record<KnownEngine, LucideIcon> = {
@@ -80,6 +93,8 @@ export const ENGINE_ICONS: Record<KnownEngine, LucideIcon> = {
   ollama:     Server,
   azure:      Cloud,
   zen:        Leaf,
+  "codex-plus": Terminal,
+  "claude-subscription": Sparkles,
   mock:       FlaskConical,
   custom:     Wrench,
 };
@@ -103,6 +118,8 @@ export interface EnginePreset {
    * the provider is usable as configured, never that a call will succeed.
    */
   key_optional?: boolean;
+  /** Built-in / plan engine — UI shows a lock and refuses delete. */
+  locked?: boolean;
 }
 
 export const ENGINE_PRESETS: Record<string, EnginePreset> = {
@@ -210,6 +227,32 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
       "gpt-5-nano",
     ],
   },
+  "codex-plus": {
+    key_optional: true,
+    locked: true,
+    base_url: "https://chatgpt.com/backend-api/codex",
+    default_model: "gpt-5.6-luna",
+    api_key_env: "",
+    known_models: [
+      "gpt-5.6-luna",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.5",
+      "gpt-6-astra",
+    ],
+  },
+  "claude-subscription": {
+    key_optional: true,
+    locked: true,
+    base_url: "https://api.anthropic.com",
+    default_model: "claude-sonnet-4-5",
+    api_key_env: "",
+    known_models: [
+      "claude-opus-4-6",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+    ],
+  },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"], key_optional: true },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },
 };
@@ -248,7 +291,7 @@ export async function loadEnginePresets(): Promise<void> {
       if (!local) {
         local = { base_url: "", default_model: "", api_key_env: "", known_models: [] };
         ENGINE_PRESETS[engine] = local;
-        if (!ENGINE_OPTIONS.some((o) => o.value === engine)) {
+        if (!ENGINE_OPTIONS.some((o) => o.value === engine) && !preset.locked && engine !== "codex-plus" && engine !== "claude-subscription") {
           ENGINE_OPTIONS.push({ value: engine, label: labelForEngine(engine) });
         }
       }
@@ -259,6 +302,7 @@ export async function loadEnginePresets(): Promise<void> {
       // Booleans copy on presence, not truthiness: `false` from the daemon is
       // a real answer and must be able to clear a bundled `true`.
       if (typeof preset.key_optional === "boolean") local.key_optional = preset.key_optional;
+      if (typeof preset.locked === "boolean") local.locked = preset.locked;
     }
     presetsLoaded = true;
   } catch {

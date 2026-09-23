@@ -4,6 +4,7 @@
 // adapter and CLI commands can reuse this.
 import { fetchJsonWithTimeout } from "./_health.js";
 import { zenHeaders } from "./zen.js";
+import { ENGINE_PRESETS } from "./presets.js";
 
 export const DEFAULT_BASE = {
   openai:     "https://api.openai.com/v1",
@@ -13,6 +14,8 @@ export const DEFAULT_BASE = {
   anthropic:  "https://api.anthropic.com/v1",
   ollama:     "http://localhost:11434",
   zen:        "https://opencode.ai/zen/v1",
+  "codex-plus": "https://chatgpt.com/backend-api/codex",
+  "claude-subscription": "https://api.anthropic.com",
 };
 
 // Gemini's native models endpoint returns a much richer catalog than the
@@ -121,6 +124,23 @@ export async function listModels(engine, baseUrl, apiKey) {
     // which is which — so the cheap ones are the ones you scroll to first.
     const free = (id) => /-free$/.test(id) || id === "big-pickle";
     return { models: [...ids.filter(free).sort(), ...ids.filter((id) => !free(id)).sort()] };
+  }
+
+  // Codex Plus: no API key — models come from the local Codex CLI cache
+  // (~/.codex/models_cache.json) written when the user runs Codex.
+  if (engine === "codex-plus") {
+    const { readCodexModelsCache } = await import("./codex-plus-auth.js");
+    const models = readCodexModelsCache();
+    if (!models.length) {
+      return { error: "sin cache de modelos Codex (~/.codex/models_cache.json) — abrí Codex una vez" };
+    }
+    return { models };
+  }
+
+  // Claude subscription OAuth: curated Max models (no public models list for OAuth).
+  if (engine === "claude-subscription") {
+    const known = ENGINE_PRESETS["claude-subscription"]?.known_models || [];
+    return { models: [...known] };
   }
 
   // openai-compatible family: openai, groq, openrouter, azure, custom
