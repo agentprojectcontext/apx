@@ -339,13 +339,31 @@ export async function runAgent({
   // is itself cooling down, or the router skipped a spent account to get here.
   const autonomous = isAutonomousChannel(toolHandlerCtx?.channel);
   const explicitModels = [...new Set((retryFirst || []).filter((m) => typeof m === "string" && m.includes(":")))];
+  // The router's own #1. Also the line between "a model the owner picked for
+  // this turn" and "the model the whole fleet shares".
+  const routerPrimary = globalConfig?.super_agent?.model;
+  // A turn that STARTS on a model the owner chose — pinned to the agent, set on
+  // the routine, the super-agent's self_model — with its fallback switch on has
+  // an explicit instruction for a spent account: carry on down the router. The
+  // unwatched-turn stop is about the other case, the router's own account
+  // running dry under a fleet that all inherits it (2026-09-23). Without this,
+  // Magui pinned to luna with "use the router" ticked stopped on luna's 429
+  // with a free big-pickle one step away.
+  const ownerStart = [overrideModel, preferredModel]
+    .find((m) => typeof m === "string" && m.includes(":") && m !== routerPrimary) || null;
+  const ownerModels = new Set([...explicitModels, ...(ownerStart ? [ownerStart] : [])]);
+  const ownerFallsThrough = Boolean(fallback && ownerStart);
+  let startOnRouter = false;
   {
     const pinned = quotaCooldown(activeModel);
-    const skipped = (routing.tried || []).find((t) => t.quota);
+    // Spent accounts the router stepped over to get here. One the owner chose
+    // with fallback on is not a reason to stop; the router's own is.
+    const skipped = (routing.tried || []).find((t) => t.quota && !(ownerFallsThrough && ownerModels.has(t.modelId)));
     if (pinned || skipped) {
       // The owner's next choice, when there is one, before the router's.
       const alt = explicitModels.find((m) => m !== activeModel && !quotaCooldown(m));
       if (alt) activeModel = alt;
+      else if (autonomous && pinned && ownerFallsThrough && ownerModels.has(activeModel)) startOnRouter = true;
       else if (autonomous && pinned) throw quotaStopError(activeModel, pinned.reason, pinned.until);
       else if (autonomous && skipped) throw quotaStopError(skipped.modelId, skipped.quota.reason, skipped.quota.until);
     }
@@ -364,7 +382,6 @@ export async function runAgent({
   // so a failing self_model skipped the router default entirely and walked
   // straight to the fallbacks (2026-09-23: luna 429 → gemini → ollama cloud →
   // local qwen, never big-pickle).
-  const routerPrimary = globalConfig?.super_agent?.model;
   const routerChain = fallback && isFallbackEnabled(globalConfig)
     ? [
         ...(typeof routerPrimary === "string" && routerPrimary.includes(":") ? [routerPrimary] : []),
@@ -377,6 +394,14 @@ export async function runAgent({
     if (triedHealth.get(m) === false) return false;
     return true;
   });
+  if (startOnRouter) {
+    // The owner's model is cooling down and they said "then the router": start
+    // on the first router model that is not spent itself.
+    while (retryChain.length && quotaCooldown(retryChain[0])) retryChain.shift();
+    const cool = quotaCooldown(activeModel);
+    if (!retryChain.length) throw quotaStopError(activeModel, cool?.reason, cool?.until);
+    activeModel = retryChain.shift();
+  }
 
   if (routing.fromFallback || routing.routedBy) {
     await emitProgress(onEvent, {
@@ -644,7 +669,9 @@ export async function runAgent({
         if (signal?.aborted || e?.name === "AbortError") throw e;
         if (isQuotaExhaustedError(e)) {
           markQuotaExhausted(activeModel, e, { config: globalConfig });
-          if (autonomous) {
+          // An owner-chosen model with fallback on walks on like any failure
+          // (the router's accounts are still checked when THEY run dry).
+          if (autonomous && !(ownerFallsThrough && ownerModels.has(activeModel))) {
             // Only the owner's own choices are still fair game here.
             while (retryChain.length && explicitSet.has(retryChain[0]) && quotaCooldown(retryChain[0])) retryChain.shift();
             if (!(retryChain.length && explicitSet.has(retryChain[0]))) {

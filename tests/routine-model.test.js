@@ -56,6 +56,12 @@ test("a spent routine model on an unwatched run still reaches the agent's own mo
   assert.equal(again.events.find((e) => e.type === "model_start").model, "mock:agent");
 });
 
-test("without an owner's choice left, an unwatched run still stops before the router", async () => {
-  await assert.rejects(run({ overrideModel: "mock:quota-exhausted" }), (e) => e.code === "QUOTA_EXHAUSTED");
+test("without an owner's choice left, a strict unwatched run stops before the router", async () => {
+  await assert.rejects(run({ overrideModel: "mock:quota-exhausted", fallback: false }), (e) => e.code === "QUOTA_EXHAUSTED");
+});
+
+test("with its fallback on, a spent routine model walks on to the router", async () => {
+  // The owner's switch says "then the router" (Magui, 2026-09-23).
+  const { out } = await run({ overrideModel: "mock:quota-exhausted" });
+  assert.equal(out.model, "mock:router");
 });
