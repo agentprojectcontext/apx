@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { Combobox, type ComboOption } from "../Combobox";
 import { ModelCombobox } from "../ModelCombobox";
 import { ENGINE_ICONS, ENGINE_PRESETS, engineStyle, type EngineType } from "./providers/typeStyles";
+import { EffortChips, carryEffort, splitEffort, withEffort } from "../agents/modelEffort";
 import { t } from "../../i18n";
 
 export interface ProviderInfo {
@@ -135,7 +136,10 @@ export function ProviderModelPicker({
   providers: ProviderInfo[];
   ollamaModels: Record<string, string[]>;
 }) {
-  const { provider, model } = splitRef(value);
+  // The effort rides on the stored id as `@<effort>`; it is edited on its own
+  // control, never inside the model box.
+  const { base, effort } = splitEffort(value);
+  const { provider, model } = splitRef(base);
   const current = providers.find((p) => p.slug === provider);
   const problem = rowProblem(provider, providers);
 
@@ -178,14 +182,15 @@ export function ProviderModelPicker({
       || (p?.engine === "ollama"
         ? (ollamaModels[slug] || [])[0] || ""
         : ENGINE_PRESETS[p?.engine as EngineType]?.default_model || "");
-    onChange(m ? `${slug}:${m}` : `${slug}:`);
+    onChange(m ? carryEffort(`${slug}:${m}`, effort, p?.engine) : `${slug}:`);
   };
 
   return (
+    <div className="flex flex-col gap-2">
     <div className="grid grid-cols-2 gap-2">
       <Combobox
         value={provider}
-        onChange={(slug) => onChange(`${slug}:${model}`)}
+        onChange={(slug) => onChange(carryEffort(`${slug}:${model}`, effort, providers.find((x) => x.slug === slug)?.engine))}
         onPick={setProvider}
         options={providerOptions}
         placeholder={t("router_panel.provider_ph")}
@@ -195,10 +200,12 @@ export function ProviderModelPicker({
       />
       <ModelCombobox
         value={model}
-        onChange={(m) => onChange(`${provider}:${m}`)}
+        onChange={(m) => onChange(withEffort(`${provider}:${m}`, effort))}
         options={modelOptions}
         emptyHint={isOllama ? t("router_panel.ollama_empty") : undefined}
       />
+    </div>
+    {model && <EffortChips engine={current?.engine} value={effort} onChange={(e) => onChange(withEffort(base, e))} />}
     </div>
   );
 }

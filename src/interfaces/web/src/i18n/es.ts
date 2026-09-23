@@ -3280,6 +3280,8 @@ export const es = {
     result:                "Result",
     auto:                  "Auto",
     auto_router:           "Auto (decide el router)",
+    effort:                "Esfuerzo",
+    effort_default:        "Por defecto",
     model_filter_ph:       "Filtrar o escribir modelo…",
     loading_models:        "Cargando modelos…",
     use_value:             "Usar “{value}”",

@@ -6,6 +6,7 @@
 // ~/.codex/auth.json. Prefer `apx auth chatgpt-codex login`.
 
 import { streamSseDataEvents } from "./_streaming.js";
+import { ENGINE_PRESETS } from "./presets.js";
 import {
   CODEX_PLUS_BASE_URL,
   codexPlusHeaders,
@@ -123,7 +124,7 @@ function toResponsesInput(messages) {
 // harder than another on the same plan without a second provider entry.
 // Unset = the backend's own default. An unknown suffix is left on the model
 // id, where the backend rejects it loudly, rather than silently dropped.
-export const CODEX_EFFORTS = Object.freeze(["minimal", "low", "medium", "high", "xhigh"]);
+export const CODEX_EFFORTS = Object.freeze([...ENGINE_PRESETS["codex-plus"].efforts]);
 
 export function splitModelEffort(model, config = {}) {
   const raw = String(model || "");

@@ -138,10 +138,13 @@ health-checked and falls down the same chain, router #1 first. Switch that off w
 pinned to its own `Model:` has the same switch (`model_fallback: false`, `apx agent set --no-model-fallback`).
 
 An account whose **usage limit** is spent is skipped for an hour instead of being retried on every
-turn, and turns nobody is watching (a2a, routines) stop rather than fall through — see
+turn, and turns nobody is watching (a2a, routines) stop rather than fall through, unless they
+started on a model you chose with its fallback on — see
 [the super-agent page](/apx/docs/capabilities/super-agent/). For the ChatGPT plan, reasoning effort
-goes on the model id — `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`) — or
-as a default in `engines.chatgpt-codex.reasoning_effort`.
+is a setting of the model, not another model: the panel shows an **Effort** control beside every
+model picker and displays the pair as `gpt-5.6-luna · high`. It is stored as a suffix on the model
+id — `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`), which is also how the
+CLI takes it — or as a default in `engines.chatgpt-codex.reasoning_effort`.
 
 ### What the calls cost
 

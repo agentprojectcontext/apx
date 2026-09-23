@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { modelLabel } from "../agents/modelEffort";
 import { Bot, ChevronDown, CornerDownRight, Copy, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
@@ -483,7 +484,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
               covers light and dark. */}
           {!mine && msg.model && (
             <span className="min-w-0 truncate rounded bg-surface-soft/50 px-1 py-0.5 font-mono text-muted-foreground">
-              {msg.model}
+              {modelLabel(msg.model)}
             </span>
           )}
           <div
