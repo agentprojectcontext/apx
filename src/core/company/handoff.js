@@ -18,19 +18,28 @@ import { ledgerFile } from "./context.js";
 import { ritualOrThrow } from "./policy.js";
 
 /**
- * `--background` is not an optimisation, it is what makes the handoff
- * reliable. With a plain `--deliver` the call waits for the super-agent's
- * whole turn, and when the daemon is busy running somebody else's routine that
- * outlives the timeout: a brief that passed the rubric and the guard gets
- * recorded as `failed` and is never delivered. Backgrounding hands the message
- * to the thread and returns — we need the delivery, not the reply, and the
- * reply is readable in the a2a thread anyway.
+ * Only a `blocker` opens a turn. A `status` or `fyi` is FILED: written to the
+ * a2a thread as a message for the super-agent, where the secretary's a2a
+ * sweep and the day briefs pick it up — nobody runs a model because a report
+ * arrived.
+ *
+ * It used to be `--deliver --background` for every severity. On 2026-09-23
+ * that was the start of the cascade: each routine brief opened a full
+ * super-agent turn with every tool, the turn read `[status]` as orders
+ * ("Urgente: verificá…"), delegated, and every answer woke it again — ~230
+ * a2a turns in under an hour, nobody watching, nothing urgent.
+ *
+ * `--background` stays for the blocker: the call hands the message to the
+ * thread and returns instead of waiting out the super-agent's whole turn, which
+ * on a busy daemon outlived the timeout and filed a delivered brief as
+ * `failed`. The daemon also pings the owner for a blocker itself, before the
+ * turn runs.
  */
 export function deliveryArgs({ from, orchestrator, body, severity, project }) {
   return [
     "send", from, orchestrator, body,
     "--severity", severity,
-    "--deliver", "--background",
+    ...(severity === "blocker" ? ["--deliver", "--background"] : []),
     ...(project ? ["--project", project] : []),
   ];
 }

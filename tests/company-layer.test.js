@@ -210,3 +210,15 @@ test("the past comes back with its outcome, which is the point", () => {
   assert.match(block, /daily · drop/);
   assert.match(renderPastDecisions([]), /first run/);
 });
+
+test("a status or fyi brief is filed, not delivered — only a blocker opens a turn", async () => {
+  const { deliveryArgs } = await import("#core/company/handoff.js");
+  const base = { from: "ceo", orchestrator: "orchestrator", body: "b", project: "acme" };
+  for (const severity of ["status", "fyi"]) {
+    const args = deliveryArgs({ ...base, severity });
+    assert.ok(!args.includes("--deliver"), `${severity} opened a super-agent turn`);
+    assert.deepEqual(args.slice(0, 6), ["send", "ceo", "orchestrator", "b", "--severity", severity]);
+  }
+  const blocker = deliveryArgs({ ...base, severity: "blocker" });
+  assert.ok(blocker.includes("--deliver") && blocker.includes("--background"));
+});
