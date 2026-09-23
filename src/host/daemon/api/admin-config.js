@@ -96,6 +96,11 @@ export function register(api, { config, scheduler, plugins }) {
         name: resolveAgentName(fresh),
         icon: resolveSuperAgentBlob(fresh),
         model: sa.model || "",
+        // The panel saves these back on every "Save": left out of this
+        // response, it read "" and wrote "" — wiping the super-agent's own
+        // model the first time the owner changed its avatar.
+        self_model: sa.self_model || "",
+        self_model_fallback: sa.self_model_fallback !== false,
         system: sa.system || "",
         permission_mode: sa.permission_mode || PERMISSION_MODES.PERMISO,
         allowed_tools: sa.allowed_tools || [],

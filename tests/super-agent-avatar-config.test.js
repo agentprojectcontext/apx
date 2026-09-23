@@ -80,3 +80,15 @@ test("super-agent settings response includes the resolved avatar", () => {
   routes["GET /admin/super-agent"]({}, res);
   assert.equal(res.body.icon, "zafiro");
 });
+
+// The settings panel reads GET /admin/super-agent and sends every field back on
+// Save. `self_model` was missing from the response, so the panel saw "" and a
+// Save of anything on that screen (the avatar, say) wrote "" over the model.
+test("the super-agent's own model round-trips through the panel's read", () => {
+  writeConfig({ super_agent: { enabled: true, self_model: "chatgpt-codex:gpt-5.6-luna@high", self_model_fallback: false } });
+  const routes = handlers(readConfig());
+  const res = response();
+  routes["GET /admin/super-agent"]({}, res);
+  assert.equal(res.body.self_model, "chatgpt-codex:gpt-5.6-luna@high");
+  assert.equal(res.body.self_model_fallback, false);
+});
