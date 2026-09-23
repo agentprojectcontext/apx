@@ -457,14 +457,28 @@ function profileOrigin(id) {
   return `profile:${id}`;
 }
 
-/** Install (or refresh) the routines a profile brings. Returns a summary. */
-export function syncProfileRoutines(profile, globalConfig, { enable = true, storage = superAgentStorage() } = {}) {
+/**
+ * Install (or refresh) the routines a profile brings. Returns a summary.
+ *
+ * `activate`: this sync is the profile being switched ON (use / install), so
+ * each routine takes the package's `enabled_by_default`. Every other sync — a
+ * setting changed, the package updated — is a REFRESH, and a refresh keeps
+ * whether each routine was on or off. It used to reset them all to the
+ * package default, and `enabled` is not part of the fingerprint that detects
+ * a user's edits, so switching a routine off and then changing any profile
+ * setting silently switched it back on (2026-09-23: company councils disabled
+ * for projects on standby were one settings save away from running again).
+ */
+export function syncProfileRoutines(profile, globalConfig, { enable = true, activate = false, storage = superAgentStorage() } = {}) {
   const specs = renderProfileRoutines(profile, globalConfig);
   const existing = listRoutines(storage);
   const origin = profileOrigin(profile.id);
 
   const installed = [];
   const skipped = [];
+  // Installed switched off because the package ships them off — the owner
+  // turns on the ones they want (`apx routine enable <name>`).
+  const off = [];
 
   for (const spec of specs) {
     const { name, enabled_by_default, ...rest } = spec;
@@ -494,17 +508,19 @@ export function syncProfileRoutines(profile, globalConfig, { enable = true, stor
       continue;
     }
 
+    const enabled = prev && !activate ? prev.enabled !== false : enable && enabled_by_default !== false;
     upsertRoutine(storage, {
       ...rest,
       name,
-      enabled: enable && enabled_by_default !== false,
+      enabled,
       origin,
       origin_hash: hash,
     });
     installed.push(name);
+    if (!enabled && (!prev || activate) && enabled_by_default === false) off.push(name);
   }
 
-  return { installed, skipped };
+  return { installed, skipped, off };
 }
 
 /**
@@ -612,7 +628,7 @@ export function useProfile(id, { confirmReplace = false } = {}) {
   writeConfig(cfg);
   clearProfileBlockCache();
 
-  const routines = syncProfileRoutines(profile, cfg);
+  const routines = syncProfileRoutines(profile, cfg, { activate: true });
   return { profile, routines, warnings: report.warnings, tokens: report.tokens };
 }
 

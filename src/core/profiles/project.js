@@ -121,7 +121,7 @@ export function useProjectProfile(project, id, { confirmReplace = false, globalC
   persist(project.path, { active: id, id, settings });
   clearProfileBlockCache();
 
-  const routines = syncProfileRoutines(profile, globalConfig, { storage });
+  const routines = syncProfileRoutines(profile, globalConfig, { storage, activate: true });
   return { id, routines, settings };
 }
 

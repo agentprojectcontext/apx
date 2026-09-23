@@ -90,7 +90,14 @@ test("a project runs no profile until one is activated, and can be stood back do
 
     const off = await (await fetch(`${baseUrl}/api/projects/${id}/profile`, { method: "DELETE" })).json();
     assert.equal(off.active, null);
-    assert.equal(off.disabled.length, after.routines.installed.length, "standing down disables all of them");
+    // The package ships its costly rituals OFF: only the CEO's weekly review and
+    // monthly scorecard start on. Standing down disables what was running.
+    assert.deepEqual(after.routines.off.sort(), [
+      "company-council-cfo", "company-council-chro", "company-council-cmo", "company-council-coo",
+      "company-council-gc", "company-daily-pulse", "company-decision-brief",
+    ]);
+    assert.equal(off.disabled.length, after.routines.installed.length - after.routines.off.length,
+      "standing down disables every routine that was on");
   } finally {
     server.close();
     cleanupTempProject(root);

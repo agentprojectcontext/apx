@@ -110,7 +110,14 @@ cada uno la suya en vez de pasarle la del otro.
 El bloque de prompt de un perfil se renderiza en cada turno, así que mejora en el momento en
 que actualizás APX. Sus **rutinas** no: son registros en el store del super-agente, escritos
 cuando lo instalaste. `apx profile sync` vuelve a leer el paquete del disco y las refresca,
-dejando tus ajustes y la activación tal cual están.
+dejando tus ajustes y la activación tal cual están — incluido qué rutinas prendiste o apagaste.
+Cambiar un ajuste del perfil las refresca de la misma forma.
+
+Un paquete puede traer rutinas **apagadas** cuando cada corrida cuesta una llamada al modelo y no
+toda instalación las quiere. El perfil de empresa lo hace: sólo arrancan prendidas la revisión
+semanal y el scorecard mensual; el pulso diario, el brief de decisiones y los cinco consejos de
+área se instalan apagados, y `apx profile use` los lista con el `apx routine enable <nombre>` que
+prende cada uno.
 
 Las rutinas que editaste vos se saltean — es el contrato, y es la razón por la que
 `apx profile doctor` te avisa cuando una quedó atrás del paquete, en vez de dejarte callado en

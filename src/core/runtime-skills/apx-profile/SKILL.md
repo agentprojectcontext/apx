@@ -112,8 +112,11 @@ arguments, say) cannot break the document. Two consequences worth knowing:
 
 The prompt block is rendered every turn, so it improves the moment APX updates. Routines are
 records in the super-agent's store, written at install time — nothing carries a better anchor
-across. `apx profile sync` re-renders them from the package on disk, leaving settings and
-activation alone; `apx profile doctor` reports the drift so it is not silent. A routine the
+across. `apx profile sync` (and any settings save) re-renders them from the package on disk,
+leaving settings, activation AND each routine's on/off alone — only `apx profile use` applies the
+package's `enabled_by_default`. A package may ship routines OFF (company: only the weekly review
+and monthly scorecard start on; the pulse, the decision brief and the councils are installed off —
+`apx routine enable <name>` turns one on); `apx profile doctor` reports the drift so it is not silent. A routine the
 owner edited is skipped forever, by design, which also means a profile SETTING that lands in
 a routine stops taking effect on that routine once they have touched it.
 
