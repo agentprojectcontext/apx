@@ -39,6 +39,14 @@ If you can spawn a subagent natively in the current IDE (Claude Code, Cursor, �
 
 ## Talk to a peer (a2a) — an agent OR another coding CLI
 
+**First: is this a message at all?** Work you want another agent to DO is a
+task assigned to them (`create_task`, or `comment_task` mentioning them on the
+existing one) — they take it up on their own turn, and the task holds the
+back-and-forth. A report (`--severity status`/`fyi`) is FILED without
+`--deliver`: it rides the digest and runs nobody's model. Only a `blocker`
+delivers (`--severity blocker --deliver --background`). A live a2a exchange is
+for when the owner is in the conversation and needs that answer now.
+
 When the user says "hablá con Roby" / "avisale a <agent>" / "pasale esto a <peer>",
 message them on the **a2a channel** — NOT `apx exec` (that posts as the user).
 
