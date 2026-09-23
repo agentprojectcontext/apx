@@ -47,6 +47,11 @@ back-and-forth. A report (`--severity status`/`fyi`) is FILED without
 delivers (`--severity blocker --deliver --background`). A live a2a exchange is
 for when the owner is in the conversation and needs that answer now.
 
+A background turn that stops with `spend breaker: …` hit the hourly ceiling on
+model calls by unwatched work (`super_agent.spend_breaker`). It is paused on
+purpose and the owner was already told: do not retry or route around it.
+`apx usage breaker` shows it; only the owner lifts it (`apx usage resume`).
+
 When the user says "hablá con Roby" / "avisale a <agent>" / "pasale esto a <peer>",
 message them on the **a2a channel** — NOT `apx exec` (that posts as the user).
 

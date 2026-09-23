@@ -12,6 +12,7 @@
 // Ollama needs no key, just a base_url (default http://localhost:11434).
 
 import { recordLlmCall } from "#core/stores/llm-usage.js";
+import { noteEngineCall, spendPause, spendPauseError } from "#core/agent/spend-breaker.js";
 import anthropic from "./anthropic.js";
 import openai from "./openai.js";
 import groq from "./groq.js";
@@ -96,6 +97,13 @@ export async function callEngine({ modelId, system, messages, config, temperatur
   // Every call is recorded — success or failure — so "what spent this
   // account" has an answer (core/stores/llm-usage.js). `attribution` is the
   // caller's {channel, agent, project}, when it knows them.
+  // The spend breaker (agent/spend-breaker.js): unwatched work past its hourly
+  // ceiling stops HERE, before the call, whatever path it came by — a routine,
+  // an a2a reply, a one-shot summary tagged with their channel. A person's turn
+  // passes straight through.
+  noteEngineCall({ channel: attribution?.channel, project: attribution?.project, config });
+  const pause = spendPause({ channel: attribution?.channel, project: attribution?.project });
+  if (pause) throw spendPauseError(pause);
   const started = Date.now();
   // `mock` is the test engine: recording it would fill a developer's real
   // usage log with fake calls from any test run without an APX_HOME sandbox.

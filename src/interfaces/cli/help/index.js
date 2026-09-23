@@ -2201,13 +2201,17 @@ export const HELP_TOPICS = new Map(Object.entries({
   usage: topic({
     title: "apx usage",
     summary: "What the model calls cost: every call to an engine, grouped by model (account), channel and agent. Read from ~/.apx/usage/<day>.jsonl.",
-    usage: ["apx usage [--date YYYY-MM-DD] [--since H] [--json]"],
+    usage: ["apx usage [--date YYYY-MM-DD] [--since H] [--json]", "apx usage breaker", "apx usage resume"],
+    commands: [
+      ["breaker", "The spend breaker: model calls by unwatched work (routines, a2a) in the last hour, the limits (super_agent.spend_breaker) and any pause."],
+      ["resume", "Lift a spend-breaker pause now."],
+    ],
     options: [
       ["--date YYYY-MM-DD", "UTC day to summarize (default today)."],
       ["--since H", "Only calls from UTC hour H onward."],
       ["--json", "Print the raw summary as JSON."],
     ],
-    examples: ["apx usage", "apx usage --date 2026-09-23 --since 11", "apx usage --json"],
+    examples: ["apx usage", "apx usage --date 2026-09-23 --since 11", "apx usage --json", "apx usage breaker", "apx usage resume"],
   }),
 
   // ── Model router ──────────────────────────────────────────────────────────

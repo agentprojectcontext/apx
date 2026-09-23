@@ -154,6 +154,21 @@ superficie, agente, duración y tokens. `apx usage` resume un día por modelo, c
 ```bash
 apx usage                       # hoy
 apx usage --date 2026-09-23 --since 11
+apx usage breaker               # el freno de gasto: la última hora de llamadas en segundo plano, y si hay pausa
+apx usage resume                # levantar la pausa ya
+```
+
+### El freno de gasto
+
+El trabajo en segundo plano — rutinas y agentes hablando entre sí — tiene un techo de llamadas al
+modelo por hora, contado sobre la última hora, global y por proyecto. Si lo pasa, ese trabajo se
+pausa (30 minutos por defecto) y te llega una sola línea por Telegram; tus propios chats nunca se
+pausan. Los límites están en `super_agent.spend_breaker`:
+
+```json
+{ "super_agent": { "spend_breaker": {
+  "enabled": true, "calls_per_hour": 400, "project_calls_per_hour": 250, "pause_min": 30
+} } }
 ```
 
 ## Gestionar el enrutador con apx model
