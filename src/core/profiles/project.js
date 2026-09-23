@@ -121,7 +121,8 @@ export function useProjectProfile(project, id, { confirmReplace = false, globalC
   persist(project.path, { active: id, id, settings });
   clearProfileBlockCache();
 
-  const routines = syncProfileRoutines(profile, globalConfig, { storage, activate: true });
+  // See useProfile: only switching it ON applies the package's defaults.
+  const routines = syncProfileRoutines(profile, globalConfig, { storage, activate: state.active !== id });
   return { id, routines, settings };
 }
 

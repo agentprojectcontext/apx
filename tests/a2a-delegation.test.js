@@ -197,3 +197,27 @@ test("call_agent takes its sender and depth from the running turn", async () => 
   assert.equal(rows(p).length, 0, "nothing filed for a refused hop");
   cleanupTempProject(p.path);
 });
+
+// Review of the spend breaker: a delegation the owner is WAITING on from a live
+// chat ran as `a2a` and was paused like background work — "your own chats are
+// not affected" was false for the one request the owner had just made.
+test("a delegation the owner waits on is marked watched; a background one is not", async () => {
+  const p = project();
+  const seen = [];
+  const replyFn = async (args) => { seen.push(args.watched); return { text: "ok" }; };
+  await delegateToAgent({ project: p, agent: AGENT, prompt: "x", config: {}, watched: true, replyFn });
+  await delegateToAgent({ project: p, agent: AGENT, prompt: "x", config: {}, replyFn });
+  assert.deepEqual(seen, [true, false]);
+  cleanupTempProject(p.path);
+});
+
+test("call_agent from a watched chat delegates watched; from a routine it does not", async () => {
+  const { isUnwatchedTurn } = await import("#core/agent/quota.js");
+  const { CHANNELS } = await import("#core/constants/channels.js");
+  assert.equal(isUnwatchedTurn(CHANNELS.TELEGRAM, {}), false);
+  assert.equal(isUnwatchedTurn(CHANNELS.ROUTINE, {}), true);
+  assert.equal(isUnwatchedTurn(CHANNELS.A2A, { unwatched: false }), false, "a watched delegation");
+  assert.equal(isUnwatchedTurn(CHANNELS.WEB, { unwatched: true }), true, "an agent-started task comment");
+  const src = fs.readFileSync(new URL("../src/core/agent/tools/handlers/call-agent.js", import.meta.url), "utf8");
+  assert.match(src, /watched: !isUnwatchedTurn\(channel, channelMeta\)/);
+});

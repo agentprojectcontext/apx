@@ -160,9 +160,10 @@ apx usage resume                # lift a pause now
 
 ### The spend breaker
 
-Background work — routines and agents talking to each other — has an hourly ceiling on model calls,
-counted over the last hour, globally and per project. Past it, that work pauses (30 minutes by
-default) and you get one Telegram line saying so; your own chats are never paused. The limits live in
+Background work — routines, agents talking to each other, and task threads agents hand to each
+other — has an hourly ceiling on model calls, counted over the last hour, globally and per project.
+Past it, that work pauses (30 minutes by default) and you get one Telegram line saying so. Your own
+chats are never paused, and neither is an agent you are waiting on from one of them. The limits live in
 `super_agent.spend_breaker`:
 
 ```json

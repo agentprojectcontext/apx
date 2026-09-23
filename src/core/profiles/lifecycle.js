@@ -628,7 +628,9 @@ export function useProfile(id, { confirmReplace = false } = {}) {
   writeConfig(cfg);
   clearProfileBlockCache();
 
-  const routines = syncProfileRoutines(profile, cfg, { activate: true });
+  // Switching it ON applies the package's on/off defaults; re-running `use` on
+  // the profile that is already active is a refresh, and keeps the owner's.
+  const routines = syncProfileRoutines(profile, cfg, { activate: state.active !== id });
   return { profile, routines, warnings: report.warnings, tokens: report.tokens };
 }
 

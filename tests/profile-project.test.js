@@ -207,8 +207,13 @@ test("changing a setting keeps a routine you switched off, off", async () => {
     setProjectProfileConfig(projectOf(root), { weekly_deliveries: 7 });
     const r = listRoutines(storage).find((x) => x.name === "stayoff-pulse");
     assert.equal(r.enabled, false, "a settings save switched it back on");
-    // Activating the profile again IS the owner switching it on.
+    // Re-running `use` on the profile that is already active is a refresh too.
     useProjectProfile(projectOf(root), "stayoff", { confirmReplace: true });
+    assert.equal(listRoutines(storage).find((x) => x.name === "stayoff-pulse").enabled, false,
+      "re-running use reset the owner's choice");
+    // Switching it off and on again IS the owner turning it on.
+    offProjectProfile(projectOf(root));
+    useProjectProfile(projectOf(root), "stayoff");
     assert.equal(listRoutines(storage).find((x) => x.name === "stayoff-pulse").enabled, true);
   } finally {
     cleanupTempProject(root);

@@ -1,4 +1,5 @@
 import { readAgents } from "#core/apc/parser.js";
+import { isUnwatchedTurn } from "#core/agent/quota.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 import { delegateToAgent } from "#core/agent/a2a/delegate.js";
 import { MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
@@ -33,7 +34,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channelMeta }) => async ({ project, agent: slug, prompt }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta }) => async ({ project, agent: slug, prompt }) => {
     const p = resolveProject(projects, project);
     const agent = readAgents(p.path).find((a) => a.slug === slug);
     if (!agent) throw new Error(`agent ${slug} not found`);
@@ -66,6 +67,9 @@ export default {
       prompt,
       from,
       depth: depth + 1,
+      // call_agent blocks: from a turn somebody is watching, the owner is
+      // waiting on this answer — their request, not background spend.
+      watched: !isUnwatchedTurn(channel, channelMeta),
       config: p.config || globalConfig,
       projects,
       plugins,

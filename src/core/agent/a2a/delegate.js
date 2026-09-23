@@ -46,6 +46,8 @@ export async function delegateToAgent({
   // How deep the hand-off chain already is, so the delegated agent's own
   // sends keep counting instead of starting a fresh chain.
   depth = 0,
+  // The owner is waiting on this from a live chat (see quota.js isUnwatchedTurn).
+  watched = false,
   projects,
   plugins,
   registries,
@@ -107,6 +109,7 @@ export async function delegateToAgent({
       tools: true,
       signal,
       depth,
+      watched,
     },
   });
 
@@ -161,6 +164,8 @@ export async function messagePeer({
   // deliverWake). The waiter's answer is then filed as its own note and is not
   // delivered back to the peer, who already answered and is waiting on nothing.
   wakeFor = null,
+  // The owner is waiting on this from a live chat (see quota.js isUnwatchedTurn).
+  watched = false,
   replyFn = replyToPeer,
 }) {
   const agents = readAgents(project.path);
@@ -227,6 +232,7 @@ export async function messagePeer({
       signal,
       depth,
       wake: Boolean(wakeFor),
+      watched,
     },
   });
 

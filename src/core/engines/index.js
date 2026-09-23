@@ -101,8 +101,8 @@ export async function callEngine({ modelId, system, messages, config, temperatur
   // ceiling stops HERE, before the call, whatever path it came by — a routine,
   // an a2a reply, a one-shot summary tagged with their channel. A person's turn
   // passes straight through.
-  noteEngineCall({ channel: attribution?.channel, project: attribution?.project, config });
-  const pause = spendPause({ channel: attribution?.channel, project: attribution?.project });
+  noteEngineCall({ channel: attribution?.channel, unwatched: attribution?.unwatched, project: attribution?.project, config });
+  const pause = spendPause({ channel: attribution?.channel, unwatched: attribution?.unwatched, project: attribution?.project });
   if (pause) throw spendPauseError(pause);
   const started = Date.now();
   // `mock` is the test engine: recording it would fill a developer's real

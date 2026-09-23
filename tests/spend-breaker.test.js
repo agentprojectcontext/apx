@@ -137,3 +137,35 @@ test("GET /usage/breaker shows the state and POST resume lifts it", async () => 
     server.close();
   }
 });
+
+// ── from the fresh-context review ────────────────────────────────────────────
+
+test("a pause on one project does not stop counting the others, and its end keeps their history", () => {
+  const config = cfg({ calls_per_hour: 100, project_calls_per_hour: 2 });
+  for (let i = 0; i < 3; i++) noteEngineCall({ channel: CHANNELS.A2A, project: "x", config });
+  assert.equal(spendPause({ channel: CHANNELS.A2A, project: "x" }).project, "x");
+  for (let i = 0; i < 2; i++) noteEngineCall({ channel: CHANNELS.A2A, project: "y", config });
+  assert.equal(spendState({ config }).by_project.y, 2, "y is still counted while x is paused");
+  const later = Date.now() + 31 * 60 * 1000;
+  assert.equal(spendPause({ channel: CHANNELS.A2A, project: "x", now: later }), null);
+  assert.equal(spendState({ config, now: later }).by_project.y, 2, "x's pause ending did not erase y");
+});
+
+test("an agent-started task comment turn is counted and paused though it runs on the web channel", async () => {
+  const config = cfg({ calls_per_hour: 1 });
+  const run = (channel, channelMeta) => runAgent({
+    globalConfig: config, system: "s", prompt: "hola", toolSchemas: [], makeToolHandlers: () => ({}),
+    toolHandlerCtx: { channel, channelMeta },
+  });
+  await run(CHANNELS.WEB, { unwatched: true });
+  await assert.rejects(run(CHANNELS.WEB, { unwatched: true }), (e) => e.code === "SPEND_PAUSED");
+  // The owner's chat on the same channel is not.
+  assert.ok((await run(CHANNELS.WEB, {})).text);
+  // Nor is a delegation the owner is waiting on.
+  assert.ok((await run(CHANNELS.A2A, { unwatched: false })).text);
+});
+
+test("routines carry their project, so the per-project limit applies to them", () => {
+  const src = fs.readFileSync(new URL("../src/core/routines/runner.js", import.meta.url), "utf8");
+  assert.equal((src.match(/projectId: project\.id \?\? null/g) || []).length, 2, "both routine paths stamp projectId");
+});

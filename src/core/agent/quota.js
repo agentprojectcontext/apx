@@ -69,6 +69,22 @@ export function isAutonomousChannel(channel) {
   return AUTONOMOUS_CHANNELS.has(channel);
 }
 
+/**
+ * Whether anybody is watching THIS turn — the one question the quota stop and
+ * the spend breaker both ask. The channel is the default answer, but it is not
+ * always the true one, so a turn can say so in `channelMeta.unwatched`:
+ *   - true: a task-comment turn one AGENT started for another. It renders on
+ *     the web channel, and nobody is looking at it (the cascade the breaker
+ *     exists for, moved from a2a to tasks);
+ *   - false: an a2a delegation the owner is waiting on from a live chat — it
+ *     is their request, and pausing it is pausing them.
+ */
+export function isUnwatchedTurn(channel, channelMeta = null) {
+  if (channelMeta?.unwatched === true) return true;
+  if (channelMeta?.unwatched === false) return false;
+  return isAutonomousChannel(channel);
+}
+
 function cooldownMs(config) {
   const min = Number(config?.super_agent?.quota_cooldown_min);
   return Number.isFinite(min) && min > 0 ? min * 60 * 1000 : QUOTA_COOLDOWN_MS;

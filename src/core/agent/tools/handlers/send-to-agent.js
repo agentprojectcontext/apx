@@ -1,4 +1,5 @@
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
+import { isUnwatchedTurn } from "#core/agent/quota.js";
 import { messagePeer } from "#core/agent/a2a/delegate.js";
 import { sendInBackground, MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
 import { resolveProject } from "../helpers.js";
@@ -55,7 +56,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channelMeta }) => async ({ project, to, message, background = false, wake_me = true }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta }) => async ({ project, to, message, background = false, wake_me = true }) => {
     const p = resolveProject(projects, project);
     // WHO is writing. A project agent's turn stamps its slug on the tool
     // context (core/agent/run-turn.js); the super-agent's does not, and there
@@ -114,6 +115,10 @@ export default {
       plugins,
       registries,
       depth: depth + 1,
+      // The blocking path: the caller waits for this answer, so if the caller
+      // is watched the peer's turn is too. (The background path is not — the
+      // caller has moved on.)
+      watched: !isUnwatchedTurn(channel, channelMeta),
     });
   },
 };

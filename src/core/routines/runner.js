@@ -283,6 +283,8 @@ async function handleExecAgent(ctx, routine) {
         channelMeta: {
           routineName: routine.name,
           routineId: routine.id || "",
+          // For the spend breaker's per-project count (and its pause).
+          projectId: project.id ?? null,
           projectPath: project.path,
           // Who is speaking, for any tool that signs what it writes
           // (comment_task). run-turn.js sets the same key.
@@ -428,6 +430,7 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     channelMeta: {
       routineName: routine.name,
       routineId: routine.id || "",
+      projectId: project.id ?? null,
       routineSchedule: routine.schedule || "",
       routineLastRun: routine.last_run || "",
       routineMemoryPath: (() => {
