@@ -342,7 +342,19 @@ export async function runAgent({
   const triedHealth = new Map(
     (routing.tried || []).map((t) => [t.modelId, t.healthy !== false])
   );
-  const retryChain = (isFallbackEnabled(globalConfig) ? fallbackModels(globalConfig) : []).filter((m) => {
+  // The router's own #1 leads the chain when this turn started somewhere else
+  // (a self_model, a content rule, a pinned agent model). fallbackModels()
+  // leaves the primary out because it is normally the model already running —
+  // so a failing self_model skipped the router default entirely and walked
+  // straight to the fallbacks (2026-09-23: luna 429 → gemini → ollama cloud →
+  // local qwen, never big-pickle).
+  const routerPrimary = globalConfig?.super_agent?.model;
+  const retryChain = (isFallbackEnabled(globalConfig)
+    ? [...new Set([
+        ...(typeof routerPrimary === "string" && routerPrimary.includes(":") ? [routerPrimary] : []),
+        ...fallbackModels(globalConfig),
+      ])]
+    : []).filter((m) => {
     if (m === activeModel) return false;
     if (triedHealth.get(m) === false) return false;
     return true;

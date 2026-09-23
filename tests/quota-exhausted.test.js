@@ -101,3 +101,37 @@ test("the owner hears about a spent account once, not once per routine", async (
   markQuotaExhausted(SPENT, new Error("usage limit reached"));
   assert.equal(claimQuotaNotice(SPENT), true);
 });
+
+// Found live on 2026-09-23, after the first version of this file shipped:
+// `luna@high` cooled down, and the chain's plain `luna` — same ChatGPT account
+// — was called again one step later and paid a second 429.
+test("a cooldown covers the account, whatever reasoning suffix reached it", () => {
+  markQuotaExhausted("chatgpt-codex:gpt-5.6-luna@high", new Error("usage limit reached"));
+  assert.ok(quotaCooldown("chatgpt-codex:gpt-5.6-luna"));
+  assert.ok(quotaCooldown("chatgpt-codex:gpt-5.6-luna@medium"));
+  // A different model on a shared slug is not assumed to share the account:
+  // `ollama:` is both a cloud plan and a free local model.
+  assert.equal(quotaCooldown("ollama:qwen3:8b"), null);
+});
+
+// Same live run: the super-agent's own model failed and the turn walked the
+// fallback list — which leaves the router's #1 out — so it never tried the
+// router default and ended on the slowest local model.
+test("when a preferred model fails, the router's own #1 is tried before the fallbacks", async () => {
+  const events = [];
+  const cfg = {
+    super_agent: {
+      model: SPARE, model_fallback: { enabled: true, models: ["mock:fail-503"] }, stuck_detection: { enabled: false },
+    },
+    engines: {},
+  };
+  const out = await runAgent({
+    globalConfig: cfg, system: "sys", prompt: "hola", toolSchemas: [], makeToolHandlers: () => ({}),
+    toolHandlerCtx: { channel: CHANNELS.WEB }, preferredModel: SPENT, preferredBy: "self_model",
+    onEvent: (e) => events.push(e),
+  });
+  assert.ok(out.text);
+  const failed = events.find((e) => e.type === "engine_failed");
+  assert.equal(failed.model, SPENT);
+  assert.equal(failed.retry_with, SPARE, "the router default, not the next fallback");
+});

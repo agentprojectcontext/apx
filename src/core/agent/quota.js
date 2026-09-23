@@ -42,7 +42,23 @@ export const QUOTA_COOLDOWN_MS = 60 * 60 * 1000;
 /** Surfaces with no human watching the turn. */
 const AUTONOMOUS_CHANNELS = new Set([CHANNELS.A2A, CHANNELS.ROUTINE]);
 
-const cooled = new Map(); // modelId → { until, reason, noticed }
+const cooled = new Map(); // account key → { until, reason, noticed }
+
+/**
+ * What a cooldown is keyed by. A quota belongs to the ACCOUNT behind a model,
+ * and the same model reached with a different reasoning suffix
+ * (`chatgpt-codex:gpt-5.6-luna@high` vs `…luna`) is the same account: keyed by
+ * the raw id, the live chain paid a second 429 to the empty ChatGPT plan one
+ * step after cooling it (2026-09-23). Not keyed by provider alone, though —
+ * `ollama:` covers both a cloud plan with a monthly limit and a free local
+ * model on the same slug, and cooling the local one would strand the last
+ * fallback there is.
+ */
+export function quotaKey(modelId) {
+  const id = String(modelId || "");
+  const at = id.lastIndexOf("@");
+  return at > id.indexOf(":") && at > 0 ? id.slice(0, at) : id;
+}
 
 export function isQuotaExhaustedError(err) {
   const msg = String(err?.message || err || "");
@@ -61,8 +77,9 @@ function cooldownMs(config) {
 /** Record that `modelId`'s account is spent. */
 export function markQuotaExhausted(modelId, err, { config = null, now = Date.now() } = {}) {
   if (!modelId) return;
-  const prev = cooled.get(modelId);
-  cooled.set(modelId, {
+  const key = quotaKey(modelId);
+  const prev = cooled.get(key);
+  cooled.set(key, {
     until: now + cooldownMs(config),
     reason: String(err?.message || err || "quota exhausted").slice(0, 200),
     // Kept across re-marks inside one window, so the owner hears about an
@@ -73,10 +90,11 @@ export function markQuotaExhausted(modelId, err, { config = null, now = Date.now
 
 /** `{ until, reason }` while `modelId` is cooling down, else null. */
 export function quotaCooldown(modelId, { now = Date.now() } = {}) {
-  const c = cooled.get(modelId);
+  const key = quotaKey(modelId);
+  const c = cooled.get(key);
   if (!c) return null;
   if (c.until <= now) {
-    cooled.delete(modelId);
+    cooled.delete(key);
     return null;
   }
   return { until: c.until, reason: c.reason };
@@ -87,7 +105,7 @@ export function quotaCooldown(modelId, { now = Date.now() } = {}) {
  * is the one that tells the owner.
  */
 export function claimQuotaNotice(modelId, { now = Date.now() } = {}) {
-  const c = cooled.get(modelId);
+  const c = cooled.get(quotaKey(modelId));
   if (!c || c.until <= now || c.noticed) return false;
   c.noticed = true;
   return true;
