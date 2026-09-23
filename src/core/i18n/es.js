@@ -42,4 +42,9 @@ export default {
   "mobility.ack_done": "Cerré la tarea.",
   "mobility.ack_still_open": "La dejo abierta.",
   "mobility.transcript": "[Transcripción]",
+  // Pisos de avisos que el daemon manda solo (routines/delivery.js). Primero
+  // los redacta el modelo; estos salen únicamente si ningún modelo pudo.
+  "quota.stop_notice": "⚠️ {model} se quedó sin cuota. Frené el trabajo en segundo plano (empezando por la rutina {routine}) en vez de gastar los otros proveedores; lo vuelvo a probar después de las {until}. Si lo querés antes, cambiá el modelo del router.",
+  "delivery.notice_reply": "{who} te dejó un mensaje{notify} — respondé en su chat.",
+  "delivery.notice_critical": "⚠️ {who} marcó algo crítico{notify} — revisalo ahora en su chat.",
 };

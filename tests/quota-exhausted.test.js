@@ -88,18 +88,38 @@ test("one-shot calls start past a cooled account too", async () => {
 
 test("the owner hears about a spent account once, not once per routine", async () => {
   const sent = [];
-  const ctx = { plugins: { get: () => ({ send: async (m) => { sent.push(m); } }) } };
+  const tg = { send: async (m) => { sent.push(m); } };
   const err = Object.assign(new Error("x"), { code: "QUOTA_EXHAUSTED", modelId: SPENT });
   markQuotaExhausted(SPENT, new Error("usage limit reached"));
+  // No model to write it: the floor, in the owner's language — never a string
+  // hardcoded in one language for every install.
+  const ctx = { plugins: { get: () => tg }, globalConfig: { user: { language: "pt-BR" } } };
   assert.equal(await notifyOwnerQuotaStop(ctx, { err, routine: { name: "acme-pulse" } }), true);
   assert.equal(await notifyOwnerQuotaStop(ctx, { err, routine: { name: "acme-weekly" } }), false);
   assert.equal(sent.length, 1);
-  assert.match(sent[0].text, /sin cuota/);
+  assert.match(sent[0].text, /ficou sem cota/);
   assert.match(sent[0].text, /acme-pulse/);
   // A new window is a new notice.
   _resetQuotaCooldowns();
   markQuotaExhausted(SPENT, new Error("usage limit reached"));
   assert.equal(claimQuotaNotice(SPENT), true);
+});
+
+test("with a model available, the notice is model-authored", async () => {
+  const sent = [];
+  let asked = null;
+  const ctx = {
+    plugins: { get: () => ({ send: async (m) => { sent.push(m); } }) },
+    globalConfig: { super_agent: { model: SPARE }, user: { language: "en" } },
+  };
+  const err = Object.assign(new Error("x"), { code: "QUOTA_EXHAUSTED", modelId: SPENT });
+  markQuotaExhausted(SPENT, new Error("usage limit reached"));
+  await notifyOwnerQuotaStop(ctx, {
+    err, routine: { name: "acme-pulse" },
+    callFn: async (args) => { asked = args; return { text: "⚠️ the model wrote this" }; },
+  });
+  assert.equal(sent[0].text, "⚠️ the model wrote this");
+  assert.match(asked.messages[0].content, /acme-pulse/, "the facts reach the model");
 });
 
 // Found live on 2026-09-23, after the first version of this file shipped:

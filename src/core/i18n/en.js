@@ -39,4 +39,9 @@ export default {
   "mobility.ack_done": "Closed the task.",
   "mobility.ack_still_open": "Leaving it open.",
   "mobility.transcript": "[Transcript]",
+  // Floors for owner notices the daemon sends on its own (routines/delivery.js).
+  // The model writes them first; these go out only when no model could.
+  "quota.stop_notice": "⚠️ {model} ran out of quota. I stopped the background work (starting with the routine {routine}) instead of spending the other providers; I'll try it again after {until}. To use it sooner, change the router's model.",
+  "delivery.notice_reply": "{who} left you a message{notify} — reply in their chat.",
+  "delivery.notice_critical": "⚠️ {who} flagged something critical{notify} — check their chat now.",
 };

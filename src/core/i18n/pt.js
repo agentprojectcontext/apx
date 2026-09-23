@@ -37,4 +37,9 @@ export default {
   "mobility.ack_done": "Fechei a tarefa.",
   "mobility.ack_still_open": "Deixo em aberto.",
   "mobility.transcript": "[Transcrição]",
+  // Pisos de avisos que o daemon envia sozinho (routines/delivery.js). O modelo
+  // escreve primeiro; estes só saem quando nenhum modelo conseguiu.
+  "quota.stop_notice": "⚠️ {model} ficou sem cota. Parei o trabalho em segundo plano (começando pela rotina {routine}) em vez de gastar os outros provedores; tento de novo depois das {until}. Se quiser antes, troque o modelo do roteador.",
+  "delivery.notice_reply": "{who} te deixou uma mensagem{notify} — responda no chat dele.",
+  "delivery.notice_critical": "⚠️ {who} marcou algo crítico{notify} — veja o chat dele agora.",
 };

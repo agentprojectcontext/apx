@@ -20,6 +20,9 @@
 // A channel only belongs here when something actually READS what the adapter
 // writes. `deck` is deliberately absent for that reason: writing to a surface
 // nobody reads is a delivery that reports success and reaches no one.
+import { withConnectRetry } from "#core/net/retry.js";
+import { t, resolveLang } from "#core/i18n/index.js";
+import { callEngineWithFallback } from "#core/agent/engine-call.js";
 import { claimQuotaNotice, quotaCooldown } from "#core/agent/quota.js";
 import fs from "node:fs";
 import { appendGlobalMessage } from "#core/stores/messages.js";
@@ -30,6 +33,11 @@ import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { conversationPath, startConversation, appendTurn } from "#core/stores/conversations.js";
 import { callEngine } from "#core/engines/index.js";
 import { attachmentsMeta } from "#core/stores/media-archive.js";
+
+// Every Telegram send from a delivery survives a connection that never came
+// up (see core/net/retry.js): a one-minute outage at the wrong minute used to
+// lose the morning summary outright.
+const sendTg = (tg, message) => withConnectRetry(() => tg.send(message));
 
 /**
  * A project agent's ONE persistent web chat with the owner. A routine run by a
@@ -333,35 +341,62 @@ export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, ga
     );
     if (!decision.allowed) return { held: true, reason: decision.reason };
     const line = await composeRobyNotice({ agent, text, notify, globalConfig, severity });
-    await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
+    await sendTg(tg, { text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
     recordNudge(decision, { preview: line });
     return { sent: true, line, reason: decision.reason };
   }
 
   const line = await composeRobyNotice({ agent, text, notify, globalConfig, severity });
-  await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
+  await sendTg(tg, { text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
   return { sent: true, line };
 }
 
 /**
  * Tell the owner, ONCE per spent account, that background work stopped on a
- * usage limit. Template text on purpose: the model that would compose it is
- * the thing that just ran out, and spending the fallback chain to phrase an
- * "out of tokens" notice is the failure this exists to report. Returns whether
- * a line was sent; the dedupe lives in quota.js (claimQuotaNotice).
+ * usage limit. Written by a model in the owner's own language, like every other
+ * line the daemon sends — through callEngineWithFallback, which starts past the
+ * accounts already known to be spent. Only when no model at all can answer
+ * (the very situation this reports can be one) does the i18n floor go out,
+ * still in the owner's language. The dedupe lives in quota.js
+ * (claimQuotaNotice). Returns whether a line was sent.
  */
-export async function notifyOwnerQuotaStop(ctx, { err, routine }) {
+export async function notifyOwnerQuotaStop(ctx, { err, routine, callFn = callEngineWithFallback }) {
   if (err?.code !== "QUOTA_EXHAUSTED" || !claimQuotaNotice(err.modelId)) return false;
   const tg = ctx?.plugins?.get?.("telegram");
   if (!tg?.send) return false;
+  const globalConfig = ctx?.globalConfig || {};
+  const lang = resolveLang(globalConfig);
   const cool = quotaCooldown(err.modelId);
-  const until = cool ? new Date(cool.until).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : null;
-  const line =
-    `⚠️ ${err.modelId} se quedó sin cuota. Frené el trabajo en segundo plano` +
-    `${routine?.name ? ` (empezando por la rutina ${routine.name})` : ""} en vez de gastar los otros proveedores` +
-    `${until ? `; lo vuelvo a probar después de las ${until}` : ""}. Si lo querés antes, cambiá el modelo del router.`;
+  let until = "";
   try {
-    await tg.send({ text: line, meta: { via: "quota_stop", routine: routine?.name || "", model: err.modelId } });
+    until = cool ? new Date(cool.until).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }) : "";
+  } catch {
+    until = cool ? new Date(cool.until).toISOString().slice(11, 16) : "";
+  }
+  const facts = { model: err.modelId, routine: routine?.name || "", until };
+  let line = "";
+  const model = globalConfig?.super_agent?.model;
+  if (model) {
+    try {
+      const owner = resolveOwnerName();
+      const r = await callFn({
+        modelId: model,
+        system:
+          `You are ${resolveAgentName(globalConfig) || "the assistant"}, ${owner}'s assistant. Write ONE short line ` +
+          `(max ~220 characters) to send ${owner} on Telegram, in their language (${lang}), saying that the model ` +
+          `below ran out of its usage quota, that you stopped the background work instead of spending other ` +
+          `providers, when it will be tried again, and that changing the router's model makes it available ` +
+          `sooner. Start with ⚠️. No preamble, no quotes — just the line.`,
+        messages: [{ role: "user", content: JSON.stringify(facts) }],
+        config: globalConfig,
+        maxTokens: 200,
+      });
+      line = String(r?.text || "").replace(/\s+/g, " ").trim();
+    } catch { /* no model could answer — the floor below */ }
+  }
+  if (!line) line = t("quota.stop_notice", { lang, vars: { ...facts, until: until || "—" } });
+  try {
+    await sendTg(tg, { text: line, meta: { via: "quota_stop", routine: routine?.name || "", model: err.modelId } });
     return true;
   } catch {
     return false;
@@ -400,8 +435,11 @@ async function composeRobyNotice({ agent, text, notify, globalConfig, severity =
       if (line) return line;
     } catch { /* fall through to the template floor */ }
   }
-  if (urgent) return `⚠️ ${who} marcó algo crítico${notify ? `: ${notify}` : ""} — revisalo ahora en su chat.`;
-  return `${who} te dejó un mensaje${notify ? `: ${notify}` : ""} — respondé en su chat.`;
+  // The floor is still in the owner's language: a string written here in one
+  // language is that language for every install.
+  const lang = resolveLang(globalConfig);
+  const vars = { who, notify: notify ? `: ${notify}` : "" };
+  return t(urgent ? "delivery.notice_critical" : "delivery.notice_reply", { lang, vars });
 }
 
 export const DELIVERY_ADAPTERS = Object.freeze({
@@ -455,7 +493,7 @@ export const DELIVERY_ADAPTERS = Object.freeze({
           ctx?.globalConfig || {},
         );
         if (!decision.allowed) return { held: true, reason: decision.reason };
-        await tg.send({
+        await sendTg(tg, {
           text,
           meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
         });
@@ -464,7 +502,7 @@ export const DELIVERY_ADAPTERS = Object.freeze({
         return { note: `sent to telegram (${decision.reason})${sent ? ` +${sent} photo${sent > 1 ? "s" : ""}` : ""}` };
       }
 
-      await tg.send({
+      await sendTg(tg, {
         text,
         meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
       });
