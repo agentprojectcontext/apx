@@ -153,6 +153,11 @@ export const isFreeModel = (m) => FREE_MODELS.some((re) => re.test(String(m || "
 const WIRE_ALIAS = { run_shell: "bash", read_file: "read" };
 const APX_NAME = Object.fromEntries(Object.entries(WIRE_ALIAS).map(([a, w]) => [w, a]));
 const REQUIRED_WIRE_TOOLS = Object.values(WIRE_ALIAS);
+// What the gate needs to see, and nothing else: names only, no schema to fill.
+const GATE_ONLY_TOOLS = REQUIRED_WIRE_TOOLS.map((name) => ({
+  type: "function",
+  function: { name, description: "", parameters: { type: "object", properties: {} } },
+}));
 
 /** Rename one tool declaration for the wire, leaving every other field alone. */
 function toWire(tool) {
@@ -205,7 +210,25 @@ export default {
   async chat(args = {}) {
     if (!isFreeModel(args.model)) return base.chat(args);
 
-    const tools = Array.isArray(args.tools) ? args.tools.map(toWire) : args.tools;
+    // A call with NO tools at all — a sealed WhatsApp turn, a summary, a
+    // wrap-up step. It has nothing to call, so the gate is met with bare
+    // declarations and `tool_choice: "none"`: declared, not callable. That is
+    // the difference from a narrow agent below, whose real tools would be
+    // switched off by "none" and who stays refused. Without this every
+    // tool-free turn skipped the router's #1 and landed on whatever was left
+    // (2026-09-23: a contact's turn fell to a local 8B model and took 157 s).
+    if (!Array.isArray(args.tools) || args.tools.length === 0) {
+      const out = await base.chat({ ...args, tools: GATE_ONLY_TOOLS, toolChoice: "none" });
+      if (!out?.tool_calls?.length) return out;
+      // "none" ignored anyway: the call has nowhere to go. Keep the prose if
+      // there is any; with none, let the chain answer instead.
+      if (String(out.text || "").trim()) return { ...out, tool_calls: [] };
+      const e = new Error(`zen: ${args.model} answered a tool-free turn with a tool call`);
+      e.retryable = true;
+      throw e;
+    }
+
+    const tools = args.tools.map(toWire);
     const names = new Set((tools || []).map((t) => t?.function?.name));
     const missing = REQUIRED_WIRE_TOOLS.filter((n) => !names.has(n));
     if (missing.length) {

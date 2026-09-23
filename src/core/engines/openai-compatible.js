@@ -188,6 +188,10 @@ export function createOpenAiCompatibleEngine({
         body.tools = tools;
         if (toolChoice === "required" || toolChoice === "any") {
           body.tool_choice = "required";
+        } else if (toolChoice === "none") {
+          // Declared but not callable — zen's free tier needs the declaration
+          // on a turn that has no tools to offer (see zen.js).
+          body.tool_choice = "none";
         } else if (toolChoice && typeof toolChoice === "object") {
           body.tool_choice = toolChoice;
         }
