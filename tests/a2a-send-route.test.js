@@ -243,3 +243,25 @@ test("a :thread suffix still keeps two exchanges with one peer apart", async () 
     assert.deepEqual(ids, ["opencode:review~tester", "opencode~tester"]);
   });
 });
+
+test("the peer's turn is told how deep the chain already is", () => {
+  // The route walled `_depth` but never passed it to replyToPeer, so an agent
+  // answering an `apx send --deliver` ran at a2aDepth 0 and could open a fresh
+  // chain from inside this one. Source-level: exercising it end to end needs a
+  // model-backed agent peer, and the runtime peer these tests use ignores depth.
+  const src = fs.readFileSync(new URL("../src/host/daemon/api/conversations.js", import.meta.url), "utf8");
+  const call = src.slice(src.indexOf("const result = await replyToPeer({"), src.indexOf("const replyTs = nowIso();"));
+  assert.match(call, /depth: \(Number\(_depth\) \|\| 0\) \+ 1/);
+});
+
+test("the route walls the chain where the tools do", async () => {
+  await withApi(async ({ baseUrl, id }) => {
+    // _depth 2 means the peer would run as the third hop's successor — past the
+    // wall send_to_agent and call_agent enforce (MAX_BACKGROUND_DEPTH = 3).
+    const deep = await send(baseUrl, id, { from: "tester", to: "opencode", body: "x", deliver: true, _depth: 2 });
+    assert.equal(deep.status, 429);
+    assert.match((await deep.json()).error, /depth limit \(3\)/);
+    const ok = await send(baseUrl, id, { from: "tester", to: "opencode", body: "x", deliver: true, _depth: 1 });
+    assert.equal(ok.status, 200);
+  });
+});

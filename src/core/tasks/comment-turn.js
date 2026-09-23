@@ -147,7 +147,7 @@ async function runRealTurn({
   p, agent, slug, from, task, participants, nameFor, projectName,
   cfg, projects, plugins, registries, signal,
 }) {
-  const modelId = await resolveAgentModel({ agent, config: cfg });
+  const modelId = await resolveAgentModel({ agent, config: cfg, autonomous: true });
   if (!modelId) throw new Error(`no model for agent ${slug}`);
   const me = displayName(agent);
   const others = participants.filter((x) => x.kind === "agent" && x.slug !== slug);

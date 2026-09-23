@@ -58,8 +58,9 @@ test("channelToolIters — a2a is not a chat, and not a blank cheque either", ()
   assert.ok(A2A_TOOL_ITERS > MAX_TOOL_ITERS, "a peer asked to do the work has room to do it");
   // But not run-to-completion: replyAsAgent honours no timeoutMs (only
   // replyAsRuntime does), so nothing but this number stops a runaway — and a
-  // --deliver chains up to four levels deep (`_depth > 3`, conversations.js),
-  // so four of these must still cost less than one watched turn.
+  // chain is walled at MAX_BACKGROUND_DEPTH (3) on every path — tools and
+  // `POST /send` alike — so four of these is a generous ceiling that must
+  // still cost less than one watched turn.
   assert.ok(
     A2A_TOOL_ITERS * 4 <= WEB_TOOL_ITERS,
     `four chained a2a turns (${A2A_TOOL_ITERS} each) must stay within the ${WEB_TOOL_ITERS} one watched turn may spend`,
@@ -256,4 +257,26 @@ test("buildVoiceChannelContext: the surfaces it does know are untouched", () => 
   assert.equal(buildVoiceChannelContext(CHANNELS.DESKTOP, {}).channelMeta.voice, true);
   assert.equal(buildVoiceChannelContext(CHANNELS.DESKTOP, {}).channel, CHANNELS.DESKTOP);
   assert.equal(buildVoiceChannelContext(CHANNELS.TELEGRAM, {}).channel, CHANNELS.TELEGRAM);
+});
+
+// Out of steps on an a2a turn, the closing goes to the AGENT that asked — it
+// is the one who can decide to continue, re-scope, or stop and tell the owner.
+// The generic "ask the user whether to keep going" put that question to nobody.
+test("an a2a turn that runs out of steps closes to the agent that asked", async () => {
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const schema = { type: "function", function: { name: "test_tool", description: "t", parameters: { type: "object", properties: {} } } };
+  const run = (toolHandlerCtx) => runAgent({
+    globalConfig: { super_agent: { model: "mock:test", model_fallback: { enabled: false }, stuck_detection: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: "[mock:loopany:test_tool]",
+    toolSchemas: [schema],
+    makeToolHandlers: () => ({ test_tool: async () => ({ ok: true }) }),
+    toolHandlerCtx,
+    maxIters: 3,
+  });
+  const a2a = await run({ channel: CHANNELS.A2A });
+  assert.match(a2a.text, /agent who asked you/);
+  assert.match(a2a.text, /reason to stop and report, not to retry/);
+  const web = await run({ channel: CHANNELS.WEB });
+  assert.match(web.text, /Ask whether they want you to keep going/);
 });

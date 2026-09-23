@@ -90,8 +90,12 @@ export default {
 
     // Blocking. Bounded by the same wall as the background path — a chain of
     // agents waiting on each other is no less a chain for being synchronous,
-    // and this path had no limit at all.
-    if (depth >= MAX_BACKGROUND_DEPTH) {
+    // and this path had no limit at all. `depth + 1`, like the background path
+    // (which receives depth already incremented): with `depth >=` a woken turn
+    // at depth 2 could not send in the background but COULD block-send, and
+    // that one extra hop was the "Confirmado y registrado" round of every
+    // ping-pong.
+    if (depth + 1 >= MAX_BACKGROUND_DEPTH) {
       return {
         error:
           `send_to_agent: hand-off depth limit (${MAX_BACKGROUND_DEPTH}) reached. ` +

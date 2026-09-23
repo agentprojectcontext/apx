@@ -43,6 +43,9 @@ export async function delegateToAgent({
   prompt,
   config,
   from = SUPERAGENT_ACTOR_ID,
+  // How deep the hand-off chain already is, so the delegated agent's own
+  // sends keep counting instead of starting a fresh chain.
+  depth = 0,
   projects,
   plugins,
   registries,
@@ -103,6 +106,7 @@ export async function delegateToAgent({
       // describe the work.
       tools: true,
       signal,
+      depth,
     },
   });
 
@@ -153,6 +157,10 @@ export async function messagePeer({
   // full tool loop. `POST /projects/:pid/send` has walled its own `_depth`
   // since the route existed; the tool path had no equivalent.
   depth = 0,
+  // Set when this "message" is a background job waking its waiter (see
+  // deliverWake). The waiter's answer is then filed as its own note and is not
+  // delivered back to the peer, who already answered and is waiting on nothing.
+  wakeFor = null,
   replyFn = replyToPeer,
 }) {
   const agents = readAgents(project.path);
@@ -186,7 +194,7 @@ export async function messagePeer({
     direction: "in",
     author: sender,
     body,
-    meta: { from: sender, via: "tool" },
+    meta: { from: sender, via: "tool", ...(wakeFor ? { wake_for: wakeFor } : {}) },
     ts,
     external_id: messageId,
   });
@@ -196,6 +204,7 @@ export async function messagePeer({
     from: sender,
     to: address,
     via: "tool",
+    ...(wakeFor ? { extraMeta: { wake_for: wakeFor, not_sent: true }, deliverToPeer: false } : {}),
     onEvent,
     replyFn,
     replyArgs: {
@@ -217,6 +226,7 @@ export async function messagePeer({
       registries,
       signal,
       depth,
+      wake: Boolean(wakeFor),
     },
   });
 

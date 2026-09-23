@@ -686,6 +686,8 @@ export const es = {
       enabled_label: "Super-agente habilitado",
       model_active:  "Modelo activo (router)",
       model_configure: "Configurar en Modelos",
+      self_model: "Modelo propio",
+      self_model_hint: "Auto = el default del router, el mismo que usan los agentes que heredan. Elegí uno para darle otro modelo solo al super-agente; si falla, sigue la cadena del router.",
       behavior_subtitle: "Comportamiento del super-agente. El modelo y la cadena de fallback se configuran en el Router de modelos.",
     },
 

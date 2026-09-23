@@ -24,6 +24,7 @@ export const ROUTES = Object.freeze({
   "messages": () => import("./messages.js"),
   "log": () => import("./log.js"),
   "logs": () => import("./log.js"),
+  "usage": () => import("./usage.js"),
   "exec": () => import("./exec.js"),
   "acp": () => import("./acp.js"),
   "search": () => import("./search.js"),

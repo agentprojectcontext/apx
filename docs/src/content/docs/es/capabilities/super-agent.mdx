@@ -137,6 +137,11 @@ puro, del que nunca vas a necesitar respuesta.
 El despertar es un mensaje a2a común en sentido inverso, así que el pedido y su
 respuesta viven en un solo hilo — no hay un lugar nuevo adonde mirar.
 
+Lo que escribe el que se despierta queda archivado como **nota propia**, no como
+respuesta: el peer ya contestó y no espera nada. Archivado como respuesta, el
+"recibido, gracias" caía en la bandeja del peer, el peer confirmaba de vuelta, y
+una respuesta se volvía una ronda de acuses de recibo, cada uno un tool loop entero.
+
 ### Qué conserva el que espera, y qué no
 
 Un turno despertado es un turno **nuevo**. Recibe la respuesta, un resumen de lo
@@ -154,11 +159,19 @@ no lo reporte como hecho.
 | Límite | Valor | Por qué |
 |---|---|---|
 | Trabajos abiertos por agente | 3 | Acota cuánto se ABRE el abanico |
-| Profundidad de pases | 3 | Acota cuánto BAJA; se cuenta entre turnos y despertares |
+| Profundidad de pases | 3 | Acota cuánto BAJA; se cuenta entre turnos, despertares, `call_agent` y `apx send` |
+| Pasos de tools por turno de peer | 20 (`super_agent.a2a_max_iters`) | Un peer que se queda sin pasos contesta qué hizo y qué falta; el que pidió decide si sigue |
 | Vida de un trabajo | 1 hora por defecto | Pasada esa, se corta y se avisa |
 
 Los dos límites vuelven como un mensaje sobre el que el agente puede actuar, nunca
 como una excepción.
+
+Un turno que nadie está mirando — una respuesta a2a, una rutina — también **frena
+ante un plan agotado**. Cuando un proveedor contesta que la cuenta llegó a su
+límite de uso (no un rate limit pasajero), ese modelo se enfría una hora
+(`super_agent.quota_cooldown_min`), el turno sin humano termina en vez de gastar
+el resto de la cadena de fallback, y al dueño le llega una sola línea por Telegram.
+Un chat con una persona adentro sigue cayendo al próximo modelo.
 
 ### Ver qué está corriendo
 

@@ -38,7 +38,19 @@ const DEFAULT_FOREGROUND_TIMEOUT_S = 60;
 // ignores SIGTERM cannot hold `close` back indefinitely, and an abort settles
 // on its own rather than waiting for a kill to be honoured — whether the person
 // has stopped waiting is a different question from whether the process died.
-function run(command, { cwd, timeoutMs, abortSignal }) {
+/**
+ * The a2a chain depth, handed to the shell. An agent that shells out
+ * `apx send … --deliver` opens an exchange the daemon cannot see is part of
+ * the one it is already in, so the chain restarted at 0 and the depth wall
+ * never held on that path. `apx send` reads APX_A2A_DEPTH back and sends it as
+ * `_depth` (interfaces/cli/commands/a2a.js).
+ */
+export function a2aDepthEnv(channelMeta) {
+  const depth = Number(channelMeta?.a2aDepth) || 0;
+  return depth > 0 ? { APX_A2A_DEPTH: String(depth) } : null;
+}
+
+function run(command, { cwd, timeoutMs, abortSignal, env = null }) {
   return new Promise((resolve) => {
     const { file, args, options } = shellCommand(command, { login: true });
     let stdout = "";
@@ -58,7 +70,7 @@ function run(command, { cwd, timeoutMs, abortSignal }) {
 
     let child;
     try {
-      child = spawn(file, args, { cwd, env: process.env, ...options });
+      child = spawn(file, args, { cwd, env: env ? { ...process.env, ...env } : process.env, ...options });
     } catch (e) {
       // Synchronous throws (an invalid cwd on some platforms) never reach the
       // `error` event at all.
@@ -243,6 +255,7 @@ export default {
       cwd: workingDir,
       timeoutMs: foregroundTimeoutS(timeout_s) * 1000,
       abortSignal,
+      env: a2aDepthEnv(channelMeta),
     });
     // A command that never started is an ERROR, not an exit code of null with
     // empty output. The model reads `stdout: ""` as "it ran and printed

@@ -20,6 +20,7 @@
 // A channel only belongs here when something actually READS what the adapter
 // writes. `deck` is deliberately absent for that reason: writing to a surface
 // nobody reads is a delivery that reports success and reaches no one.
+import { claimQuotaNotice, quotaCooldown } from "#core/agent/quota.js";
 import fs from "node:fs";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -340,6 +341,31 @@ export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, ga
   const line = await composeRobyNotice({ agent, text, notify, globalConfig, severity });
   await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
   return { sent: true, line };
+}
+
+/**
+ * Tell the owner, ONCE per spent account, that background work stopped on a
+ * usage limit. Template text on purpose: the model that would compose it is
+ * the thing that just ran out, and spending the fallback chain to phrase an
+ * "out of tokens" notice is the failure this exists to report. Returns whether
+ * a line was sent; the dedupe lives in quota.js (claimQuotaNotice).
+ */
+export async function notifyOwnerQuotaStop(ctx, { err, routine }) {
+  if (err?.code !== "QUOTA_EXHAUSTED" || !claimQuotaNotice(err.modelId)) return false;
+  const tg = ctx?.plugins?.get?.("telegram");
+  if (!tg?.send) return false;
+  const cool = quotaCooldown(err.modelId);
+  const until = cool ? new Date(cool.until).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : null;
+  const line =
+    `⚠️ ${err.modelId} se quedó sin cuota. Frené el trabajo en segundo plano` +
+    `${routine?.name ? ` (empezando por la rutina ${routine.name})` : ""} en vez de gastar los otros proveedores` +
+    `${until ? `; lo vuelvo a probar después de las ${until}` : ""}. Si lo querés antes, cambiá el modelo del router.`;
+  try {
+    await tg.send({ text: line, meta: { via: "quota_stop", routine: routine?.name || "", model: err.modelId } });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The one Telegram line, written as Roby. Model-authored; a thin template only

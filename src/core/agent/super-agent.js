@@ -176,6 +176,15 @@ export async function runSuperAgent({
   const contentRoute = overrideModel
     ? null
     : selectModelByRules({ prompt, previousMessages, channel, channelMeta }, globalConfig);
+  // The super-agent's own model (super_agent.self_model), when it has one. A
+  // PREFERENCE, not an override: it is health-checked, skipped while its
+  // account is out of quota, and falls down the router's chain like any other
+  // model. A content-routing rule still wins, since it was written about the
+  // turn in front of it.
+  const selfModel = typeof globalConfig?.super_agent?.self_model === "string"
+    && globalConfig.super_agent.self_model.includes(":")
+    ? globalConfig.super_agent.self_model
+    : null;
 
   // An explicit budget from the caller always wins; otherwise the surface's own
   // default applies. This is where the web chat stops hitting a wall every 9
@@ -198,7 +207,8 @@ export async function runSuperAgent({
       attachments,
       priorEffects,
       overrideModel,
-      preferredModel: contentRoute?.model || null,
+      preferredModel: contentRoute?.model || selfModel,
+      preferredBy: contentRoute?.model ? "content_rules" : "self_model",
       toolSchemas,
       makeToolHandlers,
       toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },

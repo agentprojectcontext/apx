@@ -55,6 +55,13 @@ const DEFAULT_CONFIG = {
     enabled: false,
     name: "apx",
     model: "",                          // e.g. "ollama:llama3.2:3b"
+    // The super-agent's OWN model, separate from the router default above.
+    // `model` is the #1 of the router — what every agent with `Model: inherit`
+    // runs on — so pointing it at an expensive plan moved the whole fleet onto
+    // that plan (2026-09-23). "" → the super-agent uses the router default too.
+    // Set, it is preferred for super-agent turns only: health-checked, and on
+    // failure the turn walks the same fallback chain.
+    self_model: "",
     system: "",                         // optional override; defaults in src/core/agent/prompts/
     permission_mode: PERMISSION_MODES.AUTOMATICO,       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
