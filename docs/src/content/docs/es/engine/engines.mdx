@@ -138,10 +138,13 @@ health check y cae por la misma cadena, empezando por el #1 del router. Apagalo 
 proyecto con su propio `Model:` tiene el mismo interruptor (`model_fallback: false`, `apx agent set --no-model-fallback`).
 
 Una cuenta con el **límite de uso** agotado se saltea durante una hora en vez de reintentarse en cada
-turno, y los turnos que nadie mira (a2a, rutinas) frenan en vez de caer por la cadena — ver
+turno, y los turnos que nadie mira (a2a, rutinas) frenan en vez de caer por la cadena, salvo que
+hayan arrancado en un modelo que elegiste vos con el fallback prendido — ver
 [la página del super-agente](/apx/docs/es/capabilities/super-agent/). Para el plan de ChatGPT, el
-esfuerzo de razonamiento va en el id del modelo — `chatgpt-codex:gpt-5.6-luna@medium`
-(`minimal|low|medium|high|xhigh`) — o como default en `engines.chatgpt-codex.reasoning_effort`.
+esfuerzo de razonamiento es un ajuste del modelo, no otro modelo: el panel muestra un control
+**Esfuerzo** al lado de cada selector de modelo y muestra el par como `gpt-5.6-luna · high`. Se
+guarda como sufijo del id — `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`),
+que es también como lo toma el CLI — o como default en `engines.chatgpt-codex.reasoning_effort`.
 
 ### Lo que cuestan las llamadas
 

@@ -51,6 +51,7 @@ const picker = (() => {
       .replace('from "../ModelCombobox"', `from ${JSON.stringify(INERT)}`)
       .replaceAll('"./providers/typeStyles"', JSON.stringify(path.join(WEB_SRC, "components", "settings", "providers", "typeStyles")))
       .replaceAll('"../../i18n"', JSON.stringify(path.join(WEB_SRC, "i18n")))
+      .replaceAll('"../agents/modelEffort"', JSON.stringify(path.join(WEB_SRC, "components", "agents", "modelEffort")))
   );
   const built = buildSync({
     entryPoints: [entry],

@@ -7,6 +7,7 @@ import { useToast } from "../Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { INHERIT_MODEL, isInheritedModel, splitModelId, useModelCatalog } from "./modelCatalog";
+import { EffortChips, carryEffort, modelLabel, splitEffort, withEffort } from "./modelEffort";
 
 // The agent's forced model, shown as a compact badge that doubles as its own
 // editor: click it and a popover picks provider → model from what this install
@@ -53,7 +54,7 @@ export function AgentModelBadge({
       >
         {saving ? <Spinner size={10} /> : <Server className="size-2.5 shrink-0" />}
         <span className="truncate font-mono">
-          {inherited ? INHERIT_MODEL : model}
+          {inherited ? INHERIT_MODEL : modelLabel(model || "")}
         </span>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="end" className="w-72 p-2">
@@ -70,8 +71,10 @@ function ModelPickerCard({ current, onPick }: { current: string; onPick: (v: str
   // Which provider's models are listed. Null = follow the stored model's
   // provider; derived instead of stateful so the async catalog needs no effect.
   const [picked, setPicked] = useState<string | null>(null);
-  const wanted = picked ?? splitModelId(current).provider;
+  const { base, effort } = splitEffort(current);
+  const wanted = picked ?? splitModelId(base).provider;
   const active = providers.find((p) => p.slug === wanted) ?? providers[0];
+  const baseEngine = providers.find((p) => p.slug === splitModelId(base).provider)?.engine;
 
   return (
     <div className="flex flex-col gap-2">
@@ -118,13 +121,16 @@ function ModelPickerCard({ current, onPick }: { current: string; onPick: (v: str
                     label={m}
                     hint={m === active.defaultModel ? t("agents_ui.model_provider_default") : undefined}
                     mono
-                    selected={current === id}
-                    onClick={() => onPick(id)}
+                    selected={base === id}
+                    onClick={() => onPick(carryEffort(id, effort, active.engine))}
                   />
                 </li>
               );
             })}
           </ul>
+          {!isInheritedModel(current) && (
+            <EffortChips engine={baseEngine} value={effort} onChange={(e) => onPick(withEffort(base, e))} />
+          )}
         </>
       )}
     </div>

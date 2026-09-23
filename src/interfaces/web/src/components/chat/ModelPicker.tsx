@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Server, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { useModelCatalog } from "../agents/modelCatalog";
+import { splitModelId, useModelCatalog } from "../agents/modelCatalog";
+import { EffortChips, carryEffort, modelLabel, splitEffort, withEffort } from "../agents/modelEffort";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
@@ -62,9 +63,20 @@ export function ModelPicker({
   const busy = loading || probing;
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options;
-  const label = value || t("shared_ui.auto");
+  const label = value ? modelLabel(value) : t("shared_ui.auto");
+  // The model and its reasoning effort are two choices: the list picks the
+  // model, the chips under it pick the effort (see ../agents/modelEffort).
+  const { base, effort } = splitEffort(value);
+  const engineOf = (id: string) => {
+    const slug = splitModelId(id).provider;
+    return providers.find((p) => p.slug === slug)?.engine || slug;
+  };
 
-  const pick = (m: string) => { onChange(m); setOpen(false); setQuery(""); };
+  const pick = (m: string) => {
+    onChange(m ? carryEffort(m, effort, engineOf(m)) : m);
+    setOpen(false);
+    setQuery("");
+  };
 
   return (
     <div ref={wrapRef} className="relative">
@@ -132,15 +144,20 @@ export function ModelPicker({
                   onMouseDown={(e) => { e.preventDefault(); pick(m); }}
                   className={cn(
                     "flex w-full items-center justify-between rounded-md px-2 py-1 text-left font-mono text-xs hover:bg-accent hover:text-accent-fg",
-                    m === value && "bg-accent/50",
+                    m === base && "bg-accent/50",
                   )}
                 >
                   <span className="truncate">{m}</span>
-                  {m === value && <Check className="size-3 shrink-0" />}
+                  {m === base && <Check className="size-3 shrink-0" />}
                 </button>
               </li>
             ))}
           </ul>
+          {base && (
+            <div className="mt-1 border-t border-border px-1 pt-1.5">
+              <EffortChips engine={engineOf(base)} value={effort} onChange={(e) => onChange(withEffort(base, e))} />
+            </div>
+          )}
         </div>
       )}
     </div>

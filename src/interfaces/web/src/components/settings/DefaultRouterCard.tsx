@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { modelLabel } from "../agents/modelEffort";
 import { AlertTriangle, ArrowRight, GitBranch, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { Section } from "../Section";
 import { Badge, Button, Loading } from "../ui";
@@ -194,7 +195,7 @@ export function DefaultRouterCard() {
                       </div>
                     ) : (
                       <button type="button" onClick={() => setEditIdx(i)} className="flex flex-1 items-center gap-1.5 text-left">
-                        <span className={`font-mono ${problem ? toneText.amber : ""}`}>{ref}</span>
+                        <span className={`font-mono ${problem ? toneText.amber : ""}`}>{modelLabel(ref)}</span>
                         {problem && (
                           <Tip content={problemHint(problem, provider)}>
                             <span><AlertTriangle size={12} className={toneText.amber} /></span>
@@ -234,7 +235,7 @@ export function DefaultRouterCard() {
             return (
               <span key={`${i}-${ref}`} className="flex items-center gap-2 text-muted-fg">
                 {i > 0 && <ArrowRight size={12} />}
-                <span className={`font-mono text-xs ${problem ? toneText.amber : ""}`}>{ref}</span>
+                <span className={`font-mono text-xs ${problem ? toneText.amber : ""}`}>{modelLabel(ref)}</span>
               </span>
             );
           })}

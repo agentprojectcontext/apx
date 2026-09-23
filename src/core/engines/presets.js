@@ -155,6 +155,11 @@ export const ENGINE_PRESETS = {
       "gpt-5.5",
       "gpt-6-astra",
     ],
+    // Reasoning effort is a SETTING of a model, not another model: stored as
+    // an `@<effort>` suffix on the id (`gpt-5.6-luna@high`) so every place
+    // that holds one model string holds it too, and shown by the panel as a
+    // separate control. codex-plus.js reads the same list.
+    efforts: ["minimal", "low", "medium", "high", "xhigh"],
   },
   // Claude Max (+ extra usage credits) via APX PKCE OAuth.
   "claude-subscription": {

@@ -120,6 +120,11 @@ export interface EnginePreset {
   key_optional?: boolean;
   /** Built-in / plan engine — UI shows a lock and refuses delete. */
   locked?: boolean;
+  /**
+   * Reasoning efforts the engine accepts. A setting of the model, stored as an
+   * `@<effort>` suffix on its id and picked with its own control (EffortChips).
+   */
+  efforts?: string[];
 }
 
 export const ENGINE_PRESETS: Record<string, EnginePreset> = {
@@ -240,6 +245,7 @@ export const ENGINE_PRESETS: Record<string, EnginePreset> = {
       "gpt-5.5",
       "gpt-6-astra",
     ],
+    efforts: ["minimal", "low", "medium", "high", "xhigh"],
   },
   "claude-subscription": {
     key_optional: true,

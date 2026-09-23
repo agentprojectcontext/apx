@@ -3271,6 +3271,8 @@ export const en = {
     result:                "Result",
     auto:                  "Auto",
     auto_router:           "Auto (router decides)",
+    effort:                "Effort",
+    effort_default:        "Default",
     model_filter_ph:       "Filter or type a model…",
     loading_models:        "Loading models…",
     use_value:             "Use “{value}”",
