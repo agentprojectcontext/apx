@@ -80,15 +80,24 @@ export const GROUP_TOOL_ITERS = 50;
 // human to notice one; "run to completion" needs one or the other.
 //
 // Finite and generous, then — the same shape as a group speaker and, as there,
-// bounded because an exchange fans out: a --deliver chains up to four levels
-// (`_depth > 3`, conversations.js). Written out rather than aliased to
+// bounded because an exchange fans out: a chain of hand-offs is walled at
+// MAX_BACKGROUND_DEPTH (3) on every path — send_to_agent, call_agent and
+// `POST /send` alike. Written out rather than aliased to
 // GROUP_TOOL_ITERS: the two numbers agree today for related but separate
 // reasons, and moving one should not silently move the other.
 //
 //   A2A_TOOL_ITERS * 4 <= WEB_TOOL_ITERS
 //
+// 20, down from 50 (2026-09-23). Fifty steps per hop let one peer burn a whole
+// usage window on a task that should have come back with a question: agents
+// "re-verified" a broken Cheto MCP for dozens of steps each instead of
+// reporting it. Twenty is still double the conversational budget — room for
+// real work — and the closing step (A2A_WRAPUP_SIGNAL in run-agent.js) hands
+// the decision to continue back to the agent that asked, which can re-send
+// with more context or stop and tell the owner.
+//
 // Overridable per-deployment via config.super_agent.a2a_max_iters.
-export const A2A_TOOL_ITERS = 50;
+export const A2A_TOOL_ITERS = 20;
 // ONE TURN, ONE BUDGET. Every number above is the budget for a TURN, not for
 // one pass of the tool loop — and a turn can run the loop more than once, when
 // the completion judge sends it back to finish something (agent/judge.js). Those

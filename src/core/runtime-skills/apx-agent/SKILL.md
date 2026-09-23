@@ -173,6 +173,10 @@ Language: es
 
 A routine `kind: exec_agent` with `spec.agent: reviewer` uses that model.
 
+- **Empty or `inherit`** → the router default (`super_agent.model`, the #1 of the chain). It is NOT the super-agent's own model when `super_agent.self_model` is set — that one is only for the super-agent.
+- **A pinned model that fails** (429, 5xx) falls down the router's fallback chain; it does not die. Exception: a spent plan ("usage limit") on a turn nobody is watching (a2a, routine) stops and is reported instead.
+- **ChatGPT (`chatgpt-codex:`) effort** goes on the id: `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`). Without a suffix, `engines.chatgpt-codex.reasoning_effort` applies, else the backend default.
+
 ## Other surfaces (same capability, same required prompt)
 
 | Surface | Create | Set prompt | List areas/roles |

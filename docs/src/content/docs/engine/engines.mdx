@@ -130,6 +130,27 @@ The router tries `super_agent.model` first. If it fails the health check (Ollama
 the model is pulled; cloud providers check reachability within `health_timeout_ms`), it walks
 `model_fallback.models` in order and uses the first healthy one.
 
+`super_agent.model` is also what every project agent with `Model: inherit` (or no model) runs on.
+To give the super-agent a different model without moving the whole fleet, set
+`super_agent.self_model` (Settings → Super-agent → Own model). It is a preference, not a pin: it is
+health-checked and falls down the same chain.
+
+An account whose **usage limit** is spent is skipped for an hour instead of being retried on every
+turn, and turns nobody is watching (a2a, routines) stop rather than fall through — see
+[the super-agent page](/apx/docs/capabilities/super-agent/). For the ChatGPT plan, reasoning effort
+goes on the model id — `chatgpt-codex:gpt-5.6-luna@medium` (`minimal|low|medium|high|xhigh`) — or
+as a default in `engines.chatgpt-codex.reasoning_effort`.
+
+### What the calls cost
+
+Every engine call is recorded in `~/.apx/usage/<day>.jsonl` (UTC days) with its model, surface,
+agent, duration and tokens. `apx usage` summarizes a day by model, channel and agent:
+
+```bash
+apx usage                       # today
+apx usage --date 2026-09-23 --since 11
+```
+
 ## Managing the router with apx model
 
 The `apx model` subcommands let you inspect and configure the fallback router without editing

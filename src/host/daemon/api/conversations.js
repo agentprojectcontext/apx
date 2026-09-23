@@ -32,6 +32,7 @@ import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { getActiveTurnByKey, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 import { trackChannelTurn } from "../channel-turn.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
+import { MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
 import { captureToolTrace, fileA2AReply } from "#core/agent/a2a/file-reply.js";
 import { resolvePeer, peerAddress, senderAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
@@ -441,8 +442,12 @@ export function register(api, { projects, project, config, plugins, registries }
     const timeoutMs = (Number(timeout_s) || (background ? 3600 : 300)) * 1000;
     if (!fromRaw || !toRaw || !body)
       return res.status(400).json({ error: "from, to, body required" });
-    if (_depth > 3)
-      return res.status(429).json({ error: "a2a depth limit (3) exceeded" });
+    // The same wall the tools apply (send_to_agent / call_agent): the peer this
+    // opens runs at `_depth + 1`, and a chain stops at MAX_BACKGROUND_DEPTH. It
+    // used to be `_depth > 3`, which the CLI could never reach — it always sent 0
+    // — so an agent shelling out `apx send` walked straight past the wall.
+    if ((Number(_depth) || 0) + 1 >= MAX_BACKGROUND_DEPTH)
+      return res.status(429).json({ error: `a2a depth limit (${MAX_BACKGROUND_DEPTH}) exceeded` });
 
     // Urgency tag: blocker|status|fyi. Only a known tag is kept — an unknown one
     // is dropped rather than stored as a severity the detector can't map.
@@ -628,6 +633,10 @@ export function register(api, { projects, project, config, plugins, registries }
           resumeSessionId: readA2APeerSession(p.storagePath, { from, to }),
           mode,
           timeoutMs,
+          // The route has walled `_depth` since it existed, but never told the
+          // peer's turn: it ran at a2aDepth 0 and could open a fresh chain of
+          // its own from inside this one.
+          depth: (Number(_depth) || 0) + 1,
         });
 
         const replyTs = nowIso();

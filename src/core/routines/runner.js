@@ -51,6 +51,7 @@ import {
   alreadyServedChannels,
   routineOutputText,
   notifyOwnerViaRoby,
+  notifyOwnerQuotaStop,
   readAbstention,
   looksLikeAbstention,
   abstentionChannels,
@@ -157,7 +158,7 @@ async function handleExecAgent(ctx, routine) {
   if (!agent) throw new Error(`agent ${slug} not found`);
   const agentName = agent.fields?.Name || agent.name || slug;
   const config = project.config || globalConfig;
-  const model = await resolveAgentModel({ agent, config });
+  const model = await resolveAgentModel({ agent, config, autonomous: true });
   if (!model) throw new Error(`no model for agent ${slug} (no override, no router default)`);
 
   // Explicit opt-out ONLY. `spec.no_tools: true` keeps the old one-shot text
@@ -908,6 +909,13 @@ async function runRoutinePipeline(ctx, routine) {
         status = "error";
         errMsg = e.message;
         result = { status: "error", error: e.message };
+        // A spent account stops background work (agent/quota.js). A routine
+        // failure is otherwise silent — the owner has to hear about THIS one,
+        // once, or the whole fleet stops and nobody knows why.
+        if (e?.code === "QUOTA_EXHAUSTED") {
+          result.quota_stopped = true;
+          result.owner_notified = await notifyOwnerQuotaStop(runCtx, { err: e, routine });
+        }
       }
     }
   } else {
