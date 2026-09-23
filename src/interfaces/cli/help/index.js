@@ -292,7 +292,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   "agent set": topic({
     title: "apx agent set",
     summary: "Edit an existing project agent: its system prompt, identity or fields.",
-    usage: ["apx agent set <slug> [--prompt <text>|-] [--prompt-file <path>] [--name <name>] [--type <type>] [--role <role>] [--area <area>] [--icon <blob>] [--model <model>] [--language <tag>] [--description <text>] [--skills a,b] [--tools a,b] [--emoji <e>] [--autonomy <mode>] [--master] [--parent <slug>] [--project <name|id|path>]"],
+    usage: ["apx agent set <slug> [--prompt <text>|-] [--prompt-file <path>] [--name <name>] [--type <type>] [--role <role>] [--area <area>] [--icon <blob>] [--model <model>] [--language <tag>] [--description <text>] [--skills a,b] [--tools a,b] [--emoji <e>] [--autonomy <mode>] [--model-fallback|--no-model-fallback] [--master] [--parent <slug>] [--project <name|id|path>]"],
     options: [
       ["--prompt <text>", "Replace the agent's system prompt. Use `-` to read it from stdin."],
       ["--prompt-file <path>", "Replace the system prompt from a file."],
@@ -301,6 +301,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--icon <blob>", "Change the avatar blob preset."],
       ["--autonomy <mode>", "total | automatico | permiso, or `inherit` to follow the project's permission mode again."],
       ["--master / --no-master", "Give or take the lead role, independently of --type."],
+      ["--model-fallback / --no-model-fallback", "With a pinned --model: fall down the router chain when it fails (default), or fail instead."],
       ["--tools a,b", "Comma-separated tool allowlist. A declared list is a deliberate narrowing; omit the flag to leave the agent on the broad default."],
       ["--project <name|id|path>", "Edit the agent in that project instead of the one cwd is inside."],
     ],

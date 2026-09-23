@@ -133,7 +133,9 @@ the model is pulled; cloud providers check reachability within `health_timeout_m
 `super_agent.model` is also what every project agent with `Model: inherit` (or no model) runs on.
 To give the super-agent a different model without moving the whole fleet, set
 `super_agent.self_model` (Settings → Super-agent → Own model). It is a preference, not a pin: it is
-health-checked and falls down the same chain.
+health-checked and falls down the same chain, router #1 first. Switch that off with
+`super_agent.self_model_fallback: false` (the checkbox under it) to fail instead; a project agent
+pinned to its own `Model:` has the same switch (`model_fallback: false`, `apx agent set --no-model-fallback`).
 
 An account whose **usage limit** is spent is skipped for an hour instead of being retried on every
 turn, and turns nobody is watching (a2a, routines) stop rather than fall through — see

@@ -133,7 +133,9 @@ que el modelo esté descargado; los proveedores en la nube comprueban la accesib
 `super_agent.model` es también el modelo de todo agente de proyecto con `Model: inherit` (o sin modelo).
 Para darle al super-agente otro modelo sin mover a toda la flota, definí `super_agent.self_model`
 (Configuración → Super-agente → Modelo propio). Es una preferencia, no un modelo fijo: pasa por el
-health check y cae por la misma cadena.
+health check y cae por la misma cadena, empezando por el #1 del router. Apagalo con
+`super_agent.self_model_fallback: false` (el checkbox de abajo) para que falle en su lugar; un agente de
+proyecto con su propio `Model:` tiene el mismo interruptor (`model_fallback: false`, `apx agent set --no-model-fallback`).
 
 Una cuenta con el **límite de uso** agotado se saltea durante una hora en vez de reintentarse en cada
 turno, y los turnos que nadie mira (a2a, rutinas) frenan en vez de caer por la cadena — ver

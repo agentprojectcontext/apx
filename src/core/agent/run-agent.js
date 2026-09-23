@@ -291,6 +291,10 @@ export async function runAgent({
   // Why preferredModel is preferred — "content_rules" or "self_model" — so the
   // routing event says what actually picked it.
   preferredBy = "content_rules",
+  // false = the model this turn starts on is the only one it may use: no walk
+  // down the fallback chain when it fails. A pinned agent or a self_model with
+  // its fallback switched off.
+  fallback = true,
   toolSchemas,
   makeToolHandlers,
   toolHandlerCtx,
@@ -349,7 +353,7 @@ export async function runAgent({
   // straight to the fallbacks (2026-09-23: luna 429 → gemini → ollama cloud →
   // local qwen, never big-pickle).
   const routerPrimary = globalConfig?.super_agent?.model;
-  const retryChain = (isFallbackEnabled(globalConfig)
+  const retryChain = (fallback && isFallbackEnabled(globalConfig)
     ? [...new Set([
         ...(typeof routerPrimary === "string" && routerPrimary.includes(":") ? [routerPrimary] : []),
         ...fallbackModels(globalConfig),

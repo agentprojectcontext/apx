@@ -209,6 +209,11 @@ export async function runSuperAgent({
       overrideModel,
       preferredModel: contentRoute?.model || selfModel,
       preferredBy: contentRoute?.model ? "content_rules" : "self_model",
+      // super_agent.self_model_fallback: false makes its own model strict. Only
+      // when its own model is what this turn is on — a content rule or an
+      // explicit override keeps the chain.
+      fallback: !(selfModel && !contentRoute?.model && !overrideModel
+        && globalConfig?.super_agent?.self_model_fallback === false),
       toolSchemas,
       makeToolHandlers,
       toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },

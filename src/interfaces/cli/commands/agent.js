@@ -135,6 +135,22 @@ function readMasterFlag(flags) {
 }
 
 /**
+ * `--model-fallback` / `--no-model-fallback`: whether a pinned model may fall
+ * down the router chain when it fails. Same field the panel's switch writes
+ * (`model_fallback` in the frontmatter, only present when off).
+ */
+function readModelFallbackFlag(flags) {
+  if (flags?.["no-model-fallback"]) return false;
+  const raw = flags?.["model-fallback"];
+  if (raw === undefined) return undefined;
+  if (raw === true) return true;
+  const v = String(raw).trim().toLowerCase();
+  if (["true", "yes", "si", "sí", "1", "on"].includes(v)) return true;
+  if (["false", "no", "0", "off"].includes(v)) return false;
+  throw new Error(`invalid --model-fallback "${raw}" — pass --model-fallback, or --no-model-fallback to make the pinned model strict`);
+}
+
+/**
  * The agent's avatar: a blob preset key. `--icon <key>` pins one, otherwise one
  * is drawn from the presets this project isn't using yet — an agent with no
  * `Icon` renders as a grey lettered disc in every surface, which is what every
@@ -320,6 +336,13 @@ export async function cmdAgentSet(args) {
   if (autonomy !== undefined) {
     if (autonomy === null) delete fields.Autonomy;
     else fields.Autonomy = autonomy;
+    touched = true;
+  }
+
+  const modelFallback = readModelFallbackFlag(f);
+  if (modelFallback !== undefined) {
+    if (modelFallback) delete fields.Model_fallback;
+    else fields.Model_fallback = "false";
     touched = true;
   }
 

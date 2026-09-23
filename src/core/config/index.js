@@ -62,6 +62,9 @@ const DEFAULT_CONFIG = {
     // Set, it is preferred for super-agent turns only: health-checked, and on
     // failure the turn walks the same fallback chain.
     self_model: "",
+    // false → when self_model fails, the turn fails instead of walking the
+    // router chain. Default true: its own model is a preference, not a pin.
+    self_model_fallback: true,
     system: "",                         // optional override; defaults in src/core/agent/prompts/
     permission_mode: PERMISSION_MODES.AUTOMATICO,       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
