@@ -86,6 +86,10 @@ export async function runSuperAgent({
   // "third_party" forces the turn tool-free and swaps the whole system prompt
   // for buildThirdPartySystem's, which shares none of that.
   audience = "owner",
+  // What the channel wants a third-party turn to know about THIS turn (e.g.
+  // that the last reply failed). Kept apart from `contextNote`, which is owner
+  // context and never reaches a stranger's prompt.
+  channelNote = "",
   // Channel-specific confirmation handler. See run-agent.js for contract.
   // Null disables human-in-the-loop (tools that need confirmation fail
   // immediately instead of waiting for user input).
@@ -168,6 +172,7 @@ export async function runSuperAgent({
     lazyToolsBlock: buildLazyToolsBlock(toolSession),
     skipSkillsHint,
     audience,
+    channelNote,
   });
 
   const toolSchemas = noTools ? [] : toolSession.initialSchemas;

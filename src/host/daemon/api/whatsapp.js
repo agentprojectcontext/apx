@@ -6,6 +6,7 @@
 //   PATCH  /whatsapp/settings                   — enabled / auto_reply / groups / project
 //   POST   /whatsapp/send        { jid, text }  — explicit send
 //   POST   /whatsapp/choose  { jid, option }     — tap an option on the last menu
+//   POST   /whatsapp/follow-up { who }          — pick a conversation back up
 //   GET    /whatsapp/repair                     — what is wrong with the chats
 //   POST   /whatsapp/repair  { dry_run, force }  — fix it
 //   GET    /whatsapp/contacts                   — the roster
@@ -110,6 +111,23 @@ export function register(api, { plugins }) {
     const r = await p.chooseOption(jid, option, { asText: req.body?.as_text === true });
     if (r?.ok === false) return res.status(400).json(r);
     res.json({ ok: true, jid, ...(r?.id ? { message_id: r.id } : {}) });
+  }));
+
+  // ---- follow-up -----------------------------------------------------
+  //
+  // Answers 202 once it knows who and where: the turn itself reads the thread
+  // and may take minutes, and the reply lands in WhatsApp, not in this body.
+  api.post("/whatsapp/follow-up", asyncRoute(async (req, res) => {
+    const p = wa();
+    if (!p) return unavailable(res);
+    const who = String(req.body?.who || "").trim();
+    if (!who) return res.status(400).json({ error: "who is required (a JID, a number or a roster name)" });
+    try {
+      const r = await p.followUp(who);
+      res.status(r.busy ? 200 : 202).json(r);
+    } catch (e) {
+      res.status(/not connected/.test(e.message) ? 503 : 404).json({ error: e.message });
+    }
   }));
 
   // ---- repair --------------------------------------------------------

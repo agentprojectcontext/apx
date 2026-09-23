@@ -41,6 +41,22 @@ sealed turn has no tools, so it could not escalate even if it wanted to.
   without its own limit one stranger sending a hundred messages would be a hundred notifications.
 </Aside>
 
+### When no model can answer
+
+A turn has no time limit: a WhatsApp chat goes at its own pace, and a reply that takes three
+minutes beats a fixed sentence that ignores the question. A call that hangs is cut per engine
+call (the provider silence timeout) and the chain moves on.
+
+If every model in the chain fails, **nothing is sent** — never a canned "I can't answer right now".
+The conversation stays *owed* a reply: APX retries after 2, 10 and 30 minutes, and each retry
+reads the whole thread and is told, as a fact, that its reply system failed; the wording is the
+model's. The owner is told on the first failure and when the retries run out. After a restart, or
+whenever you want a thread taken up again, pick it up by hand:
+
+```bash
+apx whatsapp follow-up Carla     # a roster name, a number or a JID
+```
+
 ## Pair an account
 
 <Steps>
@@ -255,6 +271,7 @@ apx whatsapp chats             # what is wrong — changes nothing
 apx whatsapp repair            # fix it
 apx whatsapp repair --dry-run  # ...or see it first
 apx whatsapp repair --force    # retry messages a phone that was offline never sent back
+apx whatsapp follow-up <contact>  # have the agent pick a conversation back up
 apx whatsapp status
 ```
 

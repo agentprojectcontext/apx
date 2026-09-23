@@ -99,3 +99,14 @@ export async function cmdWhatsAppRepair(args) {
     (r.connected ? "" : " (whatsapp is not connected — a message can only come back from the phone)")
   );
 }
+
+export async function cmdWhatsAppFollowUp(args, { die }) {
+  const who = args._.join(" ").trim();
+  if (!who) die("usage: apx whatsapp follow-up <contact>   (a JID, a phone number or a roster name)");
+  const r = await http.post("/api/whatsapp/follow-up", { who });
+  if (r.busy) {
+    console.log(`⏳ ${r.name}: a turn is already running in that chat — it answers from the same thread.`);
+    return;
+  }
+  console.log(`✅ ${r.name}: picked up. The agent is reading the thread and will answer in WhatsApp.`);
+}

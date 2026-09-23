@@ -11,7 +11,7 @@
 // report is emitted by the daemon, from code, after the turn, so it happens
 // whether or not the model thought of it.
 import { createWhatsAppSession, SESSION_STATES, hasWhatsAppCredentials } from "#core/channels/whatsapp/session.js";
-import { handleWhatsAppMessage, handleOwnWhatsAppMessage } from "#core/channels/whatsapp/dispatch.js";
+import { handleWhatsAppMessage, handleOwnWhatsAppMessage, followUpWhatsApp } from "#core/channels/whatsapp/dispatch.js";
 import { readWhatsAppConfig, patchWhatsAppConfig } from "#core/channels/whatsapp/config.js";
 import { learnWhatsAppNames, normalizeJid } from "#core/identity/whatsapp.js";
 import { sendWhatsApp, chooseWhatsAppOption } from "#core/channels/whatsapp/outbox.js";
@@ -189,6 +189,21 @@ export default {
        */
       async repair({ dryRun = false, force = false } = {}) {
         return repairWhatsAppChats({ cfg: config, session, dryRun, force, log });
+      },
+      /**
+       * Pick a conversation back up — the reply our side failed to give, or
+       * any thread the owner wants taken up again. Resolves who and where at
+       * once; the turn itself runs in the background.
+       */
+      async followUp(who) {
+        if (!session) throw new Error("whatsapp is not connected");
+        const plan = await followUpWhatsApp(who, {
+          session, globalConfig: config, projects, plugins, registries, log, notifyOwner,
+        });
+        if (!plan.busy) {
+          plan.run().catch((e) => log(`whatsapp follow-up failed for ${plan.name}: ${e.message}`));
+        }
+        return { name: plan.name, chat_jid: plan.chat_jid, busy: plan.busy, started: !plan.busy };
       },
       async react(jid, key, emoji) {
         if (!session) throw new Error("whatsapp is not connected");
