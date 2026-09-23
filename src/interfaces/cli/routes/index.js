@@ -44,6 +44,7 @@ export const ROUTES = Object.freeze({
   "routines": () => import("./routine.js"),
   "artifact": () => import("./artifact.js"),
   "artifacts": () => import("./artifact.js"),
+  "auth": () => import("./auth.js"),
   "task": () => import("./task.js"),
   "tasks": () => import("./task.js"),
   "commitment": () => import("./commitment.js"),

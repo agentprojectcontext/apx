@@ -4,10 +4,11 @@ import { Section } from "../Section";
 import { Button, Empty, Loading } from "../ui";
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
-import { ENGINE_OPTIONS } from "./providers/typeStyles";
+import { ENGINE_OPTIONS, ENGINE_PRESETS } from "./providers/typeStyles";
 import { ProviderCard } from "./providers/ProviderCard";
 import { ProviderModal, type ProviderSaveResult } from "./providers/ProviderModal";
 import { ProviderTestDialog } from "./providers/ProviderTestDialog";
+import { PlanLoginDialog } from "./providers/PlanLoginDialog";
 import type { Provider } from "./providers/types";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { t } from "../../i18n";
@@ -17,8 +18,19 @@ import { t } from "../../i18n";
 // file every one of them as "custom".
 const isKnownEngine = (slug: string) => ENGINE_OPTIONS.some((o) => o.value === slug);
 
+function isPlanProvider(p: Provider) {
+  return (
+    p.engine === "codex-plus"
+    || p.engine === "claude-subscription"
+    || p.slug === "chatgpt-codex"
+    || p.slug === "claude-subscription"
+    || p.slug === "especial"
+  );
+}
+
 function toProvider(slug: string, v: Record<string, unknown>): Provider {
   const engine = (typeof v.engine === "string" && v.engine) || (isKnownEngine(slug) ? slug : "custom");
+  const presetLocked = !!(ENGINE_PRESETS as Record<string, { locked?: boolean }>)[engine]?.locked;
   return {
     slug,
     name: typeof v.name === "string" ? v.name : undefined,
@@ -30,10 +42,27 @@ function toProvider(slug: string, v: Record<string, unknown>): Provider {
     default_max_tokens: typeof v.default_max_tokens === "number" ? v.default_max_tokens : undefined,
     is_active: typeof v.is_active === "boolean" ? v.is_active : undefined,
     thinking: typeof v.thinking === "boolean" ? v.thinking : undefined,
+    locked: v.locked === true || presetLocked,
     context_limit_tokens: typeof v.context_limit_tokens === "number" ? v.context_limit_tokens : undefined,
     model_context_limits: (v.model_context_limits as Record<string, number>) || undefined,
     pricing: (v.pricing as Provider["pricing"]) || undefined,
   };
+}
+
+/** Locked / plan providers first (ChatGPT/Codex, Claude), then the rest. */
+function sortProviders(list: Provider[]): Provider[] {
+  const fixedRank = (p: Provider) => {
+    if (p.slug === "chatgpt-codex" || p.slug === "especial") return 0;
+    if (p.slug === "claude-subscription") return 1;
+    if (p.locked) return 2;
+    return 3;
+  };
+  return [...list].sort((a, b) => {
+    const ra = fixedRank(a);
+    const rb = fixedRank(b);
+    if (ra !== rb) return ra - rb;
+    return 0;
+  });
 }
 
 export function EnginesPanel() {
@@ -43,18 +72,26 @@ export function EnginesPanel() {
   const [editing, setEditing] = useState<Provider | null>(null);
   const [testing, setTesting] = useState<Provider | null>(null);
   const [confirm, setConfirm] = useState<Provider | null>(null);
+  const [loginProvider, setLoginProvider] = useState<Provider | null>(null);
+  const [loginKey, setLoginKey] = useState(0);
 
   if (isLoading) return <Loading />;
 
   const engines = (config.engines || {}) as unknown as Record<string, Record<string, unknown>>;
-  const providers = Object.entries(engines).map(([slug, v]) => toProvider(slug, v || {}));
+  const providers = sortProviders(Object.entries(engines).map(([slug, v]) => toProvider(slug, v || {})));
   const slugs = providers.map((p) => p.slug);
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
-  const openEdit = (p: Provider) => { setEditing(p); setModalOpen(true); };
+  const openEdit = (p: Provider) => {
+    if (isPlanProvider(p)) {
+      setLoginProvider(p);
+      return;
+    }
+    setEditing(p);
+    setModalOpen(true);
+  };
 
   const save = async ({ provider, apiKeyValue, raw }: ProviderSaveResult) => {
-    // JSON mode: replace the whole engines.<slug> block with the parsed object.
     if (raw) {
       await patch({ [`engines.${provider.slug}`]: raw });
       toast.success(t("engines_panel.saved_json"));
@@ -69,10 +106,12 @@ export function EnginesPanel() {
       [`${base}.default_temperature`]: provider.default_temperature,
       [`${base}.default_max_tokens`]: provider.default_max_tokens,
     };
+    if (provider.locked) set[`${base}.locked`] = true;
     const unset: string[] = [];
-    const opt = (key: string, val: unknown) => { if (val === undefined || val === "" ) unset.push(`${base}.${key}`); else set[`${base}.${key}`] = val; };
-    // Only the "off" state is stored. Leaving the key out is what tells the
-    // adapter to send nothing and let the provider decide.
+    const opt = (key: string, val: unknown) => {
+      if (val === undefined || val === "") unset.push(`${base}.${key}`);
+      else set[`${base}.${key}`] = val;
+    };
     if (provider.thinking === false) set[`${base}.thinking`] = false;
     else unset.push(`${base}.thinking`);
     opt("base_url", provider.base_url);
@@ -91,30 +130,51 @@ export function EnginesPanel() {
     try {
       await patch({ [`engines.${p.slug}.is_active`]: !(p.is_active !== false) });
       mutate();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const doRemove = async () => {
     if (!confirm) return;
+    if (confirm.locked) {
+      toast.error(t("providers_modal.locked"));
+      setConfirm(null);
+      return;
+    }
     try {
       await patch(undefined, [`engines.${confirm.slug}`]);
       toast.success(t("engines_panel.deleted"));
       mutate();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
     <Section
       title={t("engines_panel.title")}
       description={t("engines_panel.description")}
-      action={<Button size="sm" variant="primary" onClick={openCreate}><Plus size={14} /> {t("engines_panel.new_btn")}</Button>}
+      action={
+        <Button size="sm" variant="primary" onClick={openCreate}>
+          <Plus size={14} /> {t("engines_panel.new_btn")}
+        </Button>
+      }
     >
       {providers.length === 0 ? (
         <Empty icon={Cpu}>{t("engines_panel.empty")}</Empty>
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((p) => (
-            <ProviderCard key={p.slug} provider={p} onEdit={() => openEdit(p)} onDelete={() => setConfirm(p)} onToggle={() => toggle(p)} onTest={() => setTesting(p)} />
+            <ProviderCard
+              key={`${p.slug}-${isPlanProvider(p) ? loginKey : 0}`}
+              provider={p}
+              onEdit={() => openEdit(p)}
+              onDelete={() => setConfirm(p)}
+              onToggle={() => toggle(p)}
+              onTest={() => setTesting(p)}
+              onLogin={() => setLoginProvider(p)}
+            />
           ))}
           <button
             type="button"
@@ -129,11 +189,24 @@ export function EnginesPanel() {
 
       <ProviderTestDialog open={!!testing} provider={testing} onClose={() => setTesting(null)} />
 
+      <PlanLoginDialog
+        open={!!loginProvider}
+        provider={loginProvider}
+        onClose={() => setLoginProvider(null)}
+        onDone={() => {
+          setLoginKey((k) => k + 1);
+          mutate();
+        }}
+      />
+
       <ProviderModal
         open={modalOpen}
         initial={editing}
         existingSlugs={slugs}
-        onClose={() => { setModalOpen(false); setEditing(null); }}
+        onClose={() => {
+          setModalOpen(false);
+          setEditing(null);
+        }}
         onSave={save}
       />
 

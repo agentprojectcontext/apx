@@ -7,6 +7,7 @@ import path from "node:path";
 import { APX_HOME, CONFIG_PATH, syncPaths } from "./paths.js";
 import { PERMISSION_MODES } from "../constants/permissions.js";
 import { agentsMdFile, apcProjectFile } from "../apc/paths.js";
+import { ensureFixedEngines } from "../engines/fixed-providers.js";
 
 export {
   APX_HOME,
@@ -161,6 +162,15 @@ const DEFAULT_CONFIG = {
     openrouter: { api_key: "", base_url: "https://openrouter.ai/api/v1" },
     gemini: { api_key: "" },
     ollama: { base_url: "http://localhost:11434" },
+    // Fixed ChatGPT/Codex plan bridge — always present; see fixed-providers.js.
+    "chatgpt-codex": {
+      name: "ChatGPT/Codex",
+      engine: "codex-plus",
+      locked: true,
+      is_active: true,
+      default_model: "gpt-5.6-luna",
+      base_url: "https://chatgpt.com/backend-api/codex",
+    },
   },
   memory: {
     // Cross-channel memory subsystem (RAG + progressive compaction + broker).
@@ -445,7 +455,7 @@ export function mergeDefaults(cfg) {
         ...(cfg.super_agent?.judge || {}),
       },
     },
-    engines: {
+    engines: ensureFixedEngines({
       ...DEFAULT_CONFIG.engines,
       ...(cfg.engines || {}),
       anthropic: { ...DEFAULT_CONFIG.engines.anthropic, ...(cfg.engines?.anthropic || {}) },
@@ -454,7 +464,7 @@ export function mergeDefaults(cfg) {
       openrouter: { ...DEFAULT_CONFIG.engines.openrouter, ...(cfg.engines?.openrouter || {}) },
       gemini:    { ...DEFAULT_CONFIG.engines.gemini,    ...(cfg.engines?.gemini    || {}) },
       ollama:    { ...DEFAULT_CONFIG.engines.ollama,    ...(cfg.engines?.ollama    || {}) },
-    },
+    }),
     memory: {
       ...DEFAULT_CONFIG.memory,
       ...(cfg.memory || {}),
