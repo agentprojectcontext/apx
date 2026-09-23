@@ -33,9 +33,9 @@
     },
     "daily_schedule": {
       "type": "string",
-      "default": "15 8 * * *",
+      "default": "15 8 * * 1-5",
       "title": "Daily pulse",
-      "description": "Cron for the daily pulse. It has to fall OUTSIDE quiet hours, or the guard holds every single run and the layer looks dead."
+      "description": "Cron for the daily pulse, weekdays by default — a weekend with nothing moving is two runs that only cost. It has to fall OUTSIDE quiet hours, or the guard holds every single run and the layer looks dead."
     },
     "weekly_schedule": {
       "type": "string",
