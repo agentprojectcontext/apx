@@ -239,52 +239,75 @@ test("zen: a free model is streamed even when no caller asked for tokens", async
   }
 });
 
-test("zen: an agent without shell+read is told why, instead of a bare 403", async () => {
+test("zen: a narrow agent is served too — the gate's tools go out as placeholders that run nothing", async () => {
   const { default: zen } = await import("#core/engines/zen.js");
 
-  let called = false;
+  // april, the secretary crons, a company exec: a short, deliberate tool list
+  // with no shell. They used to be refused here and skipped the router's #1.
+  let body = null;
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => { called = true; return zenResponse(); };
-
+  globalThis.fetch = async (_url, opts) => {
+    body = JSON.parse(opts.body);
+    // The model calls a placeholder anyway, and the agent's real tool.
+    return zenResponse("", [{
+      choices: [{
+        delta: {
+          tool_calls: [
+            { index: 0, id: "c1", type: "function", function: { name: "bash", arguments: "{}" } },
+            { index: 1, id: "c2", type: "function", function: { name: "send_telegram", arguments: "{}" } },
+          ],
+        },
+        finish_reason: "tool_calls",
+      }],
+    }]);
+  };
   try {
-    await assert.rejects(
-      zen.chat({
-        model: "big-pickle",
-        messages: [{ role: "user", content: "hola" }],
-        tools: [{ type: "function", function: { name: "send_telegram" } }],
-        config: { api_key: "zen-key" },
-      }),
-      // Names the models's own tools, not the gateway's — the reader has to fix
-      // the agent, and "run_shell" is what they will search the config for.
-      /run_shell|read_file/,
-    );
-    assert.equal(called, false, "and the doomed request is never sent");
+    const r = await zen.chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "hola" }],
+      tools: [{ type: "function", function: { name: "send_telegram" } }],
+      config: { api_key: "zen-key" },
+    });
+    assert.deepEqual(body.tools.map((t) => t.function.name), ["send_telegram", "bash", "read"]);
+    assert.notEqual(body.tool_choice, "none", "its real tools stay callable");
+    // A placeholder is NEVER mapped back to run_shell: under its wire name no
+    // handler answers it, and the loop refuses it as an unknown tool.
+    assert.deepEqual(r.tool_calls.map((c) => c.function.name), ["bash", "send_telegram"]);
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("zen: a narrow agent rotates to the next model instead of failing the run", async () => {
+test("zen: an agent with only one of the two gets the other as a placeholder", async () => {
   const { default: zen } = await import("#core/engines/zen.js");
-  const { isRetryableEngineError } = await import("#core/agent/retry.js");
-
-  // The agents this hits are the well-built ones: april and the secretary crons
-  // declare three or four tools on purpose. Handing them a shell to satisfy a
-  // gateway check would be the wrong trade, and killing their run because the
-  // PRIMARY model cannot serve them is what the fallback chain exists to avoid.
-  const err = await zen
-    .chat({
+  let body = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    body = JSON.parse(opts.body);
+    return zenResponse("", [{
+      choices: [{
+        delta: { tool_calls: [
+          { index: 0, id: "c1", type: "function", function: { name: "read", arguments: "{}" } },
+          { index: 1, id: "c2", type: "function", function: { name: "bash", arguments: "{}" } },
+        ] },
+        finish_reason: "tool_calls",
+      }],
+    }]);
+  };
+  try {
+    const r = await zen.chat({
       model: "big-pickle",
       messages: [{ role: "user", content: "hola" }],
-      tools: [{ type: "function", function: { name: "call_mcp" } }],
+      tools: [{ type: "function", function: { name: "read_file" } }],
       config: { api_key: "zen-key" },
-    })
-    .then(() => null, (e) => e);
-
-  assert.ok(err, "it still refuses to send a request the gateway would 403");
-  assert.equal(isRetryableEngineError(err), true, "but the chain walks on");
+    });
+    assert.deepEqual(body.tools.map((t) => t.function.name), ["read", "bash"]);
+    // The real one comes back under APX's name; the placeholder does not.
+    assert.deepEqual(r.tool_calls.map((c) => c.function.name), ["read_file", "bash"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
-
 test("retry: an adapter's own verdict beats the message heuristic", async () => {
   const { isRetryableEngineError } = await import("#core/agent/retry.js");
 

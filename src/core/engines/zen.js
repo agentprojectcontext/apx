@@ -29,10 +29,11 @@ import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 //
 // APX has both capabilities, under its own names — `run_shell` and
 // `read_file` — so nothing is invented here: WIRE_ALIAS renames those two on
-// the wire and names them back on the way in, and an agent granted neither
-// gets a readable error instead of the gateway's. What is NOT done is
-// declaring a `bash` the agent does not have: the model would call it and
-// the loop would have nothing to dispatch.
+// the wire and names them back on the way in. An agent granted neither (or a
+// call with no tools at all) still gets the declarations, as placeholders:
+// never mapped back to a real tool, so a call to one reaches the loop under a
+// name no handler answers and is refused there. Every model has to serve every
+// agent — a free #1 that silently skipped half of them was not a router.
 //
 // This gate has moved three times (429 on the UA, 400 MissingSessionID, now
 // this) and every move broke every agent pointed at a zen model at once. It
@@ -228,30 +229,36 @@ export default {
       throw e;
     }
 
-    const tools = args.tools.map(toWire);
-    const names = new Set((tools || []).map((t) => t?.function?.name));
-    const missing = REQUIRED_WIRE_TOOLS.filter((n) => !names.has(n));
-    if (missing.length) {
-      // A narrow agent — one whose allowed_tools is a short, deliberate list —
-      // cannot satisfy the gate, and giving it a shell just to get past a
-      // gateway check would be the wrong trade every time. So this is not the
-      // agent's problem to fix: it is this MODEL being unable to serve this
-      // call, which is what the fallback chain is for. Marked retryable so the
-      // turn continues on the next model instead of dying here; the message is
-      // still specific, because it is what a one-model install will read.
-      const e = new Error(
-        `zen: ${args.model} es free tier y el gateway sólo contesta a un pedido que ` +
-          `declare ${REQUIRED_WIRE_TOOLS.join(" y ")} — a este agente le faltan ` +
-          `${missing.map((n) => APX_NAME[n] || n).join(", ")}. Rotando al siguiente ` +
-          `modelo de la cadena; para usar zen acá, dale esas tools o elegí un modelo pago.`
-      );
-      e.retryable = true;
-      throw e;
-    }
+    const wired = args.tools.map(toWire);
+    const names = new Set(wired.map((t) => t?.function?.name));
+    // A narrow agent — april, the secretary crons, a company exec — carries a
+    // short, deliberate tool list without a shell or a file reader. The gate
+    // still wants `bash` and `read` declared, so the missing ones go out as
+    // placeholders the model is told not to use. They are NOT mapped back to
+    // run_shell/read_file: a call to one arrives under its wire name, which no
+    // handler answers, and the loop tells the model "unknown tool" — nothing
+    // the agent was not granted can run. This used to throw, and every such
+    // agent skipped the router's #1 for whatever came after it.
+    const placeholders = REQUIRED_WIRE_TOOLS.filter((n) => !names.has(n));
+    const tools = [
+      ...wired,
+      ...placeholders.map((name) => ({
+        type: "function",
+        function: {
+          name,
+          description: "Not available in this conversation. Never call it.",
+          parameters: { type: "object", properties: {} },
+        },
+      })),
+    ];
+    const placeholderSet = new Set(placeholders);
 
     const out = await base.chat({ ...args, tools });
     if (!out?.tool_calls?.length) return out;
-    return { ...out, tool_calls: out.tool_calls.map(fromWire) };
+    return {
+      ...out,
+      tool_calls: out.tool_calls.map((c) => (placeholderSet.has(c?.function?.name) ? c : fromWire(c))),
+    };
   },
 
   async health(config = {}, { timeoutMs = 800, candidateModel = null } = {}) {
