@@ -1,3 +1,11 @@
+## [1.117.1](https://github.com/agentprojectcontext/apx/compare/v1.117.0...v1.117.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **engines:** un proveedor inalcanzable ("fetch failed") pasa al siguiente de la cadena en vez de cortar el turno ([8dc18b1](https://github.com/agentprojectcontext/apx/commit/8dc18b1f875e1ba0478222dd181a2d5a4a060ba2))
+* **whatsapp:** un chat no tiene tope de tiempo ni frases fijas; si no hay modelo la respuesta queda debida y se reintenta leyendo el hilo ([489c590](https://github.com/agentprojectcontext/apx/commit/489c59058facc421d05f37b4a247c6e5103d015a))
+
 # [1.117.0](https://github.com/agentprojectcontext/apx/compare/v1.116.0...v1.117.0) (2026-09-23)
 
 
