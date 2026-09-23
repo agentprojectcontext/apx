@@ -303,3 +303,17 @@ test("a failing system is reported, not routed around", () => {
   assert.match(a2a, /do not hand it to another agent to retry/);
   assert.match(a2a, /Do not acknowledge an answer/);
 });
+
+// The panel's "Extra prompt" REPLACED the whole base while its hint said it
+// was prepended: one sentence typed there dropped every tool, safety and
+// reporting rule. It is additive and framed as the owner's extra indications.
+test("the owner's extra prompt adds to the base instead of replacing it", () => {
+  const withExtra = buildSuperAgentSystem({
+    globalConfig: { super_agent: { system: "Respondé siempre en voseo." } },
+    channel: "web", channelMeta: {}, projects: null,
+  });
+  assert.ok(withExtra.includes(loadDefaultSystemPrompt()), "the base is still all there");
+  assert.match(withExtra, /# Extra indications from the owner/);
+  assert.match(withExtra, /do not replace it/);
+  assert.match(withExtra, /Respondé siempre en voseo\./);
+});

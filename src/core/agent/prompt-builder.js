@@ -475,10 +475,19 @@ export function buildSuperAgentSystem({
   const channelLow = String(channel || "").toLowerCase();
   const voice = !!channelMeta?.voice || channelLow === "voice";
 
-  // The super-agent's identity from config overrides the file-based delta when
-  // sa.system is set explicitly (user tweaked the system prompt). Otherwise
-  // we layer agent-base + super-agent role.
-  const roleBlock = sa.system || [AGENT_BASE, SUPER_AGENT_ROLE].join("\n\n");
+  // The base is ALWAYS agent-base + super-agent role: it is what gives the
+  // super-agent its axis (tools, discipline, how to report). `sa.system` — the
+  // panel's "Extra prompt" — used to REPLACE it whole while the panel said it
+  // was prepended, so a sentence typed there silently dropped every rule the
+  // base carries. It is additive now, and framed as what it is: the owner's
+  // extra indications on top of the role, never a substitute for it.
+  const roleBlock = [AGENT_BASE, SUPER_AGENT_ROLE].join("\n\n");
+  const ownerExtra = sa.system && String(sa.system).trim()
+    ? "# Extra indications from the owner\n" +
+      "These add to your base role above; they do not replace it. Where they " +
+      "conflict with it on tone or preference, follow these; your tool, safety " +
+      "and reporting rules still hold.\n\n" + String(sa.system).trim()
+    : "";
 
   // Additive personalization layered ON TOP of the role (unlike sa.system,
   // which fully replaces it). Lets the owner give the super-agent durable
@@ -526,6 +535,7 @@ export function buildSuperAgentSystem({
     // owner writes themselves must win on recency).
     buildProfileBlock(identity, globalConfig),
     customInstructions,
+    ownerExtra,
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,
     relationshipBlock,
