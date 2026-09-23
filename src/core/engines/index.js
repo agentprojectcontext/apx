@@ -100,6 +100,27 @@ export async function callEngine({ modelId, system, messages, config, temperatur
   // `mock` is the test engine: recording it would fill a developer's real
   // usage log with fake calls from any test run without an APX_HOME sandbox.
   const record = (row) => { if (adapter.id !== "mock") recordLlmCall({ modelId, ...row, attribution }); };
+
+  // A call that goes quiet is cut here, the same way for every provider. Before
+  // this the only limit was Node's own 300 s wait for response headers, and it
+  // surfaced as a bare "fetch failed" nobody could read and the chain did not
+  // rotate on: a local model given a 15k-token prompt with tools (no streaming)
+  // held a routine — and the queue behind it — for five minutes, then failed.
+  // The clock restarts on every streamed token, so a long answer that is
+  // arriving is never cut; only silence is.
+  const timeoutMs = engineTimeoutMs(config, provider);
+  const ctrl = new AbortController();
+  let timedOut = false;
+  let timer = null;
+  const arm = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, timeoutMs);
+  };
+  const onCallerAbort = () => ctrl.abort();
+  if (signal?.aborted) ctrl.abort();
+  else signal?.addEventListener?.("abort", onCallerAbort, { once: true });
+  const progress = (fn) => (typeof fn === "function" ? (...args) => { arm(); return fn(...args); } : fn);
+  arm();
   try {
     const out = await adapter.chat({
       system,
@@ -110,18 +131,47 @@ export async function callEngine({ modelId, system, messages, config, temperatur
       tools,
       toolChoice,
       config: providerCfg,
-      signal,
-      onToken,
-      onReasoningToken,
+      signal: ctrl.signal,
+      onToken: progress(onToken),
+      onReasoningToken: progress(onReasoningToken),
     });
     record({ ms: Date.now() - started, ok: true, usage: out?.usage });
     return out;
   } catch (e) {
-    if (e?.name !== "AbortError") {
-      record({ ms: Date.now() - started, ok: false, error: e?.message || e });
+    // Ours, not the caller's: say what happened and let the chain rotate.
+    const err = timedOut && !signal?.aborted
+      ? Object.assign(new Error(`${modelId}: no answer within ${Math.round(timeoutMs / 1000)} s`), {
+          code: "ENGINE_TIMEOUT",
+          retryable: true,
+          cause: e,
+        })
+      : e;
+    if (err?.name !== "AbortError") {
+      record({ ms: Date.now() - started, ok: false, error: err?.message || err });
     }
-    throw e;
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener?.("abort", onCallerAbort);
   }
+}
+
+/** Default silence budget for one engine call. Under Node's 300 s headers wait
+ *  on purpose, so the clear error below fires before the opaque one. */
+export const ENGINE_TIMEOUT_S = 180;
+
+/**
+ * How long one call to `provider` may go without a byte of answer:
+ * `engines.<slug>.timeout_s` → `super_agent.engine_timeout_s` → ENGINE_TIMEOUT_S.
+ * Per provider because "slow" is a property of where the model runs (a local
+ * box, a busy gateway), not of APX.
+ */
+export function engineTimeoutMs(config, provider) {
+  const pick = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
+  const s = pick(config?.engines?.[provider]?.timeout_s)
+    ?? pick(config?.super_agent?.engine_timeout_s)
+    ?? ENGINE_TIMEOUT_S;
+  return s * 1000;
 }
 
 export const ENGINE_IDS = Object.keys(ADAPTERS);
