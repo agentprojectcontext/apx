@@ -295,6 +295,12 @@ export async function runAgent({
   // down the fallback chain when it fails. A pinned agent or a self_model with
   // its fallback switched off.
   fallback = true,
+  // Models the OWNER chose for this turn, tried in order after the one it
+  // starts on and BEFORE the router: a routine's model falls back to its
+  // agent's own model, and only then to the router (see routines/runner.js).
+  // Because they are the owner's choice, a spent account on an unwatched turn
+  // still moves on to them; it stops only where the router chain would begin.
+  retryFirst = [],
   toolSchemas,
   makeToolHandlers,
   toolHandlerCtx,
@@ -332,11 +338,17 @@ export async function runAgent({
   // ran dry — see quota.js. Two ways to be there: the model it was pinned to
   // is itself cooling down, or the router skipped a spent account to get here.
   const autonomous = isAutonomousChannel(toolHandlerCtx?.channel);
-  if (autonomous) {
+  const explicitModels = [...new Set((retryFirst || []).filter((m) => typeof m === "string" && m.includes(":")))];
+  {
     const pinned = quotaCooldown(activeModel);
     const skipped = (routing.tried || []).find((t) => t.quota);
-    if (pinned) throw quotaStopError(activeModel, pinned.reason, pinned.until);
-    if (skipped) throw quotaStopError(skipped.modelId, skipped.quota.reason, skipped.quota.until);
+    if (pinned || skipped) {
+      // The owner's next choice, when there is one, before the router's.
+      const alt = explicitModels.find((m) => m !== activeModel && !quotaCooldown(m));
+      if (alt) activeModel = alt;
+      else if (autonomous && pinned) throw quotaStopError(activeModel, pinned.reason, pinned.until);
+      else if (autonomous && skipped) throw quotaStopError(skipped.modelId, skipped.quota.reason, skipped.quota.until);
+    }
   }
 
   // Build the chain to walk on retryable failures: everything in
@@ -353,12 +365,14 @@ export async function runAgent({
   // straight to the fallbacks (2026-09-23: luna 429 → gemini → ollama cloud →
   // local qwen, never big-pickle).
   const routerPrimary = globalConfig?.super_agent?.model;
-  const retryChain = (fallback && isFallbackEnabled(globalConfig)
-    ? [...new Set([
+  const routerChain = fallback && isFallbackEnabled(globalConfig)
+    ? [
         ...(typeof routerPrimary === "string" && routerPrimary.includes(":") ? [routerPrimary] : []),
         ...fallbackModels(globalConfig),
-      ])]
-    : []).filter((m) => {
+      ]
+    : [];
+  const explicitSet = new Set(explicitModels);
+  const retryChain = [...new Set([...explicitModels, ...routerChain])].filter((m) => {
     if (m === activeModel) return false;
     if (triedHealth.get(m) === false) return false;
     return true;
@@ -631,8 +645,12 @@ export async function runAgent({
         if (isQuotaExhaustedError(e)) {
           markQuotaExhausted(activeModel, e, { config: globalConfig });
           if (autonomous) {
-            const cool = quotaCooldown(activeModel);
-            throw quotaStopError(activeModel, e.message, cool?.until);
+            // Only the owner's own choices are still fair game here.
+            while (retryChain.length && explicitSet.has(retryChain[0]) && quotaCooldown(retryChain[0])) retryChain.shift();
+            if (!(retryChain.length && explicitSet.has(retryChain[0]))) {
+              const cool = quotaCooldown(activeModel);
+              throw quotaStopError(activeModel, e.message, cool?.until);
+            }
           }
         }
         if (!allowRetry || retryChain.length === 0 || !isRetryableEngineError(e)) throw e;

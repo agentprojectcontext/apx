@@ -118,6 +118,13 @@ apx routine add digest \
 Overrides the global `super_agent.permission_mode` for this routine:
 `total` | `automatico` | `permiso`.
 
+### Which model runs it
+
+A routine runs on its agent's own model (`exec_agent`) or the super-agent's own model, and falls
+back to the router. To give one job a different model, set `--model provider:model` (`spec.model`,
+panel: **Routine model**). If that model fails, the run continues with the agent's own model, then
+the router — a routine model is a choice for that job, it never replaces the agent's.
+
 ## Other subcommands
 
 ```bash

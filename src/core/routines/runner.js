@@ -148,6 +148,15 @@ function runProgressEvents(runId) {
   };
 }
 
+/**
+ * The model a routine asks for itself (`spec.model`), or null. Only a full
+ * `provider:model` id counts; anything else means "the agent's own".
+ */
+export function routineModelOf(routine) {
+  const m = routine?.spec?.model;
+  return typeof m === "string" && m.includes(":") && m.trim().toLowerCase() !== "inherit" ? m.trim() : null;
+}
+
 async function handleExecAgent(ctx, routine) {
   const { project, globalConfig, projects, plugins, registries } = ctx;
   const { agent: slug, prompt } = routine.spec;
@@ -158,8 +167,14 @@ async function handleExecAgent(ctx, routine) {
   if (!agent) throw new Error(`agent ${slug} not found`);
   const agentName = agent.fields?.Name || agent.name || slug;
   const config = project.config || globalConfig;
-  const model = await resolveAgentModel({ agent, config, autonomous: true });
+  // The chain, in the order the owner set it: this routine's own model
+  // (`spec.model`), then the agent's own pinned model, then the router. A
+  // routine model is a choice for THIS job — it does not replace the agent's.
+  const routineModel = routineModelOf(routine);
+  const agentPinned = agentForcedModel(agent);
+  const model = routineModel || await resolveAgentModel({ agent, config, autonomous: true });
   if (!model) throw new Error(`no model for agent ${slug} (no override, no router default)`);
+  const retryFirst = routineModel && agentPinned && agentPinned !== routineModel ? [agentPinned] : [];
 
   // Explicit opt-out ONLY. `spec.no_tools: true` keeps the old one-shot text
   // path (weather-style "write a sentence, post_commands send it").
@@ -253,7 +268,8 @@ async function handleExecAgent(ctx, routine) {
       system,
       prompt,
       overrideModel: model,
-      fallback: agentForcedModel(agent) ? agentModelFallback(agent) : true,
+      retryFirst,
+      fallback: agentPinned ? agentModelFallback(agent) : true,
       toolSchemas: toolSession.initialSchemas,
       makeToolHandlers,
       toolHandlerCtx: {
@@ -405,6 +421,9 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     plugins,
     registries,
     prompt,
+    // This routine's own model, when it has one: tried first, then the
+    // super-agent's own model, then the router (see runSuperAgent).
+    routineModel: routineModelOf(routine),
     channel: CHANNELS.ROUTINE,
     channelMeta: {
       routineName: routine.name,

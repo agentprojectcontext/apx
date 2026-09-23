@@ -146,5 +146,5 @@ apx routine memory path weather-bariloche --project acme    # print its path
 
 - Use `super_agent` when a project agent should own the work — `exec_agent` runs that agent with tools and the chat lands under their name.
 - Write `apx telegram send` inside a `super_agent` prompt — agent calls `send_telegram` AND post_commands fire. Pick one.
-- Hardcode model names in `spec` without reason — routines inherit `super_agent.model` (with router fallback).
+- Hardcode a model without reason — a routine runs on its agent's model (`exec_agent`) or the super-agent's own model, then the router. Set `spec.model` (`apx routine add … --model provider:model`, panel "Routine model") only when THIS job wants a different one; if it fails the run continues with the agent's own model, then the router.
 - Put credentials in `spec`. Use `~/.apx/config.json` engines and reference by provider.

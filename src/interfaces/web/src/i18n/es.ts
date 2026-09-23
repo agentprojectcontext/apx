@@ -1126,6 +1126,8 @@ export const es = {
       status_skipped: "Salteada",
       agent_field:  "Agente (spec.agent)",
       agent_hint:   "Quién ejecuta la rutina.",
+      model_field: "Modelo de la rutina",
+      model_hint: "Auto = el modelo del agente y, si falla, el router. Elegí uno para esta rutina: si falla, sigue con el modelo del agente y después con el router.",
       agent_loading: "Cargando…",
       agent_pick:   "— elegí un agente —",
       prompt_exec:  "Prompt (spec.prompt)",

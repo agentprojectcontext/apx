@@ -14,6 +14,7 @@ import { CronPicker } from "../cron/CronPicker";
 import { parseCron } from "../../lib/cron";
 import { VarTextarea } from "./VarTextarea";
 import { AvailableVarsCard } from "./AvailableVarsCard";
+import { ModelPicker } from "../chat/ModelPicker";
 
 export function RoutineEditor({
   draft, onClose, onSaved, pid,
@@ -29,6 +30,13 @@ export function RoutineEditor({
   // Per-kind fields
   const [agent, setAgent] = useState("");
   const [prompt, setPrompt] = useState("");
+  // This routine's own model (spec.model). "" = the agent's own model, then
+  // the router — see routines/runner.js.
+  const [routineModel, setRoutineModel] = useState("");
+  // The spec as loaded. The form edits a few of its fields; the rest
+  // (spec.anchor, suppress_tools, no_tools…) must survive a save, and the
+  // store replaces the spec whole.
+  const [baseSpec, setBaseSpec] = useState<Record<string, unknown>>({});
   const [tgChannel, setTgChannel] = useState("default");
   const [tgChatId, setTgChatId] = useState("");
   const [tgText, setTgText] = useState("");
@@ -51,6 +59,8 @@ export function RoutineEditor({
     setEnabled(draft.enabled ?? true);
     setAgent(spec.agent || "");
     setPrompt(spec.prompt || "");
+    setRoutineModel(typeof spec.model === "string" ? spec.model : "");
+    setBaseSpec(spec);
     setTgChannel(spec.channel || "default");
     setTgChatId(spec.chat_id ? String(spec.chat_id) : "");
     setTgText(spec.text || "");
@@ -65,7 +75,18 @@ export function RoutineEditor({
   // can use {{pre_output}}, post can react to the result).
   const usesPrePost = kind === "exec_agent" || kind === "super_agent" || kind === "telegram" || kind === "watch";
 
+  const usesModel = kind === "exec_agent" || kind === "super_agent" || kind === "watch";
+
   const buildSpec = (): Record<string, unknown> => {
+    // Keep what this form does not edit — only while the kind is unchanged;
+    // a different kind is a different spec.
+    const kept: Record<string, unknown> = draft?.kind === kind ? { ...baseSpec } : {};
+    delete kept.model;
+    const own = usesModel && routineModel ? { model: routineModel } : {};
+    return { ...kept, ...ownSpec(), ...own };
+  };
+
+  const ownSpec = (): Record<string, unknown> => {
     switch (kind) {
       case "exec_agent": return { agent, prompt };
       case "super_agent": return { prompt };
@@ -175,6 +196,13 @@ export function RoutineEditor({
                     adornment: <AgentAvatar icon={a.icon} emoji={a.emoji} name={a.name || a.slug} size={20} />,
                     description: [a.role, a.model].filter(Boolean).join(" · ") || undefined,
                   }))} />
+              </Field>
+            )}
+            {usesModel && (
+              <Field label={t("project.routines.model_field")} hint={t("project.routines.model_hint")}>
+                <div className="w-fit rounded-md border border-border px-2 py-1" data-testid="routine-model">
+                  <ModelPicker value={routineModel} onChange={setRoutineModel} disabled={busy} />
+                </div>
               </Field>
             )}
             <Field label={t("project.routines.schedule_field")} hint={t("project.routines.schedule_hint")}>
