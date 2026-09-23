@@ -171,7 +171,11 @@ ante un plan agotado**. Cuando un proveedor contesta que la cuenta llegó a su
 límite de uso (no un rate limit pasajero), ese modelo se enfría una hora
 (`super_agent.quota_cooldown_min`), el turno sin humano termina en vez de gastar
 el resto de la cadena de fallback, y al dueño le llega una sola línea por Telegram.
-Un chat con una persona adentro sigue cayendo al próximo modelo.
+Un chat con una persona adentro sigue cayendo al próximo modelo. También un
+modelo que elegiste **vos** — fijado al agente, puesto en la rutina o el modelo
+propio del super-agente — cuando tiene el fallback prendido: ese interruptor es
+tu indicación de seguir por el router. El freno es para cuando se agota la cuenta
+del propio router, la que heredan los agentes.
 
 ### Ver qué está corriendo
 

@@ -155,3 +155,39 @@ test("when a preferred model fails, the router's own #1 is tried before the fall
   assert.equal(failed.model, SPENT);
   assert.equal(failed.retry_with, SPARE, "the router default, not the next fallback");
 });
+
+// Magui, 2026-09-23: pinned to luna with "if it fails, use the router" ticked.
+// Luna's plan ran out and the routine STOPPED — the unwatched-turn rule beat
+// the owner's own instruction, with a free router model one step away.
+const ownerCfg = () => ({
+  super_agent: { model: SPARE, model_fallback: { enabled: true, models: [] }, stuck_detection: { enabled: false } },
+  engines: {},
+});
+const runPinned = (opts) => runAgent({
+  globalConfig: ownerCfg(), system: "sys", prompt: "hola", toolSchemas: [], makeToolHandlers: () => ({}),
+  toolHandlerCtx: { channel: CHANNELS.ROUTINE }, overrideModel: SPENT, ...opts,
+});
+
+test("an owner-chosen model with fallback on carries on down the router when its plan runs out", async () => {
+  const out = await runPinned({ fallback: true });
+  assert.equal(out.model, SPARE);
+  // And once it is known to be cooling, the next run starts on the router directly.
+  const again = await runPinned({ fallback: true });
+  assert.equal(again.model, SPARE);
+});
+
+test("with fallback off, the owner-chosen model still stops alone", async () => {
+  await assert.rejects(runPinned({ fallback: false }), (e) => e.code === "QUOTA_EXHAUSTED");
+});
+
+test("the router's OWN account running dry still stops an unwatched turn", async () => {
+  // Starting on the router's #1 is the fleet-wide case the stop exists for.
+  const cfg = ownerCfg();
+  cfg.super_agent.model = SPENT;
+  cfg.super_agent.model_fallback.models = [SPARE];
+  await assert.rejects(
+    runAgent({ globalConfig: cfg, system: "sys", prompt: "hola", toolSchemas: [], makeToolHandlers: () => ({}),
+      toolHandlerCtx: { channel: CHANNELS.ROUTINE }, overrideModel: SPENT }),
+    (e) => e.code === "QUOTA_EXHAUSTED",
+  );
+});

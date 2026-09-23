@@ -168,7 +168,10 @@ plan**. When a provider answers that the account's usage limit is reached (not a
 passing rate limit), that model cools down for an hour (`super_agent.quota_cooldown_min`),
 the unwatched turn ends instead of spending the rest of the fallback chain, and
 the owner gets one Telegram line saying so. A chat with a person in it still
-falls through to the next model.
+falls through to the next model. So does a model **you** chose — pinned to the
+agent, set on the routine, or the super-agent's own model — when its fallback
+switch is on: that switch is your instruction to carry on down the router. The
+stop is for the router's own account running dry under agents that inherit it.
 
 ### Seeing what is running
 
