@@ -233,6 +233,19 @@ the default context.
   routine kind (`task-due-notify`) is planned but not yet built.
 </Aside>
 
+## Handing a task to another agent
+
+Work for another agent goes into a task, not a message: assign it (`create_task` with that agent),
+or comment on the existing task mentioning them — `@qa ready for QA`. A mention in a comment
+summons the agent: it takes the task up in its own turn and replies on the same thread. Every agent
+is told this is how work moves; talking to a peer directly is for when you are in a live
+conversation and need that answer now.
+
+A thread can run with nobody watching, so it has walls: one comment starts at most four replies
+(cascade included), a task that already has agents working on its thread does not get a second
+run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
+comments are not capped.
+
 ## Next
 
 - [Routines](/apx/docs/capabilities/routines/) — schedule the super-agent to create or report on tasks.

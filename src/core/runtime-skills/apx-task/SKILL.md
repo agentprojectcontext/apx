@@ -89,9 +89,14 @@ so "@qa probá el flujo de login" is a QA run, not a note. Agent→agent handove
 (`@dev` inside QA's reply) cascade, are mirrored onto the a2a ledger, and stop
 at a ceiling of 4 replies per comment so a mention loop cannot run away.
 
-The `comment_task` tool writes a comment but **summons nobody** — that is
-deliberate: only the owner's comment, and the cascade already running under its
-ceiling, can start a turn. To hand work over, name the agent in your reply.
+The `comment_task` tool hands a task on the same way: an @mention in the comment
+summons that agent, off your turn — do not wait for it; it replies on the task.
+This is how work moves between agents (not `send_to_agent`, which is for a live
+exchange while the owner is in the conversation). Two walls, because the thread
+runs unattended: a task whose thread already has a cascade running starts no
+second one (the running one reads your comment), and agents get at most 8
+summoned turns per task per hour. The tool's result says which happened. The
+owner's own comments are not capped.
 
 ## Board columns
 

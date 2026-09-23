@@ -1,5 +1,5 @@
 import { addComment } from "#core/stores/tasks.js";
-import { mentionedAgents } from "#core/tasks/comment-turn.js";
+import { mentionedAgents, summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
@@ -7,13 +7,13 @@ import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 // reviewed, tested or fixed something says so where the task is, instead of the
 // result living only in a chat nobody will scroll back to.
 //
-// IT DOES NOT SUMMON ANYONE. Mentions are recorded on the comment (so the thread
-// says who it was addressed to) but writing one here starts no agent turn. Only
-// the owner's own comment — and the cascade already running under its ceiling —
-// can do that. Otherwise an agent mid-cascade could open a second cascade from
-// inside its own turn, and the ceiling that makes the whole thing safe would be
-// counting one thread while several ran. Handing work to another agent is done
-// by naming them in the REPLY, which the cascade scans.
+// A MENTION HERE HANDS THE TASK ON. It used to summon nobody, which left the
+// hand-off the prompt asks for ("work for another agent is a task — comment on
+// it mentioning them") landing nowhere until the other agent happened to look.
+// Now the mentioned agent gets a turn, off this one (the caller does not wait),
+// under the walls in core/tasks/comment-turn.js summonFromAgentComment: no
+// second cascade on a thread that already has one running, and a ceiling of
+// turns per task per hour. The result says which happened.
 export default {
   name: "comment_task",
   schema: {
@@ -36,7 +36,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, channelMeta, globalConfig }) => async (args = {}) => {
+  makeHandler: ({ projects, channelMeta, globalConfig, plugins, registries }) => async (args = {}) => {
     const { task, text, project } = args;
     if (!task) return missingArg("comment_task", "task", { required: ["task", "text"], optional: ["project"] }, args);
     if (!text || !String(text).trim()) {
@@ -58,6 +58,12 @@ export default {
       const mentions = mentionedAgents(text, p.path, by, globalConfig);
       const result = addComment(p.storagePath, task, { by, text, mentions });
       if (!result) return { error: `task not found: ${task}` };
+      const summon = mentions.length
+        ? summonFromAgentComment({
+            p, taskId: result.id, mentions, author: by,
+            projects, plugins, registries, config: globalConfig,
+          })
+        : null;
       return {
         ok: true,
         project: projectMeta(projects, p),
@@ -65,9 +71,14 @@ export default {
         ...(mentions.length
           ? {
               mentions,
-              note:
-                "Recorded on the comment, but nobody was summoned by this call. " +
-                "To hand the work over, name them in your reply text instead.",
+              summoned: summon.summoned,
+              note: summon.summoned.length
+                ? `Handed on: ${summon.summoned.join(", ")} will take it up in their own turn and reply on the task. Do not wait for it here.`
+                : summon.skipped === "cascade_running"
+                  ? "Recorded. This task already has agents working on its thread; they read this comment there — nobody new was started."
+                  : summon.skipped === "hourly_cap"
+                    ? "Recorded, but this task has had its hourly share of agent turns; the mentioned agent reads it on their next turn."
+                    : "Recorded on the comment.",
             }
           : {}),
       };

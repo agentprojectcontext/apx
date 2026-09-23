@@ -234,6 +234,19 @@ contexto por defecto.
   tipo de routine (`task-due-notify`) planeado pero todavía no construido.
 </Aside>
 
+## Pasarle una tarea a otro agente
+
+El trabajo para otro agente va a una tarea, no a un mensaje: asignala (`create_task` con ese
+agente) o comentá en la tarea existente mencionándolo — `@qa listo para QA`. Una mención en un
+comentario convoca al agente: toma la tarea en su propio turno y contesta en el mismo hilo. A todos
+los agentes se les indica que así se mueve el trabajo; hablarle directo a otro agente es para
+cuando estás en una conversación en vivo y necesitás esa respuesta ya.
+
+Un hilo puede correr sin nadie mirando, así que tiene límites: un comentario arranca como mucho
+cuatro respuestas (cascada incluida), una tarea que ya tiene agentes trabajando en su hilo no arranca
+una segunda, y los agentes que se pasan una tarea de un lado a otro tienen como mucho ocho turnos
+por hora en ella. Tus propios comentarios no tienen tope.
+
 ## Siguiente
 
 - [Routines](/apx/docs/es/capabilities/routines/) — programá el super-agent para crear o reportar tasks.
