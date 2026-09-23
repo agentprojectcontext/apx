@@ -22,7 +22,7 @@
     },
     "daily_schedule": {
       "title": "Pulso diario",
-      "description": "Cron del pulso diario. Tiene que caer FUERA de las horas de silencio, o el guard retiene cada corrida y la capa parece muerta."
+      "description": "Cron del pulso diario, de lunes a viernes por defecto — un fin de semana sin movimiento son dos corridas que sólo cuestan. Tiene que caer FUERA de las horas de silencio, o el guard retiene cada corrida y la capa parece muerta."
     },
     "weekly_schedule": {
       "title": "Review semanal",

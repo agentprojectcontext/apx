@@ -222,3 +222,20 @@ test("a status or fyi brief is filed, not delivered — only a blocker opens a t
   const blocker = deliveryArgs({ ...base, severity: "blocker" });
   assert.ok(blocker.includes("--deliver") && blocker.includes("--background"));
 });
+
+test("the CEO's rituals hand work on as tasks, and the pulse skips weekends", async () => {
+  const dir = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "src", "core", "profiles", "bundled", "company");
+  const routine = (n) => JSON.parse(fs.readFileSync(path.join(dir, "routines", `${n}.json`), "utf8"));
+  for (const n of ["weekly-review", "monthly-scorecard"]) {
+    const p = routine(n).spec.prompt;
+    assert.match(p, /WORK FIRST, THEN THE BRIEF/, `${n} still writes requests instead of tasks`);
+    assert.match(p, /create_task/);
+    assert.match(p, /comment_task/);
+    assert.match(p, /do not message agents/);
+  }
+  for (const a of ["cfo", "chro", "cmo", "coo", "gc"]) {
+    assert.match(routine(`council-${a}`).spec.prompt, /Never message another agent from this run/);
+  }
+  const schema = JSON.parse(fs.readFileSync(path.join(dir, "config.schema.json"), "utf8"));
+  assert.equal(schema.properties.daily_schedule.default, "15 8 * * 1-5");
+});
