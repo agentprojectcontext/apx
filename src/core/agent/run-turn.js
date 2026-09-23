@@ -21,6 +21,7 @@ import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.
 import { noteDeniedTools } from "#core/agent/tools/denied-log.js";
 import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
+import { agentForcedModel, agentModelFallback } from "#core/agent/agent-model.js";
 import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
 
@@ -185,6 +186,7 @@ export async function runAgentTurn({
       attachments,
       priorEffects,
       overrideModel: modelId,
+      fallback: agentForcedModel(agent) ? agentModelFallback(agent) : true,
       toolSchemas: toolSession.initialSchemas,
       makeToolHandlers,
       toolHandlerCtx: {

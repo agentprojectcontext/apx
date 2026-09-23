@@ -22,7 +22,7 @@ import { noteDeniedTools } from "#core/agent/tools/denied-log.js";
 import { readAgents } from "#core/apc/parser.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { resolveAgentModel } from "#core/agent/agent-model.js";
+import { resolveAgentModel, agentForcedModel, agentModelFallback } from "#core/agent/agent-model.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -253,6 +253,7 @@ async function handleExecAgent(ctx, routine) {
       system,
       prompt,
       overrideModel: model,
+      fallback: agentForcedModel(agent) ? agentModelFallback(agent) : true,
       toolSchemas: toolSession.initialSchemas,
       makeToolHandlers,
       toolHandlerCtx: {

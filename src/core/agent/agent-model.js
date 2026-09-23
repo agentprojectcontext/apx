@@ -30,6 +30,20 @@ export function agentForcedModel(agent) {
   return model;
 }
 
+/**
+ * Whether a PINNED model may fall down the router's chain when it fails.
+ * Default yes: a pinned model is a preference about quality, and a turn that
+ * dies because one provider had a bad minute helps nobody. `model_fallback:
+ * false` in the agent's frontmatter makes the pin strict — fail rather than
+ * answer on something else. Meaningless for an agent that inherits: the router
+ * IS its chain.
+ */
+export function agentModelFallback(agent) {
+  const raw = agent?.fields?.Model_fallback;
+  if (raw === undefined || raw === null || raw === "") return true;
+  return String(raw).trim().toLowerCase() !== "false";
+}
+
 /** Whether a raw `Model:` value means "inherit" (absent, empty or the marker). */
 export function isInheritedModel(model) {
   if (typeof model !== "string") return !model;

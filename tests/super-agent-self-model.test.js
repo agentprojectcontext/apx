@@ -63,3 +63,56 @@ test("its own model is a preference: out of quota, the router takes over", async
   markQuotaExhausted("mock:self", new Error("usage limit reached"));
   assert.equal(await superAgentModel(cfg({ self_model: "mock:self" })), "mock:router");
 });
+
+// The owner's choice for a pinned model: keep answering on the router chain
+// when it fails (default), or fail rather than answer on something else.
+test("a strict own model fails instead of walking the router chain", async () => {
+  await assert.rejects(
+    superAgentModel(cfg({ self_model: "mock:fail-503", self_model_fallback: false })),
+    /mock 503/,
+  );
+  // Default: the same failure lands on the router default.
+  const events = [];
+  const root = makeTempProject({ name: "Self Model Fallback" });
+  const projects = new ProjectManager({ engines: {} });
+  projects.register(root);
+  try {
+    await runSuperAgent({
+      projects, plugins: null, registries: null, prompt: "hola",
+      globalConfig: cfg({ self_model: "mock:fail-503" }), channel: CHANNELS.WEB,
+      onEvent: (e) => events.push(e),
+    });
+  } finally { cleanupTempProject(root); }
+  assert.equal(events.find((e) => e.type === "engine_failed")?.retry_with, "mock:router");
+});
+
+test("an agent's pinned model can be made strict, and the file only says so when it is", async () => {
+  const { setAgentConfig } = await import("#core/apc/agent-write.js");
+  const { readAgents } = await import("#core/apc/parser.js");
+  const { agentModelFallback } = await import("#core/agent/agent-model.js");
+  const { agentToResponse } = await import("#host/daemon/api/shared.js");
+  const root = makeTempProject({ name: "Pinned", agents: [{ slug: "magui" }] });
+  try {
+    const read = () => readAgents(root).find((a) => a.slug === "magui");
+    const file = () => fs.readFileSync(path.join(root, ".apc", "agents", "magui.md"), "utf8");
+    setAgentConfig({ path: root }, "magui", { model: "chatgpt-codex:gpt-5.6-luna@high" });
+    assert.equal(agentModelFallback(read()), true, "absent means it falls back");
+    assert.doesNotMatch(file(), /model_fallback/);
+    setAgentConfig({ path: root }, "magui", { model_fallback: false });
+    assert.equal(agentModelFallback(read()), false);
+    assert.equal(agentToResponse(read()).model_fallback, false);
+    assert.ok(!("Model_fallback" in agentToResponse(read()).extra));
+    setAgentConfig({ path: root }, "magui", { model_fallback: true });
+    assert.doesNotMatch(file(), /model_fallback/, "back to default leaves no trace");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("runAgent with fallback off does not rotate", async () => {
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  await assert.rejects(runAgent({
+    globalConfig: cfg(), system: "s", prompt: "hola", toolSchemas: [], makeToolHandlers: () => ({}),
+    toolHandlerCtx: { channel: CHANNELS.WEB }, overrideModel: "mock:fail-503", fallback: false,
+  }), /mock 503/);
+});

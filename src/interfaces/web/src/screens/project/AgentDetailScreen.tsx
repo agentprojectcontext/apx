@@ -460,6 +460,7 @@ function AgentConfigForm({
   const [role, setRole] = useState(agent.role || "");
   const [autonomy, setAutonomy] = useState<AgentAutonomy | "">(agent.autonomy || "");
   const [model, setModel] = useState(agent.model || "");
+  const [modelFallback, setModelFallback] = useState(agent.model_fallback !== false);
   const [parent, setParent] = useState(agent.parent || "");
   const [isMaster, setIsMaster] = useState(!!agent.is_master);
   const [description, setDescription] = useState(agent.description || "");
@@ -488,6 +489,9 @@ function AgentConfigForm({
         role: role || null,
         autonomy: autonomy || null,
         model: isInheritedModel(model) ? INHERIT_MODEL : model,
+        // Only meaningful for a pinned model; an inheriting agent's chain IS the
+        // router, so it is reset to the default rather than left dangling.
+        model_fallback: isInheritedModel(model) ? true : modelFallback,
         parent: parent || null,
         is_master: isMaster || type === "orchestrator",
         // skills + tools are NOT sent from here: they live in their own tab and
@@ -559,6 +563,13 @@ function AgentConfigForm({
               <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
                 <AgentModelSelect value={model} onChange={setModel} />
               </Field>
+              {!isInheritedModel(model) && (
+                <Switch
+                  checked={modelFallback}
+                  onChange={setModelFallback}
+                  label={t("project.agent_detail.model_fallback_label")}
+                />
+              )}
               <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
               <MasterHint
                 agents={agents}

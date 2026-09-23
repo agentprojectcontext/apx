@@ -127,3 +127,18 @@ test("agent set --master gives the crown without changing what the agent IS", as
     assert.equal(after.Primary, undefined, "the older spelling goes too, or is_master still reads true");
   });
 });
+
+// Parity with the panel's "If it fails, continue down the router chain" switch.
+test("agent set --no-model-fallback makes a pinned model strict, and --model-fallback undoes it", async () => {
+  const { agentModelFallback } = await import("#core/agent/agent-model.js");
+  await inProject(async (root) => {
+    await cmdAgentAdd(args(["coder"], { role: "Dev", model: "chatgpt-codex:gpt-5.6-luna@high", prompt: "Codeá." }));
+    assert.equal(agentModelFallback(agent(root, "coder")), true);
+    await cmdAgentSet(args(["coder"], { "no-model-fallback": true }));
+    assert.equal(agentModelFallback(agent(root, "coder")), false);
+    await cmdAgentSet(args(["coder"], { "model-fallback": true }));
+    assert.equal(agentModelFallback(agent(root, "coder")), true);
+    assert.equal(agent(root, "coder").fields.Model_fallback, undefined, "the default leaves no field behind");
+    assert.equal(agent(root, "coder").body, "Codeá.", "a field edit keeps the prompt");
+  });
+});

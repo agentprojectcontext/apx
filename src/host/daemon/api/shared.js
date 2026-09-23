@@ -388,6 +388,7 @@ export function agentToResponse(a) {
     "Icon",
     "Autonomy",
     "Aliases",
+    "Model_fallback",
   ]);
   const extra = {};
   for (const [k, v] of Object.entries(f)) {
@@ -400,6 +401,9 @@ export function agentToResponse(a) {
     name: f.Name || null,
     role: f.Role || null,
     model: f.Model || null,
+    // Whether a pinned `model` may fall down the router chain when it fails.
+    // Absent = true (see agentModelFallback in core/agent/agent-model.js).
+    model_fallback: String(f.Model_fallback ?? "").trim().toLowerCase() !== "false",
     language: f.Language || null,
     description: f.Description || null,
     is_master: String(f.Master || f.Primary || "").toLowerCase() === "true",

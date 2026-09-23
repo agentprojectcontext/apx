@@ -26,6 +26,7 @@ export function SuperAgentPanel() {
   const [icon, setIcon] = useState(SUPER_AGENT_ICON);
   const [perm, setPerm] = useState<string>("permiso");
   const [selfModel, setSelfModel] = useState("");
+  const [selfFallback, setSelfFallback] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function SuperAgentPanel() {
     setPerm(superAgent.permission_mode || "permiso");
     setIcon(superAgent.icon || SUPER_AGENT_ICON);
     setSelfModel(superAgent.self_model || "");
+    setSelfFallback(superAgent.self_model_fallback !== false);
   }, [superAgent]);
 
   useEffect(() => {
@@ -52,6 +54,7 @@ export function SuperAgentPanel() {
         "super_agent.permission_mode":  perm,
         "super_agent.icon":             icon,
         "super_agent.self_model":       selfModel,
+        "super_agent.self_model_fallback": selfFallback,
       }, ["super_agent.name"]);
       await saveIdentity({ personality });
       toast.success(t("settings.super_agent.saved"));
@@ -86,6 +89,13 @@ export function SuperAgentPanel() {
             <ModelPicker value={selfModel} onChange={setSelfModel} disabled={busy} />
           </div>
         </Field>
+        {selfModel && (
+          <Switch
+            checked={selfFallback}
+            onChange={setSelfFallback}
+            label={t("settings.super_agent.self_model_fallback")}
+          />
+        )}
 
         <Field label={t("settings.super_agent.permission_mode")}>
           <UiSelect value={perm} onChange={setPerm} options={PERMISSION_MODES.map((m) => ({ value: m, label: m }))} />

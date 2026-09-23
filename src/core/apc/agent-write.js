@@ -266,6 +266,12 @@ export function setAgentConfig(project, slug, patch = {}) {
   setStr("Name", patch.name);
   setStr("Role", patch.role);
   setStr("Model", patch.model);
+  // Written only when it is OFF: absent means the default (fall back), so the
+  // thousands of agent files that never heard of this stay byte-identical.
+  if (patch.model_fallback !== undefined) {
+    if (patch.model_fallback === false) fields.Model_fallback = "false";
+    else delete fields.Model_fallback;
+  }
   setStr("Language", patch.language);
   setStr("Description", patch.description);
   setStr("Parent", patch.parent);

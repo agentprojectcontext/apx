@@ -36,6 +36,8 @@ export interface AgentEntry {
   name?: string | null;
   role: string | null;
   model: string | null;
+  /** A pinned `model` falls down the router chain when it fails. Absent/true = yes. */
+  model_fallback?: boolean;
   language: string | null;
   description: string | null;
   is_master?: boolean;
@@ -736,6 +738,8 @@ export interface SuperAgentConfig {
   // The super-agent's own model, apart from the router default (`model`, which
   // inheriting agents use). "" = same as the router.
   self_model?: string;
+  /** false = when self_model fails the turn fails, no router chain. Default true. */
+  self_model_fallback?: boolean;
   system: string;
   permission_mode: string;
   allowed_tools: string[];
