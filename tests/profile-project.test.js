@@ -192,3 +192,43 @@ test("two profiles cannot run on one project at the same time", () => {
     cleanupTempProject(root);
   }
 });
+
+// 2026-09-23: a routine switched off by hand came back ON the next time any
+// profile setting was saved — the refresh reset every routine to the package's
+// enabled_by_default, and `enabled` is not part of the edit fingerprint.
+test("changing a setting keeps a routine you switched off, off", async () => {
+  const { setEnabled } = await import("#core/stores/routines.js");
+  installFixture("stayoff");
+  const root = makeTempProject({ name: "stayoff" });
+  try {
+    useProjectProfile(projectOf(root), "stayoff");
+    const storage = projectRoutineStorage(projectOf(root));
+    setEnabled(storage, "stayoff-pulse", false);
+    setProjectProfileConfig(projectOf(root), { weekly_deliveries: 7 });
+    const r = listRoutines(storage).find((x) => x.name === "stayoff-pulse");
+    assert.equal(r.enabled, false, "a settings save switched it back on");
+    // Activating the profile again IS the owner switching it on.
+    useProjectProfile(projectOf(root), "stayoff", { confirmReplace: true });
+    assert.equal(listRoutines(storage).find((x) => x.name === "stayoff-pulse").enabled, true);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("a routine the package ships off is installed off and reported", () => {
+  const dir = installFixture("shipsoff");
+  fs.writeFileSync(
+    path.join(dir, "routines", "council.json"),
+    JSON.stringify({ name: "council", kind: "exec_agent", schedule: "0 7 * * 1", enabled_by_default: false, payload: { agent: "cfo" } }),
+  );
+  const root = makeTempProject({ name: "shipsoff" });
+  try {
+    const out = useProjectProfile(projectOf(root), "shipsoff");
+    assert.deepEqual(out.routines.off, ["shipsoff-council"]);
+    const rows = listRoutines(projectRoutineStorage(projectOf(root)));
+    assert.equal(rows.find((x) => x.name === "shipsoff-council").enabled, false);
+    assert.equal(rows.find((x) => x.name === "shipsoff-pulse").enabled, true);
+  } finally {
+    cleanupTempProject(root);
+  }
+});

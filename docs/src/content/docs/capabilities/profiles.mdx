@@ -110,7 +110,13 @@ own values rather than handing them the other's.
 A profile's prompt block is rendered on every turn, so it improves the moment APX updates.
 Its **routines** do not: those are records in the super-agent's store, written when you
 installed. `apx profile sync` re-reads the package from disk and refreshes them, keeping your
-settings and your activation exactly as they are.
+settings and your activation exactly as they are — including which routines you switched on or
+off. Changing a profile setting refreshes them the same way.
+
+A package can ship routines **switched off** when they cost a model run each time and not every
+install wants them. The company profile does: only the weekly review and the monthly scorecard
+start on; the daily pulse, the decision brief and the five area councils are installed off, and
+`apx profile use` lists them with the `apx routine enable <name>` that turns each one on.
 
 Routines you edited yourself are skipped — that is the contract, and it is why
 `apx profile doctor` tells you when one has drifted from the package rather than quietly

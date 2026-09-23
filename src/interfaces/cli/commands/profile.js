@@ -173,8 +173,9 @@ export async function cmdProfileUse(args) {
       globalConfig: readConfig(),
     });
     console.log(`active profile on this project: ${out.id}`);
-    const { installed = [], skipped = [] } = out.routines || {};
+    const { installed = [], skipped = [], off = [] } = out.routines || {};
     if (installed.length) console.log(`  routines installed: ${installed.join(", ")}`);
+    printOffByDefault(off, args.flags.project);
     for (const s of skipped) console.log(`  routine "${s.name}" left alone (${String(s.reason).replace(/_/g, " ")})`);
     return;
   }
@@ -183,12 +184,23 @@ export async function cmdProfileUse(args) {
   console.log(`active profile: ${r.profile.name} (${r.profile.id})`);
   printWarnings(r.warnings);
 
-  const { installed = [], skipped = [] } = r.routines || {};
+  const { installed = [], skipped = [], off = [] } = r.routines || {};
   if (installed.length) console.log(`  routines installed: ${installed.join(", ")}`);
+  printOffByDefault(off, null);
   for (const s of skipped) {
     console.log(`  routine "${s.name}" left alone (${s.reason.replace(/_/g, " ")})`);
   }
   if (!r.profile.active) console.log("  (warning: profile did not activate)");
+}
+
+// A package ships its costly rituals switched off; say which, and how to turn
+// one on, instead of leaving the owner to find out they never ran.
+function printOffByDefault(off, project) {
+  if (!off?.length) return;
+  console.log(`  installed OFF (the package's default — turn on only the ones you want):`);
+  for (const name of off) {
+    console.log(`    ${name}   → apx routine enable ${name}${project && project !== true ? ` --project ${project}` : ""}`);
+  }
 }
 
 export async function cmdProfileSync(args) {
