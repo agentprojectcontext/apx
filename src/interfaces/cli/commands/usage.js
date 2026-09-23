@@ -4,10 +4,13 @@
 //   apx usage --date 2026-09-23 a given UTC day
 //   apx usage --since 11        only calls from that UTC hour on
 //   apx usage --json            the raw summary
+//   apx usage breaker           the spend breaker: last hour of unwatched calls, any pause
+//   apx usage resume            lift a spend-breaker pause now
 //
 // Reads ~/.apx/usage/<day>.jsonl, written by callEngine on every call. The
 // logic lives in core (stores/llm-usage.js); this only prints it.
 import { summarizeLlmUsage } from "#core/stores/llm-usage.js";
+import { http } from "../http.js";
 
 const c = { reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m", red: "\x1b[31m", cyan: "\x1b[36m" };
 
@@ -41,4 +44,23 @@ export async function cmdUsage(args) {
   table("By model", s.byModel);
   table("By channel", s.byChannel);
   table("By agent", s.byAgent);
+}
+
+export async function cmdUsageBreaker() {
+  const s = await http.get("/api/usage/breaker");
+  const l = s.limits || {};
+  console.log(`${c.bold}Spend breaker${c.reset} ${l.enabled ? "" : `${c.red}(off)${c.reset}`}`);
+  console.log(`  unwatched model calls, last hour: ${s.calls_last_hour} / ${l.calls_per_hour} (per project ${l.project_calls_per_hour})`);
+  for (const [p, n] of Object.entries(s.by_project || {})) console.log(`    project ${p}: ${n}`);
+  if (s.paused) {
+    const where = s.paused.scope === "project" ? `project ${s.paused.project}` : "all projects";
+    console.log(`  ${c.red}paused${c.reset} (${where}) until ${new Date(s.paused.until).toISOString()} — \`apx usage resume\` lifts it`);
+  } else {
+    console.log("  not paused");
+  }
+}
+
+export async function cmdUsageResume() {
+  const r = await http.post("/api/usage/breaker/resume", {});
+  console.log(r.resumed ? "✅ background work resumed" : "Nothing was paused.");
 }

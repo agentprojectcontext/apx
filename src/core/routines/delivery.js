@@ -20,6 +20,7 @@
 // A channel only belongs here when something actually READS what the adapter
 // writes. `deck` is deliberately absent for that reason: writing to a surface
 // nobody reads is a delivery that reports success and reaches no one.
+import { claimSpendNotice } from "#core/agent/spend-breaker.js";
 import { withConnectRetry } from "#core/net/retry.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 import { callEngineWithFallback } from "#core/agent/engine-call.js";
@@ -397,6 +398,60 @@ export async function notifyOwnerQuotaStop(ctx, { err, routine, callFn = callEng
   if (!line) line = t("quota.stop_notice", { lang, vars: { ...facts, until: until || "—" } });
   try {
     await sendTg(tg, { text: line, meta: { via: "quota_stop", routine: routine?.name || "", model: err.modelId } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Tell the owner, ONCE per trip, that the spend breaker paused background work
+ * (agent/spend-breaker.js). Same shape as the quota notice: model-authored in
+ * the owner's language, i18n floor when no model answers. The call that writes
+ * it carries no unwatched channel, so the pause it reports does not stop it.
+ */
+export async function notifyOwnerSpendPause(ctx, pause, { callFn = callEngineWithFallback } = {}) {
+  if (!pause || !claimSpendNotice()) return false;
+  const tg = ctx?.plugins?.get?.("telegram");
+  if (!tg?.send) return false;
+  const globalConfig = ctx?.globalConfig || {};
+  const lang = resolveLang(globalConfig);
+  let until = "";
+  try {
+    until = new Date(pause.until).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    until = new Date(pause.until).toISOString().slice(11, 16);
+  }
+  const facts = {
+    calls_last_hour: pause.count,
+    limit: pause.limit,
+    scope: pause.scope === "project" ? `project ${pause.project}` : "all projects",
+    paused_until: until,
+    resume_command: "apx usage resume",
+  };
+  let line = "";
+  const model = globalConfig?.super_agent?.model;
+  if (model) {
+    try {
+      const owner = resolveOwnerName();
+      const r = await callFn({
+        modelId: model,
+        system:
+          `You are ${resolveAgentName(globalConfig) || "the assistant"}, ${owner}'s assistant. Write ONE short line ` +
+          `(max ~240 characters) to send ${owner} on Telegram, in their language (${lang}), saying that background ` +
+          `work (routines, agents talking to each other) made more model calls in the last hour than the limit, so ` +
+          `you paused it until the time given, that their own chats are not affected, and the command that resumes ` +
+          `it now. Start with ⚠️. No preamble, no quotes — just the line.`,
+        messages: [{ role: "user", content: JSON.stringify(facts) }],
+        config: globalConfig,
+        maxTokens: 200,
+      });
+      line = String(r?.text || "").replace(/\s+/g, " ").trim();
+    } catch { /* no model could answer — the floor below */ }
+  }
+  if (!line) line = t("spend.pause_notice", { lang, vars: { count: pause.count, limit: pause.limit, scope: facts.scope, until } });
+  try {
+    await sendTg(tg, { text: line, meta: { via: "spend_pause", scope: pause.scope, project: pause.project || "" } });
     return true;
   } catch {
     return false;

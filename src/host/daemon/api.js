@@ -80,6 +80,7 @@ import { register as registerInbox } from "./api/inbox.js";
 import { register as registerSelfMemory } from "./api/self-memory.js";
 import { register as registerNudges } from "./api/nudges.js";
 import { register as registerJobs } from "./api/jobs.js";
+import { register as registerUsage } from "./api/usage.js";
 import { register as registerWeb, registerWebToken } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
 import { register as registerNet, corsBetweenOwnAddresses } from "./api/net.js";
@@ -238,6 +239,7 @@ export function buildApi({
   registerSelfMemory(api, ctx);
   registerNudges(api, ctx);
   registerJobs(api, ctx);
+  registerUsage(api, ctx);
   registerWebToken(api, ctx);
 
   // ---- API 404 (MUST be last on the router) ------------------------

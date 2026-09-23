@@ -154,6 +154,21 @@ agent, duration and tokens. `apx usage` summarizes a day by model, channel and a
 ```bash
 apx usage                       # today
 apx usage --date 2026-09-23 --since 11
+apx usage breaker               # the spend breaker: last hour of background calls, any pause
+apx usage resume                # lift a pause now
+```
+
+### The spend breaker
+
+Background work — routines and agents talking to each other — has an hourly ceiling on model calls,
+counted over the last hour, globally and per project. Past it, that work pauses (30 minutes by
+default) and you get one Telegram line saying so; your own chats are never paused. The limits live in
+`super_agent.spend_breaker`:
+
+```json
+{ "super_agent": { "spend_breaker": {
+  "enabled": true, "calls_per_hour": 400, "project_calls_per_hour": 250, "pause_min": 30
+} } }
 ```
 
 ## Managing the router with apx model

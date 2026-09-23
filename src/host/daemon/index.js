@@ -48,6 +48,8 @@ import { abortAllActiveTurns, drainActiveTurns } from "./active-turns.js";
 import { SHUTDOWN_GRACE_MS } from "#core/constants/shutdown.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
+import { onSpendTrip } from "#core/agent/spend-breaker.js";
+import { notifyOwnerSpendPause } from "#core/routines/delivery.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -225,6 +227,13 @@ async function main() {
 
   const plugins = new PluginManager({ projects, config: cfg, log, registries });
   plugins.initAll();
+
+  // The spend breaker trips inside an engine call, where there is no channel to
+  // speak on. The owner is told from here, once per trip.
+  onSpendTrip((pause) => {
+    log(`spend breaker: ${pause.count} unwatched model calls in the last hour (${pause.scope}${pause.project ? ` ${pause.project}` : ""}, limit ${pause.limit}) — background work paused until ${new Date(pause.until).toISOString()}`);
+    return notifyOwnerSpendPause({ plugins, globalConfig: readConfig() }, pause);
+  });
 
   const scheduler = new RoutineScheduler({
     projects,

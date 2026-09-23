@@ -46,4 +46,5 @@ export default {
   "delivery.notice_critical": "⚠️ {who} flagged something critical{notify} — check their chat now.",
   "whatsapp.reply_failed": "⚠️ I couldn't answer {name} on WhatsApp: no model responded ({error}). I sent them no canned text; I'll retry at {at}, reading the conversation.",
   "whatsapp.reply_gave_up": "⚠️ Still unable to answer {name} on WhatsApp after {attempts} attempts ({error}). It stays pending: I'll pick it up when they write again, or ask me with `apx whatsapp follow-up`.",
+  "spend.pause_notice": "⚠️ Background work (routines, agents talking to each other) made {count} model calls in the last hour ({scope}; the limit is {limit}). I paused it until {until}; your own chats are unaffected. To resume now: `apx usage resume`.",
 };

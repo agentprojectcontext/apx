@@ -936,6 +936,9 @@ async function runRoutinePipeline(ctx, routine) {
           result.quota_stopped = true;
           result.owner_notified = await notifyOwnerQuotaStop(runCtx, { err: e, routine });
         }
+        // The spend breaker paused unwatched work; the owner was told when it
+        // tripped (daemon boot wires the notice), not once per routine.
+        if (e?.code === "SPEND_PAUSED") result.spend_paused = true;
       }
     }
   } else {
