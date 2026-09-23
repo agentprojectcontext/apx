@@ -116,3 +116,19 @@ test("runAgent with fallback off does not rotate", async () => {
     toolHandlerCtx: { channel: CHANNELS.WEB }, overrideModel: "mock:fail-503", fallback: false,
   }), /mock 503/);
 });
+
+test("a super-agent routine's own model falls back to the super-agent's own model first", async () => {
+  const events = [];
+  const root = makeTempProject({ name: "Routine Model" });
+  const projects = new ProjectManager({ engines: {} });
+  projects.register(root);
+  try {
+    await runSuperAgent({
+      projects, plugins: null, registries: null, prompt: "hola",
+      globalConfig: cfg({ self_model: "mock:self" }), channel: CHANNELS.ROUTINE,
+      routineModel: "mock:fail-503", onEvent: (e) => events.push(e),
+    });
+  } finally { cleanupTempProject(root); }
+  assert.equal(events.find((e) => e.type === "model_start").model, "mock:fail-503");
+  assert.equal(events.find((e) => e.type === "engine_failed").retry_with, "mock:self");
+});

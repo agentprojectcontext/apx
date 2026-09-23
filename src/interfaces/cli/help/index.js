@@ -1378,6 +1378,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--deliver-to a,b", "Where the output goes: telegram, web, profile (ask the active agent profile), none. Unset means nowhere."],
       ["--permission-mode <mode>", "total, automatico, or permiso."],
       ["--allowed-tools a,b", "Comma-separated allowed tool names."],
+      ["--model <provider:model>", "This routine's own model (spec.model). If it fails: the agent's own model, then the router. Omit it to use the agent's."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
     examples: [

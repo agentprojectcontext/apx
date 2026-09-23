@@ -103,6 +103,9 @@ export async function runSuperAgent({
   // Nesting depth of this run. 0 = user-facing turn; the run_subagent tool
   // spawns children with depth+1 and refuses past its MAX_DEPTH.
   subagentDepth = 0,
+  // A routine's own model (spec.model): preferred for this turn, then the
+  // super-agent's own model, then the router.
+  routineModel = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -207,13 +210,16 @@ export async function runSuperAgent({
       attachments,
       priorEffects,
       overrideModel,
-      preferredModel: contentRoute?.model || selfModel,
-      preferredBy: contentRoute?.model ? "content_rules" : "self_model",
+      preferredModel: contentRoute?.model || routineModel || selfModel,
+      preferredBy: contentRoute?.model ? "content_rules" : routineModel ? "routine" : "self_model",
+      retryFirst: !contentRoute?.model && routineModel && selfModel && selfModel !== routineModel ? [selfModel] : [],
       // super_agent.self_model_fallback: false makes its own model strict. Only
       // when its own model is what this turn is on — a content rule or an
       // explicit override keeps the chain.
       fallback: !(selfModel && !contentRoute?.model && !overrideModel
         && globalConfig?.super_agent?.self_model_fallback === false),
+      // (With a routine model, the self_model is reached through retryFirst,
+      // and this switch still decides whether the router comes after it.)
       toolSchemas,
       makeToolHandlers,
       toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },

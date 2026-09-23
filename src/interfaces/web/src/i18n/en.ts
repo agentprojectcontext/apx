@@ -1112,6 +1112,8 @@ export const en = {
       status_skipped: "Skipped",
       agent_field:  "Agent (spec.agent)",
       agent_hint:   "Who executes the routine.",
+      model_field: "Routine model",
+      model_hint: "Auto = the agent's own model and, if it fails, the router. Pick one for this routine: if it fails, it continues with the agent's model and then the router.",
       agent_loading: "Loading…",
       agent_pick:   "— pick an agent —",
       prompt_exec:  "Prompt (spec.prompt)",

@@ -118,6 +118,13 @@ apx routine add digest \
 Sobreescribe el `super_agent.permission_mode` global para esta rutina:
 `total` | `automatico` | `permiso`.
 
+### Con qué modelo corre
+
+Una rutina corre con el modelo propio de su agente (`exec_agent`) o el del super-agente, y cae al
+router. Para darle a un trabajo otro modelo, usá `--model proveedor:modelo` (`spec.model`, panel:
+**Modelo de la rutina**). Si ese modelo falla, la corrida sigue con el modelo del agente y después
+con el router — el modelo de la rutina es una elección para ese trabajo, nunca reemplaza al del agente.
+
 ## Otros subcomandos
 
 ```bash
