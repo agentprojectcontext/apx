@@ -492,7 +492,7 @@ function followUpNote({ debt, manual }) {
     "# Reply system note",
     what,
     "Any earlier message of yours saying you could not answer right now was an automatic fallback, not something you wrote.",
-    "Read the whole conversation and answer what is still pending, in the same thread and tone. If it fits, mention briefly, in your own words and once, that you had a problem with your reply system. Do not repeat anything already said.",
+    "Read the whole conversation and answer what is still pending, in the same thread and tone. Say briefly, once and in your own words, that you had a problem with your reply system — then carry on with the conversation. Do not repeat anything already said.",
   ].join("\n");
 }
 

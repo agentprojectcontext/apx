@@ -124,3 +124,14 @@ test("a gateway 400 for a model it no longer serves also advances the chain", ()
     "groq 400: tools.0.function.parameters: invalid schema"
   )), false);
 });
+
+test("a provider that cannot be reached at all advances the chain", () => {
+  // undici's bare "fetch failed": no status, the reason is in `cause`. A
+  // WhatsApp follow-up died on the first model with it while the rest of the
+  // chain was healthy.
+  assert.equal(isRetryableEngineError(new TypeError("fetch failed")), true);
+  const cause = Object.assign(new Error("Connect Timeout Error"), { code: "UND_ERR_CONNECT_TIMEOUT" });
+  assert.equal(isRetryableEngineError(Object.assign(new Error("request to provider failed"), { cause })), true);
+  // Aborted by us is still not a failure to route around.
+  assert.equal(isRetryableEngineError(Object.assign(new Error("fetch failed"), { name: "AbortError" })), false);
+});

@@ -57,6 +57,21 @@ const FATAL_PHRASES = [
   /not.?found/i,
 ];
 
+// Transport-level failures, read off the error and its `cause` chain.
+const NETWORK_CODES = new Set([
+  "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_SOCKET",
+  "ECONNREFUSED", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT",
+  "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN", "EPIPE",
+]);
+function isNetworkFailure(err) {
+  let e = err;
+  for (let i = 0; e && i < 4; i++) {
+    if (e.code && NETWORK_CODES.has(e.code)) return true;
+    e = e.cause;
+  }
+  return false;
+}
+
 export function isRetryableEngineError(err) {
   if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return false;
 
@@ -72,6 +87,13 @@ export function isRetryableEngineError(err) {
 
   const msg = String(err?.message || err || "");
   if (!msg) return false;
+
+  // The provider could not be reached at all: undici's bare "fetch failed",
+  // whose real reason (connect timeout, reset, DNS) is in `cause`. There is no
+  // status to classify and nothing for the user to fix mid-turn — it is exactly
+  // the case the chain exists for. On 2026-09-23 a WhatsApp follow-up died on
+  // the first model with this error while three others were one step away.
+  if (/^fetch failed$/i.test(msg.trim()) || isNetworkFailure(err)) return true;
 
   // Parse "<provider> <status>: ..." style
   const m = /\b(\d{3})\b/.exec(msg);
