@@ -2,7 +2,7 @@
 //
 // The debounce (whatsapp-settle.test.js) covers the 2.5s before a turn starts.
 // This file covers the minutes AFTER it starts, which is where the owner's turn
-// actually lives: it has tools and a six-minute deadline, and anything typed
+// actually lives: it has tools and can run for minutes, and anything typed
 // inside those minutes used to open a second turn beside the first. Two model
 // calls, neither holding the other's message or the other's reply, both
 // answering.
@@ -23,7 +23,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
-const { handleWhatsAppMessage, _resetTurnQueue, _resetReportThrottle } =
+const { handleWhatsAppMessage, _resetTurnQueue, _resetReportThrottle, _resetOwed, isWhatsAppReplyOwed } =
   await import("#core/channels/whatsapp/dispatch.js");
 const { upsertWhatsAppContact, patchWhatsAppConfig } = await import("#core/channels/whatsapp/config.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
@@ -34,8 +34,8 @@ const OWNER = "5491155555555@s.whatsapp.net";
 const CARLA = "5491166666666@s.whatsapp.net";
 
 // The debounce is not what this file is about, and 2.5s a case would buy
-// nothing. Deadlines off (0 ⇒ the constant), so a slow mock is not cut.
-patchWhatsAppConfig({ owner_jid: OWNER, auto_reply: true, reply_delay_ms: 0, turn_deadline_ms: 0, third_party_deadline_ms: 0 });
+// nothing.
+patchWhatsAppConfig({ owner_jid: OWNER, auto_reply: true, reply_delay_ms: 0 });
 upsertWhatsAppContact(CARLA, { name: "Carla", role: "contact" });
 
 const projects = new ProjectManager({ engines: {} });
@@ -128,13 +128,13 @@ test("the queue is per conversation — one slow turn does not hold up somebody 
   assert.deepEqual(h.sent.map((s) => s.text), ["MANU", "CARLA"]);
 });
 
-test("a turn that breaks still answers the owner instead of leaving them on read", async () => {
+test("a turn that breaks sends the owner no canned line — it is reported and retried", async () => {
   _resetTurnQueue();
   _resetReportThrottle();
-  // `fail-<status>` makes the engine throw rather than hang — the failure the
-  // deadline does NOT catch. The owner used to get the empty string here (which
-  // sends nothing) while the report went to Telegram, so on WhatsApp it read as
-  // the assistant having simply stopped answering.
+  _resetOwed();
+  // `fail-<status>` makes the engine throw. The owner used to get a fixed
+  // "se me rompió el turno" in their WhatsApp; now the chat stays theirs and the
+  // reply is owed, to be written by a model that reads the thread.
   const h = harness({
     ...baseConfig,
     super_agent: { ...baseConfig.super_agent, model: "fail-500", model_fallback: { enabled: false } },
@@ -142,10 +142,11 @@ test("a turn that breaks still answers the owner instead of leaving them on read
 
   await handleWhatsAppMessage(msg(OWNER, "hacé esto"), h.ctx);
 
-  assert.equal(h.sent.length, 1, "the owner is answered");
-  assert.match(h.sent[0].text, /no llegué a contestarte/i);
+  assert.equal(h.sent.length, 0, "nothing fixed is sent");
+  assert.ok(isWhatsAppReplyOwed(OWNER, OWNER), "the reply is owed");
   assert.ok(
     h.reports.some((r) => r.meta.kind === "whatsapp_error"),
-    "and it is reported, not only apologised for",
+    "and it is reported",
   );
+  _resetOwed();
 });

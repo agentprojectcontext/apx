@@ -16,7 +16,9 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
-const { handleWhatsAppMessage, _resetReportThrottle } = await import("#core/channels/whatsapp/dispatch.js");
+const {
+  handleWhatsAppMessage, _resetReportThrottle, _resetOwed, _setRetryDelays, isWhatsAppReplyOwed, followUpWhatsApp,
+} = await import("#core/channels/whatsapp/dispatch.js");
 const { upsertWhatsAppContact, patchWhatsAppConfig } = await import("#core/channels/whatsapp/config.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { GLOBAL_MESSAGES_DIR } = await import("#core/config/index.js");
@@ -234,32 +236,84 @@ test("two people on one line become two threads, not one shared pile", async () 
   assert.ok(read.messages.some((m) => m.content.includes("te dejo esto anotado")));
 });
 
-test("a turn that hangs is cut, and nobody is left on read", async () => {
+test("a turn that takes its time is waited for, not cut into a canned line", async () => {
   _resetReportThrottle();
   const h = harness();
-  // Deadlines are minutes in production; a test cannot wait that long, and a
-  // constant it cannot reach is a constant it cannot prove. `[mock:slow]`
-  // honours the abort signal, so this exercises the real cancellation path.
+  // 2026-09-23: every fast model was down, the chain reached a local model that
+  // needed more than the 90 s a contact's turn was allowed, and the deadline
+  // answered twice with the same fixed "ahora no puedo contestarte bien". A
+  // chat has no deadline; a hang is cut one level down, per engine call.
   //
-  // Written to DISK, not onto the in-memory config: every inbound message
-  // re-reads the roster from disk (so a role granted seconds ago is honoured on
-  // the next message), and that read replaces the whole `whatsapp` block — an
-  // override set only in memory is gone before the turn starts.
-  patchWhatsAppConfig({ turn_deadline_ms: 150, third_party_deadline_ms: 150 });
+  // The old knobs, set tiny: a deadline that still existed would fire here.
+  patchWhatsAppConfig({ turn_deadline_ms: 50, third_party_deadline_ms: 50 });
+  await handleWhatsAppMessage(msg(CARLA, "[mock:slow:300] me hacés un favor?"), h.ctx);
+  assert.equal(h.sent.length, 1);
+  assert.doesNotMatch(h.sent[0].text, /no puedo contestarte|te respondo en un rato/i);
+  assert.ok(!h.reports.some((r) => r.meta.kind === "whatsapp_error"), "nothing failed, nothing to report");
+});
 
-  await handleWhatsAppMessage(msg(CARLA, "[mock:slow:5000] me hacés un favor?"), h.ctx);
-  assert.equal(h.sent.length, 1, "a contact must get an answer even when the turn dies");
-  assert.match(h.sent[0].text, /te respondo/i);
+test("when no model answers, nothing canned is sent — the reply is owed and the retry reads the thread", async () => {
+  _resetReportThrottle();
+  _resetOwed();
+  _setRetryDelays([80]);
+  const h = harness();
+  // Its own config object: the retry reads it again, and by then the model is back.
+  h.ctx.globalConfig = { ...globalConfig, super_agent: { ...globalConfig.super_agent, model: "fail-503" } };
 
-  await handleWhatsAppMessage(msg(OWNER, "[mock:slow:5000] mandale un sticker a carlos"), h.ctx);
-  assert.equal(h.sent.length, 2, "the OWNER is left on read too if nothing is sent");
-  assert.match(h.sent[1].text, /colg|cort/i);
+  await handleWhatsAppMessage(msg(CARLA, "[mock:system] me pasás el logo?"), h.ctx);
+  assert.equal(h.sent.length, 0, "no fixed sentence goes to the contact");
+  assert.ok(isWhatsAppReplyOwed(CARLA, CARLA), "the conversation is owed a reply");
+  const failed = h.reports.filter((r) => r.meta.kind === "whatsapp_error");
+  assert.equal(failed.length, 1, "the owner is told once");
+  assert.match(failed[0].text, /Carla/);
+  assert.match(failed[0].text, /reintento/, "in the owner's language, saying what happens next");
 
-  const cut = h.reports.filter((r) => r.meta.kind === "whatsapp_error");
-  assert.ok(cut.length >= 1, "a cut turn is reported, not swallowed");
-  assert.match(cut[cut.length - 1].text, /por tiempo/i);
+  h.ctx.globalConfig.super_agent.model = "mock:base";
+  for (let i = 0; i < 40 && !h.sent.length; i++) await new Promise((r) => setTimeout(r, 25));
+  assert.equal(h.sent.length, 1, "the retry answered");
+  // `[mock:system]` returns the system prompt: the turn was told its reply
+  // system failed, and was left to say so in its own words.
+  assert.match(h.sent[0].text, /Reply system note/);
+  assert.match(h.sent[0].text, /in your own words/);
+  assert.ok(!isWhatsAppReplyOwed(CARLA, CARLA), "answered, so no longer owed");
+  assert.ok(h.reports.some((r) => r.meta.kind === "whatsapp_relay"), "and the owner hears it was answered");
+  _setRetryDelays(null);
+});
 
-  patchWhatsAppConfig({ turn_deadline_ms: 0, third_party_deadline_ms: 0 });
+test("the retries run out quietly: one more notice, and still nothing canned", async () => {
+  _resetReportThrottle();
+  _resetOwed();
+  _setRetryDelays([20]);
+  const h = harness();
+  h.ctx.globalConfig = { ...globalConfig, super_agent: { ...globalConfig.super_agent, model: "fail-503" } };
+  await handleWhatsAppMessage(msg(CARLA, "sigue ahí?"), h.ctx);
+  for (let i = 0; i < 40 && h.reports.filter((r) => r.meta.kind === "whatsapp_error").length < 2; i++) {
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  const failed = h.reports.filter((r) => r.meta.kind === "whatsapp_error");
+  assert.equal(failed.length, 2, "first failure + giving up, nothing in between");
+  assert.match(failed[1].text, /follow-up/);
+  assert.equal(h.sent.length, 0);
+  assert.ok(isWhatsAppReplyOwed(CARLA, CARLA));
+  _resetOwed();
+  _setRetryDelays(null);
+});
+
+test("follow-up picks a conversation up by name and answers from the thread", async () => {
+  _resetReportThrottle();
+  _resetOwed();
+  const h = harness();
+  await handleWhatsAppMessage(msg(CARLA, "[mock:system] y el logo?"), h.ctx);
+  const before = h.sent.length;
+
+  const plan = await followUpWhatsApp("carla", h.ctx);
+  assert.equal(plan.name, "Carla");
+  assert.equal(plan.chat_jid, CARLA);
+  assert.equal(await plan.run(), true);
+  assert.equal(h.sent.length, before + 1);
+  assert.match(h.sent.at(-1).text, /Reply system note/, "told why it is picking the thread up");
+
+  await assert.rejects(() => followUpWhatsApp("nadie-con-este-nombre", h.ctx), /no WhatsApp contact|no conversation/);
 });
 
 test("a status story is dropped before anything logs or answers", async () => {

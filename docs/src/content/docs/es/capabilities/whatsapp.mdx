@@ -41,6 +41,23 @@ sellado no tiene tools, así que no podría escalar aunque quisiera.
   así que sin su propio tope un solo desconocido mandando cien mensajes serían cien notificaciones.
 </Aside>
 
+### Cuando ningún modelo puede contestar
+
+Un turno no tiene tope de tiempo: un chat de WhatsApp va a su ritmo, y una respuesta que tarda tres
+minutos es mejor que una frase fija que ignora la pregunta. Una llamada que se cuelga se corta por
+llamada al motor (el timeout de silencio del proveedor) y la cadena sigue.
+
+Si fallan todos los modelos de la cadena, **no se manda nada** — nunca un "ahora no puedo
+contestarte" fijo. La conversación queda *debiendo* una respuesta: APX reintenta a los 2, 10 y 30
+minutos, y cada reintento lee el hilo entero y se entera, como un hecho, de que su sistema de
+respuestas falló; cómo decirlo lo decide el modelo. Al dueño se le avisa en la primera falla y
+cuando se agotan los reintentos. Después de un restart, o cuando quieras que se retome un hilo,
+pedilo a mano:
+
+```bash
+apx whatsapp follow-up Carla     # un nombre del roster, un número o un JID
+```
+
 ## Vincular una cuenta
 
 <Steps>
@@ -261,6 +278,7 @@ apx whatsapp chats             # qué está mal — no toca nada
 apx whatsapp repair            # arreglarlo
 apx whatsapp repair --dry-run  # ...o verlo primero
 apx whatsapp repair --force    # reintentar mensajes que un teléfono apagado nunca devolvió
+apx whatsapp follow-up <contacto>  # que el agente retome una conversación
 apx whatsapp status
 ```
 

@@ -21,7 +21,8 @@
 //      depends on the model remembering to report is a report that goes missing
 //      exactly when it matters.
 import { CHANNELS } from "#core/constants/channels.js";
-import { appendGlobalMessage } from "#core/stores/messages.js";
+import { appendGlobalMessage, readGlobalMessages } from "#core/stores/messages.js";
+import { t, resolveLang } from "#core/i18n/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { resolveTurnSkills } from "#core/agent/skills/turn-skills.js";
 import { buildWhatsAppRelationshipBlock } from "./relationship.js";
@@ -38,6 +39,8 @@ import {
   REPLY_POLICIES,
   contactKeyFor,
   isIgnorableJid,
+  normalizeJid,
+  contactAddresses,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
 import { threadFor } from "./thread.js";
@@ -51,19 +54,24 @@ import { sendWhatsApp, logOutgoingWhatsApp } from "./outbox.js";
 // a thread, not enough to become a dossier.
 const CONTACT_HISTORY_TURNS = 12;
 
-// How long a turn may take before we stop waiting for it.
+// There is no deadline on a turn, on purpose.
 //
-// A sealed turn is ONE model call with no tools — if it has not answered in a
-// minute and a half it is not going to, and the person on the other end has
-// been watching "escribiendo…" the whole time.
-const THIRD_PARTY_DEADLINE_MS = 90_000;
-// The owner's turn does real work with real tools, so it gets minutes rather
-// than seconds — but still a bound. This is the surface where a hang is
-// invisible: no spinner, no console, just a chat that stopped answering.
-const OWNER_DEADLINE_MS = 6 * 60_000;
-// Rounds of tools the owner's turn may take, mirroring Telegram's budget. The
-// deadline above is the backstop for a turn that hangs; this is the guardrail
-// for one that simply will not stop.
+// There used to be one — 90 s for a contact, 6 min for the owner — and on
+// 2026-09-23 it was the thing that failed. Every fast model was down (zen will
+// not take a turn without tools, Gemini 503, two accounts out of quota), the
+// chain fell to a local model that needed longer than 90 s, and the deadline
+// cut it and sent the same canned "ahora no puedo contestarte bien" twice, into
+// a conversation where the contact had just asked for a logo.
+//
+// A WhatsApp chat is a chat: bidirectional, at its own pace. Nobody minds a
+// reply that takes three minutes; everybody minds a fixed sentence that ignores
+// what they asked. The failure a deadline was there to catch — a call that
+// never returns — is caught one level down now, by the engine's silence
+// timeout (core/engines/index.js), which cuts a provider that stops sending and
+// lets the chain move on.
+//
+// Rounds of tools the owner's turn may take, mirroring Telegram's budget: the
+// guardrail for a turn that simply will not stop.
 const WHATSAPP_OWNER_ITERS = 18;
 
 // Coalescing the owner's reports.
@@ -386,19 +394,36 @@ export async function handleWhatsAppMessage(m, ctx) {
   // Keyed by chat AND sender, so serialising never crosses people: in a group
   // two participants still get their own turns, and a sealed turn is never
   // handed somebody else's message.
-  const queueKey = `${chatJid}|${senderJid}`;
+  await takeTurn({ ctx, sender, policy, thirdParty, chatJid, senderJid }, { body, media });
+}
+
+const queueKeyOf = (conv) => `${conv.chatJid}|${conv.senderJid}`;
+
+/**
+ * Run a turn for this conversation, or park the message behind the one that is
+ * already running. Returns whether an answer went out.
+ *
+ * `conv` is everything settled before the first turn — who wrote, under which
+ * policy, into which chat — and it does not change between rounds. Only the
+ * words do.
+ */
+async function takeTurn(conv, first) {
+  const { session, log = () => {} } = conv.ctx;
+  const queueKey = queueKeyOf(conv);
   const queued = pendingTurns.get(queueKey);
   if (queued) {
     // Capped: a flood should not become a queue of model calls. The rows are
     // on the ledger either way, so nothing is lost — only un-answered.
-    if (queued.length < MAX_PARKED) queued.push({ body, media });
-    log(`whatsapp: ${sender.name} wrote while a turn was running — that turn answers this too`);
-    return;
+    if (!first.followUp && queued.length < MAX_PARKED) queued.push(first);
+    log(`whatsapp: ${conv.sender.name} — a turn is already running for this chat; it answers this too`);
+    return false;
   }
   pendingTurns.set(queueKey, []);
 
+  let ok = false;
   try {
-    await answerTurn({ body, media });
+    await session.setTyping(conv.chatJid, true);
+    ok = await answerTurn(conv, first);
     // Drain. Bounded, because a conversation where every answer earns another
     // message is a conversation, not a backlog — after a few rounds the next
     // inbound message starts a turn of its own like any other.
@@ -406,113 +431,182 @@ export async function handleWhatsAppMessage(m, ctx) {
       const next = pendingTurns.get(queueKey);
       if (!next?.length) break;
       const batch = next.splice(0, next.length);
-      await session.setTyping(chatJid, true);
-      await answerTurn({
+      await session.setTyping(conv.chatJid, true);
+      ok = await answerTurn(conv, {
         body: batch.map((x) => x.body).filter(Boolean).join("\n"),
         media: mergeMedia(batch.map((x) => x.media)),
       });
     }
   } finally {
     pendingTurns.delete(queueKey);
-    await session.setTyping(chatJid, false);
+    await session.setTyping(conv.chatJid, false);
   }
+  return ok;
+}
 
-  /**
-   * Answer once: run the turn, send what it said, and tell the owner about it.
-   *
-   * A closure rather than a free function because everything it needs — who
-   * wrote, under which policy, into which chat — was settled before the first
-   * turn started and does not change between rounds. Only the words do.
-   */
-  async function answerTurn({ body: turnBody, media: turnMedia }) {
+// ── A reply we owe ──────────────────────────────────────────────────────────
+//
+// When no model can answer, nothing is sent. The old floor sent a canned
+// sentence instead, and it did the opposite of what it promised: it ignored
+// the question, it read the same every time (twice in a row on 2026-09-23),
+// and it was always in one language whatever the contact spoke.
+//
+// So a failed turn leaves the conversation OWED a reply, and the reply comes
+// later from a model that reads the whole thread — the question that went
+// unanswered, anything said since — and is told, as a fact, that its reply
+// system failed. What to say about that is its call.
+//
+// `chatJid|senderJid` → { attempts, timer }. In memory: after a restart the
+// next message from that person starts a turn anyway, and `apx whatsapp
+// follow-up` picks a conversation up by hand.
+const owed = new Map();
+// Waits before each automatic retry. After the last one the conversation stays
+// owed until the person writes again or the owner asks for a follow-up.
+const RETRY_DELAYS_MS = [2 * 60_000, 10 * 60_000, 30 * 60_000];
+let retryDelays = RETRY_DELAYS_MS;
+
+/** Tests only: shorter retry waits, and forget every owed reply. */
+export function _setRetryDelays(delays) {
+  retryDelays = delays || RETRY_DELAYS_MS;
+}
+export function _resetOwed() {
+  for (const d of owed.values()) if (d.timer) clearTimeout(d.timer);
+  owed.clear();
+}
+
+/** Whether this conversation is waiting on a reply our side failed to give. */
+export function isWhatsAppReplyOwed(chatJid, senderJid) {
+  return owed.has(`${chatJid}|${senderJid}`);
+}
+
+// Written for the MODEL, in English like every other system note. It states
+// what happened and what is pending; the words to the person are the model's.
+function followUpNote({ debt, manual }) {
+  const what = debt
+    ? `Your reply system failed on this conversation (${debt.attempts} attempt${debt.attempts === 1 ? "" : "s"}, no model could answer), so the latest messages here have not had a real answer from you.`
+    : manual
+      ? "The owner asked you to pick this conversation back up. Your reply system may have failed here earlier, leaving messages without a real answer."
+      : "";
+  if (!what) return "";
+  return [
+    "# Reply system note",
+    what,
+    "Any earlier message of yours saying you could not answer right now was an automatic fallback, not something you wrote.",
+    "Read the whole conversation and answer what is still pending, in the same thread and tone. If it fits, mention briefly, in your own words and once, that you had a problem with your reply system. Do not repeat anything already said.",
+  ].join("\n");
+}
+
+function owe(conv, err) {
+  const { globalConfig, log = () => {}, notifyOwner = async () => {} } = conv.ctx;
+  const key = queueKeyOf(conv);
+  const prev = owed.get(key);
+  if (prev?.timer) clearTimeout(prev.timer);
+  const attempts = (prev?.attempts || 0) + 1;
+  const delay = retryDelays[attempts - 1];
+  const entry = { attempts, timer: null };
+  if (delay != null) {
+    entry.timer = setTimeout(() => {
+      entry.timer = null;
+      retryOwed(conv).catch((e) => log(`whatsapp retry failed for ${conv.senderJid}: ${e.message}`));
+    }, delay);
+    entry.timer.unref?.();
+  }
+  owed.set(key, entry);
+  log(`whatsapp turn failed for ${conv.senderJid} (attempt ${attempts}): ${err.message}${delay != null ? ` — retrying in ${Math.round(delay / 1000)}s` : " — giving up until they write again"}`);
+
+  // The owner hears about it on the first failure and when the retries run
+  // out — not on every attempt in between. A daemon-emitted floor: the model is
+  // the thing that is down, so it cannot write this one.
+  if (attempts !== 1 && delay != null) return;
+  const lang = resolveLang(globalConfig);
+  const vars = { name: conv.sender.name, error: clip(err.message, 160), attempts };
+  if (delay != null) {
+    let at;
+    try {
+      at = new Date(Date.now() + delay).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      at = new Date(Date.now() + delay).toISOString().slice(11, 16);
+    }
+    void notifyOwner(t("whatsapp.reply_failed", { lang, vars: { ...vars, at } }), { kind: "whatsapp_error", sender_jid: conv.senderJid });
+  } else {
+    void notifyOwner(t("whatsapp.reply_gave_up", { lang, vars }), { kind: "whatsapp_error", sender_jid: conv.senderJid });
+  }
+}
+
+async function retryOwed(conv) {
+  // A turn already running for this chat will answer; it reads the same thread.
+  if (pendingTurns.has(queueKeyOf(conv))) return false;
+  return takeTurn(conv, { body: unansweredFor(conv), media: null, followUp: true });
+}
+
+/** What this person said that has not been answered — or, failing that, the last thing they said. */
+function unansweredFor(conv) {
+  const turns = threadFor(conv.chatJid, {
+    limit: CONTACT_HISTORY_TURNS * 2,
+    ...(conv.thirdParty ? { senderJid: conv.senderJid } : {}),
+  });
+  const pending = [];
+  for (let i = turns.length - 1; i >= 0 && turns[i].role === "user"; i--) pending.unshift(turns[i].content);
+  if (pending.length) return pending.join("\n");
+  return [...turns].reverse().find((x) => x.role === "user")?.content || "";
+}
+
+/**
+ * Answer once: run the turn, send what it said, and tell the owner about it.
+ * Returns whether an answer went out.
+ */
+async function answerTurn(conv, { body: turnBody, media: turnMedia, followUp = false, manual = false }) {
+  const { ctx, sender, policy, thirdParty, chatJid, senderJid } = conv;
+  const { session, globalConfig, log = () => {}, notifyOwner = async () => {} } = ctx;
+  const key = queueKeyOf(conv);
+  const debt = owed.get(key) || null;
+  // This turn is the retry now; a second one on a timer would answer twice.
+  if (debt?.timer) { clearTimeout(debt.timer); debt.timer = null; }
+  const contextNote = followUpNote({ debt, manual: manual || followUp });
+  const attachments = turnMedia?.attachment ? [turnMedia.attachment] : (turnMedia?.attachments || []);
+
   let reply = "";
   let turn = null;
-  // A turn on this channel gets a DEADLINE, because the alternative is silence
-  // and silence is the one outcome this channel is not allowed to produce.
-  //
-  // Every other surface has someone watching: the web shows a spinner, Telegram
-  // has a typing indicator you can see stop. A WhatsApp conversation has none of
-  // that — a turn that never returns is indistinguishable from being ignored, on
-  // the surface where being ignored is the whole thing we promised not to do.
-  // And a turn CAN never return: an await with no timeout under it (a model
-  // call, a media upload to a number we have no session with) parks the promise
-  // forever, the daemon goes to 0% CPU, and nothing anywhere says a word.
-  //
-  // The signal is passed INTO the turn rather than raced against it, so the work
-  // actually stops instead of continuing unobserved behind a rejected promise.
-  const wa = globalConfig?.whatsapp || {};
-  const deadlineMs = thirdParty
-    ? Number(wa.third_party_deadline_ms) || THIRD_PARTY_DEADLINE_MS
-    : Number(wa.turn_deadline_ms) || OWNER_DEADLINE_MS;
-  const attachments = turnMedia?.attachment ? [turnMedia.attachment] : (turnMedia?.attachments || []);
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(new Error("turn deadline")), deadlineMs);
   try {
     turn = thirdParty
-      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body: turnBody, attachments, signal: abort.signal })
-      : await runOwnerTurn({ ctx, sender, chatJid, body: turnBody, attachments, signal: abort.signal });
+      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body: turnBody, attachments, contextNote })
+      : await runOwnerTurn({ ctx, sender, chatJid, body: turnBody, attachments, contextNote });
     reply = turn?.text || "";
-    // Aborted mid-flight: whatever came back is a fragment of a turn that was
-    // cut, not an answer. Fall through to the never-silent floor.
-    if (abort.signal.aborted && !reply.trim()) throw new Error("turn deadline");
+    if (!reply.trim()) throw new Error("the turn came back empty");
   } catch (e) {
-    const timedOut = abort.signal.aborted;
-    log(`whatsapp turn ${timedOut ? "timed out" : "failed"} for ${senderJid}: ${e.message}`);
-    // Never leave someone on read because our side broke. This is the canned
-    // floor — the last resort, not the normal path: a model-authored sentence
-    // is impossible here precisely because the model is what did not answer.
-    //
-    // The OWNER gets one too. They are in the conversation like anyone else,
-    // and telling them on Telegram while their own WhatsApp stays blank is how
-    // a hang reads as the assistant having stopped working at all. That last
-    // sentence used to be contradicted two lines below it: a turn that TIMED
-    // OUT answered the owner, and a turn that THREW handed them the empty
-    // string, which sends nothing. A crash is the failure they are most likely
-    // to meet — and the one where silence looks most like being ignored.
-    reply = thirdParty
-      ? "Perdón, ahora no puedo contestarte bien. Te respondo en un rato."
-      : timedOut
-        ? "Se me colgó ese pedido y lo corté para no dejarte esperando. Probá de nuevo o decímelo por Telegram."
-        : "Se me rompió el turno acá y no llegué a contestarte. Repetímelo o decímelo por Telegram.";
-    await notifyOwner(
-      timedOut
-        ? `Corté por tiempo el turno de WhatsApp con ${sender.name} (${Math.round(deadlineMs / 1000)}s sin respuesta).`
-        : `Se me cayó el turno de WhatsApp con ${sender.name}: ${e.message}`,
-      { kind: "whatsapp_error", sender_jid: senderJid }
-    );
-  } finally {
-    clearTimeout(timer);
+    owe(conv, e);
+    return false;
   }
+  owed.delete(key);
 
-  if (reply && reply.trim()) {
-    // Through the shared outbox, like every other send: it writes the ledger
-    // row itself and claims the message id so Baileys' echo of it is not filed
-    // a second time. This branch used to send and log by hand, which is
-    // precisely how the other two send paths came to have no logging at all.
-    await sendWhatsApp({
-      session,
-      globalConfig,
-      to: chatJid,
-      text: reply,
-      meta: {
-        policy,
-        // Which model answered and what it cost. The ledger already carried
-        // this for every other channel, so a WhatsApp reply rendered without
-        // the footer every neighbouring message had — and the panel had no way
-        // to tell a sealed turn from the owner's, or to price either.
-        ...(turn?.model ? { model: turn.model } : {}),
-        ...(turn?.usage ? { usage: turn.usage } : {}),
-        ...(thirdParty ? { audience: "third_party" } : {}),
-      },
-    });
-  }
+  // Through the shared outbox, like every other send: it writes the ledger
+  // row itself and claims the message id so Baileys' echo of it is not filed
+  // a second time. This branch used to send and log by hand, which is
+  // precisely how the other two send paths came to have no logging at all.
+  await sendWhatsApp({
+    session,
+    globalConfig,
+    to: chatJid,
+    text: reply,
+    meta: {
+      policy,
+      // Which model answered and what it cost. The ledger already carried
+      // this for every other channel, so a WhatsApp reply rendered without
+      // the footer every neighbouring message had — and the panel had no way
+      // to tell a sealed turn from the owner's, or to price either.
+      ...(turn?.model ? { model: turn.model } : {}),
+      ...(turn?.usage ? { usage: turn.usage } : {}),
+      ...(thirdParty ? { audience: "third_party" } : {}),
+      ...(followUp || manual ? { follow_up: true } : {}),
+    },
+  });
 
   // Read the same message a second time, on its own, and write down what it was
   // asking for. Runs AFTER the reply so it never delays the person waiting, and
   // beside it rather than inside it so the reply stays plain text with nothing
   // to strip. Only for capabilities the owner turned on for THIS contact.
   let suggestion = null;
-  if (thirdParty) {
+  if (thirdParty && !followUp && !manual) {
     try {
       suggestion = await captureRequest({
         body: turnBody,
@@ -531,8 +625,9 @@ export async function handleWhatsAppMessage(m, ctx) {
   //
   // A captured request always reports, even inside the coalescing window: the
   // window exists so chatter does not become notifications, and "she asked for
-  // a turn on Thursday" is not chatter.
-  if (thirdParty && (suggestion || shouldReport("whatsapp_relay", senderJid))) {
+  // a turn on Thursday" is not chatter. A reply that settles a debt reports
+  // too: the owner was told it failed, and should hear that it was answered.
+  if (thirdParty && (suggestion || debt || shouldReport("whatsapp_relay", senderJid))) {
     const askLine = suggestion
       ? `\n\n${suggestion.kind === "appointment" ? "📅 Pide turno" : "📋 Pide"}: ${suggestion.summary}` +
         (suggestion.when_text ? ` — ${suggestion.when_text}` : "") +
@@ -544,7 +639,67 @@ export async function handleWhatsAppMessage(m, ctx) {
       { kind: "whatsapp_relay", sender_jid: senderJid, suggestion_id: suggestion?.id || null }
     );
   }
+  return true;
+}
+
+/**
+ * Pick a conversation back up by hand: `apx whatsapp follow-up <contact>`.
+ *
+ * For the reply that is owed after a restart, or any time the owner wants the
+ * assistant to take the thread up again. `who` is a JID, a phone number, or a
+ * name/nickname off the roster. The turn is the same one an inbound message
+ * would get — sealed for a contact, the real one for the owner — reading the
+ * thread and told that its reply system may have failed there.
+ */
+export async function followUpWhatsApp(who, ctx) {
+  const { globalConfig } = ctx;
+  const contact = findContactLoosely(globalConfig, who);
+  const addresses = contact ? contactAddresses(contact) : [normalizeJid(who)].filter(Boolean);
+  if (!addresses.length) throw new Error(`no WhatsApp contact matches "${who}"`);
+
+  // Which chat and which address the conversation actually uses: read off the
+  // last thing they sent, because a person can reach us from a phone JID and a
+  // LID and the reply has to go where they are.
+  let last = null;
+  try {
+    const rows = readGlobalMessages({ channel: CHANNELS.WHATSAPP, limit: 400 }) || [];
+    last = [...rows].reverse().find((r) =>
+      r.direction === "in" && addresses.includes(normalizeJid(r.meta?.sender_jid)) && !isGroupJid(r.meta?.chat_jid));
+  } catch { /* no ledger yet */ }
+  if (!last) throw new Error(`there is no conversation with ${contact?.name || who} to pick up`);
+  const chatJid = last.meta.chat_jid;
+  const senderJid = last.meta.sender_jid;
+
+  const sender = resolveWhatsAppSender({ cfg: globalConfig, addresses, chatJid, pushName: contact?.name || "" });
+  const policy = resolveReplyPolicy(globalConfig, sender);
+  if (policy === REPLY_POLICIES.SILENT) {
+    throw new Error(`${sender.name} is not answered on WhatsApp (${silenceReason(globalConfig, sender) || "silent"})`);
   }
+  const conv = { ctx, sender, policy, thirdParty: policy === REPLY_POLICIES.TEXT_ONLY, chatJid, senderJid };
+  const busy = pendingTurns.has(queueKeyOf(conv));
+  // Resolved now, run by the caller: a turn can take minutes, and whoever asked
+  // should hear "picked up" (or why not) before the model is done.
+  return {
+    name: sender.name,
+    chat_jid: chatJid,
+    busy,
+    run: () => (busy ? Promise.resolve(false) : takeTurn(conv, { body: unansweredFor(conv), media: null, manual: true })),
+  };
+}
+
+function findContactLoosely(cfg, who) {
+  const q = String(who || "").trim();
+  if (!q) return null;
+  const byJid = findWhatsAppContact(cfg, q);
+  if (byJid) return byJid;
+  const low = q.toLowerCase();
+  const rows = cfg?.whatsapp?.contacts || [];
+  const exact = rows.filter((c) => [c.name, c.nickname].some((n) => String(n || "").toLowerCase() === low));
+  if (exact.length === 1) return exact[0];
+  const partial = rows.filter((c) => [c.name, c.nickname].some((n) => String(n || "").toLowerCase().includes(low)));
+  if (partial.length === 1) return partial[0];
+  if (partial.length > 1) throw new Error(`"${who}" matches ${partial.length} contacts — use the JID`);
+  return null;
 }
 
 /**
@@ -599,7 +754,7 @@ export async function handleOwnWhatsAppMessage(m, ctx) {
 /**
  * The owner's own turn: this is Roby, on WhatsApp instead of Telegram.
  */
-async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], signal }) {
+async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], contextNote = "" }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   // The per-turn skill decision. This channel never made it, so the owner
   // asking here got a prompt with no matching skill in it while the same
@@ -613,7 +768,9 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], sign
     plugins,
     registries,
     prompt: body,
-    ...(skills.contextNote ? { contextNote: skills.contextNote } : {}),
+    ...([contextNote, skills.contextNote].some(Boolean)
+      ? { contextNote: [contextNote, skills.contextNote].filter(Boolean).join("\n\n") }
+      : {}),
     skipSkillsHint: skills.skipSkillsHint,
     previousMessages: threadFor(chatJid, { limit: CONTACT_HISTORY_TURNS * 2 }),
     attachments,
@@ -625,7 +782,6 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], sign
     // default, which on a surface nobody is watching means "as many rounds as
     // it likes".
     maxIters: Number(globalConfig?.super_agent?.whatsapp_max_iters) || WHATSAPP_OWNER_ITERS,
-    signal,
   });
   return r;
 }
@@ -640,7 +796,7 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, attachments = [], sign
  * else — a shared history across contacts would hand one person what another
  * said without any prompt ever leaking a thing.
  */
-async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, attachments = [], signal }) {
+async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, attachments = [], contextNote = "" }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   const r = await runSuperAgent({
     globalConfig,
@@ -652,9 +808,11 @@ async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, attachment
     attachments,
     channel: CHANNELS.WHATSAPP,
     audience: "third_party",
+    // The reply-system note, as a CHANNEL note: `contextNote` is owner
+    // context and a sealed prompt never carries it.
+    ...(contextNote ? { channelNote: contextNote } : {}),
     relationshipBlock: buildWhatsAppRelationshipBlock(sender, globalConfig),
     channelMeta: { chatJid, whatsapp: true },
-    signal,
   });
   return r;
 }

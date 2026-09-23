@@ -47,4 +47,6 @@ export default {
   "quota.stop_notice": "⚠️ {model} se quedó sin cuota. Frené el trabajo en segundo plano (empezando por la rutina {routine}) en vez de gastar los otros proveedores; lo vuelvo a probar después de las {until}. Si lo querés antes, cambiá el modelo del router.",
   "delivery.notice_reply": "{who} te dejó un mensaje{notify} — respondé en su chat.",
   "delivery.notice_critical": "⚠️ {who} marcó algo crítico{notify} — revisalo ahora en su chat.",
+  "whatsapp.reply_failed": "⚠️ No pude contestarle a {name} por WhatsApp: ningún modelo respondió ({error}). No le mandé ningún texto fijo; lo reintento a las {at} leyendo la charla.",
+  "whatsapp.reply_gave_up": "⚠️ Sigo sin poder contestarle a {name} por WhatsApp después de {attempts} intentos ({error}). Queda pendiente: cuando escriba de nuevo lo retomo, o pedímelo con `apx whatsapp follow-up`.",
 };

@@ -935,14 +935,19 @@ export const HELP_TOPICS = new Map(Object.entries({
   whatsapp: topic({
     title: "apx whatsapp",
     summary: "Look at the WhatsApp chats and repair the ones that came out wrong.",
-    usage: ["apx whatsapp <status|chats|repair> [--dry-run] [--force]"],
+    usage: [
+      "apx whatsapp <status|chats|repair> [--dry-run] [--force]",
+      "apx whatsapp follow-up <contact>",
+    ],
     commands: [
       ["status", "Session state, the line, the owner and how many contacts."],
       ["chats", "What is wrong: nameless rows, people APX cannot answer, unreadable messages."],
       ["repair", "Fix it: name them, let the agent answer, ask the phone for what never arrived."],
+      ["follow-up <contact>", "Pick a conversation back up: the agent reads the thread and answers what is pending (a JID, a number or a roster name)."],
     ],
     examples: [
       "apx whatsapp chats",
+      "apx whatsapp follow-up Carla",
       "apx whatsapp repair --dry-run",
       "apx whatsapp repair",
       "apx whatsapp repair --force",

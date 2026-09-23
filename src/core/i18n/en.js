@@ -44,4 +44,6 @@ export default {
   "quota.stop_notice": "⚠️ {model} ran out of quota. I stopped the background work (starting with the routine {routine}) instead of spending the other providers; I'll try it again after {until}. To use it sooner, change the router's model.",
   "delivery.notice_reply": "{who} left you a message{notify} — reply in their chat.",
   "delivery.notice_critical": "⚠️ {who} flagged something critical{notify} — check their chat now.",
+  "whatsapp.reply_failed": "⚠️ I couldn't answer {name} on WhatsApp: no model responded ({error}). I sent them no canned text; I'll retry at {at}, reading the conversation.",
+  "whatsapp.reply_gave_up": "⚠️ Still unable to answer {name} on WhatsApp after {attempts} attempts ({error}). It stays pending: I'll pick it up when they write again, or ask me with `apx whatsapp follow-up`.",
 };

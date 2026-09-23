@@ -47,6 +47,12 @@ function fakePlugin(calls) {
     inspect: () => ({ contacts: [{ kind: "nameless", jid: CONTACT, detail: "x" }], messages: [] }),
     repair: async (opts) => { calls.push(["repair", opts]); return { dry_run: !!opts.dryRun, connected: false, checked: {}, fixed: [], left: [] }; },
     chooseOption: async (jid, option, opts) => { calls.push(["choose", jid, option, opts]); return { id: "MSGX" }; },
+    followUp: async (who) => {
+      calls.push(["follow-up", who]);
+      if (who === "nadie") throw new Error('no WhatsApp contact matches "nadie"');
+      if (who === "ocupada") return { name: "Ocupada", chat_jid: CONTACT, busy: true, started: false };
+      return { name: "Carla", chat_jid: CONTACT, busy: false, started: true };
+    },
   };
 }
 
@@ -190,4 +196,30 @@ test("no whatsapp plugin means 503, never a crash", async () => {
     server.close();
     cleanupTempProject(root);
   }
+});
+
+test("POST /whatsapp/follow-up starts the turn and says who, or why not", async () => {
+  await withApi(async ({ baseUrl, calls }) => {
+    const post = (body) => fetch(`${baseUrl}/api/whatsapp/follow-up`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const ok = await post({ who: "carla" });
+    assert.equal(ok.status, 202, "accepted: the reply lands in WhatsApp, not in this body");
+    assert.deepEqual(await ok.json(), { name: "Carla", chat_jid: CONTACT, busy: false, started: true });
+    assert.deepEqual(calls.at(-1), ["follow-up", "carla"]);
+
+    const busy = await post({ who: "ocupada" });
+    assert.equal(busy.status, 200);
+    assert.equal((await busy.json()).busy, true);
+
+    const missing = await post({});
+    assert.equal(missing.status, 400);
+
+    const unknown = await post({ who: "nadie" });
+    assert.equal(unknown.status, 404);
+    assert.match((await unknown.json()).error, /nadie/);
+  });
 });

@@ -122,3 +122,17 @@ test("audience defaults to owner, so existing callers are untouched", () => {
   assert.equal(withDefault, explicit);
   assert.ok(withDefault.includes(SECRETS.memory));
 });
+
+test("a channel note reaches the sealed prompt; the owner's context note still does not", () => {
+  const system = buildSuperAgentSystem({
+    ...poisonedInputs,
+    channel: CHANNELS.WHATSAPP,
+    audience: "third_party",
+    relationshipBlock: buildRelationshipBlock(guest, { platform: "WhatsApp" }),
+    channelNote: "# Reply system note\nYour reply system failed on this conversation.",
+  });
+  assert.match(system, /Reply system note/);
+  for (const [label, secret] of Object.entries(SECRETS)) {
+    assert.ok(!system.includes(secret), `a channel note opened the door to ${label}`);
+  }
+});

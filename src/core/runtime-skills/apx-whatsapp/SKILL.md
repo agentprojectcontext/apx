@@ -159,6 +159,7 @@ Some failures do not fix themselves on the next message: a business that landed 
 ```bash
 apx whatsapp chats             # what is wrong, changes nothing
 apx whatsapp repair            # fix it   (--dry-run to see it first, --force to retry a phone that was offline)
+apx whatsapp follow-up <contact>  # pick a conversation back up: a turn reads the thread and answers what is pending
 apx whatsapp status
 ```
 
@@ -173,5 +174,5 @@ The same two verbs are on the API (`GET /api/whatsapp/repair` asks, `POST` fixes
 - **Connected but nobody is answered, including the owner** — check `owner_jid`. Empty means everyone resolves as a stranger.
 - **`logged_out`** — the credentials are dead and the plugin will NOT retry on its own (retrying dead credentials in a loop is how an account gets flagged). The owner has to pair again.
 - **Idle after a restart with no session** — expected when nothing has ever been paired; the daemon does not open a socket or produce a QR unasked.
-- **A contact wrote and got nothing back** — most often a restart landed while the turn was running; the message is delivered, so nothing will retry it. `apx whatsapp chats` lists every chat in that state, with the words, so it can be answered by hand.
+- **A contact wrote and got nothing back** — either every model failed (then the reply is *owed*: nothing canned is sent, APX retries after 2, 10 and 30 minutes reading the thread, and the owner is told on the first failure and when the retries run out), or a restart landed while the turn was running. `apx whatsapp chats` lists the chats in that state; `apx whatsapp follow-up <contact>` (or `POST /api/whatsapp/follow-up {who}`) has a turn pick one back up. There is no per-turn time limit: a slow model is waited for, a hung call is cut per engine call.
 - **A thread titled by a raw address, or a message reading `[empty message]`** — `apx whatsapp repair`.

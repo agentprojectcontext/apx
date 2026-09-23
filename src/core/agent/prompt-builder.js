@@ -393,6 +393,11 @@ export function buildThirdPartySystem({
   channelMeta = {},
   // Pre-rendered "who you're talking to" block (buildRelationshipBlock).
   relationshipBlock = "",
+  // A note the CHANNEL writes about this turn — e.g. that the previous reply
+  // failed (core/channels/whatsapp/dispatch.js). Its own parameter, never
+  // `contextNote`: that one carries the owner's skills and notes, and must not
+  // reach a stranger's prompt however a caller fills it.
+  channelNote = "",
 }) {
   const channelLow = String(channel || "").toLowerCase();
   const rel = THIRD_PARTY_CHANNEL_PROMPT_FILES[channelLow];
@@ -424,6 +429,7 @@ export function buildThirdPartySystem({
     persona,
     relationshipBlock,
     renderPromptTemplate(loadPrompt(rel), channelMeta),
+    channelNote,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -463,9 +469,11 @@ export function buildSuperAgentSystem({
   // the permissive one because every existing caller is owner-facing — a new
   // surface that talks to strangers has to say so.
   audience = "owner",
+  // Only read on a third-party turn — see buildThirdPartySystem.
+  channelNote = "",
 }) {
   if (audience === "third_party") {
-    return buildThirdPartySystem({ globalConfig, channel, channelMeta, relationshipBlock });
+    return buildThirdPartySystem({ globalConfig, channel, channelMeta, relationshipBlock, channelNote });
   }
   const sa = globalConfig.super_agent || {};
   const identity = (() => {

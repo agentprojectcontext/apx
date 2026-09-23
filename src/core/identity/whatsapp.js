@@ -186,7 +186,7 @@ function contactsArray(cfg) {
 }
 
 /** Every address recorded for one roster row (its jid plus learned aliases). */
-function contactAddresses(c) {
+export function contactAddresses(c) {
   const raw = [c?.jid, ...(Array.isArray(c?.alts) ? c.alts : [])];
   const out = [];
   for (const r of raw) {
