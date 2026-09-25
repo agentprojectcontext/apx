@@ -382,7 +382,7 @@ export async function cmdSetup() {
   console.log();
   console.log(gr(b("  ✅ APX is ready!")));
   console.log();
-  console.log(`  Daemon:   ${cy("http://127.0.0.1:7430")}`);
+  console.log(`  Daemon:   ${cy(daemonHttp.baseUrl())}`);
   if (wantTelegram) console.log(`  Telegram: ${cy("active — message your bot")}`);
   console.log();
   console.log(di("  Tip: run `apx daemon status` anytime to check health."));
