@@ -75,6 +75,9 @@ jobs:
           cp assets/logo.png            _site/assets/ 2>/dev/null || true
           cp assets/hero.png            _site/assets/ 2>/dev/null || true
           cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
+          # The landing's own media: the recorded panel clips (+ 4:5 phone
+          # cuts and posters), the blobos it draws, the dark/light captures.
+          cp -R assets/landing          _site/assets/
           # Favicons — same vibrant mark as the web admin (adaptive light/dark).
           cp -R assets/favicon          _site/assets/ 2>/dev/null || true
           # Docs build → /apx/docs/ (base path is baked in by Astro).
