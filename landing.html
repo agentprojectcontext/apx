@@ -288,7 +288,7 @@
   .ch-card .contact { grid-column: 1; grid-row: 2; margin: 20px 30px 30px !important; align-self: end; }
   @media (max-width: 900px) {
     .channels { row-gap: 60px; }
-    .ch-card { display: flex !important; flex-direction: column; }
+    .ch-card { display: flex !important; flex-direction: column; align-items: stretch; }
     .ch-card .chatwin { margin: 20px 16px 18px !important; }
     .ch-card .contact { margin: 0 16px 20px !important; }
     .ch-card .top { padding: 22px 22px 0 !important; }
@@ -1323,16 +1323,6 @@
   new IntersectionObserver(function (es) { carSeen = es[0].isIntersecting; }, { threshold: .4 }).observe(trk);
   var lastPV = perView(); addEventListener('resize', function () { if (perView() !== lastPV) { lastPV = perView(); buildDots(); } });
   buildDots(); carKick();
-
-  /* Phones get the 4:5 cuts recorded for them. */
-  if (window.matchMedia('(max-width: 700px)').matches) {
-    document.querySelectorAll('.stage video, .tile:not(.phone) video').forEach(function (v) {
-      var attr = v.hasAttribute('data-src') ? 'data-src' : 'src', src = v.getAttribute(attr);
-      if (!src) return;
-      v.setAttribute(attr, src.replace(/\.mp4$/, '-mobile.mp4')); v.style.aspectRatio = '1080 / 1350'; v.style.objectPosition = 'center top';
-    });
-    var tb = document.querySelector('.stage .bar'); if (tb) tb.style.display = 'none';
-  }
 
   /* ── Observers: reveals, lazy videos, animations only while visible ── */
   var io = new IntersectionObserver(function (es) {
