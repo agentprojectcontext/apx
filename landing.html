@@ -3,36 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>APX — Your crew of AI agents, running on your machine</title>
-<meta name="description" content="APX is a local runtime for AI agents: a crew that keeps its memory in plain files, talks to each other, and works across Claude Code, Codex, Telegram, WhatsApp, the web and your phone. Open source, no lock-in.">
-<meta property="og:title" content="APX — Your crew of AI agents">
-<meta property="og:description" content="AI agents that run on your machine, remember in plain files and pass work between themselves. Open source.">
+<title>APX — Meet your crew · Open-source Agent OS</title>
+<meta name="description" content="Open-source Agent OS for running AI agents on your own machine. Build your crew: agents that remember, work together and run Claude Code, Codex, Telegram and WhatsApp.">
+<meta name="keywords" content="Agent OS, AI agents, AI crew, multi-agent, local AI agents, self-hosted AI agents, open-source AI agents, Claude Code, Codex, OpenCode, MCP, Telegram AI agent, WhatsApp AI agent, agent memory, AGENTS.md">
+<meta name="author" content="Agent Project Context">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="https://agentprojectcontext.github.io/apx/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="APX">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://agentprojectcontext.github.io/apx/">
+<meta property="og:title" content="APX — Meet your crew">
+<meta property="og:description" content="An open-source Agent OS for running AI agents on your own machine. Your crew remembers, works together, and keeps going while you build.">
 <meta property="og:image" content="https://agentprojectcontext.github.io/apx/assets/og.jpg">
+<meta property="og:image:secure_url" content="https://agentprojectcontext.github.io/apx/assets/og.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="APX — a row of blobo agents above the headline “Meet your crew.” and the install command npm i -g @agentprojectcontext/apx">
-<meta property="og:url" content="https://agentprojectcontext.github.io/apx/">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="APX">
+<meta property="og:image:alt" content="APX — Meet your crew: a row of blobo agents above the install command npm i -g @agentprojectcontext/apx">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="APX — Your crew of AI agents">
-<meta name="twitter:description" content="AI agents that run on your machine, remember in plain files and pass work between themselves. Open source.">
+<meta name="twitter:title" content="APX — Meet your crew">
+<meta name="twitter:description" content="An open-source Agent OS for running AI agents on your own machine. Your crew remembers, works together, and keeps going while you build.">
 <meta name="twitter:image" content="https://agentprojectcontext.github.io/apx/assets/og.jpg">
-<meta name="twitter:image:alt" content="APX — a row of blobo agents above the headline “Meet your crew.” and the install command npm i -g @agentprojectcontext/apx">
-<link rel="canonical" href="https://agentprojectcontext.github.io/apx/">
+<meta name="twitter:image:alt" content="APX — Meet your crew: a row of blobo agents above the install command npm i -g @agentprojectcontext/apx">
 <script type="application/ld+json">
 {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "APX — Agent Project eXecutable",
-  "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "macOS, Linux, Windows",
-  "description": "A local runtime, CLI and web panel for AI agents: one portable project context across any coding tool and any channel.",
-  "url": "https://agentprojectcontext.github.io/apx/",
-  "softwareHelp": "https://agentprojectcontext.github.io/apx/docs/",
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "author": { "@type": "Organization", "name": "Agent Project Context", "url": "https://github.com/agentprojectcontext" }
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "SoftwareApplication",
+   "@id": "https://agentprojectcontext.github.io/apx/#app",
+   "name": "APX",
+   "alternateName": "Agent Project eXecutable",
+   "description": "APX is an open-source Agent OS for running AI agents on your own machine: a crew of agents with memory in plain files, that talk to each other and work from coding CLIs, chat apps and the web.",
+   "applicationCategory": "DeveloperApplication",
+   "applicationSubCategory": "Agent OS",
+   "operatingSystem": "macOS, Linux, Windows",
+   "softwareRequirements": "Node.js 22 or later",
+   "url": "https://agentprojectcontext.github.io/apx/",
+   "image": "https://agentprojectcontext.github.io/apx/assets/og.jpg",
+   "screenshot": [
+    "https://agentprojectcontext.github.io/apx/assets/landing/group-chat.jpg",
+    "https://agentprojectcontext.github.io/apx/assets/landing/tasks.jpg"
+   ],
+   "downloadUrl": "https://www.npmjs.com/package/@agentprojectcontext/apx",
+   "installUrl": "https://www.npmjs.com/package/@agentprojectcontext/apx",
+   "softwareHelp": {
+    "@type": "CreativeWork",
+    "url": "https://agentprojectcontext.github.io/apx/docs/"
+   },
+   "license": "https://opensource.org/licenses/MIT",
+   "isAccessibleForFree": true,
+   "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+   },
+   "featureList": [
+    "Multi-agent crew with per-agent memory in plain markdown files",
+    "Agents that hand work to each other (agent-to-agent)",
+    "Runs Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI and Qwen Code",
+    "Any model: Anthropic, OpenAI, Gemini, Groq, OpenRouter or local Ollama",
+    "Telegram and WhatsApp channels",
+    "Tasks, scheduled routines and code sessions",
+    "MCP servers",
+    "Web panel, phone view and Android app",
+    "Local-first, no database, no lock-in"
+   ],
+   "keywords": "Agent OS, AI agents, AI crew, multi-agent, local AI agents, self-hosted AI agents, Claude Code, Codex, MCP, Telegram AI agent, WhatsApp AI agent, agent memory, AGENTS.md",
+   "sameAs": [
+    "https://github.com/agentprojectcontext/apx",
+    "https://www.npmjs.com/package/@agentprojectcontext/apx"
+   ],
+   "publisher": {
+    "@id": "https://agentprojectcontext.github.io/apx/#org"
+   }
+  },
+  {
+   "@type": "Organization",
+   "@id": "https://agentprojectcontext.github.io/apx/#org",
+   "name": "Agent Project Context",
+   "url": "https://agentprojectcontext.com/",
+   "logo": "https://agentprojectcontext.github.io/apx/assets/logo.png",
+   "sameAs": [
+    "https://github.com/agentprojectcontext",
+    "https://discord.gg/vxdZuT5WuE"
+   ]
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://agentprojectcontext.github.io/apx/#site",
+   "url": "https://agentprojectcontext.github.io/apx/",
+   "name": "APX",
+   "description": "An open-source Agent OS for running AI agents on your own machine. Your crew remembers, works together, and keeps going while you build.",
+   "inLanguage": "en",
+   "publisher": {
+    "@id": "https://agentprojectcontext.github.io/apx/#org"
+   }
+  }
+ ]
 }
 </script>
 <meta name="theme-color" content="#08090a">
@@ -101,6 +170,7 @@
   .btn-android { background: rgba(255,255,255,.07); color: var(--fg); }
   .btn-android:hover { background: rgba(255,255,255,.12); }
   .sub-actions { margin-top: 18px; }
+  .final-tag { margin: 18px 0 0; font-size: clamp(18px, 2.2vw, 24px); font-weight: 500; letter-spacing: -.02em; color: var(--accent-2); }
   .parade-cap { margin: -26px 0 38px; font-size: 14px; color: var(--muted); }
   .parade-cap b { color: var(--fg); font-weight: 500; }
   @media (max-width: 860px) { .nav-cta .btn-discord .lbl-d { display: none; } .nav-cta .btn-discord { padding: 0 11px; } }
@@ -491,7 +561,7 @@
       <span class="row"><span class="split">Meet</span><span class="hero-blob" id="heroBlob" aria-hidden="true"></span><span class="split">your</span></span>
       <span class="row"><span class="word-rot split" id="heroWord">crew.</span></span>
     </h1>
-    <p class="hero-sub">AI agents that live on your computer, keep their memory in plain files, and hand work to each other &mdash; from Claude Code and Codex to Telegram, WhatsApp and your phone.</p>
+    <p class="hero-sub"><b style="color:var(--fg);font-weight:500">APX is an open-source Agent OS</b> for running AI agents on your own machine. Your crew remembers in plain files, hands work to each other, and shows up in Claude Code, Codex, Telegram, WhatsApp and your phone.</p>
     <div class="hero-actions">
       <button class="install" data-copy="npm install -g @agentprojectcontext/apx"><span><span class="dollar">$</span> npm i -g @agentprojectcontext/apx</span><span class="copy">Copy</span></button>
     </div>
@@ -526,7 +596,7 @@
   <div class="wrap">
     <div class="reveal">
       <span class="eyebrow">Meet the blobos</span>
-      <h2>One agent per line of work.<br><span class="soft">As many as you need.</span></h2>
+      <h2>Build your crew.<br><span class="soft">One agent per line of work.</span></h2>
       <p class="lead">Every agent gets a <b style="color:var(--fg);font-weight:500">blobo</b>: a face whose eyes follow you around, plus a role, its own memory and its own tools. Mention one and it picks up the work &mdash; or pulls in whoever should.</p>
     </div>
     <div class="crew" id="crewGrid"></div>
@@ -568,7 +638,7 @@
 
     <div class="carousel reveal" id="carousel">
       <div class="car-head">
-        <h3>More of the panel</h3>
+        <h3>Your crew works while you build.</h3>
         <div class="car-dots" id="carDots"></div>
         <div class="car-nav"><button type="button" id="carPrev" aria-label="Previous">&larr;</button><button type="button" id="carNext" aria-label="Next">&rarr;</button></div>
       </div>
@@ -652,7 +722,7 @@
 <section id="plain-text">
   <div class="wrap glyph-grid">
     <div class="reveal">
-      <span class="eyebrow">Made of plain text</span>
+      <span class="eyebrow">Your crew remembers</span>
       <h2>An agent is<br>a markdown file.</h2>
       <p class="lead">Role, face, memory, skills &mdash; it all lives in <code>.apc/</code>, next to your code. No database, no lock-in. Read it, diff it, commit it. Switch tools and the crew comes with you.</p>
       <div class="agentfile">
@@ -691,7 +761,7 @@
 <!-- INTEGRATIONS -->
 <section id="works-with" style="padding-top:60px">
   <div class="wrap reveal center">
-    <span class="eyebrow">Works with what you have</span>
+    <span class="eyebrow">Bring your own agents</span>
     <h2>Bring your models.<br><span class="soft">Bring your tools.</span></h2>
     <p class="lead">Route to a coding CLI you already use, call any model directly, and talk to the crew from wherever you are.</p>
   </div>
@@ -725,6 +795,7 @@
     <div class="parade" id="parade"></div>
     <p class="parade-cap">These are the <b>blobos</b> &mdash; 35 faces to give your agents. Hover one.</p>
     <h2 class="reveal">Your crew is waiting.</h2>
+    <p class="final-tag reveal">One machine. One context. Your whole crew.</p>
     <p class="lead reveal" style="margin-left:auto;margin-right:auto">Free and open source. No account, no sales call. Requires Node.js 22+ on macOS, Linux or Windows.</p>
     <div class="hero-actions reveal">
       <button class="install" data-copy="npm install -g @agentprojectcontext/apx"><span><span class="dollar">$</span> npm i -g @agentprojectcontext/apx</span><span class="copy">Copy</span></button>
