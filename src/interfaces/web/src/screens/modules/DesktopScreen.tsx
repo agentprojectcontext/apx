@@ -5,6 +5,7 @@ import { Loading, Empty } from "../../components/ui";
 import { DesktopStatusCard } from "../../components/desktop/DesktopStatusCard";
 import { fetchDesktopMessages, type GlobalMessage } from "../../lib/api/desktop";
 import { t } from "../../i18n";
+import { usePersonaName } from "../../hooks/usePersonaName";
 
 // Desktop module — the floating voice window (the Electron app launched with
 // `apx desktop start`). This rail surface shows live status + lifecycle
@@ -74,12 +75,13 @@ function DesktopLastConversation({ messages, loading }: { messages: GlobalMessag
 }
 
 function MessageLine({ m }: { m: GlobalMessage }) {
+  const persona = usePersonaName();
   const isUser = m.direction === "in";
   const when = formatWhen(m.ts);
   return (
     <div className="py-1">
       <div className="flex items-baseline gap-2 text-[11px] text-muted-fg">
-        <span className="font-semibold">{isUser ? t("modules_ui.desktop_you") : t("modules_ui.desktop_roby")}</span>
+        <span className="font-semibold">{isUser ? t("modules_ui.desktop_you") : persona}</span>
         <span>{when}</span>
       </div>
       <div className={"mt-0.5 text-sm leading-snug whitespace-pre-wrap " + (isUser ? "text-muted-fg" : "text-fg")}>

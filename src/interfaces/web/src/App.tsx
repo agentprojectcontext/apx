@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "./components/ui/dropdown-menu";
 import { t, getLocale, setLocale, LOCALES, type Locale } from "./i18n";
+import { usePersonaName } from "./hooks/usePersonaName";
 
 export function App() {
   const auth = useTokenBootstrap();
@@ -373,13 +374,14 @@ function Splash({ text, sub, mood = "happy" }: { text: string; sub?: string; moo
 
 function NotFound() {
   const navigate = useNavigate();
+  const persona = usePersonaName();
   return (
     <RobyEmpty
       testId="screen-not-found"
       mood="confused"
       title={t("not_found.title")}
       titleClassName="text-7xl"
-      message={t("not_found.message")}
+      message={t("not_found.message", { persona })}
       action={
         <Button variant="outline" onClick={() => navigate("/")}>
           {t("not_found.home")}

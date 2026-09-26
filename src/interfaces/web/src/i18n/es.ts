@@ -724,7 +724,7 @@ export const es = {
     },
   },
   project: {
-    not_found:          "Roby no encontró el proyecto {pid}: quizás se desregistró o el ID es incorrecto.",
+    not_found:          "{persona} no encontró el proyecto {pid}: quizás se desregistró o el ID es incorrecto.",
     rebuild:            "Rebuild context",
     rebuild_done:       "Rebuild OK.",
     unregister_confirm: "¿Desregistrar {label}? La carpeta no se borra.",
@@ -1684,7 +1684,7 @@ export const es = {
 
   not_found: {
     title:   "404",
-    message: "Roby se perdió: esta página no existe o se movió.",
+    message: "{persona} se perdió: esta página no existe o se movió.",
     home:    "Volver al inicio",
   },
 
@@ -3013,7 +3013,6 @@ export const es = {
     desktop_last_conv_desc:  "El último intercambio con el agente desde la ventana flotante.",
     desktop_no_messages:     "Todavía no hay mensajes. Mandá algo a la ventana de escritorio para que aparezca acá.",
     desktop_you:             "Vos",
-    desktop_roby:            "Roby",
     desktop_empty_msg:       "(vacío)",
     deck_widget_enabled:     "Widget {id} habilitado.",
     deck_widget_disabled:    "Widget {id} deshabilitado.",
