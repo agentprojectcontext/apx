@@ -8,6 +8,7 @@
 // no message-log writes (the caller decides whether and where to persist).
 import { callEngineWithFallback } from "../engine-call.js";
 import { readAgentMemory } from "../memory.js";
+import { buildAgentInstructionsBlock } from "../build-agent-system.js";
 import { resolveAgentModel } from "../agent-model.js";
 import { resolveAgentName } from "../../identity/self.js";
 import { readProfileState } from "../../profiles/store.js";
@@ -108,8 +109,8 @@ function a2aEtiquette({ selfAddress, peerAddress, config, wake = false }) {
 
 /**
  * Build the recipient AGENT's system prompt for an A2A reply.
- * Includes Description, Role, Language, a persona line naming the sender,
- * the a2a etiquette (routing, return address, secretary capture), and the
+ * Includes Description, Role, Language, the agent's authored instructions
+ * (its body), a persona line naming the sender, the a2a etiquette (routing, return address, secretary capture), and the
  * recipient's memory.
  */
 export function buildA2AReplySystem({
@@ -129,6 +130,11 @@ export function buildA2AReplySystem({
   if (tf.Description) parts.push(tf.Description);
   if (tf.Role) parts.push(`Role: ${tf.Role}`);
   if (tf.Language) parts.push(`Default language: ${tf.Language}`);
+  // The agent's own instructions — the same block buildAgentSystem injects. An
+  // a2a reply that skipped it answered on the frontmatter alone, so an agent
+  // whose body said "the redesign is 70% done" told a peer nothing had started.
+  const instructions = buildAgentInstructionsBlock(toAgent);
+  if (instructions) parts.push(instructions);
   parts.push(`You are ${self}. You just received a message from ${peer}. Reply concisely.`);
   if (mode === "code") {
     // An agent peer has no sandbox to open — it answers through its model, with
