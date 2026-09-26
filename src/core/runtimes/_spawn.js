@@ -1,6 +1,14 @@
 // Shared spawn helper: runs a command, pipes a string to stdin, captures
 // stdout/stderr, returns when the process exits or the timeout fires.
-import { spawn } from "node:child_process";
+// cross-spawn, not node:child_process. On Windows npm installs agent CLIs as
+// `.cmd` shims, and CreateProcess cannot execute a batch file: `spawn("codex")`
+// fails with ENOENT even though the same command works in a terminal. That took
+// out every npm-installed runtime here — codex, gemini-cli, qwen-code, opencode,
+// aider, cursor-agent — and detect.js with them, since it probes through this
+// helper too. cross-spawn resolves the shim via PATHEXT and re-routes it through
+// cmd.exe with the escaping that needs. On POSIX it delegates straight to
+// child_process.spawn, so nothing changes there.
+import spawn from "cross-spawn";
 
 const DEFAULT_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
