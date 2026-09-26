@@ -8,7 +8,9 @@ import { skillOrigin, homeRel } from "#core/agent/skills/origin.js";
 test("homeRel shortens paths under $HOME", () => {
   const home = "/Users/demo";
   assert.equal(homeRel("/Users/demo/foo/SKILL.md", home), "~/foo/SKILL.md");
-  assert.equal(homeRel("/tmp/x", home), "/tmp/x");
+  // A path that cannot exist: homeRel resolves real paths, so a stray /tmp/x on
+  // a macOS box came back as /private/tmp/x and failed this test for no reason.
+  assert.equal(homeRel("/apx-no-such-dir/x", home), "/apx-no-such-dir/x");
 });
 
 test("a skill living under ~/.claude/skills is origin claude", () => {
