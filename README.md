@@ -6,9 +6,12 @@
   <img src="assets/banner.webp" alt="APX — Agent Project eXecutable: your crew of AI agents, running on your machine" width="820">
 </p>
 
+<h3 align="center">Meet your crew.</h3>
+
 <p align="center">
-  <b>APX</b> &mdash; <b>A</b>gent <b>P</b>roject e<b>X</b>ecutable.<br>
-  A local runtime, CLI and web admin for AI agents, built on the
+  <b>APX</b> (<b>A</b>gent <b>P</b>roject e<b>X</b>ecutable) is an <b>open-source Agent OS</b> for running AI agents on your own machine.<br>
+  Your crew remembers in plain files, hands work to each other, and works from Claude Code, Codex, Telegram, WhatsApp and your phone.<br>
+  One machine. One context. Your whole crew. Built on the
   <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC protocol</a>.
 </p>
 
