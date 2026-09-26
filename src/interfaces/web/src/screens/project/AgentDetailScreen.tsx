@@ -23,7 +23,7 @@ import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { FileViewer } from "../../components/files/FileViewer";
 import { cn } from "../../lib/cn";
-import { slugify } from "../../lib/slug";
+import { agentSlugFromName, slugify } from "../../lib/slug";
 import { t } from "../../i18n";
 import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
@@ -345,7 +345,7 @@ function AgentNameHeading({
       onSaved();
       // Suggest matching the slug to the new name, but only when it's a real,
       // valid change (never for the super-agent or an unchanged slug).
-      const suggested = slugify(next);
+      const suggested = agentSlugFromName(next);
       if (
         slug !== "super-agent" &&
         suggested &&
@@ -645,7 +645,7 @@ function SlugRenameField({
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
-  const suggestion = slugify(nameDraft);
+  const suggestion = agentSlugFromName(nameDraft);
   const next = slugify(draft);
   const invalid = !/^[a-z][a-z0-9_-]*$/.test(next);
   const unchanged = next === currentSlug;

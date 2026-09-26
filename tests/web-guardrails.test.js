@@ -255,7 +255,7 @@ const SENTENCE_FRAGMENTS = new Set([
   "project.groups.members_hint", "project.mcps.args_hint", "agents_ui.comma_separated",
   "agents_ui.brain_pan_hint", "agents_ui.config_def_desc", "agents_ui.memory_durable_desc",
   "memory_panel.openai_desc", "memory_panel.gemini_desc", "voice_ui.openai_model_hint",
-  "telegram_channels.no_owner", "project.agents.slug_invalid", "base.defaults_slug_invalid",
+  "telegram_channels.no_owner", "base.defaults_slug_invalid",
   "agents_ui.body_hint", "project.mcps.env_invalid",
 
   // config key / field name shown verbatim.

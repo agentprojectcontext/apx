@@ -70,4 +70,35 @@ test.describe("isolated CRUD", () => {
 
     await expect(page.getByTestId("agent-card-e2ebot")).toBeVisible();
   });
+
+  test("agent create: the slug follows the name until you edit it", async ({ page }) => {
+    const { projectId } = runtime();
+    await page.goto(`/p/${projectId}/agents`);
+    await page.getByTestId("agent-new").click();
+
+    const name = page.getByTestId("agent-name");
+    const slug = page.getByTestId("agent-slug");
+
+    // Derived as you type: accents stripped, spaces to dashes.
+    await name.fill("Lucía Pérez");
+    await expect(slug).toHaveValue("lucia-perez");
+
+    // Once the slug is edited by hand, the name stops driving it.
+    await slug.fill("Bad Slug");
+    await name.fill("Otra Cosa");
+    await expect(slug).toHaveValue("Bad Slug");
+
+    // An invalid slug is explained on the field, in words — not as a regex.
+    await page.getByTestId("agent-create-submit").click();
+    const alert = page.getByRole("alert").filter({ hasText: /letter|letra/ });
+    await expect(alert).toBeVisible();
+    await expect(alert).not.toContainText("/^");
+
+    // Clearing the slug hands it back to the name.
+    await slug.fill("");
+    await name.fill("E2E Vera");
+    await expect(slug).toHaveValue("e2e-vera");
+    await page.getByTestId("agent-create-submit").click();
+    await expect(page.getByTestId("agent-card-e2e-vera")).toBeVisible();
+  });
 });

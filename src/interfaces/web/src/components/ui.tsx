@@ -71,11 +71,15 @@ export function Field({
   label,
   hint,
   badge,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
   badge?: string;
+  /** A validation message for this field. Shown in place of the hint, so the
+   *  problem sits under the control that has it instead of in a toast. */
+  error?: string;
   children: ReactNode;
 }) {
   // Do not wrap controls in <label>: complex fields (contentEditable +
@@ -89,7 +93,9 @@ export function Field({
         )}
       </span>
       {children}
-      {hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
+      {error
+        ? <span role="alert" className="block text-[11px] text-destructive">{error}</span>
+        : hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
     </div>
   );
 }

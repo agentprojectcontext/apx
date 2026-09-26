@@ -18,11 +18,20 @@ import { setFrontmatterField } from "#core/apc/frontmatter.js";
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { newAgentName } from "#core/apc/agent-names.js";
-import { createArea, createRole, readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
+import { createArea, createRole, readOrganization, resolveAreaSlug, slugifyName } from "#core/stores/organization.js";
 import { repointAgentReferences, findStaleAgentMentions } from "./agent-rename-refs.js";
 import { normalizeAutonomy } from "#core/constants/permissions.js";
 
 export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
+
+// The slug an agent NAME yields: slugifyName, then drop whatever precedes the
+// first letter, because AGENT_SLUG_RE wants a letter first ("3PO" → "po"). An
+// empty string means the name has no usable letters and the caller must ask for
+// an explicit slug. The web panel mirrors this in lib/slug.ts
+// (tests/agent-slug-parity.test.js keeps the two equal).
+export function agentSlugFromName(name) {
+  return slugifyName(name).replace(/^[^a-z]+/, "");
+}
 
 // Autonomy mirrors the permission modes and lives with them now, next to the
 // values it validates against. Re-exported here because this module is where
