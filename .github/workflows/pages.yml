@@ -73,10 +73,10 @@ jobs:
           touch _site/.nojekyll
           # Only the assets the landing references.
           cp assets/logo.png            _site/assets/ 2>/dev/null || true
-          cp assets/hero.png            _site/assets/ 2>/dev/null || true
+          cp assets/og.jpg              _site/assets/   # og:image / twitter:image
           cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
-          # The landing's own media: the recorded panel clips (+ 4:5 phone
-          # cuts and posters), the blobos it draws, the dark/light captures.
+          # The landing's own media: the recorded panel clips and their
+          # posters, the blobos it draws, the dark/light captures.
           cp -R assets/landing          _site/assets/
           # Favicons — same vibrant mark as the web admin (adaptive light/dark).
           cp -R assets/favicon          _site/assets/ 2>/dev/null || true
