@@ -16,6 +16,7 @@ import { ObsidianLogo } from "../components/integrations/BrandLogos";
 import { RobyEmpty } from "../components/Roby";
 import { Button } from "../components/ui/button";
 import { useProject } from "../hooks/useProjects";
+import { usePersonaName } from "../hooks/usePersonaName";
 import { STORAGE } from "../constants";
 import { toneText } from "../lib/tone";
 import { t } from "../i18n";
@@ -54,6 +55,7 @@ export function ProjectScreen() {
   const location = useLocation();
   const { pid = "" } = useParams();
   const { project } = useProject(pid);
+  const persona = usePersonaName();
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".project");
 
   const isBase = String(pid) === "0";
@@ -149,7 +151,7 @@ export function ProjectScreen() {
       <RobyEmpty
         testId="screen-project-not-found"
         mood="confused"
-        message={t("project.not_found", { pid })}
+        message={t("project.not_found", { pid, persona })}
         action={
           <Button variant="outline" onClick={() => navigate("/")}>
             {t("not_found.home")}

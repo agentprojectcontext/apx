@@ -340,3 +340,17 @@ test("i18n: user-visible labels start with a Capital (rule 11a)", () => {
   const stale = [...SENTENCE_FRAGMENTS].filter((k) => !opensLowercase(en[k]) && !opensLowercase(es[k]));
   assert.deepEqual(stale, [], `SENTENCE_FRAGMENTS entries that no longer apply — remove them: ${stale.join(", ")}`);
 });
+
+test("i18n: no string hardcodes the persona name (rule 4)", () => {
+  // The persona is whatever ~/.apx/identity.json says — "APX" by default,
+  // "Nova" or anything else on another install. A dictionary string that
+  // spells out the old name told a user whose agent is Nova that "Roby
+  // couldn't find project 1". Interpolate {persona} from usePersonaName().
+  const offenders = [];
+  for (const [lang, file] of [["en", "en.ts"], ["es", "es.ts"]]) {
+    for (const [key, value] of Object.entries(leafEntries(loadDict(file, lang)))) {
+      if (typeof value === "string" && /\bRoby\b/.test(value)) offenders.push(`${key} (${lang}) = ${JSON.stringify(value)}`);
+    }
+  }
+  assert.deepEqual(offenders, [], `interpolate {persona} instead:\n  ${offenders.join("\n  ")}`);
+});

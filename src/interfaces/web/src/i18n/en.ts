@@ -722,7 +722,7 @@ export const en = {
     },
   },
   project: {
-    not_found:          "Roby couldn't find project {pid}: it may have been unregistered, or the ID is wrong.",
+    not_found:          "{persona} couldn't find project {pid}: it may have been unregistered, or the ID is wrong.",
     rebuild:            "Rebuild context",
     rebuild_done:       "Rebuild OK.",
     unregister_confirm: "Unregister {label}? The folder is not deleted.",
@@ -1670,7 +1670,7 @@ export const en = {
 
   not_found: {
     title:   "404",
-    message: "Roby got lost: this page doesn't exist or has moved.",
+    message: "{persona} got lost: this page doesn't exist or has moved.",
     home:    "Back to home",
   },
 
@@ -3004,7 +3004,6 @@ export const en = {
     desktop_last_conv_desc:  "The latest exchange with the agent from the floating window.",
     desktop_no_messages:     "No messages yet. Send something to the desktop window for it to appear here.",
     desktop_you:             "You",
-    desktop_roby:            "Roby",
     desktop_empty_msg:       "(empty)",
     deck_widget_enabled:     "Widget {id} enabled.",
     deck_widget_disabled:    "Widget {id} disabled.",
