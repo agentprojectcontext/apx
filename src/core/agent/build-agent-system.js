@@ -42,6 +42,24 @@ function projectName(project) {
 export { agentSkills };
 
 /**
+ * The agent's authored body (everything after the frontmatter in its
+ * `.apc/agents/<slug>.md`) is its real instruction set — persona, domain
+ * rules, API endpoints, tone, hard limits. Without injecting it the agent
+ * runs on its fields alone and loses everything its author actually wrote.
+ *
+ * Exported because every prompt that speaks AS the agent needs it: the a2a
+ * reply system (core/agent/a2a/reply.js) left it out, and an agent asked by a
+ * peer denied work its own instructions described. "" when there is no body.
+ */
+export function buildAgentInstructionsBlock(agent) {
+  let customBody = String(agent?.body || "").trim();
+  if (customBody.length > AGENT_BODY_MAX_CHARS) {
+    customBody = customBody.slice(0, AGENT_BODY_MAX_CHARS) + "\n\n…(instructions truncated)";
+  }
+  return customBody ? `# Custom instructions\n${customBody}` : "";
+}
+
+/**
  * Build the system prompt for a project agent.
  *
  * @param project        { id, name, path, ... }
@@ -84,15 +102,7 @@ export function buildAgentSystem(project, agent, {
   if (fields.Role) profileLines.push(`Role: ${fields.Role}`);
   if (fields.Language) profileLines.push(`Default language: ${fields.Language}`);
 
-  // The agent's authored body (everything after the frontmatter in its
-  // `.apc/agents/<slug>.md`) is its real instruction set — persona, domain
-  // rules, API endpoints, tone, hard limits. Without injecting it the agent
-  // runs on its fields alone and loses everything its author actually wrote.
-  let customBody = String(agent.body || "").trim();
-  if (customBody.length > AGENT_BODY_MAX_CHARS) {
-    customBody = customBody.slice(0, AGENT_BODY_MAX_CHARS) + "\n\n…(instructions truncated)";
-  }
-  const customInstructions = customBody ? `# Custom instructions\n${customBody}` : "";
+  const customInstructions = buildAgentInstructionsBlock(agent);
 
   // User context (owner name, language, timezone) — same block the super-agent
   // gets, so project agents know how to address the user.
