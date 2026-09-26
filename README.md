@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.svg" alt="APX — Agent Project eXecutable" width="820">
+  <img src="assets/banner.webp" alt="APX — Agent Project eXecutable: your crew of AI agents, running on your machine" width="820">
 </p>
 
 <p align="center">
