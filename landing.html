@@ -375,13 +375,13 @@
   @media (max-width: 760px) { .car-track .slide { flex-basis: 88%; } .car-head { margin-top: 36px; } .car-dots { display: none; } }
 
   /* ── Channels: Telegram first, WhatsApp beside it ── */
-  .channels { margin: 44px auto 0; display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 76px; max-width: 1060px; }
-  .ch-card { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); grid-template-rows: auto 1fr; align-items: start; }
-  .ch-card .top { grid-column: 1; grid-row: 1; padding: 30px 30px 0 !important; }
-  .ch-card .chatwin { grid-column: 2; grid-row: 1 / span 2; margin: 22px 22px 22px 0 !important; }
-  .ch-card .contact { grid-column: 1; grid-row: 2; margin: 20px 30px 30px !important; align-self: end; }
+  .channels { margin: 44px auto 0; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); column-gap: 72px; row-gap: 60px; align-items: stretch; }
+  .ch-card { display: flex !important; flex-direction: column; align-items: stretch; }
+  .ch-card .top { padding: 28px 30px 0 !important; }
+  .ch-card .chatwin { margin: 22px 26px 26px !important; }
+  .ch-card .contact { margin: -6px 26px 26px !important; }
   @media (max-width: 900px) {
-    .channels { row-gap: 60px; }
+    .channels { grid-template-columns: minmax(0, 1fr); row-gap: 60px; }
     .ch-card { display: flex !important; flex-direction: column; align-items: stretch; }
     .ch-card .chatwin { margin: 20px 16px 18px !important; }
     .ch-card .contact { margin: 0 16px 20px !important; }
@@ -1184,11 +1184,20 @@
 
   /* The wire: from the edge of one chat to the other, redrawn from live geometry each time. */
   var chGrid = document.querySelector('.channels'), wirePath = document.getElementById('wirePath'), wireLit = document.getElementById('wireLit'), wireDot = document.getElementById('wireDot');
+  var wireGradEl = document.getElementById('wireGrad');
   function wireGeom() {
     var g = chGrid.getBoundingClientRect(), t = document.querySelector('.tg .chatwin').getBoundingClientRect();
-    var stacked = innerWidth <= 900, w = stacked ? document.getElementById('waCard').getBoundingClientRect() : document.querySelector('.wa .chatwin').getBoundingClientRect();
-    var x1 = t.left + t.width * .5 - g.left, y1 = t.bottom - g.top, x2 = w.left + w.width * .5 - g.left, y2 = w.top - g.top + (stacked ? 2 : 0), dy = (y2 - y1) * .55, bend = Math.min(90, t.width * .18);
-    return 'M' + x1 + ' ' + y1 + ' C' + (x1 + bend) + ' ' + (y1 + dy) + ' ' + (x2 - bend) + ' ' + (y2 - dy) + ' ' + x2 + ' ' + y2;
+    var stacked = innerWidth <= 900;
+    /* the gradient follows the wire: top-to-bottom when stacked, left-to-right side by side */
+    wireGradEl.setAttribute('x2', stacked ? '0' : '1'); wireGradEl.setAttribute('y2', stacked ? '1' : '0');
+    if (stacked) {
+      var w = document.getElementById('waCard').getBoundingClientRect();
+      var x1 = t.left + t.width * .5 - g.left, y1 = t.bottom - g.top, x2 = w.left + w.width * .5 - g.left, y2 = w.top - g.top + 2, dy = (y2 - y1) * .55, bend = Math.min(90, t.width * .18);
+      return 'M' + x1 + ' ' + y1 + ' C' + (x1 + bend) + ' ' + (y1 + dy) + ' ' + (x2 - bend) + ' ' + (y2 - dy) + ' ' + x2 + ' ' + y2;
+    }
+    var c = document.querySelector('.wa .chatwin').getBoundingClientRect();
+    var sx = t.right - g.left, sy = t.top + t.height * .62 - g.top, ex = c.left - g.left, ey = c.top + c.height * .55 - g.top, mx = (sx + ex) / 2;
+    return 'M' + sx + ' ' + sy + ' C' + mx + ' ' + sy + ' ' + mx + ' ' + ey + ' ' + ex + ' ' + ey;
   }
   function drawWire() { if (getComputedStyle(document.getElementById('wire')).display === 'none') return; var d = wireGeom(); wirePath.setAttribute('d', d); wireLit.setAttribute('d', d); wireLit.style.strokeDasharray = '0 9999'; }
   function fireWire(dir, done) {
