@@ -3,6 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  /* Language: ?lang=es|en wins and is remembered; otherwise the last choice; otherwise English. */
+  (function () {
+    var q = null, l = null;
+    try { q = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+    try { l = q || localStorage.getItem('apx.site.lang'); if (q) localStorage.setItem('apx.site.lang', q); } catch (e) { l = q; }
+    window.APX_LANG = l === 'es' ? 'es' : 'en';
+    document.documentElement.lang = window.APX_LANG;
+  })();
+</script>
+<link rel="alternate" hreflang="en" href="https://agentprojectcontext.github.io/apx/?lang=en">
+<link rel="alternate" hreflang="es" href="https://agentprojectcontext.github.io/apx/?lang=es">
+<link rel="alternate" hreflang="x-default" href="https://agentprojectcontext.github.io/apx/">
 <title>APX — Meet your crew · Open-source Agent OS</title>
 <meta name="description" content="Open-source Agent OS for running AI agents on your own machine. Build your crew: agents that remember, work together and run Claude Code, Codex, Telegram and WhatsApp.">
 <meta name="keywords" content="Agent OS, AI agents, AI crew, multi-agent, local AI agents, self-hosted AI agents, open-source AI agents, Claude Code, Codex, OpenCode, MCP, Telegram AI agent, WhatsApp AI agent, agent memory, AGENTS.md">
@@ -162,6 +175,11 @@
   .btn-ghost:hover { background: rgba(255,255,255,.12); }
   .btn-sm { height: 38px; padding: 0 16px; font-size: 14px; }
   @media (max-width: 860px) { .nav-links { display: none; } .nav-cta .btn-ghost { display: none; } }
+  .lang-sw { display: inline-flex; align-items: center; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); height: 38px; }
+  .lang-sw a { font: 600 12px/1 var(--mono); letter-spacing: .04em; color: var(--muted); padding: 0 10px; height: 30px; display: grid; place-items: center; border-radius: 999px; transition: background .2s, color .2s; }
+  .lang-sw a:hover { color: var(--fg); }
+  .lang-sw a.on { background: #f4f5f6; color: #0a0b0c; }
+  @media (max-width: 380px) { .lang-sw a { padding: 0 7px; } }
   .btn .bi { width: 18px; height: 18px; flex-shrink: 0; }
   .btn-sm .bi { width: 16px; height: 16px; }
   .btn-discord { background: #5865f2; color: #fff; }
@@ -546,6 +564,7 @@
       <a href="/apx/docs/">Docs</a>
     </div>
     <div class="nav-cta">
+      <div class="lang-sw" role="group" aria-label="Language"><a href="?lang=en" data-l="en" hreflang="en">EN</a><a href="?lang=es" data-l="es" hreflang="es">ES</a></div>
       <a class="btn btn-ghost btn-sm nav-gh" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener"><svg class="bi" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>GitHub</a>
       <a class="btn btn-discord btn-sm" href="https://discord.gg/vxdZuT5WuE" target="_blank" rel="noopener" aria-label="Join the Discord"><svg class="bi" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg><span class="lbl-d">Discord</span></a>
       <a class="btn btn-light btn-sm" href="#start">Install</a>
@@ -826,6 +845,31 @@
 <script>
 (function () {
   'use strict';
+  var ES = window.APX_LANG === 'es';
+  /* Spanish: the English page is the source; this swaps text nodes, a few attributes and the head, before anything else reads the DOM. */
+  var ES_TEXT = {"Agents": "Agentes", "What they do": "Qué hacen", "Plain text": "Texto plano", "Install": "Instalar", "· runs on your machine": "· corre en tu máquina", "Meet": "Conocé", "your": "a tu", "APX is an open-source Agent OS": "APX es un Agent OS open source", "for running AI agents on your own machine. Your crew remembers in plain files, hands work to each other, and shows up in Claude Code, Codex, Telegram, WhatsApp and your phone.": "para correr agentes de IA en tu propia máquina. Tu crew recuerda en archivos de texto plano, se pasa el trabajo y aparece en Claude Code, Codex, Telegram, WhatsApp y tu celular.", "Copy": "Copiar", "See it working": "Miralo andando", "Join the Discord": "Sumate al Discord", "@tomás can you check checkout?": "@tomás, ¿podés revisar el checkout?", "On it. Found it, shipping a fix.": "Voy. Lo encontré, subo el arreglo.", "Newsletter scheduled for 9:00 ✓": "Newsletter programado para las 9:00 ✓", "localhost:7430 · Acme Store · Group chat": "localhost:7430 · Acme Store · Chat grupal", "Most AI tools forget you the moment the tab closes. APX gives you a crew": "La mayoría de las herramientas de IA se olvidan de vos apenas cerrás la pestaña. APX te da un crew", "that remembers,": "que recuerda,", "talks to each other,": "se habla entre sí,", "and keeps working": "y sigue trabajando", "while you sleep": "mientras dormís", "— on your machine, with the models you already pay for.": "— en tu máquina, con los modelos que ya pagás.", "Meet the blobos": "Conocé a los blobos", "Build your crew.": "Armá tu crew.", "One agent per line of work.": "Un agente por cada tarea.", "Every agent gets a": "Cada agente tiene un", ": a face whose eyes follow you around, plus a role, its own memory and its own tools. Mention one and it picks up the work — or pulls in whoever should.": ": una cara con ojos que te siguen, un rol, su propia memoria y sus propias herramientas. Mencioná a uno y toma el trabajo — o suma a quien corresponda.", "Not a mockup": "No es un mockup", "This is the real panel.": "Este es el panel de verdad.", "Every clip below is APX running a demo team — recorded straight from the app, sped up only while the model thinks.": "Cada clip es APX con un equipo de demo — grabado directo de la app, acelerado sólo mientras el modelo piensa.", "One inbox": "Una sola bandeja", "Start a conversation and watch your agents talk to each other, live — every thread, every channel, in one place.": "Empezá una conversación y mirá a tus agentes hablar entre ellos, en vivo — cada hilo y cada canal en un solo lugar.", "How’s the checkout redesign going?": "¿Cómo va el rediseño del checkout?", "Done on staging. Ships tomorrow.": "Listo en staging. Sale mañana.", "Lucía → you": "Lucía → vos", "Checkout ships tomorrow ✓": "El checkout sale mañana ✓", "In your pocket": "En tu bolsillo", "The panel fits your phone: same chats, same agents, same tasks.": "El panel entra en tu celular: los mismos chats, agentes y tareas.", "Your crew works while you build.": "Tu crew trabaja mientras vos construís.", "Tasks that assign themselves": "Tareas que se asignan solas", "Mention an agent in a comment and it takes the task, does it, and writes back in the thread.": "Mencioná a un agente en un comentario: toma la tarea, la hace y contesta en el hilo.", "Routines on a schedule": "Rutinas programadas", "The night shift: reports, posts and check-ins that run without you.": "El turno noche: reportes, posteos y chequeos que corren sin vos.", "They ask each other": "Se consultan entre ellos", "Lucía needs an answer from Tomás, so she asks him herself — and comes back to you with it.": "Lucía necesita una respuesta de Tomás, así que le pregunta ella misma — y vuelve con la respuesta.", "Code sessions": "Sesiones de código", "Hand a job to Claude Code or Codex and follow it from anywhere.": "Pasale un trabajo a Claude Code o Codex y seguilo desde donde estés.", "Every tool, visible": "Cada herramienta, a la vista", "Each action an agent takes stays in the chat, step by step.": "Cada acción del agente queda en el chat, paso a paso.", "Images, locally": "Imágenes, en local", "Generate images on your own hardware, straight from the chat.": "Generá imágenes en tu propio hardware, directo desde el chat.", "Talk to them from anywhere": "Hablales desde donde estés", "Your crew lives": "Tu crew vive", "in your chats.": "en tus chats.", "No new app to check. Write to your agents from Telegram or WhatsApp — same memory, same tools, same crew as the panel.": "Ninguna app nueva que revisar. Escribiles a tus agentes por Telegram o WhatsApp — la misma memoria, las mismas herramientas y el mismo crew que en el panel.", "· the main line": "· la línea principal", "Text it like a teammate. It texts back when it’s done.": "Escribile como a un compañero. Te contesta cuando termina.", "One bot per project or one for everything. It shows “typing…” while it works and answers in plain words — no logs, no tool noise. Your routines report here too.": "Un bot por proyecto o uno para todo. Muestra “escribiendo…” mientras trabaja y contesta en palabras simples — sin logs ni ruido de herramientas. Tus rutinas también reportan acá.", "Voice notes": "Notas de voz", "Photos & files": "Fotos y archivos", "Routine reports": "Reportes de rutinas", "Owner, contacts & guests": "Dueño, contactos e invitados", "One bot per project": "Un bot por proyecto", "· your own number": "· tu propio número", "It writes to people for you.": "Le escribe a la gente por vos.", "Ask on Telegram, and your agent talks to your contacts from your WhatsApp. Strangers get no answer at all — only people you’ve saved.": "Pedilo por Telegram y tu agente les escribe a tus contactos desde tu WhatsApp. A los desconocidos no les contesta nada — sólo a la gente que guardaste.", "online": "en línea", "+1 555 0142 · saved contact": "+1 555 0142 · contacto guardado", "contact": "contacto", "Who": "Quién", "Photographer for the store’s catalog.": "Fotógrafa del catálogo de la tienda.", "Share": "Compartir", "Shoot dates, times and shot lists.": "Fechas, horarios y listas de tomas.", "Never": "Nunca", "Prices, other clients, your calendar.": "Precios, otros clientes, tu agenda.", "Nova is reading Carla’s note…": "Nova está leyendo la nota de Carla…", "Your crew remembers": "Tu crew recuerda", "An agent is": "Un agente es", "a markdown file.": "un archivo markdown.", "Role, face, memory, skills — it all lives in": "Rol, cara, memoria, skills — todo vive en", ", next to your code. No database, no lock-in. Read it, diff it, commit it. Switch tools and the crew comes with you.": ", al lado de tu código. Sin base de datos, sin lock-in. Leelo, comparalo, commitealo. Cambiá de herramienta y el crew viene con vos.", "Built on": "Hecho sobre", "APC, the Agent Project Context standard": "APC, el estándar Agent Project Context", "Dark or light": "Oscuro o claro", "Your call.": "Vos elegís.", "Drag the handle. The same panel on your phone, in both themes — or let it follow your system.": "Arrastrá la barra. El mismo panel en tu celular, en los dos temas — o dejá que siga al sistema.", "Open": "Abrí", "on your phone and add it to your home screen. It works like an app.": "en tu celular y agregalo a la pantalla de inicio. Funciona como una app.", "Dark": "Oscuro", "Light": "Claro", "Bring your own agents": "Traé tus propios agentes", "Bring your models.": "Traé tus modelos.", "Bring your tools.": "Traé tus herramientas.", "Route to a coding CLI you already use, call any model directly, and talk to the crew from wherever you are.": "Usá la CLI de código que ya tenés, llamá a cualquier modelo directo y hablale al crew desde donde estés.", "Prefer the terminal?": "¿Preferís la terminal?", "It’s a CLI first.": "Primero es una CLI.", "The daemon starts itself on your first call. Everything the panel does,": "El daemon arranca solo la primera vez que lo llamás. Todo lo que hace el panel,", "does too.": "también lo hace.", "These are the": "Estos son los", "— 35 faces to give your agents. Hover one.": "— 35 caras para tus agentes. Pasá el mouse por uno.", "Your crew is waiting.": "Tu crew te está esperando.", "One machine. One context. Your whole crew.": "Una máquina. Un contexto. Todo tu crew.", "Free and open source. No account, no sales call. Requires Node.js 22+ on macOS, Linux or Windows.": "Gratis y open source. Sin cuenta ni llamadas de ventas. Requiere Node.js 22+ en macOS, Linux o Windows.", "View on GitHub": "Ver en GitHub", "Download for Android": "Descargar para Android", "Then run": "Después corré", ". The Android app isn’t on Google Play — install it from that file or with": ". La app de Android no está en Google Play — instalala desde ese archivo o con", "How to install it": "Cómo instalarla", "© 2026 · Reference runtime of the APC standard. No tracking on this page.": "© 2026 · Runtime de referencia del estándar APC. Esta página no te rastrea.", "Copied": "Copiado"};
+  var ES_ATTR = {"Meet your crew": "Conocé a tu crew", "An agent's face, drawn with the text of its memory file": "La cara de un agente, dibujada con el texto de su archivo de memoria", "The agent's face, drawn with the characters of its own markdown file": "La cara del agente, dibujada con los caracteres de su propio archivo markdown", "Compare dark and light theme": "Comparar el tema oscuro y el claro", "APX on the phone, dark theme": "APX en el celular, tema oscuro", "APX on the phone, light theme": "APX en el celular, tema claro", "Previous": "Anterior", "Next": "Siguiente", "Join the Discord": "Sumate al Discord"};
+  var ES_HEAD = {"title": "APX — Conocé a tu crew · Agent OS open source", "description": "Agent OS open source para correr agentes de IA en tu propia máquina. Armá tu crew: agentes que recuerdan, trabajan juntos y usan Claude Code, Codex, Telegram y WhatsApp.", "og_title": "APX — Conocé a tu crew", "og_description": "Un Agent OS open source para correr agentes de IA en tu propia máquina. Tu crew recuerda, trabaja en equipo y sigue andando mientras vos construís."};
+  (function () {
+    [].forEach.call(document.querySelectorAll('.lang-sw a'), function (a) { a.classList.toggle('on', a.getAttribute('data-l') === window.APX_LANG); });
+    if (!ES) return;
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n, list = [];
+    while ((n = w.nextNode())) list.push(n);
+    list.forEach(function (t) {
+      var raw = t.nodeValue, key = raw.replace(/\s+/g, ' ').trim();
+      if (key && ES_TEXT[key] != null) t.nodeValue = raw.match(/^\s*/)[0] + ES_TEXT[key] + raw.match(/\s*$/)[0];
+    });
+    ['aria-label', 'alt', 'title'].forEach(function (at) {
+      [].forEach.call(document.querySelectorAll('[' + at + ']'), function (el) { var v = el.getAttribute(at); if (ES_ATTR[v]) el.setAttribute(at, ES_ATTR[v]); });
+    });
+    document.title = ES_HEAD.title;
+    var set = function (sel, v) { var m = document.querySelector(sel); if (m) m.setAttribute('content', v); };
+    set('meta[name="description"]', ES_HEAD.description);
+    set('meta[property="og:title"]', ES_HEAD.og_title); set('meta[name="twitter:title"]', ES_HEAD.og_title);
+    set('meta[property="og:description"]', ES_HEAD.og_description); set('meta[name="twitter:description"]', ES_HEAD.og_description);
+    set('meta[property="og:locale"]', 'es_AR');
+    var c = document.querySelector('link[rel="canonical"]'); if (c) c.setAttribute('href', 'https://agentprojectcontext.github.io/apx/?lang=es');
+  })();
   var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var BLOB_DIR = 'assets/landing/blobs/';
 
@@ -939,7 +983,7 @@
   /* ── Hero: headline assembles, the blob and the word keep changing ── */
   document.querySelectorAll('.hero-title .split').forEach(function (el, i) { splitChars(el, .1 + i * .3); });
   var heroKeys = ['menta', 'orbita', 'parche', 'cobalto', 'caracol', 'trino', 'perla', 'noche', 'kiwi', 'rubi'];
-  var heroWords = ['crew.', 'reviewer.', 'night shift.', 'secretary.', 'dev team.', 'copywriter.', 'researcher.'];
+  var heroWords = ES ? ['crew.', 'equipo.', 'turno noche.', 'asistente.', 'dev team.', 'redactor.', 'analista.'] : ['crew.', 'reviewer.', 'night shift.', 'secretary.', 'dev team.', 'copywriter.', 'researcher.'];
   var hb = document.getElementById('heroBlob'), hw = document.getElementById('heroWord'), hi = 0;
   var cur = makeBlob(heroKeys[0], 'in'); hb.appendChild(cur);
   if (!REDUCED) setTimeout(function () {
@@ -955,7 +999,14 @@
   }, 2200);
 
   /* Status ticker: who is doing what right now */
-  var STATUS = [
+  var STATUS = ES ? [
+    ['orbita', 'Lucía', 'reparte el trabajo'],
+    ['perla', 'Tomás', 'arregla el bug del checkout'],
+    ['caracol', 'Vera', 'programa el newsletter'],
+    ['menta', 'Nova', 'resume tu bandeja de entrada'],
+    ['cobalto', 'Revisor', 'lee los PRs abiertos'],
+    ['noche', 'Turno noche', 'publica el reporte semanal']
+  ] : [
     ['orbita', 'Lucía', 'is handing out the work'],
     ['perla', 'Tomás', 'is fixing the checkout bug'],
     ['caracol', 'Vera', 'is scheduling the newsletter'],
@@ -1004,7 +1055,16 @@
   }
 
   /* ── Crew cards ── */
-  var CREW = [
+  var CREW = ES ? [
+    ['menta', '#1fd6a8', 'Mano derecha', 'Lee todo, te mantiene al día y empuja a los demás cuando algo se traba.', 'nova ¿qué tengo para hoy?'],
+    ['orbita', '#8b5cf6', 'Product manager', 'Es dueña del roadmap, divide el trabajo en tareas y se las pasa a quien corresponde.', 'lucía planificá el lanzamiento del Q4'],
+    ['perla', '#e9eef2', 'Desarrollador', 'Abre una sesión de Claude Code o Codex en tu repo y te avisa cuando termina.', 'tomás arreglá la página del catálogo'],
+    ['caracol', '#ff4d4d', 'Marketing', 'Escribe la campaña, el newsletter y los posteos — y los programa.', 'vera armá el newsletter del viernes'],
+    ['cobalto', '#2f7bff', 'Revisor de código', 'Revisa los pull requests abiertos cada mañana y te deja un resumen.', 'revisor resumí los PRs abiertos'],
+    ['parche', '#ff7a1a', 'Mesa de WhatsApp', 'Contesta a la gente que te escribe y te escala sólo lo que te necesita.', 'mesa respondele a Carla por su pedido'],
+    ['noche', '#3ae7b0', 'Turno noche', 'Rutinas mientras dormís: reportes, backups y chequeos a las 3 AM.', 'noche todos los días a las 9, publicá el reporte'],
+    ['amatista', '#8b5cf6', 'Diseñador', 'Genera imágenes en tu propia GPU, directo desde el chat.', 'diseñador una imagen principal para la oferta']
+  ] : [
     ['menta', '#1fd6a8', 'Chief of staff', 'Reads everything, keeps you on top of it, and nudges the others when something slips.', 'nova what’s on my plate today?'],
     ['orbita', '#8b5cf6', 'Product manager', 'Owns the roadmap, splits the work into tasks and hands them to whoever should do them.', 'lucía plan the Q4 launch'],
     ['perla', '#e9eef2', 'Developer', 'Opens a Claude Code or Codex session in your repo and reports back when it’s done.', 'tomás fix the catalog page'],
@@ -1030,8 +1090,8 @@
   cg.addEventListener('scroll', crewSync, { passive: true }); crewSync();
 
   /* ── Relay: work passes from agent to agent ── */
-  var RELAY = [['menta', 'Nova', 'you'], ['orbita', 'Lucía', 'plans'], ['perla', 'Tomás', 'builds'], ['caracol', 'Vera', 'announces']];
-  var LOGS = ['<b>Nova</b> → asking Lucía to plan the launch…', '<b>Lucía</b> → looping in Tomás for the checkout…', '<b>Tomás</b> → sending the release notes to Vera…', '<b>Vera</b> → newsletter scheduled, telling Nova ✓'];
+  var RELAY = ES ? [['menta', 'Nova', 'vos'], ['orbita', 'Lucía', 'planifica'], ['perla', 'Tomás', 'construye'], ['caracol', 'Vera', 'anuncia']] : [['menta', 'Nova', 'you'], ['orbita', 'Lucía', 'plans'], ['perla', 'Tomás', 'builds'], ['caracol', 'Vera', 'announces']];
+  var LOGS = ES ? ['<b>Nova</b> → le pide a Lucía que planifique el lanzamiento…', '<b>Lucía</b> → suma a Tomás para el checkout…', '<b>Tomás</b> → le pasa las notas de la versión a Vera…', '<b>Vera</b> → newsletter programado, le avisa a Nova ✓'] : ['<b>Nova</b> → asking Lucía to plan the launch…', '<b>Lucía</b> → looping in Tomás for the checkout…', '<b>Tomás</b> → sending the release notes to Vera…', '<b>Vera</b> → newsletter scheduled, telling Nova ✓'];
   var track = document.getElementById('relayTrack'), nodes = [], pos = [60, 320, 580, 840];
   RELAY.forEach(function (r, i) {
     var n = document.createElement('div'); n.className = 'node'; n.style.left = (pos[i] / 900 * 100) + '%';
@@ -1062,10 +1122,30 @@
   function wave() { var h = ''; for (var i = 0; i < 26; i++) h += '<i style="height:' + (4 + Math.abs(Math.sin(i * 1.7) * 16 + Math.sin(i * .6) * 4)).toFixed(0) + 'px"></i>'; return h; }
   var CH = {
     tg: { body: document.getElementById('tgBody'), status: document.getElementById('tgStatus'), idle: 'bot', typing: null },
-    wa: { body: document.getElementById('waBody'), status: document.getElementById('waStatus'), idle: 'online', typing: null }
+    wa: { body: document.getElementById('waBody'), status: document.getElementById('waStatus'), idle: ES ? 'en línea' : 'online', typing: null }
   };
   var waContact = document.getElementById('waContact');
-  var STORY = [
+  var STORY = ES ? [
+    ['tg', 700, 'out', 'Preguntale a Carla si puede sacar las fotos del catálogo nuevo el jueves a las 10.', '10:12'],
+    ['tg', 500, 'typing'],
+    ['tg', 1500, 'in', 'Dale &mdash; le escribo por WhatsApp.', '10:12'],
+    ['wire', 400, 'tg>wa'],
+    ['card', 200, true],
+    ['wa', 1700, 'out', '<span class="via">Nova · desde tu número</span>¡Hola Carla! ¿Podrías sacar las fotos del catálogo nuevo este jueves a las 10?', '10:12'],
+    ['card', 600, false],
+    ['wa', 1100, 'typing', 'escribiendo…'],
+    ['wa', 2000, 'in', '¡El jueves me viene bien! ¿El mismo estudio que la otra vez?', '10:14'],
+    ['wire', 700, 'wa>tg'],
+    ['tg', 200, 'note', 'Carla respondió por WhatsApp'],
+    ['tg', 500, 'typing'],
+    ['tg', 1400, 'in', 'Carla puede el jueves a las 10 y pregunta si es el mismo estudio. ¿Le confirmo?', '10:14'],
+    ['tg', 1600, 'voice', '0:04', '10:15'],
+    ['tg', 500, 'typing'],
+    ['tg', 1300, 'in', 'Listo. Le dije que es el mismo estudio.', '10:15'],
+    ['wire', 300, 'tg>wa'],
+    ['wa', 1500, 'out', '<span class="via">Nova · desde tu número</span>¡Mismo estudio, nos vemos el jueves a las 10!', '10:15'],
+    ['wa', 1400, 'in', '👍', '10:15']
+  ] : [
     ['tg', 700, 'out', 'Ask Carla if she can shoot the new catalog Thursday at 10.', '10:12'],
     ['tg', 500, 'typing'],
     ['tg', 1500, 'in', 'On it &mdash; writing to her on WhatsApp.', '10:12'],
@@ -1090,7 +1170,7 @@
   function chTyping(side, on, label) {
     var c = CH[side];
     if (c.typing) { c.typing.remove(); c.typing = null; }
-    c.status.textContent = on ? (label || 'typing…') : c.idle; c.status.classList.toggle('typing', !!on);
+    c.status.textContent = on ? (label || (ES ? 'escribiendo…' : 'typing…')) : c.idle; c.status.classList.toggle('typing', !!on);
     if (on) { c.typing = document.createElement('div'); c.typing.className = 'bub in typing-b'; c.typing.innerHTML = '<i></i><i></i><i></i>'; chAdd(side, c.typing); }
   }
   function chMsg(side, kind, a, b) {
@@ -1148,7 +1228,12 @@
   }, { threshold: .25 }).observe(chGrid);
 
   /* ── Glyph portrait: the agent's face, drawn with the text of its own .md ── */
-  var AGENTS = [
+  var AGENTS = ES ? [
+    { key: 'orbita', slug: 'lucia', fm: [['name', 'Lucía'], ['role', 'Product manager'], ['description', 'Es dueña del roadmap de Acme Store y reparte el trabajo.'], ['autonomy', 'total'], ['icon', 'orbita']], body: 'Sos Lucía, product manager de Acme Store. Dividí los pedidos grandes en tareas, asignalas y seguilas hasta que se cierren.' },
+    { key: 'perla', slug: 'tomas', fm: [['name', 'Tomás'], ['role', 'Desarrollador'], ['description', 'Mantiene la tienda online andando: checkout, catálogo y pagos.'], ['runtime', 'claude-code'], ['icon', 'perla']], body: 'Sos Tomás, el desarrollador. Primero reproducí, después arreglá, y siempre decí qué test lo prueba.' },
+    { key: 'caracol', slug: 'vera', fm: [['name', 'Vera'], ['role', 'Marketing'], ['description', 'Escribe campañas, newsletters y posteos para redes.'], ['skills', '[newsletter, social-posts]'], ['icon', 'caracol']], body: 'Sos Vera. Textos cortos, una idea por posteo, y nada sale sin fecha.' },
+    { key: 'menta', slug: 'nova', fm: [['name', 'Nova'], ['role', 'Mano derecha'], ['description', 'Mantiene al dueño al día con cada proyecto.'], ['channels', '[telegram, whatsapp, web]'], ['icon', 'menta']], body: 'Sos Nova. Leé todo, mostrá sólo lo que importa y nunca despiertes al dueño por menos que un bloqueo.' }
+  ] : [
     { key: 'orbita', slug: 'lucia', fm: [['name', 'Lucía'], ['role', 'Product manager'], ['description', 'Owns the Acme Store roadmap and hands out the work.'], ['autonomy', 'total'], ['icon', 'orbita']], body: 'You are Lucía, product manager at Acme Store. Split big asks into tasks, assign them, and follow up until they close.' },
     { key: 'perla', slug: 'tomas', fm: [['name', 'Tomás'], ['role', 'Developer'], ['description', 'Keeps the online store running: checkout, catalog and payments.'], ['runtime', 'claude-code'], ['icon', 'perla']], body: 'You are Tomás, the developer. Reproduce first, fix second, and always say which test proves it.' },
     { key: 'caracol', slug: 'vera', fm: [['name', 'Vera'], ['role', 'Marketing'], ['description', 'Writes campaigns, newsletters and social posts.'], ['skills', '[newsletter, social-posts]'], ['icon', 'caracol']], body: 'You are Vera. Short copy, one idea per post, and nothing goes out without a date.' },
@@ -1234,14 +1319,19 @@
   var cv = document.getElementById('glyphs'), portrait = document.getElementById('portrait');
   var P = Glyphs(cv), G = P.G, sizeCanvas = P.size, target = P.target;
   /* The statement's own little agent: same effect, drawn with a memory file instead of an agent file. */
-  var ST_FACES = [
+  var ST_FACES = ES ? [
+    { key: 'papa', tag: 'night/memory.md', text: '# memoria · turno noche\n- Backups a las 3:00, reporte a las 9:00.\n- Si una rutina falla dos veces, avisale a Nova, no al dueño.\n- Log corto: qué corrió, qué se rompió, qué sigue.' },
+    { key: 'perla', tag: 'tomas/memory.md', text: '# memoria · tomás\n- Rediseño del checkout: layout y carrito en staging, el pago para el jueves.\n- Las fotos del catálogo se rompen con archivos de más de 5 MB.\n- Siempre decí qué test prueba el arreglo.' },
+    { key: 'menta', tag: 'nova/memory.md', text: '# memoria · nova\n- El dueño lee Telegram a primera hora y WhatsApp después de almorzar.\n- Nunca lo despiertes por menos que un bloqueo.\n- Carla saca las fotos del catálogo: fechas sí, precios nunca.\n- El reporte semanal sale los lunes a las 9:00.' },
+    { key: 'parche', tag: 'desk/memory.md', text: '# memoria · mesa de whatsapp\n- Contestá sólo a contactos guardados.\n- Pedidos: decí que sale, nunca prometas una fecha.\n- Todo lo de plata va al dueño por Telegram.' }
+  ] : [
     { key: 'papa', tag: 'night/memory.md', text: '# memory · night shift\n- Backups at 3:00, report at 9:00.\n- If a routine fails twice, tell Nova, not the owner.\n- Keep the log short: what ran, what broke, what is next.' },
     { key: 'perla', tag: 'tomas/memory.md', text: '# memory · tomás\n- Checkout redesign: layout and cart on staging, payment step by Thursday.\n- Catalog photos break on uploads over 5 MB.\n- Always say which test proves the fix.' },
     { key: 'menta', tag: 'nova/memory.md', text: '# memory · nova\n- The owner reads Telegram first thing, WhatsApp after lunch.\n- Never wake them for less than a blocker.\n- Carla shoots the catalog; dates yes, prices never.\n- Weekly report goes out Mondays at 9:00.' },
     { key: 'parche', tag: 'desk/memory.md', text: '# memory · whatsapp desk\n- Answer saved contacts only.\n- Orders: say it ships, never promise a date.\n- Anything about money goes to the owner on Telegram.' }
   ];
   var stCv = document.getElementById('stGlyphs'), stP = Glyphs(stCv), stI = 0, stCycle = 0;
-  function stShow() { var f = ST_FACES[stI % ST_FACES.length]; document.getElementById('stTag').textContent = 'drawn with ' + f.tag; if (stP.G.cols) stP.target(f); stI++; clearTimeout(stCycle); stCycle = setTimeout(stShow, 5500); }
+  function stShow() { var f = ST_FACES[stI % ST_FACES.length]; document.getElementById('stTag').textContent = (ES ? 'dibujado con ' : 'drawn with ') + f.tag; if (stP.G.cols) stP.target(f); stI++; clearTimeout(stCycle); stCycle = setTimeout(stShow, 5500); }
   new IntersectionObserver(function (es) {
     stP.G.on = es[0].isIntersecting;
     if (stP.G.on && !stP.G.cols) { stP.size(); stI = 0; stShow(); }
@@ -1260,7 +1350,7 @@
   function showAgent(i, manual) {
     G.idx = i; var a = AGENTS[i];
     afTabs.querySelectorAll('button').forEach(function (b, j) { b.classList.toggle('on', j === i); });
-    afName.textContent = '.apc/agents/' + a.slug + '.md'; glyphTag.textContent = 'drawn with ' + a.slug + '.md';
+    afName.textContent = '.apc/agents/' + a.slug + '.md'; glyphTag.textContent = (ES ? 'dibujado con ' : 'drawn with ') + a.slug + '.md';
     afHead.querySelector(':scope > .blob, :scope > .blob-slot').replaceWith(makeBlob(a.key));
     clearInterval(typeTimer); var n = 0, full = mdText(a).length;
     if (REDUCED) afBody.innerHTML = mdHtml(a, full);
@@ -1302,15 +1392,22 @@
     var l = LOGOS[name]; if (!l) return '';
     return '<svg viewBox="' + l.vb + '" fill="currentColor" style="color:' + l.c + '" aria-hidden="true">' + l.b + '</svg>';
   }
+  var KIND_ES = { runtime: 'runtime', model: 'modelo', local: 'local', channel: 'canal', app: 'app', servers: 'servidores', integration: 'integración' };
   function fillRow(id, items) {
-    var html = items.map(function (x) { return '<span>' + logo(x[0]) + x[0] + ' <em>' + x[1] + '</em></span>'; }).join('');
+    var html = items.map(function (x) { return '<span>' + logo(x[0]) + (ES && x[0] === 'Web panel' ? 'Panel web' : ES && x[0] === 'Desktop voice' ? 'Voz en escritorio' : x[0]) + ' <em>' + (ES ? KIND_ES[x[1]] || x[1] : x[1]) + '</em></span>'; }).join('');
     document.getElementById(id).innerHTML = html + html;
   }
   fillRow('mq1', [['Claude Code', 'runtime'], ['Codex', 'runtime'], ['OpenCode', 'runtime'], ['Aider', 'runtime'], ['Cursor Agent', 'runtime'], ['Gemini CLI', 'runtime'], ['Qwen Code', 'runtime'], ['Anthropic', 'model'], ['OpenAI', 'model'], ['Gemini', 'model'], ['Groq', 'model'], ['OpenRouter', 'model'], ['Ollama', 'local']]);
   fillRow('mq2', [['Telegram', 'channel'], ['WhatsApp', 'channel'], ['Web panel', 'channel'], ['Android', 'app'], ['Desktop voice', 'channel'], ['CLI', 'channel'], ['MCP', 'servers'], ['Asana', 'integration'], ['Obsidian', 'integration'], ['Email', 'integration']]);
 
   /* ── Terminal ── */
-  var CMDS = [
+  var CMDS = ES ? [
+    ['Registrá un proyecto', 'Detecta AGENTS.md y escribe el contexto en .apc/.', 'apx init', ['<span class="g">✓</span> found AGENTS.md', '<span class="g">✓</span> wrote .apc/ (agents, memory, skills)', '<span class="g">✓</span> registered acme-store']],
+    ['Preguntale a un agente', 'Un turno único, con su memoria y sus herramientas.', 'apx exec lucia "¿Qué falta para el lanzamiento del Q4?"', ['<span class="o">lucia · gemini-3.6-flash</span>', 'Tres cosas: el arreglo del checkout (Tomás, en revisión),', 'el newsletter del lanzamiento (Vera, en borrador) y la', 'página de precios, que todavía no tiene dueño. ¿Se la asigno a alguien?']],
+    ['Pasáselo a una CLI de código', 'El mismo agente y el mismo contexto, en una sesión real del runtime.', 'apx run tomas --runtime claude-code "Arreglá la paginación del catálogo"', ['<span class="o">▶ routing → claude-code</span>', '<span class="o">  session acme-store/7f3a…</span>', '<span class="g">✓</span> 2 files changed, tests pass', '<span class="g">✓</span> summary saved to .apc/']],
+    ['Leé su memoria', 'Markdown plano que podés leer y ampliar.', 'apx memory vera', ['# vera · memory', '- El newsletter sale los viernes a las 9:00.', '- El dueño prefiere una idea por posteo.', '- Textos de Black Friday aprobados el 12.']],
+    ['Mirá todo', 'Seguí en vivo la actividad de todos los canales.', 'apx messages tail', ['<span class="o">09:02</span> telegram  you → nova    "¿algo urgente?"', '<span class="o">09:02</span> a2a       nova → lucia  "¿cómo va el Q4?"', '<span class="o">09:03</span> web       lucia → you   "en camino, 1 bloqueo"', '<span class="o">09:05</span> routine   night → log   "reporte publicado"']]
+  ] : [
     ['Register a project', 'Detect AGENTS.md and write the .apc/ context.', 'apx init', ['<span class="g">✓</span> found AGENTS.md', '<span class="g">✓</span> wrote .apc/ (agents, memory, skills)', '<span class="g">✓</span> registered acme-store']],
     ['Ask an agent', 'A one-shot turn, with its memory and tools.', 'apx exec lucia "What is left for the Q4 launch?"', ['<span class="o">lucia · gemini-3.6-flash</span>', 'Three things: the checkout fix (Tomás, in review),', 'the launch newsletter (Vera, drafted) and the', 'pricing page, which nobody has yet. Want me to assign it?']],
     ['Hand off to a coding CLI', 'Same agent, same context, a real runtime session.', 'apx run tomas --runtime claude-code "Fix the catalog pagination"', ['<span class="o">▶ routing → claude-code</span>', '<span class="o">  session acme-store/7f3a…</span>', '<span class="g">✓</span> 2 files changed, tests pass', '<span class="g">✓</span> summary saved to .apc/']],
