@@ -51,8 +51,8 @@ APX is a daemon + CLI that brings the APC convention to life:
 APX is opinionated about storage: the filesystem is the source of truth. Project definitions and curated memory live in the repo. Runtime state such as sessions, conversations, messages, and caches lives in `~/.apx/` and is never committed.
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/"><img src="assets/demo-tasks.gif" alt="The APX web panel: you mention Lucía in a task comment, she takes the task and answers in the thread" width="820"></a><br>
-  <sub>Mention an agent in a task and it takes the work. <a href="https://agentprojectcontext.github.io/apx/">See more of your crew on the website →</a></sub>
+  <a href="https://agentprojectcontext.github.io/apx/"><img src="assets/demo-group-chat.gif" alt="The APX web panel: a group chat where Lucía plans a Black Friday campaign and mentions Vera and Tomás, who answer in the same thread" width="820"></a><br>
+  <sub>Your crew in a group chat: mention one agent and it pulls in the others. <a href="https://agentprojectcontext.github.io/apx/">See more of your crew on the website →</a></sub>
 </p>
 
 ## Quick start
