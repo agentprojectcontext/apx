@@ -57,13 +57,27 @@ APX is opinionated about storage: the filesystem is the source of truth. Project
 
 ## Quick start
 
+Three steps from nothing to your crew in the browser:
+
 ```bash
-# 1 · Install
+# 1 · Install (Node.js 22+)
 npm install -g @agentprojectcontext/apx
 
-# 2 · Set up — interactive wizard (provider → model → channels → daemon)
+# 2 · Set up — interactive wizard: provider → model → channels → starts the daemon.
+#     It ends by printing the address of your panel.
 apx setup
 
+# 3 · Open the web panel
+open http://localhost:7430        # macOS · on Linux: xdg-open · or paste it in any browser
+```
+
+That's the panel: chats, agents, tasks, routines and code sessions, all local. Want it on your
+phone too? `apx panel share` prints an address for your network (or `apx panel tailscale on`
+to reach it from anywhere on your tailnet) — open it and add it to your home screen.
+
+Prefer the terminal? Everything the panel does, the CLI does too:
+
+```bash
 # In any directory with an AGENTS.md, register the project
 apx init
 
