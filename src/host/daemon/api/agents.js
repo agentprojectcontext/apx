@@ -32,7 +32,7 @@ import {
   readAgentMemory,
   writeAgentMemory,
 } from "#core/agent/memory.js";
-import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
+import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent, agentSlugFromName } from "#core/apc/agent-write.js";
 import { readPacks, planPackInstall, installPack } from "#core/apc/agent-packs.js";
 import { pickAgentName, takenAgentNames } from "#core/apc/agent-names.js";
 import { pickBlob, isBlobKey } from "#core/apc/agent-identity.js";
@@ -52,7 +52,6 @@ import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
 import { listRoutines } from "#core/stores/routines.js";
-import { slugifyName } from "#core/stores/organization.js";
 import { readProjectMessages } from "#core/stores/messages.js";
 
 // Attach a per-agent activity summary ({ threads, records, tasks, heartbeats })
@@ -463,7 +462,7 @@ export function register(api, { projects, project }) {
     if (!p) return;
     const body = req.body || {};
     const name = typeof body.name === "string" && body.name.trim() ? body.name.trim() : undefined;
-    const target = body.slug ? String(body.slug) : slugifyName(name || "");
+    const target = body.slug ? String(body.slug) : agentSlugFromName(name || "");
     if (!target || !/^[a-z][a-z0-9_-]*$/.test(target)) {
       return res.status(400).json({ error: "valid target slug required" });
     }

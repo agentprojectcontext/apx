@@ -12,3 +12,14 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "")
     .replace(/-{2,}/g, "-");
 }
+
+// What an agent slug must look like — mirrors AGENT_SLUG_RE in
+// core/apc/agent-write.js.
+export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
+
+// The slug an agent NAME yields: slugify, then drop whatever precedes the first
+// letter ("3PO" → "po"). Mirrors agentSlugFromName in core/apc/agent-write.js;
+// tests/agent-slug-parity.test.js keeps the two equal.
+export function agentSlugFromName(name: string): string {
+  return slugify(name).replace(/^[^a-z]+/, "");
+}

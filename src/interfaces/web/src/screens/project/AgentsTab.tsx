@@ -18,7 +18,7 @@ import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { AgentTemplatePeek } from "../../components/agents/AgentTemplatePeek";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
-import { slugify } from "../../lib/slug";
+import { AGENT_SLUG_RE, agentSlugFromName, slugify } from "../../lib/slug";
 import { t } from "../../i18n";
 import { toneText, toneTextHover } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
@@ -820,6 +820,10 @@ function CreateAgentDialog({
   const toast = useToast();
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
+  // The slug follows the name until someone types in the slug field; from then
+  // on it is theirs. Emptying the slug field hands it back to the name.
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [slugError, setSlugError] = useState("");
   const [icon, setIcon] = useState("");
   const [type, setType] = useState("");
   const [role, setRole] = useState("");
@@ -840,13 +844,16 @@ function CreateAgentDialog({
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setSlug(""); setName(""); setIcon(""); setType(""); setRole(""); setArea(""); setAutonomy("");
+    setSlug(""); setName(""); setSlugTouched(false); setSlugError(""); setIcon(""); setType(""); setRole(""); setArea(""); setAutonomy("");
     setModel(INHERIT_MODEL); setLanguage(""); setDescription(""); setSystem("");
     setIsMaster(false); setParent("");
   };
 
   const submit = async () => {
-    if (!/^[a-z][a-z0-9_-]*$/.test(slug)) { toast.error(t("project.agents.slug_invalid")); return; }
+    if (!AGENT_SLUG_RE.test(slug)) {
+      setSlugError(t(slug ? "project.agents.slug_invalid" : "project.agents.slug_required"));
+      return;
+    }
     setBusy(true);
     try {
       // Skills and tools are deliberately absent: a new agent inherits the
@@ -891,10 +898,29 @@ function CreateAgentDialog({
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("agents_form.name")} hint={t("agents_form.name_hint")}>
-            <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("agents_form.name_ph")} />
+            <Input
+              autoFocus
+              data-testid="agent-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (!slugTouched) { setSlug(agentSlugFromName(e.target.value)); setSlugError(""); }
+              }}
+              placeholder={t("agents_form.name_ph")}
+            />
           </Field>
-          <Field label={t("project.agents.slug_label")} hint={t("agents_form.slug_hint")}>
-            <Input data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("project.agents.slug_ph")} />
+          <Field label={t("project.agents.slug_label")} hint={t("agents_form.slug_hint")} error={slugError}>
+            <Input
+              data-testid="agent-slug"
+              value={slug}
+              aria-invalid={slugError ? true : undefined}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                setSlugTouched(e.target.value !== "");
+                setSlugError("");
+              }}
+              placeholder={t("project.agents.slug_ph")}
+            />
           </Field>
         </div>
         <Field label={t("project.agents.desc_label")}>

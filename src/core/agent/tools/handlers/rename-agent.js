@@ -1,6 +1,5 @@
-import { renameAgent, AGENT_SLUG_RE } from "#core/apc/agent-write.js";
+import { renameAgent, AGENT_SLUG_RE, agentSlugFromName } from "#core/apc/agent-write.js";
 import { readAgents } from "#core/apc/parser.js";
-import { slugifyName } from "#core/stores/organization.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 
 // Rename an agent the way the web does it — the display name AND the slug, plus
@@ -61,7 +60,7 @@ export default {
 
     // One slugify, shared with the HTTP route, so a name typed in the web and a
     // name said to an agent land on the same key.
-    const target = rawSlug || slugifyName(displayName);
+    const target = rawSlug || agentSlugFromName(displayName);
     if (!AGENT_SLUG_RE.test(target)) {
       return {
         error:
