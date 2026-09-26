@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/banner.webp" alt="APX — Agent Project eXecutable: your crew of AI agents, running on your machine" width="820">
+  <img src="assets/banner.webp" alt="APX — Meet your crew. Your crew of AI agents, running on your machine" width="820">
 </p>
 
 <h3 align="center">Meet your crew.</h3>
