@@ -143,6 +143,7 @@ function systemBlock({ me, others, taskTitle }) {
     `You were @-mentioned in the comment thread of the task **${taskTitle}**.`,
     `Reply ONLY as yourself (**${me}**). Your reply is posted as a comment on that task — it is not a chat message.`,
     "**Do the work first.** You have your real tools. If the comment asks you to check, review, test or fix something, do it and report what you actually found. Do not describe what you would do.",
+    "**Your final answer IS the comment** — it is posted on the task for you. Do not also post it with comment_task on this task, or it shows up twice.",
     `**Be short.** A comment lives in a side panel next to the task. Aim for a few lines and stay under ~${REPLY_CHAR_HINT} characters. If the detail is long, put the conclusion in the comment and the detail where it belongs (a file, a PR, the task's description).`,
     `**Handing work over:** the only way another agent gets a turn is writing their exact handle with an @ — ${roster}. Writing just their name does NOT reach them. Mention someone ONLY if they genuinely need to act; if you can close it yourself, cite nobody and the thread ends.`,
   ].join("\n");
@@ -324,6 +325,8 @@ export async function runCommentMentions({
     let reply = "";
     let model = null;
     let usage = null;
+    let failed = false;
+    const before = task.comments?.length || 0;
     try {
       // A test's stub may hand back a bare string; the real one returns what
       // answered and what it spent.
@@ -343,11 +346,27 @@ export async function runCommentMentions({
       // comment that says "@qa" and is met with silence looks like the feature
       // is broken, which is worse than reading why it did not run.
       reply = `⚠️ No pude atender la mención: ${e?.message || String(e)}`;
+      failed = true;
     }
 
-    if (!reply) reply = "…";
-    const next = parseMentions(reply, participants, slug);
-    addComment(p.storagePath, taskId, { by: slug, text: reply, mentions: next });
+    // An agent that already answered ON THIS TASK with comment_task has
+    // replied: posting its final text too is the same answer twice (the demo
+    // of 2026-09-26 — the CEO's reply landed twice, and the CFO it tagged
+    // replied twice as well). Its own comments are the reply; their mentions
+    // cascade here, because comment_task's own summon was refused as
+    // "cascade_running" — this is that cascade.
+    const own = failed
+      ? []
+      : (getTask(p.storagePath, taskId)?.comments || []).slice(before).filter((c) => c.by === slug);
+    let next;
+    if (own.length) {
+      reply = own.map((c) => c.text).join("\n\n");
+      next = [...new Set(own.flatMap((c) => c.mentions || []))];
+    } else {
+      if (!reply) reply = "…";
+      next = parseMentions(reply, participants, slug);
+      addComment(p.storagePath, taskId, { by: slug, text: reply, mentions: next });
+    }
     said.push({ slug, text: reply });
     taskTurns.set(key, [...(taskTurns.get(key) || []), Date.now()]);
     // attribution-exempt: this is the live-feed SIGNAL, not a ledger insertion.
