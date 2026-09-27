@@ -2,6 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { Tasks } from "../../lib/api";
+import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { Button, Input } from "../ui";
 import { useToast } from "../Toast";
 import { StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
@@ -36,6 +37,15 @@ export function TaskSubtasks({
   const [busy, setBusy] = useState(false);
   const key = `/api/projects/${pid}/tasks?parent=${taskId}`;
   const { data: kids, mutate } = useSWR(key, () => Tasks.subtasks(pid, taskId));
+
+  // An agent summoned on this task can create children with its tools, and
+  // the only news of it is the live event the thread already listens to (the
+  // cascade announces its reply with the task id as `thread`). That event used
+  // to refresh the parent and the list next door but not this list, so the
+  // new subtasks showed up everywhere except here until the task was reopened.
+  useLiveMessages((events) => {
+    if (events.some((ev) => ev.scope === "resync" || ev.thread === taskId)) void mutate();
+  });
 
   const rows = kids ?? [];
   const done = rows.filter((k) => k.state === "done").length;
