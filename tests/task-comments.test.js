@@ -167,6 +167,34 @@ test("a mention runs the agent and posts its reply as a comment", async () => {
   assert.match(thread[1].text, /dos casos fallan/);
 });
 
+test("an agent that answers through comment_task gets ONE reply comment, and its mention still cascades once", async () => {
+  // The demo run of 2026-09-26: the CEO was tagged, posted its answer with the
+  // comment_task tool (it has its real tools) and then ended the turn with the
+  // same text, which the cascade posted again — 1 comment became 3. When the
+  // CEO's comment named the CFO, the CFO did the same and replied twice too.
+  const commentTask = (await import("#core/agent/tools/handlers/comment-task.js")).default;
+  const projects = { list: () => [p], get: (id) => (String(id) === "1" ? p : null) };
+  const t = createTask(storagePath, { title: "Plan trimestral" });
+  addComment(storagePath, t.id, { by: "owner", text: "@qa partilo en 3", mentions: ["qa"] });
+
+  const runs = [];
+  const said = await runCommentMentions({
+    p, taskId: t.id, seed: ["qa"], author: "owner", config: {},
+    runTurn: async ({ slug }) => {
+      runs.push(slug);
+      const text = slug === "qa" ? "Listo, tres subtareas. @dev la de operaciones es tuya" : "Tomada.";
+      const tool = commentTask.makeHandler({ projects, channelMeta: { agentSlug: slug }, globalConfig: {} });
+      const r = await tool({ task: t.id, text, project: "1" });
+      assert.equal(r.ok, true);
+      return text;
+    },
+  });
+
+  assert.deepEqual(runs, ["qa", "dev"], "each agent ran exactly once");
+  assert.deepEqual(said.map((s) => s.slug), ["qa", "dev"]);
+  assert.deepEqual(getTask(storagePath, t.id).comments.map((c) => c.by), ["owner", "qa", "dev"]);
+});
+
 test("a reply that mentions someone cascades to them", async () => {
   const t = createTask(storagePath, { title: "PR #108" });
   const said = await runCommentMentions({
