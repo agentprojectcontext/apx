@@ -1,0 +1,127 @@
+---
+title: Discord
+description: Put your agent in a Discord community as a bot — you choose the rooms, whether it answers always or only when called, and how much of a busy room it reads.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+APX can run your agent as a **Discord bot** on a community server. It reads the rooms you list,
+answers where you allow it, and keeps a summary and a searchable memory of each room so a call in
+a busy channel does not mean reading a thousand messages.
+
+<Aside type="caution">
+  Use a bot account, never your own. Automating a personal account (a "self-bot") breaks
+  Discord's terms and can get the account banned. A bot also makes it obvious to the room that an
+  agent is answering.
+</Aside>
+
+## Set it up
+
+<Steps>
+
+1. In the Discord Developer Portal, create an **Application** and open its **Bot** tab.
+2. Under **Privileged Gateway Intents**, turn on **Message Content Intent**. Without it the bot
+   connects but cannot read what people write, and APX stops with a clear error instead of retrying.
+3. Invite the bot to your server from **OAuth2 → URL Generator**: scope `bot`, permissions *View
+   Channels*, *Send Messages*, *Send Messages in Threads* and *Read Message History*.
+4. Give APX the token, from stdin so it never lands in your shell history, and tell it who you are
+   and what counts as calling the bot:
+
+   ```bash
+   pbpaste | apx discord set --token-stdin
+   apx discord set --owner 1234567890123456789 --names roby
+   apx restart
+   ```
+
+5. List the rooms it may live in (right-click a channel → *Copy Channel ID*, with Developer Mode on):
+
+   ```bash
+   apx discord channel set 1234567890123456789 always --name help
+   apx discord channel set 1234567890123456790 mention --name general
+   ```
+
+</Steps>
+
+## Rooms and modes
+
+**Deny by default.** A room that is not listed does not exist for APX: its messages are not
+stored, not indexed and never answered. Somebody creating a new channel is not enough to put the
+agent in it.
+
+| Mode | Stores and reads | Speaks |
+|---|---|---|
+| `always` | yes | on every message — for a help room, where every message is a question |
+| `mention` | yes | only when called: an @mention, a reply to one of its messages, or one of its `--names` as a word |
+| `read` | yes | never |
+
+A thread inherits the mode of the room it was opened in, unless you list the thread itself. An
+`@everyone` is not a call. Messages from other bots are stored but never answered. Mode changes
+apply to the next message — no restart.
+
+```bash
+apx discord channels                        # the list
+apx discord channel remove 1234567890123456790   # stop reading it entirely
+```
+
+## Busy rooms: storing is free, answering is not
+
+Discord delivers every message whether you want it or not, so the cost of a busy room is never
+reading — it is calling the model. Code decides that before any model runs:
+
+- **Settle window** (`limits.burst_window_ms`, 8 s): "roby" / "a question" / the actual question
+  from one person is one answer, not three.
+- **Per-person cooldown** (`limits.user_cooldown_ms`, 20 s) between two answers to the same person.
+- **Per-room ceiling** (`limits.channel_replies_per_hour`, 30). When a room hits it, the bot goes
+  quiet there and tells you once, because it is usually flood or spam.
+
+Your own account is exempt from the limits — they protect your budget from other people.
+
+## What a turn knows about the room
+
+When the bot is called it gets the room in layers, cheapest first:
+
+1. the message it is answering, and the one that message replies to;
+2. the room's last messages, verbatim, capped in characters (`context.recent_messages`,
+   `context.recent_chars`);
+3. a **running summary** of the older part, written in the background by your compaction model
+   once a room passes `context.summary_threshold` messages;
+4. older fragments recalled by similarity from **that room's own** memory index (`context.rag_hits`);
+5. a public facts file you write, if you set one (`--knowledge path/to/about.md`, capped at 12k characters).
+
+So "@roby what do you think?" is answered from what was just being discussed, and "what did you
+all decide about memory last week?" from the summary and the recall — without the whole room in
+the prompt.
+
+## What never reaches a public room
+
+Every Discord turn is **sealed**, yours included: no tools, no private memory, no other channel,
+no projects. Whatever the bot writes is read by strangers, so a turn with your notebook in it would
+be one careless sentence from publishing it. Give the agent real work on Telegram or the panel.
+
+- Each room's messages are indexed under their own scope (`discord:<channel_id>`): they never
+  surface in your own recall, and your memory never surfaces in theirs.
+- Posts are sent with mentions switched off at the API level, so the bot cannot ping `@everyone`
+  even if the model writes it.
+- What the bot did reaches you on Telegram, coalesced per room and subject to the same interruption
+  budget and quiet hours as any other push.
+
+<Aside type="note">
+  Sealed also means the bot answers from the public facts and the room's own history, not from
+  your docs site or code. If it keeps getting a question wrong, put the answer in the knowledge file.
+</Aside>
+
+## Reference
+
+```bash
+apx discord [status]
+apx discord channels
+apx discord channel set <channel_id> <always|mention|read> [--name <name>]
+apx discord channel remove <channel_id>
+apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge <path>] [--enabled <true|false>]
+```
+
+HTTP: `GET /api/discord/status`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
+`GET /api/discord/channels/:id/history`, `POST /api/discord/send` (only to a listed room).
+The token goes in through `settings` and is never returned.

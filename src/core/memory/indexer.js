@@ -24,6 +24,7 @@ import { SELF_MEMORY_PATH, parseSelfMemoryEntries } from "../agent/self-memory.j
 import { apcMemoryFile } from "../apc/paths.js";
 import { embedBatch, embedOne } from "./embeddings.js";
 import { readJson } from "#core/util/json-file.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 export const CURSOR_PATH = path.join(APX_HOME, "memory-cursor.json");
 
@@ -94,6 +95,12 @@ function chunkFromMessage(obj, channel) {
   const body = String(obj.body || "").trim();
   if (!body || !meaningfulBody(body)) return null;
   const ts = obj.ts || "";
+  // A Discord room is its own scope (see SCOPE_PREFIXES): the row's channel is
+  // the room, not the directory, so recall can be asked for one room only.
+  if (channel === CHANNELS.DISCORD) {
+    if (!meta.chat_id) return null;
+    channel = `discord:${meta.chat_id}`;
+  }
   const idBase = `${channel}:${ts}:${meta.message_id ?? meta.external_id ?? fnv1aHex(body)}`;
   if (type === "user" || type === "agent") {
     return {

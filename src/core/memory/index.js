@@ -198,6 +198,32 @@ export async function scopedMemoryBlockFor(message, { scope, memoryPath, config,
   }
 }
 
+// Recall for a PUBLIC room (a Discord channel): rows of that one room and
+// nothing else. RAG-only — `includeFlat: false` is the point of this function,
+// not a detail: without it the broker reads the owner's own notebook
+// (~/.apx/memory.md) as the flat slice, and that would go into a prompt whose
+// answer strangers read. Returns "" on disabled/empty/error.
+export async function roomRecallBlock(message, { scope, config, heading, intro, topK, budgetMs } = {}) {
+  try {
+    if (!message || !scope || !memoryEnabled(config)) return "";
+    const store = await getMemoryStore();
+    if (!store) return "";
+    return await buildMemoryBlock(message, {
+      store,
+      config,
+      scope,
+      includeFlat: false,
+      ...(heading ? { heading } : {}),
+      ...(intro ? { intro } : {}),
+      budgetMs: budgetMs || config?.memory?.broker_budget_ms || 800,
+      topK: topK || config?.memory?.rag_top_k || 5,
+      embed: embedOptsFromConfig(config),
+    });
+  } catch {
+    return "";
+  }
+}
+
 // Consumer for a project-agent turn (Pieza 5). Retrieves the agent's OWN memory
 // plus its project's memory in one scoped query, isolated from every other
 // agent/project and from the super-agent's global recall. RAG-only (the agent's

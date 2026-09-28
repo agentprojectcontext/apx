@@ -78,7 +78,11 @@ function renderEvent(m, id) {
     return `<EVENT id=${id} role=tool name=${name}>\n${String(m.body || "").slice(0, 600)}\n</EVENT>`;
   }
   const role = m.type === "user" ? "user" : "assistant";
-  return `<EVENT id=${id} role=${role}>\n${String(m.body || "")}\n</EVENT>`;
+  // A room with several people (Discord) records who spoke in meta.speaker.
+  // Without it every "user" event reads as one person and the summary cannot
+  // say who asked what.
+  const from = m.meta?.speaker ? ` from="${String(m.meta.speaker).replace(/"/g, "'")}"` : "";
+  return `<EVENT id=${id} role=${role}${from}>\n${String(m.body || "")}\n</EVENT>`;
 }
 
 // Compact one channel chat if it's over threshold. Returns a small status obj.
