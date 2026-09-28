@@ -26,6 +26,9 @@ import { t } from "../../i18n";
 //     has one, so `gemma3:4b` was offered whole and read back as the provider
 //     "gemma3", which resolves to nothing.
 // The catalog is asked lazily, on open, so a mounted composer costs no requests.
+// Filter + list (max-h-56) + effort chips, with some margin.
+const DROPDOWN_HEIGHT = 360;
+
 export function ModelPicker({
   value,
   onChange,
@@ -37,6 +40,9 @@ export function ModelPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Up from the composer, where it sits at the bottom of the screen; down in a
+  // settings form near the top, where opening up ran it under the header.
+  const [dropUp, setDropUp] = useState(true);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   // Nothing is fetched until the picker is opened for the first time.
@@ -84,7 +90,11 @@ export function ModelPicker({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            const top = wrapRef.current?.getBoundingClientRect().top ?? Infinity;
+            setDropUp(top > DROPDOWN_HEIGHT);
+            setOpen((v) => !v);
+          }}
           data-testid="chat-model-picker"
           className={cn(
             "flex max-w-[200px] items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors",
@@ -100,7 +110,13 @@ export function ModelPicker({
       </Tip>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-1.5 w-64 rounded-lg border border-border bg-popover p-1.5 shadow-md ring-1 ring-foreground/10">
+        <div
+          data-drop={dropUp ? "up" : "down"}
+          className={cn(
+            "absolute left-0 z-50 w-64 rounded-lg border border-border bg-popover p-1.5 shadow-md ring-1 ring-foreground/10",
+            dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5",
+          )}
+        >
           <input
             autoFocus
             value={query}
