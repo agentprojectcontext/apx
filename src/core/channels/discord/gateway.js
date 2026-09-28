@@ -39,6 +39,11 @@ const FATAL_CLOSE = {
 // Channel types that are threads (their parent is the room that governs them).
 const THREAD_TYPES = new Set([10, 11, 12]);
 
+// Channel types a bot can read and post text in: text, announcement, forum.
+// Voice, stage and categories are not rooms for this channel.
+const TEXT_ROOM_TYPES = new Set([0, 5, 15]);
+const CATEGORY_TYPE = 4;
+
 /**
  * A Discord MESSAGE_CREATE payload, reduced to what the dispatcher reads.
  * `channels` is the name/parent cache the gateway keeps from guild events.
@@ -103,7 +108,8 @@ export function createDiscordGateway({
   let backoffMs = 1_000;
   let state = "off";
   let lastError = null;
-  const channels = new Map(); // id → { name, parent_id, guild_id }
+  const channels = new Map(); // id → { name, parent_id, guild_id, type, category_id, position }
+  const guilds = new Map();   // id → name
 
   function setState(s, error = null) {
     state = s;
@@ -117,10 +123,16 @@ export function createDiscordGateway({
 
   function rememberChannel(c) {
     if (!c?.id) return;
+    const thread = THREAD_TYPES.has(c.type);
     channels.set(c.id, {
       name: c.name || null,
-      parent_id: THREAD_TYPES.has(c.type) ? c.parent_id || null : null,
+      parent_id: thread ? c.parent_id || null : null,
+      // For a room, its parent is a CATEGORY — shown as a heading in the
+      // picker, never used to decide a mode.
+      category_id: thread ? null : c.parent_id || null,
       guild_id: c.guild_id || null,
+      type: c.type ?? null,
+      position: c.position ?? 0,
     });
   }
 
@@ -183,6 +195,7 @@ export function createDiscordGateway({
       setState("connected");
       log("discord: session resumed");
     } else if (t === "GUILD_CREATE") {
+      guilds.set(d.id, d.name || null);
       for (const c of d.channels || []) rememberChannel({ ...c, guild_id: d.id });
       for (const c of d.threads || []) rememberChannel({ ...c, guild_id: d.id });
     } else if (t === "CHANNEL_CREATE" || t === "CHANNEL_UPDATE" || t === "THREAD_CREATE" || t === "THREAD_UPDATE") {
@@ -299,10 +312,36 @@ export function createDiscordGateway({
       setState("off");
     },
     status() {
-      return { state, error: lastError, bot: botUser, rooms_known: channels.size };
+      return { state, error: lastError, bot: botUser, rooms_known: channels.size, guilds: guilds.size };
     },
     botId: () => botUser?.id || null,
     channelName: (id) => channels.get(id)?.name || null,
+    /**
+     * The text rooms of every server the bot is in, as Discord reported them
+     * at connect time (GUILD_CREATE) and since. Empty until the bot has been
+     * invited somewhere — that is the answer to "why is the list empty".
+     */
+    rooms() {
+      const out = [];
+      for (const [id, c] of channels) {
+        if (!TEXT_ROOM_TYPES.has(c.type)) continue;
+        const cat = c.category_id ? channels.get(c.category_id) : null;
+        out.push({
+          id,
+          name: c.name,
+          guild_id: c.guild_id,
+          guild: guilds.get(c.guild_id) || null,
+          category: cat?.type === CATEGORY_TYPE ? cat.name : null,
+          category_position: cat?.position ?? -1,
+          position: c.position,
+        });
+      }
+      out.sort((a, b) =>
+        String(a.guild).localeCompare(String(b.guild)) ||
+        a.category_position - b.category_position ||
+        a.position - b.position);
+      return out.map(({ category_position: _c, position: _p, ...r }) => r);
+    },
     /**
      * Post a message. Mentions are switched off at the API level, whatever the
      * text says: the model is told never to @everyone, and this is what makes

@@ -162,3 +162,37 @@ test("gateway: an expired session (4009) is not resumed — the next connection 
     await gw.close();
   }
 });
+
+test("rooms: the server's text channels, under their category, voice and categories left out", async () => {
+  const gw = await fakeGateway({
+    onOpen: (say) => say({ op: 10, d: { heartbeat_interval: 60_000 } }),
+    onClient: (p, say) => {
+      if (p.op !== 2) return;
+      say({ op: 0, s: 1, t: "READY", d: { session_id: "s1", user: { id: BOT, username: "roby" } } });
+      say({ op: 0, s: 2, t: "GUILD_CREATE", d: {
+        id: GUILD, name: "Acme Community",
+        channels: [
+          { id: "2000000000000000100", name: "Comunidad", type: 4, position: 1 },
+          { id: "2000000000000000101", name: "Texto", type: 4, position: 0 },
+          { id: "2000000000000000002", name: "feedback", type: 15, parent_id: "2000000000000000100", position: 0 },
+          { id: ROOM, name: "general", type: 0, parent_id: "2000000000000000101", position: 0 },
+          { id: "2000000000000000003", name: "General", type: 2, parent_id: "2000000000000000101", position: 1 },
+        ],
+        threads: [{ id: THREAD, name: "una-duda", type: 11, parent_id: ROOM }],
+      } });
+    },
+  });
+  const g = createDiscordGateway({ token: "t", gatewayUrl: gw.url });
+  g.start();
+  try {
+    await until(() => g.rooms().length === 2);
+    assert.deepEqual(g.rooms().map((r) => [r.name, r.category, r.guild]), [
+      ["general", "Texto", "Acme Community"],
+      ["feedback", "Comunidad", "Acme Community"],
+    ]);
+    assert.equal(g.status().guilds, 1);
+  } finally {
+    g.stop();
+    await gw.close();
+  }
+});

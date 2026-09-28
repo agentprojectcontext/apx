@@ -5,7 +5,7 @@ import { Section } from "../Section";
 import { Badge, Button, Field, Input, Loading, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
-import { Discord, type DiscordMode, type DiscordStatus } from "../../lib/api/discord";
+import { Discord, type DiscordMode, type DiscordRoom, type DiscordStatus } from "../../lib/api/discord";
 import { t } from "../../i18n";
 
 const MODES: DiscordMode[] = ["always", "mention", "read"];
@@ -13,6 +13,13 @@ const MODES: DiscordMode[] = ["always", "mention", "read"];
 // Snowflakes are digits. Checked here too so a pasted "#general" says what is
 // wrong under the field instead of as a 400 in a toast.
 const isSnowflake = (s: string) => /^\d{15,21}$/.test(s.trim());
+
+// Permissions the invite asks for: View Channels, Send Messages, Read Message
+// History, Send Messages in Threads — and nothing that moderates or manages.
+const INVITE_PERMISSIONS = String((1n << 10n) | (1n << 11n) | (1n << 16n) | (1n << 38n));
+
+const inviteUrl = (botId: string) =>
+  `https://discord.com/oauth2/authorize?client_id=${botId}&scope=bot&permissions=${INVITE_PERMISSIONS}`;
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -44,6 +51,14 @@ export function DiscordPanel() {
   const [newId, setNewId] = useState("");
   const [newName, setNewName] = useState("");
   const [newMode, setNewMode] = useState<DiscordMode>("read");
+
+  const connected = data?.state === "connected";
+  const { data: roomsData, mutate: mutateRooms } = useSWR<{ rooms: DiscordRoom[] }>(
+    connected ? "/api/discord/rooms" : null,
+    () => Discord.rooms(),
+    { refreshInterval: 15_000 },
+  );
+  const [pickMode, setPickMode] = useState<DiscordMode>("read");
 
   const loaded = !!data;
   useEffect(() => {
@@ -87,6 +102,15 @@ export function DiscordPanel() {
     try {
       await Discord.reconnect();
       await mutate();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const pick = async (room: DiscordRoom) => {
+    try {
+      await Discord.setChannel(room.id, { mode: pickMode, ...(room.name ? { name: room.name } : {}) });
+      await Promise.all([mutate(), mutateRooms()]);
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -192,7 +216,44 @@ export function DiscordPanel() {
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+        <div className="mt-5" data-testid="discord-rooms">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">{t("settings.discord.server_rooms")}</span>
+            <UiSelect className="w-44" value={pickMode} onChange={(v) => setPickMode(v as DiscordMode)} options={modeOptions} />
+          </div>
+          {!connected ? (
+            <p className="text-[12px] text-muted-foreground">{t("settings.discord.rooms_need_connection")}</p>
+          ) : data.guilds === 0 || !(roomsData?.rooms || []).length ? (
+            <p className="text-[12px] text-muted-foreground">
+              {t("settings.discord.rooms_need_invite")}{" "}
+              {data.bot ? (
+                <a className="text-primary underline" href={inviteUrl(data.bot.id)} target="_blank" rel="noreferrer">
+                  {t("settings.discord.invite")}
+                </a>
+              ) : null}
+            </p>
+          ) : (
+            <div className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
+              {(roomsData?.rooms || []).filter((r) => !r.mode).map((r) => (
+                <div key={r.id} className="flex items-center gap-3 px-2.5 py-1.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm">#{r.name}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">
+                      {[r.guild, r.category].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <Button size="sm" onClick={() => pick(r)}>{t("settings.discord.add")}</Button>
+                </div>
+              ))}
+              {(roomsData?.rooms || []).every((r) => r.mode) ? (
+                <p className="p-3 text-[12px] text-muted-foreground">{t("settings.discord.all_listed")}</p>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 text-xs font-medium text-muted-foreground">{t("settings.discord.by_id")}</div>
+        <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
           <Field
             label={t("settings.discord.channel_id")}
             error={newId && !isSnowflake(newId) ? t("settings.discord.bad_id", { id: newId }) : undefined}
