@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { attachmentsOf, isRoomChannel, useChat, type ChatMsg } from "../../hooks/useChat";
+import { attachmentsOf, useChat, type ChatMsg } from "../../hooks/useChat";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
 import type { UploadedMedia } from "../../lib/api/media";
@@ -355,27 +355,29 @@ export function ChatTab({
   useLiveMessages(
     useCallback(
       (events: LiveEvent[]) => {
-        // A ROOM is the exception, and only while FOLLOWING one: the line that
-        // STARTED the cascade was written by whichever device sent it, and the
-        // frames carry the answers, never the question. A follower that skipped
-        // every write while it followed watched agents answer something that was
-        // not on screen. The live bubble survives the merge (it is local), which
-        // is what makes reading mid-turn safe here; the tab holding the socket
-        // still skips, because it is already painting all of it.
-        const followingRoom = following && selected.kind === "thread" && isRoomChannel(selected.channel);
-        if (streaming && !followingRoom) return;
+        // A FOLLOWER still reads, but only the owner's line. The line that
+        // STARTED the turn was written by whichever device sent it, and the
+        // frames carry the answer, never the question — so a tab that skipped
+        // every write while it followed watched the agent answer something that
+        // was not on screen until the turn ended. It was fixed for rooms first
+        // and left out of every other chat. The live bubble survives the merge
+        // (it is local), which is what makes reading mid-turn safe; the tab
+        // holding the socket still skips, because it is painting all of it.
+        if (streaming && !following) return;
+        // …and only for what the frames do NOT bring. A turn writes a row per
+        // tool it runs, and a cascade can run fifty of them: re-reading on each
+        // would be four fetches a second to redraw bubbles that are already
+        // being painted live. The owner's line and a reconnect's resync are the
+        // two that are worth a read.
+        const worthReading = (e: LiveEvent) =>
+          !following || e.scope === "resync" || e.type === "user" || e.role === "user";
         if (selected.kind === "thread") {
           const mine = events.filter((e) => concernsThread(e, selected.channel, selected.threadId));
-          if (!mine.length) return;
-          // …but only for what the frames do NOT bring. A speaker writes a row
-          // per tool it runs, and a cascade can run fifty of them: re-reading
-          // the whole room on each would be four fetches a second to redraw
-          // bubbles that are already being painted live. The owner's line and a
-          // reconnect's resync are the two that are worth a read.
-          if (followingRoom && !mine.some((e) => e.type === "user" || e.scope === "resync")) return;
+          if (!mine.some(worthReading)) return;
           void loadThread(selected.channel, selected.threadId, { silent: true });
         } else if (selected.kind === "conv") {
-          if (events.some((e) => concernsConversation(e, selected.agentSlug, selected.convId))) {
+          const mine = events.filter((e) => concernsConversation(e, selected.agentSlug, selected.convId));
+          if (mine.some(worthReading)) {
             void load(selected.agentSlug, selected.convId, { silent: true });
           }
         }

@@ -73,3 +73,18 @@ test("a super-agent row opens in the project its chat lives in", () => {
     "/p/0/chat?channel=telegram&thread=2026-09-20",
   );
 });
+
+// A tab FOLLOWING a turn it did not send (a second window, or this one after
+// switching chats and back) used to skip every live write until the turn
+// ended — rooms excepted. So the owner's own line, written from the other
+// device, did not appear while the agent was already answering it. The rule is
+// now the same for every chat: a follower re-reads on the owner's line (or a
+// resync) and on nothing else; the sender still skips everything.
+test("a follower reads the owner's line in every chat, not only in rooms", () => {
+  const src = chatTab();
+  const listener = src.slice(src.indexOf("useLiveMessages("), src.indexOf("[selected, streaming, following, load, loadThread]"));
+  assert.match(listener, /if \(streaming && !following\) return;/, "only the sending tab skips the feed");
+  assert.doesNotMatch(listener, /isRoomChannel/, "the follower read is not a room-only exception anymore");
+  assert.match(listener, /e\.type === "user" \|\| e\.role === "user"/, "ledger rows say `type`, conversation rows say `role`");
+  assert.match(listener, /concernsConversation[\s\S]*mine\.some\(worthReading\)/, "a project-agent conversation gets the same rule");
+});
