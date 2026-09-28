@@ -456,6 +456,10 @@ export interface MessageMedia {
   duration: number | null;
 }
 
+/** A file as the daemon reports one it just delivered: the stored-row shape,
+ *  minus the fields a delivery does not know (size, duration). */
+export type SentMedia = Partial<MessageMedia> & Pick<MessageMedia, "kind" | "path">;
+
 export interface ConversationMessage {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
@@ -606,7 +610,11 @@ export interface TurnFrame {
    *  renders the same timeline as the one that started it. Tokens still travel
    *  as `delta`; this is everything a token cannot say. */
   event?: ChatStreamEvent;
-  result?: { text?: string; usage?: ChatUsage; model?: string; name?: string; conversation_id?: string };
+  result?: {
+    text?: string; usage?: ChatUsage; model?: string; name?: string; conversation_id?: string;
+    /** Files the agent handed over this turn (send_file), already archived. */
+    media?: SentMedia[];
+  };
   error?: string;
 }
 
@@ -881,5 +889,7 @@ export interface ChatStreamEvent {
      *  one when routing fell back mid-turn. */
     model?: string;
     trace?: ToolTrace[];
+    /** Files the agent handed over this turn (send_file), already archived. */
+    media?: SentMedia[];
   };
 }

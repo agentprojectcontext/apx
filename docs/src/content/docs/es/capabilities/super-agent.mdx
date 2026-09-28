@@ -118,9 +118,37 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |
 | `run_shell` | Ejecutar un comando de shell (limitado por el modo de permisos) |
 | `send_telegram` | Enviar un mensaje vía el plugin de Telegram |
+| `send_file` | Mandarte un archivo del disco: una captura, una imagen generada. Ver [Mandarte archivos](#mandarte-archivos) |
 | `remember` | Escribir un hecho durable en `~/.apx/memory.md` |
 | `search_sessions` | Recuperar transcripciones de sesiones pasadas |
 | `set_identity` | Actualizar campos de `~/.apx/identity.json` |
+
+## Mandarte archivos
+
+El super-agente te puede mandar un archivo con `send_file`: una captura del
+browser, una imagen que generó, un render. El archivo llega **con la
+respuesta**: en el chat web se ve ahí mismo con un botón para descargarlo, y en
+Telegram sale como foto (o como documento, para otros tipos). Sacar la captura
+no la manda sola; el agente tiene que pasarle la ruta guardada a `send_file`.
+
+Solo se mandan los tipos que habilitaste. Las imágenes vienen prendidas y el
+resto apagado hasta que lo actives en `~/.apx/config.json`:
+
+```json
+{
+  "file_delivery": {
+    "kinds": { "image": true, "video": false, "audio": false, "document": false },
+    "max_mb": 20
+  }
+}
+```
+
+`document` cubre PDF, texto, Markdown, CSV, JSON, archivos de Office y `.zip`.
+Hay cosas que no se mandan nunca, diga lo que diga la config: ejecutables y
+scripts (`.exe`, `.msi`, `.bat`, `.sh`, `.apk`, `.dmg`, …) y todo lo que esté
+bajo `~/.ssh`, `~/.aws`, `~/.gnupg` o `~/.apx` (salvo `~/.apx/media`, donde se
+archivan los archivos enviados). Una imagen cuyos bytes no coinciden con su
+extensión también se rechaza, así que renombrar un archivo no saltea el switch.
 
 ## Trabajo que queda corriendo
 
