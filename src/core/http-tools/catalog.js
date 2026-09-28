@@ -396,7 +396,7 @@ export const TOOL_DEFINITIONS = Object.freeze([
   {
     name: "browser_screenshot",
     category: "browser",
-    description: "Take a screenshot of the current browser page (or an element via selector). Returns { base64, path?, bytes, url }. To send via Telegram, prefer `save_to_tmp: true` and pass the returned `path` to send_telegram({photo_path}); otherwise pass `base64` straight to send_telegram({photo_base64}). NEVER include the base64 in any text field — Telegram does not render it.",
+    description: "Take a screenshot of the current browser page (or an element via selector). Returns { base64, path?, bytes, url }. To show it to the owner, call it with `save_to_tmp: true` and pass the returned `path` to send_file — that delivers it on any channel (web chat, Telegram). Taking a screenshot does NOT send it: never tell the owner it is attached until send_file returned ok. NEVER include the base64 in any text field.",
     endpoint: { method: "POST", path: "/api/tools/browser/screenshot" },
     parameters: {
       type: "object",

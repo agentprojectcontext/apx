@@ -118,9 +118,37 @@ The model can always expand its surface by calling `load_skill`.
 | `run_subagent` | Spawn an isolated sub-agent (fresh context, same tools minus user-interaction ones) that works a self-contained task to completion and returns its result — one nesting level max |
 | `run_shell` | Execute a shell command (gated by permission mode) |
 | `send_telegram` | Send a message via the Telegram plugin |
+| `send_file` | Hand you a file from disk — a screenshot, a generated image. See [Sending you files](#sending-you-files) |
 | `remember` | Write a durable fact to `~/.apx/memory.md` |
 | `search_sessions` | Retrieve past session transcripts |
 | `set_identity` | Update `~/.apx/identity.json` fields |
+
+## Sending you files
+
+The super-agent can hand you a file with `send_file`: a browser screenshot, an
+image it generated, a render. The file arrives **with the reply**: in the web
+chat it shows inline with a download button, and on Telegram it goes out as a
+photo (or as a document for other kinds). Taking a screenshot does not send it
+by itself; the agent has to pass the saved path to `send_file`.
+
+Only the kinds you enable are sent. Images are on by default, and everything
+else is off until you turn it on in `~/.apx/config.json`:
+
+```json
+{
+  "file_delivery": {
+    "kinds": { "image": true, "video": false, "audio": false, "document": false },
+    "max_mb": 20
+  }
+}
+```
+
+`document` covers PDF, text, Markdown, CSV, JSON, Office files and `.zip`.
+Some things are never sent, whatever the config says: executables and scripts
+(`.exe`, `.msi`, `.bat`, `.sh`, `.apk`, `.dmg`, …), and anything under
+`~/.ssh`, `~/.aws`, `~/.gnupg` or `~/.apx` (except `~/.apx/media`, where sent
+files are archived). An image whose bytes don't match its extension is refused
+too, so renaming a file doesn't get around the switch.
 
 ## Work left running
 

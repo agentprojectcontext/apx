@@ -648,7 +648,10 @@ export async function browser_screenshot({ selector, ref, full_page = false, wid
     url: page.url(),
     format: "png",
     bytes: size,
-    base64: buf,
+    // Once the image is on disk the path IS the handle. Returning the base64
+    // as well put a ~100k-token string into the model's context for a picture
+    // it cannot see as text anyway. `encoded: true` still asks for the bytes.
+    ...(writtenPath && !encoded ? {} : { base64: buf }),
     path: writtenPath,
     data_uri: encoded ? `data:image/png;base64,${buf}` : undefined,
   };

@@ -212,17 +212,19 @@ export function attachmentsMeta(items, kind = "photo") {
       mime: item.mime,
     });
     if (!stored) continue;
-    archived.push({ ...stored, caption: item.caption || "" });
+    // An item may name its own kind (send_file knows a video from a PDF);
+    // otherwise the list's default applies.
+    archived.push({ ...stored, caption: item.caption || "", kind: item.kind || kind });
   }
   if (!archived.length) return {};
   return {
     media: archived.map((a) => ({
-      kind,
+      kind: a.kind,
       path: a.local_path,
       name: a.file_name,
       mime: a.mime_type,
       caption: a.caption,
     })),
-    ...outboundMediaMeta(kind, archived[0]),
+    ...outboundMediaMeta(archived[0].kind, archived[0]),
   };
 }

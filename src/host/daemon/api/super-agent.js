@@ -10,6 +10,7 @@ import { resolveSuperAgentContext,
   appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { loggerFor } from "#core/logging.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
+import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { floorReplyText } from "#core/agent/closing-floor.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -103,7 +104,7 @@ function logInboundTurn(channel, { prompt, project, media }) {
   } catch { /* the ledger is a record, not a dependency */ }
 }
 
-export function logWebTurn(channel, { replyText, name, model, usage, trace, project, inspector, reasoning, timeline = [] }) {
+export function logWebTurn(channel, { replyText, name, model, usage, trace, project, inspector, reasoning, timeline = [], sent = {} }) {
   if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
   const scope = ledgerScope(project);
   try {
@@ -165,6 +166,9 @@ export function logWebTurn(channel, { replyText, name, model, usage, trace, proj
             ...(isFinal && toolSummary ? { tool_summary: toolSummary } : {}),
             ...(isFinal && skillInspector ? { skill_inspector: skillInspector } : {}),
             ...(isFinal && reasoning?.length ? { reasoning } : {}),
+            // The files the agent handed over (send_file), on the answer they
+            // came with — that row is what draws them when the thread reopens.
+            ...(isFinal ? sent : {}),
           },
         });
       }
@@ -461,6 +465,9 @@ export function register(api, { projects, registries, plugins, project, config }
         trace: saResult.trace,
       });
       if (closing.floored) logFlooredTurn(closing, { trace_id: req.apxTraceId, channel: ctx.channel });
+      // Archived into ~/.apx/media first: the media endpoint serves nothing
+      // from outside it, and a /tmp screenshot is gone after a reboot.
+      const sent = attachmentsMeta(saResult.media);
       logWebTurn(ctx.channel, {
         replyText: closing.text,
         name: saResult.name,
@@ -471,6 +478,7 @@ export function register(api, { projects, registries, plugins, project, config }
         inspector: inspectorTrace,
         reasoning,
         timeline,
+        sent,
       });
       const finalResult = {
         text: closing.text,
@@ -480,6 +488,7 @@ export function register(api, { projects, registries, plugins, project, config }
         name: saResult.name,
         model: saResult.model,
         trace: saResult.trace,
+        ...(sent.media ? { media: sent.media } : {}),
       };
       turnFrame("final", { result: finalResult });
       send({
@@ -640,6 +649,7 @@ export function register(api, { projects, registries, plugins, project, config }
         trace: saResult.trace,
       });
       if (closing.floored) logFlooredTurn(closing, { trace_id: req.apxTraceId, channel: ctx.channel });
+      const sent = attachmentsMeta(saResult.media);
       logWebTurn(ctx.channel, {
         replyText: closing.text,
         name: saResult.name,
@@ -649,6 +659,7 @@ export function register(api, { projects, registries, plugins, project, config }
         project: p,
         inspector: inspectorTrace,
         reasoning,
+        sent,
       });
       res.json({
         text: closing.text,
@@ -656,6 +667,7 @@ export function register(api, { projects, registries, plugins, project, config }
         name: saResult.name,
         model: saResult.model,
         trace: saResult.trace,
+        ...(sent.media ? { media: sent.media } : {}),
       });
     } catch (e) {
       appendSuperAgentErrorTrace(req, e, {

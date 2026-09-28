@@ -51,6 +51,7 @@ export const TOOLS = Object.freeze({
   LOAD_SKILL:          "load_skill",
   READ_SKILL:          "read_skill",
   ATTACH_MEDIA:        "attach_media",
+  SEND_FILE:           "send_file",
   VIEW_MEDIA:          "view_media",
   DISCOVER_TOOLS:      "discover_tools",
 
@@ -201,6 +202,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.LOAD_SKILL,
   TOOLS.READ_SKILL,
   TOOLS.ATTACH_MEDIA,
+  TOOLS.SEND_FILE,
   TOOLS.VIEW_MEDIA,
   TOOLS.LIST_TASKS,
   TOOLS.GET_TASK,
