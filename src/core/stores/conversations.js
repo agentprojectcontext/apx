@@ -8,6 +8,7 @@ import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { mediaFromMeta, previewText } from "#core/stores/messages.js";
 import { memoFile, memoFileSync } from "#core/util/file-memo.js";
+import { forwardReadable } from "#core/stores/forwards.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -328,7 +329,7 @@ export function conversationTitle(fm = {}, turns = []) {
   const firstUser = turns.find((t) => t.role === "user");
   return (
     (typeof fm.title === "string" && fm.title.trim()) ||
-    (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
+    forwardReadable(firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
     undefined
   );
 }

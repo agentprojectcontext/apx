@@ -706,7 +706,11 @@ function mediaPathsKey(m: ChatMsg): string {
  * turns.
  */
 function mergeKey(m: ChatMsg): string {
-  return `${m.role}|${stripForwardMarker(textOf(m))}|${m.forwarded?.text || ""}`;
+  // The quote is keyed by its head only: the daemon caps a long quote
+  // (MAX_QUOTE in core/stores/forwards.js) and appends "…", so the stored copy
+  // of a 5000-char forward never equals the optimistic bubble's full text —
+  // and a full-text key kept both on screen.
+  return `${m.role}|${stripForwardMarker(textOf(m))}|${(m.forwarded?.text || "").trim().slice(0, 200)}`;
 }
 
 export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {

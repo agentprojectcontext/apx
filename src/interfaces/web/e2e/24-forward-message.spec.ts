@@ -63,9 +63,9 @@ async function stubChat(page: Page, pid: number, messages = MESSAGES) {
       route.fulfill({
         json: [
           { project_id: String(pid), project_name: "apx-e2e", slug: AGENT, name: "Northwind" },
-          { project_id: "9001", project_name: "Otro proyecto", slug: "magui", name: "Maguí" },
-          { project_id: "9001", project_name: "Otro proyecto", slug: "rocky", name: "Rocky" },
-          { project_id: "9002", project_name: "Tercero", slug: "candela", name: "Candela" },
+          { project_id: "9001", project_name: "Otro proyecto", slug: "ines", name: "Inés" },
+          { project_id: "9001", project_name: "Otro proyecto", slug: "bruno", name: "Bruno" },
+          { project_id: "9002", project_name: "Tercero", slug: "dora", name: "Dora" },
           { project_id: "9002", project_name: "Tercero", slug: "andy", name: "Andy" },
         ],
       }),
@@ -186,7 +186,7 @@ test.describe("forwarding a message", () => {
     await page.getByTestId("forward-message").last().click();
 
     // Somebody in another project, under that project's own heading.
-    await expect(page.getByTestId("forward-agent-magui")).toBeVisible();
+    await expect(page.getByTestId("forward-agent-ines")).toBeVisible();
     await expect(page.getByText("Otro proyecto")).toBeVisible();
 
     // THE REGRESSION. A query that matches nobody used to empty the list AND
@@ -199,12 +199,12 @@ test.describe("forwarding a message", () => {
 
     // And the way back out is offered, not just implied.
     await page.getByTestId("forward-search-clear").click();
-    await expect(page.getByTestId("forward-agent-magui")).toBeVisible();
+    await expect(page.getByTestId("forward-agent-ines")).toBeVisible();
 
     // The project's name is a perfectly good way to ask for its people.
     await search.fill("tercero");
-    await expect(page.getByTestId("forward-agent-candela")).toBeVisible();
-    await expect(page.getByTestId("forward-agent-magui")).toHaveCount(0);
+    await expect(page.getByTestId("forward-agent-dora")).toBeVisible();
+    await expect(page.getByTestId("forward-agent-ines")).toHaveCount(0);
 
     expect(errors, "no uncaught page errors").toEqual([]);
   });

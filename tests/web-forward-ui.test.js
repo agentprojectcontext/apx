@@ -115,7 +115,7 @@ test("a message is not offered a forward into the conversation it is already in"
   );
 });
 
-const SUPER = { slug: "__super_agent__", name: "Roby", icon: "noche" };
+const SUPER = { slug: "__super_agent__", name: "Nova", icon: "noche" };
 const HERE = [
   { slug: "northwind-bot", name: "Northwind" },
   { slug: "acme-bot", name: "Acme" },
@@ -124,9 +124,9 @@ const DIRECTORY = [
   // The current project's own agents come back in the directory too — the
   // picker already has them, and two copies would draw two rows.
   { project_id: "7", project_name: "Here", slug: "northwind-bot", name: "Northwind" },
-  { project_id: "9", project_name: "Otro proyecto", slug: "magui", name: "Maguí" },
-  { project_id: "9", project_name: "Otro proyecto", slug: "rocky", name: "Rocky" },
-  { project_id: "3", project_name: "Apx", slug: "candela", name: "Candela" },
+  { project_id: "9", project_name: "Otro proyecto", slug: "ines", name: "Inés" },
+  { project_id: "9", project_name: "Otro proyecto", slug: "bruno", name: "Bruno" },
+  { project_id: "3", project_name: "Apx", slug: "dora", name: "Dora" },
 ];
 const people = (query = "") =>
   loadPanelModule("lib/forwarded.ts").forwardPeople({
@@ -138,10 +138,10 @@ test("the search field's visibility is decided by who EXISTS, not by what matche
   // unfiltered count — so a query that matches nobody empties the list and
   // leaves the field standing. It used to be computed from the filtered list:
   // one mistyped letter took the search box away with the results, and there
-  // was no way left to fix the typo. The owner, on their own screen: the search
-  // field vanished and they could not see anyone after a typo.
+  // was no way left to fix the typo — the box vanished the moment a name was
+  // mistyped.
   const all = people();
-  assert.equal(all.total, 6, "Roby + the two here + the three elsewhere; the directory's copy of a local agent is not a seventh");
+  assert.equal(all.total, 6, "Nova + the two here + the three elsewhere; the directory's copy of a local agent is not a seventh");
   const missed = people("zzzz");
   assert.deepEqual(missed.groups, [], "nothing matched");
   assert.equal(missed.total, all.total, "and the count the field keys off is unchanged");
@@ -157,19 +157,19 @@ test("the picker reaches into other projects, grouped by the project they are in
   assert.equal(new Set(slugs).size, slugs.length, "no duplicate rows");
   // And the ones from elsewhere carry the project they belong to, because the
   // send has to go there.
-  const magui = groups.find((g) => g.label === "Otro proyecto").people.find((p) => p.slug === "magui");
-  assert.equal(magui.projectId, "9");
+  const ines = groups.find((g) => g.label === "Otro proyecto").people.find((p) => p.slug === "ines");
+  assert.equal(ines.projectId, "9");
 });
 
 test("searching matches the name, the slug, the project — and ignores accents", () => {
-  assert.deepEqual(people("magui").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui"],
-    "\"magui\" finds \"Maguí\": nobody types the accent");
-  assert.deepEqual(people("MAGUÍ").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui"],
+  assert.deepEqual(people("ines").groups.flatMap((g) => g.people.map((p) => p.slug)), ["ines"],
+    "\"ines\" finds \"Inés\": nobody types the accent");
+  assert.deepEqual(people("INÉS").groups.flatMap((g) => g.people.map((p) => p.slug)), ["ines"],
     "and it works back the other way");
   assert.deepEqual(people("acme-bot").groups.flatMap((g) => g.people.map((p) => p.slug)), ["acme-bot"],
     "the slug is a name too");
   // The project's name is often the half you remember.
-  assert.deepEqual(people("otro").groups.flatMap((g) => g.people.map((p) => p.slug)), ["magui", "rocky"]);
+  assert.deepEqual(people("otro").groups.flatMap((g) => g.people.map((p) => p.slug)), ["ines", "bruno"]);
 });
 
 test("a forward handed across projects is picked up exactly once", () => {
@@ -179,7 +179,7 @@ test("a forward handed across projects is picked up exactly once", () => {
   // part — a parked forward RUNS A TURN when it is picked up, and two panes
   // mounted on the same chat would otherwise send it twice.
   const { parkForward, peekForward, takeForward } = loadPanelModule("lib/forward-handoff.ts");
-  const key = { kind: "conv", agentSlug: "magui", convId: "2026-09-18-01" };
+  const key = { kind: "conv", agentSlug: "ines", convId: "2026-09-18-01" };
   const payload = { note: "¿lo ves?", fwd: { from: { kind: "thread", channel: "web" }, author: "user", text: "esto" } };
 
   assert.equal(peekForward("9", key), false, "nothing waiting yet");
@@ -196,8 +196,7 @@ test("a reply typed into a delivered thread is intercepted before the ordinary s
   // THE BUG THIS GUARDS. A Telegram thread is readable here and cannot be
   // written to: the reply goes out on `web`, into a different conversation. It
   // used to be sent with the pane still showing Telegram — so the message
-  // appeared to land in the thread and was gone on the next reload, which is
-  // what "se traba y tengo que refrescar" was.
+  // appeared to land in the thread and was gone on the next reload.
   //
   // The fix is an ORDER: the delivered branch must come before the branch that
   // sends into the open pane. A later reader moving it down would restore the
@@ -308,4 +307,29 @@ test("the quote is drawn as a card, and never reaches the reader as its marker",
     body.indexOf("stripForwardMarker") < body.indexOf("stripMediaMarker"),
     "the forward marker comes off first, or the attachment strip eats its head",
   );
+});
+
+test("a long forward is still recognised once the daemon has capped its quote", () => {
+  // The daemon caps a quote at MAX_QUOTE and appends "…"; the bubble on screen
+  // still holds the full text. Keyed by the full quote, the two never matched
+  // and every refresh left the same forward in the thread twice.
+  const { mergeLocalTurns } = loadPanelModule("hooks/useChat.ts");
+  const long = "acme ".repeat(1200).trim();
+  const from = { kind: "thread", channel: "telegram", thread_id: "2026-09-17", title: "Telegram" };
+  const local = { role: "user", parts: [{ kind: "text", text: "mirá" }], local: true, forwarded: { from, author: "agent", text: long } };
+  const stored = {
+    role: "user",
+    parts: [{ kind: "text", text: "[forwarded message — from Telegram]\n> acme\n[end of forwarded message]\n\nmirá" }],
+    forwarded: { from, author: "agent", text: `${long.slice(0, 3999)}…`, truncated: true },
+  };
+  assert.equal(mergeLocalTurns([stored], [local]).length, 1);
+});
+
+test("a reply to a delivered thread takes its attachments into the new session", () => {
+  // The delivered branch hands the reply to deliverForward; it used to drop
+  // the files the reply was sent with, silently.
+  const src = read("screens", "project", "ChatTab.tsx");
+  const branch = src.slice(src.indexOf("if (deliveredThread) {"), src.indexOf("if (activeIsRoby) {"));
+  assert.match(branch, /deliverForward\(target, text, fwd, \{[\s\S]{0,120}attachments: media/);
+  assert.match(src, /const opts = \{\s*\.\.\.extra,/, "deliverForward must pass the extras on to sendChat");
 });

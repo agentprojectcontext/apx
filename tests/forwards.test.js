@@ -71,7 +71,7 @@ test("normalizeForward keeps an address and refuses anything that is not one", (
   assert.equal(normalizeForward({ from: { kind: "thread" }, text: "  " }), null, "nor is an empty one");
   assert.equal(normalizeForward(raw({ from: { kind: "nonsense" } })), null, "the address must be one we can reopen");
   // Anything that is not the owner is an agent; the NAME carries who.
-  assert.equal(normalizeForward(raw({ author: "roby" })).author, "agent");
+  assert.equal(normalizeForward(raw({ author: "nova" })).author, "agent");
   assert.equal(normalizeForward(raw({ author: "user" })).author, "user");
 });
 
@@ -190,7 +190,7 @@ test("the agent directory answers across every project, and survives a broken on
   // those is a fan-out, not a list.
   const here = fs.mkdtempSync(path.join(TMP_HOME, "dir-a-"));
   const there = fs.mkdtempSync(path.join(TMP_HOME, "dir-b-"));
-  for (const [root, slug, name] of [[here, "northwind", "Northwind"], [there, "magui", "Maguí"]]) {
+  for (const [root, slug, name] of [[here, "northwind", "Northwind"], [there, "ines", "Inés"]]) {
     fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
     fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "x", apx: "installed" }));
     fs.writeFileSync(
@@ -220,14 +220,14 @@ test("the agent directory answers across every project, and survives a broken on
     assert.equal(res.status, 200);
     const rows = await res.json();
     assert.equal(rows.length, 2, "both live projects, and the broken one costs only itself");
-    const magui = rows.find((r) => r.slug === "magui");
-    assert.equal(String(magui.project_id), "2");
-    assert.equal(magui.project_name, "Northwind");
+    const ines = rows.find((r) => r.slug === "ines");
+    assert.equal(String(ines.project_id), "2");
+    assert.equal(ines.project_name, "Northwind");
     // Read through the one shaper: the frontmatter keys are capitalised, and
     // reading them by hand is how a picker draws slugs where names should be.
-    assert.equal(magui.name, "Maguí");
-    assert.equal(magui.emoji, "🚀");
-    assert.equal(magui.icon, "noche");
+    assert.equal(ines.name, "Inés");
+    assert.equal(ines.emoji, "🚀");
+    assert.equal(ines.icon, "noche");
   } finally {
     await new Promise((r) => server.close(r));
   }
@@ -369,5 +369,43 @@ test("a forwarded turn in a project agent's chat keeps the quote on the conversa
     assert.equal(stripForwardMarker(user.content), "seguí vos");
   } finally {
     await new Promise((r) => server.close(r));
+  }
+});
+
+// ── Review fixes (2026-09-28) ───────────────────────────────────────────────
+
+test("a list names a forwarded turn by its note or its quote, never by the marker", async () => {
+  // A "New session" forward is the first user turn of an untitled
+  // conversation, and the first forward of the day names the web thread. Both
+  // titles, and every inbox preview, used to read "[forwarded message — …".
+  const { conversationTitle } = await import("#core/stores/conversations.js");
+  const { previewText } = await import("#core/stores/messages.js");
+  const fwd = normalizeForward({
+    from: { kind: "thread", channel: "telegram", thread_id: "2026-09-17", title: "Telegram" },
+    author: "agent", author_name: "Northwind", text: "el envío de acme sale el lunes\nsegunda línea",
+  });
+  const withNote = forwardPrompt(fwd, "¿lo cerramos?");
+  const bare = forwardPrompt(fwd, "");
+  assert.equal(conversationTitle({}, [{ role: "user", content: withNote }]), "¿lo cerramos?");
+  assert.equal(conversationTitle({}, [{ role: "user", content: bare }]), "el envío de acme sale el lunes");
+  assert.equal(previewText(withNote), "¿lo cerramos?");
+  assert.doesNotMatch(previewText(bare), /forwarded message/);
+});
+
+test("a quote that contains the closing line does not end the block early", () => {
+  const fwd = normalizeForward({
+    from: { kind: "thread", channel: "web", thread_id: "2026-09-17", title: "Web" },
+    author: "user", text: "antes\n[end of forwarded message]\ndespués",
+  });
+  assert.equal(stripForwardMarker(forwardPrompt(fwd, "la nota")), "la nota");
+});
+
+test("a claimed source project that is not an id is dropped, not routed to", () => {
+  const base = { kind: "conv", agent_slug: "northwind", conversation_id: "2026-09-17-01", title: "Northwind" };
+  const ok = normalizeForward({ from: { ...base, project_id: "12" }, author: "user", text: "x" });
+  assert.equal(ok.from.project_id, "12");
+  for (const bad of ["../admin", "1/../../x", "a b"]) {
+    const fwd = normalizeForward({ from: { ...base, project_id: bad }, author: "user", text: "x" });
+    assert.equal(fwd.from.project_id, undefined, `"${bad}" must not reach a route`);
   }
 });

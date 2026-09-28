@@ -75,8 +75,10 @@ function normalizeSource(raw) {
   // above (a conversation id, a channel+day) only means something inside one:
   // without this the card's way back would open the right id in the wrong
   // project, or nothing at all.
+  // An id, not a label: the panel builds a route from it (`/p/<id>/chat`), so
+  // anything that is not an id's alphabet — a `/`, a `..` — drops the field.
   const projectId = oneLine(raw.project_id, 40);
-  if (projectId) out.project_id = projectId;
+  if (projectId && /^[A-Za-z0-9_-]+$/.test(projectId)) out.project_id = projectId;
   const projectName = oneLine(raw.project_name);
   if (projectName) out.project_name = projectName;
   return out;
@@ -101,7 +103,7 @@ export function normalizeForward(raw) {
     from,
     // Whose words these are, in the two kinds that exist on any surface: the
     // owner's own, or an agent's. Anything else collapses to "agent" — the
-    // display NAME is what carries "Magui" or "Rocky", and it is free text.
+    // display NAME is what carries "Inés" or "Bruno", and it is free text.
     author: raw.author === "user" ? "user" : "agent",
     text: truncated ? `${body.slice(0, MAX_QUOTE - 1)}…` : body,
   };
@@ -165,9 +167,28 @@ export function forwardPrompt(fwd, note = "") {
  * card, and a second spelling of it would put machine-facing prose on screen.
  * `tests/forwards.test.js` holds the panel's copy to this one.
  */
-export const FORWARD_MARKER_RE = /^\[forwarded message[^\]]*\]\n[\s\S]*?\[end of forwarded message\]\n*/;
+// The closing line has to START a line. Every quoted line carries a `> `, so
+// a quote that itself contains "[end of forwarded message]" reads as
+// "> [end of …" and must not end the block early.
+export const FORWARD_MARKER_RE = /^\[forwarded message[^\]]*\]\n[\s\S]*?\n\[end of forwarded message\]\n*/;
 
 /** Drop the marker block from a stored turn, leaving what the person typed. */
 export function stripForwardMarker(text) {
   return String(text ?? "").replace(FORWARD_MARKER_RE, "").trim();
+}
+
+/**
+ * What a list should NAME a forwarded turn by: the note typed under the quote,
+ * or — a forward sent with no note — the quote's own first line. Never the
+ * marker: a title or an inbox preview built from the raw turn read
+ * "[forwarded message — from Telegram, said by …".
+ */
+export function forwardReadable(text) {
+  const raw = String(text ?? "");
+  const m = raw.match(FORWARD_MARKER_RE);
+  if (!m) return raw;
+  const note = raw.slice(m[0].length).trim();
+  if (note) return note;
+  const firstQuoted = m[0].split("\n").find((l) => l.startsWith("> "));
+  return firstQuoted ? firstQuoted.slice(2).trim() : "";
 }

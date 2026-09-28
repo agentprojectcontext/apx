@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { attachmentsOf, isRoomChannel, textOf, useChat, type ChatMsg } from "../../hooks/useChat";
+import { attachmentsOf, isRoomChannel, textOf, useChat, type ChatMsg, type SendOptions } from "../../hooks/useChat";
 import type { Forwarded, ForwardSource } from "../../lib/forwarded";
 import { parkForward, peekForward, takeForward } from "../../lib/forward-handoff";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
@@ -477,7 +477,12 @@ export function ChatTab({
       const fwd = forwardPayload(lastSpoken());
       const target: ChatKey = { kind: "live", agentSlug: ROBY_SLUG };
       if (fwd) {
-        await deliverForward(target, text, fwd);
+        // What was attached to the reply travels with it — the new session is
+        // where the reply now lands, files included.
+        await deliverForward(target, text, fwd, {
+          ...(media?.length ? { attachments: media } : {}),
+          ...(opts?.queue ? { queue: true } : {}),
+        });
         return;
       }
       // Nothing to quote (an empty thread): still a new session, just without
@@ -897,12 +902,18 @@ export function ChatTab({
   };
 
   /** Send one, into a session that may not be the one on screen. */
-  const deliverForward = async (target: ChatKey, note: string, fwd: Forwarded) => {
+  const deliverForward = async (
+    target: ChatKey,
+    note: string,
+    fwd: Forwarded,
+    extra: Pick<SendOptions, "attachments" | "queue"> = {},
+  ) => {
     // Addressed from the TARGET, never from `selected`: the state write below
     // has not landed yet when this runs, so reading the selection here would
     // send the message to the chat we are leaving.
     const toSuper = target.kind === "thread" || target.agentSlug === ROBY_SLUG;
     const opts = {
+      ...extra,
       model: model || undefined,
       forwarded: fwd,
       ...(toSuper ? {} : { agentSlug: target.agentSlug }),

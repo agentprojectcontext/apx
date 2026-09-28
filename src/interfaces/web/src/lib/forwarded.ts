@@ -48,7 +48,7 @@ export interface Forwarded {
   truncated?: boolean;
 }
 
-const MARKER = /^\[forwarded message[^\]]*\]\n[\s\S]*?\[end of forwarded message\]\n*/;
+const MARKER = /^\[forwarded message[^\]]*\]\n[\s\S]*?\n\[end of forwarded message\]\n*/;
 
 /** What the person actually wrote, with the machine-facing quote block taken
  *  out. The quote is not lost — it is drawn from `msg.forwarded` as a card. */
@@ -192,7 +192,7 @@ export interface ForwardGroup {
   people: ForwardPerson[];
 }
 
-/** Lowercase, and without the accents. Searching "magui" has to find "Maguí",
+/** Lowercase, and without the accents. Searching "ines" has to find "Inés",
  *  and searching "cañada" has to find it back — a picker that only matches what
  *  you can type exactly is a picker you fight. */
 function fold(value: string): string {
