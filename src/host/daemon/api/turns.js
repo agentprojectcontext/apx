@@ -31,8 +31,15 @@
 // same session is driven from the panel (`web_code`) and from `apx exec --code`
 // (`code`), and Stop in the panel has to reach the turn either of them started.
 // So it names the session, which is the only identity both surfaces share.
+//
+// `{ channel, thread_id }` is ALSO what a tab sends for Roby's own chat when it
+// is following the turn instead of having sent it (it only knows the thread it
+// is looking at). That turn is keyed by channel, not by thread, so asking for
+// the thread key alone answered "nothing to stop" and the button sat over a
+// run that kept going. liveThreadTurnKey asks the register which of the two
+// shapes the live turn on that thread actually has.
 import { asyncRoute } from "./shared.js";
-import { abortActiveTurn, codeTurnKey, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
+import { abortActiveTurn, codeTurnKey, convTurnKey, liveThreadTurnKey, superAgentTurnKey } from "../active-turns.js";
 
 export function register(api, { project }) {
   api.post("/projects/:pid/turns/abort", asyncRoute(async (req, res) => {
@@ -52,11 +59,11 @@ export function register(api, { project }) {
       : conversationId
       ? convTurnKey(p.id, conversationId)
       : threadId
-      ? threadTurnKey(p.id, channel, threadId)
+      ? liveThreadTurnKey(p.id, channel, threadId)
       : superAgentTurnKey(p.id, channel);
     // `false` is not an error: the turn may have finished a moment before the
     // click landed, and a client that interrupts by sending should carry on and
     // send either way.
-    res.json({ ok: true, aborted: abortActiveTurn(key) });
+    res.json({ ok: true, aborted: !!key && abortActiveTurn(key) });
   }));
 }

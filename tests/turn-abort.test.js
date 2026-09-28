@@ -22,7 +22,7 @@ const { register: registerExec } = await import("../src/host/daemon/api/exec.js"
 const { register: registerTurns } = await import("../src/host/daemon/api/turns.js");
 const {
   startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, abortActiveTurn, abortAllActiveTurns, getActiveTurnByKey,
-  listActiveTurns, convTurnKey, superAgentTurnKey,
+  listActiveTurns, convTurnKey, superAgentTurnKey, liveThreadTurnKey,
 } = await import("../src/host/daemon/active-turns.js");
 const { wasAborted, abortedTurnEvent } = await import("../src/host/daemon/api/turn-abort.js");
 const { readConversation, listConversations } = await import("#core/stores/conversations.js");
@@ -243,6 +243,57 @@ test("POST /turns/abort needs something to address", async () => {
   } finally {
     server.close();
   }
+});
+
+// A tab FOLLOWING Roby's turn (it came back to the chat, the feed reconnected,
+// or the turn started elsewhere) only knows the thread it is looking at, so it
+// asks with { channel, thread_id }. That used to resolve to the thread key
+// alone, while the super-agent's turn is keyed by channel: the daemon said
+// "nothing to stop", the tab had no socket of its own to cut, and Stop — and the
+// model picker behind it — did nothing until a reload.
+test("POST /turns/abort with channel+thread reaches the super-agent's turn on that day", async () => {
+  const PROJECT = { id: "1", name: "tmp", path: TMP_HOME, storagePath: TMP_HOME, logMessage: () => {} };
+  const app = express();
+  app.use(express.json());
+  registerTurns(apiRouter(express, app), { project: () => PROJECT });
+  const server = await new Promise((r) => { const s = app.listen(0, "127.0.0.1", () => r(s)); });
+  let stopped = 0;
+  const rec = startActiveTurn(superAgentTurnKey("1", "web"), {
+    project_id: "1", channel: "web", thread_id: "2026-01-02", abort: () => { stopped++; },
+  });
+  const ask = async (body) => {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/projects/1/turns/abort`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+  try {
+    // Another day's thread on the same channel is not this turn.
+    assert.equal((await ask({ channel: "web", thread_id: "2026-01-01" })).aborted, false);
+    assert.equal(stopped, 0);
+    assert.equal((await ask({ channel: "web", thread_id: "2026-01-02" })).aborted, true);
+    assert.equal(stopped, 1);
+  } finally {
+    endActiveTurn(rec.id);
+    server.close();
+  }
+});
+
+test("a room's own thread key still wins over the channel's super-agent turn", () => {
+  let room = 0;
+  let sa = 0;
+  const a = startActiveTurn("1:thread:group:g1", { abort: () => { room++; } });
+  const b = startActiveTurn(superAgentTurnKey("1", "group"), { thread_id: "g1", abort: () => { sa++; } });
+  try {
+    assert.equal(liveThreadTurnKey("1", "group", "g1"), "1:thread:group:g1");
+    assert.equal(liveThreadTurnKey("1", "group", "nope"), null);
+  } finally {
+    endActiveTurn(a.id);
+    endActiveTurn(b.id);
+  }
+  assert.equal(room + sa, 0, "resolving a key never pulls anything");
 });
 
 // ── Stopping every turn at once, on the way out ─────────────────────────────

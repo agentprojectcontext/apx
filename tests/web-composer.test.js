@@ -168,7 +168,11 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   const stopTurnBody = chat.slice(chat.indexOf("const stopTurn = useCallback"), chat.indexOf("const send = useCallback"));
   assert.match(stopTurnBody, /await Turns\.abort\(pid, target\)/, "the run is stopped by asking, not by hanging up");
   assert.match(stopTurnBody, /if \(aborted\) return;/);
-  assert.match(stopTurnBody, /abortRef\.current\?\.abort\(\)/, "and the local abort stays as the fallback");
+  assert.match(stopTurnBody, /abortRef\.current\.abort\(\)/, "and the local abort stays as the fallback");
+  // A tab only FOLLOWING the turn has no socket to cut: when the daemon says
+  // nothing is live, it lets go instead of leaving Stop (and the model picker)
+  // dead until a reload.
+  assert.match(stopTurnBody, /if \(followingRef\.current\) \{[\s\S]*updateFollowing\(false\)/);
   // The turn names itself before it does any work, so it can be addressed from
   // the first token — `final` used to be the first mention of the conversation
   // it had been writing to all along.
