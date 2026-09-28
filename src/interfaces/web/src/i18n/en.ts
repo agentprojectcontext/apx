@@ -3207,6 +3207,8 @@ export const en = {
     inspector_section_desc:  "Advanced: local RAG that injects only the skills a message needs.",
     scope_ph:            "— choose scope —",
     select_a_skill:      "Pick a skill from the list to see its content.",
+    search_ph:           "Search skills…",
+    no_matches:          "No skill matches “{q}”",
     added_by:            "Added by",
     activator:           "Activator",
     by_apx:              "APX (built-in)",
