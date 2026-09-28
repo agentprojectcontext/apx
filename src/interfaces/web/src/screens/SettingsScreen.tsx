@@ -1,7 +1,7 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  BellRing, Bot, Cpu, Database, Globe, IdCard, Image as ImageIcon, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
+  BellRing, Bot, Cpu, Database, Globe, Hash, IdCard, Image as ImageIcon, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -14,6 +14,7 @@ import { SkillsSettings } from "../components/settings/SkillsSettings";
 import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { WhatsAppSettingsTabs } from "../components/settings/WhatsAppSettingsTabs";
+import { DiscordPanel } from "../components/settings/DiscordPanel";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
 import { UpdateOffer } from "../components/settings/UpdateOffer";
@@ -26,7 +27,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "whatsapp" | "devices"
+  | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "whatsapp" | "discord" | "devices"
   | "voice" | "images" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
@@ -62,6 +63,7 @@ const SECTIONS: TabSection[] = [
     items: [
       { key: "telegram",    label: t("settings.tabs.telegram"),    icon: Send },
       { key: "whatsapp",    label: t("settings.tabs.whatsapp"),    icon: MessageCircle },
+      { key: "discord",     label: t("settings.tabs.discord"),     icon: Hash },
       { key: "devices",     label: t("settings.tabs.devices"),     icon: Smartphone },
     ],
   },
@@ -87,7 +89,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["super_agent", "engines", "telegram", "whatsapp", "memory", "skills", "web", "voice", "images", "profile", "devices"]);
+const WIDE_TABS = new Set<TabKey>(["super_agent", "engines", "telegram", "whatsapp", "discord", "memory", "skills", "web", "voice", "images", "profile", "devices"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -99,6 +101,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   skills:      () => <SkillsSettings />,
   telegram:    () => <TelegramSettingsTabs />,
   whatsapp:    () => <WhatsAppSettingsTabs />,
+  discord:     () => <DiscordPanel />,
   devices:     () => <DevicesPanel />,
   voice:       () => <VoiceScreen />,
   images:      () => <ImagesScreen />,
@@ -144,6 +147,7 @@ function tabFromPath(pathname: string): TabKey {
     case "skills": return "skills";
     case "telegram": return "telegram";
     case "whatsapp": return "whatsapp";
+    case "discord": return "discord";
     case "devices": return "devices";
     case "voice": return "voice";
     case "images": return "images";

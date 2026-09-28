@@ -93,3 +93,27 @@ test("send: refused to an unlisted room, 503 while disconnected, posted through 
     assert.equal((await call("POST", "/discord/send", { channel_id: ROOM, text: "hola" })).status, 503);
   });
 });
+
+test("reconnect: goes to the plugin, and is a 503 when the plugin is not loaded", async () => {
+  let n = 0;
+  const plugin = { status: () => ({ state: "connecting" }), reconnect: () => { n += 1; return { state: "connecting" }; } };
+  await withApi(async (call) => {
+    const r = await call("POST", "/discord/reconnect");
+    assert.equal(r.status, 200);
+    assert.equal(r.body.state, "connecting");
+    assert.equal(n, 1);
+  }, plugin);
+  await withApi(async (call) => {
+    assert.equal((await call("POST", "/discord/reconnect")).status, 503);
+  });
+});
+
+test("status: reports the knowledge file path, never the token", async () => {
+  await withApi(async (call) => {
+    const about = path.join(TMP_HOME, "about.md");
+    fs.writeFileSync(about, "APX is a daemon.");
+    await call("PATCH", "/discord/settings", { knowledge_path: about });
+    const s = await call("GET", "/discord/status");
+    assert.equal(s.body.knowledge_path, about);
+  });
+});

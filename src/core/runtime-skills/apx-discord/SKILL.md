@@ -17,7 +17,7 @@ A room that is not listed does not exist: not stored, not indexed, never answere
 | `mention` | only when called — @mention, a reply to the bot, or one of `discord.names` as a whole word |
 | `read` | never; stored and summarised only |
 
-A thread inherits its parent room's mode unless listed itself. Mode changes apply to the next message, no restart. A new token or `enabled` needs `apx restart`.
+A thread inherits its parent room's mode unless listed itself. Mode changes apply to the next message, no restart. The web panel has the same controls at **Settings → Discord**; saving a new token there reconnects the bot (`POST /api/discord/reconnect`) — from the CLI, a new token or `enabled` needs `apx restart`.
 
 ```bash
 apx discord status

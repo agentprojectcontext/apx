@@ -26,7 +26,9 @@ a busy channel does not mean reading a thousand messages.
    connects but cannot read what people write, and APX stops with a clear error instead of retrying.
 3. Invite the bot to your server from **OAuth2 → URL Generator**: scope `bot`, permissions *View
    Channels*, *Send Messages*, *Send Messages in Threads* and *Read Message History*.
-4. Give APX the token, from stdin so it never lands in your shell history, and tell it who you are
+4. Open **Settings → Discord** in the web panel, paste the token, your Discord user id and the
+   names that call the bot, and save — the bot connects on the spot. Or from the terminal, with the
+   token from stdin so it never lands in your shell history, and tell it who you are
    and what counts as calling the bot:
 
    ```bash
@@ -35,7 +37,7 @@ a busy channel does not mean reading a thousand messages.
    apx restart
    ```
 
-5. List the rooms it may live in (right-click a channel → *Copy Channel ID*, with Developer Mode on):
+5. List the rooms it may live in, in the same screen or from the terminal (right-click a channel → *Copy Channel ID*, with Developer Mode on):
 
    ```bash
    apx discord channel set 1234567890123456789 always --name help

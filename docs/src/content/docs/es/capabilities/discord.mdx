@@ -26,7 +26,9 @@ así que un llamado en un canal concurrido no significa leer mil mensajes.
    pero no puede leer lo que escribe la gente, y APX se detiene con un error claro en vez de reintentar.
 3. Invitá el bot a tu servidor desde **OAuth2 → URL Generator**: scope `bot`, permisos *View
    Channels*, *Send Messages*, *Send Messages in Threads* y *Read Message History*.
-4. Pasale el token a APX por stdin, así nunca queda en el historial de la terminal, y decile quién
+4. Abrí **Ajustes → Discord** en el panel web, pegá el token, tu ID de usuario de Discord y los
+   nombres que lo llaman, y guardá: el bot se conecta en el momento. O desde la terminal, con el
+   token por stdin, así nunca queda en el historial de la terminal, y decile quién
    sos y qué palabras cuentan como llamarlo:
 
    ```bash
@@ -35,7 +37,7 @@ así que un llamado en un canal concurrido no significa leer mil mensajes.
    apx restart
    ```
 
-5. Listá los canales donde puede estar (clic derecho en el canal → *Copiar ID del canal*, con el modo
+5. Listá los canales donde puede estar, en la misma pantalla o desde la terminal (clic derecho en el canal → *Copiar ID del canal*, con el modo
    desarrollador prendido):
 
    ```bash
