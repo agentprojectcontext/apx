@@ -13,11 +13,11 @@ import { ArrowDown, ArrowRight, ArrowUp, Check, Cpu, GitBranch, Plus, Trash2, X 
 import { Badge, Button, Field, Input, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
-import { useOllamaModels } from "../../hooks/useOllamaModels";
+import { useProviderModels } from "../../hooks/useProviderModels";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import {
   ProviderModelPicker,
-  ollamaTargetsOf,
+  providerTargetsOf,
   providersFromEngines,
   problemHint,
   rowProblem,
@@ -94,12 +94,12 @@ function ChainCard({
   }, [ownChain]);
 
   const engines = useMemo(() => enginesOf(effective), [effective]);
-  const { models: ollamaModels, online: ollamaOnline } = useOllamaModels(
-    useMemo(() => ollamaTargetsOf(engines), [engines]),
+  const { models: liveModels, online } = useProviderModels(
+    useMemo(() => providerTargetsOf(engines), [engines]),
   );
   const providers: ProviderInfo[] = useMemo(
-    () => providersFromEngines(engines, ollamaOnline),
-    [engines, ollamaOnline],
+    () => providersFromEngines(engines, online),
+    [engines, online],
   );
 
   const dirty = JSON.stringify(chain) !== JSON.stringify(saved);
@@ -184,7 +184,7 @@ function ChainCard({
                       value={ref}
                       onChange={(v) => setChain(chain.map((x, idx) => (idx === i ? v : x)))}
                       providers={providers}
-                      ollamaModels={ollamaModels}
+                      liveModels={liveModels}
                     />
                   </div>
                   <div className="flex shrink-0 items-center">
@@ -207,7 +207,7 @@ function ChainCard({
 
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <ProviderModelPicker value={adding} onChange={setAdding} providers={providers} ollamaModels={ollamaModels} />
+            <ProviderModelPicker value={adding} onChange={setAdding} providers={providers} liveModels={liveModels} />
           </div>
           <Button
             size="sm"

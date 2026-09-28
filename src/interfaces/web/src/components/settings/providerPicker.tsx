@@ -27,8 +27,9 @@ export interface ProviderInfo {
    */
   configured: boolean;
   /**
-   * Answered the last live probe. Only Ollama is probed today; everything else
-   * reports `true` because there is nothing cheap to ask.
+   * Answered the last live probe. Every active provider is probed for its
+   * model list, but only Ollama's answer decides this; everything else reports
+   * `true` — a failed listing does not mean a failed turn.
    *
    * This must NEVER gate selection. A server that is down, a rate limit, a
    * monthly budget — all of them are circumstantial and most of them come back
@@ -75,18 +76,26 @@ export function problemHint(problem: RowProblem, name: string): string {
   return "";
 }
 
-/** Which engine slugs in a config map are Ollama, and where each one lives. */
-export function ollamaTargetsOf(engines: Record<string, EngineEntry>) {
+/**
+ * Every active provider in a config map, shaped for the live model probe.
+ *
+ * Only Ollama used to be probed here, so the chain editors offered the curated
+ * `known_models` for everyone else while the chat picker (useModelCatalog)
+ * already listed what the provider actually serves — gpt-6 showed up in one
+ * and not in the other. Switched-off providers are skipped: they are
+ * unpickable anyway, and probing them is a request for nothing.
+ */
+export function providerTargetsOf(engines: Record<string, EngineEntry>) {
   return Object.entries(engines)
-    .filter(([slug, v]) => ((v?.engine as EngineType) || (slug as EngineType)) === "ollama")
-    .map(([slug, v]) => ({ slug, base_url: v?.base_url }));
+    .filter(([, v]) => v?.is_active !== false)
+    .map(([slug, v]) => ({ slug, engine: v?.engine || slug, base_url: v?.base_url }));
 }
 
 /** Turn a `config.engines` map into the list the pickers render. */
 export function providersFromEngines(
   engines: Record<string, EngineEntry>,
-  // `undefined` for a target still being probed — see `connected` below.
-  ollamaOnline: Record<string, boolean | undefined>,
+  // `undefined` for a target still being probed — see `reachable` below.
+  online: Record<string, boolean | undefined>,
 ): ProviderInfo[] {
   return Object.entries(engines).map(([slug, v]) => {
     const engine = ((v?.engine as EngineType) || (slug as EngineType));
@@ -107,8 +116,10 @@ export function providersFromEngines(
       : engine === "custom" ? hasKey || !!v?.base_url
       : hasKey;
     // reachable: did it answer the last probe? `undefined` = still probing →
-    // assume yes so the list does not flicker on first paint.
-    const reachable = engine === "ollama" ? ollamaOnline[slug] !== false : true;
+    // assume yes so the list does not flicker on first paint. Only Ollama's
+    // answer counts: a cloud provider whose model listing fails (a scoped key,
+    // a plan without /models) can still run turns, so it must not warn.
+    const reachable = engine === "ollama" ? online[slug] !== false : true;
     return {
       slug,
       engine,
@@ -122,6 +133,23 @@ export function providersFromEngines(
   });
 }
 
+/**
+ * The models a chain row offers for its provider. Same rule as the chat picker
+ * (useModelCatalog): what the provider lists live wins, and the curated
+ * `known_models` are only the offline fallback — never a union with it. Ollama
+ * has no curated list: that machine only has what it pulled.
+ */
+export function modelOptionsFor(
+  current: ProviderInfo | undefined,
+  liveModels: Record<string, string[]>,
+): string[] {
+  if (!current) return [];
+  const live = liveModels[current.slug] || [];
+  if (current.engine === "ollama") return live;
+  const list = live.length ? live : ENGINE_PRESETS[current.engine]?.known_models || [];
+  return Array.from(new Set([...(current.default_model ? [current.default_model] : []), ...list]));
+}
+
 // Provider combobox + model combobox. Serializes to "provider:model".
 // Both sides accept free text: providers are a fixed list you normally pick
 // from, but a slug that is not configured (yet) must stay typeable.
@@ -129,12 +157,13 @@ export function ProviderModelPicker({
   value,
   onChange,
   providers,
-  ollamaModels,
+  liveModels,
 }: {
   value: string;
   onChange: (ref: string) => void;
   providers: ProviderInfo[];
-  ollamaModels: Record<string, string[]>;
+  /** Per provider slug: what it listed live, or the last list cached for it. */
+  liveModels: Record<string, string[]>;
 }) {
   // The effort rides on the stored id as `@<effort>`; it is edited on its own
   // control, never inside the model box.
@@ -165,13 +194,7 @@ export function ProviderModelPicker({
   );
 
   const isOllama = current?.engine === "ollama";
-  const modelOptions = useMemo(() => {
-    if (!current) return [];
-    // Ollama's catalog is whatever that machine pulled — always live/cached.
-    if (isOllama) return ollamaModels[current.slug] || [];
-    const known = ENGINE_PRESETS[current.engine]?.known_models || [];
-    return Array.from(new Set([...(current.default_model ? [current.default_model] : []), ...known]));
-  }, [current, isOllama, ollamaModels]);
+  const modelOptions = useMemo(() => modelOptionsFor(current, liveModels), [current, liveModels]);
 
   // Pre-fill the model when a provider is picked: its own default, else the
   // engine's. Never the engine default for Ollama — that machine only has what
@@ -180,7 +203,7 @@ export function ProviderModelPicker({
     const p = providers.find((x) => x.slug === slug);
     const m = p?.default_model
       || (p?.engine === "ollama"
-        ? (ollamaModels[slug] || [])[0] || ""
+        ? (liveModels[slug] || [])[0] || ""
         : ENGINE_PRESETS[p?.engine as EngineType]?.default_model || "");
     onChange(m ? carryEffort(`${slug}:${m}`, effort, p?.engine) : `${slug}:`);
   };
