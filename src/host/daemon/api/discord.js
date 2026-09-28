@@ -6,6 +6,7 @@
 //   DELETE /discord/channels/:id                  — take a room off the list
 //   GET    /discord/channels/:id/history?limit=   — recent messages, from Discord
 //   POST   /discord/send  { channel_id, text }    — post as the bot
+//   GET    /discord/rooms                         — the servers' text rooms, to pick from
 //   POST   /discord/reconnect                     — reconnect with the saved settings (a new token)
 //
 // The token goes IN through /settings and never comes back out: status reports
@@ -72,6 +73,13 @@ export function register(api, { plugins }) {
     const limit = Number(req.query.limit) || 50;
     res.json({ messages: await p.history(req.params.id, { limit }) });
   }));
+
+  // Empty (not an error) while disconnected or not invited anywhere: the panel
+  // says why from `status`, and an empty picker is the honest picture.
+  api.get("/discord/rooms", (_req, res) => {
+    const p = dc();
+    res.json({ rooms: p?.rooms ? p.rooms() : [] });
+  });
 
   api.post("/discord/reconnect", (_req, res) => {
     const p = dc();

@@ -119,6 +119,12 @@ export default {
         if (!gateway) throw new Error("discord is not connected");
         return postDiscord({ transport: gateway, channelId, text, room: gateway.channelName(channelId) });
       },
+      /** The server's text rooms, each marked with its mode when it is listed. */
+      rooms() {
+        if (!gateway) return [];
+        const listed = readDiscordConfig().channels;
+        return gateway.rooms().map((r) => ({ ...r, mode: listed[r.id]?.mode || null }));
+      },
       async history(channelId, opts) {
         if (!gateway) throw new Error("discord is not connected");
         return gateway.history(channelId, opts);

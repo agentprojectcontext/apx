@@ -117,3 +117,18 @@ test("status: reports the knowledge file path, never the token", async () => {
     assert.equal(s.body.knowledge_path, about);
   });
 });
+
+test("rooms: listed rooms carry their mode; empty, not an error, without a connection", async () => {
+  const plugin = {
+    status: () => ({ state: "connected" }),
+    rooms: () => [{ id: ROOM, name: "general", guild: "Acme", category: null, mode: "read" }],
+  };
+  await withApi(async (call) => {
+    const r = await call("GET", "/discord/rooms");
+    assert.equal(r.status, 200);
+    assert.equal(r.body.rooms[0].mode, "read");
+  }, plugin);
+  await withApi(async (call) => {
+    assert.deepEqual((await call("GET", "/discord/rooms")).body, { rooms: [] });
+  });
+});
