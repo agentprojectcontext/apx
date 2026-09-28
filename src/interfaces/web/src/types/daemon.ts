@@ -751,6 +751,19 @@ export interface SuperAgentConfig {
   system: string;
   permission_mode: string;
   allowed_tools: string[];
+  // Guards and budgets, resolved to what the loop applies (core/agent/settings.js).
+  security_risk?: { enabled: boolean; confirm_at: "LOW" | "MEDIUM" | "HIGH"; confirm_unknown: boolean };
+  stuck_detection?: { enabled: boolean; action_repeat: number; error_repeat: number };
+  judge?: { enabled: boolean; continue_unfinished: boolean };
+  spend_breaker?: { enabled: boolean; calls_per_hour: number; project_calls_per_hour: number; pause_min: number };
+  /** 0 = built-in default (see `defaults`). */
+  telegram_max_iters?: number;
+  web_max_iters?: number;
+  routine_max_iters?: number;
+  defaults?: {
+    telegram_max_iters: number; web_max_iters: number; routine_max_iters: number;
+    spend_breaker: { calls_per_hour: number; project_calls_per_hour: number; pause_min: number };
+  };
   model_fallback: {
     enabled?: boolean;
     models?: string[];
