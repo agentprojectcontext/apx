@@ -352,8 +352,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         )}
 
         {/* What was actually sent: the voice note plays, the photo is the photo,
-            the document opens. */}
-        {media?.length ? <AttachmentGroup media={media} /> : null}
+            the document opens. Yours sits above your caption, the way a
+            messenger shows it; the agent's goes under the text (below). */}
+        {mine && media?.length ? <AttachmentGroup media={media} /> : null}
 
 
         {/* Operational notes (engine fallbacks, retries, suppressed tools).
@@ -430,6 +431,11 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             renderPart(seg.part, si)
           ),
         )}
+
+        {/* What the AGENT handed over comes after what it said: "te la adjunto"
+            reads above the picture, and a turn that took ten steps to get there
+            no longer opens with the result before the work. */}
+        {!mine && media?.length ? <AttachmentGroup media={media} /> : null}
 
         {/* A menu the message OFFERED — WhatsApp buttons, a list, a template.
             UNDER the text, because that is where they are on the phone: the

@@ -85,9 +85,9 @@ const SECTIONS: TabSection[] = [
 
 // Tabs whose content lays out multiple top-level sections in a two-column grid
 // on xl (and so wants full available width). Single-section panels (identity,
-// super agent, devices, advanced) keep a cosier reading width so wide displays
+// devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "whatsapp", "memory", "skills", "web", "voice", "images", "profile", "devices"]);
+const WIDE_TABS = new Set<TabKey>(["super_agent", "engines", "telegram", "whatsapp", "memory", "skills", "web", "voice", "images", "profile", "devices"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,

@@ -77,6 +77,22 @@ export function superAgentTurnKey(projectId, channel) {
   return `${projectId}:sa:${channel}`;
 }
 
+/** The key a live turn on channel+thread is ACTUALLY held under, or null.
+ *
+ *  One thread, two possible keys. A group room or an a2a thread is keyed by
+ *  `threadTurnKey`, but the super-agent's own chat is keyed by channel alone
+ *  (`superAgentTurnKey`) and carries the day as `thread_id`. A client that
+ *  names the thread it is looking at cannot tell which one it is, so the
+ *  register answers. The day has to match: a live turn keyed on the channel
+ *  says nothing about yesterday's thread. */
+export function liveThreadTurnKey(projectId, channel, threadId) {
+  const thread = threadTurnKey(projectId, channel, threadId);
+  if (byKey.has(thread)) return thread;
+  const sa = superAgentTurnKey(projectId, channel);
+  const id = byKey.get(sa);
+  return id && byId.get(id)?.thread_id === threadId ? sa : null;
+}
+
 /** Key for a code-session turn. A code session is addressed by (project, id)
  *  and by nothing else — the SAME session is driven from the web panel
  *  (`web_code`) and from `apx exec --code` (`code`), so keying it by channel

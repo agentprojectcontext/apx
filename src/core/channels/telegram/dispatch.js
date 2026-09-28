@@ -410,6 +410,7 @@ export async function handleUpdate(self, u) {
     let replyModel = null;                    // model that actually produced the reply
     let replyUsage = null;                    // token accounting for this turn
     let replyTrace = null;                    // what the turn actually did (summarised on the message)
+    let replyMedia = [];                      // files the agent handed over (send_file)
     let replyJudge = null;                    // verdict trail, when the turn was continued past a stop
     let replyInspector = null;                // the per-turn skill decision, for the ledger row
     const projectCfg = target.config || self.globalConfig;
@@ -539,6 +540,7 @@ export async function handleUpdate(self, u) {
         replyKind = "superagent";
         replyUsage = sa.usage;
         replyTrace = sa.trace || null;
+        replyMedia = sa.media || [];
         replyJudge = sa.judge || null;
         replyModel = sa.model || state.model || null;
         // What the per-turn skill RAG decided, so the ledger row carries it and
@@ -617,6 +619,7 @@ export async function handleUpdate(self, u) {
       saUsage: replyUsage,
       saModel: replyModel,
       saTrace: replyTrace,
+      saMedia: replyMedia,
       streamedCount,
       lastStreamedText,
       heldCount,

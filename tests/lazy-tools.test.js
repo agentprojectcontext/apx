@@ -41,7 +41,10 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // where the feature earns its keep — a long Telegram turn is the one you
   // cannot follow — so a version of this that is hot on web and cold on
   // Telegram is a timeline with holes in precisely the chats that need one.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 35);
+  // 36 with send_file. "Mandame una captura" is one sentence, and a tool the
+  // model has to discover first is a turn that already went out saying "te la
+  // adjunto" with nothing attached — the exact failure that added it.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 36);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.

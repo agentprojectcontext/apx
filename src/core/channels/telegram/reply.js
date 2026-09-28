@@ -9,6 +9,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
+import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { authorLine } from "#core/agent/author-line.js";
@@ -317,6 +318,7 @@ export async function runFollowupTurn(self, {
     let saUsage = null;
     let saModel = null;
     let saTrace = null;
+    let saMedia = [];
     try {
       const sa = await runTelegramSuperAgent(self, {
         chat_id,
@@ -335,6 +337,7 @@ export async function runFollowupTurn(self, {
       saUsage = sa.usage;
       saModel = sa.model || state.model || null;
       saTrace = sa.trace || null;
+      saMedia = sa.media || [];
     } catch (e) {
       self.log(`telegram[${self.channel.name}] a2a followup failed: ${e.message}`);
       replyText = telegramErrorText(self, e);
@@ -352,6 +355,7 @@ export async function runFollowupTurn(self, {
       saUsage,
       saModel,
       saTrace,
+      saMedia,
       streamedCount: state.streamedCount,
       lastStreamedText: state.lastStreamedText,
       heldCount: state.heldCount,
@@ -388,7 +392,17 @@ export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
   saUsage = null, saModel = null, saTrace = null, streamedCount = 0, lastStreamedText = "",
   heldCount = 0, agentDisplay, extraMeta = {}, authorLineFn = authorLine,
+  saMedia = [],
 }) {
+  // Files the agent handed over (send_file). They go out AFTER the text, and
+  // even when there is no text left to send — a turn whose prose all streamed
+  // still owes the owner the picture it promised.
+  const deliverFiles = () => sendTelegramFiles(self, {
+    chat_id, update_id, media: saMedia,
+    actorId: replyActorId || SUPERAGENT_ACTOR_ID,
+    kind: replyKind || "superagent",
+    author: replyAuthor || agentDisplay,
+  });
   // A model that dumps raw planning must never have it forwarded. When that
   // happens the answer comes back empty and the existing never-silent fallback
   // below sends a short line instead — a worse reply, but not the model's notes.
@@ -423,7 +437,11 @@ export async function sendFinalReply(self, {
     toSend = text;
     if (!authored) self.log(`telegram[${self.channel.name}] closing floor: the model could not write it either`);
   }
-  if (!toSend) return; // everything was already streamed — nothing left to send
+  if (!toSend) {
+    // everything was already streamed — nothing left to send but the files
+    await deliverFiles();
+    return;
+  }
 
   const actorId = replyActorId || SUPERAGENT_ACTOR_ID;
   const kind = replyKind || "superagent";
@@ -496,6 +514,7 @@ export async function sendFinalReply(self, {
       body: toSend,
       meta,
     });
+    await deliverFiles();
   } catch (e) {
     self.log(`telegram[${self.channel.name}] send-back error: ${e.message}`);
     appendGlobalMessage({
@@ -509,5 +528,46 @@ export async function sendFinalReply(self, {
       body: `[send_failed] ${toSend}`,
       meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, send_error: e.message, ...(saUsage ? { usage: saUsage } : {}), ...(saModel ? { model: saModel } : {}) },
     });
+  }
+}
+
+/**
+ * Send the files a turn queued with send_file: an image as a photo, anything
+ * else as a document. One ledger row per file, carrying it the way every other
+ * outbound file is carried (archived under ~/.apx/media), so the thread shows
+ * what the owner received. A file that fails to send is logged and skipped —
+ * the reply itself already went out, and one bad file must not hide the rest.
+ */
+export async function sendTelegramFiles(self, { chat_id, update_id, media, actorId, kind, author }) {
+  for (const item of Array.isArray(media) ? media : []) {
+    if (!item?.path) continue;
+    try {
+      if (item.kind === "photo") {
+        await self._sendPhoto({ chat_id, photo: item.path, caption: item.caption || undefined });
+      } else {
+        await self._sendDocument({
+          chat_id, document: item.path, caption: item.caption || undefined,
+          filename: item.file, mime_type: item.mime,
+        });
+      }
+      appendGlobalMessage({
+        channel: CHANNELS.TELEGRAM,
+        direction: "out",
+        type: "agent",
+        actor_id: actorId,
+        actor_kind: kind,
+        agent_slug: actorId,
+        author,
+        body: item.caption || "",
+        meta: {
+          chat_id, tg_channel: self.channel.name, in_reply_to: update_id,
+          // Progress-shaped for history: the answer is the text row above.
+          streamed: true,
+          ...attachmentsMeta([item], item.kind),
+        },
+      });
+    } catch (e) {
+      self.log(`telegram[${self.channel.name}] file send failed (${item.file || item.path}): ${e.message}`);
+    }
   }
 }
