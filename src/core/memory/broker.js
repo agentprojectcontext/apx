@@ -196,9 +196,14 @@ export async function buildMemoryBlock(message, opts = {}) {
 
   return [
     `# ${opts.heading || "Relevant memory (cross-channel)"}`,
-    "Context recovered from your notebook and from the message log across channels.",
-    "Treat these as known facts. If a fresh session opens and something here is still",
-    "open, bring it up naturally in the user's language (e.g. \"yesterday we were on X — shall we continue?\") without being asked.",
+    // A caller whose reader is not the owner (a public room) says what these
+    // rows are in its own words: "treat as known facts" is right for the
+    // owner's notebook and wrong for something a stranger once typed.
+    ...(opts.intro ? [opts.intro] : [
+      "Context recovered from your notebook and from the message log across channels.",
+      "Treat these as known facts. If a fresh session opens and something here is still",
+      "open, bring it up naturally in the user's language (e.g. \"yesterday we were on X — shall we continue?\") without being asked.",
+    ]),
     "",
     "[RELEVANT MEMORY]",
     ...bullets,

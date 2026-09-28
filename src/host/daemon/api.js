@@ -39,6 +39,7 @@ import { register as registerMedia } from "./api/media.js";
 import { register as registerMessages } from "./api/messages.js";
 import { register as registerTelegram } from "./api/telegram.js";
 import { register as registerWhatsapp } from "./api/whatsapp.js";
+import { register as registerDiscord } from "./api/discord.js";
 import { register as registerPlugins } from "./api/plugins.js";
 import { register as registerEngines } from "./api/engines.js";
 import { register as registerSkills } from "./api/skills.js";
@@ -219,6 +220,7 @@ export function buildApi({
   // ---- Channels & plugin surfaces ----------------------------------
   registerTelegram(api, ctx);
   registerWhatsapp(api, ctx);
+  registerDiscord(api, ctx);
   registerPlugins(api, ctx);
   registerTranscribe(api, ctx);
   registerTts(api, ctx);

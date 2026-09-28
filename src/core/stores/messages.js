@@ -1492,6 +1492,8 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
     if (!fs.existsSync(dir)) continue;
     for (const f of fs.readdirSync(dir).sort()) {
       if (!/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) continue;
+      // A whole day before `since` cannot hold a row after it — skip the read.
+      if (since && f.slice(0, 10) < String(since).slice(0, 10)) continue;
       const text = fs.readFileSync(path.join(dir, f), "utf8");
       for (const m of parseDayJsonl(text)) {
         if (since && m.ts < since) continue;

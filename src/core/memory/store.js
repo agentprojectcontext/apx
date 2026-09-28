@@ -29,7 +29,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { cosineSim } from "./embeddings.js";
 
-export const SCOPE_PREFIXES = ["project:", "agent:"];
+// `discord:<channel_id>` is a public room. Its rows are scoped so the owner's
+// global recall never surfaces what strangers said there, and a Discord turn
+// recalls only its own room.
+export const SCOPE_PREFIXES = ["project:", "agent:", "discord:"];
 const isScopedChannel = (c) => SCOPE_PREFIXES.some((p) => String(c || "").startsWith(p));
 
 function vecToBlob(vec) {
@@ -221,7 +224,8 @@ class SqliteVecStore {
       params.push(channel);
     }
     if (scope === "global") {
-      where.push("(channel NOT LIKE 'project:%' AND channel NOT LIKE 'agent:%')");
+      where.push(`(${SCOPE_PREFIXES.map(() => "channel NOT LIKE ?").join(" AND ")})`);
+      params.push(...SCOPE_PREFIXES.map((p) => `${p}%`));
     } else if (Array.isArray(scope)) {
       if (scope.length === 0) {
         where.push("0"); // no scopes → match nothing

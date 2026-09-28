@@ -300,6 +300,7 @@ const CREDENTIAL_PATHS = [
   ["memory", "embeddings", "openai", "api_key"],
   ["memory", "embeddings", "gemini", "api_key"],
   ["telegram", "channels"], // entire array — losing it is also a regression
+  ["discord", "token"],
 ];
 
 function getDeep(obj, parts) {

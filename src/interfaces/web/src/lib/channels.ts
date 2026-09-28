@@ -34,6 +34,7 @@ const KEYS: Record<ChannelAxis, string> = {
  *  the one worth seeing. */
 const CHANNEL_LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
+  discord: "Discord",
   telegram: "Telegram",
   web: "Web",
   web_sidebar: "Web · sidebar",
@@ -61,7 +62,7 @@ const CHANNEL_LABELS: Record<string, string> = {
  * `log` is deliberately absent: it exists precisely because it is readable and
  * never delivered.
  */
-export const DELIVERED_CHANNELS = new Set(["telegram", "whatsapp"]);
+export const DELIVERED_CHANNELS = new Set(["telegram", "whatsapp", "discord"]);
 
 export function channelLabel(channel: string): string {
   if (channel === "a2a") return t("channels.a2a");
