@@ -8,7 +8,7 @@
 import { readConfig, writeConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
-import { PERMISSION_MODES } from "#core/constants/permissions.js";
+import { superAgentSettings } from "#core/agent/settings.js";
 import {
   redactConfig as redact,
   isSecretMarker,
@@ -90,21 +90,12 @@ export function register(api, { config, scheduler, plugins }) {
   api.get("/admin/super-agent", (_req, res) => {
     try {
       const fresh = readConfig();
-      const sa = fresh.super_agent || {};
+      // Everything the panel edits comes from core: it saves back all of it,
+      // so a knob missing from this view gets written back blank.
       res.json({
-        enabled: !!sa.enabled,
+        ...superAgentSettings(fresh),
         name: resolveAgentName(fresh),
         icon: resolveSuperAgentBlob(fresh),
-        model: sa.model || "",
-        // The panel saves these back on every "Save": left out of this
-        // response, it read "" and wrote "" — wiping the super-agent's own
-        // model the first time the owner changed its avatar.
-        self_model: sa.self_model || "",
-        self_model_fallback: sa.self_model_fallback !== false,
-        system: sa.system || "",
-        permission_mode: sa.permission_mode || PERMISSION_MODES.PERMISO,
-        allowed_tools: sa.allowed_tools || [],
-        model_fallback: sa.model_fallback || { enabled: false, models: [], order: [] },
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
