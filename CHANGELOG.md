@@ -1,3 +1,10 @@
+# [1.120.0](https://github.com/agentprojectcontext/apx/compare/v1.119.0...v1.120.0) (2026-09-28)
+
+
+### Features
+
+* **web:** el super-agente se renombra desde su pantalla, y las guardas de todos los agentes se editan ahí ([d43b534](https://github.com/agentprojectcontext/apx/commit/d43b5342709b3bec5550e70564a87c5fb14a5736))
+
 # [1.119.0](https://github.com/agentprojectcontext/apx/compare/v1.118.0...v1.119.0) (2026-09-28)
 
 
