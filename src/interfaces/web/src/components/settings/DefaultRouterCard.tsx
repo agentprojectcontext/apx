@@ -6,11 +6,11 @@ import { Badge, Button, Loading } from "../ui";
 import { Tip } from "../ui/tip";
 import { useToast } from "../Toast";
 import { useGlobalConfig, useSuperAgentConfig } from "../../hooks/useGlobalConfig";
-import { useOllamaModels } from "../../hooks/useOllamaModels";
+import { useProviderModels } from "../../hooks/useProviderModels";
 import {
   ProviderModelPicker,
   providersFromEngines,
-  ollamaTargetsOf,
+  providerTargetsOf,
   problemHint,
   rowProblem,
   splitRef,
@@ -59,10 +59,10 @@ export function DefaultRouterCard() {
     [config.engines],
   );
 
-  const { models: ollamaModels, online: ollamaOnline } = useOllamaModels(useMemo(() => ollamaTargetsOf(engines), [engines]));
+  const { models: liveModels, online } = useProviderModels(useMemo(() => providerTargetsOf(engines), [engines]));
   const providers: ProviderInfo[] = useMemo(
-    () => providersFromEngines(engines, ollamaOnline),
-    [engines, ollamaOnline],
+    () => providersFromEngines(engines, online),
+    [engines, online],
   );
 
   if (isLoading || !superAgent) return <Loading />;
@@ -191,7 +191,7 @@ export function DefaultRouterCard() {
                     )}
                     {editing ? (
                       <div className="flex-1">
-                        <ProviderModelPicker value={ref} onChange={(v) => updateAt(i, v)} providers={providers} ollamaModels={ollamaModels} />
+                        <ProviderModelPicker value={ref} onChange={(v) => updateAt(i, v)} providers={providers} liveModels={liveModels} />
                       </div>
                     ) : (
                       <button type="button" onClick={() => setEditIdx(i)} className="flex flex-1 items-center gap-1.5 text-left">
@@ -218,7 +218,7 @@ export function DefaultRouterCard() {
           {providers.length > 0 && (
             <div className="space-y-2">
               <div className="text-xs text-muted-fg">{t("router_panel.add_to_chain")}</div>
-              <ProviderModelPicker value={newEntry} onChange={setNewEntry} providers={providers} ollamaModels={ollamaModels} />
+              <ProviderModelPicker value={newEntry} onChange={setNewEntry} providers={providers} liveModels={liveModels} />
               <Button size="sm" variant="secondary" onClick={addEntry} disabled={!newEntry.includes(":") || newEntry.endsWith(":")}>
                 <Plus size={13} /> {t("router_panel.add_to_chain")}
               </Button>

@@ -82,7 +82,7 @@ const picker = (() => {
   return mod.exports;
 })();
 
-const { providersFromEngines, rowProblem } = picker;
+const { providersFromEngines, rowProblem, providerTargetsOf, modelOptionsFor } = picker;
 
 /** Shorthand: build the provider list for one engines map. */
 const build = (engines, ollamaOnline = {}) => providersFromEngines(engines, ollamaOnline);
@@ -141,4 +141,34 @@ test("custom points somewhere on either a key or a base_url", () => {
   assert.equal(bySlug(list, "url_only").configured, true);
   assert.equal(bySlug(list, "key_only").configured, true);
   assert.equal(bySlug(list, "neither").configured, false);
+});
+
+// Regression: the chain editors (router + project models) only probed Ollama,
+// so a cloud provider showed the curated `known_models` while the chat picker
+// showed what that provider actually lists live — a new model appeared in one
+// and not the other.
+test("the chain probes every active provider, not only Ollama", () => {
+  const targets = providerTargetsOf({
+    box: { engine: "ollama", base_url: "http://box.example:11434" },
+    cloud: { engine: "openai", api_key: "k" },
+    off: { engine: "groq", api_key: "k", is_active: false },
+  });
+  assert.deepEqual(targets.map((t) => t.slug).sort(), ["box", "cloud"]);
+  assert.equal(targets.find((t) => t.slug === "cloud").engine, "openai");
+  assert.equal(targets.find((t) => t.slug === "box").base_url, "http://box.example:11434");
+});
+
+test("a live model list replaces the curated one; curated is only the offline fallback", () => {
+  const [cloud] = build({ cloud: { engine: "openai", api_key: "k", default_model: "acme-base" } });
+
+  const live = modelOptionsFor(cloud, { cloud: ["acme-next", "acme-base"] });
+  assert.deepEqual(live, ["acme-base", "acme-next"], "default first, then only what the provider listed");
+
+  const offline = modelOptionsFor(cloud, {});
+  assert.ok(offline.length > 1, "no live answer falls back to known_models");
+  assert.ok(!offline.includes("acme-next"));
+
+  const [box] = build({ box: { engine: "ollama" } });
+  assert.deepEqual(modelOptionsFor(box, {}), [], "Ollama has no curated list");
+  assert.deepEqual(modelOptionsFor(box, { box: ["tiny:1b"] }), ["tiny:1b"]);
 });
