@@ -1,3 +1,19 @@
+# [1.119.0](https://github.com/agentprojectcontext/apx/compare/v1.118.0...v1.119.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **chat:** parar funciona desde la pestaña que sigue el turno, y el modelo se cambia en pleno turno ([b02d348](https://github.com/agentprojectcontext/apx/commit/b02d348ed8a85a7de299eb723c51ef61e6724fc9))
+* **web:** el modelo de un agente se elige con su esfuerzo, y el selector compacto abre hacia abajo cuando no entra arriba ([22b851e](https://github.com/agentprojectcontext/apx/commit/22b851ea3e6fd30958ad68ee5413d881d2dae57e))
+* **web:** la cadena de modelos lista lo que cada proveedor ofrece en vivo ([05a80aa](https://github.com/agentprojectcontext/apx/commit/05a80aad5497cae9e6374d43f5b101e266c4b074))
+* **web:** la pestaña que sigue un turno muestra tu mensaje mientras el agente contesta ([973a1bc](https://github.com/agentprojectcontext/apx/commit/973a1bc6cfed44e49eb2f5a913aded840b215596))
+
+
+### Features
+
+* **agent:** el super-agente te puede mandar imágenes con send_file ([f8151c5](https://github.com/agentprojectcontext/apx/commit/f8151c5d90711bdadd03a97f4a89c49bbb038e4d))
+* **web:** la lista de skills tiene buscador por nombre y descripción ([534359c](https://github.com/agentprojectcontext/apx/commit/534359c8a87e9b7fced53230ba791d447e64fd8e))
+
 # [1.118.0](https://github.com/agentprojectcontext/apx/compare/v1.117.1...v1.118.0) (2026-09-28)
 
 
