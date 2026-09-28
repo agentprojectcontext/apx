@@ -40,6 +40,9 @@ fs.writeFileSync(
     "export const useMemo = (f) => f();\nexport default {};\n"
 );
 
+/** Class-name helpers the pure functions under test never call. */
+const PANEL_ONLY = ["clsx", "tailwind-merge"];
+
 const picker = (() => {
   const entry = path.join(STUB_DIR, "entry.tsx");
   fs.writeFileSync(
@@ -62,10 +65,14 @@ const picker = (() => {
     logLevel: "silent",
     loader: { ".tsx": "tsx", ".ts": "ts" },
     jsx: "transform",
-    external: ["lucide-react", "react", "react/jsx-runtime"],
+    // clsx / tailwind-merge arrive through modelEffort → lib/cn.ts and live
+    // only in the panel's own node_modules. The release job installs the root
+    // alone, so resolving them failed there and blocked every publish from
+    // v1.117.1 on — while `verify`, which installs the panel, stayed green.
+    external: ["lucide-react", "react", "react/jsx-runtime", ...PANEL_ONLY],
   });
   const stub = (id) => {
-    if (id.startsWith("react") || id === "lucide-react") {
+    if (id.startsWith("react") || id === "lucide-react" || PANEL_ONLY.includes(id)) {
       return new Proxy({}, { get: () => function Stub() {} });
     }
     return require(id);
