@@ -174,6 +174,10 @@ export function shapeConversationMessage(t) {
       ...base,
       ...mediaFields,
       ...(automation ? { automation, job: t.meta?.job || null } : {}),
+      // Handed in from another session. The body still holds the marker the
+      // model was given; this is what lets the viewer draw the quote as a card
+      // that names where it came from, and strip the marker out of the text.
+      ...(t.meta?.forwarded ? { forwarded: t.meta.forwarded } : {}),
     };
   }
   if (t.role === "assistant") {

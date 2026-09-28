@@ -2298,6 +2298,10 @@ export function shapeLedgerMessage(r) {
       ...(r.meta?.room && r.meta?.reply_to_text
         ? { quote: { author: r.meta.reply_to_author || null, text: r.meta.reply_to_text } }
         : {}),
+      // Handed in from another session — the quote's provenance, so every
+      // surface reading this row draws the same card instead of the
+      // machine-facing marker sitting in the body.
+      ...(r.meta?.forwarded ? { forwarded: r.meta.forwarded } : {}),
     };
   }
   const usage = r.meta?.usage;

@@ -232,8 +232,8 @@ The **Chat** tab talks to the super-agent (Roby) and to each project agent. The
 sidebar is channel-first, grouped as **Web, Telegram, Desktop, Voice, Agent ↔
 Agent, Schedule, Other** — in that order. Besides your own web conversations, it
 also surfaces the super-agent's day-threads from every other channel (Telegram,
-Desktop, Deck), so a conversation that happened over Telegram is visible and
-continuable from the web.
+Desktop, Deck), so a conversation that happened over Telegram is visible from
+the web — and can be carried on there, in a session of its own.
 
 The **"+ New"** button opens an agent picker (super-agent or any project agent)
 and starts a fresh session that only materializes under the Web group once you
@@ -288,6 +288,47 @@ it, plus channel threads (Telegram, Desktop) that belong to no project in
 particular.
 
 ![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+
+#### Forwarding a message to another session
+
+Any message in any conversation — yours or an agent's — has a **Forward** action
+next to **Copy**. It asks two things: who should see it, and where in their
+history it should land. The most recent session of whoever you pick comes
+preselected, so continuing a conversation you were already having is one click;
+**New session** is always the first option for the other case. Whatever you type
+goes under the quote, and may be left empty: "read this" is a complete message,
+and the agent answers the quote.
+
+The list is not limited to this project. An install is one set of agents as far
+as you are concerned, so the picker reaches across every registered project,
+grouped under each project's name, with a search that matches a person's name,
+their slug, or the project they are in (`GET /api/agents` backs it).
+Forwarding into another project navigates there and continues in that project's
+chat — the quote records which project it came FROM, so the card's link back
+still opens the right conversation.
+
+On the other side the message arrives as a card that says where it came from,
+who said it and when, with a link back to that session — so the forward reads as
+a citation rather than as pasted text with no author. The agent reads the same
+three facts: the quote travels in the prompt, marked as somebody else's words.
+
+Some conversations cannot receive a forward, and are left out of the list rather
+than offered and then refused: Telegram and WhatsApp threads (the message is on
+somebody's phone; a turn written here goes out on `web` instead), agent-to-agent
+transcripts, group rooms, and any super-agent thread but today's on this
+surface — the super-agent has no conversation file, so its turns are written
+with the clock, and a message dropped into yesterday would be shown in one
+thread and recorded in another.
+
+#### Replying inside a Telegram or WhatsApp thread
+
+Those threads are readable here and cannot be written back into: the message was
+delivered on somebody else's platform, and APX cannot take it back or add to it.
+The composer says so above the field, and then does the honest thing — what you
+write continues in a **new session with the super-agent**, with the thread's
+last message quoted at the head of yours, and the panel moves there as it sends.
+Before, the reply appeared to land in the Telegram thread and was gone on the
+next reload.
 
 ### Tasks
 

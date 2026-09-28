@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MessageSquareWarning, MoreVertical, Pencil, Plus, RotateCcw, Route as RouteIcon, Trash2, UserPlus, Wrench, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, Info, MessageSquareDashed, MessageSquareWarning, MoreVertical, Pencil, Plus, RotateCcw, Route as RouteIcon, Trash2, UserPlus, Wrench, X } from "lucide-react";
 import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
+import { visibleTextOf } from "../../components/chat/MessageBubble";
+import { ForwardDialog } from "../../components/chat/ForwardDialog";
 import { ChatTimelinePanel } from "../../components/chat/ChatTimelinePanel";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { PendingTurns } from "../../components/chat/PendingTurns";
@@ -23,7 +25,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { attachmentsOf, useChat, type ChatMsg } from "../../hooks/useChat";
+import { attachmentsOf, isRoomChannel, textOf, useChat, type ChatMsg } from "../../hooks/useChat";
+import type { Forwarded, ForwardSource } from "../../lib/forwarded";
+import { parkForward, peekForward, takeForward } from "../../lib/forward-handoff";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
 import type { UploadedMedia } from "../../lib/api/media";
@@ -39,7 +43,7 @@ import { ProjectTag } from "../../components/inbox/ProjectFilter";
 import { BackgroundJobsMenu, NO_THREAD_JOBS } from "../../components/jobs/BackgroundJobsMenu";
 import { useProject } from "../../hooks/useProjects";
 import { threadDate } from "../../lib/thread-id";
-import { DELIVERED_CHANNELS } from "../../lib/channels";
+import { DELIVERED_CHANNELS, channelLabel as channelName } from "../../lib/channels";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
 import { useMilestones } from "../../hooks/useMilestones";
@@ -207,6 +211,13 @@ export function ChatTab({
   // carried from the sidebar so the header can show it without a second fetch.
   const [selectedMeta, setSelectedMeta] = useState<ChatSelectionMeta | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The message the forward dialog is open on. Null = closed.
+  const [forwarding, setForwarding] = useState<Forwarded | null>(null);
+  // A forward that has been confirmed and is waiting for the pane to arrive at
+  // the session it is going to. It sits in a ref rather than in state because
+  // the effect that loads a selection must be able to see it WITHOUT waiting
+  // for a re-render — see the guard on that effect.
+  const forwardInFlight = useRef<{ key: ChatKey } | null>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -321,6 +332,16 @@ export function ChatTab({
   // conversation_id (sends append to the file); threads stay unbound —
   // continuing sends fresh web turns with the thread as context.
   useEffect(() => {
+    // A forward drives the load itself, and then sends into it. Two loads of
+    // the same session would race: the one this effect starts resolves after
+    // the turn has been appended and REPLACES the messages — taking the message
+    // just sent, and the answer being streamed into it, off the screen.
+    if (forwardInFlight.current && chatKeyToString(forwardInFlight.current.key) === chatKeyToString(selected)) return;
+    // The same rule for one that arrived WITH the navigation, from another
+    // project's pane. It is parked before the route changes, so it is already
+    // here on this mount's first render — read, not taken: taking it is the
+    // sender's job, one effect below.
+    if (peekForward(pid, selected)) return;
     if (selected.kind === "conv") {
       void load(selected.agentSlug, selected.convId);
     } else if (selected.kind === "thread") {
@@ -445,6 +466,34 @@ export function ChatTab({
       // Ctrl+Enter means the same thing in a room as it does in a 1:1 chat:
       // wait behind what is running instead of interrupting it.
       await groupSend(selected.threadId, text, media, opts);
+      return;
+    }
+    // A thread that was delivered on somebody else's platform cannot be written
+    // back into — see `deliveredThread`. The reply continues in a new session
+    // with the super-agent, and takes the message it is answering with it, so
+    // the new conversation opens on the thing it is about rather than on a
+    // sentence with no subject. The composer said this would happen.
+    if (deliveredThread) {
+      const fwd = forwardPayload(lastSpoken());
+      const target: ChatKey = { kind: "live", agentSlug: ROBY_SLUG };
+      if (fwd) {
+        await deliverForward(target, text, fwd);
+        return;
+      }
+      // Nothing to quote (an empty thread): still a new session, just without
+      // the quote. Falling through would write into the Telegram pane again.
+      forwardInFlight.current = { key: target };
+      selectChat(target);
+      try {
+        clear(threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)));
+      } finally {
+        forwardInFlight.current = null;
+      }
+      await sendChat(text, {
+        model: model || undefined,
+        ...(media?.length ? { attachments: media } : {}),
+      });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
       return;
     }
     // The owner joining a pair: it becomes a room, and this line is the first
@@ -794,6 +843,171 @@ export function ChatTab({
   // only what the list row happened to carry. Prefer the file — a routine
   // conversation was reading as "new chat · web" with no model named anywhere.
   const shownChannel = conversationMeta?.channel || channelLabel;
+  // ── Forwarding: one message, handed to another session ────────────────────
+  //
+  // A session used to be a closed room. What an agent said this morning on
+  // Telegram could be read from the Telegram thread and nowhere else, and the
+  // only way to bring it into a conversation with somebody else was to select
+  // it, copy it and paste it — arriving as words with no author, no date and no
+  // sign that they had been said anywhere at all.
+  //
+  // So: the message goes WITH its provenance (core/stores/forwards.js), the
+  // pane moves to where it landed, and the turn runs there. Moving the pane is
+  // half the feature — a forward that fires into a conversation you are not
+  // looking at is indistinguishable from one that did not fire.
+
+  /** Where the chat on screen IS, in the shape a forward records. */
+  const forwardSource = (): ForwardSource => {
+    // The name a person would use. A thread is called by its title when it has
+    // one; a bare day or conversation id names an address, not a conversation,
+    // and the card falls back to the channel instead. A project agent's chat is
+    // called by the agent.
+    const named = convLabel && convLabel !== (selected.kind === "thread" ? selected.threadId : selected.kind === "conv" ? selected.convId : "")
+      ? convLabel
+      : "";
+    // Which project this was said in. `project` is resolved further down (the
+    // header needs it too); this only runs from a click, long after render.
+    const where = { project_id: String(pid), ...(project?.name ? { project_name: project.name } : {}) };
+    if (selected.kind === "thread") {
+      return { kind: "thread", channel: selected.channel, thread_id: selected.threadId, ...(named ? { title: named } : {}), ...where };
+    }
+    if (selected.kind === "conv") {
+      return { kind: "conv", agent_slug: selected.agentSlug, conversation_id: selected.convId, title: named || agentLabel, ...where };
+    }
+    return { kind: "live", agent_slug: selected.agentSlug, title: agentLabel, ...where };
+  };
+
+  /** One message, as the thing that will be quoted on the other side. */
+  const forwardPayload = (m: ChatMsg | undefined): Forwarded | null => {
+    if (!m) return null;
+    // What the READER sees — the attachment markers and any quote block this
+    // turn itself carried are machine-facing, and a quote of a marker is a
+    // quote of nothing. A forward with nothing typed under it has only its own
+    // quote to pass on, so that is what travels: a chain of forwards keeps the
+    // message instead of losing it a link at a time.
+    const text = visibleTextOf(textOf(m), m.media, m.forwarded) || m.forwarded?.text || "";
+    if (!text.trim()) return null;
+    return {
+      from: forwardSource(),
+      author: m.role === "user" ? "user" : "agent",
+      ...(m.role === "user" ? {} : { author_name: m.agent || agentLabel }),
+      text: text.trim(),
+      ...(m.ts ? { ts: m.ts } : {}),
+    };
+  };
+
+  /** Send one, into a session that may not be the one on screen. */
+  const deliverForward = async (target: ChatKey, note: string, fwd: Forwarded) => {
+    // Addressed from the TARGET, never from `selected`: the state write below
+    // has not landed yet when this runs, so reading the selection here would
+    // send the message to the chat we are leaving.
+    const toSuper = target.kind === "thread" || target.agentSlug === ROBY_SLUG;
+    const opts = {
+      model: model || undefined,
+      forwarded: fwd,
+      ...(toSuper ? {} : { agentSlug: target.agentSlug }),
+    };
+    forwardInFlight.current = { key: target };
+    selectChat(target);
+    try {
+      // The pane's own history, loaded here rather than by the selection effect
+      // — which is standing aside for exactly this (see the guard on it).
+      if (target.kind === "conv") await load(target.agentSlug, target.convId);
+      else if (target.kind === "thread") await loadThread(target.channel, target.threadId);
+      else clear(toSuper
+        ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+        : liveActivityKey(pid, target.agentSlug));
+    } finally {
+      // Handed back the moment the history is in: the effect's job is done for
+      // this selection either way, and holding the flag for the whole turn
+      // would make a round trip AWAY from this chat and back skip the load —
+      // leaving the other conversation's messages under this one's header.
+      forwardInFlight.current = null;
+    }
+    await sendChat(note, opts);
+    void mutate(`/api/projects/${pid}/super-agent/threads`);
+    if (!toSuper) void mutate(`/api/projects/${pid}/agents/${target.agentSlug}/conversations`);
+    void mutate((key) => typeof key === "string" && key.startsWith(`/api/inbox`));
+  };
+
+  /**
+   * Send it, wherever it is going.
+   *
+   * Inside this project the pane can do the whole thing itself. Into another
+   * one it cannot: `<ChatTab key={pid}>` is remounted on a project switch — on
+   * purpose, so that landing on a new project never leaves you reading the old
+   * one's chat — so the component that took the click is gone before the
+   * destination exists. The message is parked (lib/forward-handoff.ts) and
+   * picked up by the pane that mounts there, which then does exactly what this
+   * one would have.
+   */
+  const routeForward = (target: ChatKey, note: string, fwd: Forwarded, targetPid: string) => {
+    if (String(targetPid) === String(pid)) {
+      void deliverForward(target, note, fwd);
+      return;
+    }
+    parkForward(String(targetPid), target, { note, fwd });
+    navigate(`/p/${targetPid}/chat?${queryForChat(target)}`);
+  };
+
+  // The other end of that: a forward left for THIS pane by the one the reader
+  // came from. Once, on mount, against the selection the URL already carries —
+  // which is the address the forward was parked under, because the link was
+  // built from it.
+  useEffect(() => {
+    const parked = takeForward(pid, selected);
+    if (!parked) return;
+    void deliverForward(selected, parked.note, parked.fwd);
+    // Mount only: a forward is consumed by the first pane to see it, and
+    // re-running this on every selection change would be a second delivery.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** The card's "where did this come from" link: open that session — in its own
+   *  project, which may not be this one. */
+  const openForwardSource = (m: ChatMsg) => {
+    const from = m.forwarded?.from;
+    if (!from) return;
+    const key: ChatKey | null =
+      from.kind === "thread" && from.channel && from.thread_id
+        ? { kind: "thread", channel: from.channel, threadId: from.thread_id }
+        : from.kind === "conv" && from.agent_slug && from.conversation_id
+          ? { kind: "conv", agentSlug: from.agent_slug, convId: from.conversation_id }
+          : from.agent_slug
+            ? { kind: "live", agentSlug: from.agent_slug }
+            : null;
+    if (!key) return;
+    // A conversation id means nothing outside the project that holds it, so a
+    // forward from elsewhere is a navigation, not a selection.
+    if (from.project_id && String(from.project_id) !== String(pid)) {
+      navigate(`/p/${from.project_id}/chat?${queryForChat(key)}`);
+      return;
+    }
+    selectChat(key, { ...(from.channel ? { channel: from.channel } : {}), ...(from.title ? { title: from.title } : {}) });
+  };
+
+  // ── A thread that was DELIVERED somewhere else ────────────────────────────
+  //
+  // Telegram and WhatsApp threads are readable here and cannot be written to:
+  // the message is in somebody's app, and a reply typed here goes out on `web`
+  // — a different conversation, in a different place. That was always true and
+  // never said out loud, so a reply typed into a Telegram thread appeared to
+  // land in it, and was gone on the next reload. Now the composer says what
+  // will happen before you press enter, and then it happens visibly: the pane
+  // moves to the new session with the last message of the thread quoted at the
+  // head of yours.
+  const deliveredThread = selected.kind === "thread" && DELIVERED_CHANNELS.has(selected.channel);
+  /** The message a reply to this thread is a reply TO — the last one with words
+   *  in it, from either side. */
+  const lastSpoken = (): ChatMsg | undefined => {
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.pending || m.event || m.automation) continue;
+      if (visibleTextOf(textOf(m), m.media, m.forwarded).trim()) return m;
+    }
+    return undefined;
+  };
+
   // One face per speaker, resolved from the same data the inbox uses. Turns a
   // delegated agent produced inside a super-agent thread keep THEIR face, so a
   // multi-agent thread is readable without expanding anything.
@@ -1534,6 +1748,11 @@ export function ChatTab({
                 onCopy={copyToClipboard}
                 onRegenerate={regenerateHandler}
                 onEdit={editHandler}
+                onForward={(i) => {
+                  const fwd = forwardPayload(msgs[i]);
+                  if (fwd) setForwarding(fwd);
+                }}
+                onOpenForwardSource={openForwardSource}
                 faceFor={faceFor}
                 // A room names its speaker ABOVE the bubble — and an a2a pair
                 // IS a room: two agents talking, both of them "somebody else".
@@ -1634,11 +1853,13 @@ export function ChatTab({
               allowFiles
               floating
               placeholder={
-                isGroup
-                  ? t("project.groups.composer_ph")
-                  : canAddPeople
-                    ? t("project.groups.invite_ph")
-                    : undefined
+                deliveredThread
+                  ? t("chat_ui.delivered_ph")
+                  : isGroup
+                    ? t("project.groups.composer_ph")
+                    : canAddPeople
+                      ? t("project.groups.invite_ph")
+                      : undefined
               }
               mentionAgents={
                 isGroup
@@ -1672,6 +1893,20 @@ export function ChatTab({
               // to answer somewhere other than the thing you answer with.
               context={
                 <>
+                  {/* Said before you press enter, not discovered afterwards.
+                      This thread was delivered on somebody else's platform and
+                      cannot be written back into; what you type continues in a
+                      new session here, with this conversation's last message
+                      quoted at the head of it. */}
+                  {deliveredThread && selected.kind === "thread" && (
+                    <div
+                      data-testid="delivered-channel-notice"
+                      className="flex items-start gap-1.5 border-b border-border/60 px-3 py-1.5 text-[11px] leading-snug text-muted-fg"
+                    >
+                      <Info size={12} className="mt-[1px] shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>{t("chat_ui.delivered_notice", { channel: channelName(selected.channel) })}</span>
+                    </div>
+                  )}
                   <ContextBar
                     msgs={msgs}
                     projectId={pid}
@@ -1722,6 +1957,22 @@ export function ChatTab({
         )}
         </div>
       </section>
+
+      <ForwardDialog
+        pid={pid}
+        fwd={forwarding}
+        agents={agentList}
+        superAgentSlug={ROBY_SLUG}
+        superAgentLabel={persona}
+        superAgentIcon={superAgentIcon}
+        origin={selected}
+        onClose={() => setForwarding(null)}
+        onSend={(target, note, targetPid) => {
+          const fwd = forwarding;
+          setForwarding(null);
+          if (fwd) routeForward(target, note, fwd, targetPid);
+        }}
+      />
 
       <CreateAgentDialog
         open={creating}

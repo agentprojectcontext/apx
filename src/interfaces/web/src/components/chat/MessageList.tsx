@@ -20,6 +20,15 @@ interface Props {
   onRegenerate?: (index: number) => void;
   /** Edit the user message at this index and re-send (drop everything after). */
   onEdit?: (index: number, text: string) => void;
+  /** Hand the message at this index to another session. Absent → no forward
+   *  affordance (previews, and surfaces with nowhere to forward to).
+   *
+   *  Never offered on a turn still being written: half an answer is not a thing
+   *  to hand somebody, and the quote would be whatever had happened to arrive
+   *  by the moment of the click. */
+  onForward?: (index: number) => void;
+  /** Open the session a forwarded quote came from. */
+  onOpenForwardSource?: (msg: ChatMsg) => void;
   /** Who to draw next to an assistant turn. Screens that know the cast (chat,
    *  inbox) pass it; the rest fall back to a neutral glyph. */
   faceFor?: (msg: ChatMsg) => AgentFace;
@@ -65,6 +74,8 @@ export function MessageList({
   onCopy,
   onRegenerate,
   onEdit,
+  onForward,
+  onOpenForwardSource,
   faceFor,
   showSpeaker,
   nameOf,
@@ -174,6 +185,10 @@ export function MessageList({
             onCopy={onCopy}
             onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
             onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
+            onForward={onForward && !m.pending ? () => onForward(i) : undefined}
+            onOpenForwardSource={
+              onOpenForwardSource && m.forwarded ? () => onOpenForwardSource(m) : undefined
+            }
             compact={compact}
             face={m.role === "assistant" ? faceFor?.(m) : undefined}
             showSpeaker={showSpeaker}
