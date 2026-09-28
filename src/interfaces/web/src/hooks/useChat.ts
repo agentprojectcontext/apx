@@ -1398,8 +1398,23 @@ export function useChat(
         /* the daemon could not be asked — fall through and at least stop reading */
       }
     }
-    abortRef.current?.abort();
-  }, [pid]);
+    if (abortRef.current) {
+      abortRef.current.abort();
+      return;
+    }
+    // Following a turn this tab did not start, and the daemon holds nothing
+    // live under it: whatever this pane thinks is running already ended (its
+    // closing frame never reached us). There is no socket here to cut, so
+    // doing nothing left Stop — and the model picker, which waits on the same
+    // flag — dead until a reload. Let go of it instead.
+    if (followingRef.current) {
+      settleLiveBubble();
+      liveTurnRef.current = null;
+      liveSpeakerRef.current = null;
+      turnTargetRef.current = null;
+      updateFollowing(false);
+    }
+  }, [pid, settleLiveBubble, updateFollowing]);
 
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {

@@ -479,7 +479,11 @@ export function Composer({
           footer={
             <div className="flex items-center gap-2">
               {onModelChange ? (
-                <ModelPicker value={model || ""} onChange={onModelChange} disabled={streaming} />
+                // Not gated on `streaming` either: the model is read when a turn
+                // is SENT, so picking one mid-run sets the next message — which,
+                // with Interrupts on, is exactly how you redirect a turn to a
+                // different model. Locking it tied the picker to Stop working.
+                <ModelPicker value={model || ""} onChange={onModelChange} />
               ) : null}
               {/* Always, not only mid-turn.
                   It used to appear only while something was running, on the
