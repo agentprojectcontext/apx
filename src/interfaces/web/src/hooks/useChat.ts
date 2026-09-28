@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations, Groups, Turns } from "../lib/api";
 import { HttpError } from "../lib/http";
-import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, InteractiveMenu, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
+import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, InteractiveMenu, MessageMedia, SentMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
@@ -486,6 +486,15 @@ const mediaOf = (file: UploadedMedia): MessageMedia => ({
   duration: null,
 });
 
+const toMessageMedia = (m: SentMedia): MessageMedia => ({
+  kind: m.kind,
+  path: m.path,
+  name: m.name ?? null,
+  mime: m.mime ?? null,
+  size: m.size ?? null,
+  duration: m.duration ?? null,
+});
+
 /** The markers the daemon will write for these files (see readTurnAttachments),
  *  mirrored locally so the sent turn matches the ledger after a silent reload.
  *  A short `[image attached]` used to diverge from `[image attached — saved to
@@ -894,6 +903,11 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
         // thing and must not fall back to each other.
         model: turn.model ?? ev.result?.model,
         agent: turn.agent ?? ev.result?.name,
+        // Files the agent sent with this answer (send_file). The stored row
+        // carries them too, so a reopen draws the same thing.
+        ...(ev.result?.media?.length
+          ? { media: [...(turn.media || []), ...ev.result.media.map(toMessageMedia)] }
+          : {}),
         parts:
           finalText && !alreadyShown
             ? [...parts, { kind: "text", text: finalText }]
@@ -1384,8 +1398,23 @@ export function useChat(
         /* the daemon could not be asked — fall through and at least stop reading */
       }
     }
-    abortRef.current?.abort();
-  }, [pid]);
+    if (abortRef.current) {
+      abortRef.current.abort();
+      return;
+    }
+    // Following a turn this tab did not start, and the daemon holds nothing
+    // live under it: whatever this pane thinks is running already ended (its
+    // closing frame never reached us). There is no socket here to cut, so
+    // doing nothing left Stop — and the model picker, which waits on the same
+    // flag — dead until a reload. Let go of it instead.
+    if (followingRef.current) {
+      settleLiveBubble();
+      liveTurnRef.current = null;
+      liveSpeakerRef.current = null;
+      turnTargetRef.current = null;
+      updateFollowing(false);
+    }
+  }, [pid, settleLiveBubble, updateFollowing]);
 
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {

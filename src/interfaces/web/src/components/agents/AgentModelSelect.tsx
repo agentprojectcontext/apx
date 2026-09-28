@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { UiSelect } from "../UiSelect";
-import { INHERIT_MODEL, isInheritedModel, useModelCatalog } from "./modelCatalog";
+import { INHERIT_MODEL, isInheritedModel, splitModelId, useModelCatalog } from "./modelCatalog";
+import { EffortChips, carryEffort, splitEffort, withEffort } from "./modelEffort";
 import { t } from "../../i18n";
 
 // Model override for one agent, offered as a list instead of a free-text field.
@@ -16,9 +17,19 @@ import { t } from "../../i18n";
 //
 // A value already stored that no longer matches a configured provider is kept
 // as its own option, so opening the form never silently drops it.
+//
+// The reasoning effort is picked beside the model, not as a model of its own:
+// the list holds bare ids and the chips under it set the `@effort` suffix (see
+// ./modelEffort). Listing `chatgpt-codex:gpt-6-luna@high` as-is used to read
+// as an unlisted model, and there was no way to set one from here at all.
 export function AgentModelSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { providers } = useModelCatalog();
-  const selected = isInheritedModel(value) ? INHERIT_MODEL : value;
+  const { base, effort } = splitEffort(isInheritedModel(value) ? "" : value);
+  const selected = base || INHERIT_MODEL;
+  const engineOf = (id: string) => {
+    const slug = splitModelId(id).provider;
+    return providers.find((p) => p.slug === slug)?.engine || slug;
+  };
 
   const options = useMemo(() => {
     const seen = new Set<string>();
@@ -47,11 +58,14 @@ export function AgentModelSelect({ value, onChange }: { value: string; onChange:
   }, [providers, selected]);
 
   return (
-    <UiSelect
-      value={selected}
-      onChange={onChange}
-      options={options}
-      placeholder={t("project.agent_detail.model_router_default")}
-    />
+    <div className="flex flex-col gap-2">
+      <UiSelect
+        value={selected}
+        onChange={(v) => onChange(isInheritedModel(v) ? v : carryEffort(v, effort, engineOf(v)))}
+        options={options}
+        placeholder={t("project.agent_detail.model_router_default")}
+      />
+      {base && <EffortChips engine={engineOf(base)} value={effort} onChange={(e) => onChange(withEffort(base, e))} />}
+    </div>
   );
 }

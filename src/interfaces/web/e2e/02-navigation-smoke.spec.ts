@@ -84,6 +84,8 @@ test.describe("navigation smoke", () => {
     const picker = page.getByTestId("agent-icon-picker");
     await expect(picker).toBeVisible();
     await expect(picker.getByRole("button")).toHaveCount(35);
+    // The persona name is edited here too, next to the avatar.
+    await expect(page.getByTestId("super-agent-name")).toBeVisible();
     expect(errors).toEqual([]);
   });
 

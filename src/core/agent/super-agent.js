@@ -37,6 +37,10 @@ export async function runSuperAgent({
   previousMessages = [],
   // Files that arrived with this turn; forwarded to runAgent verbatim.
   attachments = [],
+  // Files the agent hands the owner this turn (send_file). The caller may pass
+  // its own array; either way the result carries it back as `media`, and it is
+  // the caller that archives and delivers it — the loop only collects.
+  mediaSink = [],
   // Tool calls a previous, cut-off life of this same turn already made. Seeds
   // the loop's side-effect ledger so a resumed turn does not repeat them.
   priorEffects = [],
@@ -227,7 +231,7 @@ export async function runSuperAgent({
       // and this switch still decides whether the router comes after it.)
       toolSchemas,
       makeToolHandlers,
-      toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },
+      toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth, mediaSink },
       onEvent,
       signal,
       onToken,
@@ -259,12 +263,14 @@ export async function runSuperAgent({
     ? jCfg.enabled
     : jCfg.continue_unfinished && continuableTurn(result);
   if (!judging || noTools || subagentDepth > 0 || signal?.aborted) {
-    return result;
+    return { ...result, media: mediaSink };
   }
   // Rolling refinement history: each round sees the original goal, its own
   // prior reply, and the judge's follow-up as ordinary conversation turns.
   const history = [...previousMessages, { role: "user", content: prompt }];
-  return applyJudgeLoop({
+  // Same sink for every judge round, so a file sent before the turn was
+  // continued still reaches the caller.
+  const judged = await applyJudgeLoop({
     initialResult: result,
     cfg: jCfg,
     onEvent,
@@ -279,4 +285,5 @@ export async function runSuperAgent({
       return next;
     },
   });
+  return { ...judged, media: mediaSink };
 }

@@ -103,13 +103,26 @@ export function Attachment({ media }: { media: MessageMedia }) {
 
   if (media.kind === "photo") {
     return url ? (
-      <a href={url} target="_blank" rel="noreferrer" className="block w-full max-w-[16rem]">
-        <img
-          src={url}
-          alt={label}
-          className="max-h-72 w-full rounded-2xl border border-border object-cover"
-        />
-      </a>
+      <div className="group relative block w-full max-w-[16rem]">
+        <a href={url} target="_blank" rel="noreferrer" className="block">
+          <img
+            src={url}
+            alt={label}
+            className="max-h-72 w-full rounded-2xl border border-border object-cover"
+          />
+        </a>
+        {/* A blob URL opened in a tab has no name to save under; the download
+            link carries the real one. */}
+        <a
+          href={url}
+          download={media.name || "image"}
+          aria-label={t("chat_ui.attachment_open")}
+          title={t("chat_ui.attachment_open")}
+          className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/55 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+        >
+          <Download size={14} />
+        </a>
+      </div>
     ) : (
       <Skeleton className="h-40 w-64" />
     );

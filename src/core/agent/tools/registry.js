@@ -45,6 +45,7 @@ import listSkills from "./handlers/list-skills.js";
 import loadSkill from "./handlers/load-skill.js";
 import readSkill from "./handlers/read-skill.js";
 import attachMedia from "./handlers/attach-media.js";
+import sendFile from "./handlers/send-file.js";
 import voiceReplies from "./handlers/voice-replies.js";
 import viewMedia from "./handlers/view-media.js";
 import transcribeAudio from "./handlers/transcribe-audio.js";
@@ -130,6 +131,7 @@ const NATIVE_TOOLS = [
   loadSkill,
   readSkill,
   attachMedia,
+  sendFile,
   voiceReplies,
   viewMedia,
   transcribeAudio,
@@ -282,6 +284,11 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.LIST_FILES,
   TOOLS.SEARCH_FILES,
   TOOLS.RUN_SHELL,
+  // Handing the owner a file. Hot for the voice_replies reason: "mandame una
+  // captura" is asked in one sentence, and a tool discovered a turn late is a
+  // reply that already went out saying "te la adjunto" with nothing attached —
+  // which is exactly what the model did before this tool existed.
+  TOOLS.SEND_FILE,
 ]);
 
 // Channels that get the FULL registry up front (deliberate, user-picked model,
@@ -318,6 +325,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.LOAD_SKILL]:          "skills",
   [TOOLS.READ_SKILL]:          "skills",
   [TOOLS.ATTACH_MEDIA]:        "skills",
+  [TOOLS.SEND_FILE]:           "files",
   [TOOLS.VIEW_MEDIA]:          "skills",
   [TOOLS.IMPORT_AGENT]:        "agents",
   [TOOLS.CREATE_AGENT]:        "agents",

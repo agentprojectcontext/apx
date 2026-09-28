@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import {
   ChevronDown, Code2, FileText, GitBranch, Lock, PencilLine,
-  Plus, Trash2, Upload,
+  Plus, Search, Trash2, Upload,
 } from "lucide-react";
 import { Button, Field, Input, Textarea, Switch, Badge, Loading, Tip, Dialog } from "../ui";
 import { UiSelect } from "../UiSelect";
@@ -171,6 +171,16 @@ export function SkillsManager({
   const skills = useMemo(() => data?.skills ?? [], [data]);
   const onCount = skills.filter((s) => s.enabled !== false).length;
 
+  // Client-side filter over slug + description: with 50+ skills the list is
+  // otherwise a long scroll to find one by name.
+  const [query, setQuery] = useState("");
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return skills;
+    return skills.filter((s) =>
+      s.slug.toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q));
+  }, [skills, query]);
+
   // Derived selection: keep the picked slug if still present, else first.
   const selected = picked && skills.some((s) => s.slug === picked) ? picked : (skills[0]?.slug ?? null);
   const { data: detail } = useSWR(
@@ -274,10 +284,25 @@ export function SkillsManager({
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_1fr] lg:grid-rows-1">
           {/* List */}
           <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+            <div className="shrink-0 border-b border-border p-2">
+              <div className="relative">
+                <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-fg" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("skills_page.search_ph")}
+                  aria-label={t("skills_page.search_ph")}
+                  data-testid="skills-search"
+                  className="w-full rounded-lg border border-border bg-muted/50 py-1.5 pl-7 pr-2 text-sm outline-none placeholder:text-muted-fg focus:border-primary/60"
+                />
+              </div>
+            </div>
             <ul className="max-h-72 flex-1 divide-y divide-border overflow-y-auto lg:max-h-none">
               {skills.length === 0 ? (
                 <li className="px-3 py-4 text-sm text-muted-fg">{t("skills_page.empty")}</li>
-              ) : skills.map((s) => (
+              ) : shown.length === 0 ? (
+                <li className="px-3 py-4 text-sm text-muted-fg">{t("skills_page.no_matches", { q: query.trim() })}</li>
+              ) : shown.map((s) => (
                 <SkillRow key={s.slug} skill={s} active={s.slug === selected} busy={busy}
                   onSelect={() => setPicked(s.slug)}
                   onToggle={(v) => setEnabled(s.slug, v)} />

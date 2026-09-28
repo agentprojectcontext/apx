@@ -36,8 +36,7 @@ import {
 import {
   getActiveTurnByKey,
   convTurnKey,
-  threadTurnKey,
-  superAgentTurnKey,
+  liveThreadTurnKey,
   listActiveTurns,
 } from "../active-turns.js";
 import { asyncRoute, readThreadMessages } from "./shared.js";
@@ -63,9 +62,7 @@ import { asyncRoute, readThreadMessages } from "./shared.js";
 // about YESTERDAY's thread, and marking that one running would be a new lie in
 // place of the old one.
 function threadIsRunning(projectId, channel, id) {
-  if (getActiveTurnByKey(threadTurnKey(projectId, channel, id))) return true;
-  const sa = getActiveTurnByKey(superAgentTurnKey(projectId, channel));
-  return !!sa && sa.thread_id === id;
+  return !!liveThreadTurnKey(projectId, channel, id);
 }
 
 function runningConversationIds(projectId) {
