@@ -3216,6 +3216,8 @@ export const es = {
     inspector_section_desc:  "Config avanzada: RAG local que inyecta solo las skills que el mensaje necesita.",
     scope_ph:            "— elegir scope —",
     select_a_skill:      "Elegí una skill de la lista para ver su contenido.",
+    search_ph:           "Buscar skills…",
+    no_matches:          "Ninguna skill coincide con «{q}»",
     added_by:            "Agregado por",
     activator:           "Activador",
     by_apx:              "APX (built-in)",
