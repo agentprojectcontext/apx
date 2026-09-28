@@ -6,6 +6,7 @@
 //   DELETE /discord/channels/:id                  — take a room off the list
 //   GET    /discord/channels/:id/history?limit=   — recent messages, from Discord
 //   POST   /discord/send  { channel_id, text }    — post as the bot
+//   POST   /discord/reconnect                     — reconnect with the saved settings (a new token)
 //
 // The token goes IN through /settings and never comes back out: status reports
 // `has_token`, nothing more.
@@ -35,6 +36,7 @@ export function register(api, { plugins }) {
       has_token: cfg.hasToken,
       owner_ids: cfg.owner_ids,
       names: cfg.names,
+      knowledge_path: cfg.knowledge_path,
       channels: Object.entries(cfg.channels).map(([id, row]) => ({ id, ...row })),
       state: "off",
     });
@@ -70,6 +72,12 @@ export function register(api, { plugins }) {
     const limit = Number(req.query.limit) || 50;
     res.json({ messages: await p.history(req.params.id, { limit }) });
   }));
+
+  api.post("/discord/reconnect", (_req, res) => {
+    const p = dc();
+    if (!p) return res.status(503).json({ error: "discord plugin not loaded" });
+    res.json(p.reconnect());
+  });
 
   api.post("/discord/send", asyncRoute(async (req, res) => {
     const { channel_id, text } = req.body || {};

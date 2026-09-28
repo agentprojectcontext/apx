@@ -15,7 +15,7 @@ import { readConfig } from "#core/config/index.js";
 export default {
   id: "discord",
 
-  init({ projects, config, log, plugins, registries }) {
+  init({ projects, log, plugins, registries }) {
     let gateway = null;
     let dispatcher = null;
     let lastStatus = { state: "off" };
@@ -46,15 +46,20 @@ export default {
     }
 
     return {
+      // Reads the config fresh, not the boot snapshot, so the panel can save a
+      // token and reconnect without restarting the daemon.
       start() {
-        const dc = readDiscordConfig(config);
+        const cfg = readConfig();
+        const dc = readDiscordConfig(cfg);
         if (dc.enabled === false) {
           log("discord: disabled in config — not starting");
+          lastStatus = { state: "off" };
           return;
         }
-        const token = discordToken(config);
+        const token = discordToken(cfg);
         if (!token) {
           log("discord: no bot token — idle until discord.token is set");
+          lastStatus = { state: "off" };
           return;
         }
         if (!Object.keys(dc.channels).length) {
@@ -80,6 +85,15 @@ export default {
       stop() {
         try { dispatcher?.stop(); } catch { /* nothing pending */ }
         try { gateway?.stop(); } catch { /* already down */ }
+        dispatcher = null;
+        gateway = null;
+      },
+
+      /** Drop the connection and open a new one with whatever the config says now. */
+      reconnect() {
+        this.stop();
+        this.start();
+        return this.status();
       },
 
       status() {
@@ -90,6 +104,7 @@ export default {
           has_token: dc.hasToken,
           owner_ids: dc.owner_ids,
           names: dc.names,
+          knowledge_path: dc.knowledge_path,
           channels: Object.entries(dc.channels).map(([id, row]) => ({
             id,
             mode: row.mode,
