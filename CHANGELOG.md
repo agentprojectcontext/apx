@@ -1,3 +1,30 @@
+# [1.118.0](https://github.com/agentprojectcontext/apx/compare/v1.117.1...v1.118.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* **agent:** el freno de gasto ve los hilos de tareas entre agentes y no frena lo que el dueño espera; un perfil re-activado no pisa lo que apagaste ([ee3c686](https://github.com/agentprojectcontext/apx/commit/ee3c6866ba51c3ad90691500d74aa63da5bbfa07))
+* **agent:** el trabajo para otro agente va a una tarea asignada; un reporte por a2a no se delega ni abre turnos ([7d71087](https://github.com/agentprojectcontext/apx/commit/7d71087d1a536839fc3b6a0227b5b573bdc77bed))
+* **agent:** un agente que contesta a otro agente responde con sus propias instrucciones ([2598598](https://github.com/agentprojectcontext/apx/commit/259859884da041b726efa18e3392dd5fcd9f74e8))
+* **agent:** un modelo elegido por el dueño con fallback prendido sigue por el router cuando se le agota la cuota, aunque nadie mire el turno ([f123b8b](https://github.com/agentprojectcontext/apx/commit/f123b8b977a374d6fdb517ba7eb9a4430c2b48b2))
+* **cli:** apx setup muestra la URL real del daemon en vez de 127.0.0.1:7430 fijo ([56eab9e](https://github.com/agentprojectcontext/apx/commit/56eab9eea7b865d0c359fc45d2ea863b895fd273))
+* **company:** un reporte status/fyi de una rutina de empresa queda archivado para el resumen en vez de abrir un turno del super-agente ([da37802](https://github.com/agentprojectcontext/apx/commit/da37802733b85539e93e1f14622132f26e17ee9e))
+* **engines:** big-pickle atiende también a los agentes sin terminal ni lectura de archivos, igual que cualquier otro modelo ([341e302](https://github.com/agentprojectcontext/apx/commit/341e302213f37ca40e184bb10235e84856996078)), closes [#1](https://github.com/agentprojectcontext/apx/issues/1)
+* **engines:** big-pickle contesta los turnos sin tools (respuestas a contactos de WhatsApp, resúmenes) en vez de saltearse ([60291c9](https://github.com/agentprojectcontext/apx/commit/60291c9f5908a14e6c7468efce54855e93b6c704)), closes [#1](https://github.com/agentprojectcontext/apx/issues/1)
+* **profiles:** refrescar un perfil ya no vuelve a prender las rutinas que apagaste, y el de empresa instala apagados sus rituales caros ([43783f7](https://github.com/agentprojectcontext/apx/commit/43783f7a05b8ad1c68a51b1852359721f0da444a))
+* **tasks:** un agente mencionado en una tarea responde una sola vez ([62d03b2](https://github.com/agentprojectcontext/apx/commit/62d03b2a704f98e9aec650d05c7d5717a893f43c))
+* **web:** el diálogo de nuevo agente arma el slug desde el nombre y explica el error en palabras ([9f77cc1](https://github.com/agentprojectcontext/apx/commit/9f77cc1f1c426de22b4f1eb1b11c1218d2952fed))
+* **web:** el panel nombra al agente con el nombre de identity.json en vez de "Roby" fijo ([03cfd26](https://github.com/agentprojectcontext/apx/commit/03cfd2628be0c07e121741e0a66986da9407e4b8))
+* **web:** las subtareas de la tarea abierta se refrescan con el evento en vivo ([7a9984e](https://github.com/agentprojectcontext/apx/commit/7a9984e6f59ab6274aa801b1c76ff7ba6d47f13e))
+
+
+### Features
+
+* **agent:** freno de gasto — el trabajo en segundo plano se pausa si pasa un techo de llamadas por hora, y avisa una vez ([694347e](https://github.com/agentprojectcontext/apx/commit/694347e0d0150cc9a102af8878060c174b41e798))
+* **profiles:** el CEO del perfil de empresa asigna tareas en vez de pedir cosas, y el pulso diario corre de lunes a viernes ([963dca6](https://github.com/agentprojectcontext/apx/commit/963dca63f7244ecd3ac9b17fd9842860b7696238))
+* **tasks:** mencionar a un agente con comment_task le pasa la tarea — con tope por tarea y por hora ([925b3b0](https://github.com/agentprojectcontext/apx/commit/925b3b0391ddcd1f59bda86e01fbe528d92ef4c2))
+* **web:** el esfuerzo de razonamiento se elige aparte del modelo y se muestra como "modelo · esfuerzo" ([3317028](https://github.com/agentprojectcontext/apx/commit/33170289e37ffbe3f3f4b99c68ac310b7ea75d5f))
+
 ## [1.117.1](https://github.com/agentprojectcontext/apx/compare/v1.117.0...v1.117.1) (2026-09-23)
 
 
