@@ -1,3 +1,26 @@
+# [1.121.0](https://github.com/agentprojectcontext/apx/compare/v1.120.1...v1.121.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **discord:** arrobar a Roby desde el autocompletado (el rol del bot) cuenta como llamarlo ([f3821d3](https://github.com/agentprojectcontext/apx/commit/f3821d3874f3d63e48ab128c4e09382e29f84baa))
+* **discord:** tus mensajes guardados antes de la marca de dueño también se ven de tu lado ([c7b60ec](https://github.com/agentprojectcontext/apx/commit/c7b60eca8d63fc4acb46042fc0cc84efba373484))
+* **web:** Nuevo chat lista cada agente una sola vez, para el canal web ([#47](https://github.com/agentprojectcontext/apx/issues/47)) ([feffc02](https://github.com/agentprojectcontext/apx/commit/feffc024557ee38b1d024392d50e0f74b142b2cd))
+
+
+### Features
+
+* **discord:** cuando le escribe el dueño desde su cuenta, Roby le habla a él por su nombre ([86d4b95](https://github.com/agentprojectcontext/apx/commit/86d4b95d56bb492515535ad21bb436ccee145a63))
+* **discord:** el agente vive en un servidor de Discord como bot, en los canales que elegís y con el modo de cada uno ([c503b8b](https://github.com/agentprojectcontext/apx/commit/c503b8b6e96eb6257588c4e2be548c9a78f94673))
+* **discord:** el avatar del bot se ve y se cambia desde Ajustes → Discord ([598050c](https://github.com/agentprojectcontext/apx/commit/598050c9462d440cb006760af0551956b78b2e6d))
+* **discord:** en el panel tus mensajes de Discord van de tu lado y las respuestas muestran la cita ([8ba7af6](https://github.com/agentprojectcontext/apx/commit/8ba7af6b99ccc44366d270617bf51d5b0804728c))
+* **discord:** la ficha del bot muestra el avatar en grande y las notas de qué puede hacer se escriben en el panel ([be1815a](https://github.com/agentprojectcontext/apx/commit/be1815a465efd6a4144c47d77dc61dfb170bcb23))
+* **discord:** los canales se eligen de la lista del servidor en vez de copiar su ID a mano ([7eb5093](https://github.com/agentprojectcontext/apx/commit/7eb5093a43357995ef457d15331ab9f575ce8b98))
+* **discord:** modo 'Si aporta' — contesta sin que lo llamen sólo cuando un chequeo rápido ve que puede ayudar ([5da022a](https://github.com/agentprojectcontext/apx/commit/5da022ab6dfba997ec647b9faad1cc61945d01de))
+* **discord:** reglas del dueño y un guardrail en código para todo lo que el bot publica; un canal se ve como canal ([9eb2339](https://github.com/agentprojectcontext/apx/commit/9eb233990baa32bb848d132523ad5c703444c7f8)), closes [#general](https://github.com/agentprojectcontext/apx/issues/general) [#canal](https://github.com/agentprojectcontext/apx/issues/canal)
+* **web:** Discord se configura desde Ajustes → Discord, y guardar un token nuevo reconecta el bot sin reiniciar ([5f08dd3](https://github.com/agentprojectcontext/apx/commit/5f08dd351ea6af137df7c7417b2cd4433552b4b9))
+* **web:** los canales de Discord se eligen en una sola lista del servidor, cada uno con su modo o No incluir ([59e08cf](https://github.com/agentprojectcontext/apx/commit/59e08cf8075787065944e908a00813fbd3d62596))
+
 ## [1.120.1](https://github.com/agentprojectcontext/apx/compare/v1.120.0...v1.120.1) (2026-09-29)
 
 
