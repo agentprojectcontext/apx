@@ -62,8 +62,8 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
       description={t("add_project.subtitle")}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>{t("add_project.register")}</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy} data-testid="add-project-cancel">{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy} data-testid="add-project-submit">{t("add_project.register")}</Button>
         </>
       }
     >
@@ -73,6 +73,7 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
             value={path}
             onChange={setPath}
             prompt={t("add_project.picker_prompt")}
+            testId="add-project-path"
             autoFocus
             onEnter={submit}
           />
