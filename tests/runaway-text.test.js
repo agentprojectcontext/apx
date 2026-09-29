@@ -61,10 +61,16 @@ test("things people write on purpose are left exactly as they are", () => {
 });
 
 test("clipping a pathological message is fast enough to be on the turn path", () => {
-  const started = Date.now();
+  // CPU time of THIS process, not wall-clock. Alone this takes ~18 ms; under
+  // `test:ci` — hundreds of files in parallel, coverage instrumentation on —
+  // the wall clock read 562 ms on 2026-09-29 and failed a push, while the code
+  // had not changed. Waiting for a core is not this function being slow; the
+  // CPU it actually burned is what "fast enough for the turn path" means.
+  const started = process.cpuUsage();
   clampRunawayText("😅".repeat(200000));
   clampRunawayText("lorem ipsum dolor sit amet ".repeat(8000));
-  assert.ok(Date.now() - started < 500, "this runs on every turn; it cannot be the slow part");
+  const { user, system } = process.cpuUsage(started);
+  assert.ok((user + system) / 1000 < 500, "this runs on every turn; it cannot be the slow part");
 });
 
 test("every turn's text goes through it", () => {
