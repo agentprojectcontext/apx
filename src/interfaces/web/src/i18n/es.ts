@@ -692,7 +692,7 @@ export const es = {
       daily_max: "Mensajes por día",
       daily_max_hint: "0 significa sin techo.",
       quiet_hours: "Horas de silencio",
-      quiet_hours_hint: "HH:MM-HH:MM. Cruza la medianoche sin problema. Vacío = ninguna.",
+      quiet_hours_hint: "HH:MM-HH:MM. Cruza la medianoche sin problema. 00:00-23:59 = todo el día. Vacío = ninguna.",
       cooldown: "Espacio mínimo (minutos)",
       project_cooldown: "Espacio mínimo por proyecto (minutos)",
       kind_cooldown: "Espacio mínimo por tipo (minutos)",
