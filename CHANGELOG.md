@@ -1,3 +1,10 @@
+## [1.120.1](https://github.com/agentprojectcontext/apx/compare/v1.120.0...v1.120.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **cli:** apx update reinicia el daemon en la versión nueva ([24f90dd](https://github.com/agentprojectcontext/apx/commit/24f90dd0e63c5df3824773e35e7b7254923a46fe))
+
 # [1.120.0](https://github.com/agentprojectcontext/apx/compare/v1.119.0...v1.120.0) (2026-09-28)
 
 
