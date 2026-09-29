@@ -522,6 +522,9 @@ export interface ConversationMessage {
   interactive?: InteractiveMenu;
   /** A menu option this message PICKED. */
   chose?: { id?: string; title?: string; description?: string };
+  /** Who wrote it, when the thread is a ROOM (a Discord channel) rather than a
+   *  conversation with the owner: the message is someone else's, not yours. */
+  speaker?: string;
 }
 
 export interface InteractiveMenu {

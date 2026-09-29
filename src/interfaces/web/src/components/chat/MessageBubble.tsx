@@ -119,7 +119,8 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   if (msg.automation === "background_job") {
     return <BackgroundJobNotice msg={msg} />;
   }
-  const mine = msg.role === "user";
+  // A room's user turns are other people, not the owner: left side, named.
+  const mine = msg.role === "user" && !msg.speaker;
   // WHO IS SPEAKING, BY NAME.
   //
   // The ledger files a group turn under the speaker's SLUG (`author: slug`, in
@@ -302,8 +303,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
       {!mine && !compact && (face ? (
         <AgentAvatar {...face} size={28} className="mt-0.5" />
       ) : (
-        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-          <Bot size={14} />
+        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
+          {/* Someone in a room (Discord): their initial, not a bot. */}
+          {msg.speaker ? msg.speaker.slice(0, 1).toUpperCase() : <Bot size={14} />}
         </span>
       ))}
       {/* Both sides are capped. The user's own column used to have no max-width
@@ -323,6 +325,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
       >
         {/* Group style: name the speaker ABOVE the bubble, with a "traído por X"
             tag when a mention pulled them in — the way a group chat reads. */}
+        {msg.speaker ? (
+          <div className="text-[11px] font-semibold leading-none text-foreground/90">{msg.speaker}</div>
+        ) : null}
         {showSpeaker && !mine && (msg.agent || msg.agentId) && (
           <div className="flex items-center gap-1.5 text-[11px] leading-none">
             {/* On the phone the avatar column is dropped (see `compact`), so a

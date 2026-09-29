@@ -6,6 +6,35 @@
 // about, and the next turn in that room would not know it had said it.
 import { CHANNELS } from "#core/constants/channels.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
+import { maskSecretValues } from "#core/config/secret-values.js";
+
+// A path on THIS machine: a home directory, a mounted volume, a temp dir. None
+// of it means anything to a stranger, and all of it says who and where the
+// owner is.
+const LOCAL_PATH_RE = /(?:\/(?:Users|home|Volumes|private|var\/folders)\/[^\s`'")\]]+)|(?:[A-Z]:\\Users\\[^\s`'")\]]+)/g;
+
+/**
+ * The last check before anything is posted to a public room. Code, not prompt:
+ * it holds when the model forgets its instructions or is talked out of them.
+ *
+ *   - any registered secret (config credentials, MCP tokens) is masked;
+ *   - local filesystem paths are replaced;
+ *   - @everyone / @here are defused (mentions are also off at the API level —
+ *     this keeps the text itself from reading as a ping).
+ *
+ * Returns the text to post and what was changed, for the log.
+ */
+export function guardDiscordReply(text) {
+  const changed = [];
+  let out = String(text || "");
+  const masked = maskSecretValues(out);
+  if (masked !== out) { changed.push("secret"); out = masked; }
+  const noPaths = out.replace(LOCAL_PATH_RE, "[local path]");
+  if (noPaths !== out) { changed.push("local path"); out = noPaths; }
+  const noPings = out.replace(/@(everyone|here)\b/g, "@\u200b$1");
+  if (noPings !== out) { changed.push("mass mention"); out = noPings; }
+  return { text: out, changed };
+}
 
 // Discord's hard limit per message.
 export const DISCORD_MAX_CHARS = 2_000;
@@ -59,8 +88,10 @@ export function splitForDiscord(text, max = DISCORD_MAX_CHARS) {
  * Send `text` to a room, in as many messages as it takes, and record each one.
  * Only the first part is threaded as a reply to `replyTo`.
  */
-export async function postDiscord({ transport, channelId, text, replyTo = null, room = null, meta = {} }) {
-  const parts = splitForDiscord(text);
+export async function postDiscord({ transport, channelId, text, replyTo = null, room = null, meta = {}, log = () => {} }) {
+  const guarded = guardDiscordReply(text);
+  if (guarded.changed.length) log(`discord: reply to ${room ? `#${room}` : channelId} guarded (${guarded.changed.join(", ")})`);
+  const parts = splitForDiscord(guarded.text);
   if (!parts.length) throw new Error("nothing to send");
   let firstId = null;
   for (const [i, part] of parts.entries()) {

@@ -175,6 +175,7 @@ export function createDiscordDispatcher({
       text,
       replyTo: msg.id,
       room: msg.channel_name || null,
+      log,
     });
     log(`discord: answered ${msg.author?.name} in ${where} (${text.length} chars, ${parts} message${parts === 1 ? "" : "s"})`);
     // No quote of the reply and a capped name: this lands in the owner's own

@@ -102,6 +102,9 @@ export interface ChatMsg {
   /** A menu this message offered (WhatsApp buttons/list/template), drawn as
    *  buttons under the text. */
   interactive?: InteractiveMenu;
+  /** Somebody else in a room (a Discord channel) — not the owner. The bubble
+   *  goes on the left under their name instead of reading as yours. */
+  speaker?: string;
   /** Composed HERE, in this tab, rather than read back from storage.
    *  A reply typed into a Telegram thread goes out on the `web` channel, so the
    *  Telegram thread file will never contain it — and a background refresh that
@@ -545,6 +548,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         ts,
         ...(m.media ? { media: [m.media] } : {}),
         ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
+        ...(m.speaker ? { speaker: m.speaker } : {}),
         ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),
       });
     } else if (m.role === "assistant" || m.role === "tool") {

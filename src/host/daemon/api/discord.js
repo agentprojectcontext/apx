@@ -41,6 +41,7 @@ export function register(api, { plugins }) {
       names: cfg.names,
       knowledge: cfg.knowledge,
       reply_when: cfg.reply_when,
+      rules: cfg.rules,
       gate_model: cfg.gate_model,
       channels: Object.entries(cfg.channels).map(([id, row]) => ({ id, ...row })),
       state: "off",
