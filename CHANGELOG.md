@@ -1,3 +1,10 @@
+## [1.122.4](https://github.com/agentprojectcontext/apx/compare/v1.122.3...v1.122.4) (2026-09-29)
+
+
+### Bug Fixes
+
+* **repo:** el repo público ya no lleva datos personales del dueño ([8b32861](https://github.com/agentprojectcontext/apx/commit/8b32861e16bba0ec38c0bce1500d10df62827b91))
+
 ## [1.122.3](https://github.com/agentprojectcontext/apx/compare/v1.122.2...v1.122.3) (2026-09-29)
 
 
