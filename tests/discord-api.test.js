@@ -108,13 +108,12 @@ test("reconnect: goes to the plugin, and is a 503 when the plugin is not loaded"
   });
 });
 
-test("status: reports the knowledge file path, never the token", async () => {
+test("status: returns the owner's notes, never the token", async () => {
   await withApi(async (call) => {
-    const about = path.join(TMP_HOME, "about.md");
-    fs.writeFileSync(about, "APX is a daemon.");
-    await call("PATCH", "/discord/settings", { knowledge_path: about });
+    await call("PATCH", "/discord/settings", { knowledge: "Answers questions about the project." });
     const s = await call("GET", "/discord/status");
-    assert.equal(s.body.knowledge_path, about);
+    assert.equal(s.body.knowledge, "Answers questions about the project.");
+    assert.equal((await call("PATCH", "/discord/settings", { knowledge: "x".repeat(12_001) })).status, 400);
   });
 });
 

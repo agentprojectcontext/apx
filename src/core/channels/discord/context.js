@@ -8,7 +8,7 @@
 //   2. the last N messages of the room, verbatim, under a character cap;
 //   3. the room's running summary — what the older part was about;
 //   4. older fragments recalled by similarity (the room's own RAG scope);
-//   5. the public knowledge file, when the owner configured one.
+//   5. the owner's notes on what the bot can do and answer, when written.
 //
 // Layers 3 and 4 exist so a call in a busy room does not mean reading the whole
 // room. The recent window answers "what do you think of this"; the summary and
@@ -18,11 +18,10 @@
 // Nothing here reaches the owner's private memory. The recall is scoped to the
 // room (`discord:<channel_id>`, excluded from global recall and vice versa) and
 // never reads the owner's notebook — see roomRecallBlock.
-import fs from "node:fs";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readGlobalMessages } from "#core/stores/messages.js";
 import { roomRecallBlock } from "#core/memory/index.js";
-import { KNOWLEDGE_MAX_CHARS, knowledgePathProblem } from "./config.js";
+
 
 // How far back the ledger is read for the recent window and the summary. A room
 // quiet for longer than this has no "recent" worth quoting; its past lives in
@@ -82,17 +81,6 @@ export function latestSummary(records) {
   return last ? String(last.body).trim() : "";
 }
 
-/** The public facts file, capped. "" when unset or unreadable. */
-export function readKnowledge(knowledgePath) {
-  if (!knowledgePath || knowledgePathProblem(knowledgePath)) return "";
-  try {
-    const text = fs.readFileSync(knowledgePath, "utf8").trim();
-    return text.length > KNOWLEDGE_MAX_CHARS ? `${text.slice(0, KNOWLEDGE_MAX_CHARS)}\n…` : text;
-  } catch {
-    return "";
-  }
-}
-
 /**
  * Put the layers together. Pure: everything it needs is passed in, so the
  * shape of what the model is told is tested without a ledger or an embedder.
@@ -110,7 +98,7 @@ export function buildDiscordRoomNote({
     `# This room\nDiscord channel${roomName ? ` #${roomName}` : ""}. Everything you write here is posted publicly in it.`
   );
   if (knowledge) {
-    parts.push(`# Public facts you can rely on\nWritten by your owner for this community. Answer from these before anything else.\n\n${knowledge}`);
+    parts.push(`# Your owner's notes: what you can do and answer here\nWritten by your owner for this community. Answer from these before anything else, and stay inside what they say you can do.\n\n${knowledge}`);
   }
   if (summary) {
     parts.push(`# What the room was talking about earlier (summary)\n${summary}`);
@@ -153,6 +141,6 @@ export async function gatherDiscordContext(msg, { dc, config, roomName = "" } = 
     recent,
     summary,
     recall,
-    knowledge: readKnowledge(dc.knowledge_path),
+    knowledge: String(dc.knowledge || "").trim(),
   });
 }

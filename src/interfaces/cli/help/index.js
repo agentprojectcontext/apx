@@ -961,7 +961,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx discord channels",
       "apx discord channel set <channel_id> <always|mention|read> [--name <name>]",
       "apx discord channel remove <channel_id>",
-      "apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge <path>] [--enabled <true|false>]",
+      "apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]",
     ],
     commands: [
       ["status", "Connection state, the bot account, the owner ids and the room list."],
@@ -974,7 +974,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--token-stdin", "Read the bot token from stdin."],
       ["--owner <id,…>", "Your Discord user id(s). Exempt from rate limits; never given private context."],
       ["--names <a,b>", "Words that count as calling the bot, besides an @mention or a reply."],
-      ["--knowledge <path>", "A markdown file of public facts the bot answers from (capped at 12k chars)."],
+      ["--knowledge-stdin", "Read, from stdin, the notes on what the bot can do and answer (capped at 12k chars)."],
     ],
     examples: [
       "pbpaste | apx discord set --token-stdin",

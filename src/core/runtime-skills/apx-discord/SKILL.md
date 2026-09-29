@@ -25,7 +25,8 @@ apx discord channels
 apx discord channel set <channel_id> <always|mention|read> [--name <name>]
 apx discord channel remove <channel_id>
 pbpaste | apx discord set --token-stdin
-apx discord set --owner <user_id,…> --names roby --knowledge /path/to/about.md
+apx discord set --owner <user_id,…> --names roby
+apx discord set --knowledge-stdin < notes.md   # what the bot can do and answer (≤12k chars)
 ```
 
 Ids are Discord snowflakes (digits). Never guess one — ask the owner to copy it (Developer Mode → Copy Channel ID).
@@ -38,7 +39,7 @@ A burst from one person inside `limits.burst_window_ms` gets ONE answer.
 
 ## Every turn is sealed
 
-Owner included: no tools, no private memory, no other channel, no projects. The bot answers from the room's recent messages, its running summary, recall from that room's own index (`discord:<channel_id>` scope) and the public knowledge file. Do not tell anyone the bot can look something up in the code or docs — it cannot. If it keeps missing an answer, the fix is the knowledge file.
+Owner included: no tools, no private memory, no other channel, no projects. The bot answers from the room's recent messages, its running summary, recall from that room's own index (`discord:<channel_id>` scope) and the owner's notes (`discord.knowledge`, edited in Settings → Discord). Do not tell anyone the bot can look something up in the code or docs — it cannot. If it keeps missing an answer, the fix is the owner's notes.
 
 ## Posting
 

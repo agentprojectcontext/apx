@@ -7,7 +7,7 @@
 //     "token": "…",                     // the bot token — a credential, never logged
 //     "owner_ids": ["1234567890"],      // the owner's Discord user id(s)
 //     "names": ["roby"],                // words that count as calling the bot
-//     "knowledge_path": "/path/to/about.md", // public facts it may answer from
+//     "knowledge": "…",                 // what it can do and answer — written by the owner, public
 //     "channels": {
 //       "<channel_id>": { "mode": "always" | "mention" | "read", "name": "apx-help" }
 //     },
@@ -23,8 +23,7 @@
 // The three modes are about SPEAKING. Reading is the same in all of them: a
 // listed channel is logged, indexed and summarised, because that is what lets
 // the agent know what a room was talking about when it finally is called.
-import path from "node:path";
-import { readConfig, writeConfig, APX_HOME } from "#core/config/index.js";
+import { readConfig, writeConfig } from "#core/config/index.js";
 import { isSecretMarker } from "#core/config/redact.js";
 
 export const DISCORD_MODES = Object.freeze({
@@ -65,29 +64,12 @@ export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
   rag_hits: 5,
 });
 
-// How much of the knowledge file reaches a turn. A pointer to the public docs
-// is useful; a whole docs site pasted into every prompt is not.
+// How long the owner's notes may be. They ride in every Discord turn: a page of
+// what the bot is for and where the docs are helps; a docs site pasted in does
+// not, and costs every call.
 export const KNOWLEDGE_MAX_CHARS = 12_000;
 
-/**
- * Whether a file may be used as the public knowledge file.
- *
- * Its contents go into a prompt whose answer strangers read, so it must be
- * something written to be public: a Markdown or text file, and never anything
- * under the APX home, where config.json holds every credential this machine
- * has. Checked when it is set AND when it is read, so a hand-edited config
- * cannot route around it.
- */
-export function knowledgePathProblem(p) {
-  if (!p) return null;
-  const abs = path.resolve(String(p));
-  const home = path.resolve(APX_HOME);
-  if (abs === home || abs.startsWith(home + path.sep)) return "the knowledge file cannot live under the APX home";
-  if (!/\.(md|markdown|txt)$/i.test(abs)) return "the knowledge file must be a .md or .txt file";
-  return null;
-}
-
-const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge_path"];
+const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge"];
 
 export function normalizeDiscordMode(mode) {
   const m = String(mode || "").trim().toLowerCase();
@@ -141,7 +123,7 @@ export function readDiscordConfig(cfg = readConfig()) {
     hasToken: typeof d.token === "string" && d.token.trim().length > 0,
     owner_ids: listOfIds(d.owner_ids),
     names: listOfNames(d.names),
-    knowledge_path: typeof d.knowledge_path === "string" ? d.knowledge_path : "",
+    knowledge: typeof d.knowledge === "string" ? d.knowledge : "",
     channels: normalizeChannels(d.channels),
     limits: Object.fromEntries(
       Object.entries(DISCORD_LIMIT_DEFAULTS).map(([k, def]) => [k, positive(limits[k], def)])
@@ -170,10 +152,12 @@ export function patchDiscordConfig(patch = {}) {
       const bad = ids.filter((x) => !isSnowflake(x));
       if (bad.length) throw new Error(`not a Discord user id: ${bad.join(", ")}`);
       cfg.discord[k] = ids;
-    } else if (k === "knowledge_path") {
-      const problem = knowledgePathProblem(patch[k]);
-      if (problem) throw new Error(problem);
-      cfg.discord[k] = patch[k] ? path.resolve(String(patch[k])) : "";
+    } else if (k === "knowledge") {
+      const text = String(patch[k] || "");
+      if (text.length > KNOWLEDGE_MAX_CHARS) {
+        throw new Error(`the notes are ${text.length} characters; the limit is ${KNOWLEDGE_MAX_CHARS}`);
+      }
+      cfg.discord[k] = text;
     } else if (k === "names") {
       cfg.discord[k] = listOfNames(Array.isArray(patch[k]) ? patch[k] : [patch[k]]);
     } else {

@@ -91,8 +91,8 @@ Cuando lo llaman, el bot recibe el canal en capas, de la más barata a la más c
 3. un **resumen corrido** de la parte vieja, que escribe en segundo plano tu modelo de compactación
    cuando el canal pasa `context.summary_threshold` mensajes;
 4. fragmentos viejos recuperados por similitud del índice de memoria **de ese canal** (`context.rag_hits`);
-5. un archivo de datos públicos que escribís vos, si lo configurás (`--knowledge ruta/a/about.md`,
-   con tope de 12k caracteres).
+5. tus notas sobre qué puede hacer y contestar: el bloc de notas de **Ajustes → Discord** (o
+   `apx discord set --knowledge-stdin`), con tope de 12k caracteres.
 
 Así "@roby qué pensás?" se contesta con lo que se venía hablando, y "¿qué decidieron de la memoria la
 semana pasada?" con el resumen y la memoria del canal, sin meter el canal entero en el prompt.
@@ -113,8 +113,7 @@ el panel.
 
 <Aside type="note">
   Sellado también quiere decir que el bot contesta con los datos públicos y la historia del canal,
-  no con tu sitio de docs ni tu código. Si le erra siempre a una pregunta, poné la respuesta en el
-  archivo de datos públicos.
+  no con tu sitio de docs ni tu código. Si le erra siempre a una pregunta, poné la respuesta en tus notas.
 </Aside>
 
 ## Referencia
@@ -124,10 +123,10 @@ apx discord [status]
 apx discord channels
 apx discord channel set <channel_id> <always|mention|read> [--name <nombre>]
 apx discord channel remove <channel_id>
-apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge <ruta>] [--enabled <true|false>]
+apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```
 
-La pantalla del panel también muestra el avatar del bot y lo cambia (la imagen se recorta a un cuadrado de 512 px; Discord deja cambiarlo un par de veces por hora).
+La pantalla del panel muestra el avatar del bot en grande — tocalo para cambiarlo (la imagen se recorta a un cuadrado de 512 px; Discord deja cambiarlo un par de veces por hora).
 
 HTTP: `GET /api/discord/status`, `GET /api/discord/rooms`, `PUT /api/discord/avatar`, `POST /api/discord/reconnect`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
 `GET /api/discord/channels/:id/history`, `POST /api/discord/send` (sólo a un canal listado).

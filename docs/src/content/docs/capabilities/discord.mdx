@@ -90,7 +90,7 @@ When the bot is called it gets the room in layers, cheapest first:
 3. a **running summary** of the older part, written in the background by your compaction model
    once a room passes `context.summary_threshold` messages;
 4. older fragments recalled by similarity from **that room's own** memory index (`context.rag_hits`);
-5. a public facts file you write, if you set one (`--knowledge path/to/about.md`, capped at 12k characters).
+5. your notes on what the bot can do and answer — the notepad in **Settings → Discord** (or `apx discord set --knowledge-stdin`), capped at 12k characters.
 
 So "@roby what do you think?" is answered from what was just being discussed, and "what did you
 all decide about memory last week?" from the summary and the recall — without the whole room in
@@ -111,7 +111,7 @@ be one careless sentence from publishing it. Give the agent real work on Telegra
 
 <Aside type="note">
   Sealed also means the bot answers from the public facts and the room's own history, not from
-  your docs site or code. If it keeps getting a question wrong, put the answer in the knowledge file.
+  your docs site or code. If it keeps getting a question wrong, put the answer in your notes.
 </Aside>
 
 ## Reference
@@ -121,10 +121,10 @@ apx discord [status]
 apx discord channels
 apx discord channel set <channel_id> <always|mention|read> [--name <name>]
 apx discord channel remove <channel_id>
-apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge <path>] [--enabled <true|false>]
+apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```
 
-The panel screen also shows the bot's avatar and changes it (the picture is cropped to a 512 px square; Discord rate-limits avatar changes to a couple an hour).
+The panel screen shows the bot's avatar large — click it to change it (the picture is cropped to a 512 px square; Discord rate-limits avatar changes to a couple an hour).
 
 HTTP: `GET /api/discord/status`, `GET /api/discord/rooms`, `PUT /api/discord/avatar`, `POST /api/discord/reconnect`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
 `GET /api/discord/channels/:id/history`, `POST /api/discord/send` (only to a listed room).
