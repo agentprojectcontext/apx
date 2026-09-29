@@ -24,7 +24,7 @@ those links are dead in every fresh clone, which is exactly what happened before
 - [Glossary](#glossary--read-this-before-guessing) — the terms this repo overloads; read before guessing
 - [The dev loop](#the-dev-loop--skip-a-step-and-your-test-is-a-lie) — restart + verify, or your test is a lie
 - [Repo map](#repo-map) — top-level orientation (full breakdown in the deep dive)
-- [Project rules](#project-rules) — the numbered 1–17 contract
+- [Project rules](#project-rules) — the numbered 1–19 contract
 - [The workflow](#the-workflow--how-a-change-gets-made) — plan → implement → review → verify → brief
 - [Deep dives](#deep-dives--read-on-demand) — subsystem how-to, read only when needed
 - [Agents (dogfood)](#agents-dogfood)
@@ -166,7 +166,7 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
    - **A bug fix lands with a regression test that fails before the fix.** Say in the commit body which test would have caught it.
    - **Dangerous surfaces are covered.** Any handler that writes files, runs a shell, changes a permission mode, or messages a human needs a direct test.
    - **Coverage only goes up.** `test:ci` enforces a floor (`COVERAGE_FLOOR` in `scripts/test-ci.js`). When you push it higher, raise the floor in the same commit; never lower it to make a build pass.
-2. **Gate every push with `npm run preflight`** (lint + **`lint:web`** + `test:ci` + web build + web `tsc --noEmit` + the TUI ratchet). **Two lint commands, not one:** the root ESLint run ignores `src/interfaces/web/**` — it is a separate pnpm project and the root config has no TS parser — so `npm run lint` reports success having never opened a panel file. `lint:web` (`scripts/lint-web.js`) is the panel's gate: errors are absolute, and the `any`/`exhaustive-deps` warning count ratchets down from 38 and may never rise. Which rules are mechanical and which are only prose: [`rules/enforcement.md`](rules/enforcement.md). The pre-push hook and the `pull_request` CI workflow both enforce it — don't bypass.
+2. **Gate every push with `npm run preflight`** (lint + **`lint:web`** + `test:ci` + web build + web `tsc --noEmit` + the TUI ratchet). **Two lint commands, not one:** the root ESLint run ignores `src/interfaces/web/**` — it is a separate pnpm project and the root config has no TS parser — so `npm run lint` reports success having never opened a panel file. `lint:web` (`scripts/lint-web.js`) is the panel's gate: errors are absolute, and the `any`/`exhaustive-deps` warning count ratchets down (baseline 30 in `scripts/lint-web.js`) and may never rise. Which rules are mechanical and which are only prose: [`rules/enforcement.md`](rules/enforcement.md). The pre-push hook and CI both enforce it — don't bypass. A push that reaches `main` also needs the e2e gate (rule 19).
 3. **No secrets in the repo.** Tokens live in runtime scope only (`apx mcp add --scope runtime`); `.apc/mcps.json` holds non-secret hints. Runtime state (conversations, sessions, message logs, config, tokens) stays under `~/.apx/`. **Never commit command output/logs** — `apx config show --effective`, `apx status`, etc. can dump engine `api_key`s and the Telegram bot token. Scrub or gitignore any captured output.
    - **No real data in examples, fixtures, or docs — invent it.** Every project name, company, person, domain, chat/user id, IP, hostname, and absolute path that appears in a test, a `SKILL.md`, CLI help, a code comment, a screenshot, or `docs/` must be made up. Use obvious placeholders: `acme` / `northwind` for projects, `example.com`, `1234567890` for ids, `/path/to/project` for paths. Never paste a real turn — a Telegram reply, a memory note, a routine output — into a fixture; retype it with synthetic content, because a transcript carries whatever the live install happened to know. This is a **public** repo and history is permanent: a scrub after the fact removes it from the tip, not from the commits, so the check belongs in review, not in a cleanup pass later. Do not record the offending values here or in any commit message — naming them publishes them again.
 4. **"super-agent" is a mode, not a persona name.** User-facing copy uses `~/.apx/identity.json` (default "APX"); config keys/routine kinds may still say `super_agent`.
@@ -181,7 +181,7 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
    - **Before writing a helper, grep for it.** Scope normalization (per subsystem — `normalizeMcpScope` / `normalizeVarScope` / `normalizeIntegrationScope`, deliberately NOT merged: the vocabularies differ) and `~/.apx` paths (`core/config/paths.js`) have exactly one home; frontmatter parsing and project resolution still have several and are being consolidated. Adding a second copy is a bug, not a convenience.
 9. **Adding a daemon route.** Export `register(app, ctx)` from `api/<x>.js`, mount it in `buildApi()` before the 404 catch-all, return `{ error }` + a real status code. **Every data route lives under `/api`** (`api/prefix.js` — `API_PREFIX`, `isApiPath`, `apiPath`), so route paths are written root-relative and the mount adds the prefix. That is structural, not a list: the old hand-maintained `API_PREFIXES` is gone, and with it the footgun where an authenticated GET got mistaken for an SPA asset. The SPA fallback in `api/web.js` steps aside for `/api` only — keep `isKnownSpaRoute` in sync with the `<Routes>` registry so unknown client routes 404 instead of silently returning 200. Wrap async handlers in `asyncRoute()` (`api/shared.js`) so a rejection becomes a 500 instead of killing the daemon.
 10. **Adding a CLI command.** Write `cmd<Name>(args)` in `cli/commands/<x>.js`, add its routing in `cli/routes/<x>.js` (export `default async function route(rest, ctx)`, plus `export const aliases = [...]` if it takes any), register it in `cli/routes/index.js`, and add a `topic({…})` in `cli/help/index.js`. There is no dispatch switch — `cli/index.js` looks the command up and lazily imports its route module, so a command loads only what it uses. Aliases are declared per command on purpose: `rm` means remove under `agent`, unset under `project config` and revoke under `pair`. `parseArgs` yields `{ _: [positionals], flags }`. Every command prints an `apx vX` mark (header/banner via `branding.js`; `--version`/`update`/`init` get the big banner). Reach the daemon via the `http` helper (auto-starts it).
-11. **Web panel = Base UI, hand-built.** Curated Base-UI primitives in `components/ui/*` behind the `components/ui.tsx` barrel — no Radix, no shadcn installer runs; `components.json` stays deleted. All requests go through `src/lib/api/*` (bearer auto-fetched from `/api/admin/web-token`). Every string in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. New screens/modules get a Playwright spec in `e2e/` — those 14 specs now run in CI's `e2e` job (they need a booted daemon, so they stay out of `preflight`). **The first three of those are now machine-checked** by `tests/web-guardrails.test.js`; note in particular that `tsc` never caught a missing `en.ts` key — a missing one silently serves the Spanish string instead. How-to: [`rules/web-ui.md`](rules/web-ui.md). What else is (and is not) enforced: [`rules/enforcement.md`](rules/enforcement.md).
+11. **Web panel = Base UI, hand-built.** Curated Base-UI primitives in `components/ui/*` behind the `components/ui.tsx` barrel — no Radix, no shadcn installer runs; `components.json` stays deleted. All requests go through `src/lib/api/*` (bearer auto-fetched from `/api/admin/web-token`). Every string in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. New screens/modules get a Playwright spec in `e2e/` — a user **journey** across screens, not just a render check (`26-usability-journeys.spec.ts` is the pattern) — and the specs run through `npm run e2e:gate` (CI's `e2e` job and every push to `main`; they need a browser and a daemon, so they stay out of `preflight`). Write the URL query only as `setParams((prev) => …)`: it is shared with the shell's `?action=` dialogs, and a whole new query is a lint error. **The first three of those are now machine-checked** by `tests/web-guardrails.test.js`; note in particular that `tsc` never caught a missing `en.ts` key — a missing one silently serves the Spanish string instead. How-to: [`rules/web-ui.md`](rules/web-ui.md). What else is (and is not) enforced: [`rules/enforcement.md`](rules/enforcement.md).
 
 11a. **Every user-visible label starts with a Capital.** A label is anything that
     NAMES something on screen: nav items, list rows and their sub-labels, chips,
@@ -244,6 +244,20 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     real `chore` from a fix wearing one. Full contract:
     [`rules/releasing.md`](rules/releasing.md).
 
+19. **`main` only takes green, and only by merge.** Work happens on `staging`
+    or a feature branch; nobody commits on `main`. A branch reaches `main` by
+    merge after `npm run preflight` **and** `npm run e2e:gate` pass — the gate
+    is Playwright against a daemon of its own on a fresh `APX_HOME`, driving
+    real journeys (open a dialog from every screen, check it stays; navigate
+    and come back). The one exception is a **hotfix** — pushed from a
+    `hotfix/<slug>` branch or with `APX_HOTFIX=1` — which may skip `staging`
+    but never the gate. The pre-push hook enforces both (`scripts/push-policy.js`
+    + `scripts/e2e-gate.js`), CI runs the same gate, and a GitHub ruleset
+    requires it on `main`. Why: on 2026-09-28 Add project closed itself a
+    second after opening over `/inbox` — every screen passed its own spec, and
+    nothing exercised them together. Procedure:
+    [`rules/workflow/09-reaching-main.md`](rules/workflow/09-reaching-main.md).
+
 ## The workflow — how a change gets made
 
 Most code here is written by an agent. The scarce thing is not the code — it is
@@ -251,11 +265,14 @@ Most code here is written by an agent. The scarce thing is not the code — it i
 few minutes. Each stage below produces one piece of that evidence.
 
 ```
-PLAN ──▶ IMPLEMENT ──▶ REVIEW (fresh context) ──▶ TEST + RUNTIME ──▶ OWNER BRIEF
-              │                                          ▲
+PLAN ──▶ IMPLEMENT ──▶ REVIEW (fresh context) ──▶ TEST + RUNTIME ──▶ OWNER BRIEF ──▶ MAIN
+              │                                          ▲                          (merge + e2e gate)
               ├── SECURITY, if it crosses a boundary ─────┤
               └── DRIFT, if it is structural ─────────────┘
 ```
+
+All of it happens on `staging` or a feature branch; `main` is the last step,
+reached by merge through the e2e gate (rule 19).
 
 The playbooks are in [`rules/workflow/`](rules/workflow/) — one file per stage,
 read on demand. Three things hold the rest together:
@@ -267,10 +284,14 @@ read on demand. Three things hold the rest together:
   ([`05-test-and-runtime`](rules/workflow/05-test-and-runtime.md)).
 - **Restart before you conclude anything** (rule 17, below). A conclusion drawn
   without `apx restart` is a conclusion about the old code.
+- **A panel change is done when a journey proves it.** `npm run e2e:gate`
+  runs against a first install; a render check on one screen is not evidence
+  that the screen works next to the others.
 
 Scale it to the change: a typo needs stages 2 and 5. A new route needs 1, 2, 3,
 5 and 7. Anything touching auth, a shell, the filesystem, the network or an
-inbound channel adds 4. Anything structural adds 6.
+inbound channel adds 4. Anything structural adds 6. Anything reaching `main`
+adds 9.
 
 When something is already broken and you don't know why, go straight to
 [`08-incident-map`](rules/workflow/08-incident-map.md) — and do not change code
@@ -288,13 +309,13 @@ the same change. Index: [`rules/README.md`](rules/README.md).
 | [`human-model.md`](rules/human-model.md) | **you're the owner, not the author** — what runs, what breaks what, what is actually guaranteed |
 | [`enforcement.md`](rules/enforcement.md) | **what is machine-enforced vs. convention** — and the three-pnpm-projects trap |
 | [`surfaces.md`](rules/surfaces.md) | who can reach the daemon, with what credential, carrying what state |
-| [`workflow/`](rules/workflow/) | the eight stage playbooks — plan, implement, review, security, verify, drift, brief, incident |
+| [`workflow/`](rules/workflow/) | the nine playbooks — plan, implement, review, security, verify, drift, brief, incident, reaching main |
 | [`decisions/`](rules/decisions/) | why the code is shaped this way — ADRs 001–005 |
 | [`architecture.md`](rules/architecture.md) | any structural decision — layering, SOLID, registries, where logic lives |
 | [`repo-layout.md`](rules/repo-layout.md) | finding where a thing lives / where a new thing goes |
 | [`daemon-api.md`](rules/daemon-api.md) | HTTP routes, `asyncRoute`, plugins, WS hubs (rules 9 / 15) |
 | [`cli.md`](rules/cli.md) | CLI commands, routes, help, aliases (rule 10) |
-| [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1), reading a red CI |
+| [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1), the e2e gate, reading a red CI |
 | [`recipes.md`](rules/recipes.md) | engines, external runtimes, MCP scopes, Telegram identity |
 | [`web-ui.md`](rules/web-ui.md) | the React + Vite admin panel (rules 11 / 11a / 11b) |
 | [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |

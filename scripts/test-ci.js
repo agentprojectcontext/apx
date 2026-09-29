@@ -46,7 +46,7 @@ if (!files.length) {
 // would sit ABOVE the range and fail on green code. Those samples are Node 24
 // (local); CI runs 22, hence keeping the same ~0.9 of headroom the previous
 // floors had rather than pushing to the measured value.
-const COVERAGE_FLOOR = { line: 82, branch: 74, function: 76 };
+const COVERAGE_FLOOR = { line: 83, branch: 75, function: 77 };
 
 // 5. Coverage measures THIS repo, and nothing else that happened to run.
 //

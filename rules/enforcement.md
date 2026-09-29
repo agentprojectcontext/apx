@@ -2,7 +2,7 @@
 
 > Deep dive for [`AGENTS.md`](../AGENTS.md). Read it before trusting a rule.
 >
-> The hub states 18 rules in the same voice, so they all read as equally
+> The hub states 19 rules in the same voice, so they all read as equally
 > binding. They are not. Some are build errors that stop a push; others are
 > prose that only review catches. Knowing which is which is the difference
 > between "the gate will catch me" and "nobody will notice for three months" —
@@ -45,12 +45,16 @@ early return survived in two separate components.
 | No rebuilding `~/.apx` paths from `os.homedir()` | 13 | root `eslint.config.js` (`NO_HOMEDIR`) |
 | Async route handlers wrapped in `asyncRoute()` | 15 | root `eslint.config.js` (`ASYNC_ROUTE`) |
 | No skipped or todo tests | 1 | `scripts/test-ci.js` |
-| Coverage floor (line 78 / branch 72 / function 72) | 1 | `scripts/test-ci.js` (`COVERAGE_FLOOR`) |
+| Coverage floor (line 83 / branch 75 / function 77) | 1 | `scripts/test-ci.js` (`COVERAGE_FLOOR`) |
 | Every i18n key in **both** `en.ts` and `es.ts` | 11 | `tests/web-guardrails.test.js` |
 | No Radix, no `components.json` | 11 | `tests/web-guardrails.test.js` |
 | Panel requests go through `src/lib/api/*` | 11 | `tests/web-guardrails.test.js` |
 | User-visible labels start with a Capital | 11a | `tests/web-guardrails.test.js` (`SENTENCE_FRAGMENTS` allowlist) |
 | React hooks rules; no unused vars in the panel | — | `src/interfaces/web/eslint.config.js` |
+| URL query written only as `setParams((prev) => …)` — never a whole new query | 11 | `src/interfaces/web/eslint.config.js` (`no-restricted-syntax`) |
+| Commits reach `main` only by merge, or as a marked hotfix | 19 | `.githooks/pre-push` → `scripts/push-policy.js`, pinned by `tests/push-policy.test.js` |
+| A push to `main` passes the e2e gate (fresh install, real journeys) | 19 | `.githooks/pre-push` → `scripts/e2e-gate.js`; CI job `e2e` runs the same script |
+| `main` requires `verify` + `e2e`; no force-push, no deletion | 19 | GitHub ruleset on `main` (bypass: repo admin for hotfixes, GitHub Actions for the release commit) |
 | Panel `any` + `exhaustive-deps` count may only fall | — | `scripts/lint-web.js` (baseline 38) |
 | Vendored TUI type errors may only fall | — | `scripts/typecheck-tui.js` (baseline 174) |
 | Panel types | 11 | `tsc --noEmit` in `src/interfaces/web` |
@@ -127,7 +131,7 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | `#aliases` instead of `../../../` | 7 | No lint rule exists for it |
 | Prompt budget (~2.5k tok for the super-agent prompt) | 12 | `scripts/inspect-channel-prompts.js` measures it; nothing gates it |
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
-| The 14 Playwright specs | 11 | Now run in CI's `e2e` job, but **not** in `preflight` or `pre-push` (they need a booted daemon and a browser) |
+| The Playwright specs on a push that does NOT reach main | 11 | Run in CI's `e2e` job on every PR and every push to `main`/`staging`, and in `pre-push` only when the push reaches `main` — a push to a feature branch runs preflight alone |
 | The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
 | Commit type matches what the change DOES | 18 | `commit-msg` checks the word is a word, never that it is the RIGHT word. A fix titled `chore` is well-formed, publishes nothing, and only a reader comparing diff to subject catches it — see [`releasing.md`](releasing.md) |
 
@@ -139,12 +143,20 @@ npm run preflight
 
 `lint` → `lint:web` → `test:ci` → `build:web` → panel `tsc --noEmit` → `typecheck:tui`.
 
-- **`.githooks/pre-push`** runs lint, web lint, backend tests, web build, panel
-  `tsc`. Bypass with `git push --no-verify`; skip just the web build with
-  `APX_SKIP_WEB_BUILD=1`.
+- **`.githooks/pre-push`** asks `scripts/push-policy.js` first (rule 19: no
+  commit that exists only on main, unless marked a hotfix), then runs lint, web
+  lint, backend tests, web build, panel `tsc` — and, when the push reaches
+  `main`, the **e2e gate** (`scripts/e2e-gate.js`). Bypass with
+  `git push --no-verify`; skip just the web build with `APX_SKIP_WEB_BUILD=1`
+  (the e2e gate then builds its own, so it never tests a stale bundle).
 - **`.github/workflows/ci.yml`** — job `verify` mirrors preflight; job `e2e`
-  boots a daemon, shims `apx` onto PATH and runs Playwright; job `release`
-  needs both, and is the thing that publishes to npm.
+  runs `scripts/e2e-gate.js`, the same entry point as the hook; job `release`
+  needs both, and is the thing that publishes to npm. It runs on pull requests
+  and on pushes to `main` and `staging`.
+- **The GitHub ruleset on `main`** makes `verify` and `e2e` required and
+  forbids force-push and deletion. The repo admin (hotfixes) and GitHub Actions
+  (semantic-release's release commit) bypass it — see
+  [`workflow/09-reaching-main.md`](workflow/09-reaching-main.md).
 - **Publishing waits for that gate**, and until 2026-09-14 it did not. The
   release lived in its own workflow on the same `push: [main]` trigger, so it
   RACED ci.yml rather than following it: 1.108.0 went to the registry on

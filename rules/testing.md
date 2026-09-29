@@ -91,15 +91,54 @@ appended — not on internal call order. Prefer one test per contract clause
 
 ## Web
 
-- `npx tsc --noEmit` is part of preflight and is the i18n enforcement mechanism
-  (`t()` keys are typed from `es.ts`) — `vite build` does NOT type-check.
+- `npx tsc --noEmit` is part of preflight and type-checks the panel — but it is
+  NOT the i18n gate (it only checks call sites against `es.ts`);
+  `tests/web-guardrails.test.js` is. `vite build` does NOT type-check.
 - Every new screen/rail module gets a Playwright spec in
-  `src/interfaces/web/e2e/`.
+  `src/interfaces/web/e2e/` — and a **journey**, not only a render check.
+
+## The e2e gate
+
+```bash
+npm run e2e:gate                      # the whole suite, as CI and a push to main run it
+node scripts/e2e-gate.js 26-usab      # one spec (extra args go to `playwright test`)
+```
+
+`scripts/e2e-gate.js` gives Playwright a world of its own: a fresh `APX_HOME`
+(a first install), a daemon from this checkout on `:7530`, the production
+bundle served by that daemon, an `apx` shim, and the super-agent on the offline
+`mock` engine. It is the gate for `main` (rule 19) and the exact script CI's
+`e2e` job runs. `pnpm e2e` inside the panel drives your LIVE daemon on `:7430`
+instead — fine for iterating with hot reload, never evidence.
+
+**Why journeys.** Until 2026-09-28 every spec opened one screen and checked it
+rendered. The add-project dialog then shipped closing itself a second after it
+opened over `/inbox`: each screen worked alone; the bug existed only in the
+combination — a dialog kept in the URL (`?action=add-project`), opened over a
+screen that also writes the URL. `26-usability-journeys.spec.ts` is the
+pattern: do what a person does across screens, wait for every effect to settle
+(`SETTLE_MS`), and assert the thing **stayed** — the dialog is still open, the
+other params survived, the filter is still applied after Back.
+
+A journey that needs data creates it the way a user would (the inbox thread is
+made by sending a chat message to the `mock` super-agent), or through the
+daemon's own API. Never paste a real transcript into a fixture (rule 3).
+
+## Worktrees need a real install
+
+A worktree has no `node_modules`. **Do not symlink them to the main
+checkout's.** `scripts/build-web.js` runs `pnpm install` in the panel, and
+through a symlink pnpm decides the modules directory is foreign and tries to
+PURGE it — the main checkout's, the one the live daemon runs from. It stopped
+only because it had no TTY to ask on. Run `pnpm install --frozen-lockfile
+--prefer-offline` at the root and in `src/interfaces/web` instead; with the
+pnpm store warm it takes seconds.
 
 ## Preflight
 
-`npm run preflight` = lint + `test:ci` + web build + web `tsc --noEmit` + TUI
-ratchet. The pre-push hook and PR CI both run it. The TUI stays at its frozen
+`npm run preflight` = lint + `lint:web` + `test:ci` + web build + web
+`tsc --noEmit` + TUI ratchet. The pre-push hook and CI both run it; a push that
+reaches `main` also runs the e2e gate (rule 19). The TUI stays at its frozen
 typecheck baseline (vendored fork — the ratchet only stops it getting worse).
 Docs (`docs/`) are NOT in preflight — build them explicitly when touched.
 
