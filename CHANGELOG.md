@@ -1,3 +1,10 @@
+## [1.122.2](https://github.com/agentprojectcontext/apx/compare/v1.122.1...v1.122.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* **telegram:** el aviso de arranque siempre llega; de noche, sin sonido ([dc754e7](https://github.com/agentprojectcontext/apx/commit/dc754e7354c18b43dd63964651ed3b698e4d4932))
+
 ## [1.122.1](https://github.com/agentprojectcontext/apx/compare/v1.122.0...v1.122.1) (2026-09-29)
 
 
