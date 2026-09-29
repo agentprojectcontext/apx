@@ -36,9 +36,11 @@ export function ConfigTab({ pid }: { pid: string }) {
     ? (raw as TabKey)
     : "project";
   const setTab = (next: string) => {
-    const p = new URLSearchParams(params);
-    p.set("tab", next);
-    setParams(p, { replace: true });
+    setParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("tab", next);
+      return p;
+    }, { replace: true });
   };
 
   // Drawn above the tabs, and computed BEFORE the early returns below: when a

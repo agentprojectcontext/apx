@@ -69,7 +69,14 @@ export function WhatsAppSettingsTabs() {
     const next = (TABS.includes(v as Tab) ? v : "session") as Tab;
     // `replace` so flipping between tabs does not stack history entries — Back
     // should leave the page, not walk you through every tab you glanced at.
-    setParams(next === "session" ? {} : { tab: next }, { replace: true });
+    // Only `tab` is this component's; everything else in the query belongs to
+    // someone else (the shell's `?action=` dialogs, for one) and is kept.
+    setParams((prev) => {
+      const q = new URLSearchParams(prev);
+      if (next === "session") q.delete("tab");
+      else q.set("tab", next);
+      return q;
+    }, { replace: true });
   };
 
   return (

@@ -19,7 +19,7 @@ import type { TelegramChannel } from "../types/daemon";
 
 export function ApxAdminScreen() {
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [, setParams] = useSearchParams();
   const toast = useToast();
   const { health, isUp } = useDaemonStatus();
   const { projects, isLoading: projLoading, mutate: mutateProjects } = useProjects();
@@ -70,9 +70,11 @@ export function ApxAdminScreen() {
             <Button size="sm" onClick={reload}>{t("common.reload")} config</Button>
           </Tip>
           <Button size="sm" variant="primary" onClick={() => {
-            const next = new URLSearchParams(params);
-            next.set("action", "add-project");
-            setParams(next);
+            setParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("action", "add-project");
+              return next;
+            });
           }}>
             <Plus size={14} /> {t("nav.project")}
           </Button>

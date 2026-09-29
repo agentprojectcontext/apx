@@ -14,9 +14,11 @@ export function SkillsSettings() {
   const tab: Tab = params.get("tab") === "rag" ? "rag" : "manager";
 
   const setTab = (v: Tab) => {
-    const next = new URLSearchParams(params);
-    next.set("tab", v);
-    setParams(next, { replace: true });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", v);
+      return next;
+    }, { replace: true });
   };
 
   // The manager fills the height it is given (list + viewer scroll inside it);
