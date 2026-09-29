@@ -111,6 +111,7 @@ export default {
           enabled: dc.enabled,
           has_token: dc.hasToken,
           owner_ids: dc.owner_ids,
+          owner_only: dc.owner_only,
           names: dc.names,
           knowledge: dc.knowledge,
           reply_when: dc.reply_when,

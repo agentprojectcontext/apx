@@ -1,7 +1,7 @@
 // Discord channel endpoints.
 //
 //   GET    /discord/status                        — connection + the room list
-//   PATCH  /discord/settings                      — enabled / token / owner_ids / names / knowledge / limits / context
+//   PATCH  /discord/settings                      — enabled / token / owner_ids / owner_only / names / knowledge / limits / context
 //   PUT    /discord/channels/:id  { mode, name }  — list a room, or change its mode
 //   DELETE /discord/channels/:id                  — take a room off the list
 //   GET    /discord/channels/:id/history?limit=   — recent messages, from Discord
@@ -38,6 +38,7 @@ export function register(api, { plugins }) {
       enabled: cfg.enabled,
       has_token: cfg.hasToken,
       owner_ids: cfg.owner_ids,
+      owner_only: cfg.owner_only,
       names: cfg.names,
       knowledge: cfg.knowledge,
       reply_when: cfg.reply_when,

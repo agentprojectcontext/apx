@@ -28,6 +28,7 @@ export const SKIP_REASONS = Object.freeze({
   COOLDOWN: "user_cooldown",
   CHANNEL_CAP: "channel_cap",
   GATE_CAP: "gate_cap",
+  OWNER_ONLY: "owner_only",
 });
 
 function escapeRe(s) {
@@ -116,6 +117,7 @@ export function createDiscordLimiter({ now = () => Date.now() } = {}) {
  * The owner is not exempt from the mode: a room set to `mention` is a room
  * where the bot speaks when called, whoever is in it. The owner IS exempt from
  * the limits — a limit exists to protect the owner's budget from other people.
+ * With `owner_only` on, nobody else gets a reply at all, in any mode.
  */
 export function decideDiscordMessage(msg, { dc, botId, limiter } = {}) {
   const mode = channelModeFor(dc, { channelId: msg?.channel_id, parentId: msg?.parent_id });
@@ -133,6 +135,15 @@ export function decideDiscordMessage(msg, { dc, botId, limiter } = {}) {
   if (mode === DISCORD_MODES.READ) return { ...stored, reason: SKIP_REASONS.READ_ONLY };
 
   const called = isCalled(msg, { botId, names: dc?.names || [] });
+  const isOwner = (dc?.owner_ids || []).includes(msg.author?.id);
+  // `owner_only`: the bot still READS everyone — the room's context is what
+  // lets it answer the owner well — but only the owner can start a turn. It is
+  // checked before the mode and before the `useful` gate, so a stranger's
+  // message never costs a model call. With no owner id set it answers nobody,
+  // which is the safe reading of "only the owner" (status says so).
+  if (dc?.owner_only && !isOwner) {
+    return { ...stored, called, reason: SKIP_REASONS.OWNER_ONLY };
+  }
   if (mode === DISCORD_MODES.MENTION && !called) {
     return { ...stored, called, reason: SKIP_REASONS.NOT_CALLED };
   }
@@ -143,7 +154,6 @@ export function decideDiscordMessage(msg, { dc, botId, limiter } = {}) {
     return { ...stored, called, reason: SKIP_REASONS.GATE_CAP };
   }
 
-  const isOwner = (dc?.owner_ids || []).includes(msg.author?.id);
   if (!isOwner && limiter) {
     const gate = limiter.check({ channelId: msg.channel_id, userId: msg.author?.id, limits: dc.limits });
     if (!gate.ok) return { ...stored, called, reason: gate.reason };

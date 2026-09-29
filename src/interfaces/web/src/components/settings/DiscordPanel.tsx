@@ -87,6 +87,7 @@ export function DiscordPanel() {
   const [replyWhen, setReplyWhen] = useState("");
   const [rules, setRules] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [ownerOnly, setOwnerOnly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [onlyIncluded, setOnlyIncluded] = useState(false);
 
@@ -108,6 +109,7 @@ export function DiscordPanel() {
     setReplyWhen(data.reply_when || "");
     setRules(data.rules || "");
     setEnabled(data.enabled);
+    setOwnerOnly(!!data.owner_only);
     // Only on first load: the 5 s poll must not wipe what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
@@ -141,6 +143,7 @@ export function DiscordPanel() {
       await Discord.settings({
         ...(token.trim() ? { token: token.trim() } : {}),
         owner_ids: splitList(owners),
+        owner_only: ownerOnly,
         names: splitList(names),
         knowledge: knowledge.trim(),
         reply_when: replyWhen.trim(),
@@ -221,7 +224,7 @@ export function DiscordPanel() {
         action={(
           <div className="flex items-center gap-3">
             <Switch checked={enabled} onChange={setEnabled} label={t("settings.discord.enabled")} />
-            <Button variant="primary" loading={busy} disabled={ownersBad.length > 0 || tooLong} onClick={save}>
+            <Button variant="primary" loading={busy} disabled={ownersBad.length > 0 || tooLong} onClick={save} data-testid="discord-save">
               {t("common.save")}
             </Button>
           </div>
@@ -288,6 +291,16 @@ export function DiscordPanel() {
             error={ownersBad.length ? t("settings.discord.bad_id", { id: ownersBad[0] }) : undefined}
           >
             <Input value={owners} placeholder="1234567890123456789" onChange={(e) => setOwners(e.target.value)} />
+          </Field>
+          <Field
+            label={t("settings.discord.owner_only")}
+            hint={ownerOnly && splitList(owners).length === 0
+              ? t("settings.discord.owner_only_no_owner")
+              : t("settings.discord.owner_only_hint")}
+          >
+            <div data-testid="discord-owner-only">
+              <Switch checked={ownerOnly} onChange={setOwnerOnly} label={t("settings.discord.owner_only_switch")} />
+            </div>
           </Field>
           <Field label={t("settings.discord.names")} hint={t("settings.discord.names_hint")}>
             <Input value={names} placeholder="roby" onChange={(e) => setNames(e.target.value)} />

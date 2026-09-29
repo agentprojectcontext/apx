@@ -15,6 +15,7 @@ export async function cmdDiscordStatus() {
   console.log(`enabled:    ${s.enabled !== false}`);
   console.log(`token:      ${s.has_token ? "set" : "missing"}`);
   console.log(`owner ids:  ${(s.owner_ids || []).join(", ") || dash}`);
+  console.log(`replies to: ${s.owner_only ? `the owner only${(s.owner_ids || []).length ? "" : " — but no owner id is set, so nobody"}` : "everyone the room mode allows"}`);
   console.log(`names:      ${(s.names || []).join(", ") || dash}`);
   printChannels(s.channels || []);
 }
@@ -65,8 +66,9 @@ export async function cmdDiscordSet(a, { die }) {
   if (f.names !== undefined) patch.names = String(f.names).split(",").map((x) => x.trim()).filter(Boolean);
   if (f["knowledge-stdin"]) patch.knowledge = readStdinSync().trim();
   if (f.enabled !== undefined) patch.enabled = !["false", "0", "no", "off"].includes(String(f.enabled));
+  if (f["owner-only"] !== undefined) patch.owner_only = !["false", "0", "no", "off"].includes(String(f["owner-only"]));
   if (!Object.keys(patch).length) {
-    die("nothing to set — use --token-stdin, --owner <id,…>, --names <a,b>, --knowledge-stdin or --enabled <true|false>");
+    die("nothing to set — use --token-stdin, --owner <id,…>, --owner-only <true|false>, --names <a,b>, --knowledge-stdin or --enabled <true|false>");
   }
   await http.patch("/api/discord/settings", patch);
   console.log(`✅ updated: ${Object.keys(patch).map((k) => (k === "token" ? "token (hidden)" : k)).join(", ")}`);

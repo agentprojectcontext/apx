@@ -129,6 +129,18 @@ el panel.
   no con tu sitio de docs ni tu código. Si le erra siempre a una pregunta, poné la respuesta en tus notas.
 </Aside>
 
+## Contestarte sólo a vos
+
+Ajustes → Discord → *A quién contesta* → **Sólo a mí** (o `apx discord set --owner-only true`)
+hace que el bot le conteste a tu ID de Discord y a nadie más, en cualquier canal y cualquier
+modo. Igual lee todos los canales incluidos — esa historia es lo que le permite contestarte
+bien —, pero un mensaje de cualquier otra persona se guarda y no se contesta, y en un canal
+`useful` ni siquiera pasa por el chequeo que decide si meterse, así que no cuesta nada. El
+modo del canal te sigue aplicando a vos: en un canal `mention` lo tenés que llamar.
+
+Sin un ID de Discord cargado, "sólo a mí" significa que no le contesta a nadie. Apagalo para
+volver a contestar a quien permita el modo de cada canal.
+
 ## Referencia
 
 ```bash
@@ -136,7 +148,7 @@ apx discord [status]
 apx discord channels
 apx discord channel set <channel_id> <always|useful|mention|read> [--name <nombre>]
 apx discord channel remove <channel_id>
-apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
+apx discord set [--token-stdin] [--owner <id,…>] [--owner-only <true|false>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```
 
 La pantalla del panel muestra el avatar del bot en grande — tocalo para cambiarlo (la imagen se recorta a un cuadrado de 512 px; Discord deja cambiarlo un par de veces por hora).
