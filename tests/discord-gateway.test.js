@@ -217,3 +217,45 @@ test("avatar: only images, under the cap, sent as PATCH /users/@me", async () =>
   assert.equal(bot.avatar_url, `https://cdn.discordapp.com/avatars/${BOT}/abc123.png?size=128`);
   await assert.rejects(g.setAvatar("data:text/plain;base64,aGk="), /PNG, JPEG/);
 });
+
+test("@Roby picked from autocomplete as the bot's ROLE is a call to the bot", () => {
+  const ROLE = "3000000000000000900";
+  const OTHER_ROLE = "3000000000000000901";
+  const roles = new Map([[ROLE, { name: "Roby", bot_id: BOT }], [OTHER_ROLE, { name: "mods", bot_id: null }]]);
+  const d = {
+    id: "3000000000000000010", channel_id: ROOM, guild_id: GUILD,
+    author: { id: "1000000000000000003", username: "alice" },
+    content: `<@&${ROLE}> podés revisar?`, mentions: [], mention_roles: [ROLE],
+  };
+  const m = normalizeDiscordMessage(d, new Map(), { roles, botId: BOT });
+  assert.deepEqual(m.mentions, [BOT], "mentioning the bot's managed role calls the bot");
+  assert.equal(m.content, "@Roby podés revisar?");
+  const other = normalizeDiscordMessage({ ...d, content: `<@&${OTHER_ROLE}> hola`, mention_roles: [OTHER_ROLE] }, new Map(), { roles, botId: BOT });
+  assert.deepEqual(other.mentions, [], "any other role is not a call");
+  assert.equal(other.content, "@mods hola");
+});
+
+test("gateway: learns the bot's managed role from GUILD_CREATE and GUILD_ROLE_CREATE", async () => {
+  const ROLE = "3000000000000000900";
+  const gw = await fakeGateway({
+    onOpen: (say) => say({ op: 10, d: { heartbeat_interval: 60_000 } }),
+    onClient: (p, say) => {
+      if (p.op !== 2) return;
+      say({ op: 0, s: 1, t: "READY", d: { session_id: "s1", user: { id: BOT, username: "roby" } } });
+      say({ op: 0, s: 2, t: "GUILD_CREATE", d: { id: GUILD, name: "Acme", channels: [{ id: ROOM, name: "general", type: 0 }], threads: [], roles: [] } });
+      say({ op: 0, s: 3, t: "GUILD_ROLE_CREATE", d: { guild_id: GUILD, role: { id: ROLE, name: "Roby", tags: { bot_id: BOT } } } });
+      say({ op: 0, s: 4, t: "MESSAGE_CREATE", d: { id: "3000000000000000011", channel_id: ROOM, guild_id: GUILD, author: { id: "1000000000000000003", username: "alice" }, content: `<@&${ROLE}> hola`, mentions: [], mention_roles: [ROLE] } });
+    },
+  });
+  const got = [];
+  const g = createDiscordGateway({ token: "t", gatewayUrl: gw.url, onMessage: (m) => got.push(m) });
+  g.start();
+  try {
+    await until(() => got.length === 1);
+    assert.deepEqual(got[0].mentions, [BOT]);
+    assert.equal(got[0].content, "@Roby hola");
+  } finally {
+    g.stop();
+    await gw.close();
+  }
+});

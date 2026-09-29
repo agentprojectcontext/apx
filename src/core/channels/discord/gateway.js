@@ -75,18 +75,27 @@ const CATEGORY_TYPE = 4;
  * reading "<@1554271631227224091> ya está acá" does not know that is itself.
  * Turn them into the names a person sees in the client.
  */
-export function readableMentions(text, { mentions = [], channels = new Map() } = {}) {
+export function readableMentions(text, { mentions = [], channels = new Map(), roles = new Map() } = {}) {
   const names = new Map(mentions.map((m) => [m.id, m.member?.nick || m.global_name || m.username || "someone"]));
   return String(text || "")
     .replace(/<@!?(\d+)>/g, (_m, id) => `@${names.get(id) || "someone"}`)
     .replace(/<#(\d+)>/g, (_m, id) => `#${channels.get(id)?.name || "channel"}`)
-    .replace(/<@&(\d+)>/g, "@role");
+    .replace(/<@&(\d+)>/g, (_m, id) => `@${roles.get(id)?.name || "role"}`);
 }
 
-export function normalizeDiscordMessage(d, channels = new Map()) {
+/**
+ * `roles` is the role cache (id → { name, bot_id }). When a bot joins a server
+ * Discord creates a role with the bot's own name, and the client's @-autocomplete
+ * offers it right next to the bot — so "@Roby" very often arrives as a mention of
+ * that ROLE, not of the bot. People mean the bot; this treats it as a call.
+ */
+export function normalizeDiscordMessage(d, channels = new Map(), { roles = new Map(), botId = null } = {}) {
   const room = channels.get(d.channel_id) || {};
   const author = d.author || {};
   const ref = d.referenced_message || null;
+  const mentions = (d.mentions || []).map((m) => m.id);
+  const botRoleMentioned = botId && (d.mention_roles || []).some((id) => roles.get(id)?.bot_id === botId);
+  if (botRoleMentioned && !mentions.includes(botId)) mentions.push(botId);
   return {
     id: d.id,
     channel_id: d.channel_id,
@@ -98,15 +107,15 @@ export function normalizeDiscordMessage(d, channels = new Map()) {
       name: d.member?.nick || author.global_name || author.username || "someone",
       bot: author.bot === true,
     },
-    content: readableMentions(d.content, { mentions: d.mentions || [], channels }),
-    mentions: (d.mentions || []).map((m) => m.id),
+    content: readableMentions(d.content, { mentions: d.mentions || [], channels, roles }),
+    mentions,
     mention_everyone: d.mention_everyone === true,
     reply_to: ref
       ? {
           id: ref.id,
           author_id: ref.author?.id || null,
           author_name: ref.member?.nick || ref.author?.global_name || ref.author?.username || null,
-          content: readableMentions(ref.content, { mentions: ref.mentions || [], channels }),
+          content: readableMentions(ref.content, { mentions: ref.mentions || [], channels, roles }),
         }
       : null,
     ts: d.timestamp ? new Date(d.timestamp).toISOString() : null,
@@ -145,6 +154,7 @@ export function createDiscordGateway({
   let lastError = null;
   const channels = new Map(); // id → { name, parent_id, guild_id, type, category_id, position }
   const guilds = new Map();   // id → name
+  const roles = new Map();    // id → { name, bot_id } — bot_id set on a bot's own managed role
 
   function setState(s, error = null) {
     state = s;
@@ -169,6 +179,11 @@ export function createDiscordGateway({
       type: c.type ?? null,
       position: c.position ?? 0,
     });
+  }
+
+  function rememberRole(r) {
+    if (!r?.id) return;
+    roles.set(r.id, { name: r.name || null, bot_id: r.tags?.bot_id || null });
   }
 
   function clearHeartbeat() {
@@ -231,14 +246,17 @@ export function createDiscordGateway({
       log("discord: session resumed");
     } else if (t === "GUILD_CREATE") {
       guilds.set(d.id, d.name || null);
+      for (const r of d.roles || []) rememberRole(r);
       for (const c of d.channels || []) rememberChannel({ ...c, guild_id: d.id });
       for (const c of d.threads || []) rememberChannel({ ...c, guild_id: d.id });
+    } else if (t === "GUILD_ROLE_CREATE" || t === "GUILD_ROLE_UPDATE") {
+      rememberRole(d.role);
     } else if (t === "CHANNEL_CREATE" || t === "CHANNEL_UPDATE" || t === "THREAD_CREATE" || t === "THREAD_UPDATE") {
       rememberChannel(d);
     } else if (t === "MESSAGE_CREATE") {
       if (!d.guild_id) return; // DMs are not a room; not handled here
       try {
-        const r = onMessage(normalizeDiscordMessage(d, channels));
+        const r = onMessage(normalizeDiscordMessage(d, channels, { roles, botId: botUser?.id || null }));
         r?.catch?.((e) => log(`discord: message handler failed: ${e.message}`));
       } catch (e) {
         log(`discord: message handler failed: ${e.message}`);
@@ -409,7 +427,7 @@ export function createDiscordGateway({
       const q = new URLSearchParams({ limit: String(Math.min(Math.max(limit, 1), 100)) });
       if (before) q.set("before", before);
       const rows = await rest("GET", `/channels/${channelId}/messages?${q}`);
-      return (rows || []).map((d) => normalizeDiscordMessage(d, channels));
+      return (rows || []).map((d) => normalizeDiscordMessage(d, channels, { roles, botId: botUser?.id || null }));
     },
   };
 }
