@@ -1,3 +1,10 @@
+## [1.122.1](https://github.com/agentprojectcontext/apx/compare/v1.122.0...v1.122.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **telegram:** el saludo al arrancar lo escribe el modelo configurado y queda en el hilo de Telegram ([ea685f6](https://github.com/agentprojectcontext/apx/commit/ea685f6070620bc31ad5f48f1549e6186da2efe9))
+
 # [1.122.0](https://github.com/agentprojectcontext/apx/compare/v1.121.1...v1.122.0) (2026-09-29)
 
 
