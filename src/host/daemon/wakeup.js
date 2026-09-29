@@ -2,7 +2,7 @@
 import fetch from "node-fetch";
 import { readIdentity, writeIdentity } from "#core/identity/index.js";
 import { callEngine } from "#core/engines/index.js";
-import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
+import { resolveNudgePolicy, isQuietAt } from "#core/nudge/index.js";
 import { resolveChannels, resolveBotToken, resolveChatId } from "#core/channels/telegram/helpers.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -76,12 +76,12 @@ async function generateMessage(identity, config, callEngineFn = callEngine) {
   }
 }
 
-async function sendTelegram(token, chatId, text, reply_markup) {
+async function sendTelegram(token, chatId, text, { silent = false } = {}) {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) }),
+    body: JSON.stringify({ chat_id: chatId, text, ...(silent ? { disable_notification: true } : {}) }),
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.description || "telegram send failed");
@@ -105,23 +105,22 @@ export async function triggerWakeup(config, log, deps = {}) {
     if (elapsed < WAKEUP_COOLDOWN_MS) return;
   }
 
-  // PUSH PATH 1 OF 4 — nobody asked for this one. "I restarted" is the least
-  // interesting thing APX can say, so it is also the first thing a budget
-  // should be allowed to swallow.
-  const gate = canNudge(
-    { kind: "wakeup", severity: "low", unsolicited: true, channel: "telegram" },
-    config,
-  );
-  if (!gate.allowed) {
-    log?.(`wakeup: suppressed by the interruption budget — ${gate.reason}`);
-    return;
-  }
+  // A SYSTEM notice, not an initiative: "the daemon came back" is an alert
+  // the owner needs to see after every restart, so the interruption budget does
+  // not get a say (Manu, 2026-09-29: "es un warn o alert, no puede evitarse").
+  // It is not counted against the daily allowance either, and carries no
+  // "useful / noise" buttons — there is nothing to learn from an alert. The
+  // one courtesy it keeps is the quiet hours: inside them it still goes out,
+  // WITHOUT sound, so a restart at 3 AM is in the chat in the morning instead
+  // of waking anybody up. The 30-minute cooldown above still stops a restart
+  // loop from becoming a flood.
+  const now = deps.now ? deps.now() : new Date();
+  const silent = isQuietAt(resolveNudgePolicy(config).quiet_hours, now);
 
   try {
     const message = await generateMessage(identity, config, deps.callEngineFn);
     const text = message || `${identity.agent_name} online. Ready.`;
-    const sent = await (deps.sendFn || sendTelegram)(botToken, chatId, text, nudgeFeedbackKeyboard(gate.nudge_id));
-    recordNudge(gate, { chat_id: chatId, preview: text });
+    const sent = await (deps.sendFn || sendTelegram)(botToken, chatId, text, { silent });
     // Into the Telegram thread, like every other message Roby sends there. It
     // went straight to the Bot API and nowhere else, so when the owner asked
     // "where did this come from?" Roby searched its own messages, found
@@ -139,13 +138,13 @@ export async function triggerWakeup(config, log, deps = {}) {
         chat_id: chatId,
         tg_channel: channel.name,
         wakeup: true,
-        nudge_id: gate.nudge_id,
+        ...(silent ? { silent: true } : {}),
         ...(message ? { model: wakeupModel(config) } : {}),
         ...(sent?.result?.message_id ? { external_id: String(sent.result.message_id) } : {}),
       },
     });
     writeIdentity({ last_wakeup: new Date().toISOString() });
-    log?.(`wakeup: sent to Telegram chat ${chatId}${message ? ` (written by ${wakeupModel(config)})` : " (plain line: no model answered)"}`);
+    log?.(`wakeup: sent to Telegram chat ${chatId}${silent ? " without sound (quiet hours)" : ""}${message ? ` (written by ${wakeupModel(config)})` : " (plain line: no model answered)"}`);
   } catch (e) {
     log?.(`wakeup: failed — ${e.message}`);
   }
