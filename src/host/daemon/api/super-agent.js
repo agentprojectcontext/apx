@@ -9,7 +9,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { resolveSuperAgentContext,
   appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { loggerFor } from "#core/logging.js";
-import { appendGlobalMessage } from "#core/stores/messages.js";
+import { appendGlobalMessage, ledgerProjectStamp } from "#core/stores/messages.js";
 import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { floorReplyText } from "#core/agent/closing-floor.js";
@@ -76,8 +76,7 @@ const LEDGER_SKIP_CHANNELS = new Set([CHANNELS.ROUTINE]);
  *  channel+day for the whole daemon, so without this stamp a chat started
  *  inside a project could only be found in the Base workspace — from the
  *  project it was started in, it looked gone. */
-const ledgerScope = (project) =>
-  project ? { project_id: String(project.id), project_name: project.name } : {};
+const ledgerScope = (project) => ledgerProjectStamp(project);
 
 /**
  * The INBOUND half, written the moment the request arrives.

@@ -50,6 +50,7 @@ import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 import { onSpendTrip } from "#core/agent/spend-breaker.js";
 import { notifyOwnerSpendPause } from "#core/routines/delivery.js";
+import { makeLedgerProjectResolver, setLedgerProjectResolver } from "#core/stores/messages.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -224,6 +225,11 @@ async function main() {
       log(`skipping project ${entry.path}: ${e.message}`);
     }
   }
+
+  // Ledger rows carry the project they were written in. The numeric id is this
+  // boot's registration order and moves when a project is removed; the resolver
+  // maps each stamp onto the project that holds it NOW (core/stores/messages.js).
+  setLedgerProjectResolver(makeLedgerProjectResolver(() => projects.ledgerIndex()));
 
   const plugins = new PluginManager({ projects, config: cfg, log, registries });
   plugins.initAll();

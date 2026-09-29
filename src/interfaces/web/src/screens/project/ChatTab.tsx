@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Route as RouteIcon, Trash2, UserPlus, Wrench, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MessageSquareWarning, MoreVertical, Pencil, Plus, RotateCcw, Route as RouteIcon, Trash2, UserPlus, Wrench, X } from "lucide-react";
 import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
@@ -115,7 +115,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, sendNow, moveQueued, loading: loadingThread, conversationId, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, following, queued, unqueue, sendNow, moveQueued, loading: loadingThread, loadError, conversationId, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -306,6 +306,13 @@ export function ChatTab({
     // The header switch moves the device fallback too: flipping it once
     // should not have to be repeated in every conversation you open next.
     writeShowTools(toolsKey, v, { alsoDefault: true });
+  };
+
+  // The same open the selection effect below does, on demand — the Retry of a
+  // chat that could not be opened.
+  const retryOpen = () => {
+    if (selected.kind === "conv") void load(selected.agentSlug, selected.convId);
+    else if (selected.kind === "thread") void loadThread(selected.channel, selected.threadId);
   };
 
   // Whenever the user picks a stored conversation or a channel thread, reload
@@ -1559,6 +1566,25 @@ export function ChatTab({
               <div className="grid h-full min-h-[200px] place-items-center p-8" data-testid="chat-loading">
                 <Loading />
               </div>
+            ) : loadError ? (
+              /* Not "empty": this chat could not be opened. Saying so — with the
+                 reason and a way to try again — is what separates a 404 from a
+                 conversation that simply has nothing in it; drawn as the empty
+                 state, a thread that failed to load looked like a lost chat. */
+              <Empty
+                fill
+                icon={MessageSquareWarning}
+                action={(
+                  <Button size="sm" onClick={retryOpen} data-testid="chat-load-retry">
+                    {t("project.chat.load_retry")}
+                  </Button>
+                )}
+              >
+                <span data-testid="chat-load-error">
+                  {loadError.status === 404 ? t("project.chat.load_missing") : t("project.chat.load_failed")}
+                  <span className="mt-1 block text-xs text-muted-fg">{loadError.message}</span>
+                </span>
+              </Empty>
             ) : (
               <Empty fill icon={MessageSquareDashed}>{t("project.chat.empty")}</Empty>
             )}

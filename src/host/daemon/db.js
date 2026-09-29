@@ -67,6 +67,7 @@ export class ProjectManager {
 
     this.byId.set(entry.id, entry);
     this.byPath.set(abs, entry);
+    this._ledgerIndex = null;
     return entry;
   }
 
@@ -96,12 +97,26 @@ export class ProjectManager {
     };
     entry.logMessage = (payload) => appendMessageToFs({ projectRoot: DEFAULT_PROJECT_STORE, ...payload });
     this.byId.set(0, entry);
+    this._ledgerIndex = null;
     this.byPath.set(DEFAULT_PROJECT_STORE, entry);
     return entry;
   }
 
   get(id) {
     return this.byId.get(Number(id)) || null;
+  }
+
+  /**
+   * `[{ id, apx_id, name }]` for every registered project — the snapshot the
+   * ledger resolver (core/stores/messages.js) maps stamps onto. Cached: it is
+   * asked once per ledger ROW, and list() reads files for every entry. Any
+   * register/unregister drops the cache.
+   */
+  ledgerIndex() {
+    if (!this._ledgerIndex) {
+      this._ledgerIndex = this.list().map((p) => ({ id: p.id, apx_id: p.apx_id, name: p.name }));
+    }
+    return this._ledgerIndex;
   }
 
   getByPath(p) {
@@ -156,12 +171,14 @@ export class ProjectManager {
     if (!entry) return false;
     this.byId.delete(entry.id);
     this.byPath.delete(entry.path);
+    this._ledgerIndex = null;
     return true;
   }
 
   rebuild(id) {
     const entry = this.get(id);
     if (!entry) throw new Error(`unknown project id ${id}`);
+    this._ledgerIndex = null; // a rebuild may have renamed it
     // A rebuild reads the project off disk, and every one of those reads answers
     // "nothing" rather than failing when the folder is gone. Reporting that as
     // `0 agents` with a zero exit code is the most expensive kind of success:

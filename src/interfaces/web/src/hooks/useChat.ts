@@ -393,6 +393,8 @@ export interface UseChatResult {
    *  yet" is a lie about a conversation that has plenty. Only a real open sets
    *  it; a silent catch-up on the chat already on screen does not. */
   loading: boolean;
+  /** Set when the last (non-silent) open FAILED — distinct from an empty chat. */
+  loadError: { status?: number; message: string } | null;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
   conversationId: string | undefined;
@@ -1017,6 +1019,13 @@ export function useChat(
   // Blanking the pane and fetching its history are two steps, and between them
   // the thread looks exactly like an empty one. This is what tells them apart.
   const [loading, setLoading] = useState(false);
+  // Why the history is NOT on screen, when it is not. "Could not open this
+  // chat" and "this chat is empty" used to render as the same blank pane — a
+  // toast that faded was the only difference — so a 404 (a thread whose
+  // project id had moved, a stale deep link on the phone) read as a
+  // conversation with nothing in it. `status` is the HTTP status when there
+  // was one.
+  const [loadError, setLoadError] = useState<{ status?: number; message: string } | null>(null);
   const [streaming, setStreaming] = useState(false);
   const streamingRef = useRef(false);
   const updateStreaming = useCallback((value: boolean) => {
@@ -1805,6 +1814,7 @@ export function useChat(
   const clear = useCallback((queueKey?: string) => {
     loadSeqRef.current++; // cancel any in-flight history load
     setLoading(false);    // ...and with it, that load's spinner
+    setLoadError(null);
     beginViewChange();
     convoRef.current = undefined;
     threadRef.current = null;
@@ -1830,6 +1840,7 @@ export function useChat(
       const seq = ++loadSeqRef.current;
       const activityKey = conversationActivityKey(pid, conversationId);
       if (!opts?.silent) {
+        setLoadError(null);
         beginViewChange();
         bindQueue(activityKey, false); // open first; the fetch below says which conversation this is
       }
@@ -1883,6 +1894,10 @@ export function useChat(
         setConversationMeta(undefined);
         updateFollowing(false);
         updateMsgs([]);
+        setLoadError({
+          status: e instanceof HttpError ? e.status : undefined,
+          message: (e as Error)?.message || t("shared_ui.err_load_conversation"),
+        });
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
@@ -1893,6 +1908,7 @@ export function useChat(
     async (channel: string, threadId: string, opts?: ReloadOptions) => {
       const seq = ++loadSeqRef.current;
       if (!opts?.silent) {
+        setLoadError(null);
         beginViewChange();
         bindQueue(threadActivityKey(pid, channel, threadId), false);
         updateMsgs([]);
@@ -1966,6 +1982,10 @@ export function useChat(
         setConversationId(undefined);
         updateFollowing(false);
         updateMsgs([]);
+        setLoadError({
+          status: e instanceof HttpError ? e.status : undefined,
+          message: (e as Error)?.message || t("shared_ui.err_load_conversation"),
+        });
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
@@ -2120,6 +2140,7 @@ export function useChat(
     sendNow,
     moveQueued,
     loading,
+    loadError,
     conversationId,
     conversationMeta,
   };
