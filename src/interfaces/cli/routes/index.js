@@ -21,6 +21,7 @@ export const ROUTES = Object.freeze({
   "pair": () => import("./pair.js"),
   "telegram": () => import("./telegram.js"),
   "whatsapp": () => import("./whatsapp.js"),
+  "discord": () => import("./discord.js"),
   "messages": () => import("./messages.js"),
   "log": () => import("./log.js"),
   "logs": () => import("./log.js"),

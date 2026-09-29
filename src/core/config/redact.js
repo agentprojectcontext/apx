@@ -28,6 +28,7 @@ export const SECRET_PATHS = [
   // Telegram bot tokens live inside an array — handled separately in redact()
   // because dotted paths can't address array entries.
   "telegram.channels.*.bot_token",
+  "discord.token",
   // Same problem: engines.<slug>.api_keys is a LIST of spare keys (quota
   // rotation). A dotted path cannot reach into it, so redact() handles it
   // below. Listed here so the "which keys are secrets" question still has one

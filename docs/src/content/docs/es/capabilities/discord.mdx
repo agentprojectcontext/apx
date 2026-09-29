@@ -1,0 +1,146 @@
+---
+title: Discord
+description: Poné a tu agente en una comunidad de Discord como bot — vos elegís los canales, si contesta siempre o sólo cuando lo llaman, y cuánto de un canal concurrido lee.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+APX puede correr tu agente como **bot de Discord** en un servidor de comunidad. Lee los canales que
+le habilitás, contesta donde lo dejás, y lleva un resumen y una memoria consultable de cada canal,
+así que un llamado en un canal concurrido no significa leer mil mensajes.
+
+<Aside type="caution">
+  Usá una cuenta de bot, nunca la tuya. Automatizar una cuenta personal (un "self-bot") viola los
+  términos de Discord y te pueden banear la cuenta. Además, un bot deja claro en el canal que
+  contesta un agente.
+</Aside>
+
+## Configurarlo
+
+<Steps>
+
+1. En el Developer Portal de Discord, creá una **Application** y abrí la pestaña **Bot**.
+2. En **Privileged Gateway Intents**, prendé **Message Content Intent**. Sin eso el bot se conecta
+   pero no puede leer lo que escribe la gente, y APX se detiene con un error claro en vez de reintentar.
+3. Invitá el bot a tu servidor desde **OAuth2 → URL Generator**: scope `bot`, permisos *View
+   Channels*, *Send Messages*, *Send Messages in Threads* y *Read Message History*.
+4. Abrí **Ajustes → Discord** en el panel web, pegá el token, tu ID de usuario de Discord y los
+   nombres que lo llaman, y guardá: el bot se conecta en el momento. O desde la terminal, con el
+   token por stdin, así nunca queda en el historial de la terminal, y decile quién
+   sos y qué palabras cuentan como llamarlo:
+
+   ```bash
+   pbpaste | apx discord set --token-stdin
+   apx discord set --owner 1234567890123456789 --names roby
+   apx restart
+   ```
+
+5. Listá los canales donde puede estar, en la misma pantalla o desde la terminal (clic derecho en el canal → *Copiar ID del canal*, con el modo
+   desarrollador prendido):
+
+   ```bash
+   apx discord channel set 1234567890123456789 always --name ayuda
+   apx discord channel set 1234567890123456790 mention --name general
+   ```
+
+</Steps>
+
+## Canales y modos
+
+**Denegado por defecto.** Un canal que no está en la lista no existe para APX: sus mensajes no se
+guardan, no se indexan y nunca se contestan. Que alguien cree un canal nuevo no alcanza para meter
+al agente ahí.
+
+| Modo | Guarda y lee | Habla |
+|---|---|---|
+| `always` | sí | en cada mensaje — para un canal de ayuda, donde cada mensaje es una pregunta |
+| `useful` | sí | cuando lo llaman y, sin que lo llamen, cuando un chequeo rápido con un modelo ve que puede ayudar de verdad (tu criterio de *Cuándo contestar sin que lo llamen*) |
+| `mention` | sí | sólo cuando lo llaman: un @mención, una respuesta a un mensaje suyo, o uno de sus `--names` como palabra |
+| `read` | sí | nunca |
+
+Un hilo hereda el modo del canal donde se abrió, salvo que listes el hilo mismo. Un `@everyone` no
+es un llamado. Los mensajes de otros bots se guardan pero nunca se contestan. Los cambios de modo
+valen para el mensaje siguiente, sin reiniciar.
+
+```bash
+apx discord channels                             # la lista
+apx discord channel remove 1234567890123456790   # dejar de leerlo del todo
+```
+
+### `useful`: contestar sólo cuando aporta
+
+En un canal `useful` cada mensaje sin llamado es un **candidato**. Una llamada corta a un modelo —el
+mensaje, unas líneas del canal, tus notas y tu criterio— contesta sí o no en JSON; sólo un sí corre
+el turno de verdad. Un chequeo que falla o no se entiende es un no. Cada chequeo es una llamada
+paga, así que el canal tiene su propio tope (`limits.gate_checks_per_hour`, 120), y el modelo es
+`discord.gate_model`, si no tu modelo de compactación, si no el del super-agente.
+
+## Canales concurridos: guardar es gratis, contestar no
+
+Discord manda todos los mensajes quieras o no, así que lo caro de un canal concurrido nunca es leer:
+es llamar al modelo. Eso lo decide el código antes de que corra cualquier modelo:
+
+- **Ventana de ráfaga** (`limits.burst_window_ms`, 8 s): "roby" / "una pregunta" / la pregunta de
+  verdad, de una misma persona, es una respuesta y no tres.
+- **Espera por persona** (`limits.user_cooldown_ms`, 20 s) entre dos respuestas a la misma persona.
+- **Tope por canal** (`limits.channel_replies_per_hour`, 30). Cuando un canal lo alcanza, el bot se
+  calla ahí y te avisa una vez, porque suele ser flood o spam.
+
+Tu propia cuenta no tiene límites: existen para cuidar tu presupuesto de otra gente.
+
+## Qué sabe un turno del canal
+
+Cuando lo llaman, el bot recibe el canal en capas, de la más barata a la más cara:
+
+1. el mensaje que contesta, y el mensaje al que ese responde;
+2. los últimos mensajes del canal, textuales, con tope en caracteres (`context.recent_messages`,
+   `context.recent_chars`);
+3. un **resumen corrido** de la parte vieja, que escribe en segundo plano tu modelo de compactación
+   cuando el canal pasa `context.summary_threshold` mensajes;
+4. fragmentos viejos recuperados por similitud del índice de memoria **de ese canal** (`context.rag_hits`);
+5. tus notas sobre qué puede hacer y contestar: el bloc de notas de **Ajustes → Discord** (o
+   `apx discord set --knowledge-stdin`), con tope de 12k caracteres.
+
+Así "@roby qué pensás?" se contesta con lo que se venía hablando, y "¿qué decidieron de la memoria la
+semana pasada?" con el resumen y la memoria del canal, sin meter el canal entero en el prompt.
+
+## Lo que nunca llega a un canal público
+
+Todo turno de Discord es **sellado**, el tuyo también: sin tools, sin memoria privada, sin otros
+canales, sin proyectos. Lo que escribe el bot lo leen desconocidos, así que un turno con tu libreta
+adentro estaría a una frase descuidada de publicarla. El trabajo de verdad se lo das por Telegram o
+el panel.
+
+- Los mensajes de cada canal se indexan en su propio scope (`discord:<channel_id>`): nunca aparecen
+  en tu memoria, y tu memoria nunca aparece en la de ellos.
+- **Tus reglas** (*Reglas de lo que dice*) cierran cada prompt, después de todo lo demás, así que ganan.
+- **Un guardrail en código** revisa todo lo que sale, escriba lo que escriba el modelo: los secretos
+  registrados se enmascaran, las rutas de tu máquina pasan a `[local path]` y `@everyone`/`@here` se
+  desactivan.
+- Los mensajes salen con las menciones apagadas desde la API, así que el bot no puede pingear a
+  `@everyone` aunque el modelo lo escriba.
+- Lo que hizo el bot te llega por Telegram, agrupado por canal y sujeto al mismo presupuesto de
+  interrupciones y horario de silencio que cualquier otro aviso.
+
+<Aside type="note">
+  Sellado también quiere decir que el bot contesta con los datos públicos y la historia del canal,
+  no con tu sitio de docs ni tu código. Si le erra siempre a una pregunta, poné la respuesta en tus notas.
+</Aside>
+
+## Referencia
+
+```bash
+apx discord [status]
+apx discord channels
+apx discord channel set <channel_id> <always|useful|mention|read> [--name <nombre>]
+apx discord channel remove <channel_id>
+apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
+```
+
+La pantalla del panel muestra el avatar del bot en grande — tocalo para cambiarlo (la imagen se recorta a un cuadrado de 512 px; Discord deja cambiarlo un par de veces por hora).
+
+HTTP: `GET /api/discord/status`, `GET /api/discord/rooms`, `PUT /api/discord/avatar`, `POST /api/discord/reconnect`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
+`GET /api/discord/channels/:id/history`, `POST /api/discord/send` (sólo a un canal listado).
+El token entra por `settings` y nunca se devuelve.

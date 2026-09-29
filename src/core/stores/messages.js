@@ -1492,6 +1492,8 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
     if (!fs.existsSync(dir)) continue;
     for (const f of fs.readdirSync(dir).sort()) {
       if (!/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) continue;
+      // A whole day before `since` cannot hold a row after it — skip the read.
+      if (since && f.slice(0, 10) < String(since).slice(0, 10)) continue;
       const text = fs.readFileSync(path.join(dir, f), "utf8");
       for (const m of parseDayJsonl(text)) {
         if (since && m.ts < since) continue;
@@ -1723,7 +1725,15 @@ function hasWords(body) {
 // sidebar and in its own header. previewText is the rule for exactly this — the
 // one line that stands in for a turn — so the title asks it rather than
 // inventing a second answer.
+// A ROOM (a Discord channel) is named after the room, not after whoever
+// happened to write in it last — that is a person, and a room has many.
+function roomLabel(rows) {
+  const room = rows.find((r) => r.meta?.room)?.meta?.room;
+  return room ? `#${room}` : null;
+}
+
 function threadTitle(channel, id, contact, rows) {
+  if (contact && roomLabel(rows)) return roomLabel(rows);
   if (contact) return contactName(rows) || contact;
   // Name it after something a PERSON said.
   //
@@ -1813,7 +1823,7 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
           // route needs and the reason a row is openable at all. Always set, so
           // a caller never has to guess "0" for it.
           project: home,
-          ...(contact ? { contact, contact_name: contactName(rows) } : {}),
+          ...(contact ? { contact, contact_name: roomLabel(rows) || contactName(rows) } : {}),
           // What the reader called it wins over the first thing that was said.
           title: over.title || threadTitle(ch, id, contact, rows),
           archived: over.archived || undefined,
@@ -1968,6 +1978,12 @@ export function shapeLedgerMessage(r) {
           }
         : {}),
       ...(r.meta?.interactive_selection ? { chose: r.meta.interactive_selection } : {}),
+      // A ROOM (a Discord channel): this turn is someone else's, by name.
+      // Unless it is the owner writing from their own account: that is theirs.
+      ...(r.meta?.room && r.meta?.speaker && !r.meta?.owner ? { speaker: r.meta.speaker } : {}),
+      ...(r.meta?.room && r.meta?.reply_to_text
+        ? { quote: { author: r.meta.reply_to_author || null, text: r.meta.reply_to_text } }
+        : {}),
     };
   }
   const usage = r.meta?.usage;
@@ -2046,7 +2062,7 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
   return {
     id: date,
     channel,
-    ...(contact ? { contact, contact_name: contactName(rows) } : {}),
+    ...(contact ? { contact, contact_name: roomLabel(rows) || contactName(rows) } : {}),
     title: over.title || threadTitle(channel, date, contact, rows),
     archived: over.archived || undefined,
     messages,
