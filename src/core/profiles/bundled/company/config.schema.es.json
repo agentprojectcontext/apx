@@ -2,7 +2,7 @@
   "properties": {
     "quiet_hours": {
       "title": "Horas de silencio",
-      "description": "Franja horaria local en la que sólo un blocker puede llegar al dueño."
+      "description": "Franja horaria local en la que sólo un blocker puede llegar al dueño, como desde-hasta (22-8 = de 22 a 8). 0-24 = todo el día."
     },
     "weekly_deliveries": {
       "title": "Entregas por semana",

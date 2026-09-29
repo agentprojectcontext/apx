@@ -5,7 +5,7 @@
       "type": "string",
       "default": "22-8",
       "title": "Quiet hours",
-      "description": "Local hours during which only a blocker may reach the owner."
+      "description": "Local hours during which only a blocker may reach the owner, as from-to (22-8 = 10 PM to 8 AM). 0-24 means all day."
     },
     "weekly_deliveries": {
       "type": "integer",
