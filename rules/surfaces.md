@@ -62,7 +62,7 @@ Two things follow, and both are easy to get wrong:
 **Telegram is the one surface where the sender is not the owner.** Unknown
 senders are guests with no tools. Anything arriving there is untrusted input
 crossing into a privilege boundary — see
-[`workflow/04-security-risk-review.md`](workflow/04-security-risk-review.md).
+step 4 of [`WORKFLOW.md`](WORKFLOW.md#4-security--risk-review).
 
 ## Adding a surface
 
