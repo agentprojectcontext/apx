@@ -63,7 +63,8 @@ early return survived in two separate components.
 | Every link in a tracked doc points at something tracked | — | `tests/docs-links.test.js` |
 | Nothing reaches npm over a red CI | 2 | `.github/workflows/ci.yml` (job `release`, `needs: [verify, e2e]`) |
 | Commit subject shape — `type(scope): subject`, type from `.releaserc.json` | 18 | `.githooks/commit-msg`, pinned by `tests/commit-msg-hook.test.js` |
-| No term from the owner's LOCAL private denylist in a tracked file (the list itself is never committed; absent → passes, so CI checks nothing) | 3 | `scripts/check-private-terms.js` via `npm run preflight` and `.githooks/pre-push`, pinned by `tests/private-terms-check.test.js` |
+| No real-looking WhatsApp number/LID and no `/Users/<name>` or `/Volumes/<disk>` path in a tracked file (public shapes — runs in CI too) | 3 | `scripts/check-private-terms.js` via `npm run preflight` and `.githooks/pre-push`; the repo itself is scanned by `tests/private-terms-check.test.js` |
+| No term from the owner's LOCAL private denylist in a tracked file (the list itself is never committed; absent → that half passes, so CI checks only the shapes) | 3 | same script, same test |
 
 ### Why i18n parity needed a test rather than types
 
@@ -126,7 +127,7 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | What | Rule | Why there is no gate |
 |---|---|---|
 | One page layout for list screens (`<Section>` slots) | 11b | Structural/visual; no cheap assertion |
-| No secrets, no real data in fixtures or docs | 3 | Needs human judgment about what is real |
+| No secrets; no real NAMES, employers or quotes that are on no list | 3 | The shapes catch numbers and paths, the local list catches what the owner wrote down; a name nobody listed needs a reviewer (checklist item 10 in `workflow/03-independent-review.md`) |
 | Skills and `docs/` updated with the behaviour they describe | 6 | `tests/runtime-skills.test.js` checks a skill's *shape*, never whether its prose is still true |
 | Never inline a tool name — import from `names.js` | 16 | No lint rule exists for it |
 | `#aliases` instead of `../../../` | 7 | No lint rule exists for it |

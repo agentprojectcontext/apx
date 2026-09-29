@@ -211,7 +211,7 @@ test("a list preview describes the file instead of printing its marker", () => {
   // list printed it raw, so a photo showed up in the sidebar as a file path.
   assert.equal(previewText("[photo]", { kind: "photo", name: "grip.jpg" }), "📷 grip.jpg");
   assert.equal(
-    previewText("[image attached — saved to /Users/x.jpg] mirá esto", { kind: "photo", name: "x.jpg" }),
+    previewText("[image attached — saved to /Users/you/x.jpg] mirá esto", { kind: "photo", name: "x.jpg" }),
     "📷 mirá esto",
     "a caption is worth more than the file name",
   );
