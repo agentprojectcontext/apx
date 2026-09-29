@@ -34,7 +34,7 @@ export async function cmdDiscordChannels() {
 }
 
 export async function cmdDiscordChannelSet(id, mode, a, { die }) {
-  if (!id || !mode) die("usage: apx discord channel set <channel_id> <always|mention|read> [--name <name>]");
+  if (!id || !mode) die("usage: apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]");
   const row = await http.put(`/api/discord/channels/${encodeURIComponent(id)}`, {
     mode,
     ...(a.flags.name ? { name: String(a.flags.name) } : {}),

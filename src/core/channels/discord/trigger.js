@@ -27,6 +27,7 @@ export const SKIP_REASONS = Object.freeze({
   NOT_CALLED: "not_called",
   COOLDOWN: "user_cooldown",
   CHANNEL_CAP: "channel_cap",
+  GATE_CAP: "gate_cap",
 });
 
 function escapeRe(s) {
@@ -63,12 +64,14 @@ export function isCalled(msg, { botId, names = [] } = {}) {
 export function createDiscordLimiter({ now = () => Date.now() } = {}) {
   const lastReplyTo = new Map(); // channel|user → ms
   const repliesIn = new Map();   // channel → [ms, …] within the last hour
+  const gatesIn = new Map();     // channel → [ms, …] gate checks within the last hour
 
-  function recent(channelId, t) {
-    const list = (repliesIn.get(channelId) || []).filter((x) => t - x < 3_600_000);
-    repliesIn.set(channelId, list);
+  function within(map, channelId, t) {
+    const list = (map.get(channelId) || []).filter((x) => t - x < 3_600_000);
+    map.set(channelId, list);
     return list;
   }
+  const recent = (channelId, t) => within(repliesIn, channelId, t);
 
   return {
     /** Would a reply be allowed right now? Does not record anything. */
@@ -88,6 +91,13 @@ export function createDiscordLimiter({ now = () => Date.now() } = {}) {
       const t = now();
       lastReplyTo.set(`${channelId}|${userId}`, t);
       recent(channelId, t).push(t);
+    },
+    /** May the `useful` gate spend another model call in this room this hour? */
+    checkGate({ channelId, limits }) {
+      return within(gatesIn, channelId, now()).length < limits.gate_checks_per_hour;
+    },
+    recordGate({ channelId }) {
+      within(gatesIn, channelId, now()).push(now());
     },
     /** How many replies a room has had this hour. For status lines. */
     usedThisHour(channelId) {
@@ -109,7 +119,7 @@ export function createDiscordLimiter({ now = () => Date.now() } = {}) {
  */
 export function decideDiscordMessage(msg, { dc, botId, limiter } = {}) {
   const mode = channelModeFor(dc, { channelId: msg?.channel_id, parentId: msg?.parent_id });
-  const base = { store: false, reply: false, mode, called: false };
+  const base = { store: false, reply: false, mode, called: false, gate: false };
   if (!mode) return { ...base, reason: SKIP_REASONS.NOT_LISTED };
   if (msg.author?.id && botId && msg.author.id === botId) return { ...base, reason: SKIP_REASONS.OWN };
   const text = String(msg.content || "").trim();
@@ -126,11 +136,17 @@ export function decideDiscordMessage(msg, { dc, botId, limiter } = {}) {
   if (mode === DISCORD_MODES.MENTION && !called) {
     return { ...stored, called, reason: SKIP_REASONS.NOT_CALLED };
   }
+  // `useful` and not called: a candidate for the gate, not yet a reply. The
+  // gate has its own hourly ceiling, checked before any model is asked.
+  const gate = mode === DISCORD_MODES.USEFUL && !called;
+  if (gate && limiter && !limiter.checkGate({ channelId: msg.channel_id, limits: dc.limits })) {
+    return { ...stored, called, reason: SKIP_REASONS.GATE_CAP };
+  }
 
   const isOwner = (dc?.owner_ids || []).includes(msg.author?.id);
   if (!isOwner && limiter) {
     const gate = limiter.check({ channelId: msg.channel_id, userId: msg.author?.id, limits: dc.limits });
     if (!gate.ok) return { ...stored, called, reason: gate.reason };
   }
-  return { ...stored, reply: true, called, reason: null };
+  return { ...stored, reply: true, called, gate, reason: null };
 }

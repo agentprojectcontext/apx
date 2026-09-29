@@ -55,6 +55,7 @@ agent in it.
 | Mode | Stores and reads | Speaks |
 |---|---|---|
 | `always` | yes | on every message — for a help room, where every message is a question |
+| `useful` | yes | when called — and, uncalled, when a quick model check finds it can really help (your *When to answer uncalled* criterion) |
 | `mention` | yes | only when called: an @mention, a reply to one of its messages, or one of its `--names` as a word |
 | `read` | yes | never |
 
@@ -66,6 +67,14 @@ apply to the next message — no restart.
 apx discord channels                        # the list
 apx discord channel remove 1234567890123456790   # stop reading it entirely
 ```
+
+### `useful`: answering only when it helps
+
+In a `useful` room every uncalled message is a **candidate**. A short model call — the message, a few
+lines of the room, your notes and your criterion — answers yes or no as JSON; only a yes runs the
+real turn. A failed or unreadable check is a no. Each check is a paid call, so the room has its own
+ceiling (`limits.gate_checks_per_hour`, 120), and the model is `discord.gate_model`, else your
+compaction model, else the super-agent's.
 
 ## Busy rooms: storing is free, answering is not
 
@@ -119,7 +128,7 @@ be one careless sentence from publishing it. Give the agent real work on Telegra
 ```bash
 apx discord [status]
 apx discord channels
-apx discord channel set <channel_id> <always|mention|read> [--name <name>]
+apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]
 apx discord channel remove <channel_id>
 apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```

@@ -959,14 +959,14 @@ export const HELP_TOPICS = new Map(Object.entries({
     usage: [
       "apx discord [status]",
       "apx discord channels",
-      "apx discord channel set <channel_id> <always|mention|read> [--name <name>]",
+      "apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]",
       "apx discord channel remove <channel_id>",
       "apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]",
     ],
     commands: [
       ["status", "Connection state, the bot account, the owner ids and the room list."],
       ["channels", "Only the room list."],
-      ["channel set", "List a room, or change its mode. always = answers every message; mention = only when called; read = never speaks."],
+      ["channel set", "List a room, or change its mode. always = answers every message; useful = when called, or when a quick model check finds it can really help; mention = only when called; read = never speaks."],
       ["channel remove", "Take a room off the list. Its messages stop being stored at all."],
       ["set", "Bot settings. The token is read from stdin so it never lands in shell history."],
     ],

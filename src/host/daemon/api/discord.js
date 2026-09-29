@@ -40,6 +40,8 @@ export function register(api, { plugins }) {
       owner_ids: cfg.owner_ids,
       names: cfg.names,
       knowledge: cfg.knowledge,
+      reply_when: cfg.reply_when,
+      gate_model: cfg.gate_model,
       channels: Object.entries(cfg.channels).map(([id, row]) => ({ id, ...row })),
       state: "off",
     });

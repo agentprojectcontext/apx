@@ -9,7 +9,7 @@ import { Discord, type DiscordMode, type DiscordRoom, type DiscordStatus } from 
 import { t } from "../../i18n";
 import { usePersonaName } from "../../hooks/usePersonaName";
 
-const MODES: DiscordMode[] = ["read", "mention", "always"];
+const MODES: DiscordMode[] = ["read", "mention", "useful", "always"];
 
 // The select's value for a room that is not on the list. Not a mode: choosing
 // it removes the room, and the bot stops reading it altogether.
@@ -25,8 +25,9 @@ interface RoomRow {
   missing: boolean;
 }
 
-// Mirrors KNOWLEDGE_MAX_CHARS in core/channels/discord/config.js.
+// Mirror KNOWLEDGE_MAX_CHARS / REPLY_WHEN_MAX_CHARS in core/channels/discord/config.js.
 const KNOWLEDGE_MAX = 12_000;
+const REPLY_WHEN_MAX = 2_000;
 
 // Snowflakes are digits. Checked here too so a pasted "#general" says what is
 // wrong under the field instead of as a 400 in a toast.
@@ -82,6 +83,7 @@ export function DiscordPanel() {
   const [owners, setOwners] = useState("");
   const [names, setNames] = useState("");
   const [knowledge, setKnowledge] = useState("");
+  const [replyWhen, setReplyWhen] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [onlyIncluded, setOnlyIncluded] = useState(false);
@@ -101,6 +103,7 @@ export function DiscordPanel() {
     setOwners(data.owner_ids.join(", "));
     setNames(data.names.join(", "));
     setKnowledge(data.knowledge || "");
+    setReplyWhen(data.reply_when || "");
     setEnabled(data.enabled);
     // Only on first load: the 5 s poll must not wipe what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,9 +112,24 @@ export function DiscordPanel() {
   if (isLoading || !data) return <Loading />;
 
   // Least to most talkative, after "not included".
-  const modeOptions = (["read", "mention", "always"] as DiscordMode[]).map((m) => ({ value: m, label: t(`settings.discord.mode_${m}`) }));
+  const modeOptions = (["read", "mention", "useful", "always"] as DiscordMode[]).map((m) => ({ value: m, label: t(`settings.discord.mode_${m}`) }));
   const offOption = { value: OFF, label: t("settings.discord.mode_off") };
   const ownersBad = splitList(owners).filter((x) => !isSnowflake(x));
+  const tooLong = knowledge.length > KNOWLEDGE_MAX || replyWhen.length > REPLY_WHEN_MAX;
+  const includedCount = data.channels.length;
+  const guildNames = [...new Set((roomsData?.rooms || []).map((r) => r.guild).filter(Boolean))];
+  // What Discord says about the bot right now — the header's one line.
+  const summary = !data.has_token
+    ? t("settings.discord.summary_no_token")
+    : !connected
+      ? (data.error || t(`settings.discord.state_${data.state}`))
+      : data.guilds === 0
+        ? t("settings.discord.summary_no_server", { name: data.bot?.name || "" })
+        : t("settings.discord.summary_connected", {
+            name: data.bot?.name || "",
+            servers: guildNames.join(", ") || String(data.guilds ?? 0),
+            n: includedCount,
+          });
 
   const save = async () => {
     setBusy(true);
@@ -122,6 +140,7 @@ export function DiscordPanel() {
         owner_ids: splitList(owners),
         names: splitList(names),
         knowledge: knowledge.trim(),
+        reply_when: replyWhen.trim(),
         enabled,
       });
       if (reconnect) await Discord.reconnect();
@@ -192,8 +211,20 @@ export function DiscordPanel() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-2" data-testid="discord-panel">
-      <Section title={t("settings.discord.title")} description={t("settings.discord.subtitle")}>
-        <div className="mb-6 flex flex-col items-center gap-2 text-center" data-testid="discord-state">
+      <Section
+        title={t("settings.discord.title")}
+        description={summary}
+        action={(
+          <div className="flex items-center gap-3">
+            <Switch checked={enabled} onChange={setEnabled} label={t("settings.discord.enabled")} />
+            <Button variant="primary" loading={busy} disabled={ownersBad.length > 0 || tooLong} onClick={save}>
+              {t("common.save")}
+            </Button>
+          </div>
+        )}
+      >
+        <div className="grid gap-6 md:grid-cols-[10rem_1fr]">
+        <div className="flex flex-col items-center gap-2 text-center" data-testid="discord-state">
           <input
             ref={avatarInput}
             type="file"
@@ -228,7 +259,6 @@ export function DiscordPanel() {
           </button>
           <div className="text-base font-semibold">{data.bot?.name || t("settings.discord.no_bot")}</div>
           <Badge tone={stateTone(data.state)}>{t(`settings.discord.state_${data.state}`)}</Badge>
-          {data.error ? <p className="max-w-sm text-[12px] text-destructive">{data.error}</p> : null}
           {data.has_token ? (
             <Button size="sm" onClick={reconnect}>
               <RefreshCw size={13} /> {t("settings.discord.reconnect")}
@@ -258,24 +288,34 @@ export function DiscordPanel() {
           <Field label={t("settings.discord.names")} hint={t("settings.discord.names_hint")}>
             <Input value={names} placeholder="roby" onChange={(e) => setNames(e.target.value)} />
           </Field>
+        </div>
+        </div>
+
+        <div className="mt-6 grid gap-4">
           <Field
             label={t("settings.discord.knowledge")}
             hint={t("settings.discord.knowledge_hint", { n: knowledge.length, max: KNOWLEDGE_MAX })}
-            error={knowledge.length > KNOWLEDGE_MAX ? t("settings.discord.knowledge_too_long", { max: KNOWLEDGE_MAX }) : undefined}
+            error={knowledge.length > KNOWLEDGE_MAX ? t("settings.discord.too_long", { max: KNOWLEDGE_MAX }) : undefined}
           >
             <Textarea
-              rows={9}
+              rows={8}
               value={knowledge}
               placeholder={t("settings.discord.knowledge_placeholder", { persona })}
               onChange={(e) => setKnowledge(e.target.value)}
             />
           </Field>
-          <Switch checked={enabled} onChange={setEnabled} label={t("settings.discord.enabled")} />
-        </div>
-        <div className="mt-4">
-          <Button variant="primary" loading={busy} disabled={ownersBad.length > 0 || knowledge.length > KNOWLEDGE_MAX} onClick={save}>
-            {t("common.save")}
-          </Button>
+          <Field
+            label={t("settings.discord.reply_when")}
+            hint={t("settings.discord.reply_when_hint", { n: replyWhen.length, max: REPLY_WHEN_MAX })}
+            error={replyWhen.length > REPLY_WHEN_MAX ? t("settings.discord.too_long", { max: REPLY_WHEN_MAX }) : undefined}
+          >
+            <Textarea
+              rows={4}
+              value={replyWhen}
+              placeholder={t("settings.discord.reply_when_placeholder")}
+              onChange={(e) => setReplyWhen(e.target.value)}
+            />
+          </Field>
         </div>
       </Section>
 

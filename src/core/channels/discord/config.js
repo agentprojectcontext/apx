@@ -35,6 +35,9 @@ export const DISCORD_MODES = Object.freeze({
   MENTION: "mention",
   // Never speaks. Reads, so the owner can ask what happened there.
   READ: "read",
+  // Answers when called, AND — uncalled — when a cheap model call judges the
+  // message one it can really help with, by the owner's `reply_when`. See gate.js.
+  USEFUL: "useful",
 });
 
 const MODE_SET = new Set(Object.values(DISCORD_MODES));
@@ -49,7 +52,13 @@ export const DISCORD_LIMIT_DEFAULTS = Object.freeze({
   // Several calls from one person inside this window are one conversation, not
   // several: they get one answer.
   burst_window_ms: 8_000,
+  // Uncalled messages the `useful` gate may evaluate per room per hour. Each
+  // one is a model call; this is the ceiling on what a chatty room costs.
+  gate_checks_per_hour: 120,
 });
+
+// How long the "when to reply" criterion may be. It rides in every gate call.
+export const REPLY_WHEN_MAX_CHARS = 2_000;
 
 export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
   // The last messages of the room, verbatim. The layer that answers "what do
@@ -69,7 +78,7 @@ export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
 // not, and costs every call.
 export const KNOWLEDGE_MAX_CHARS = 12_000;
 
-const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge"];
+const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge", "reply_when", "gate_model"];
 
 export function normalizeDiscordMode(mode) {
   const m = String(mode || "").trim().toLowerCase();
@@ -124,6 +133,8 @@ export function readDiscordConfig(cfg = readConfig()) {
     owner_ids: listOfIds(d.owner_ids),
     names: listOfNames(d.names),
     knowledge: typeof d.knowledge === "string" ? d.knowledge : "",
+    reply_when: typeof d.reply_when === "string" ? d.reply_when : "",
+    gate_model: typeof d.gate_model === "string" ? d.gate_model : "",
     channels: normalizeChannels(d.channels),
     limits: Object.fromEntries(
       Object.entries(DISCORD_LIMIT_DEFAULTS).map(([k, def]) => [k, positive(limits[k], def)])
@@ -158,6 +169,16 @@ export function patchDiscordConfig(patch = {}) {
         throw new Error(`the notes are ${text.length} characters; the limit is ${KNOWLEDGE_MAX_CHARS}`);
       }
       cfg.discord[k] = text;
+    } else if (k === "reply_when") {
+      const text = String(patch[k] || "");
+      if (text.length > REPLY_WHEN_MAX_CHARS) {
+        throw new Error(`the reply criterion is ${text.length} characters; the limit is ${REPLY_WHEN_MAX_CHARS}`);
+      }
+      cfg.discord[k] = text;
+    } else if (k === "gate_model") {
+      const m = String(patch[k] || "").trim();
+      if (m && !m.includes(":")) throw new Error("gate_model must be provider:model");
+      cfg.discord[k] = m;
     } else if (k === "names") {
       cfg.discord[k] = listOfNames(Array.isArray(patch[k]) ? patch[k] : [patch[k]]);
     } else {

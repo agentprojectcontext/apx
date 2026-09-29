@@ -414,3 +414,68 @@ test("review: inbound rows carry our clock, Discord's time rides in meta", async
   assert.notEqual(row.ts, old);
   assert.equal(row.meta.discord_ts, old);
 });
+
+// ── "useful" mode: uncalled replies only when a gate says so ────────────────
+
+test("useful: a call is answered directly; uncalled goes to the gate; the gate has its own cap", () => {
+  let now = 5_000_000;
+  const limiter = createDiscordLimiter({ now: () => now });
+  const dc = baseDc({
+    channels: { [GENERAL]: { mode: "useful" } },
+    limits: { user_cooldown_ms: 0, channel_replies_per_hour: 30, burst_window_ms: 0, gate_checks_per_hour: 1 },
+  });
+  const d = (m) => decideDiscordMessage(m, { dc, botId: BOT, limiter });
+  const called = d(msg({ content: "roby, qué es apx?" }));
+  assert.deepEqual([called.reply, called.gate], [true, false]);
+  const uncalled = d(msg({ content: "alguien sabe cómo se instala?" }));
+  assert.deepEqual([uncalled.reply, uncalled.gate], [true, true]);
+  limiter.recordGate({ channelId: GENERAL });
+  assert.equal(d(msg({ content: "y en windows?" })).reason, SKIP_REASONS.GATE_CAP);
+});
+
+test("useful: the gate decides — NO stays quiet and spends no reply, YES answers", async () => {
+  e2eConfig();
+  setDiscordChannel(GENERAL, { mode: "useful", name: "general" });
+  const verdicts = [{ reply: false, reason: "chit-chat" }, { reply: true, reason: "install question" }];
+  const asked = [];
+  let turns = 0;
+  const transport = fakeTransport();
+  const d = createDiscordDispatcher({
+    transport, settleMs: 0, log: () => {},
+    gate: async ({ message }) => { asked.push(message); return verdicts.shift(); },
+    runTurn: async () => { turns += 1; return { text: "Se instala con npm." }; },
+  });
+  const a = { id: "1000000000000000041", name: "Eva", bot: false };
+  await d.handle(msg({ author: a, content: "jaja buenísimo" }));
+  await d.drain();
+  assert.equal(turns, 0, "a NO costs no turn");
+  await d.handle(msg({ author: { id: "1000000000000000042", name: "Fede", bot: false }, content: "cómo se instala apx?" }));
+  await d.drain();
+  assert.equal(turns, 1);
+  assert.equal(asked.length, 2);
+  assert.match(asked[1], /^Fede: cómo se instala apx\?$/);
+  assert.equal(transport.sent.length, 1);
+  setDiscordChannel(GENERAL, { mode: "mention", name: "general" });
+});
+
+test("useful: an unreadable or failed gate is a NO", async () => {
+  const { parseGateVerdict, shouldReplyUncalled, gatePrompt, DEFAULT_REPLY_WHEN } = await import("#core/channels/discord/gate.js");
+  assert.deepEqual(parseGateVerdict('ok {"reply": true, "reason": "question"}'), { reply: true, reason: "question" });
+  assert.equal(parseGateVerdict("sure, I'd reply").reply, false);
+  assert.equal(parseGateVerdict('{"reply": "yes"}').reply, false, "only a literal true counts");
+  const failed = await shouldReplyUncalled({
+    globalConfig: { super_agent: { model: "mock:base" } }, dc: {}, message: "x",
+    callEngineFn: async () => { throw new Error("503"); },
+  });
+  assert.equal(failed.reply, false);
+  const none = await shouldReplyUncalled({ globalConfig: {}, dc: {}, message: "x" });
+  assert.equal(none.reply, false);
+  assert.match(gatePrompt({ criterion: "", notes: "", recent: [], message: "hola" }), new RegExp(DEFAULT_REPLY_WHEN.slice(0, 30)));
+});
+
+test("useful: the criterion is capped and a bad gate model refused", () => {
+  assert.throws(() => patchDiscordConfig({ reply_when: "x".repeat(2_001) }), /limit is 2000/);
+  assert.throws(() => patchDiscordConfig({ gate_model: "gpt-mini" }), /provider:model/);
+  assert.equal(patchDiscordConfig({ reply_when: "Solo preguntas de instalación.", gate_model: "ollama:qwen3:8b" }).reply_when, "Solo preguntas de instalación.");
+  patchDiscordConfig({ reply_when: "", gate_model: "" });
+});
