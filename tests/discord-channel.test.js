@@ -418,7 +418,7 @@ test("review: inbound rows carry our clock, Discord's time rides in meta", async
 // ── "useful" mode: uncalled replies only when a gate says so ────────────────
 
 test("useful: a call is answered directly; uncalled goes to the gate; the gate has its own cap", () => {
-  let now = 5_000_000;
+  const now = 5_000_000;
   const limiter = createDiscordLimiter({ now: () => now });
   const dc = baseDc({
     channels: { [GENERAL]: { mode: "useful" } },
