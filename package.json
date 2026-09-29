@@ -40,6 +40,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:web": "node scripts/lint-web.js",
+    "e2e:gate": "node scripts/e2e-gate.js",
     "typecheck:tui": "node scripts/typecheck-tui.js",
     "build:web": "node scripts/build-web.js",
     "preflight": "npm run lint && npm run lint:web && npm run test:ci && node scripts/build-web.js && (cd src/interfaces/web && npx --no-install tsc --noEmit) && npm run typecheck:tui",
