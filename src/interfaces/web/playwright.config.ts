@@ -54,10 +54,15 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer: {
-    command: "pnpm exec vite --port 7431 --strictPort",
-    url: WEB_URL,
-    reuseExistingServer: true,
-    timeout: 60_000,
-  },
+  // `scripts/e2e-gate.js` boots its own daemon, which serves the built bundle
+  // itself — no vite. Everywhere else (`pnpm e2e` during development) vite
+  // serves the panel with hot reload, proxying /api to APX_DAEMON_URL.
+  webServer: process.env.APX_E2E_EXTERNAL_SERVER
+    ? undefined
+    : {
+        command: "pnpm exec vite --port 7431 --strictPort",
+        url: WEB_URL,
+        reuseExistingServer: true,
+        timeout: 60_000,
+      },
 });
