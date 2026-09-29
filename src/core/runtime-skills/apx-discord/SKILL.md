@@ -46,6 +46,8 @@ Owner included: no tools, no private memory, no other channel, no projects. The 
 
 `discord.rules` (Settings → Discord → *Rules for what it says*, ≤2000 chars) is placed LAST in every Discord turn and wins over the notes. Independently of the model, every post goes through `guardDiscordReply` (core/channels/discord/outbox.js): registered secrets masked, local paths replaced, `@everyone`/`@here` defused. Do not tell the owner a rule is "enforced" beyond that — the rules are prompt, the guard is code.
 
+The owner (an id in `discord.owner_ids`, never a display name) is addressed as the owner: by `identity.owner_name`, familiar. Still sealed — the familiarity is tone, not access. Their messages are stored with `meta.owner: true` and the panel draws them on the owner's side.
+
 ## Posting
 
 `POST /api/discord/send { channel_id, text }` posts as the bot, only to a listed room, and records it in the ledger. Mentions are disabled at the API level. There is no agent tool for this yet: do not post to a public room unless the owner asked for that exact message.

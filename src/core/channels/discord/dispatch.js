@@ -17,6 +17,7 @@
 import { CHANNELS } from "#core/constants/channels.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { readConfig } from "#core/config/index.js";
+import { readIdentity } from "#core/identity/self.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readDiscordConfig } from "./config.js";
@@ -34,14 +35,26 @@ const COMPACT_CHECK_EVERY = 20;
 // spoke in their community — not to be pinged for every reply.
 const REPORT_WINDOW_MS = 30 * 60_000;
 
-/** Who the turn is talking to, in two lines. Nothing about the owner. */
-function relationshipFor(msg, dc) {
-  const name = msg.author?.name || "someone";
-  const lines = [`# Who you are answering\n${name}, a member of this Discord community.`];
+/**
+ * Who the turn is talking to. For a stranger, their Discord name and nothing
+ * else. For the owner — recognised by account id, never by what a message
+ * claims — the name they go by, so the agent talks to them rather than at a
+ * member of the public. The owner's name is theirs to put in their own room;
+ * nothing else about them is added.
+ */
+export function relationshipFor(msg, dc) {
+  const discordName = msg.author?.name || "someone";
   if ((dc.owner_ids || []).includes(msg.author?.id)) {
-    lines.push("This is your owner's own Discord account. The room is still public: answer them as you would anyone here, with nothing private.");
+    let ownerName = "";
+    try { ownerName = String(readIdentity()?.owner_name || "").trim(); } catch { /* no identity yet */ }
+    const name = ownerName || discordName;
+    return [
+      "# Who you are answering",
+      `Your owner, ${name} (on Discord: ${discordName}), writing from their own account — verified by account id before this turn.`,
+      `Talk to them as your owner: by name, familiar and direct. The room is public, so nothing private goes in the answer.`,
+    ].join("\n");
   }
-  return lines.join("\n");
+  return `# Who you are answering\n${discordName}, a member of this Discord community.`;
 }
 
 function inboundMeta(msg, botIdOf = () => null, ownerIds = []) {
