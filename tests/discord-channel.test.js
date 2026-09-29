@@ -479,3 +479,56 @@ test("useful: the criterion is capped and a bad gate model refused", () => {
   assert.equal(patchDiscordConfig({ reply_when: "Solo preguntas de instalación.", gate_model: "ollama:qwen3:8b" }).reply_when, "Solo preguntas de instalación.");
   patchDiscordConfig({ reply_when: "", gate_model: "" });
 });
+
+// ── what it says: rules, guardrail, and how a room reads ────────────────────
+
+test("rules: capped, and placed LAST in what the turn is told", () => {
+  assert.throws(() => patchDiscordConfig({ rules: "x".repeat(2_001) }), /limit is 2000/);
+  const note = buildDiscordRoomNote({ msg: msg(), recent: ["Bob: hola"], knowledge: "notas", rules: "Nunca prometas fechas." });
+  assert.ok(note.trimEnd().endsWith("Nunca prometas fechas."), "the rules close the prompt");
+  assert.match(note, /# Your owner's rules — always follow them/);
+});
+
+test("guard: secrets, local paths and mass mentions never reach the room", async () => {
+  const { guardDiscordReply } = await import("#core/channels/discord/outbox.js");
+  const { registerSecretValues, clearRegisteredSecretValues } = await import("#core/config/secret-values.js");
+  registerSecretValues(["sk-not-a-real-key-123456"]);
+  const g = guardDiscordReply("La key es sk-not-a-real-key-123456, está en /Users/acme/.apx/config.json. @everyone mirá");
+  assert.ok(!g.text.includes("sk-not-a-real-key-123456"));
+  assert.ok(!g.text.includes("/Users/acme"));
+  assert.ok(!/@everyone\b/.test(g.text));
+  assert.deepEqual(g.changed.sort(), ["local path", "mass mention", "secret"]);
+  assert.deepEqual(guardDiscordReply("Se instala con `npm i -g x`.").changed, []);
+  clearRegisteredSecretValues();
+});
+
+test("guard: a guarded reply is what gets posted and recorded", async () => {
+  e2eConfig();
+  const transport = fakeTransport();
+  const d = createDiscordDispatcher({
+    transport, settleMs: 0, log: () => {},
+    runTurn: async () => ({ text: "Fijate en /Volumes/acme/secreto/notas.md" }),
+  });
+  await d.handle(msg({ author: { id: "1000000000000000051", name: "Gus", bot: false }, content: "roby dónde está?", mentions: [BOT] }));
+  await d.drain();
+  assert.equal(transport.sent[0].content, "Fijate en [local path]");
+});
+
+test("a room reads as a room: mentions by name, thread titled #room, speakers named", async () => {
+  const { readableMentions } = await import("#core/channels/discord/gateway.js");
+  assert.equal(
+    readableMentions("<@1000000000000000001> ya está acá, mirá <#2000000000000000002>", {
+      mentions: [{ id: "1000000000000000001", username: "roby" }],
+      channels: new Map([["2000000000000000002", { name: "general" }]]),
+    }),
+    "@roby ya está acá, mirá #general",
+  );
+  const { shapeLedgerMessage, listGlobalThreads } = await import("#core/stores/messages.js");
+  const shaped = shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Hana" } });
+  assert.equal(shaped.speaker, "Hana");
+  assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: {} }).speaker, undefined, "an owner turn stays the owner's");
+  const threads = listGlobalThreads({ channels: ["discord"] });
+  const general = threads.find((t) => String(t.id).includes(GENERAL));
+  assert.equal(general?.title, "#general");
+  assert.equal(general?.contact_name, "#general", "the inbox row is the room too");
+});

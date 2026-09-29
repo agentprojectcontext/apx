@@ -42,6 +42,10 @@ A burst from one person inside `limits.burst_window_ms` gets ONE answer.
 
 Owner included: no tools, no private memory, no other channel, no projects. The bot answers from the room's recent messages, its running summary, recall from that room's own index (`discord:<channel_id>` scope) and the owner's notes (`discord.knowledge`, edited in Settings → Discord). Do not tell anyone the bot can look something up in the code or docs — it cannot. If it keeps missing an answer, the fix is the owner's notes.
 
+## Rules and the guardrail
+
+`discord.rules` (Settings → Discord → *Rules for what it says*, ≤2000 chars) is placed LAST in every Discord turn and wins over the notes. Independently of the model, every post goes through `guardDiscordReply` (core/channels/discord/outbox.js): registered secrets masked, local paths replaced, `@everyone`/`@here` defused. Do not tell the owner a rule is "enforced" beyond that — the rules are prompt, the guard is code.
+
 ## Posting
 
 `POST /api/discord/send { channel_id, text }` posts as the bot, only to a listed room, and records it in the ledger. Mentions are disabled at the API level. There is no agent tool for this yet: do not post to a public room unless the owner asked for that exact message.

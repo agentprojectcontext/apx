@@ -106,6 +106,7 @@ export default {
           names: dc.names,
           knowledge: dc.knowledge,
           reply_when: dc.reply_when,
+          rules: dc.rules,
           gate_model: dc.gate_model,
           channels: Object.entries(dc.channels).map(([id, row]) => ({
             id,

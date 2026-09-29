@@ -70,6 +70,19 @@ const CATEGORY_TYPE = 4;
  * A Discord MESSAGE_CREATE payload, reduced to what the dispatcher reads.
  * `channels` is the name/parent cache the gateway keeps from guild events.
  */
+/**
+ * Discord writes mentions as ids — `<@123>`, `<#456>`, `<@&789>` — and a model
+ * reading "<@1554271631227224091> ya está acá" does not know that is itself.
+ * Turn them into the names a person sees in the client.
+ */
+export function readableMentions(text, { mentions = [], channels = new Map() } = {}) {
+  const names = new Map(mentions.map((m) => [m.id, m.member?.nick || m.global_name || m.username || "someone"]));
+  return String(text || "")
+    .replace(/<@!?(\d+)>/g, (_m, id) => `@${names.get(id) || "someone"}`)
+    .replace(/<#(\d+)>/g, (_m, id) => `#${channels.get(id)?.name || "channel"}`)
+    .replace(/<@&(\d+)>/g, "@role");
+}
+
 export function normalizeDiscordMessage(d, channels = new Map()) {
   const room = channels.get(d.channel_id) || {};
   const author = d.author || {};
@@ -85,7 +98,7 @@ export function normalizeDiscordMessage(d, channels = new Map()) {
       name: d.member?.nick || author.global_name || author.username || "someone",
       bot: author.bot === true,
     },
-    content: String(d.content || ""),
+    content: readableMentions(d.content, { mentions: d.mentions || [], channels }),
     mentions: (d.mentions || []).map((m) => m.id),
     mention_everyone: d.mention_everyone === true,
     reply_to: ref
@@ -93,7 +106,7 @@ export function normalizeDiscordMessage(d, channels = new Map()) {
           id: ref.id,
           author_id: ref.author?.id || null,
           author_name: ref.member?.nick || ref.author?.global_name || ref.author?.username || null,
-          content: String(ref.content || ""),
+          content: readableMentions(ref.content, { mentions: ref.mentions || [], channels }),
         }
       : null,
     ts: d.timestamp ? new Date(d.timestamp).toISOString() : null,

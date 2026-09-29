@@ -7,6 +7,7 @@
 //     "token": "…",                     // the bot token — a credential, never logged
 //     "owner_ids": ["1234567890"],      // the owner's Discord user id(s)
 //     "names": ["roby"],                // words that count as calling the bot
+//     "rules": "…",                     // hard rules for what it says — win over everything
 //     "knowledge": "…",                 // what it can do and answer — written by the owner, public
 //     "channels": {
 //       "<channel_id>": { "mode": "always" | "mention" | "read", "name": "apx-help" }
@@ -59,6 +60,8 @@ export const DISCORD_LIMIT_DEFAULTS = Object.freeze({
 
 // How long the "when to reply" criterion may be. It rides in every gate call.
 export const REPLY_WHEN_MAX_CHARS = 2_000;
+// The owner's rules ride in every turn too, last in the prompt, where they win.
+export const RULES_MAX_CHARS = 2_000;
 
 export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
   // The last messages of the room, verbatim. The layer that answers "what do
@@ -78,7 +81,7 @@ export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
 // not, and costs every call.
 export const KNOWLEDGE_MAX_CHARS = 12_000;
 
-const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge", "reply_when", "gate_model"];
+const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge", "reply_when", "gate_model", "rules"];
 
 export function normalizeDiscordMode(mode) {
   const m = String(mode || "").trim().toLowerCase();
@@ -134,6 +137,7 @@ export function readDiscordConfig(cfg = readConfig()) {
     names: listOfNames(d.names),
     knowledge: typeof d.knowledge === "string" ? d.knowledge : "",
     reply_when: typeof d.reply_when === "string" ? d.reply_when : "",
+    rules: typeof d.rules === "string" ? d.rules : "",
     gate_model: typeof d.gate_model === "string" ? d.gate_model : "",
     channels: normalizeChannels(d.channels),
     limits: Object.fromEntries(
@@ -173,6 +177,12 @@ export function patchDiscordConfig(patch = {}) {
       const text = String(patch[k] || "");
       if (text.length > REPLY_WHEN_MAX_CHARS) {
         throw new Error(`the reply criterion is ${text.length} characters; the limit is ${REPLY_WHEN_MAX_CHARS}`);
+      }
+      cfg.discord[k] = text;
+    } else if (k === "rules") {
+      const text = String(patch[k] || "");
+      if (text.length > RULES_MAX_CHARS) {
+        throw new Error(`the rules are ${text.length} characters; the limit is ${RULES_MAX_CHARS}`);
       }
       cfg.discord[k] = text;
     } else if (k === "gate_model") {

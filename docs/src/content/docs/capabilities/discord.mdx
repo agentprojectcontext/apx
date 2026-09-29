@@ -113,6 +113,9 @@ be one careless sentence from publishing it. Give the agent real work on Telegra
 
 - Each room's messages are indexed under their own scope (`discord:<channel_id>`): they never
   surface in your own recall, and your memory never surfaces in theirs.
+- **Your rules** (*Rules for what it says*) close every prompt, after everything else, so they win.
+- **A guardrail in code** runs on every post, whatever the model wrote: registered secrets are masked,
+  paths on your machine become `[local path]`, and `@everyone`/`@here` are defused.
 - Posts are sent with mentions switched off at the API level, so the bot cannot ping `@everyone`
   even if the model writes it.
 - What the bot did reaches you on Telegram, coalesced per room and subject to the same interruption

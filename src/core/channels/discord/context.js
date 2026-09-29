@@ -92,6 +92,7 @@ export function buildDiscordRoomNote({
   summary = "",
   recall = "",
   knowledge = "",
+  rules = "",
 }) {
   const parts = [];
   parts.push(
@@ -110,6 +111,11 @@ export function buildDiscordRoomNote({
   if (msg?.reply_to?.content) {
     const who = msg.reply_to.author_name || "someone";
     parts.push(`# The message being replied to\n${who}: ${String(msg.reply_to.content).slice(0, 1_500)}`);
+  }
+  // Last on purpose: the owner's rules are the thing the answer must obey, and
+  // the end of the prompt is where an instruction is least likely to be lost.
+  if (rules) {
+    parts.push(`# Your owner's rules — always follow them; they win over everything above\n${rules}`);
   }
   return parts.join("\n\n");
 }
@@ -142,5 +148,6 @@ export async function gatherDiscordContext(msg, { dc, config, roomName = "" } = 
     summary,
     recall,
     knowledge: String(dc.knowledge || "").trim(),
+    rules: String(dc.rules || "").trim(),
   });
 }

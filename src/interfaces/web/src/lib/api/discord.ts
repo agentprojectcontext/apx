@@ -25,6 +25,8 @@ export interface DiscordStatus {
   knowledge?: string;
   /** When a `useful` room may be answered uncalled. Empty = the built-in default. */
   reply_when?: string;
+  /** Hard rules for what the bot says. Last in every prompt. */
+  rules?: string;
   gate_model?: string;
 }
 
@@ -46,6 +48,7 @@ export interface DiscordSettingsPatch {
   names?: string[];
   knowledge?: string;
   reply_when?: string;
+  rules?: string;
 }
 
 export const Discord = {

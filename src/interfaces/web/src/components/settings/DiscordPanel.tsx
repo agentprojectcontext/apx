@@ -28,6 +28,7 @@ interface RoomRow {
 // Mirror KNOWLEDGE_MAX_CHARS / REPLY_WHEN_MAX_CHARS in core/channels/discord/config.js.
 const KNOWLEDGE_MAX = 12_000;
 const REPLY_WHEN_MAX = 2_000;
+const RULES_MAX = 2_000;
 
 // Snowflakes are digits. Checked here too so a pasted "#general" says what is
 // wrong under the field instead of as a 400 in a toast.
@@ -84,6 +85,7 @@ export function DiscordPanel() {
   const [names, setNames] = useState("");
   const [knowledge, setKnowledge] = useState("");
   const [replyWhen, setReplyWhen] = useState("");
+  const [rules, setRules] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [onlyIncluded, setOnlyIncluded] = useState(false);
@@ -104,6 +106,7 @@ export function DiscordPanel() {
     setNames(data.names.join(", "));
     setKnowledge(data.knowledge || "");
     setReplyWhen(data.reply_when || "");
+    setRules(data.rules || "");
     setEnabled(data.enabled);
     // Only on first load: the 5 s poll must not wipe what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,7 +118,7 @@ export function DiscordPanel() {
   const modeOptions = (["read", "mention", "useful", "always"] as DiscordMode[]).map((m) => ({ value: m, label: t(`settings.discord.mode_${m}`) }));
   const offOption = { value: OFF, label: t("settings.discord.mode_off") };
   const ownersBad = splitList(owners).filter((x) => !isSnowflake(x));
-  const tooLong = knowledge.length > KNOWLEDGE_MAX || replyWhen.length > REPLY_WHEN_MAX;
+  const tooLong = knowledge.length > KNOWLEDGE_MAX || replyWhen.length > REPLY_WHEN_MAX || rules.length > RULES_MAX;
   const includedCount = data.channels.length;
   const guildNames = [...new Set((roomsData?.rooms || []).map((r) => r.guild).filter(Boolean))];
   // What Discord says about the bot right now — the header's one line.
@@ -141,6 +144,7 @@ export function DiscordPanel() {
         names: splitList(names),
         knowledge: knowledge.trim(),
         reply_when: replyWhen.trim(),
+        rules: rules.trim(),
         enabled,
       });
       if (reconnect) await Discord.reconnect();
@@ -302,6 +306,18 @@ export function DiscordPanel() {
               value={knowledge}
               placeholder={t("settings.discord.knowledge_placeholder", { persona })}
               onChange={(e) => setKnowledge(e.target.value)}
+            />
+          </Field>
+          <Field
+            label={t("settings.discord.rules")}
+            hint={t("settings.discord.rules_hint", { n: rules.length, max: RULES_MAX })}
+            error={rules.length > RULES_MAX ? t("settings.discord.too_long", { max: RULES_MAX }) : undefined}
+          >
+            <Textarea
+              rows={5}
+              value={rules}
+              placeholder={t("settings.discord.rules_placeholder")}
+              onChange={(e) => setRules(e.target.value)}
             />
           </Field>
           <Field
