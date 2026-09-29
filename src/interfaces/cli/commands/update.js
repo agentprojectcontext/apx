@@ -3,6 +3,7 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { getLatestVersion } from "#core/update-check.js";
 import { apxBanner } from "../branding.js";
+import { http } from "../http.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
 
@@ -51,9 +52,29 @@ function detectInstaller() {
   return "npm";
 }
 
-function daemonRunning() {
-  const r = spawnSync("apx", ["daemon", "status", "--json"], { encoding: "utf8", stdio: "pipe" });
-  try { return JSON.parse(r.stdout)?.running === true; } catch { return false; }
+// What to do with a running daemon around the install.
+//
+// This used to ask `apx daemon status --json`, a flag that command never had:
+// it printed its coloured status block, JSON.parse threw, and the answer was
+// "not running" on every machine, every time. So `apx update` never stopped
+// the daemon and never started it again — npm swapped the files underneath a
+// process still holding the old code in memory. The terminal said the new
+// version; the panel kept reporting the old one through F5, since /api/health
+// answers from the process, and a new bundle talking to an old daemon lost the
+// agents and chats. Only a manual `apx restart` put it right.
+//
+// After the install the restart is `apx restart`, run by name so PATH resolves
+// the NEW install — the same command that already fixed it by hand, and the
+// one that also brings a running desktop window along.
+//
+// Stopping BEFORE the install is only for Windows, where Node holds its files
+// open. Anywhere else it is worse than useless: a daemon supervised by
+// launchd/systemd (KeepAlive / Restart=always) is respawned the moment it
+// exits — from the half-replaced tree npm is still writing.
+export function daemonPlan({ running, platform = process.platform }) {
+  if (!running) return { stopBefore: false, after: null };
+  if (platform === "win32") return { stopBefore: true, after: "start" };
+  return { stopBefore: false, after: "restart" };
 }
 
 export async function cmdUpdate(args, currentVersion) {
@@ -84,9 +105,8 @@ export async function cmdUpdate(args, currentVersion) {
     }
   }
 
-  // Stop daemon before replacing the binary so Node doesn't lock files on Windows.
-  const wasDaemonRunning = daemonRunning();
-  if (wasDaemonRunning) {
+  const plan = daemonPlan({ running: await http.ping() });
+  if (plan.stopBefore) {
     process.stdout.write("\nStopping daemon... ");
     spawnSync("apx", ["daemon", "stop"], { stdio: "inherit" });
     console.log("stopped.");
@@ -121,18 +141,27 @@ export async function cmdUpdate(args, currentVersion) {
 
   if (result.status !== 0) {
     console.error(`\n❌ Update failed (exit ${result.status})`);
-    if (wasDaemonRunning) {
+    // Only a daemon we stopped needs bringing back; otherwise the old one
+    // never went anywhere.
+    if (plan.stopBefore) {
       console.log("Restarting daemon with old version...");
       spawnSync("apx", ["daemon", "start"], { stdio: "inherit" });
     }
     process.exit(result.status || 1);
   }
 
-  // Restart daemon with new version.
-  if (wasDaemonRunning) {
+  if (plan.after === "start") {
     process.stdout.write("\nStarting daemon... ");
     spawnSync("apx", ["daemon", "start"], { stdio: "inherit" });
     console.log("done.");
+  } else if (plan.after === "restart") {
+    console.log("\nRestarting daemon on the new version...");
+    const r = spawnSync("apx", ["restart"], { stdio: "inherit" });
+    if (r.status !== 0) {
+      // Say it, rather than leaving the half-updated state to be discovered
+      // in the panel.
+      console.error("\n⚠️  The daemon did not restart. Run: apx restart");
+    }
   }
 
   console.log(`\n✅ Updated to ${latest}.`);
