@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
-import { Trash2 } from "lucide-react";
+import { Camera, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { Section } from "../Section";
-import { Badge, Button, Field, Input, Loading, Switch } from "../ui";
+import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { Discord, type DiscordMode, type DiscordRoom, type DiscordStatus } from "../../lib/api/discord";
 import { t } from "../../i18n";
+import { usePersonaName } from "../../hooks/usePersonaName";
 
 const MODES: DiscordMode[] = ["always", "mention", "read"];
+
+// Mirrors KNOWLEDGE_MAX_CHARS in core/channels/discord/config.js.
+const KNOWLEDGE_MAX = 12_000;
 
 // Snowflakes are digits. Checked here too so a pasted "#general" says what is
 // wrong under the field instead of as a 400 in a toast.
@@ -56,6 +60,7 @@ function stateTone(s: DiscordStatus["state"]) {
  */
 export function DiscordPanel() {
   const toast = useToast();
+  const persona = usePersonaName();
   const { data, isLoading, mutate } = useSWR<DiscordStatus>("/api/discord/status", () => Discord.status(), {
     refreshInterval: 5_000,
   });
@@ -84,7 +89,7 @@ export function DiscordPanel() {
     if (!data) return;
     setOwners(data.owner_ids.join(", "));
     setNames(data.names.join(", "));
-    setKnowledge(data.knowledge_path || "");
+    setKnowledge(data.knowledge || "");
     setEnabled(data.enabled);
     // Only on first load: the 5 s poll must not wipe what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,7 +108,7 @@ export function DiscordPanel() {
         ...(token.trim() ? { token: token.trim() } : {}),
         owner_ids: splitList(owners),
         names: splitList(names),
-        knowledge_path: knowledge.trim(),
+        knowledge: knowledge.trim(),
         enabled,
       });
       if (reconnect) await Discord.reconnect();
@@ -182,31 +187,46 @@ export function DiscordPanel() {
   return (
     <div className="grid gap-6 xl:grid-cols-2" data-testid="discord-panel">
       <Section title={t("settings.discord.title")} description={t("settings.discord.subtitle")}>
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm" data-testid="discord-state">
-          {data.bot ? (
-            data.bot.avatar_url
-              ? <img src={data.bot.avatar_url} alt="" className="h-8 w-8 rounded-full" />
-              : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">{data.bot.name.slice(0, 1).toUpperCase()}</span>
-          ) : null}
-          <Badge tone={stateTone(data.state)}>{t(`settings.discord.state_${data.state}`)}</Badge>
-          {data.bot ? <span className="text-muted-foreground">{data.bot.name}</span> : null}
-          {connected ? (
-            <>
-              <input
-                ref={avatarInput}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                className="hidden"
-                onChange={(e) => changeAvatar(e.target.files?.[0])}
-              />
-              <Button size="sm" variant="ghost" loading={avatarBusy} onClick={() => avatarInput.current?.click()}>
+        <div className="mb-6 flex flex-col items-center gap-2 text-center" data-testid="discord-state">
+          <input
+            ref={avatarInput}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            className="hidden"
+            onChange={(e) => changeAvatar(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            disabled={!connected || avatarBusy}
+            onClick={() => avatarInput.current?.click()}
+            aria-label={t("settings.discord.change_avatar")}
+            title={connected ? t("settings.discord.change_avatar") : undefined}
+            className="group relative h-28 w-28 overflow-hidden rounded-full border border-border bg-muted disabled:cursor-default"
+          >
+            {data.bot?.avatar_url
+              ? <img src={data.bot.avatar_url.replace("size=128", "size=256")} alt="" className="h-full w-full object-cover" />
+              : <span className="flex h-full w-full items-center justify-center text-4xl font-semibold text-muted-foreground">
+                  {(data.bot?.name || "?").slice(0, 1).toUpperCase()}
+                </span>}
+            {connected ? (
+              <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                {avatarBusy ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
                 {t("settings.discord.change_avatar")}
-              </Button>
-            </>
-          ) : null}
-          {data.error ? <span className="text-destructive">{data.error}</span> : null}
+              </span>
+            ) : null}
+            {avatarBusy ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white">
+                <Loader2 size={22} className="animate-spin" />
+              </span>
+            ) : null}
+          </button>
+          <div className="text-base font-semibold">{data.bot?.name || t("settings.discord.no_bot")}</div>
+          <Badge tone={stateTone(data.state)}>{t(`settings.discord.state_${data.state}`)}</Badge>
+          {data.error ? <p className="max-w-sm text-[12px] text-destructive">{data.error}</p> : null}
           {data.has_token ? (
-            <Button size="sm" variant="ghost" onClick={reconnect}>{t("settings.discord.reconnect")}</Button>
+            <Button size="sm" onClick={reconnect}>
+              <RefreshCw size={13} /> {t("settings.discord.reconnect")}
+            </Button>
           ) : null}
         </div>
         <div className="grid gap-3">
@@ -232,13 +252,22 @@ export function DiscordPanel() {
           <Field label={t("settings.discord.names")} hint={t("settings.discord.names_hint")}>
             <Input value={names} placeholder="roby" onChange={(e) => setNames(e.target.value)} />
           </Field>
-          <Field label={t("settings.discord.knowledge")} hint={t("settings.discord.knowledge_hint")}>
-            <Input value={knowledge} placeholder="/path/to/about.md" onChange={(e) => setKnowledge(e.target.value)} />
+          <Field
+            label={t("settings.discord.knowledge")}
+            hint={t("settings.discord.knowledge_hint", { n: knowledge.length, max: KNOWLEDGE_MAX })}
+            error={knowledge.length > KNOWLEDGE_MAX ? t("settings.discord.knowledge_too_long", { max: KNOWLEDGE_MAX }) : undefined}
+          >
+            <Textarea
+              rows={9}
+              value={knowledge}
+              placeholder={t("settings.discord.knowledge_placeholder", { persona })}
+              onChange={(e) => setKnowledge(e.target.value)}
+            />
           </Field>
           <Switch checked={enabled} onChange={setEnabled} label={t("settings.discord.enabled")} />
         </div>
         <div className="mt-4">
-          <Button variant="primary" loading={busy} disabled={ownersBad.length > 0} onClick={save}>
+          <Button variant="primary" loading={busy} disabled={ownersBad.length > 0 || knowledge.length > KNOWLEDGE_MAX} onClick={save}>
             {t("common.save")}
           </Button>
         </div>

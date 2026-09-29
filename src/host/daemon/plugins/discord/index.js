@@ -104,7 +104,7 @@ export default {
           has_token: dc.hasToken,
           owner_ids: dc.owner_ids,
           names: dc.names,
-          knowledge_path: dc.knowledge_path,
+          knowledge: dc.knowledge,
           channels: Object.entries(dc.channels).map(([id, row]) => ({
             id,
             mode: row.mode,

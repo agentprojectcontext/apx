@@ -191,7 +191,7 @@ test("context: the latest summary wins, and the note keeps its order", () => {
     recall: "# Older messages\n• algo",
     knowledge: "APX es un daemon.",
   });
-  const order = ["# This room", "# Public facts", "# What the room was talking about", "# Older messages", "# Recent messages", "# The message being replied to"]
+  const order = ["# This room", "# Your owner's notes", "# What the room was talking about", "# Older messages", "# Recent messages", "# The message being replied to"]
     .map((h) => note.indexOf(h));
   assert.ok(order.every((i) => i >= 0), note);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
@@ -393,13 +393,16 @@ test("review: splitting never drops a character, and reopens the fence with its 
   assert.ok(splitForDiscord(`a ${"b".repeat(2500)}`).every((p) => p.length > 10), "no crumb messages");
 });
 
-test("review: the knowledge file must be public text, never anything under the APX home", () => {
-  assert.throws(() => patchDiscordConfig({ knowledge_path: path.join(process.env.APX_HOME, "config.json") }), /APX home/);
-  assert.throws(() => patchDiscordConfig({ knowledge_path: path.join(TMP_HOME, "notes.json") }), /\.md or \.txt/);
-  const ok = path.join(TMP_HOME, "about.md");
-  fs.writeFileSync(ok, "APX is a daemon.");
-  assert.equal(patchDiscordConfig({ knowledge_path: ok }).knowledge_path, ok);
-  patchDiscordConfig({ knowledge_path: "" });
+test("notes: the owner's notes reach the turn, and are capped", async () => {
+  assert.throws(() => patchDiscordConfig({ knowledge: "x".repeat(12_001) }), /limit is 12000/);
+  patchDiscordConfig({ knowledge: "Roby answers questions about APX. Docs: https://example.com/docs" });
+  const globalConfig = e2eConfig();
+  const transport = fakeTransport();
+  const d = createDiscordDispatcher({ transport, globalConfig: { ...globalConfig, discord: readConfig().discord }, settleMs: 0, log: () => {} });
+  await d.handle(msg({ author: { id: "1000000000000000031", name: "Dana", bot: false }, content: "roby qué sabés hacer? [mock:system]", mentions: [BOT] }));
+  await d.drain();
+  assert.match(transport.sent.map((x) => x.content).join("\n"), /Roby answers questions about APX/);
+  patchDiscordConfig({ knowledge: "" });
 });
 
 test("review: inbound rows carry our clock, Discord's time rides in meta", async () => {

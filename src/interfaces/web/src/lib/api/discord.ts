@@ -21,7 +21,8 @@ export interface DiscordStatus {
   bot?: { id: string; name: string; avatar_url?: string | null } | null;
   /** How many servers the bot is in. 0 = connected but not invited anywhere. */
   guilds?: number;
-  knowledge_path?: string;
+  /** The owner's notes: what the bot can do and answer. Public by design. */
+  knowledge?: string;
 }
 
 /** A text room of a server the bot is in, as Discord reported it. */
@@ -40,7 +41,7 @@ export interface DiscordSettingsPatch {
   token?: string;
   owner_ids?: string[];
   names?: string[];
-  knowledge_path?: string;
+  knowledge?: string;
 }
 
 export const Discord = {

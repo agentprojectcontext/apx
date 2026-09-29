@@ -55,6 +55,7 @@ export async function cmdDiscordChannelRemove(id, { die }) {
 export async function cmdDiscordSet(a, { die }) {
   const f = a.flags;
   const patch = {};
+  if (f["token-stdin"] && f["knowledge-stdin"]) die("one stdin at a time: --token-stdin or --knowledge-stdin");
   if (f["token-stdin"]) {
     const token = readStdinSync().trim();
     if (!token) die("no token on stdin — try: pbpaste | apx discord set --token-stdin");
@@ -62,10 +63,10 @@ export async function cmdDiscordSet(a, { die }) {
   }
   if (f.owner !== undefined) patch.owner_ids = String(f.owner).split(",").map((x) => x.trim()).filter(Boolean);
   if (f.names !== undefined) patch.names = String(f.names).split(",").map((x) => x.trim()).filter(Boolean);
-  if (f.knowledge !== undefined) patch.knowledge_path = String(f.knowledge);
+  if (f["knowledge-stdin"]) patch.knowledge = readStdinSync().trim();
   if (f.enabled !== undefined) patch.enabled = !["false", "0", "no", "off"].includes(String(f.enabled));
   if (!Object.keys(patch).length) {
-    die("nothing to set — use --token-stdin, --owner <id,…>, --names <a,b>, --knowledge <path> or --enabled <true|false>");
+    die("nothing to set — use --token-stdin, --owner <id,…>, --names <a,b>, --knowledge-stdin or --enabled <true|false>");
   }
   await http.patch("/api/discord/settings", patch);
   console.log(`✅ updated: ${Object.keys(patch).map((k) => (k === "token" ? "token (hidden)" : k)).join(", ")}`);
