@@ -132,3 +132,22 @@ test("rooms: listed rooms carry their mode; empty, not an error, without a conne
     assert.deepEqual((await call("GET", "/discord/rooms")).body, { rooms: [] });
   });
 });
+
+test("avatar: a bad file is a 400 before Discord is asked; a good one goes to the plugin", async () => {
+  const got = [];
+  const plugin = {
+    status: () => ({ bot: { id: "1000000000000000001", name: "roby" } }),
+    setAvatar: async (d) => { got.push(d); return { id: "1000000000000000001", name: "roby", avatar_url: "https://cdn.example.com/a.png" }; },
+  };
+  const png = "data:image/png;base64," + Buffer.from("fake-png").toString("base64");
+  await withApi(async (call) => {
+    assert.equal((await call("PUT", "/discord/avatar", { data_url: "data:text/html;base64,PGgxPg==" })).status, 400);
+    const ok = await call("PUT", "/discord/avatar", { data_url: png });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.bot.avatar_url, "https://cdn.example.com/a.png");
+    assert.deepEqual(got, [png]);
+  }, plugin);
+  await withApi(async (call) => {
+    assert.equal((await call("PUT", "/discord/avatar", { data_url: png })).status, 503);
+  });
+});

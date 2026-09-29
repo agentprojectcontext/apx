@@ -6,6 +6,7 @@
 //   DELETE /discord/channels/:id                  — take a room off the list
 //   GET    /discord/channels/:id/history?limit=   — recent messages, from Discord
 //   POST   /discord/send  { channel_id, text }    — post as the bot
+//   PUT    /discord/avatar  { data_url }         — change the bot's avatar
 //   GET    /discord/rooms                         — the servers' text rooms, to pick from
 //   POST   /discord/reconnect                     — reconnect with the saved settings (a new token)
 //
@@ -20,6 +21,7 @@ import {
   isSnowflake,
 } from "#core/channels/discord/config.js";
 import { readConfig } from "#core/config/index.js";
+import { avatarProblem } from "#core/channels/discord/gateway.js";
 
 const unavailable = (res) =>
   res.status(503).json({ error: "discord is not connected (check discord.token and the daemon log)" });
@@ -72,6 +74,19 @@ export function register(api, { plugins }) {
     if (!p?.status?.().bot) return unavailable(res);
     const limit = Number(req.query.limit) || 50;
     res.json({ messages: await p.history(req.params.id, { limit }) });
+  }));
+
+  api.put("/discord/avatar", asyncRoute(async (req, res) => {
+    const problem = avatarProblem(req.body?.data_url);
+    if (problem) return res.status(400).json({ error: problem });
+    const p = dc();
+    if (!p?.status?.().bot) return unavailable(res);
+    try {
+      res.json({ bot: await p.setAvatar(req.body.data_url) });
+    } catch (e) {
+      // Discord's own refusal (most often its rate limit on avatar changes).
+      res.status(502).json({ error: e.message });
+    }
   }));
 
   // Empty (not an error) while disconnected or not invited anywhere: the panel

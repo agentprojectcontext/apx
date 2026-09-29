@@ -127,6 +127,8 @@ apx discord channel remove <channel_id>
 apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge <ruta>] [--enabled <true|false>]
 ```
 
-HTTP: `GET /api/discord/status`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
+La pantalla del panel también muestra el avatar del bot y lo cambia (la imagen se recorta a un cuadrado de 512 px; Discord deja cambiarlo un par de veces por hora).
+
+HTTP: `GET /api/discord/status`, `GET /api/discord/rooms`, `PUT /api/discord/avatar`, `POST /api/discord/reconnect`, `PATCH /api/discord/settings`, `PUT|DELETE /api/discord/channels/:id`,
 `GET /api/discord/channels/:id/history`, `POST /api/discord/send` (sólo a un canal listado).
 El token entra por `settings` y nunca se devuelve.

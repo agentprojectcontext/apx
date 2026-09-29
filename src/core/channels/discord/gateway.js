@@ -36,6 +36,28 @@ const FATAL_CLOSE = {
   4014: "Message Content Intent is not enabled for this bot — turn it on in the Developer Portal (Bot → Privileged Gateway Intents)",
 };
 
+// The CDN address of a user's avatar, or null for the default one.
+function avatarUrl(user) {
+  if (!user?.id || !user.avatar) return null;
+  const ext = String(user.avatar).startsWith("a_") ? "gif" : "png";
+  return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=128`;
+}
+
+// What Discord accepts as an avatar, and how big. Checked here so a wrong file
+// is refused with a sentence instead of Discord's 400. The size cap is ours,
+// not Discord's: the daemon's JSON body limit is 2 MB, and the panel downsizes
+// the picture to 512 px before sending, which lands far under it.
+export const AVATAR_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+export const AVATAR_MAX_BYTES = 1.5 * 1024 * 1024;
+
+export function avatarProblem(dataUrl) {
+  const m = /^data:([^;,]+);base64,(.+)$/s.exec(String(dataUrl || ""));
+  if (!m) return "the avatar must be an image sent as a data: URL";
+  if (!AVATAR_TYPES.includes(m[1])) return "the avatar must be a PNG, JPEG, GIF or WebP image";
+  if (Math.floor((m[2].length * 3) / 4) > AVATAR_MAX_BYTES) return "the avatar must be under 1.5 MB";
+  return null;
+}
+
 // Channel types that are threads (their parent is the room that governs them).
 const THREAD_TYPES = new Set([10, 11, 12]);
 
@@ -186,7 +208,7 @@ export function createDiscordGateway({
     if (t === "READY") {
       sessionId = d.session_id;
       resumeUrl = d.resume_gateway_url ? `${d.resume_gateway_url}/?v=10&encoding=json` : null;
-      botUser = { id: d.user?.id, name: d.user?.username };
+      botUser = { id: d.user?.id, name: d.user?.username, avatar_url: avatarUrl(d.user) };
       backoffMs = 1_000;
       setState("connected");
       log(`discord: connected as ${botUser.name} (${botUser.id})`);
@@ -353,6 +375,18 @@ export function createDiscordGateway({
         allowed_mentions: { parse: [], replied_user: true },
         ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
       });
+    },
+    /**
+     * Change the bot's own avatar. Discord rate-limits this hard (a couple of
+     * changes an hour), so a 429 here is surfaced, not retried in a loop.
+     */
+    async setAvatar(dataUrl) {
+      const problem = avatarProblem(dataUrl);
+      if (problem) throw new Error(problem);
+      const user = await rest("PATCH", "/users/@me", { avatar: dataUrl });
+      botUser = { ...(botUser || {}), id: user.id, name: user.username, avatar_url: avatarUrl(user) };
+      onStatus({ state, error: lastError, bot: botUser });
+      return botUser;
     },
     async typing(channelId) {
       return rest("POST", `/channels/${channelId}/typing`);
