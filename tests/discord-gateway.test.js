@@ -12,7 +12,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
 const { WebSocketServer } = await import("ws");
-const { createDiscordGateway, normalizeDiscordMessage, DISCORD_INTENTS } = await import("#core/channels/discord/gateway.js");
+const { createDiscordGateway, normalizeDiscordMessage, DISCORD_INTENTS, avatarProblem } = await import("#core/channels/discord/gateway.js");
 
 const BOT = "1000000000000000001";
 const GUILD = "4000000000000000001";
@@ -195,4 +195,25 @@ test("rooms: the server's text channels, under their category, voice and categor
     g.stop();
     await gw.close();
   }
+});
+
+test("avatar: only images, under the cap, sent as PATCH /users/@me", async () => {
+  const png = "data:image/png;base64," + Buffer.from("fake-png").toString("base64");
+  assert.equal(avatarProblem(png), null);
+  assert.match(avatarProblem("https://example.com/a.png"), /data: URL/);
+  assert.match(avatarProblem("data:text/html;base64,PGgxPg=="), /PNG, JPEG/);
+  assert.match(avatarProblem("data:image/png;base64," + "A".repeat(3_000_000)), /1\.5 MB/);
+
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true, status: 200, json: async () => ({ id: BOT, username: "roby", avatar: "abc123" }) };
+  };
+  const g = createDiscordGateway({ token: "t", fetchImpl, apiBase: "http://discord.invalid/api" });
+  const bot = await g.setAvatar(png);
+  assert.equal(calls[0].init.method, "PATCH");
+  assert.equal(calls[0].url, "http://discord.invalid/api/users/@me");
+  assert.equal(JSON.parse(calls[0].init.body).avatar, png);
+  assert.equal(bot.avatar_url, `https://cdn.discordapp.com/avatars/${BOT}/abc123.png?size=128`);
+  await assert.rejects(g.setAvatar("data:text/plain;base64,aGk="), /PNG, JPEG/);
 });

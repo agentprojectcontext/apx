@@ -488,6 +488,8 @@ export const en = {
       saved: "Saved",
       saved_reconnecting: "Saved — reconnecting the bot",
       bad_id: "Not a Discord ID: {id}",
+      change_avatar: "Change avatar",
+      avatar_saved: "Avatar updated on Discord",
       server_rooms: "Server channels",
       rooms_need_connection: "Connect the bot to pick channels from a list.",
       rooms_need_invite: "The bot is connected but is not in any server.",

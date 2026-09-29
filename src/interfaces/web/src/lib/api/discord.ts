@@ -18,7 +18,7 @@ export interface DiscordStatus {
   channels: DiscordChannelRow[];
   state: "off" | "connecting" | "connected" | "reconnecting" | "error";
   error?: string | null;
-  bot?: { id: string; name: string } | null;
+  bot?: { id: string; name: string; avatar_url?: string | null } | null;
   /** How many servers the bot is in. 0 = connected but not invited anywhere. */
   guilds?: number;
   knowledge_path?: string;
@@ -50,5 +50,6 @@ export const Discord = {
     http.put<DiscordChannelRow>(`/api/discord/channels/${encodeURIComponent(id)}`, body),
   removeChannel: (id: string) => http.del<{ ok: true }>(`/api/discord/channels/${encodeURIComponent(id)}`),
   rooms: () => http.get<{ rooms: DiscordRoom[] }>("/api/discord/rooms"),
+  setAvatar: (dataUrl: string) => http.put<{ bot: DiscordStatus["bot"] }>("/api/discord/avatar", { data_url: dataUrl }),
   reconnect: () => http.post<DiscordStatus>("/api/discord/reconnect", {}),
 };

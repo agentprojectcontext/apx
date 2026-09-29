@@ -119,6 +119,10 @@ export default {
         if (!gateway) throw new Error("discord is not connected");
         return postDiscord({ transport: gateway, channelId, text, room: gateway.channelName(channelId) });
       },
+      async setAvatar(dataUrl) {
+        if (!gateway) throw new Error("discord is not connected");
+        return gateway.setAvatar(dataUrl);
+      },
       /** The server's text rooms, each marked with its mode when it is listed. */
       rooms() {
         if (!gateway) return [];

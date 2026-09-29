@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { Trash2 } from "lucide-react";
 import { Section } from "../Section";
@@ -20,6 +20,23 @@ const INVITE_PERMISSIONS = String((1n << 10n) | (1n << 11n) | (1n << 16n) | (1n 
 
 const inviteUrl = (botId: string) =>
   `https://discord.com/oauth2/authorize?client_id=${botId}&scope=bot&permissions=${INVITE_PERMISSIONS}`;
+
+/**
+ * Any picture the owner picks → a 512×512 PNG data URL, cropped to a centred
+ * square. Discord shows avatars round and small; sending the original photo
+ * would only cost the upload (and trip the daemon's body limit).
+ */
+async function toAvatarDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas unavailable");
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 512, 512);
+  return canvas.toDataURL("image/png");
+}
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -59,6 +76,8 @@ export function DiscordPanel() {
     { refreshInterval: 15_000 },
   );
   const [pickMode, setPickMode] = useState<DiscordMode>("read");
+  const avatarInput = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const loaded = !!data;
   useEffect(() => {
@@ -107,6 +126,21 @@ export function DiscordPanel() {
     }
   };
 
+  const changeAvatar = async (file: File | undefined) => {
+    if (!file) return;
+    setAvatarBusy(true);
+    try {
+      await Discord.setAvatar(await toAvatarDataUrl(file));
+      await mutate();
+      toast.success(t("settings.discord.avatar_saved"));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setAvatarBusy(false);
+      if (avatarInput.current) avatarInput.current.value = "";
+    }
+  };
+
   const pick = async (room: DiscordRoom) => {
     try {
       await Discord.setChannel(room.id, { mode: pickMode, ...(room.name ? { name: room.name } : {}) });
@@ -149,8 +183,27 @@ export function DiscordPanel() {
     <div className="grid gap-6 xl:grid-cols-2" data-testid="discord-panel">
       <Section title={t("settings.discord.title")} description={t("settings.discord.subtitle")}>
         <div className="mb-4 flex flex-wrap items-center gap-2 text-sm" data-testid="discord-state">
+          {data.bot ? (
+            data.bot.avatar_url
+              ? <img src={data.bot.avatar_url} alt="" className="h-8 w-8 rounded-full" />
+              : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">{data.bot.name.slice(0, 1).toUpperCase()}</span>
+          ) : null}
           <Badge tone={stateTone(data.state)}>{t(`settings.discord.state_${data.state}`)}</Badge>
           {data.bot ? <span className="text-muted-foreground">{data.bot.name}</span> : null}
+          {connected ? (
+            <>
+              <input
+                ref={avatarInput}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                className="hidden"
+                onChange={(e) => changeAvatar(e.target.files?.[0])}
+              />
+              <Button size="sm" variant="ghost" loading={avatarBusy} onClick={() => avatarInput.current?.click()}>
+                {t("settings.discord.change_avatar")}
+              </Button>
+            </>
+          ) : null}
           {data.error ? <span className="text-destructive">{data.error}</span> : null}
           {data.has_token ? (
             <Button size="sm" variant="ghost" onClick={reconnect}>{t("settings.discord.reconnect")}</Button>
