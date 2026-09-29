@@ -56,8 +56,7 @@ async function openInboxThread(page: Page) {
 }
 
 function addProjectDialog(page: Page): Locator {
-  // The dialog carries no testid of its own; its kind select does.
-  return page.getByRole("dialog").filter({ has: page.getByTestId("project-kind") });
+  return page.getByRole("dialog").filter({ has: page.getByTestId("add-project-path") });
 }
 
 /** Open add-project from the rail, wait, and assert it is still open with the
@@ -148,7 +147,7 @@ test.describe("usability journeys", () => {
       await page.goto("/?action=add-project");
       const dialog = addProjectDialog(page);
       await expect(dialog).toBeVisible();
-      await dialog.getByRole("button").filter({ hasText: /^(Cancel|Cancelar)$/ }).click();
+      await dialog.getByTestId("add-project-cancel").click();
       await expect(dialog).toBeHidden();
       expect(new URL(page.url()).searchParams.get("action")).toBeNull();
     });
@@ -180,9 +179,8 @@ test.describe("usability journeys", () => {
       await page.getByTestId("nav-add-project").click();
       const dialog = addProjectDialog(page);
       await expect(dialog).toBeVisible();
-      const input = dialog.getByRole("textbox").first();
-      await input.fill(dir);
-      await input.press("Enter");
+      await dialog.getByTestId("add-project-path").fill(dir);
+      await dialog.getByTestId("add-project-submit").click();
       await expect(dialog).toBeHidden({ timeout: 20_000 });
       await expect(page).toHaveURL(/\/p\/\d+/);
       newId = new URL(page.url()).pathname.split("/")[2];
