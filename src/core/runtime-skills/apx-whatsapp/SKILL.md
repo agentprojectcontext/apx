@@ -38,11 +38,22 @@ Do not tell the owner to go and click in Settings. This tool is the roster, and 
 | `list` | everyone; `pending: true` for the rows APX added by writing and nobody reviewed |
 | `find` | by name, nickname or a number typed any way a person types one |
 | `save` | add or update: `role` to let APX answer them, `auto_reply: false` to mute, plus `name` / `relationship` / `bio` / `rules` |
+| `thread` | read what was said with one person (`query` = name/number/JID, `limit`); read-only |
 | `forget` | off the allowlist — the conversation history stays |
 
 Every row carries a resolved `status` (`answered` / `silent` / `owner`), so you never have to reconstruct the policy from the role, the mute, the role table and the master switch. Reading is free; `save` and `forget` stop for permission, because they are standing grants rather than one message.
 
 `relationship` is a CATEGORY from a fixed list (partner, family, client, supplier, …), not a sentence — "mi contadora" is `supplier` plus a `bio`.
+
+## Reading what somebody said
+
+When the owner asks "what did X say on WhatsApp?", read it — never answer that you cannot see the chat. WhatsApp is a global channel: its rows live in `~/.apx/messages/whatsapp/`, not in any project, and these are the readers that open it:
+
+- `tail_messages({ channel: "whatsapp", contact: "X", limit })` — the newest messages with one person, oldest first. Without `contact`, the whole line.
+- `search_messages({ query, contact: "X" })` — text inside one conversation. Without `channel`/`contact` it searches the project ledger AND every global channel (Telegram, WhatsApp, web…); public rooms (Discord) only when named.
+- `whatsapp_contacts({ action: "thread", query: "X" })` — the same read from the roster tool.
+
+`contact` takes a name, nickname, number typed any way, a JID, or `owner`. One person's LID and phone JID fold into one conversation, and a line they wrote in a group comes back with `group` set. A name that matches two people returns `candidates` instead of guessing — ask which one. Somebody who never made the roster is found by the push name they wrote in with.
 
 ## The roster is the allowlist
 
