@@ -244,6 +244,17 @@ espeja al dispositivo companion como `fromMe`). Se registran y nunca se contesta
 sería contestarse a uno mismo — y llevan `meta.authored_by: "owner"`, así el hilo se lee como la
 conversación entera.
 
+## Preguntar qué dijo alguien
+
+El agente del dueño puede leer toda la línea. Preguntale "¿qué me dijo Rodrigo por WhatsApp?" y lee
+esa conversación: por nombre, apodo, un número escrito como sea o un JID. El número de teléfono y el
+`…@lid` de una misma persona vuelven como una sola conversación, y lo que dijo en un grupo aparece
+marcado como tal. Un nombre que coincide con dos personas recibe una pregunta, nunca una adivinanza.
+
+La búsqueda de mensajes común también cubre WhatsApp y Telegram, junto con el historial del proyecto.
+Una sala pública (Discord) se busca sólo si se la nombra. Los contactos nunca tienen esto: sus turnos
+son sellados y no tienen tools.
+
 ## API
 
 Todas las rutas cuelgan de `/api/whatsapp`.
