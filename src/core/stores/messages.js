@@ -1612,12 +1612,88 @@ export function rowContact(r, channel = r?.channel) {
 // projects none of them happened in.
 const DEFAULT_THREAD_PROJECT = "0";
 
+// The stamp a writer puts on a ledger row to say which project it happened in.
+//
+// `project_id` is the daemon's NUMERIC id, and that number is registration
+// order — handed out again on every boot. Remove a project, or have a folder go
+// missing, and every project after it shifts down: a thread stamped "2" then
+// belongs to nobody (the route answers `404 project not found` and the phone
+// shows an empty chat), or to whichever project inherited the 2. So the stamp
+// also carries `project_apx_id`, the id the project's storage hangs off, which
+// does not move. Rows written before it existed keep only the number and the
+// name; the resolver below uses both to find where they live NOW.
+export function ledgerProjectStamp(project) {
+  if (!project) return {};
+  const apxId = project.apx_id ?? project.apxId ?? null;
+  return {
+    project_id: String(project.id),
+    ...(apxId ? { project_apx_id: String(apxId) } : {}),
+    ...(project.name ? { project_name: project.name } : {}),
+  };
+}
+
+// How a stamp becomes a project id of THIS boot. The core cannot see the
+// registry — it lives in the daemon — so the daemon registers a resolver at
+// boot (host/daemon/index.js). Without one (tests, the CLI reading offline)
+// the stamped number is taken as it is, which is what it always was.
+let resolveLedgerProject = null;
+
+/**
+ * `fn({ project_id, project_apx_id, project_name }) → current id string`.
+ * Pass null to remove it.
+ */
+export function setLedgerProjectResolver(fn) {
+  resolveLedgerProject = typeof fn === "function" ? fn : null;
+}
+
+/**
+ * A resolver over a snapshot of the registry: `listProjects()` returns
+ * `[{ id, apx_id, name }]` for THIS boot, and should be cheap (the daemon
+ * caches it). Order of trust:
+ *   1. `project_apx_id` → the project holding it now;
+ *   2. an old row (number + name): the number, if it still names that project;
+ *      otherwise the one project that carries the name;
+ *   3. a number that names no project at all → the default workspace, so the
+ *      thread opens somewhere instead of answering 404 from every screen.
+ * A number that names a DIFFERENT project with no name to arbitrate is left as
+ * it is — renaming a project must not scatter its history.
+ */
+export function makeLedgerProjectResolver(listProjects) {
+  return ({ project_id, project_apx_id, project_name }) => {
+    const all = listProjects() || [];
+    if (project_apx_id) {
+      const hit = all.find((p) => p.apx_id && String(p.apx_id) === String(project_apx_id));
+      if (hit) return String(hit.id);
+    }
+    const byNumber = all.find((p) => String(p.id) === String(project_id));
+    if (byNumber && (!project_name || byNumber.name === project_name)) return String(byNumber.id);
+    if (project_name) {
+      const named = all.filter((p) => p.name === project_name);
+      if (named.length === 1) return String(named[0].id);
+    }
+    if (byNumber) return String(byNumber.id);
+    return DEFAULT_THREAD_PROJECT;
+  };
+}
+
 // Which project a ledger row was written from, when the writer knew. Web turns
 // stamp it (api/super-agent.js), because the web panel is the one surface where
 // the same channel is used from several projects.
 function rowProject(r) {
-  const v = r?.meta?.project_id;
-  return v === undefined || v === null || v === "" ? null : String(v);
+  const m = r?.meta;
+  const v = m?.project_id;
+  if (v === undefined || v === null || v === "") return null;
+  if (resolveLedgerProject) {
+    try {
+      const now = resolveLedgerProject({
+        project_id: String(v),
+        project_apx_id: m.project_apx_id ?? null,
+        project_name: m.project_name ?? null,
+      });
+      if (now !== undefined && now !== null && now !== "") return String(now);
+    } catch { /* a resolver failure must not hide the ledger */ }
+  }
+  return String(v);
 }
 
 // Whether a row belongs in `want`'s view of the ledger: a stamped row only in

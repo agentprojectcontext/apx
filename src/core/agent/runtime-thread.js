@@ -24,7 +24,7 @@
 // counts it. The A2A sink stays preferred where it exists (Roby relaying in his
 // own voice is better than raw stdout); this is the floor beneath it, and the
 // reason a session no longer has to be short enough to fit in five minutes.
-import { appendGlobalMessage } from "#core/stores/messages.js";
+import { appendGlobalMessage, ledgerProjectStamp } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 /**
@@ -50,7 +50,7 @@ export function runtimeThreadCanCarry(channel) {
 /** Which project the chat was opened from — the same stamp turns carry, so the
  *  row is found from the project and not only from the Base workspace. */
 function scopeOf(project) {
-  return project ? { project_id: String(project.id), project_name: project.name } : {};
+  return ledgerProjectStamp(project);
 }
 
 /** Enough of a prompt to recognise WHICH session this is, in a list of them. */
