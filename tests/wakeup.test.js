@@ -22,12 +22,14 @@ fs.mkdirSync(process.env.APX_HOME, { recursive: true });
 
 const { triggerWakeup, wakeupModel } = await import("#host/daemon/wakeup.js");
 const { readGlobalMessages } = await import("#core/stores/messages.js");
+const { canNudge, recordNudge } = await import("#core/nudge/index.js");
 
 const IDENTITY = path.join(process.env.APX_HOME, "identity.json");
 const CHAT = "1234567890";
 
-function config(superAgent = {}) {
+function config(superAgent = {}, extra = {}) {
   return {
+    ...extra,
     user: { language: "es" },
     telegram: { enabled: true, channels: [{ name: "default", bot_token: "not-a-real-token", chat_id: CHAT }] },
     super_agent: superAgent,
@@ -48,7 +50,7 @@ function harness() {
     calls, sent,
     deps: {
       callEngineFn: async (req) => { calls.push(req); return { text: "Arranqué y estoy listo para ayudarte con tus proyectos." }; },
-      sendFn: async (_token, chatId, text) => { sent.push({ chatId, text }); return { ok: true, result: { message_id: 4242 } }; },
+      sendFn: async (_token, chatId, text, opts) => { sent.push({ chatId, text, ...opts }); return { ok: true, result: { message_id: 4242 } }; },
     },
   };
 }
@@ -96,4 +98,46 @@ test("what went out is in the Telegram thread, attributed to the super-agent", a
   assert.equal(String(row.meta.chat_id), CHAT);
   assert.equal(row.meta.external_id, "4242");
   assert.equal(row.meta.model, "mock:base");
+});
+
+// ── it is an alert, not a nudge ─────────────────────────────────────────────
+
+const NOON = () => new Date(2026, 8, 29, 12, 0);
+const NIGHT = () => new Date(2026, 8, 29, 3, 0);
+// A budget already spent for the day, the way the owner's was: every nudge
+// after this is refused. The boot notice must go out anyway.
+const SPENT = { nudge: { enabled: true, daily_max: 1, quiet_hours: "22:00-07:30" } };
+
+/** Spend today's allowance for real: one nudge recorded against a ceiling of 1. */
+function spendBudget() {
+  const gate = canNudge({ kind: "signal", severity: "normal" }, SPENT);
+  if (gate.allowed) recordNudge(gate, { chat_id: CHAT, preview: "otro aviso" });
+  assert.equal(canNudge({ kind: "wakeup", severity: "low" }, SPENT).allowed, false, "sanity: the budget really is spent");
+}
+
+test("an exhausted daily budget does not stop the boot notice", async () => {
+  freshIdentity();
+  spendBudget();
+  const h = harness();
+  await triggerWakeup(config({ model: "mock:base" }, SPENT), () => {}, { ...h.deps, now: NOON });
+  assert.equal(h.sent.length, 1, "the daemon coming back is always said");
+  assert.equal(h.sent[0].silent, false, "in the day it rings");
+});
+
+test("inside the quiet hours it still goes out — without sound", async () => {
+  freshIdentity();
+  const h = harness();
+  await triggerWakeup(config({ model: "mock:base" }, SPENT), () => {}, { ...h.deps, now: NIGHT });
+  assert.equal(h.sent.length, 1);
+  assert.equal(h.sent[0].silent, true, "a 3 AM restart is in the chat in the morning, it does not wake anyone");
+  const row = readGlobalMessages({ channel: "telegram" }).filter((r) => r.meta?.wakeup).at(-1);
+  assert.equal(row.meta.silent, true);
+});
+
+test("the 30-minute cooldown still stops a restart loop from flooding", async () => {
+  freshIdentity();
+  const h = harness();
+  await triggerWakeup(config({ model: "mock:base" }), () => {}, { ...h.deps, now: NOON });
+  await triggerWakeup(config({ model: "mock:base" }), () => {}, { ...h.deps, now: NOON });
+  assert.equal(h.sent.length, 1);
 });

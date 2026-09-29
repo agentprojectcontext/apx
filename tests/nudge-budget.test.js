@@ -259,7 +259,6 @@ test("feedback on an unknown id is null, not a crash", () => {
 // --------------------------------------------------------------------------
 
 const PUSH_PATHS = [
-  "src/host/daemon/wakeup.js",              // boot greeting
   "src/host/daemon/api/telegram.js",        // POST /telegram/notify
   "src/core/agent/tools/handlers/send-telegram.js", // the model's own send tool
   "src/host/daemon/callback-reconciler.js", // late runtime results
@@ -273,6 +272,16 @@ test("every audited outbound push path imports the gate", () => {
     assert.match(src, /from "#core\/nudge\/index\.js"/, `${rel} does not import the gate`);
     assert.match(src, /canNudge\(/, `${rel} imports the gate but never asks it`);
   }
+});
+
+test("the boot notice is an alert: it never asks the gate and never spends the allowance", () => {
+  // Owner's ruling, 2026-09-29: "es un warn o alert, no puede evitarse". A
+  // restart notice held by the daily budget left the owner not knowing the
+  // daemon had come back. It is out of PUSH_PATHS on purpose — this pins that
+  // it stays out, rather than drifting back in by habit.
+  const src = fs.readFileSync(path.join(ROOT, "src/host/daemon/wakeup.js"), "utf8");
+  assert.doesNotMatch(src, /canNudge\(/, "wakeup.js must not ask the interruption budget");
+  assert.doesNotMatch(src, /recordNudge\(/, "wakeup.js must not count against the daily allowance");
 });
 
 test("the gate is NOT wired into the shared send, which also carries replies", () => {
