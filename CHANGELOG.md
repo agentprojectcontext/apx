@@ -1,3 +1,10 @@
+## [1.122.3](https://github.com/agentprojectcontext/apx/compare/v1.122.2...v1.122.3) (2026-09-29)
+
+
+### Bug Fixes
+
+* **whatsapp:** el super-agente puede leer lo que dijo un contacto por WhatsApp ([5745d02](https://github.com/agentprojectcontext/apx/commit/5745d020aea9ebad24dc7135748cbb19217cf533))
+
 ## [1.122.2](https://github.com/agentprojectcontext/apx/compare/v1.122.1...v1.122.2) (2026-09-29)
 
 
