@@ -57,11 +57,13 @@ test("normalizeDeliverTo — accepts a comma string, trims, lowercases, dedupes"
 
 // ── the interruption gate on telegram delivery ────────────────────────────────
 // send_telegram is suppressed for a delivering routine, so the budget that used
-// to gate the push has to live in the telegram adapter. An all-day quiet window
-// makes "held" deterministic without controlling the clock.
-test("delivery gate — quiet-hours holds an ordinary push; scheduled/critical/solicited cross it; gate:null is unconditional", async () => {
+// to gate the push has to live in the telegram adapter. The clock is pinned to
+// 3 AM inside a 22:00-07:30 window: "00:00-23:59" is NOT all day — the end is
+// exclusive, so the test used to fail every night during 23:59.
+test("delivery gate — quiet-hours holds an ordinary push; scheduled/critical/solicited cross it; gate:null is unconditional", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date(2026, 0, 15, 3, 0, 0) });
   const routine = { name: "watch", id: "r1" };
-  const quiet = { nudge: { enabled: true, quiet_hours: "00:00-23:59" } };
+  const quiet = { nudge: { enabled: true, quiet_hours: "22:00-07:30" } };
   const mk = () => {
     const sent = [];
     return {

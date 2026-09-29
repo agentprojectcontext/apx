@@ -690,7 +690,7 @@ export const en = {
       daily_max: "Messages per day",
       daily_max_hint: "0 means no ceiling.",
       quiet_hours: "Quiet hours",
-      quiet_hours_hint: "HH:MM-HH:MM. Crosses midnight fine. Leave empty for none.",
+      quiet_hours_hint: "HH:MM-HH:MM. Crosses midnight fine. 00:00-23:59 means all day. Leave empty for none.",
       cooldown: "Minimum gap (minutes)",
       project_cooldown: "Minimum gap per project (minutes)",
       kind_cooldown: "Minimum gap per kind (minutes)",

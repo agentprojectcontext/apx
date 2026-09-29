@@ -112,17 +112,29 @@ function toNonNegativeInt(v) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+const DAY_MINUTES = 24 * 60;
+
 /**
- * Parse a "HH:MM-HH:MM" window into minutes-from-midnight.
+ * Parse a "HH:MM-HH:MM" window into minutes-from-midnight; `end` is exclusive.
  * Returns null when the string is absent or unparseable — an unreadable window
  * must not accidentally mean "always quiet".
+ *
+ * Three spellings mean "all day", because that is what the person writing them
+ * means: equal bounds ("00:00-00:00", 24 hours from a time back to itself), an
+ * end of "24:00", and an end of "23:59". With a strictly exclusive end, the
+ * last one used to leave 23:59 open every night.
  */
 export function parseQuietHours(spec) {
   const m = /^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/.exec(String(spec || ""));
   if (!m) return null;
   const [h1, m1, h2, m2] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
-  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null;
-  return { start: h1 * 60 + m1, end: h2 * 60 + m2 };
+  if (m1 > 59 || m2 > 59 || h1 > 23) return null;
+  if (h2 > 24 || (h2 === 24 && m2 !== 0)) return null;
+  const start = h1 * 60 + m1;
+  let end = h2 * 60 + m2;
+  if (start === end) return { start: 0, end: DAY_MINUTES };
+  if (end === DAY_MINUTES - 1) end = DAY_MINUTES;    // "…-23:59" runs to midnight
+  return { start, end };
 }
 
 /**
@@ -133,7 +145,6 @@ export function isQuietAt(spec, date = new Date()) {
   const w = parseQuietHours(spec);
   if (!w) return false;
   const mins = date.getHours() * 60 + date.getMinutes();
-  if (w.start === w.end) return false;               // zero-width window
   if (w.start < w.end) return mins >= w.start && mins < w.end;
   return mins >= w.start || mins < w.end;            // crosses midnight
 }

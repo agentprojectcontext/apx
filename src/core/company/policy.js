@@ -46,12 +46,21 @@ export const DEFAULT_POLICY = {
   agent: "ceo",
 };
 
-/** "22-8" → {from: 22, to: 8}. A malformed value keeps the default. */
+/**
+ * "22-8" → {from: 22, to: 8}; `to` is exclusive. A malformed value keeps the
+ * default, and so does an hour no clock has ("25" used to wrap to 1).
+ *
+ * All day reads the way it does in the nudge gate's HH:MM windows
+ * (core/nudge/policy.js): equal bounds ("0-0", "22-22") and an end of 24 both
+ * mean {from: 0, to: 24}. "0-24" used to wrap to "0-0" and mean never quiet.
+ */
 function parseQuietHours(raw, fallback) {
   const m = String(raw ?? "").match(/^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*$/);
   if (!m) return fallback;
-  const from = Number(m[1]) % 24;
-  const to = Number(m[2]) % 24;
+  const from = Number(m[1]);
+  const to = Number(m[2]);
+  if (from > 23 || to > 24) return fallback;
+  if (from === to) return { from: 0, to: 24 };
   return { from, to };
 }
 

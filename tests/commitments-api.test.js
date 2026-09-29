@@ -258,10 +258,13 @@ test("check is a dry run — it never spends the budget", async () => {
   } finally { await api.close(); }
 });
 
-test("a solicited check is allowed even with the gate closed", async () => {
+test("a solicited check is allowed even with the gate closed", async (t) => {
+  // Pin the clock inside the window: "00:00-23:59" is not all day (the end is
+  // exclusive), and this used to fail every night during 23:59.
+  t.mock.timers.enable({ apis: ["Date"], now: new Date(2026, 0, 15, 3, 0, 0) });
   const api = await boot();
   try {
-    await api.put("/api/nudges/policy", { enabled: true, quiet_hours: "00:00-23:59" });
+    await api.put("/api/nudges/policy", { enabled: true, quiet_hours: "22:00-07:30" });
     const quiet = await api.post("/api/nudges/check", { kind: "signal" });
     assert.equal(quiet.body.allowed, false);
     const reply = await api.post("/api/nudges/check", { kind: "reply", unsolicited: false });
