@@ -18,9 +18,9 @@ export const CHANNELS = Object.freeze({
   CODE: "code",               // `apx code` — terminal coding session
   // A launched runtime session (Claude Code, Codex, OpenCode…) as a room of
   // its own. A ROOM, not a day of a channel: one thread per session, addressed
-  // by its id, so it lists in the chat list and can be written to. Manu asked
-  // for it by name on 2026-09-20 — "un canal tipo runtime así sabés que es
-  // aparte" — and apart is right: `code` is a terminal session the owner is
+  // by its id, so it lists in the chat list and can be written to. The owner asked
+  // for it by name on 2026-09-20 — a runtime channel, so it reads as
+  // separate — and separate is right: `code` is a terminal session the owner is
   // sitting in, this is a process somebody launched that is still running.
   RUNTIME: "runtime",
   A2A: "a2a",                 // Agent-to-agent relay (project-scoped ledger)

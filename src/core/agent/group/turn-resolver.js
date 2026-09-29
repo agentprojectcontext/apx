@@ -25,7 +25,7 @@ export const MAX_TURNS_PER_MESSAGE = 10;
 // Exported because a mention of the OWNER is resolved somewhere else entirely
 // (core/tasks/attention.js): nobody gets a turn for it, so it cannot go through
 // `parseMentions`, which filters the owner out by design. Two copies of this
-// rule is how "@Manú" comes to mean one person in a task thread and another in
+// rule is how "@Julián" comes to mean one person in a task thread and another in
 // a group room.
 export function normalizeMention(s) {
   return String(s || "")

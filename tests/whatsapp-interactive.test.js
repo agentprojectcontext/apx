@@ -305,7 +305,7 @@ test("the menu is found from the person's other address, not only the one it arr
   // entendí". The rows carry the contact key the roster resolved; that is the
   // hop that makes one person one conversation.
   const LID = "104900000000001@lid";
-  const PHONE = "5491148570001@s.whatsapp.net";
+  const PHONE = "5491155550300@s.whatsapp.net";
   appendGlobalMessage({
     channel: CHANNELS.WHATSAPP,
     direction: "in",

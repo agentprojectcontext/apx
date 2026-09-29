@@ -12,7 +12,7 @@ const NOW = 1787230835123;
 
 test("buildRoutineHeader — machine stamp is ISO-with-millis + epoch ms", () => {
   const h = buildRoutineHeader(
-    { name: "magui-cron", id: "r_ab12cd", last_run_at: "" },
+    { name: "lumen-cron", id: "r_ab12cd", last_run_at: "" },
     { storagePath: "/store", config: {}, nowMs: NOW },
   );
   // The human name is intentionally absent — the filed record opens on

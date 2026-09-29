@@ -264,7 +264,7 @@ class ChannelPoller {
    *
    * Until it existed the rule came out backwards: a turn was followable if an
    * HTTP route happened to start it, and invisible if a person wrote to the
-   * bot. Manu on 2026-09-14: Telegram said "Escribiendo…" while the same
+   * bot. The owner on 2026-09-14: Telegram said "Escribiendo…" while the same
    * conversation on the web sat dead, and only a refresh brought the tools in
    * — they had been written to the ledger all along; nothing was pushing.
    *

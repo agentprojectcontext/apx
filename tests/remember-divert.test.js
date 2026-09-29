@@ -50,7 +50,7 @@ test("weather-style chatter from a routine lands in the routine's memory, not th
 });
 
 test("a durable owner-level fact from a routine still reaches the global notebook", async () => {
-  const r = await inRoutine()({ note: "Manu decidió que los resúmenes diarios siempre llegan por Telegram." });
+  const r = await inRoutine()({ note: "El dueño decidió que los resúmenes diarios siempre llegan por Telegram." });
   assert.equal(r.saved, true);
   assert.equal(r.scope, undefined);
   assert.match(readSelfMemory(), /resúmenes diarios/);

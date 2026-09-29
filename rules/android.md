@@ -345,11 +345,11 @@ the error: `./gradlew` alone dies with "Unable to locate a Java Runtime" (the
 JDK is Homebrew's, not linked as the system `java`), and once that is fixed with
 "SDK location not found" — `local.properties` is gitignored, `ANDROID_HOME` is
 unset, and the only SDK carrying `platforms/android-35` and `build-tools/35.0.0`
-is the Homebrew commandlinetools one. The SDK under `proyectos_varios/android-lab`
+is the Homebrew commandlinetools one. The SDK under a sibling `android-lab` folder
 is NOT it: platform-tools and system images only, nothing that compiles.
 
 That debug loop only fits a phone that is **not** already carrying a release
-build. Manu's A55 is: the installed APK is signed `CN=Manuel .D. Bruña`, and
+build. The test phone (A55) is: the installed APK is signed with the owner's local release key, and
 Android identifies an app by its signing key, so `adb install -r` of a
 debug-signed APK fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The only way
 through is an uninstall, which deletes that phone's pairing AND every system
@@ -363,7 +363,7 @@ $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs <apk>
 
 **A signed APK comes from CI, not from here.** The keystore is
 `apx-release.jks`, one directory ABOVE the repo
-(`proyectos_varios/agentprojectcontext/`) so it can never be committed, and its
+so it can never be committed, and its
 two passwords exist only as the GitHub secrets `ANDROID_KEYSTORE_PASSWORD` and
 `ANDROID_KEY_PASSWORD` — nothing on this machine has them, and nobody should be
 asked to paste them into a session. (The alias, `apx`, is deliberately NOT a

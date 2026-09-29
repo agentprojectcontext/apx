@@ -6,8 +6,7 @@
 // the store that builds the row has no project registry to name it with, so it
 // shipped `project_name: null` beside a bare id, and the badge fell back to
 // printing the id. The phone spent a day showing Roby's chat tagged "4":
-// "¿qué pasó con Roby que ahora se llama 4? Es como que default o Roby dice 4
-// en varios lados" (Manu, 2026-09-20).
+// the owner asked why Roby was now called "4" in several places (2026-09-20).
 //
 // It reads as a bug in the agent, not in a label — which is exactly how much
 // damage an unresolved id does on a screen.
@@ -49,7 +48,7 @@ function seedWebDay(projectId, day) {
 }
 
 test("the super-agent's row names the project it was written in, never its id", async () => {
-  const root = makeTempProject({ name: "tecnomanu", agents: [] });
+  const root = makeTempProject({ name: "acme", agents: [] });
   const projects = new ProjectManager({});
   const { id } = projects.register(root);
   const app = buildApi({
@@ -73,7 +72,7 @@ test("the super-agent's row names the project it was written in, never its id", 
     // It knows WHERE, which is what makes it openable at all…
     assert.equal(String(web.project_id), String(id));
     // …and now it also knows what that place is CALLED.
-    assert.equal(web.project_name, "tecnomanu");
+    assert.equal(web.project_name, "acme");
     assert.notEqual(web.project_name, String(id), "a bare id on a badge is the bug");
   } finally {
     server.close();
@@ -85,7 +84,7 @@ test("a row with no project of its own is left alone", async () => {
   // Telegram, the log and the desktop write one daemon-wide channel with no
   // project stamp. Those resolve to the default workspace, which wears no badge
   // at all — so nothing here may invent a name for them.
-  const root = makeTempProject({ name: "tecnomanu", agents: [] });
+  const root = makeTempProject({ name: "acme", agents: [] });
   const projects = new ProjectManager({});
   projects.register(root);
   const app = buildApi({
@@ -111,7 +110,7 @@ test("a row with no project of its own is left alone", async () => {
     assert.ok(tg, "the telegram thread is a row");
     assert.equal(String(tg.project_id), "0", "unstamped belongs to the default workspace");
     // Whatever it carries, it must not be another project's name.
-    assert.notEqual(tg.project_name, "tecnomanu");
+    assert.notEqual(tg.project_name, "acme");
   } finally {
     server.close();
     cleanupTempProject(root);

@@ -163,7 +163,7 @@ test("the cross-chat view reports what was left open, across channels", async ()
     seedLedger(api.store, [
       { ts: "2026-09-18T10:00:00Z", channel: "telegram", type: "user", agent_slug: "rocky", body: "make the reel", meta: { conversation: "c1" } },
       { ts: "2026-09-18T10:05:00Z", channel: "telegram", type: "agent", agent_slug: "rocky", body: "done", meta: { conversation: "c1", tool_summary: { total: 3, failed: 0, tools: [] } } },
-      { ts: "2026-09-18T11:00:00Z", channel: "web", type: "user", agent_slug: "magui", body: "upload the recap", meta: { conversation: "c2" } },
+      { ts: "2026-09-18T11:00:00Z", channel: "web", type: "user", agent_slug: "lumen", body: "upload the recap", meta: { conversation: "c2" } },
     ]);
 
     const all = await api.get("/api/projects/1/milestones?since=2026-09-18T00:00:00Z");

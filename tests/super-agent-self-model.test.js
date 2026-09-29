@@ -91,18 +91,18 @@ test("an agent's pinned model can be made strict, and the file only says so when
   const { readAgents } = await import("#core/apc/parser.js");
   const { agentModelFallback } = await import("#core/agent/agent-model.js");
   const { agentToResponse } = await import("#host/daemon/api/shared.js");
-  const root = makeTempProject({ name: "Pinned", agents: [{ slug: "magui" }] });
+  const root = makeTempProject({ name: "Pinned", agents: [{ slug: "lumen" }] });
   try {
-    const read = () => readAgents(root).find((a) => a.slug === "magui");
-    const file = () => fs.readFileSync(path.join(root, ".apc", "agents", "magui.md"), "utf8");
-    setAgentConfig({ path: root }, "magui", { model: "chatgpt-codex:gpt-5.6-luna@high" });
+    const read = () => readAgents(root).find((a) => a.slug === "lumen");
+    const file = () => fs.readFileSync(path.join(root, ".apc", "agents", "lumen.md"), "utf8");
+    setAgentConfig({ path: root }, "lumen", { model: "chatgpt-codex:gpt-5.6-luna@high" });
     assert.equal(agentModelFallback(read()), true, "absent means it falls back");
     assert.doesNotMatch(file(), /model_fallback/);
-    setAgentConfig({ path: root }, "magui", { model_fallback: false });
+    setAgentConfig({ path: root }, "lumen", { model_fallback: false });
     assert.equal(agentModelFallback(read()), false);
     assert.equal(agentToResponse(read()).model_fallback, false);
     assert.ok(!("Model_fallback" in agentToResponse(read()).extra));
-    setAgentConfig({ path: root }, "magui", { model_fallback: true });
+    setAgentConfig({ path: root }, "lumen", { model_fallback: true });
     assert.doesNotMatch(file(), /model_fallback/, "back to default leaves no trace");
   } finally {
     cleanupTempProject(root);

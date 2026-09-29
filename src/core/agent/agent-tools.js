@@ -1,6 +1,6 @@
 // Project-agent tool allowlist.
 //
-// Super-agent = the full registry. A project agent (Magui, Scout, …) is a
+// Super-agent = the full registry. A project agent (Lumen, Scout, …) is a
 // specialist: its `.apc/agents/<slug>.md` `tools:` field is the allowlist, not
 // a hint. The picker stores HTTP-catalog names (`glob`, `memory_get`,
 // `agent_list`); the loop speaks native + bridged names (`search_files` is
@@ -67,7 +67,7 @@ const HOST_ONLY_TOOLS = Object.freeze([
  * legitimately does and a specialist never should: reshape another agent's
  * EXISTENCE. Renaming moves somebody else's file, memory dir and every pointer
  * aimed at them; removing deletes all of it. The blast radius is the team, not
- * the caller. An orchestrator asked to "renombrá el orchestrator de postbeam"
+ * the caller. An orchestrator asked to "renombrá el orchestrator de globex"
  * is doing its job. A social producer deciding mid-task that the QA agent needs
  * a better name — or no longer needs to exist — is not.
  *
@@ -146,7 +146,7 @@ export const AGENT_CORE_TOOLS = Object.freeze([
   // and the runtimes, and the super-agent is the owner's channel. A floor that
   // carried it would hand every deliberately-narrowed card a way to the owner.
   // The CEO template is the live example: three paragraphs of its prompt say it
-  // has no channel of its own and never writes to Manu, and its declared list
+  // has no channel of its own and never writes to the owner, and its declared list
   // is what enforces that. call_agent resolves against readAgents() — project
   // agents only — so it cannot cross that line. Reaching past the project is a
   // grant, not a floor: declare it on the cards that should have it.

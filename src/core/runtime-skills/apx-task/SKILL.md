@@ -32,7 +32,7 @@ apx task list --project acme --limit 5
 # Inspect / mutate
 apx task show t_abc123 --project acme
 apx task show abc       --project acme    # prefix match (≥3 chars, unique)
-apx task done    t_abc123 --project acme --by manuel
+apx task done    t_abc123 --project acme --by julian
 apx task drop    t_abc123 --project acme               # archived (not "done")
 apx task reopen  t_abc123 --project acme
 apx task patch   t_abc123 --project acme --title "New title" --due 2026-06-10

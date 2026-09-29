@@ -209,7 +209,7 @@ export function register(api, { projects }) {
       // but the store that builds it has no project registry to name it with,
       // so it ships `project_name: null` beside a bare id. The panel's badge
       // falls back to the id when the name is missing, and the phone spent a
-      // day showing Roby's chat tagged "4" instead of "tecnomanu" (Manu,
+      // day showing Roby's chat tagged "4" instead of "acme" (the owner,
       // 2026-09-20: "roby dice 4 en varios lados").
       //
       // Resolved here because this is where the registry already is, and keyed
@@ -229,7 +229,7 @@ export function register(api, { projects }) {
       // A super-agent row is titled by the agent — except on a channel that
       // carries several people, where the useful half is the OTHER side. Four
       // WhatsApp rows all reading "Roby · WhatsApp" tell the reader nothing
-      // about which conversation each one is; "Magui", "Carlos", "Manu" do.
+      // about which conversation each one is; "Lucía", "Tomás", "Julián" do.
       // The badge under the name still says it was Roby who answered.
       const named = named0.map((r) => {
         if (r.kind !== "super_agent") return r;
@@ -252,9 +252,9 @@ export function register(api, { projects }) {
       //
       // The store groups by the key on the row, which is what was true when the
       // message arrived. Those keys drift apart whenever an identity is
-      // corrected afterwards: Manu's first two WhatsApp messages were logged as
+      // corrected afterwards: the owner's first two WhatsApp messages were logged as
       // a guest's, because at that moment nothing knew the LID writing in was
-      // the owner's — so the inbox showed two rows both called "Manu", one of
+      // the owner's — so the inbox showed two rows both called "Julián", one of
       // them a dead end. The ledger is right and stays as it is; this is the
       // reader deciding that a person appears once.
       //

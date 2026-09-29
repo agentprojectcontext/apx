@@ -100,7 +100,7 @@ async function handleHeartbeat(ctx, routine) {
 // Merely HAVING the send_telegram tool available does NOT count: it's a
 // near-universal default (an empty allowed_tools falls back to the broad set),
 // so keying on it would mark almost every routine telegram-bound and cap the
-// exact background work this distinction exists to free. Magui filling a backlog
+// exact background work this distinction exists to free. Lumen filling a backlog
 // might send a summary at the end, but her job is the backlog, not the message —
 // she must finish first. So only the post_command sink marks telegram-bound.
 export function routineReportsToTelegram({ autoSuppress, deliverTo }) {
@@ -238,7 +238,7 @@ async function handleExecAgent(ctx, routine) {
     cfg.super_agent = {
       ...(config?.super_agent || {}),
       // A scheduled run has no human to click Confirm. Default to total so
-      // a Magui-style cron can edit its ledger; pin permission_mode on the
+      // a Lumen-style cron can edit its ledger; pin permission_mode on the
       // routine itself to lock it down.
       permission_mode: routine.permission_mode || "total",
       ...(toolOverride ? { allowed_tools: toolOverride } : {}),
@@ -258,7 +258,7 @@ async function handleExecAgent(ctx, routine) {
       onDenied: (names) => noteDeniedTools(project, agent, names, CHANNELS.ROUTINE),
     });
     // A routine that reports to Telegram keeps the bounded chat budget; one that
-    // does background work nobody watches runs to completion (Magui's backlog
+    // does background work nobody watches runs to completion (Lumen's backlog
     // refill was being cut off at ~23 steps by the Telegram budget).
     const telegramBound = routineReportsToTelegram({ autoSuppress, deliverTo: ctx.deliverTo });
     const maxIters = routineToolIters(cfg, { telegramBound });
@@ -514,7 +514,7 @@ export function blockedForPermission(trace) {
  * The old message said "either allow it on this routine (allowed_tools) or use
  * a tool that does not need approval" for every mode. Under `automatico` the
  * first half is false: the guard never consults allowed_tools there, it only
- * looks at whether APX grades the tool destructive. company-council-cmo was
+ * looks at whether APX grades the tool destructive. board-cmo was
  * blocked while holding the exact allowlist the message told its owner to
  * write. A remedy that does nothing is worse than none — it sends someone to
  * re-do what they already did and conclude the system is lying to them.
@@ -1016,7 +1016,7 @@ async function runRoutinePipeline(ctx, routine) {
     const attachments = Array.isArray(result?.attachments) ? result.attachments : [];
     const channels = delivery.channels.filter((c) => !skipIds.has(c));
 
-    // Manu's rule: a routine run by an agent that is NOT Roby must post to its
+    // The owner's rule: a routine run by an agent that is NOT Roby must post to its
     // OWN web chat and, instead of pinging the phone itself, leave a delivery
     // for Roby to notify. So for a project agent we split the configured
     // channels — the chat channels go to the agent's own thread, and any push
@@ -1042,7 +1042,7 @@ async function runRoutinePipeline(ctx, routine) {
         routine, channels: chatChannels, text: deliveryText, gate, attachments, agent: runByAgent,
       });
 
-      // The delivery queue — one record per thing left waiting for Manu, visible
+      // The delivery queue — one record per thing left waiting for the owner, visible
       // as it piles up and gets crossed off (see core/stores/deliveries.js).
       const priority = routine.spec?.anchor === true;
       const delId = recordDelivery(storagePath, {
@@ -1055,10 +1055,10 @@ async function runRoutinePipeline(ctx, routine) {
         project_id: ctx.project?.id ?? null,
       });
 
-      // How Roby tells Manu, by priority:
+      // How Roby tells the owner, by priority:
       //   • an anchor (urgent) delivery notifies NOW, crossing the budget;
       //   • an ordinary one is LEFT PENDING — the daemon's grace sweep notifies it
-      //     ~a minute later, unless Manu opens the chat and replies first, which
+      //     ~a minute later, unless the owner opens the chat and replies first, which
       //     marks it answered and cancels the notify (answerDeliveries).
       if (pushChannels.length) {
         if (priority) {

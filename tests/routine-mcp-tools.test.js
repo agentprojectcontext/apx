@@ -44,20 +44,20 @@ function makeCtx(root, name = "acme") {
 }
 
 test("run_routine runs the routine and reports a verdict, not a transcript", async () => {
-  const root = makeTempProject({ name: "acme", agents: [{ slug: "magui", model: "mock:test" }] });
-  writeAgent(root, "magui", "tools: read_file\n");
+  const root = makeTempProject({ name: "acme", agents: [{ slug: "lumen", model: "mock:test" }] });
+  writeAgent(root, "lumen", "tools: read_file\n");
   const ctx = makeCtx(root);
   try {
     upsertRoutine(ctx.project.storagePath, {
-      name: "magui-ideas",
+      name: "lumen-ideas",
       kind: "exec_agent",
       schedule: "every:24h",
-      spec: { agent: "magui", prompt: "Generá ideas [mock:tool:read_file]" },
+      spec: { agent: "lumen", prompt: "Generá ideas [mock:tool:read_file]" },
     });
 
-    const out = await runRoutine.makeHandler(ctx)({ routine: "magui-ideas" });
+    const out = await runRoutine.makeHandler(ctx)({ routine: "lumen-ideas" });
     assert.equal(out.status, "ok");
-    assert.equal(out.routine, "magui-ideas");
+    assert.equal(out.routine, "lumen-ideas");
     // The routine ran with tools even though nobody passed allowed_tools.
     assert.equal(out.tools_used.total, 1);
     assert.equal(out.tools_used.tools[0].name, "read_file");
@@ -74,14 +74,14 @@ test("run_routine on an unknown name answers with the real ones", async () => {
   const ctx = makeCtx(root, "acme2");
   try {
     upsertRoutine(ctx.project.storagePath, {
-      name: "magui-postero",
+      name: "lumen-postero",
       kind: "heartbeat",
       schedule: "every:24h",
       spec: {},
     });
-    const out = await runRoutine.makeHandler(ctx)({ routine: "magui-postro" });
+    const out = await runRoutine.makeHandler(ctx)({ routine: "lumen-postro" });
     assert.match(out.error, /not found/);
-    assert.deepEqual(out.available, ["magui-postero"]);
+    assert.deepEqual(out.available, ["lumen-postero"]);
   } finally {
     cleanupTempProject(root);
   }
@@ -111,9 +111,9 @@ test("list_mcp_tools returns names + args, and names the real servers on a typo"
   const root = makeTempProject({ name: "acme4", agents: [] });
   const ctx = makeCtx(root, "acme4");
   const registry = {
-    list: () => [{ name: "postbean" }],
+    list: () => [{ name: "globex" }],
     listTools: async (name) => {
-      assert.equal(name, "postbean");
+      assert.equal(name, "globex");
       return {
         tools: [
           {
@@ -127,7 +127,7 @@ test("list_mcp_tools returns names + args, and names the real servers on a typo"
   };
   ctx.registries = { for: () => registry, ensure: () => registry };
   try {
-    const brief = await listMcpTools.makeHandler(ctx)({ mcp: "postbean" });
+    const brief = await listMcpTools.makeHandler(ctx)({ mcp: "globex" });
     assert.equal(brief.count, 1);
     assert.deepEqual(brief.tools[0], {
       name: "upload_media",
@@ -136,12 +136,12 @@ test("list_mcp_tools returns names + args, and names the real servers on a typo"
       required: ["url"],
     });
 
-    const full = await listMcpTools.makeHandler(ctx)({ mcp: "postbean", detail: "full" });
+    const full = await listMcpTools.makeHandler(ctx)({ mcp: "globex", detail: "full" });
     assert.ok(full.tools[0].inputSchema, "full detail keeps the JSON Schema");
 
-    const typo = await listMcpTools.makeHandler(ctx)({ mcp: "postbeam" });
+    const typo = await listMcpTools.makeHandler(ctx)({ mcp: "globax" });
     assert.match(typo.error, /not registered/);
-    assert.deepEqual(typo.available, ["postbean"]);
+    assert.deepEqual(typo.available, ["globex"]);
   } finally {
     cleanupTempProject(root);
   }

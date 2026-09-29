@@ -87,7 +87,7 @@ export function TelegramGlobalPanel() {
             />
           </Field>
           <Field label={t("settings.telegram_global.chat_id")}>
-            <Input value={chatId} onChange={(e) => setChatId(e.target.value)} placeholder="889721252" />
+            <Input value={chatId} onChange={(e) => setChatId(e.target.value)} placeholder="1234567890" />
           </Field>
           <Field label={t("settings.telegram_global.poll_interval")}>
             <Input type="number" value={String(poll)} onChange={(e) => setPoll(Number(e.target.value) || 1500)} />

@@ -6,10 +6,10 @@
 // from the room, so the agent that had just been pulled in knew nothing about
 // what had been said and the first move was always to re-explain it.
 //
-// Manu, 2026-09-20: "cuando estamos en un chat común e invito a alguien, en vez
-// de invitarlo y ya convertir ese chat en grupo, arma otro chat en grupo y eso
-// rompe todo. Y los agent to agent para mí son grupo, entonces cuando empiezo a
-// hablar deberían convertirse en grupo."
+// The owner, 2026-09-20: inviting someone into a plain chat opened a SECOND,
+// separate group chat instead of turning that chat into the group, which broke
+// everything; and an agent-to-agent pair is a group too, so speaking into one
+// should turn it into a room.
 //
 // So there are two promotions, and this file pins both: a 1:1 (a markdown file
 // under one agent) and an a2a pair (rows on the ledger). Either way the
@@ -43,7 +43,7 @@ function store() {
 }
 
 /** A 1:1 with two turns already in it. */
-function chatWith(s, slug = "magui") {
+function chatWith(s, slug = "lumen") {
   const conv = startConversation({
     storagePath: s.storagePath, agentSlug: slug, engine: "test:model", channel: "web",
   });
@@ -61,13 +61,13 @@ test("a 1:1 becomes the room, carrying what was said in it", () => {
 
   const out = promoteConversationToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    agentSlug: "magui", conversationId: conv.id, participants: ["andy"],
+    agentSlug: "lumen", conversationId: conv.id, participants: ["andy"],
   });
 
   assert.equal(out.imported, 2, "both turns have to reach the room");
   const room = readProjectGroupThread(s.storagePath, out.id);
   assert.ok(room, "the room exists");
-  assert.deepEqual(room.participants.sort(), ["andy", "magui"], "and the agent you were talking to is IN it");
+  assert.deepEqual(room.participants.sort(), ["andy", "lumen"], "and the agent you were talking to is IN it");
 
   const said = room.messages.filter((m) => m.role === "user" || m.role === "assistant");
   assert.deepEqual(said.map((m) => m.content), [
@@ -75,7 +75,7 @@ test("a 1:1 becomes the room, carrying what was said in it", () => {
     "Lo tengo casi listo.",
   ], "in order, and it is the SAME conversation — not an empty room beside it");
   assert.equal(said[0].role, "user", "the owner's line stays the owner's");
-  assert.equal(said[1].agent, "magui", "and the agent's stays attributed to it");
+  assert.equal(said[1].agent, "lumen", "and the agent's stays attributed to it");
   assert.equal(said[1].model, "test:model", "attribution survives the move");
 });
 
@@ -88,7 +88,7 @@ test("the room is stamped ahead of the history it introduces", () => {
   const conv = chatWith(s);
   const out = promoteConversationToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    agentSlug: "magui", conversationId: conv.id, participants: ["andy"],
+    agentSlug: "lumen", conversationId: conv.id, participants: ["andy"],
   });
   const [row] = listProjectGroupThreads(s.storagePath);
   assert.equal(row.id, out.id);
@@ -102,13 +102,13 @@ test("the 1:1 is put away, with a pointer to where it went", () => {
   const conv = chatWith(s);
   const out = promoteConversationToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    agentSlug: "magui", conversationId: conv.id, participants: ["andy"],
+    agentSlug: "lumen", conversationId: conv.id, participants: ["andy"],
   });
   assert.equal(
-    listConversations(s.storagePath, "magui").length, 0,
+    listConversations(s.storagePath, "lumen").length, 0,
     "the promoted chat must stop being offered as a chat to resume",
   );
-  const kept = readConversation(s.storagePath, "magui", conv.id);
+  const kept = readConversation(s.storagePath, "lumen", conv.id);
   assert.ok(kept, "…and must still be on disk");
   assert.equal(kept.fm.promoted_to_group, out.id, "saying where it continues");
 });
@@ -116,14 +116,14 @@ test("the 1:1 is put away, with a pointer to where it went", () => {
 test("a chat nobody has spoken in yet still opens an ordinary room", () => {
   const s = store();
   const conv = startConversation({
-    storagePath: s.storagePath, agentSlug: "magui", engine: "test:model", channel: "web",
+    storagePath: s.storagePath, agentSlug: "lumen", engine: "test:model", channel: "web",
   });
   const out = promoteConversationToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    agentSlug: "magui", conversationId: conv.id, participants: ["andy"],
+    agentSlug: "lumen", conversationId: conv.id, participants: ["andy"],
   });
   assert.equal(out.imported, 0);
-  assert.deepEqual(readProjectGroupThread(s.storagePath, out.id).participants.sort(), ["andy", "magui"]);
+  assert.deepEqual(readProjectGroupThread(s.storagePath, out.id).participants.sort(), ["andy", "lumen"]);
 });
 
 test("the agent you were talking to cannot be left out of its own room", () => {
@@ -134,9 +134,9 @@ test("the agent you were talking to cannot be left out of its own room", () => {
     // A caller that lists only the newcomer is corrected, not obeyed: a room
     // holding somebody else's conversation with the one agent that had it
     // missing is not a conversion of anything.
-    agentSlug: "magui", conversationId: conv.id, participants: ["andy"],
+    agentSlug: "lumen", conversationId: conv.id, participants: ["andy"],
   });
-  assert.ok(readProjectGroupThread(s.storagePath, out.id).participants.includes("magui"));
+  assert.ok(readProjectGroupThread(s.storagePath, out.id).participants.includes("lumen"));
 });
 
 // ── a2a pairs ───────────────────────────────────────────────────────────────
@@ -161,12 +161,12 @@ function pairBetween(s, from, to) {
 
 test("an a2a pair becomes a room the owner is in, carrying the exchange", () => {
   const s = store();
-  const thread = pairBetween(s, "andy", "magui");
+  const thread = pairBetween(s, "andy", "lumen");
   const out = promoteA2AThreadToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    threadId: thread, knownAgents: ["andy", "magui", "otro"],
+    threadId: thread, knownAgents: ["andy", "lumen", "otro"],
   });
-  assert.deepEqual(out.participants.sort(), ["andy", "magui"]);
+  assert.deepEqual(out.participants.sort(), ["andy", "lumen"]);
   const room = readProjectGroupThread(s.storagePath, out.id);
   assert.deepEqual(
     room.messages.map((m) => m.content),
@@ -176,20 +176,20 @@ test("an a2a pair becomes a room the owner is in, carrying the exchange", () => 
   // Every line in a pair is an agent's — there is no owner in an a2a thread,
   // which is precisely why the owner speaking has to convert it.
   assert.ok(room.messages.every((m) => m.role === "assistant"));
-  assert.deepEqual(room.messages.map((m) => m.agent), ["andy", "magui"]);
+  assert.deepEqual(room.messages.map((m) => m.agent), ["andy", "lumen"]);
 });
 
 test("the super-agent's seat in a pair becomes the owner's", () => {
   // A room is "the owner plus N project agents". The super-agent is not a member
-  // of one: in a room the owner speaks for themselves. So `roby~magui` promotes
-  // to a room with Magui in it — which is the conversation that was wanted.
+  // of one: in a room the owner speaks for themselves. So `roby~lumen` promotes
+  // to a room with Lumen in it — which is the conversation that was wanted.
   const s = store();
-  const thread = pairBetween(s, "super_agent", "magui");
+  const thread = pairBetween(s, "super_agent", "lumen");
   const out = promoteA2AThreadToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    threadId: thread, knownAgents: ["magui"],
+    threadId: thread, knownAgents: ["lumen"],
   });
-  assert.deepEqual(out.participants, ["magui"]);
+  assert.deepEqual(out.participants, ["lumen"]);
   const room = readProjectGroupThread(s.storagePath, out.id);
   assert.equal(room.messages.length, 2, "what the super-agent said is still on the record");
   assert.ok(room.messages.some((m) => m.agent === "super_agent"), "under its own name");
@@ -197,12 +197,12 @@ test("the super-agent's seat in a pair becomes the owner's", () => {
 
 test("inviting a third agent while converting seats them too", () => {
   const s = store();
-  const thread = pairBetween(s, "andy", "magui");
+  const thread = pairBetween(s, "andy", "lumen");
   const out = promoteA2AThreadToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage, threadId: thread,
-    knownAgents: ["andy", "magui", "otro"], participants: ["otro"],
+    knownAgents: ["andy", "lumen", "otro"], participants: ["otro"],
   });
-  assert.deepEqual(out.participants.sort(), ["andy", "magui", "otro"]);
+  assert.deepEqual(out.participants.sort(), ["andy", "lumen", "otro"]);
 });
 
 test("a pair with nobody seatable is refused, not opened empty", () => {
@@ -223,7 +223,7 @@ test("promoting something that is not there fails loudly", () => {
   const s = store();
   assert.throws(() => promoteConversationToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,
-    agentSlug: "magui", conversationId: "2026-01-01-01", participants: ["andy"],
+    agentSlug: "lumen", conversationId: "2026-01-01-01", participants: ["andy"],
   }), /no conversation/);
   assert.throws(() => promoteA2AThreadToGroup({
     storagePath: s.storagePath, logMessage: s.logMessage,

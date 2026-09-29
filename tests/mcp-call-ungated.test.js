@@ -1,9 +1,9 @@
 // `call_mcp` is not graded, and nothing measures a third-party tool by its name.
 //
 // The deleted core/mcp/tool-risk.js split the target tool's name into words and
-// looked them up in two lists of English verbs and nouns. `cheto_task_update`
+// looked them up in two lists of English verbs and nouns. `northwind_task_update`
 // contains "update", so it came back dangerous; under `automatico` that is a
-// confirmation dialog, and the company-council-cmo routine had nobody to show
+// confirmation dialog, and the board-cmo routine had nobody to show
 // one to. It died four runs in a row on a call that needed no person, while its
 // allowed_tools already listed `call_mcp` — which `automatico` never reads.
 //
@@ -28,7 +28,7 @@ const { blockedForPermissionError } = await import("#core/routines/runner.js");
 
 // Names the old heuristic graded dangerous: a write verb, a destructive verb,
 // and the fail-closed tie it had no opinion about.
-const ONCE_GATED = ["cheto_task_update", "appsi_delete_campaign", "frobnicate"];
+const ONCE_GATED = ["northwind_task_update", "initech_delete_campaign", "frobnicate"];
 
 function harness(permissionMode, allowedTools = []) {
   const calls = [];
@@ -58,7 +58,7 @@ function harness(permissionMode, allowedTools = []) {
 test("automatico runs every MCP tool, whatever it is called", async () => {
   const { handler, calls } = harness("automatico");
   for (const tool of ONCE_GATED) {
-    const out = await handler({ mcp: "cheto", tool, args: { task: 377 } });
+    const out = await handler({ mcp: "northwind", tool, args: { task: 377 } });
     assert.equal(out.ok, true, `${tool} should run unattended`);
   }
   assert.deepEqual(calls.map((c) => c.tool), ONCE_GATED);
@@ -66,14 +66,14 @@ test("automatico runs every MCP tool, whatever it is called", async () => {
 
 test("total runs them too", async () => {
   const { handler, calls } = harness("total");
-  await handler({ mcp: "cheto", tool: "cheto_task_update", args: {} });
+  await handler({ mcp: "northwind", tool: "northwind_task_update", args: {} });
   assert.equal(calls.length, 1);
 });
 
 test("permiso is the one mode that gates, and allowed_tools is the way through", async () => {
   const denied = harness("permiso", []);
   await assert.rejects(
-    () => denied.handler({ mcp: "cheto", tool: "cheto_areas", args: {} }),
+    () => denied.handler({ mcp: "northwind", tool: "northwind_areas", args: {} }),
     /requires user confirmation/,
     "an unlisted call_mcp still asks",
   );
@@ -82,13 +82,13 @@ test("permiso is the one mode that gates, and allowed_tools is the way through",
   // The same allowlist the blocked routine already carried. Under `permiso` it
   // works, which is what the error message now says and did not before.
   const allowed = harness("permiso", ["call_mcp"]);
-  await allowed.handler({ mcp: "cheto", tool: "cheto_task_update", args: {} });
+  await allowed.handler({ mcp: "northwind", tool: "northwind_task_update", args: {} });
   assert.equal(allowed.calls.length, 1);
 });
 
 test("the handler no longer interrogates the server to decide", async () => {
   const { handler, probes } = harness("automatico");
-  await handler({ mcp: "cheto", tool: "cheto_task_update", args: {} });
+  await handler({ mcp: "northwind", tool: "northwind_task_update", args: {} });
   assert.deepEqual(probes, [], "no listTools / getByName round trip per call");
 });
 

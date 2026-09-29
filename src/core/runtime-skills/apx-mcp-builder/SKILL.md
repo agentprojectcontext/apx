@@ -125,7 +125,7 @@ apx mcp add github \
   --scope runtime --project acme \
   --command npx \
   --env GITHUB_TOKEN=ghp_xxx \
-  --env GITHUB_OWNER=manuel \
+  --env GITHUB_OWNER=acme \
   -- -y @modelcontextprotocol/server-github
 ```
 

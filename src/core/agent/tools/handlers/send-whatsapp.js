@@ -120,9 +120,9 @@ export default {
      * And it could not ask. `permission_mode` defaults to `automatico`, the
      * WhatsApp turn wires no confirmation dialog, so the guard THREW — the
      * model read "Action requires user confirmation" as one more failed tool
-     * and went on to tell the owner it had answered. Manu, 2026-09-20: "vos
-     * estuviste hablando con ella re tranquila, de repente te dejó un mensaje,
-     * se te trabó todo, y ahora no le puedes responder".
+     * and went on to tell the owner it had answered. The owner, 2026-09-20: the
+     * conversation had been going fine, the contact left one more message,
+     * everything jammed, and the agent could no longer reply to her.
      *
      * Any OTHER recipient still goes through the gate, unchanged.
      */
@@ -226,9 +226,9 @@ export default {
       // history (dispatch.js `threadFor`) and repeating it is context spent
       // twice.
       //
-      // Manu, 2026-09-20: "sería bueno que en tu skill misma sepas o recuerdes
-      // revisar los últimos mensajes para tener contexto, porque a veces le
-      // contestás cualquiera cuando podrías saber que venías hablando". From
+      // The owner, 2026-09-20, asked for the skill itself to check the latest
+      // messages for context, because replies sometimes ignored a conversation
+      // that was already under way. From
       // Telegram, the agent had no cheap way to know what had been said, so it
       // answered into the void and then described the void to the owner.
       ...(channel === CHANNELS.WHATSAPP ? {} : { thread_tail: recentThread(jid) }),

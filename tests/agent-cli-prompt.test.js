@@ -87,14 +87,14 @@ test("agent add with no prompt still works but warns", async () => {
     const log = console.log;
     console.log = (...a) => lines.push(a.join(" "));
     try {
-      await cmdAgentAdd(args(["magui"], { role: "Social Media Producer", description: "Productora." }));
+      await cmdAgentAdd(args(["lumen"], { role: "Social Media Producer", description: "Productora." }));
     } finally {
       console.log = log;
     }
-    assert.equal(bodyOf(root, "magui"), "");
+    assert.equal(bodyOf(root, "lumen"), "");
     const out = lines.join("\n");
     assert.match(out, /no system prompt/);
-    assert.match(out, /apx agent set magui --prompt/);
+    assert.match(out, /apx agent set lumen --prompt/);
   });
 });
 
@@ -161,10 +161,10 @@ test("agent add slugifies a display-name area so Growth and growth don't split",
 
 test("agent add takes a typology and an area, and rejects an unknown type", async () => {
   await inProject(async (root) => {
-    await cmdAgentAdd(args(["magui"], {
+    await cmdAgentAdd(args(["lumen"], {
       prompt: PROMPT, type: "specialist", area: "growth", role: "Social Media Producer",
     }));
-    const f = readAgents(root).find((a) => a.slug === "magui").fields;
+    const f = readAgents(root).find((a) => a.slug === "lumen").fields;
     assert.equal(f.Type, "specialist");
     assert.equal(f.Area, "growth");
     assert.equal(f.Role, "Social Media Producer");
@@ -189,27 +189,27 @@ test("agent add --type orchestrator also marks the agent as master", async () =>
 
 test("agent set can change the typology and the avatar", async () => {
   await inProject(async (root) => {
-    await cmdAgentAdd(args(["magui"], { prompt: PROMPT }));
-    await cmdAgentSet(args(["magui"], { type: "worker", icon: "saturno", area: "content" }));
+    await cmdAgentAdd(args(["lumen"], { prompt: PROMPT }));
+    await cmdAgentSet(args(["lumen"], { type: "worker", icon: "saturno", area: "content" }));
 
-    const f = readAgents(root).find((a) => a.slug === "magui").fields;
+    const f = readAgents(root).find((a) => a.slug === "lumen").fields;
     assert.equal(f.Type, "worker");
     assert.equal(f.Icon, "saturno");
     assert.equal(f.Area, "content");
     // …and the prompt survived the identity edit.
-    assert.equal(bodyOf(root, "magui"), PROMPT);
+    assert.equal(bodyOf(root, "lumen"), PROMPT);
   });
 });
 
 test("agent set --prompt gives instructions to an agent created without them", async () => {
   await inProject(async (root) => {
-    await cmdAgentAdd(args(["magui"], { role: "Social Media Producer" }));
-    assert.equal(bodyOf(root, "magui"), "");
+    await cmdAgentAdd(args(["lumen"], { role: "Social Media Producer" }));
+    assert.equal(bodyOf(root, "lumen"), "");
 
-    await cmdAgentSet(args(["magui"], { prompt: PROMPT }));
-    assert.equal(bodyOf(root, "magui"), PROMPT);
+    await cmdAgentSet(args(["lumen"], { prompt: PROMPT }));
+    assert.equal(bodyOf(root, "lumen"), PROMPT);
     // The fields it already had survive the prompt write.
-    assert.equal(readAgents(root).find((a) => a.slug === "magui").fields.Role, "Social Media Producer");
+    assert.equal(readAgents(root).find((a) => a.slug === "lumen").fields.Role, "Social Media Producer");
   });
 });
 

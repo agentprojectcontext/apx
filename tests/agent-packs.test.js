@@ -183,7 +183,7 @@ test("an explicit name wins, and a taken one is refused before anything is writt
 });
 
 test("a council added to a project that already has its lead reports to that lead", () => {
-  // The normal shape of "add the executives to Appsi": the CEO is already
+  // The normal shape of "add the executives to Initech": the CEO is already
   // there, so installing the rest must hang off it instead of orphaning them.
   const root = makeTempProject({ name: "has-lead", agents: [{ slug: "ceo", role: "CEO" }] });
   try {

@@ -24,7 +24,7 @@ const {
   setConversationMeta, conversationTitle,
 } = await import("#core/stores/conversations.js");
 
-function seed({ id = "2026-09-11-01", first = "te fijas que le pedí a roby lo de knot?" } = {}) {
+function seed({ id = "2026-09-11-01", first = "te fijas que le pedí a roby lo de orbit?" } = {}) {
   const storagePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "apx-titles-")), "storage");
   const started = startConversation({
     storagePath, agentSlug: "ansel", engine: "mock", channel: "web", id,
@@ -40,17 +40,17 @@ const open = (storagePath, id) => readConversation(storagePath, "ansel", id);
 test("an unnamed conversation is named after the first thing said", () => {
   const { storagePath, id } = seed();
   const conv = open(storagePath, id);
-  assert.equal(conversationTitle(conv.fm, conv.turns), "te fijas que le pedí a roby lo de knot?");
+  assert.equal(conversationTitle(conv.fm, conv.turns), "te fijas que le pedí a roby lo de orbit?");
   // And the list agrees, because it is the same function.
   const [row] = listConversations(storagePath, "ansel");
-  assert.equal(row.title, "te fijas que le pedí a roby lo de knot?");
+  assert.equal(row.title, "te fijas que le pedí a roby lo de orbit?");
 });
 
 test("the list and the open conversation cannot disagree", () => {
   // The whole bug: two derivations, one of them missing. Asserted as an
   // equality rather than two separate expectations, because what went wrong was
   // never the value — it was that there were two of them.
-  const { storagePath, id } = seed({ first: "arrancamos con el brief de carwash" });
+  const { storagePath, id } = seed({ first: "arrancamos con el brief de la panadería" });
   const conv = open(storagePath, id);
   const [row] = listConversations(storagePath, "ansel");
   assert.equal(conversationTitle(conv.fm, conv.turns), row.title);
@@ -59,10 +59,10 @@ test("the list and the open conversation cannot disagree", () => {
 
 test("a name the reader typed always wins", () => {
   const { storagePath, id } = seed();
-  setConversationMeta(storagePath, "ansel", id, { title: "Knot: alta con CUIT duplicado" });
+  setConversationMeta(storagePath, "ansel", id, { title: "Orbit: alta con CUIT duplicado" });
   const conv = open(storagePath, id);
-  assert.equal(conversationTitle(conv.fm, conv.turns), "Knot: alta con CUIT duplicado");
-  assert.equal(listConversations(storagePath, "ansel")[0].title, "Knot: alta con CUIT duplicado");
+  assert.equal(conversationTitle(conv.fm, conv.turns), "Orbit: alta con CUIT duplicado");
+  assert.equal(listConversations(storagePath, "ansel")[0].title, "Orbit: alta con CUIT duplicado");
 });
 
 test("only the first LINE, capped, so a pasted wall of text is not the name", () => {

@@ -1,7 +1,7 @@
 // The delivery grace sweep — the "notify unless he reads it first" timer.
 //
 // An ORDINARY (non-priority) delivery is not pinged at the moment it is created.
-// It sits `pending` for a short grace window so Manu can open the agent's chat
+// It sits `pending` for a short grace window so the owner can open the agent's chat
 // and reply — which marks it `answered` and cancels the notify (answerDeliveries,
 // wired into the agent-chat endpoint). If the window passes and it is still
 // pending, this sweep has Roby tell him.

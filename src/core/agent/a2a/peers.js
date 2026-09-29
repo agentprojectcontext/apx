@@ -102,11 +102,11 @@ export function resolvePeer(address, agents = [], config = {}) {
       kind: "super_agent",
       address: full,
       // ONE name for the super-agent on the ledger, whichever alias was typed.
-      // This used to answer to `default`, so `apx send magui default "…"` filed
+      // This used to answer to `default`, so `apx send lumen default "…"` filed
       // the exchange under a peer called "default" — a name no agent list, face
       // resolver or reader can place, while the very same super-agent appears as
-      // `super_agent` everywhere else. Manu saw the result in his inbox: "Magui
-      // is talking to `default`, which does not exist". The aliases still all
+      // `super_agent` everywhere else. The owner saw the result in the inbox: Lumen
+      // talking to `default`, a peer that does not exist. The aliases still all
       // resolve; they just stop minting a second identity for the same agent.
       name: SUPERAGENT_ACTOR_ID,
       thread,

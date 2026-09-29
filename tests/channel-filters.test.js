@@ -177,8 +177,8 @@ test("the phone keys rows by channel too, like the desktop rail", () => {
   assert.match(list, /export function inboxRowKey/);
   assert.match(list, /row\.channel \?\? ""/, "the channel is part of a row's identity");
   // And so is the PERSON. On a channel that talks to several of them every row
-  // is the super-agent's on the same channel, so without this Manu, Magui and
-  // Carlos shared one key: all three lit up as selected at once, and clicking
+  // is the super-agent's on the same channel, so without this Julián, Lucía and
+  // Tomás shared one key: all three lit up as selected at once, and clicking
   // any of them opened whichever the list happened to find first.
   assert.match(list, /row\.contact_person \?\? ""/, "the person is part of it too");
   // The person, not the conversation id — the id is a day of the ledger and

@@ -58,7 +58,7 @@ export type TimelineEntry = {
   ended_at?: string | null;
   answered?: boolean;
   tools?: { total: number; failed: number; names: string[] };
-  /** What the turn SHOWED a reader ("Magui"). Not an address. */
+  /** What the turn SHOWED a reader ("Lumen"). Not an address. */
   agent?: string | null;
   /** What addresses it. Only the cross-chat view carries one. */
   agent_slug?: string | null;

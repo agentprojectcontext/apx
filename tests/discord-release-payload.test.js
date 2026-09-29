@@ -71,9 +71,9 @@ test("the message says what kind of release it is, and who wrote it", () => {
   // Credits, minus the machine: semantic-release authors the version commit of
   // every release, so thanking it thanks the thing that posted the message.
   const credited = buildPayload("1.3.0", REPO, notes(body), {
-    credits: ["tecnomanu", "semantic-release-bot", "dependabot[bot]", "otro"],
+    credits: ["octocat", "semantic-release-bot", "dependabot[bot]", "otro"],
   }).embeds[0].fields.find((f) => f.name === "Credits");
-  assert.match(credited.value, /\[@tecnomanu\]\(https:\/\/github\.com\/tecnomanu\)/);
+  assert.match(credited.value, /\[@octocat\]\(https:\/\/github\.com\/octocat\)/);
   assert.match(credited.value, / y \[@otro\]/);
   assert.doesNotMatch(credited.value, /bot/);
 

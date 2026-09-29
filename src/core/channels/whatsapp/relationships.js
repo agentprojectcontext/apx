@@ -1,8 +1,8 @@
 // How a contact is related to the owner — a closed list, not free text.
 //
 // It was free text, and it immediately overlapped with `bio`: one contact read
-// "esposa de Manu" in the relationship and "es mi esposa y vivo con ella" in the
-// bio, another "socio de Manu en Savia.ar y amigo" in both. Two fields asking
+// "esposa del dueño" in the relationship and "es mi esposa y vivo con ella" in the
+// bio, another "socio del dueño en Acme y amigo" in both. Two fields asking
 // the same question get answered twice, and the prompt then says it twice.
 //
 // So the split is by KIND of information: this field is the category (one of a

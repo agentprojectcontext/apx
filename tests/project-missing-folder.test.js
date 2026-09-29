@@ -1,10 +1,10 @@
 // A project whose folder was renamed or moved must SAY so, and must be
 // repairable without losing its id.
 //
-// The regression: `/proyectos_varios/knot` was renamed to `/proyectos_varios/cheto`.
+// The regression: `/projects/orbit` was renamed to `/projects/northwind`.
 // A project is registered by path and nothing else, so every derived fact fell
 // back instead of failing — the name became the basename of the dead path
-// ("knot", though .apc/project.json said "Cheto"), readAgents() found no
+// ("orbit", though .apc/project.json said "Northwind"), readAgents() found no
 // directory and answered 0 though there were eight, and `apx project rebuild 18`
 // reported "Rebuilt project #18: 0 agents" and exited 0. Nothing anywhere
 // errored, so the only reading available was that the rename had reverted.
@@ -71,7 +71,7 @@ function registered(root) {
 }
 
 test("projectPresence tells a missing folder from a de-initialized one", () => {
-  const root = mkProject("Cheto");
+  const root = mkProject("Northwind");
   try {
     assert.equal(projectPresence(root).missing, false);
 
@@ -98,14 +98,14 @@ test("projectPresence tells a missing folder from a de-initialized one", () => {
 });
 
 test("list() marks the project whose folder is gone", () => {
-  const root = mkProject("Cheto", { agents: ["orchestrator"] });
-  const moved = path.join(path.dirname(root), "cheto-renamed");
+  const root = mkProject("Northwind", { agents: ["orchestrator"] });
+  const moved = path.join(path.dirname(root), "northwind-renamed");
   try {
     const { pm, entry } = registered(root);
 
     const before = pm.list().find((p) => p.id === entry.id);
     assert.equal(before.missing, false);
-    assert.equal(before.name, "Cheto", "the name comes from .apc/project.json");
+    assert.equal(before.name, "Northwind", "the name comes from .apc/project.json");
     assert.equal(before.agents, 1);
 
     renameFolder(root, moved);
@@ -124,8 +124,8 @@ test("list() marks the project whose folder is gone", () => {
 });
 
 test("rebuild FAILS on a missing folder instead of reporting 0 agents", () => {
-  const root = mkProject("Cheto", { agents: ["pm"] });
-  const moved = path.join(path.dirname(root), "cheto-rebuild");
+  const root = mkProject("Northwind", { agents: ["pm"] });
+  const moved = path.join(path.dirname(root), "northwind-rebuild");
   try {
     const { pm, entry } = registered(root);
     assert.equal(pm.rebuild(entry.id).agents, 1);
@@ -150,9 +150,9 @@ test("rebuild FAILS on a missing folder instead of reporting 0 agents", () => {
 });
 
 test("findMovedProject follows the apx_id, not the name", () => {
-  const root = mkProject("Cheto");
+  const root = mkProject("Northwind");
   const moved = path.join(path.dirname(root), "renamed-to-something-else");
-  const decoy = mkProject("Cheto"); // same NAME, different apx_id
+  const decoy = mkProject("Northwind"); // same NAME, different apx_id
   try {
     const apxId = JSON.parse(
       fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8"),
@@ -163,7 +163,7 @@ test("findMovedProject follows the apx_id, not the name", () => {
     const found = findMovedProject(root, apxId);
     assert.ok(found, "the renamed folder is a sibling of the old path");
     assert.equal(found.path, moved);
-    assert.equal(found.name, "Cheto");
+    assert.equal(found.name, "Northwind");
     assert.notEqual(found.path, decoy, "a same-named project must not match");
 
     // No apx_id to match on = no guess at all.
@@ -177,8 +177,8 @@ test("findMovedProject follows the apx_id, not the name", () => {
 });
 
 test("relink keeps the id and the storage, and finds the folder on its own", () => {
-  const root = mkProject("Cheto", { agents: ["qa", "pm"] });
-  const moved = path.join(path.dirname(root), "cheto-relinked");
+  const root = mkProject("Northwind", { agents: ["qa", "pm"] });
+  const moved = path.join(path.dirname(root), "northwind-relinked");
   try {
     const { pm, entry } = registered(root);
     const idBefore = entry.id;
@@ -196,7 +196,7 @@ test("relink keeps the id and the storage, and finds the folder on its own", () 
 
     const after = pm.list().find((p) => p.id === idBefore);
     assert.equal(after.missing, false);
-    assert.equal(after.name, "Cheto", "the real name is back");
+    assert.equal(after.name, "Northwind", "the real name is back");
     assert.equal(after.storage_path, storageBefore, "stored data is not orphaned");
     assert.equal(after.apx_id, apxBefore);
 
@@ -212,9 +212,9 @@ test("relink keeps the id and the storage, and finds the folder on its own", () 
 });
 
 test("relink refuses a folder that is a different project", () => {
-  const root = mkProject("Cheto");
+  const root = mkProject("Northwind");
   const other = mkProject("Otro");
-  const moved = path.join(path.dirname(root), "cheto-guard");
+  const moved = path.join(path.dirname(root), "northwind-guard");
   try {
     const { pm, entry } = registered(root);
     renameFolder(root, moved);
@@ -284,8 +284,8 @@ function apiFor(projects, { relinkProjectGlobally = () => true } = {}) {
 }
 
 test("GET /projects carries the missing flag the panel draws its warning from", async () => {
-  const root = mkProject("Cheto", { agents: ["pm"] });
-  const moved = path.join(path.dirname(root), "cheto-api");
+  const root = mkProject("Northwind", { agents: ["pm"] });
+  const moved = path.join(path.dirname(root), "northwind-api");
   const projects = new ProjectManager({});
   const { id } = projects.register(root);
   const { server, baseUrl } = await listen(apiFor(projects));
@@ -306,8 +306,8 @@ test("GET /projects carries the missing flag the panel draws its warning from", 
 });
 
 test("POST /projects/:id/rebuild answers 400, not a cheerful 0 agents", async () => {
-  const root = mkProject("Cheto");
-  const moved = path.join(path.dirname(root), "cheto-rebuild-api");
+  const root = mkProject("Northwind");
+  const moved = path.join(path.dirname(root), "northwind-rebuild-api");
   const projects = new ProjectManager({});
   const { id } = projects.register(root);
   const { server, baseUrl } = await listen(apiFor(projects));
@@ -326,8 +326,8 @@ test("POST /projects/:id/rebuild answers 400, not a cheerful 0 agents", async ()
 });
 
 test("POST /projects/:id/relink finds the folder itself and persists the move", async () => {
-  const root = mkProject("Cheto", { agents: ["qa"] });
-  const moved = path.join(path.dirname(root), "cheto-found");
+  const root = mkProject("Northwind", { agents: ["qa"] });
+  const moved = path.join(path.dirname(root), "northwind-found");
   const projects = new ProjectManager({});
   const { id } = projects.register(root);
   const persisted = [];
@@ -353,7 +353,7 @@ test("POST /projects/:id/relink finds the folder itself and persists the move", 
 
     const row = (await (await fetch(`${baseUrl}/api/projects`)).json()).find((p) => p.id === id);
     assert.equal(row.missing, false);
-    assert.equal(row.name, "Cheto");
+    assert.equal(row.name, "Northwind");
   } finally {
     server.close();
     rm(root);
@@ -362,7 +362,7 @@ test("POST /projects/:id/relink finds the folder itself and persists the move", 
 });
 
 test("relink says so when it cannot find where the project went", async () => {
-  const root = mkProject("Cheto");
+  const root = mkProject("Northwind");
   const projects = new ProjectManager({});
   const { id } = projects.register(root);
   const { server, baseUrl } = await listen(apiFor(projects));
@@ -383,9 +383,9 @@ test("relink says so when it cannot find where the project went", async () => {
 
 test("relinkProject rewrites the config entry IN PLACE, keeping its position", () => {
   const first = mkProject("First");
-  const root = mkProject("Cheto");
+  const root = mkProject("Northwind");
   const last = mkProject("Last");
-  const moved = path.join(path.dirname(root), "cheto-config");
+  const moved = path.join(path.dirname(root), "northwind-config");
   try {
     for (const p of [first, root, last]) addProject(readConfig(), p);
     const posBefore = readConfig().projects.findIndex((p) => path.resolve(p.path) === root);

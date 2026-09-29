@@ -78,7 +78,7 @@ test("mobility remind-later button enters the delivery queue", async () => {
 function pressOf(data, { label = "", chatId = 4242 } = {}) {
   return {
     id: "cbq_1",
-    from: { id: 7, first_name: "Manu" },
+    from: { id: 7, first_name: "Julián" },
     data,
     message: {
       message_id: 99,

@@ -28,7 +28,7 @@ const {
   readTaskReads, markTasksRead, isTaskUnread, decorateTaskUnread, taskReadKey, _resetTaskReadsForTest,
 } = await import("#core/stores/task-reads.js");
 
-const ALIASES = ownerAliasesFrom("Alex Doe");
+const ALIASES = ownerAliasesFrom("Julián Ríos");
 
 function store() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "apx-tasks-store-"));
@@ -37,19 +37,19 @@ function store() {
 // ── who a comment is addressed to ──────────────────────────────────────────
 
 test("the owner's own name reaches them however it is written", () => {
-  const t = { comments: [{ ts: "2026-09-20T10:00:00Z", by: "romi", text: "@Manú, ¿lo publico?" }] };
+  const t = { comments: [{ ts: "2026-09-20T10:00:00Z", by: "nico", text: "@Julian, ¿lo publico?" }] };
   assert.equal(awaitsOwner(t, ALIASES), true, "accents do not hide a mention");
-  assert.equal(awaitsOwner({ comments: [{ by: "romi", text: "@manu dale" }] }, ALIASES), true);
-  assert.equal(awaitsOwner({ comments: [{ by: "romi", text: "@owner ping" }] }, ALIASES), true);
-  assert.equal(awaitsOwner({ comments: [{ by: "romi", text: "@caleb, mirá esto" }] }, ALIASES), false);
+  assert.equal(awaitsOwner({ comments: [{ by: "nico", text: "@julián dale" }] }, ALIASES), true);
+  assert.equal(awaitsOwner({ comments: [{ by: "nico", text: "@owner ping" }] }, ALIASES), true);
+  assert.equal(awaitsOwner({ comments: [{ by: "nico", text: "@caleb, mirá esto" }] }, ALIASES), false);
 });
 
 test("only the NEWEST comment can be the one waiting on you", () => {
   // Scanning the whole thread would leave "requiere tu respuesta" up forever on
-  // any task where an agent once said "@Manu?" — answering is how it clears.
+  // any task where an agent once said "@Julián?" — answering is how it clears.
   const t = {
     comments: [
-      { ts: "2026-09-20T10:00:00Z", by: "romi", text: "@Manu, ¿arranco?" },
+      { ts: "2026-09-20T10:00:00Z", by: "nico", text: "@Julián, ¿arranco?" },
       { ts: "2026-09-20T11:00:00Z", by: "owner", text: "dale" },
     ],
   };
@@ -57,7 +57,7 @@ test("only the NEWEST comment can be the one waiting on you", () => {
 });
 
 test("your own comment never asks you for anything", () => {
-  const t = { comments: [{ ts: "2026-09-20T10:00:00Z", by: "owner", text: "@Manu acordate" }] };
+  const t = { comments: [{ ts: "2026-09-20T10:00:00Z", by: "owner", text: "@Julián acordate" }] };
   assert.equal(awaitsOwner(t, ALIASES), false);
 });
 
@@ -69,7 +69,7 @@ test("activity is what SOMEBODY ELSE did, not what you did", () => {
 
   const theirs = {
     comments: [
-      { ts: "2026-09-20T10:00:00Z", by: "romi", text: "listo" },
+      { ts: "2026-09-20T10:00:00Z", by: "nico", text: "listo" },
       { ts: "2026-09-20T12:00:00Z", by: "owner", text: "gracias" },
     ],
   };
@@ -79,7 +79,7 @@ test("activity is what SOMEBODY ELSE did, not what you did", () => {
 test("a task somebody else filed is activity even with an empty thread", () => {
   // A routine that lodges three tasks at nine in the morning is exactly the
   // case this is for, and it has no comment to point at.
-  const filed = { comments: [], created_by: "romi", created_at: "2026-09-20T09:00:00Z" };
+  const filed = { comments: [], created_by: "nico", created_at: "2026-09-20T09:00:00Z" };
   assert.equal(activityAt(filed), "2026-09-20T09:00:00Z");
   assert.equal(activityAt({ comments: [], created_by: "owner", created_at: "x" }), "");
 });
@@ -89,8 +89,8 @@ test("a task somebody else filed is activity even with an empty thread", () => {
 test("the row says who spoke last, not how many spoke", () => {
   const t = {
     comments: [
-      { id: "c1", ts: "1", by: "romi", text: "primera" },
-      { id: "c2", ts: "2", by: "caleb", text: "@Manu ¿lo saco hoy?", mentions: ["owner"] },
+      { id: "c1", ts: "1", by: "nico", text: "primera" },
+      { id: "c2", ts: "2", by: "caleb", text: "@Julián ¿lo saco hoy?", mentions: ["owner"] },
     ],
   };
   const preview = commentPreview(t, ALIASES);
@@ -101,7 +101,7 @@ test("the row says who spoke last, not how many spoke", () => {
 
 test("a long comment is clipped before it is shipped, not in the browser", () => {
   const long = "x".repeat(PREVIEW_CHARS + 500);
-  const preview = commentPreview({ comments: [{ id: "c", ts: "1", by: "romi", text: long }] }, ALIASES);
+  const preview = commentPreview({ comments: [{ id: "c", ts: "1", by: "nico", text: long }] }, ALIASES);
   assert.equal(preview.text.length, PREVIEW_CHARS + 1, "clipped, plus the ellipsis");
   assert.equal(commentPreview({ comments: [] }, ALIASES), null);
 });
@@ -110,7 +110,7 @@ test("a long comment is clipped before it is shipped, not in the browser", () =>
 
 test("blocked ON YOU needs all three: open, blocked, yours", () => {
   assert.equal(blockedByOwner({ state: "open", status: "blocked", agent: "owner" }), true);
-  assert.equal(blockedByOwner({ state: "open", status: "blocked", agent: "romi" }), false,
+  assert.equal(blockedByOwner({ state: "open", status: "blocked", agent: "nico" }), false,
     "blocked on an agent is work that is still moving");
   assert.equal(blockedByOwner({ state: "done", status: "blocked", agent: "owner" }), false);
   assert.equal(blockedByOwner({ state: "open", status: "running", agent: "owner" }), false);
@@ -121,18 +121,18 @@ test("blocked ON YOU needs all three: open, blocked, yours", () => {
 test("a task list carries the attention fields and sorts by them", () => {
   const dir = store();
   const quiet = createTask(dir, { title: "algo tranquilo", created_by: "owner" });
-  const asking = createTask(dir, { title: "una pregunta", created_by: "romi" });
-  const stuck = createTask(dir, { title: "trabada por mí", created_by: "romi" });
+  const asking = createTask(dir, { title: "una pregunta", created_by: "nico" });
+  const stuck = createTask(dir, { title: "trabada por mí", created_by: "nico" });
 
-  addComment(dir, asking.id, { text: "@Manu ¿te parece?", by: "romi" });
+  addComment(dir, asking.id, { text: "@Julián ¿te parece?", by: "nico" });
   patchTask(dir, stuck.id, { agent: "owner" });
   setTaskStatus(dir, stuck.id, "blocked");
 
-  const rows = listTasks(dir, { owner_name: "Alex Doe", sort: "attention" });
+  const rows = listTasks(dir, { owner_name: "Julián Ríos", sort: "attention" });
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
 
   assert.equal(byId[asking.id].awaits_owner, true);
-  assert.equal(byId[asking.id].last_comment.by, "romi");
+  assert.equal(byId[asking.id].last_comment.by, "nico");
   assert.equal(byId[quiet.id].awaits_owner, false);
   assert.equal(byId[quiet.id].activity_at, "", "a task you filed yourself is not news");
   assert.equal(byId[stuck.id].blocked_by_owner, true);
@@ -143,7 +143,7 @@ test("a task list carries the attention fields and sorts by them", () => {
 
   // And the default order is untouched, so nothing that asked for newest-first
   // silently changed shape.
-  const newest = listTasks(dir, { owner_name: "Alex Doe" });
+  const newest = listTasks(dir, { owner_name: "Julián Ríos" });
   assert.equal(newest.length, rows.length);
 });
 

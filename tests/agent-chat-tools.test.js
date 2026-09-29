@@ -29,7 +29,7 @@ let call;
 let PROJECT;
 
 /** A project on disk with one agent card, plus the storage the ledger writes to. */
-function makeProject({ slug = "magui", tools = null } = {}) {
+function makeProject({ slug = "lumen", tools = null } = {}) {
   const root = fs.mkdtempSync(path.join(TMP_HOME, "proj-"));
   const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-"));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -91,7 +91,7 @@ after(() => {
 });
 
 test("exec runs the tool loop — the agent CALLS the tool instead of describing it", async () => {
-  const r = await call("/api/projects/1/agents/magui/exec", {
+  const r = await call("/api/projects/1/agents/lumen/exec", {
     prompt: "[mock:tool:list_agents] listame los agentes",
     model: "mock",
   });
@@ -104,7 +104,7 @@ test("exec runs the tool loop — the agent CALLS the tool instead of describing
 });
 
 test("chat runs the tool loop too, and keeps the conversation contract", async () => {
-  const r = await call("/api/projects/1/agents/magui/chat", {
+  const r = await call("/api/projects/1/agents/lumen/chat", {
     prompt: "[mock:tool:list_agents] dale",
     model: "mock",
   });
@@ -115,11 +115,11 @@ test("chat runs the tool loop too, and keeps the conversation contract", async (
 });
 
 test("a second chat turn replays the first — history is not lost to the loop", async () => {
-  const first = await call("/api/projects/1/agents/magui/chat", {
+  const first = await call("/api/projects/1/agents/lumen/chat", {
     prompt: "primero",
     model: "mock",
   });
-  const second = await call("/api/projects/1/agents/magui/chat", {
+  const second = await call("/api/projects/1/agents/lumen/chat", {
     prompt: "[mock:system] segundo",
     model: "mock",
     conversation_id: first.body.conversation_id,
@@ -129,7 +129,7 @@ test("a second chat turn replays the first — history is not lost to the loop",
 });
 
 test("tools:false keeps the old toolless path for callers that want one model call", async () => {
-  const r = await call("/api/projects/1/agents/magui/exec", {
+  const r = await call("/api/projects/1/agents/lumen/exec", {
     prompt: "[mock:tool:list_agents] no deberías poder",
     model: "mock",
     tools: false,
@@ -191,7 +191,7 @@ test("the agent's declared allowlist is the gate, not a hint", async () => {
 test("a missing agent and a missing conversation still answer with their own status", async () => {
   const noAgent = await call("/api/projects/1/agents/nobody/exec", { prompt: "x", model: "mock" });
   assert.equal(noAgent.status, 404);
-  const noConv = await call("/api/projects/1/agents/magui/chat", {
+  const noConv = await call("/api/projects/1/agents/lumen/chat", {
     prompt: "x",
     model: "mock",
     conversation_id: "2020-01-01-99",
@@ -201,13 +201,13 @@ test("a missing agent and a missing conversation still answer with their own sta
 });
 
 test("chat persists tool rows and tool_summary for a reopened thread", async () => {
-  const r = await call("/api/projects/1/agents/magui/chat", {
+  const r = await call("/api/projects/1/agents/lumen/chat", {
     prompt: "[mock:tool:list_agents] dale",
     model: "mock",
   });
   assert.equal(r.status, 200);
   const { readConversation, shapeConversationMessage } = await import("#core/stores/conversations.js");
-  const conv = readConversation(PROJECT.storagePath, "magui", r.body.conversation_id);
+  const conv = readConversation(PROJECT.storagePath, "lumen", r.body.conversation_id);
   const tool = conv.turns.find((t) => t.role === "tool");
   assert.ok(tool, "the conversation file must keep what the agent did");
   assert.equal(JSON.parse(tool.content).tool, "list_agents");
@@ -219,7 +219,7 @@ test("chat persists tool rows and tool_summary for a reopened thread", async () 
 
 test("chat/stream speaks the same NDJSON the super-agent's stream does", async () => {
   const base = `http://127.0.0.1:${server.address().port}`;
-  const res = await fetch(`${base}/api/projects/1/agents/magui/chat/stream`, {
+  const res = await fetch(`${base}/api/projects/1/agents/lumen/chat/stream`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ prompt: "[mock:tool:list_agents] dale", model: "mock", confirm: false }),

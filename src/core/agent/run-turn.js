@@ -226,7 +226,7 @@ export async function runAgentTurn({
   // SRT") and writes no call: nothing is finished, nothing was asked, and the
   // task sits there until a person types "seguí". The super-agent has been
   // continued automatically since b071e70; every project agent was still
-  // waiting to be poked, so Magui stalled in the web chat where Roby did not.
+  // waiting to be poked, so Lumen stalled in the web chat where Roby did not.
   //
   // EVERY CHANNEL a project agent answers on, not only the watched ones. The
   // failure is the model's, not the surface's — the announce-instead-of-act

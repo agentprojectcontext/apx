@@ -85,8 +85,8 @@ export function useThreadJobs(threadId?: string | null, conversationId?: string 
  *
  * A background job is an a2a exchange, so its `thread` is the pair id a chat
  * row is keyed by — which means the row already knows enough to say "somebody
- * is working on something here", and said nothing. Manu, 2026-09-14, watching
- * a peer he had handed work to: "ahí apareció magui hablando — o sea estaba
+ * is working on something here", and said nothing. The owner, 2026-09-14, watching
+ * a peer they had handed work to: "ahí apareció lumen hablando — o sea estaba
  * haciendo algo pero no lo decía el chat."
  *
  * Deliberately unscoped: every row asks the same SWR key, so the list costs ONE

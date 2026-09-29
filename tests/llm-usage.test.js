@@ -28,7 +28,7 @@ test("token counts are read from every adapter's usage shape", () => {
 
 test("a day's calls are summarized by account, surface and agent", async () => {
   const now = new Date("2026-01-02T11:30:00Z");
-  recordLlmCall({ modelId: "chatgpt-codex:luna", ms: 900, ok: true, usage: { input_tokens: 100, output_tokens: 10 }, attribution: { channel: "a2a", agent: "magui", project: 1 }, now });
+  recordLlmCall({ modelId: "chatgpt-codex:luna", ms: 900, ok: true, usage: { input_tokens: 100, output_tokens: 10 }, attribution: { channel: "a2a", agent: "lumen", project: 1 }, now });
   recordLlmCall({ modelId: "chatgpt-codex:luna", ms: 50, ok: false, error: "codex-plus 429: The usage limit has been reached", attribution: { channel: "a2a", agent: "super_agent" }, now });
   recordLlmCall({ modelId: "zen:big-pickle", ms: 300, ok: true, usage: { input_tokens: 40, output_tokens: 4 }, attribution: { channel: "telegram" }, now: new Date("2026-01-02T09:00:00Z") });
   await flushLlmUsage();

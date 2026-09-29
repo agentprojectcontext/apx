@@ -5,7 +5,7 @@ import { ProjectFiles, type FileScope } from "../../lib/api/projectFiles";
 import { t } from "../../i18n";
 
 // Create a new document. The user types a path (folders allowed, like
-// Appsi's work/<case>/… layout); we default a .md extension when none is given.
+// Initech's work/<case>/… layout); we default a .md extension when none is given.
 export function NewFileDialog({
   open, onClose, pid, scope, onCreated,
 }: {

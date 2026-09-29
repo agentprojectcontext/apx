@@ -13,11 +13,11 @@ import { projectMeta, resolveProject } from "../helpers.js";
 // "replace"` that `write_agent_memory` has always had for an agent's memory.
 //
 // THE FAILURE THIS FIXES, from a real install: asked to store a full survey of
-// Postbean — sections, a pricing table, operational notes — the super-agent had
+// Globex — sections, a pricing table, operational notes — the super-agent had
 // no tool shaped like that. `remember` takes "one self-contained sentence", so
 // a five-page relevamiento did not fit it, and the model reached for the only
 // tools that did: `write_file` at the repo root. A `memory.md` landed inside
-// the Postbean repository — which nothing reads (not the Memories screen, not
+// the Globex repository — which nothing reads (not the Memories screen, not
 // the RAG indexer) and which deploys to production on every push. Telling the
 // model "never create a memory file yourself" was already in `remember`'s
 // description; what was missing was somewhere else to put it.

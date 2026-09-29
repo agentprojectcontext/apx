@@ -58,8 +58,8 @@ export function resolveProvider(modelId) {
 
 /**
  * The adapter behind a provider *slug*. A slug is not always an adapter id:
- * a provider named "carlos" running on Ollama is stored as
- * `engines.carlos = { engine: "ollama", … }`, and "carlos:llama3.2" has to
+ * a provider named "myollama" running on Ollama is stored as
+ * `engines.myollama = { engine: "ollama", … }`, and "myollama:llama3.2" has to
  * reach the ollama adapter. Falls back to the slug itself, which is the case
  * for the stock providers whose slug already is the engine id.
  */

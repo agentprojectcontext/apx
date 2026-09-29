@@ -53,10 +53,10 @@ test("listTasks defaults to open only", () => {
 });
 
 test("createTask defaults status to pending and carries thread + created_by", () => {
-  const t = createTask(storagePath, { title: "x", thread: "th_1", created_by: "manu" });
+  const t = createTask(storagePath, { title: "x", thread: "th_1", created_by: "julian" });
   assert.equal(t.status, "pending");
   assert.equal(t.thread, "th_1");
-  assert.equal(t.created_by, "manu");
+  assert.equal(t.created_by, "julian");
 });
 
 test("createTask honors a valid status and rejects a bogus one to pending", () => {
@@ -131,19 +131,19 @@ test("patchTask shallow-merges fields and bumps updated_at", () => {
 
 test("doneTask sets state and done_at; further patches still recorded", () => {
   const t = createTask(storagePath, { title: "x" });
-  doneTask(storagePath, t.id, "manuel");
+  doneTask(storagePath, t.id, "julian");
   const v = getTask(storagePath, t.id);
   assert.equal(v.state, "done");
-  assert.equal(v.done_by, "manuel");
+  assert.equal(v.done_by, "julian");
   assert.ok(v.done_at);
 });
 
 test("dropTask archives without 'done' semantics", () => {
   const t = createTask(storagePath, { title: "x" });
-  dropTask(storagePath, t.id, "manuel");
+  dropTask(storagePath, t.id, "julian");
   const v = getTask(storagePath, t.id);
   assert.equal(v.state, "dropped");
-  assert.equal(v.dropped_by, "manuel");
+  assert.equal(v.dropped_by, "julian");
 });
 
 test("reopenTask flips a done task back to open", () => {

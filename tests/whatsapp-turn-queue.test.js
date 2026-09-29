@@ -71,7 +71,7 @@ function harness(globalConfig = baseConfig) {
 const msg = (from, body) => ({
   key: { remoteJid: from, id: `id-${Math.random()}`, fromMe: false },
   message: { conversation: body },
-  pushName: from === CARLA ? "Carla" : "Manu",
+  pushName: from === CARLA ? "Carla" : "Julián",
 });
 
 /** Long enough for the first turn to be inside the engine, not at its door. */
@@ -119,13 +119,13 @@ test("the queue is per conversation — one slow turn does not hold up somebody 
 
   const slow = handleWhatsAppMessage(msg(CARLA, "[mock:slow:300] [mock:reply:CARLA] hola"), h.ctx);
   await settled();
-  await handleWhatsAppMessage(msg(OWNER, "[mock:reply:MANU] che"), h.ctx);
+  await handleWhatsAppMessage(msg(OWNER, "[mock:reply:OWNER] che"), h.ctx);
   // The owner's answer is already out while Carla's turn is still running: two
   // people are two conversations, and serialising them behind one another would
   // make every third party a queue in front of the owner.
-  assert.deepEqual(h.sent.map((s) => s.text), ["MANU"]);
+  assert.deepEqual(h.sent.map((s) => s.text), ["OWNER"]);
   await slow;
-  assert.deepEqual(h.sent.map((s) => s.text), ["MANU", "CARLA"]);
+  assert.deepEqual(h.sent.map((s) => s.text), ["OWNER", "CARLA"]);
 });
 
 test("a turn that breaks sends the owner no canned line — it is reported and retried", async () => {

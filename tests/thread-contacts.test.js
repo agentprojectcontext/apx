@@ -1,7 +1,7 @@
 // One channel, several people: a WhatsApp day file must read back as one thread
 // per person, and every other channel must keep reading back as one thread.
 //
-// The regression this file guards is not cosmetic. Before the split, Magui's
+// The regression this file guards is not cosmetic. Before the split, Lucía's
 // messages and a stranger's shared a single "WhatsApp" thread, so opening one
 // person's conversation showed everyone's — on a channel whose entire design is
 // that a third party must never see anything but their own turn.
@@ -77,9 +77,9 @@ test("rowContact prefers the stamped key and falls back to the address", () => {
   assert.equal(rowContact({}), null);
 
   // A `sender_jid` on ANOTHER channel names who a message is ABOUT, not who it
-  // is with. Roby's secretary reports to Manu on Telegram carry the WhatsApp jid
+  // is with. Roby's secretary reports to the owner on Telegram carry the WhatsApp jid
   // of the person being reported on — reading those as conversations turned five
-  // of Roby's own messages into Telegram threads titled "Magui" and "Manu".
+  // of Roby's own messages into Telegram threads titled "Lucía" and "Julián".
   assert.equal(
     rowContact({ channel: "telegram", meta: { sender_jid: "222@lid" } }, "telegram"),
     null,
@@ -92,39 +92,39 @@ test("rowContact prefers the stamped key and falls back to the address", () => {
 
 test("a whatsapp day lists one thread per person, titled by the person", () => {
   writeDay("whatsapp", [
-    row({ author: "Manu", body: "che", meta: { contact_key: "owner", sender_jid: "111@lid" } }),
-    row({ author: "Magui", body: "hola roby", meta: { contact_key: "222@lid", sender_jid: "222@lid" } }),
+    row({ author: "Julián", body: "che", meta: { contact_key: "owner", sender_jid: "111@lid" } }),
+    row({ author: "Lucía", body: "hola roby", meta: { contact_key: "222@lid", sender_jid: "222@lid" } }),
     row({
       ts: `${DAY}T12:05:00Z`,
       direction: "out",
       type: "agent",
       author: "Roby",
-      body: "hola Magui",
+      body: "hola Lucía",
       meta: { contact_key: "222@lid", sender_jid: "222@lid" },
     }),
     // The owner writing from their OTHER address still lands in one thread —
     // that is what the stamped key buys over the raw jid.
-    row({ ts: `${DAY}T12:09:00Z`, author: "Manu", body: "y esto", meta: { contact_key: "owner", sender_jid: "5491155555555@s.whatsapp.net" } }),
+    row({ ts: `${DAY}T12:09:00Z`, author: "Julián", body: "y esto", meta: { contact_key: "owner", sender_jid: "5491155555555@s.whatsapp.net" } }),
   ]);
 
   const threads = listGlobalThreads({ _globalMessagesDir: DIR });
   assert.equal(threads.length, 2, "one thread per person, not per address");
 
-  const magui = threads.find((t) => t.contact === "222@lid");
+  const lucia = threads.find((t) => t.contact === "222@lid");
   const owner = threads.find((t) => t.contact === "owner");
-  assert.ok(magui && owner);
-  assert.equal(magui.id, `${DAY}~222@lid`);
-  assert.equal(magui.title, "Magui", "a person's thread is titled by the person");
-  assert.equal(magui.messages, 2);
+  assert.ok(lucia && owner);
+  assert.equal(lucia.id, `${DAY}~222@lid`);
+  assert.equal(lucia.title, "Lucía", "a person's thread is titled by the person");
+  assert.equal(lucia.messages, 2);
   assert.equal(owner.messages, 2, "both of the owner's addresses folded in");
-  assert.equal(owner.title, "Manu");
+  assert.equal(owner.title, "Julián");
 });
 
 test("reading one person's thread returns only that person", () => {
-  const magui = readGlobalThread({ channel: "whatsapp", date: `${DAY}~222@lid`, _globalMessagesDir: DIR });
-  assert.equal(magui.messages.length, 2);
-  assert.equal(magui.contact, "222@lid");
-  assert.ok(magui.messages.every((m) => !/che|y esto/.test(m.content)), "the owner's turns must not leak in");
+  const lucia = readGlobalThread({ channel: "whatsapp", date: `${DAY}~222@lid`, _globalMessagesDir: DIR });
+  assert.equal(lucia.messages.length, 2);
+  assert.equal(lucia.contact, "222@lid");
+  assert.ok(lucia.messages.every((m) => !/che|y esto/.test(m.content)), "the owner's turns must not leak in");
 
   // The unscoped id still reads the whole day — nothing that stored the old id
   // breaks, it just sees everything, which is what it always saw.
@@ -170,7 +170,7 @@ test("legacy rows with no contact keep their own whole-day thread", () => {
   writeDay("whatsapp", [
     // The ADB-relay era: logged on the whatsapp channel, no sender recorded.
     row({ body: "ronda de whatsapp", author: "Roby", direction: "out", type: "agent", meta: {} }),
-    row({ ts: `${DAY}T14:00:00Z`, author: "Magui", body: "hola", meta: { contact_key: "222@lid" } }),
+    row({ ts: `${DAY}T14:00:00Z`, author: "Lucía", body: "hola", meta: { contact_key: "222@lid" } }),
   ]);
   const threads = listGlobalThreads({ channels: ["whatsapp"], _globalMessagesDir: DIR });
   assert.equal(threads.length, 2);
@@ -231,7 +231,7 @@ test("a thread is named after words somebody said, not after a file marker", () 
   writeDay(CH, [
     row({
       channel: CH,
-      author: "Manu",
+      author: "Julián",
       body: "[audio] me parece que hay un error acá",
       meta: { local_path: "/tmp/v.oga", media_kind: "audio", transcription_backend: "local" },
     }),

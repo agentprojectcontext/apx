@@ -10,7 +10,7 @@
 //     was waiting for never arrived on the channel he was reading;
 //   - the web transcript FROZE. Not slow — frozen: a colour-font glyph is an
 //     image, and asking a browser to lay out tens of thousands of them stops
-//     the tab. "No se ve el chat mejor dicho el thread" (Manu, 2026-09-20);
+//     the tab — the owner could not see the thread at all (2026-09-20);
 //   - the row went to the ledger at full length, so the next turn's history
 //     carried it too, and re-opening the thread froze again.
 //

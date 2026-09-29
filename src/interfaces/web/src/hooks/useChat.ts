@@ -179,7 +179,7 @@ export interface QueuedTurn {
    *  and the interface said "En cola" for both. That is the wrong word for one
    *  of them: an interrupting message has already stopped the running turn and
    *  is leaving as soon as the abort lands, which is a moment away, not a wait.
-   *  Manu, 2026-09-14: "puse interrumpe y lo mandó en cola… ¿es porque espera
+   *  The owner, 2026-09-14: "puse interrumpe y lo mandó en cola… ¿es porque espera
    *  que termine el turno?" No — but there was no way to tell from looking. */
   interrupting?: boolean;
 }

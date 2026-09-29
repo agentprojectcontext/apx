@@ -29,7 +29,7 @@ function fresh() {
 
 test("a job opens running, owned by this process, with a deadline", () => {
   fresh();
-  const job = openJob({ project_id: 7, from: "ansel", to: "super_agent", body: "knot status", wake: true, timeout_s: 60 });
+  const job = openJob({ project_id: 7, from: "ansel", to: "super_agent", body: "orbit status", wake: true, timeout_s: 60 });
 
   assert.match(job.id, /^bgjob_/);
   assert.equal(job.status, "running");
@@ -134,10 +134,10 @@ test("open jobs are counted per agent, and closing one frees a slot", () => {
     ids.push(openJob({ project_id: 7, from: "ansel", to: `peer${i}` }).id);
   }
   // Somebody else's jobs are not Ansel's problem.
-  openJob({ project_id: 7, from: "magui", to: "roby" });
+  openJob({ project_id: 7, from: "lumen", to: "roby" });
 
   assert.equal(countOpenJobs({ project_id: 7, from: "ansel" }), MAX_OPEN_JOBS_PER_AGENT);
-  assert.equal(countOpenJobs({ project_id: 7, from: "magui" }), 1);
+  assert.equal(countOpenJobs({ project_id: 7, from: "lumen" }), 1);
 
   closeJob(ids[0], { status: "done" });
   assert.equal(countOpenJobs({ project_id: 7, from: "ansel" }), MAX_OPEN_JOBS_PER_AGENT - 1,
@@ -225,7 +225,7 @@ test("pruning drops old terminal jobs and never touches a running one", () => {
   fresh();
   const running = openJob({ from: "ansel", to: "roby" });
   const recent = openJob({ from: "ansel", to: "jaro" });
-  const old = openJob({ from: "ansel", to: "magui" });
+  const old = openJob({ from: "ansel", to: "lumen" });
   closeJob(recent.id, { status: "done" });
   closeJob(old.id, { status: "done" });
 

@@ -39,7 +39,7 @@ const only = (type) => ({ now: NOW, types: [type] });
 test("an inbound a2a message since the last sweep is a signal; outbound and old are not", () => {
   const a2a = (direction, author, body, ts) =>
     appendMessageToFs({ projectRoot: STORE, channel: "a2a", direction, type: "agent", author, body, ts });
-  a2a("in", "rocky", "deploy of Savia is green", "2026-06-15T11:00:00.000Z");
+  a2a("in", "rocky", "deploy of Acme is green", "2026-06-15T11:00:00.000Z");
   a2a("out", "roby", "thanks", "2026-06-15T11:01:00.000Z");       // outbound: not for the owner
   a2a("in", "april", "old news", "2026-06-15T09:00:00.000Z");      // before the last sweep
 
@@ -58,16 +58,16 @@ test("a2a_message is a default detector, so the watch sees a2a without opting in
 test("a2a alerting is OFF by default — unsolicited chatter does not surface, solicited does", () => {
   const a2a = (author, body, meta) =>
     appendMessageToFs({ projectRoot: STORE, channel: "a2a", direction: "in", type: "agent", author, body, ts: "2026-06-15T11:00:00.000Z", meta });
-  a2a("magui", "[TEST] critical blocker", { severity: "blocker" }); // unsolicited → suppressed
+  a2a("lumen", "[TEST] critical blocker", { severity: "blocker" }); // unsolicited → suppressed
   a2a("nina", "the thing you asked about", { solicited: true });     // solicited → surfaces
 
-  // No a2a_alerts flag → default off. Magui's (even blocker-tagged) chatter is
+  // No a2a_alerts flag → default off. Lumen's (even blocker-tagged) chatter is
   // noise; only what the owner explicitly asked for reaches them.
   const { signals } = detectSignals([PROJECT], {
     now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
   });
   const froms = signals.map((s) => s.payload.from);
-  assert.ok(!froms.includes("magui"), "unsolicited agent chatter must not ping the owner");
+  assert.ok(!froms.includes("lumen"), "unsolicited agent chatter must not ping the owner");
   assert.ok(froms.includes("nina"), "a message the owner asked for still surfaces");
 });
 

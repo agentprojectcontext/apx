@@ -200,7 +200,7 @@ export function register(api, { projects, project, config, plugins, registries }
       }
 
       appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
-      // Manu replied in this agent's chat → close its open deliveries (and cancel
+      // The owner replied in this agent's chat → close its open deliveries (and cancel
       // any grace-window notify still pending). See core/stores/deliveries.js.
       try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
@@ -243,7 +243,7 @@ export function register(api, { projects, project, config, plugins, registries }
 
   // The same turn, streamed. Identical event vocabulary to the super-agent's
   // /chat/stream, so a client that already renders tool progress for Roby needs
-  // no second reader for Magui.
+  // no second reader for Lumen.
   api.post("/projects/:pid/agents/:slug/chat/stream", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -302,7 +302,7 @@ export function register(api, { projects, project, config, plugins, registries }
     res.on("close", () => clearInterval(keepalive));
 
     appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
-    // Manu replied in this agent's chat → close its open deliveries (and cancel
+    // The owner replied in this agent's chat → close its open deliveries (and cancel
     // any grace-window notify still pending). See core/stores/deliveries.js.
     try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
@@ -380,7 +380,7 @@ export function register(api, { projects, project, config, plugins, registries }
           if (isVisibleTurnEvent(ev)) turnFrame("event", { event: ev });
           // A project agent's turn falling from one engine to the next had no
           // record anywhere — not the ledger, not the log, and the panel's note
-          // dropped the reason. This is the path Manu's COO turn took.
+          // dropped the reason. This is the path the owner's COO turn took.
           logTurnEvent(ev, { trace_id: req.apxTraceId, channel: channel || CHANNELS.API, agent: agent.slug });
           observeSaid(ev);
           send(ev);

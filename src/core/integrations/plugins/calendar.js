@@ -5,7 +5,7 @@
 // creating plain events, but a service account acts as ITSELF, and Google bars
 // it from inviting other people or creating a Meet link without Domain-Wide
 // Delegation — a Workspace feature a personal @gmail.com does not have. So
-// "agendá con Carlos y mandale el Meet" was simply impossible.
+// "agendá con Tomás y mandale el Meet" was simply impossible.
 //
 // User OAuth acts as YOU. You consent once in the browser and Google hands back
 // a refresh token; from then on APX reads your agenda, creates and moves events,

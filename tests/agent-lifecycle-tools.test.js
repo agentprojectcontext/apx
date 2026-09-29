@@ -43,10 +43,10 @@ beforeEach(() => {
   // A SECOND project. With only the default one registered, "which project did
   // this land in" has one possible answer and the scoping tests below cannot
   // fail — which is how ten handlers kept a `|| "default"` nobody noticed.
-  other = mkProject("postbeam", "testapx00lc02", "other-");
+  other = mkProject("globex", "testapx00lc02", "other-");
   otherStorage = fs.mkdtempSync(path.join(TMP_HOME, "store-other-"));
   const entry = { id: 0, name: "default", path: root, storagePath: storage };
-  const otherEntry = { id: 1, name: "postbeam", path: other, storagePath: otherStorage };
+  const otherEntry = { id: 1, name: "globex", path: other, storagePath: otherStorage };
   rebuilt = [];
   projects = {
     list: () => [entry, otherEntry],
@@ -64,7 +64,7 @@ test("create_agent writes the agent WITH its system prompt and rebuilds", async 
   const r = await createAgentTool.makeHandler(ctx)({
     project: "default",
     slug: "golf-coach",
-    system: "You are Golf Coach, Manu's golf instructor.",
+    system: "You are Golf Coach, Julián's golf instructor.",
     role: "Golf coach",
     skills: ["golf-lvl-2"],
   });
@@ -139,18 +139,18 @@ test("write_agent_memory errors on an unknown agent", async () => {
 // write to its own, the same rule the read tools already follow (see
 // tests/routine-project-scope.test.js). These handlers resolved
 // `project || "default"`, which skips the scope branch in resolveProject
-// entirely — so an orchestrator inside postbeam asked for a new agent, got one
+// entirely — so an orchestrator inside globex asked for a new agent, got one
 // in the global default project, and was told it had been created.
 
 test("create_agent with no project creates it in the agent's OWN project", async () => {
   const r = await createAgentTool.makeHandler(scopedCtx)({
-    slug: "postbeam-writer",
+    slug: "globex-writer",
     system: "You write the posts.",
   });
   assert.equal(r.ok, true);
-  assert.equal(r.project.name, "postbeam", "the reply names where it landed");
-  assert.ok(readAgents(other).some((a) => a.slug === "postbeam-writer"), "written to postbeam");
-  assert.ok(!readAgents(root).some((a) => a.slug === "postbeam-writer"), "NOT the default project");
+  assert.equal(r.project.name, "globex", "the reply names where it landed");
+  assert.ok(readAgents(other).some((a) => a.slug === "globex-writer"), "written to globex");
+  assert.ok(!readAgents(root).some((a) => a.slug === "globex-writer"), "NOT the default project");
   assert.deepEqual(rebuilt, [1], "and the project rebuilt is the one written to");
 });
 
@@ -158,11 +158,11 @@ test("configure_agent with no project edits its OWN project's copy", async () =>
   // The same slug in both projects — the sharp case, where resolving to the
   // wrong one succeeds instead of erroring, and the edit lands on a stranger.
   await createAgentTool.makeHandler(ctx)({ slug: "coach", system: "x", role: "Default coach" });
-  await createAgentTool.makeHandler(scopedCtx)({ slug: "coach", system: "x", role: "Postbeam coach" });
+  await createAgentTool.makeHandler(scopedCtx)({ slug: "coach", system: "x", role: "Globex coach" });
 
   const r = await configureAgentTool.makeHandler(scopedCtx)({ agent: "coach", role: "Edited" });
   assert.equal(r.ok, true);
-  assert.equal(r.project.name, "postbeam");
+  assert.equal(r.project.name, "globex");
   assert.equal(readAgents(other).find((a) => a.slug === "coach").fields.Role, "Edited");
   assert.equal(
     readAgents(root).find((a) => a.slug === "coach").fields.Role,
@@ -172,10 +172,10 @@ test("configure_agent with no project edits its OWN project's copy", async () =>
 });
 
 test("write_agent_memory with no project writes into its OWN project", async () => {
-  await createAgentTool.makeHandler(scopedCtx)({ slug: "magui", system: "x" });
-  const r = await writeMemTool.makeHandler(scopedCtx)({ agent: "magui", content: "backlog lleno 10/10" });
+  await createAgentTool.makeHandler(scopedCtx)({ slug: "lumen", system: "x" });
+  const r = await writeMemTool.makeHandler(scopedCtx)({ agent: "lumen", content: "backlog lleno 10/10" });
   assert.equal(r.ok, true);
-  const mem = readAgentMemory({ id: 1, path: other, storagePath: otherStorage }, "magui");
+  const mem = readAgentMemory({ id: 1, path: other, storagePath: otherStorage }, "lumen");
   assert.match(mem, /backlog lleno 10\/10/, "the note is where the agent will read it");
 });
 

@@ -7,7 +7,7 @@ import {
 } from "#core/agent/group/turn-resolver.js";
 
 const PARTICIPANTS = [
-  { slug: "owner", name: "Manu", kind: "owner" },
+  { slug: "owner", name: "Julián", kind: "owner" },
   { slug: "candela", name: "Candela", kind: "agent" },
   { slug: "naty", name: "Natalia", kind: "agent" },
 ];

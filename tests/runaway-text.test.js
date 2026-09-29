@@ -6,8 +6,8 @@
 // the owner was reading; the web transcript FROZE, because a colour-font glyph
 // is an image and laying out tens of thousands of them stops the tab; and the
 // row went to the ledger at full length, so every later read of that thread
-// froze again. "No sale el mensaje raro o no se ve el chat mejor dicho el
-// thread" — Manu, that afternoon.
+// froze again. The owner's report that afternoon: the odd message never went
+// out, and the thread would not render.
 //
 // `stuck-detector.js` is this idea one level up: it watches the TOOL loop
 // repeat itself. It cannot see this one — a turn that calls no tools and writes

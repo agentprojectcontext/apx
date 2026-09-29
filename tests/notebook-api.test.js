@@ -65,7 +65,7 @@ test("an empty notebook reads as empty rather than 404", async () => {
 test("reading reports the cost, because every turn pays it", async () => {
   const api = await boot();
   try {
-    appendSelfMemory("Manu prefers pnpm over npm across every package", { channel: "telegram" });
+    appendSelfMemory("Julián prefers pnpm over npm across every package", { channel: "telegram" });
     const r = await api.get("/api/notebook");
     assert.match(r.body.body, /pnpm/);
     assert.ok(r.body.chars > 0);

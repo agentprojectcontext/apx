@@ -3,7 +3,7 @@
 //
 // THE FAILURES THIS FIXES, both seen on 2026-09-07:
 //
-//   "¿está respondiendo magui en el fondo o se colgó?" — a delivered a2a turn
+//   "¿está respondiendo lumen en el fondo o se colgó?" — a delivered a2a turn
 //   is a full tool loop that may run the whole 300 s budget, and nothing
 //   registered it. `startActiveTurn` was called by groups, exec and the
 //   super-agent, never by the peer-reply path, so `active_turn` was null for
@@ -32,8 +32,8 @@ const { startActiveTurn, endActiveTurn, getActiveTurnByKey, threadTurnKey } =
   await import("#host/daemon/active-turns.js");
 
 test("the thread id is the pair, whichever way round it is sent", () => {
-  assert.equal(a2aThreadId("claude", "magui"), "claude~magui");
-  assert.equal(a2aThreadId("magui", "claude"), "claude~magui");
+  assert.equal(a2aThreadId("claude", "lumen"), "claude~lumen");
+  assert.equal(a2aThreadId("lumen", "claude"), "claude~lumen");
   assert.equal(a2aThreadId("claude", "super_agent"), "claude~super_agent");
   // An agent talking to itself is one participant, not a pair with a hole in it.
   assert.equal(a2aThreadId("roby", "roby"), "roby");
@@ -41,17 +41,17 @@ test("the thread id is the pair, whichever way round it is sent", () => {
 
 test("the key the peer registers is the key the inbox looks up", () => {
   // conversations.js writes this…
-  const written = threadTurnKey(7, "a2a", a2aThreadId("claude", "magui"));
+  const written = threadTurnKey(7, "a2a", a2aThreadId("claude", "lumen"));
   const active = startActiveTurn(written, {
-    project_id: 7, channel: "a2a", thread_id: a2aThreadId("claude", "magui"), agent_slug: "magui",
+    project_id: 7, channel: "a2a", thread_id: a2aThreadId("claude", "lumen"), agent_slug: "lumen",
   });
   try {
     // …and inbox.js reads it from the row, which carries the id the other way round.
-    const row = { kind: "a2a", project_id: 7, channel: "a2a", conversation_id: "claude~magui" };
+    const row = { kind: "a2a", project_id: 7, channel: "a2a", conversation_id: "claude~lumen" };
     const found = getActiveTurnByKey(threadTurnKey(row.project_id, row.channel, row.conversation_id));
     assert.ok(found, "the inbox cannot see the turn the peer registered");
     assert.equal(found.turn_id, active.id, "a different turn than the one registered");
-    assert.equal(found.thread_id, "claude~magui");
+    assert.equal(found.thread_id, "claude~lumen");
   } finally {
     endActiveTurn(active.id);
   }
@@ -62,8 +62,8 @@ test("a peer's tool trace survives the trip from ledger row to message", () => {
   const row = {
     type: "agent",
     ts: "2026-09-07T17:38:10Z",
-    author: "magui",
-    agent_slug: "magui",
+    author: "lumen",
+    agent_slug: "lumen",
     body: "Leído y resuelto.",
     meta: {
       final: true,
@@ -83,7 +83,7 @@ test("a peer's tool trace survives the trip from ledger row to message", () => {
 
 test("a turn that called nothing carries no trace — an empty list is not work", () => {
   const m = shapeLedgerMessage({
-    type: "agent", ts: "2026-09-07T18:01:06Z", author: "magui", agent_slug: "magui",
+    type: "agent", ts: "2026-09-07T18:01:06Z", author: "lumen", agent_slug: "lumen",
     body: "Ahora lo apliqué de verdad, verifiqué cada línea.",
     meta: { final: true, trace: [] },
   });
@@ -95,10 +95,10 @@ test("a turn that called nothing carries no trace — an empty list is not work"
 test("a row with no trace at all is unchanged", () => {
   const m = shapeLedgerMessage({
     type: "agent", ts: "2026-09-07T18:00:06Z", author: "claude", agent_slug: "claude",
-    body: "Dos cosas, Magui.", meta: { final: true },
+    body: "Dos cosas, Lumen.", meta: { final: true },
   });
   assert.equal(m.trace, undefined);
-  assert.equal(m.content, "Dos cosas, Magui.");
+  assert.equal(m.content, "Dos cosas, Lumen.");
 });
 
 // THE THIRD SILENCE, found 2026-09-14 while reading the ledger rather than the
@@ -123,7 +123,7 @@ test("the super-agent's a2a reply carries the tools it ran", async () => {
   const trace = [{ id: "1:1", tool: "run_shell", args: { cmd: "git log" }, result: "ok" }];
   const out = await replyAsSuperAgent({
     peer: { kind: "super_agent", address: "super_agent" },
-    fromAddress: "magui",
+    fromAddress: "lumen",
     body: "¿cómo venís?",
     config: {},
     runSuperAgentFn: async () => ({ text: "listo", usage: { input_tokens: 10, output_tokens: 2 }, model: "zen:big-pickle", trace }),
@@ -141,7 +141,7 @@ test("the super-agent's a2a reply carries the tools it ran", async () => {
 test("a toolless agent reply records that it ran nothing, not that nothing is known", async () => {
   const { replyAsAgent } = await import("#core/agent/a2a/reply.js");
   const out = await replyAsAgent({
-    toAgent: { slug: "magui", fields: { Model: "mock:test" } },
+    toAgent: { slug: "lumen", fields: { Model: "mock:test" } },
     fromAgent: { slug: "roby" },
     body: "hola",
     config: { engines: {} },

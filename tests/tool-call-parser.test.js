@@ -86,11 +86,11 @@ test("cleanTextOfPseudoToolCalls — handles empty / null", () => {
 // loop dispatches it. Tracked in spec/done/12-super-agent-empty-text-on-tool-loop.md.
 
 test("extractPseudoToolCalls — Llama dotted-function wrapper, single", () => {
-  const text = '<function.send_telegram({"text": "hola Manú"})</function>';
+  const text = '<function.send_telegram({"text": "hola Julián"})</function>';
   const out = extractPseudoToolCalls(text);
   assert.equal(out.length, 1);
   assert.equal(out[0].function.name, "send_telegram");
-  assert.deepEqual(out[0].function.arguments, { text: "hola Manú" });
+  assert.deepEqual(out[0].function.arguments, { text: "hola Julián" });
 });
 
 test("extractPseudoToolCalls — Llama dotted-function with empty args", () => {

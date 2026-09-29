@@ -165,7 +165,7 @@ export async function handleUpdate(self, u) {
         //
         // Aborting is the easy half and has worked for a while: a new message
         // stops the running turn. The half that was missing is continuity —
-        // "que continúes con la nueva info que mande" (Manu, 2026-09-20). The
+        // the owner wanted the new turn to carry on with the new info (2026-09-20). The
         // replacement turn used to start blind: the conversation history filters
         // tool rows out on purpose (they once ate 84% of a thread's context), so
         // the work the aborted turn had already done was invisible to it. It
@@ -371,7 +371,7 @@ export async function handleUpdate(self, u) {
     // the desktop and the phone read a turn in flight out of the daemon's
     // registry and then follow its frames — and nothing outside the HTTP routes
     // ever wrote to it, so a turn that arrived on Telegram simply did not exist
-    // for them. Manu on 2026-09-14: "en telegram dice Escribiendo" while the
+    // for them. On 2026-09-14 Telegram showed "typing…" while the
     // same conversation on the web sat dead, and a refresh brought in every
     // tool at once — they had been on disk all along.
     //

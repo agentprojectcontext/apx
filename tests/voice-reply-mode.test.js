@@ -65,12 +65,12 @@ test("the spoken half stops at a sentence, and the rest stays text", () => {
 });
 
 test("an early full stop does not turn the audio into a greeting", () => {
-  // From a real reply: the salutation ends a sentence at 45 characters and the
-  // next ending is past 330, so cutting at the last one inside the budget spoke
-  // "…de punta a punta, Manu!" and stopped — three seconds that said less than
+  // Shaped like a real reply: the salutation ends a sentence at 45 characters
+  // and the next ending is past 330, so cutting at the last one inside the
+  // budget spoke "…de punta a punta, Juli!" and stopped — three seconds that said less than
   // the notification did.
-  const reply = "¡Gestionado y cotizado de punta a punta, Manu! Ya hablé con La Caja, " +
-    "le cargué los datos de la Amarok y nos pasaron el presupuesto oficial con suma " +
+  const reply = "¡Gestionado y cotizado de punta a punta, Juli! Ya hablé con la aseguradora, " +
+    "le cargué los datos de la camioneta y nos pasaron el presupuesto oficial con suma " +
     "asegurada de cuarenta y dos millones y medio de pesos y treinta por ciento de " +
     "descuento por tres meses. Te dejé los valores abajo.\n\n**Cotización**";
   const heard = spokenPart(reply, { maxChars: 120 });

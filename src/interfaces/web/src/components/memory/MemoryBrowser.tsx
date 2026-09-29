@@ -93,7 +93,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
   // The notebook belongs to Base (id 0) and to nowhere else. It is ONE global
   // file (~/.apx/memory.md) that used to head the sidebar of every project, so
   // twelve projects each looked like they owned a copy of the super-agent's
-  // memory — and editing it "in Postbeam" silently edited the global one.
+  // memory — and editing it "in Globex" silently edited the global one.
   const isBase = String(pid) === "0";
   // What opens first is what is most likely to have something in it. On Base
   // that is the notebook (the memory that ships in every prompt on every

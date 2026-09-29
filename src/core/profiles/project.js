@@ -2,7 +2,7 @@
 //
 // Two layers, not one with a flag: the super-agent runs ONE profile for the
 // whole machine (its line of work), and a project runs its own (how that
-// company operates). They never compete — activating `company` on Appsi does
+// company operates). They never compete — activating `company` on Initech does
 // not touch `secretary`, which is exactly the failure this avoids: installing
 // the executive layer as a super-agent profile would have deactivated the
 // chief of staff and changed how the super-agent behaves everywhere.

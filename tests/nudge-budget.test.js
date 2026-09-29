@@ -433,7 +433,7 @@ test("budget-bypass and quiet-hours-bypass are independently settable", () => {
 });
 
 test("a real blocker may still cross the night when that is the setting", () => {
-  // Manu's call, 2026-09-11: the door stays open for a genuine blocker. What
+  // The owner's call, 2026-09-11: the door stays open for a genuine blocker. What
   // changed is that it is now a named key rather than a side effect of the
   // order two ifs happened to be written in.
   const cfg = budget({ quiet_hours: "22:00-07:30", critical_bypasses_quiet_hours: true });

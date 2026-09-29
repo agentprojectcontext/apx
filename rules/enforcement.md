@@ -63,6 +63,7 @@ early return survived in two separate components.
 | Every link in a tracked doc points at something tracked | — | `tests/docs-links.test.js` |
 | Nothing reaches npm over a red CI | 2 | `.github/workflows/ci.yml` (job `release`, `needs: [verify, e2e]`) |
 | Commit subject shape — `type(scope): subject`, type from `.releaserc.json` | 18 | `.githooks/commit-msg`, pinned by `tests/commit-msg-hook.test.js` |
+| No term from the owner's LOCAL private denylist in a tracked file (the list itself is never committed; absent → passes, so CI checks nothing) | 3 | `scripts/check-private-terms.js` via `npm run preflight` and `.githooks/pre-push`, pinned by `tests/private-terms-check.test.js` |
 
 ### Why i18n parity needed a test rather than types
 

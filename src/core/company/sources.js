@@ -1,6 +1,6 @@
 // Where a company's own facts come from.
 //
-// The layer is generic; the facts never are. Appsi reads Knot, its admin API
+// The layer is generic; the facts never are. Initech reads Orbit, its admin API
 // and the git history of seven apps; another company reads none of those. So
 // the contract is deliberately one sentence:
 //
@@ -25,7 +25,7 @@ const PREFIX = "source-";
 const TIMEOUT_MS = 60_000;
 const MAX_OUTPUT = 24_000;
 
-/** Strip the prefix and the extension: `source-knot.sh` → `knot`. */
+/** Strip the prefix and the extension: `source-orbit.sh` → `orbit`. */
 export function sourceName(file) {
   return file.slice(PREFIX.length).replace(/\.[^.]+$/, "");
 }

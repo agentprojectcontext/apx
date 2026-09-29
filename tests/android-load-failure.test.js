@@ -15,7 +15,7 @@ test("a page that will not load is an APX screen, not Chromium's", () => {
   const src = activity();
 
   // The failure has to be caught at all. Without these the WebView paints
-  // whatever Chromium paints — which is how Manu got a white "Página web no
+  // whatever Chromium paints — which is how the owner got a white "Página web no
   // disponible" with net::ERR_ADDRESS_UNREACHABLE inside the app.
   assert.match(src, /public void onReceivedError\(WebView view, WebResourceRequest request, WebResourceError error\)/);
   assert.match(src, /public void onReceivedHttpError\(WebView view, WebResourceRequest request, WebResourceResponse response\)/);
@@ -77,7 +77,7 @@ test("a net:: code is turned into something a person can act on", () => {
   // A lookup error on a LITERAL IP is not a lookup problem. Chromium answers
   // ERROR_HOST_LOOKUP with the Wi-Fi off even when there is no name to look
   // up, and that is the commonest case of all — a LAN address whose DHCP lease
-  // moved. Verified on the A55 on 2026-09-20: pointed at 192.168.18.134 with
+  // moved. Verified on the A55 on 2026-09-20: pointed at 192.168.1.51 with
   // no route, the first version of this screen sent the reader after their
   // DNS and their Tailscale, neither of which could be the cause.
   assert.match(src, /private boolean looksNumeric\(Uri address\)/);

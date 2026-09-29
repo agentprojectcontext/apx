@@ -72,7 +72,7 @@ export function MobileAttention() {
    * on or before today — and it counted across EVERY project while the list it
    * sends you to is grouped by date and paginated. So the number was real and
    * the row behind it could be anywhere: "esa 1 task que está ahí marcada,
-   * porque no lo veo" (Manu, 2026-09-20). A count you cannot resolve to a name
+   * porque no lo veo" (the owner, 2026-09-20). A count you cannot resolve to a name
    * is a count you learn to ignore.
    */
   const overdue = useMemo(() => tasks.filter((x) => isOverdue(x) && !x.awaits_owner), [tasks]);

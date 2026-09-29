@@ -44,13 +44,13 @@ test("the directory spans projects and says which one each agent lives in", asyn
       { slug: "arch", role: "Software Architect", model: "mock:test" },
     ],
   });
-  const b = makeTempProject({ name: "Dos", agents: [{ slug: "romi", role: "Editor", model: "mock:test" }] });
+  const b = makeTempProject({ name: "Dos", agents: [{ slug: "nico", role: "Editor", model: "mock:test" }] });
   const { app, ids } = makeApp([a, b]);
   const { server, baseUrl } = await listen(app);
   try {
     const rows = await fetch(`${baseUrl}/api/agents`).then((r) => r.json());
     const slugs = rows.map((r) => r.slug).sort();
-    assert.deepEqual(slugs, ["arch", "romi", "zoya"]);
+    assert.deepEqual(slugs, ["arch", "nico", "zoya"]);
 
     const arch = rows.find((r) => r.slug === "arch");
     assert.equal(arch.project_id, ids[0]);
@@ -58,8 +58,8 @@ test("the directory spans projects and says which one each agent lives in", asyn
     assert.ok(arch.project_path, "a row carries the path too, for the panel's links");
     assert.equal(arch.role, "Software Architect", "and the card fields a list draws with");
 
-    const romi = rows.find((r) => r.slug === "romi");
-    assert.equal(romi.project_id, ids[1], "an agent is not listed under the wrong project");
+    const nico = rows.find((r) => r.slug === "nico");
+    assert.equal(nico.project_id, ids[1], "an agent is not listed under the wrong project");
   } finally {
     server.close();
     cleanupTempProject(a);
@@ -92,7 +92,7 @@ test("each row carries the TOP of the prompt, clipped, and says when there is mo
 test("a short prompt is not advertised as having more", async () => {
   const root = makeTempProject({
     name: "Uno",
-    agents: [{ slug: "romi", role: "Editor", model: "mock:test", body: "# Romi\n\nEditás reels." }],
+    agents: [{ slug: "nico", role: "Editor", model: "mock:test", body: "# Nico\n\nEditás reels." }],
   });
   const { app } = makeApp([root]);
   const { server, baseUrl } = await listen(app);

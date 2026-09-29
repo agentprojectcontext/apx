@@ -97,7 +97,7 @@ function globToRegex(g) {
 /**
  * Every file under `dir` — or `dir` itself when it IS a file.
  *
- * That second case is not an edge: `grep(path: "work/marketing/magui/brain.md")`
+ * That second case is not an edge: `grep(path: "work/marketing/lumen/brain.md")`
  * is how an agent reads one known file, and it is what ripgrep does without
  * being asked. Here the walk began with `readdirSync` on the path, which throws
  * ENOTDIR for a file; the catch below swallowed it, the queue emptied, and the
