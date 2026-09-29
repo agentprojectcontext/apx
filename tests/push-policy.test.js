@@ -70,9 +70,26 @@ test("the pre-push hook consults the policy and runs the e2e gate for main", () 
 
 // ── The CLI against a real repository ───────────────────────────────────────
 
+/**
+ * The environment for a git child that must act on the throwaway repo and
+ * nothing else.
+ *
+ * This suite runs INSIDE the pre-push hook, and git exports GIT_DIR (and
+ * friends) to its hooks. A child `git` inherits them and ignores its cwd — so
+ * on 2026-09-29 this file's `git init` re-initialised the REAL repository
+ * (core.bare = true, which broke the main checkout for every agent sharing it)
+ * and its `git config user.*` overwrote the owner's commit identity with the
+ * fixture's. Every GIT_* variable goes; the cwd is the only address.
+ */
+export function isolatedGitEnv(extra = {}) {
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) if (!k.startsWith("GIT_")) env[k] = v;
+  return { ...env, GIT_CONFIG_NOSYSTEM: "1", ...extra };
+}
+
 function repo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-push-policy-"));
-  const g = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" } }).trim();
+  const g = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", env: isolatedGitEnv() }).trim();
   g("init", "-q", "-b", "main");
   g("config", "user.email", "dev@example.com");
   g("config", "user.name", "Dev");
@@ -87,7 +104,7 @@ function repo() {
 }
 
 function runCli(dir, stdin, env = {}) {
-  const out = spawnSync(process.execPath, [CLI], { cwd: dir, input: stdin, encoding: "utf8", env: { ...process.env, APX_HOTFIX: "", ...env } });
+  const out = spawnSync(process.execPath, [CLI], { cwd: dir, input: stdin, encoding: "utf8", env: isolatedGitEnv({ APX_HOTFIX: "", ...env }) });
   return { code: out.status, stdout: out.stdout.trim(), stderr: out.stderr };
 }
 
@@ -120,4 +137,26 @@ test("CLI: a commit made straight on main is refused; the same work via staging 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("a GIT_DIR inherited from a hook never reaches the throwaway repo's git", () => {
+  // The regression, reproduced: point GIT_DIR at a decoy repository, the way
+  // the pre-push hook points it at the real one, and build a throwaway repo.
+  // Before isolatedGitEnv the decoy was re-initialised and got the fixture's
+  // user.name / user.email written into its config.
+  const decoy = fs.mkdtempSync(path.join(os.tmpdir(), "apx-push-policy-decoy-"));
+  execFileSync("git", ["init", "-q", decoy], { env: isolatedGitEnv() });
+  const before = fs.readFileSync(path.join(decoy, ".git", "config"), "utf8");
+  const saved = process.env.GIT_DIR;
+  process.env.GIT_DIR = path.join(decoy, ".git");
+  try {
+    const { dir, commit } = repo();
+    commit("chore: inside a hook");
+    fs.rmSync(dir, { recursive: true, force: true });
+  } finally {
+    if (saved === undefined) delete process.env.GIT_DIR;
+    else process.env.GIT_DIR = saved;
+  }
+  assert.equal(fs.readFileSync(path.join(decoy, ".git", "config"), "utf8"), before, "the decoy repo's config must be untouched");
+  fs.rmSync(decoy, { recursive: true, force: true });
 });
