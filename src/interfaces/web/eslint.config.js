@@ -78,6 +78,24 @@ export default tseslint.config(
       // scripts/lint-web.js.
       "@typescript-eslint/no-explicit-any": "warn",
 
+      // The URL query is SHARED: the shell keeps dialogs in it
+      // (`?action=add-project`), a screen keeps its tab or its open row, the
+      // chat keeps its thread. A write that hands over a whole new query —
+      // `setParams({ tab })`, `setSearchParams(new URLSearchParams(x))`, or a
+      // copy of the `params` this render happened to see — erases whatever
+      // every other owner put there. That is the 2026-09-28 bug: the inbox's
+      // chat replaced the query from an effect and closed Add project a second
+      // after it opened. Always write as `setParams((prev) => …)` and touch only
+      // your own keys.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.name=/^set(Search)?Params$/][arguments.0.type!='ArrowFunctionExpression'][arguments.0.type!='FunctionExpression']",
+          message:
+            "Write the URL query as setParams((prev) => …) and change only your own keys — a whole new query erases params other components own (e.g. ?action=add-project).",
+        },
+      ],
     },
   },
 );

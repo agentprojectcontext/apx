@@ -129,14 +129,18 @@ function Shell() {
   const [mobileLinkOpen, setMobileLinkOpen] = useState(false);
 
   const closeAdd = () => {
-    const next = new URLSearchParams(params);
-    next.delete("action");
-    setParams(next, { replace: true });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("action");
+      return next;
+    }, { replace: true });
   };
   const openAdd = () => {
-    const next = new URLSearchParams(params);
-    next.set("action", "add-project");
-    setParams(next);
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("action", "add-project");
+      return next;
+    });
   };
 
   return (

@@ -80,10 +80,12 @@ export function MobileTasks() {
     if (!hit) return;
     setOpen(hit);
     markRead(hit);
-    const next = new URLSearchParams(params);
-    next.delete("task");
-    next.delete("pid");
-    setParams(next, { replace: true });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("task");
+      next.delete("pid");
+      return next;
+    }, { replace: true });
     // `items` is the dependency that matters: the card cannot be opened before
     // the page it lives on has arrived.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -54,11 +54,13 @@ export function MobileRuntimes({ onBack }: { onBack?: () => void }) {
   const closeSheet = () => {
     setOpen(null);
     if (params.has("session")) {
-      const next = new URLSearchParams(params);
-      next.delete("session");
-      next.delete("pid");
       // `replace`: closing a sheet is not a place you should have to go BACK out of.
-      setParams(next, { replace: true });
+      setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("session");
+        next.delete("pid");
+        return next;
+      }, { replace: true });
     }
   };
 

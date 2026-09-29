@@ -749,8 +749,14 @@ export function CodeScreen() {
     deepLinkDone.current = true;
     if (edit) openArtifact(edit);
     if (cmd) runInTerminal(cmd.endsWith(" ") ? cmd : cmd + " ");
-    // Clear params so a refresh/back doesn't retrigger the handoff.
-    setSearchParams({}, { replace: true });
+    // Clear the handoff's own params so a refresh/back doesn't retrigger it —
+    // only those: the rest of the query belongs to other owners (the shell's
+    // `?action=` dialogs), and `{}` used to erase them too.
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const k of ["pid", "cmd", "edit"]) next.delete(k);
+      return next;
+    }, { replace: true });
   }, [searchParams, pid, openArtifact, runInTerminal, setSearchParams]);
 
   const saveOpenFile = useCallback(
