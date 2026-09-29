@@ -6,7 +6,7 @@
 There is no manual version bump in this repo and no release branch. Work lands
 on `staging` or a feature branch and reaches `main` by merge, through the e2e
 gate — or as a marked hotfix, through the same gate (rule 19,
-[`workflow/09-reaching-main.md`](workflow/09-reaching-main.md)). Every push
+[`reaching-main.md`](reaching-main.md)). Every push
 to `main` that passes CI runs semantic-release, which reads the commit subjects
 since the last tag and decides three things from them alone: whether there is a
 new version, what number it gets, and what `CHANGELOG.md` says. `package.json`'s

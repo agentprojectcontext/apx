@@ -6,7 +6,7 @@
 
 This file is the **hub**: the always-read contract (glossary, the dev loop, the
 numbered rules) lives here in full. Everything else is **read-on-demand** under
-[`rules/`](rules/) — subsystem how-to, the workflow playbooks, and the
+[`rules/`](rules/) — subsystem how-to, the change workflow, and the
 architecture decisions. Open one only when you're in that situation.
 See [Deep dives](#deep-dives--read-on-demand) below.
 
@@ -133,7 +133,7 @@ Top-level orientation; the full per-folder breakdown is in
 - `src/interfaces/` — `cli/`, `web/` (React+Vite panel), `tui/` (vendored OpenCode island, HTTP-only), `desktop/` (Electron), `android/` (native `/mobile` shell + floating mascot), `mcp-server/`, `acp/`.
 - `tests/` — backend suite (`npm run test:ci`); `src/interfaces/web/e2e/` — Playwright.
 - `skills/` — bundled `SKILL.md`s · `scripts/` — build/sync/hooks.
-- `rules/` — **the engineering guardrails** (this hub's deep dives, the workflow playbooks, the ADRs). Tracked, never published.
+- `rules/` — **the engineering guardrails** (this hub's deep dives, the change workflow, the ADRs). Tracked, never published.
 - `docs/` — the **public** Astro + Starlight site, deployed to GitHub Pages. Not a place for engineering rules.
 - `spec/`, `qa/`, `tmp/` — local-only, gitignored: planning, QA runs, scratch. Never link to them from a tracked file.
 
@@ -155,12 +155,12 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
 - **One operation, one home; grep before writing any helper.** The shared
   kernel already covers paths, JSON I/O (atomic writes included), frontmatter,
   project resolution, constants, spawn-capture. Copy #2 is a bug.
-- **Comments are decision records.** When you finish or abandon a migration a
-  comment describes, update the comment in the same change; never cite an
-  unverified file path. A record keeps the **decision and the mechanism, never
-  the person**: "the owner asked on 2026-09-20…", "a contact wrote twice…" —
-  no names, numbers, employers or verbatim quotes of a real turn (rule 3). The
-  date and the cause are the useful part; who it was is not.
+- **Comments: 1–2 lines of non-obvious *why*.** No history, incidents or
+  rejected alternatives in code; a longer reason goes to
+  [`rules/HISTORY.md`](rules/HISTORY.md) or [`rules/decisions/`](rules/decisions/)
+  and the comment ends `See <path>#<anchor>`. Update a comment in the same change
+  that falsifies it. No personal data, machine-local paths or AI-tool metadata in
+  code, docs or commits (rule 3).
 
 ## Project rules
 
@@ -262,46 +262,25 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     deleting `main`. Why: on 2026-09-28 Add project closed itself a
     second after opening over `/inbox` — every screen passed its own spec, and
     nothing exercised them together. Procedure:
-    [`rules/workflow/09-reaching-main.md`](rules/workflow/09-reaching-main.md).
+    [`rules/reaching-main.md`](rules/reaching-main.md).
 
 ## The workflow — how a change gets made
 
-Most code here is written by an agent. The scarce thing is not the code — it is
-**evidence that the code does what it claims**, in a form a human can check in a
-few minutes. Each stage below produces one piece of that evidence.
+Follow [`rules/WORKFLOW.md`](rules/WORKFLOW.md): the stages (plan → implement →
+fresh-context review → security when a boundary is crossed → test + runtime
+proof → architecture check when structural → owner brief → release check),
+then this repo's specifics per stage, including the incident map. All of it
+happens on `staging` or a feature branch; `main` is reached by merge through
+the e2e gate (rule 19). Two things this repo gets wrong most:
 
-```
-PLAN ──▶ IMPLEMENT ──▶ REVIEW (fresh context) ──▶ TEST + RUNTIME ──▶ OWNER BRIEF ──▶ MAIN
-              │                                          ▲                          (merge + e2e gate)
-              ├── SECURITY, if it crosses a boundary ─────┤
-              └── DRIFT, if it is structural ─────────────┘
-```
-
-All of it happens on `staging` or a feature branch; `main` is the last step,
-reached by merge through the e2e gate (rule 19).
-
-The playbooks are in [`rules/workflow/`](rules/workflow/) — one file per stage,
-read on demand. Three things hold the rest together:
-
-- **Self-review is not review.** Stage 3 means a reader in **fresh context**. An
-  agent re-reading its own diff confirms its own assumptions.
-- **`UNVERIFIED` is a valid answer; silence is not.** Never let "the tests
-  passed" stand in for "the changed path ran" — they are different claims
-  ([`05-test-and-runtime`](rules/workflow/05-test-and-runtime.md)).
-- **Restart before you conclude anything** (rule 17, below). A conclusion drawn
+- **Restart before you conclude anything** (rule 17). A conclusion drawn
   without `apx restart` is a conclusion about the old code.
 - **A panel change is done when a journey proves it.** `npm run e2e:gate`
   runs against a first install; a render check on one screen is not evidence
   that the screen works next to the others.
 
-Scale it to the change: a typo needs stages 2 and 5. A new route needs 1, 2, 3,
-5 and 7. Anything touching auth, a shell, the filesystem, the network or an
-inbound channel adds 4. Anything structural adds 6. Anything reaching `main`
-adds 9.
-
-When something is already broken and you don't know why, go straight to
-[`08-incident-map`](rules/workflow/08-incident-map.md) — and do not change code
-before collecting evidence.
+When something is already broken, go to step 8 of the workflow and collect
+evidence before changing code.
 
 ## Deep dives — read on demand
 
@@ -315,7 +294,9 @@ the same change. Index: [`rules/README.md`](rules/README.md).
 | [`human-model.md`](rules/human-model.md) | **you're the owner, not the author** — what runs, what breaks what, what is actually guaranteed |
 | [`enforcement.md`](rules/enforcement.md) | **what is machine-enforced vs. convention** — and the three-pnpm-projects trap |
 | [`surfaces.md`](rules/surfaces.md) | who can reach the daemon, with what credential, carrying what state |
-| [`workflow/`](rules/workflow/) | the nine playbooks — plan, implement, review, security, verify, drift, brief, incident, reaching main |
+| [`WORKFLOW.md`](rules/WORKFLOW.md) | the change workflow and its per-stage specifics, incident map included |
+| [`reaching-main.md`](rules/reaching-main.md) | before a merge or hotfix reaches `main` — branches, the e2e gate (rule 19) |
+| [`HISTORY.md`](rules/HISTORY.md) | the long *why* behind a non-obvious rule; what a comment's `See …#anchor` points at |
 | [`decisions/`](rules/decisions/) | why the code is shaped this way — ADRs 001–005 |
 | [`architecture.md`](rules/architecture.md) | any structural decision — layering, SOLID, registries, where logic lives |
 | [`repo-layout.md`](rules/repo-layout.md) | finding where a thing lives / where a new thing goes |

@@ -54,7 +54,7 @@ early return survived in two separate components.
 | URL query written only as `setParams((prev) => …)` — never a whole new query | 11 | `src/interfaces/web/eslint.config.js` (`no-restricted-syntax`) |
 | Commits reach `main` only by merge, or as a marked hotfix | 19 | `.githooks/pre-push` → `scripts/push-policy.js`, pinned by `tests/push-policy.test.js` |
 | A push to `main` passes the e2e gate (fresh install, real journeys) | 19 | `.githooks/pre-push` → `scripts/e2e-gate.js`; CI job `e2e` runs the same script |
-| No force-push to `main`, no deleting it | 19 | GitHub ruleset on `main` (bypass: repo admin). It does NOT require the checks — see [`workflow/09-reaching-main.md`](workflow/09-reaching-main.md#what-github-enforces) |
+| No force-push to `main`, no deleting it | 19 | GitHub ruleset on `main` (bypass: repo admin). It does NOT require the checks — see [`reaching-main.md`](reaching-main.md#what-github-enforces) |
 | Panel `any` + `exhaustive-deps` count may only fall | — | `scripts/lint-web.js` (baseline 38) |
 | Vendored TUI type errors may only fall | — | `scripts/typecheck-tui.js` (baseline 174) |
 | Panel types | 11 | `tsc --noEmit` in `src/interfaces/web` |
@@ -127,14 +127,14 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | What | Rule | Why there is no gate |
 |---|---|---|
 | One page layout for list screens (`<Section>` slots) | 11b | Structural/visual; no cheap assertion |
-| No secrets; no real NAMES, employers or quotes that are on no list | 3 | The shapes catch numbers and paths, the local list catches what the owner wrote down; a name nobody listed needs a reviewer (checklist item 10 in `workflow/03-independent-review.md`) |
+| No secrets; no real NAMES, employers or quotes that are on no list | 3 | The shapes catch numbers and paths, the local list catches what the owner wrote down; a name nobody listed needs a reviewer (step 3 in `WORKFLOW.md`) |
 | Skills and `docs/` updated with the behaviour they describe | 6 | `tests/runtime-skills.test.js` checks a skill's *shape*, never whether its prose is still true |
 | Never inline a tool name — import from `names.js` | 16 | No lint rule exists for it |
 | `#aliases` instead of `../../../` | 7 | No lint rule exists for it |
 | Prompt budget (~2.5k tok for the super-agent prompt) | 12 | `scripts/inspect-channel-prompts.js` measures it; nothing gates it |
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
 | The Playwright specs on a push that does NOT reach main | 11 | Run in CI's `e2e` job on every PR and every push to `main`/`staging`, and in `pre-push` only when the push reaches `main` — a push to a feature branch runs preflight alone |
-| The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
+| The change workflow (plan → review → verify → brief) | — | Process, not code. [`WORKFLOW.md`](WORKFLOW.md) is the playbook; nothing can assert a review happened |
 | Commit type matches what the change DOES | 18 | `commit-msg` checks the word is a word, never that it is the RIGHT word. A fix titled `chore` is well-formed, publishes nothing, and only a reader comparing diff to subject catches it — see [`releasing.md`](releasing.md) |
 
 ## The gates, and what each one runs
@@ -159,7 +159,7 @@ npm run preflight
   admin bypasses it). It does not require `verify`/`e2e`: semantic-release's
   `[skip ci]` release commit would then be blocked, and the Actions app cannot
   be a bypass actor on a repository ruleset — see
-  [`workflow/09-reaching-main.md`](workflow/09-reaching-main.md).
+  [`reaching-main.md`](reaching-main.md).
 - **Publishing waits for that gate**, and until 2026-09-14 it did not. The
   release lived in its own workflow on the same `push: [main]` trigger, so it
   RACED ci.yml rather than following it: 1.108.0 went to the registry on

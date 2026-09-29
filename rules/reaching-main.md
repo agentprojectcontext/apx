@@ -1,10 +1,10 @@
-# 09 — Reaching `main`: branches, the e2e gate, hotfixes
+# Reaching `main`: branches, the e2e gate, hotfixes
 
-> Deep dive for [`AGENTS.md`](../../AGENTS.md) rule 19. Read it before you push
+> Deep dive for [`AGENTS.md`](../AGENTS.md) rule 19. Read it before you push
 > anything whose destination is `main`, and before you merge a branch into it.
 
 `main` is not a working branch. Every push to it that passes CI **publishes to
-npm** (see [`../releasing.md`](../releasing.md)), so it only takes code that has
+npm** (see [`releasing.md`](releasing.md)), so it only takes code that has
 already passed the whole suite, including a real browser against a first
 install.
 

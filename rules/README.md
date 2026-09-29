@@ -19,14 +19,12 @@ are in that situation, not before.
 
 ## The workflow
 
-[`workflow/`](workflow/) — how a change moves from idea to shipped. Eight
-playbooks, one per stage.
-
-| | | |
-|---|---|---|
-| [`01-plan-change`](workflow/01-plan-change.md) | [`02-implement-change`](workflow/02-implement-change.md) | [`03-independent-review`](workflow/03-independent-review.md) |
-| [`04-security-risk-review`](workflow/04-security-risk-review.md) | [`05-test-and-runtime`](workflow/05-test-and-runtime.md) | [`06-architecture-drift`](workflow/06-architecture-drift.md) |
-| [`07-owner-brief`](workflow/07-owner-brief.md) | [`08-incident-map`](workflow/08-incident-map.md) | |
+[`WORKFLOW.md`](WORKFLOW.md) — how a change moves from idea to shipped: the
+stages (plan, implement, review, security, test + runtime, architecture, owner
+brief, release/incident), then this repo's specifics per stage.
+[`reaching-main.md`](reaching-main.md) — branches, the e2e gate, hotfixes.
+[`HISTORY.md`](HISTORY.md) — the long *why* behind non-obvious rules; code
+comments point there.
 
 ## Subsystems
 
