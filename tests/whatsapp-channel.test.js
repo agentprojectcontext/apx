@@ -142,28 +142,28 @@ test("what the owner writes about one contact reaches that contact's turn only",
   const { buildWhatsAppRelationshipBlock } = await import("#core/channels/whatsapp/relationship.js");
   const { resolveWhatsAppSender } = await import("#core/identity/whatsapp.js");
 
-  const MAGUI = "5491177777777@s.whatsapp.net";
+  const LUCIA = "5491177777777@s.whatsapp.net";
   const PLOMERO = "5491188888888@s.whatsapp.net";
-  upsertWhatsAppContact(MAGUI, {
-    name: "Margarita", nickname: "Magui", relationship: "partner", role: "contact",
-    bio: "es mi esposa y vivo con ella",
+  upsertWhatsAppContact(LUCIA, {
+    name: "Lucía Paz", nickname: "Lu", relationship: "partner", role: "contact",
+    bio: "es mi pareja y vivimos juntos",
     rules: "podés contestarle siempre sin límite; avisame solo cuando haya algo que yo tenga que saber",
   });
   upsertWhatsAppContact(PLOMERO, { name: "Julio", role: "contact" });
 
   const cfg = readConfig();
-  const hers = buildWhatsAppRelationshipBlock(resolveWhatsAppSender({ cfg, senderJid: MAGUI }), cfg);
-  assert.match(hers, /Magui/);
+  const hers = buildWhatsAppRelationshipBlock(resolveWhatsAppSender({ cfg, senderJid: LUCIA }), cfg);
+  assert.match(hers, /\bLu\b/);
   assert.match(hers, /their partner/);
   assert.match(hers, /sin límite/);
 
   // The whole point of per-contact fields: the plumber's turn knows nothing
-  // about the owner's wife. A shared "about the owner" block would leak by
+  // about the owner's partner. A shared "about the owner" block would leak by
   // default; this one cannot, because it is built from one roster row.
   const his = buildWhatsAppRelationshipBlock(resolveWhatsAppSender({ cfg, senderJid: PLOMERO }), cfg);
   assert.match(his, /Julio/);
-  assert.ok(!his.includes("esposa"), "one contact's details must not appear in another's prompt");
-  assert.ok(!his.includes("Magui"));
+  assert.ok(!his.includes("pareja"), "one contact's details must not appear in another's prompt");
+  assert.ok(!his.includes("Lucía"));
 });
 
 test("a generous rule cannot conjure facts the turn does not have", () => {
@@ -204,8 +204,8 @@ test("promoting a contact makes them the owner, whatever address they arrived un
   // Arrives as a LID — an address that appears nowhere in WhatsApp, so it could
   // never have been typed into a settings field. This is the whole reason the
   // promote button exists.
-  const LID = "101666238013462@lid";
-  upsertWhatsAppContact(LID, { name: "Manu" });
+  const LID = "100000000000100@lid";
+  upsertWhatsAppContact(LID, { name: "Julián" });
   const cfg0 = readConfig();
   assert.ok(!resolveWhatsAppSender({ cfg: cfg0, senderJid: LID }).isOwner);
 
@@ -223,14 +223,14 @@ test("promoting a contact makes them the owner, whatever address they arrived un
 
 test("promoting a second address keeps the first as an alias", async () => {
   const { promoteToOwner, resolveWhatsAppSender } = await import("#core/identity/whatsapp.js");
-  const PHONE = "5492944636430@s.whatsapp.net";
-  upsertWhatsAppContact(PHONE, { name: "Manu (otro tel)" });
+  const PHONE = "5491155550100@s.whatsapp.net";
+  upsertWhatsAppContact(PHONE, { name: "Julián (otro tel)" });
   promoteToOwner(readConfig(), PHONE);
 
   const cfg = readConfig();
   // Two phones is "this is me too", not "that other one was a mistake".
   assert.ok(resolveWhatsAppSender({ cfg, senderJid: PHONE }).isOwner);
-  assert.ok(resolveWhatsAppSender({ cfg, senderJid: "101666238013462@lid" }).isOwner);
+  assert.ok(resolveWhatsAppSender({ cfg, senderJid: "100000000000100@lid" }).isOwner);
 });
 
 test("clearing the owner leaves the roster alone", async () => {
@@ -249,10 +249,10 @@ test("relationship is a category, and free text is refused with the options", as
   const JID = "5491144444444@s.whatsapp.net";
   upsertWhatsAppContact(JID, { name: "Alguien", role: "contact" });
 
-  // "esposa de Manu" is a sentence, and a sentence belongs in `bio` — where it
+  // "pareja de Julián" is a sentence, and a sentence belongs in `bio` — where it
   // was ALSO being written, which is how the two fields came to say the same
   // thing twice in the same prompt.
-  assert.throws(() => upsertWhatsAppContact(JID, { relationship: "esposa de Manu" }), /unknown relationship/);
+  assert.throws(() => upsertWhatsAppContact(JID, { relationship: "pareja de Julián" }), /unknown relationship/);
   // The error names the options, so an agent writing through the API learns
   // them instead of guessing a second time.
   try { upsertWhatsAppContact(JID, { relationship: "esposo" }); } catch (e) {

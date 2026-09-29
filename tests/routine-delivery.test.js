@@ -596,9 +596,9 @@ test("no owner name configured → a neutral stand-in, not a person", async () =
 
 // ── the loop and the sink, together ─────────────────────────────────────────
 
-test("runRoutineNow — a priority delivery has Roby notify Manu on Telegram, now, and lands in the queue", async () => {
-  // Manu's rule, redone: a non-Roby agent does not ping the phone with its own
-  // message. It records a DELIVERY and Roby tells Manu — immediately for an
+test("runRoutineNow — a priority delivery has Roby notify the owner on Telegram, now, and lands in the queue", async () => {
+  // The owner's rule, redone: a non-Roby agent does not ping the phone with its own
+  // message. It records a DELIVERY and Roby tells the owner — immediately for an
   // anchor (priority), which crosses the interruption budget. No a2a chat.
   const { listDeliveries } = await import("#core/stores/deliveries.js");
   const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
@@ -621,7 +621,7 @@ test("runRoutineNow — a priority delivery has Roby notify Manu on Telegram, no
     assert.equal(out.status, "ok");
     // Roby sent exactly ONE Telegram line — the notice, model-authored — not the
     // agent's raw message, and no second message.
-    assert.equal(sent.length, 1, "Roby notified Manu once");
+    assert.equal(sent.length, 1, "Roby notified the owner once");
     const tgResult = out.delivery.results.find((d) => d.channel === "telegram(roby)");
     assert.ok(tgResult && tgResult.status === "ok", "the anchor delivery crossed the budget and was sent");
     // The loop's own send_telegram was still suppressed (no double send).
@@ -643,7 +643,7 @@ test("runRoutineNow — a priority delivery has Roby notify Manu on Telegram, no
 
 test("runRoutineNow — an ordinary delivery is deferred, not pinged at delivery time", async () => {
   // Not an anchor → nothing is sent now. It sits `pending` on the queue for the
-  // grace window; the daemon's sweep notifies it later, unless Manu answers first.
+  // grace window; the daemon's sweep notifies it later, unless the owner answers first.
   const { listDeliveries } = await import("#core/stores/deliveries.js");
   const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -674,7 +674,7 @@ test("runRoutineNow — an ordinary delivery is deferred, not pinged at delivery
 });
 
 test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web chat", async () => {
-  // Manu's rule, the web half: a routine run by a non-Roby agent posts to its
+  // The owner's rule, the web half: a routine run by a non-Roby agent posts to its
   // own persistent web chat (web-main), attributed to the agent — NOT the
   // super-agent's dated web channel. And it does not also spawn a per-run
   // routine thread: the web chat IS the thread.
@@ -733,8 +733,8 @@ test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web cha
 // The watch and a2a-sweep prompts have always told the model that staying quiet
 // is free — "say so in your reply and it goes nowhere" — and for as long as they
 // said it, it was false. The reply was delivered like any other, so "Me mantengo
-// en silencio. La señal de flit es de severidad baja…" landed on Manu's phone
-// AND spent one of his three daily interruption slots. These cover the promise.
+// en silencio. La señal de umbrella es de severidad baja…" landed on the owner's phone
+// AND spent one of their three daily interruption slots. These cover the promise.
 
 test("readAbstention — the marker, with or without a reason, in the shapes a model writes it", async () => {
   const { readAbstention, ABSTAIN_MARKER } = await import("#core/routines/delivery.js");
@@ -742,13 +742,13 @@ test("readAbstention — the marker, with or without a reason, in the shapes a m
 
   assert.deepEqual(readAbstention("NO_MESSAGE"), { reason: "" });
   assert.deepEqual(
-    readAbstention("NO_MESSAGE — flit lleva 8 días quieto, severidad baja."),
-    { reason: "flit lleva 8 días quieto, severidad baja." },
+    readAbstention("NO_MESSAGE — umbrella lleva 8 días quieto, severidad baja."),
+    { reason: "umbrella lleva 8 días quieto, severidad baja." },
   );
   // The reasoning on its own lines, and emphasis around the marker, still count.
   assert.deepEqual(
-    readAbstention("**NO_MESSAGE**\nflit: 8 días, baja.\nQueda para el anchor."),
-    { reason: "flit: 8 días, baja.\nQueda para el anchor." },
+    readAbstention("**NO_MESSAGE**\numbrella: 8 días, baja.\nQueda para el anchor."),
+    { reason: "umbrella: 8 días, baja.\nQueda para el anchor." },
   );
   assert.equal(readAbstention(""), null);
   assert.equal(readAbstention(null), null);
@@ -759,7 +759,7 @@ test("readAbstention — prose about staying quiet is a MESSAGE, not an abstenti
   // Exactly the replies that were being pushed. They are not markers, so they
   // still deliver: fixing this by sniffing for "silencio" would have swallowed a
   // real message the day one legitimately mentioned keeping quiet.
-  assert.equal(readAbstention("Me mantengo en silencio. La señal de flit es baja."), null);
+  assert.equal(readAbstention("Me mantengo en silencio. La señal de umbrella es baja."), null);
   assert.equal(readAbstention("Staying quiet — nothing worth interrupting for."), null);
   // And the marker has to lead: buried in a sentence it is prose about the marker.
   assert.equal(readAbstention("Te aviso que iba a mandar NO_MESSAGE pero mejor te cuento"), null);
@@ -767,7 +767,7 @@ test("readAbstention — prose about staying quiet is a MESSAGE, not an abstenti
 
 test("abstentionChannels — always `log`, whatever the routine delivers to", async () => {
   const { abstentionChannels } = await import("#core/routines/delivery.js");
-  // Manu's rule was "not the phone, leave it where I can look at it"; the first
+  // The owner's rule was "not the phone, leave it where I can look at it"; the first
   // reading of that sent it to `web`, and a watch on every:2h then wrote twelve
   // notes a day into the same thread as the conversation. The destination is
   // decided by what the text IS, so the routine's own channels do not move it.
@@ -790,7 +790,7 @@ test("runRoutineNow — an abstention is never pushed, never charged to the budg
       kind: "super_agent",
       schedule: "every:2h",
       deliver_to: ["telegram"],
-      spec: { prompt: "Judge the signals. [mock:reply:NO_MESSAGE flit lleva 8 días quieto, severidad baja.]" },
+      spec: { prompt: "Judge the signals. [mock:reply:NO_MESSAGE umbrella lleva 8 días quieto, severidad baja.]" },
     });
     assert.equal(out.status, "ok", "abstaining is a successful run, not a failed one");
     assert.equal(out.abstained, true);
@@ -802,7 +802,7 @@ test("runRoutineNow — an abstention is never pushed, never charged to the budg
     const row = readGlobalMessages({ channel: "log", limit: 20 }).find((m) => m.meta?.routine === "secretary-watch");
     assert.ok(row, "the note is on the log channel");
     assert.equal(row.meta.abstained, true);
-    assert.match(row.body, /flit lleva 8 días quieto/);
+    assert.match(row.body, /umbrella lleva 8 días quieto/);
     assert.doesNotMatch(row.body, /NO_MESSAGE/, "the marker is a control token, not prose");
     // And it is NOT in the conversation. This is the whole point of the channel:
     // the chat stays the chat.
@@ -850,7 +850,7 @@ test("runRoutineNow — a real message still goes to telegram, unchanged", async
       kind: "super_agent",
       schedule: "every:2h",
       deliver_to: ["telegram"],
-      spec: { prompt: "Judge. [mock:reply:El service de la Amarok vence hoy — llamá al taller.]" },
+      spec: { prompt: "Judge. [mock:reply:El service de la camioneta vence hoy — llamá al taller.]" },
     });
     assert.equal(out.status, "ok");
     assert.ok(!out.abstained);
@@ -861,7 +861,7 @@ test("runRoutineNow — a real message still goes to telegram, unchanged", async
   }
 });
 
-test("looksLikeAbstention — recognises the prose that woke Manu at 2 AM", async () => {
+test("looksLikeAbstention — recognises the prose that woke the owner at 2 AM", async () => {
   const { looksLikeAbstention } = await import("#core/routines/delivery.js");
 
   // Verbatim from ~/.apx/nudges.json, entry ndg_hygjqn, 2026-09-11T05:01:11Z.
@@ -870,7 +870,7 @@ test("looksLikeAbstention — recognises the prose that woke Manu at 2 AM", asyn
     "todo lo pendiente va al anchor de apertura. ✅";
   assert.equal(looksLikeAbstention(theIncident), true);
 
-  assert.equal(looksLikeAbstention("Me mantengo en silencio. La señal de flit es baja."), true);
+  assert.equal(looksLikeAbstention("Me mantengo en silencio. La señal de umbrella es baja."), true);
   assert.equal(looksLikeAbstention("Staying quiet — nothing worth interrupting for."), true);
   assert.equal(looksLikeAbstention("Nothing to report this sweep."), true);
 });
@@ -888,10 +888,10 @@ test("looksLikeAbstention VETOES the bypass — it never suppresses a delivery",
 test("looksLikeAbstention — a real message is not mistaken for one", async () => {
   const { looksLikeAbstention } = await import("#core/routines/delivery.js");
   assert.equal(
-    looksLikeAbstention("Carlos está bloqueado esperando el deploy desde ayer — respondele."),
+    looksLikeAbstention("Tomás está bloqueado esperando el deploy desde ayer — respondele."),
     false,
   );
-  assert.equal(looksLikeAbstention("El pago a Amarok vence hoy y sigue abierto."), false);
+  assert.equal(looksLikeAbstention("El pago al proveedor vence hoy y sigue abierto."), false);
   assert.equal(looksLikeAbstention(""), false);
   assert.equal(looksLikeAbstention(null), false);
 

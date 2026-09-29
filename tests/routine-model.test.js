@@ -61,7 +61,7 @@ test("without an owner's choice left, a strict unwatched run stops before the ro
 });
 
 test("with its fallback on, a spent routine model walks on to the router", async () => {
-  // The owner's switch says "then the router" (Magui, 2026-09-23).
+  // The owner's switch says "then the router" (Lumen, 2026-09-23).
   const { out } = await run({ overrideModel: "mock:quota-exhausted" });
   assert.equal(out.model, "mock:router");
 });

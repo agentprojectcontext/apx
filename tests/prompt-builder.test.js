@@ -22,7 +22,13 @@ function tmpProjectWithAgentsMd(contents) {
 
 test("loadDefaultSystemPrompt: base prompt has no hardcoded owner names", () => {
   const base = loadDefaultSystemPrompt();
-  assert.ok(!/Manuel/i.test(base), "base prompt must not contain hardcoded owner name");
+  // The owner's name reaches the model through the identity layer, and only
+  // there: the same fixture name that layer renders must not be baked into the
+  // base, and the base must not state an owner at all.
+  const owner = "Julián Ríos";
+  assert.match(buildUserContextBlock({ owner_name: owner }), /Your owner is Julián Ríos\./);
+  assert.ok(!base.includes("Julián"), "base prompt must not contain hardcoded owner name");
+  assert.doesNotMatch(base, /Your owner is/, "the owner line belongs to the identity layer");
   assert.ok(!/rioplatense/i.test(base), "base prompt must not hardcode dialect");
   // Base prompt (agent-base + super-agent role) doesn't render identity itself
   // — identity is layered later as the "Agent profile" block. Just check the
@@ -80,7 +86,9 @@ test("buildSuperAgentSystem: composes base + user + channel layers", () => {
   assert.match(system, /# Agent profile/);
   assert.match(system, /cli/i); // channel content
   assert.ok(system.includes("/tmp/work"));
-  assert.ok(!system.includes("Manuel"));
+  // The fixture owner name was never configured here, so it must not appear:
+  // the composition may only name an owner that identity.json supplies.
+  assert.ok(!system.includes("Julián"));
 });
 
 test("buildProjectAgentsBlock: empty for no path, missing file, or blank file", () => {
@@ -215,7 +223,7 @@ test("telegram channel template includes project pin when present", async () => 
   const { buildChannelContextBlock } = await import("#core/agent/prompt-builder.js");
   const out = buildChannelContextBlock("telegram", {
     channelName: "default",
-    author: "Manú",
+    author: "Julián",
     chatId: "1234",
     projectBlock: "\nProject pin: **acme** (`/x/y`).",
     routeBlock: "",
@@ -229,7 +237,7 @@ test("telegram channel template omits both blocks when channelMeta has neither",
   const { buildChannelContextBlock } = await import("#core/agent/prompt-builder.js");
   const out = buildChannelContextBlock("telegram", {
     channelName: "default",
-    author: "Manú",
+    author: "Julián",
     chatId: "1234",
   });
   assert.equal(/Project pin/.test(out), false);
@@ -290,7 +298,7 @@ test("the rule reaches a project agent too, not just the super-agent", () => {
   assert.match(agentSystem, /One conversation, several places/);
 });
 
-// 2026-09-23: agents hit a broken Cheto MCP and "re-verified" it for an hour —
+// 2026-09-23: agents hit a broken Northwind MCP and "re-verified" it for an hour —
 // by API, then CLI, then by asking another agent to try — until the ChatGPT
 // account ran out. The base prompt told them "if a tool errors, retry with
 // different arguments before asking the user". A system that is down is not

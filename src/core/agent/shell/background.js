@@ -6,9 +6,9 @@
 // real time — a render, a batch encode, a build, a training run. An agent asked
 // to make thirteen reels had exactly two options, and both were bad: hold its
 // turn open per reel and say nothing for twenty minutes, or take the SIGTERM at
-// ten and report whatever the truncated output looked like. Manu, 2026-09-14,
-// watching a chat where neither was happening: "no te veo ejecutar tools que
-// estén haciendo reels".
+// ten and report whatever the truncated output looked like. The owner, 2026-09-14,
+// watching a chat where neither was happening, saw no tool running any reel
+// at all.
 //
 // So this is `sendInBackground` (../a2a/background.js) for a process instead of
 // a peer, and deliberately the same shape: the same store, the same fan-out

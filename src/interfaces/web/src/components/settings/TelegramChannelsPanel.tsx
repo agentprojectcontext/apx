@@ -26,7 +26,7 @@ export function TelegramChannelsPanel() {
   const [sendTarget, setSendTarget] = useState<TelegramChannel | null>(null);
   const [confirm, setConfirm] = useState<{ name: string } | null>(null);
 
-  // user_id → display name, so we can show "owner: Manu" instead of just the id.
+  // user_id → display name, so we can show "owner: Julián" instead of just the id.
   const nameByUserId = new Map<string, string>();
   for (const c of contacts) nameByUserId.set(String(c.user_id), c.name || `@${c.username || c.user_id}`);
 

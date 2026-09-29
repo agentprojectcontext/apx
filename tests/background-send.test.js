@@ -81,7 +81,7 @@ test("the sender gets its turn back immediately, while the peer is still working
   const peer = peerStub();
 
   const out = sendInBackground({
-    project, from: "ansel", to: "roby", body: "knot status", wake: true,
+    project, from: "ansel", to: "roby", body: "orbit status", wake: true,
     messagePeerFn: peer.fn,
   });
 
@@ -104,7 +104,7 @@ test("when the peer answers, the waiter is woken with the result — on the same
   fresh();
   const peer = peerStub();
   sendInBackground({
-    project, from: "ansel", to: "roby", body: "knot status", wake: true,
+    project, from: "ansel", to: "roby", body: "orbit status", wake: true,
     messagePeerFn: peer.fn,
   });
 
@@ -118,7 +118,7 @@ test("when the peer answers, the waiter is woken with the result — on the same
   assert.equal(wake.to, "ansel");
   assert.match(wake.body, /has finished/);
   assert.match(wake.body, /the MCP is not registered/, "it carries the actual answer");
-  assert.match(wake.body, /knot status/, "and recaps what was asked, for a fresh context");
+  assert.match(wake.body, /orbit status/, "and recaps what was asked, for a fresh context");
   assert.match(wake.body, /not waiting on anything any more/i);
 });
 
@@ -143,7 +143,7 @@ test("a peer that fails wakes the waiter with the failure, never dressed up as a
   fresh();
   const peer = peerStub();
   const out = sendInBackground({
-    project, from: "ansel", to: "roby", body: "knot status", wake: true,
+    project, from: "ansel", to: "roby", body: "orbit status", wake: true,
     messagePeerFn: peer.fn,
   });
 
@@ -235,7 +235,7 @@ test("a peer nobody can place is refused before anything durable exists", async 
   fresh();
   const peer = recorder();
   const out = sendInBackground({
-    project, from: "ansel", to: "Bridget", body: "deploy postbeam", wake: true,
+    project, from: "ansel", to: "Bridget", body: "deploy globex", wake: true,
     messagePeerFn: peer.fn,
   });
 
@@ -253,7 +253,7 @@ test("a peer nobody can place is refused before anything durable exists", async 
 test("the refusal reaches the model through the tool, not as an exception", async () => {
   fresh();
   const out = await handlerFor({ agentSlug: "ansel" })({
-    to: "Bridget", message: "deploy postbeam", background: true,
+    to: "Bridget", message: "deploy globex", background: true,
   });
   // Returned, not thrown: the model reads this and picks somebody real. The
   // blocking half of the same tool has always refused an unknown peer — the two
@@ -265,7 +265,7 @@ test("the refusal reaches the model through the tool, not as an exception", asyn
 // ── Recovery ────────────────────────────────────────────────────────────────
 test("a job whose daemon died is closed as lost and its waiter woken once", async () => {
   fresh();
-  const job = openJob({ project_id: 7, from: "ansel", to: "roby", body: "knot status", wake: true });
+  const job = openJob({ project_id: 7, from: "ansel", to: "roby", body: "orbit status", wake: true });
   // Re-home it on a process that is not running: this is exactly the state a
   // job from a previous daemon is in at the next boot.
   fs.writeFileSync(
@@ -329,7 +329,7 @@ test("a job whose project is gone is still closed, so nothing waits on it foreve
 
 // ── The words the waiter reads ──────────────────────────────────────────────
 test("a lost job says the work is unrecoverable, not that it is still coming", () => {
-  const job = { id: "bgjob_x", to: "roby", body: "knot status", status: "lost", timeout_s: 3600 };
+  const job = { id: "bgjob_x", to: "roby", body: "orbit status", status: "lost", timeout_s: 3600 };
   const text = wakeText(job);
   assert.match(text, /daemon restarted/);
   assert.match(text, /cannot be recovered/);
@@ -370,7 +370,7 @@ test("background is opt-in, and waking is the default once you opt in", () => {
 test("a background call hands the turn straight back instead of an answer", async () => {
   fresh();
   const out = await handlerFor({ agentSlug: "ansel" })({
-    to: "roby", message: "knot status", background: true,
+    to: "roby", message: "orbit status", background: true,
   });
   assert.equal(out.ok, true);
   assert.equal(out.status, "running");

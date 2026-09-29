@@ -11,9 +11,9 @@
 //
 // Measured in the panel before the fix, at 1280x1050 with 13 projects: the list
 // had room for 7 slots and rendered 2 — the "+13" bucket and the Add button —
-// with 427px of empty rail underneath. Manu: "podrías hacer que el menú llegue
-// hasta config así entran más". It already reached Config; it just refused to
-// use it. After: 7 rendered, "+8", 42px left over (the floor's remainder).
+// with 427px of empty rail underneath. The owner asked for the list to reach
+// down to Config so more projects fit. It already reached Config; it just
+// refused to use it. After: 7 rendered, "+8", 42px left over (the floor's remainder).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -57,8 +57,8 @@ test("the overflow bucket wears the same grey as the controls under it", () => {
   // The rail has two kinds of tile: a project (coloured, hashed from its name)
   // and a control (grey). "+N" is a control, but it carried `bg-muted/40` — a
   // third shade, visibly fainter than the settings and docs tiles right below
-  // it. Manu: "que el color del +11 actual sea igual de gris que el de los
-  // botones de abajo de config".
+  // it. The owner asked for the "+11" to be the same grey as the buttons under
+  // Config.
   const CONTROL_GREY = "bg-muted text-muted-fg hover:bg-accent hover:text-foreground dark:bg-muted/60";
   const overflowTrigger = rail.slice(rail.indexOf("function RailProjectMenu"), rail.indexOf("function ProjectRailItem"));
   assert.ok(overflowTrigger.includes(CONTROL_GREY), "the +N trigger uses the control grey");
@@ -89,10 +89,10 @@ test("Desktop is not a rail tile, and its route is untouched", () => {
 });
 
 test("the rail says which APX this is, under the logo", () => {
-  // Manu asked for it small and out of the way — "abajo del logo? chiquito el
-  // version actual". The panel already showed the version, but only on the APX
-  // Admin screen, which is not where you are when you wonder whether the thing
-  // you are looking at has your last change in it.
+  // The owner asked for it small and out of the way, under the logo. The panel
+  // already showed the version, but only on the APX Admin screen, which is not
+  // where you are when you wonder whether the thing you are looking at has your
+  // last change in it.
   assert.match(rail, /data-testid="nav-version"/);
   assert.match(rail, /v\{health\.version\}/, "the daemon's version, rendered plainly");
 

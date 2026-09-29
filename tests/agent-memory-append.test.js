@@ -1,13 +1,13 @@
 // `appendAgentMemory` — the one place a project agent's memory grows a line.
 //
-// THE FAILURE THIS FIXES, from a real install (v1.89.2): magui's memory carried
+// THE FAILURE THIS FIXES, from a real install (v1.89.2): lumen's memory carried
 // a hand-decorated heading, `## Recent context · estado 2026-08-19`. Detection
 // and insertion were two different regexes and disagreed about it — detection
 // matched the bare words anywhere in the file, so the section counted as
 // present; insertion demanded a newline right after "context" and matched
 // nothing. `String.replace` with no match returns the body unchanged, so the
-// file was rewritten byte-identical while `apx memory magui --append` printed
-// "appended to magui memory: …". Every note written that way was lost, and a
+// file was rewritten byte-identical while `apx memory lumen --append` printed
+// "appended to lumen memory: …". Every note written that way was lost, and a
 // diff against a backup showed nothing to explain it.
 //
 // So the assertions that matter are: a DECORATED heading still takes the note,
@@ -33,8 +33,8 @@ const NOW = new Date("2026-09-07T10:00:00Z");
 
 test("a decorated Recent context heading still takes the note", () => {
   const p = project();
-  writeAgentMemory(p, "magui", [
-    "# Memory — magui",
+  writeAgentMemory(p, "lumen", [
+    "# Memory — lumen",
     "",
     "## Long-term facts",
     "- three daily routines",
@@ -44,9 +44,9 @@ test("a decorated Recent context heading still takes the note", () => {
     "",
   ].join("\n"));
 
-  appendAgentMemory(p, "magui", "voice.json: dominios fonéticos, sin \"com\"", { now: NOW });
+  appendAgentMemory(p, "lumen", "voice.json: dominios fonéticos, sin \"com\"", { now: NOW });
 
-  const mem = readAgentMemory(p, "magui");
+  const mem = readAgentMemory(p, "lumen");
   assert.match(mem, /- 2026-09-07: voice\.json: dominios fonéticos/);
   // …directly under that heading, not appended to the end of the file.
   assert.match(mem, /## Recent context · estado 2026-08-19\n- 2026-09-07: voice\.json/);
@@ -55,7 +55,7 @@ test("a decorated Recent context heading still takes the note", () => {
 
 test("with several dated sections the note lands under the newest", () => {
   const p = project();
-  writeAgentMemory(p, "magui", [
+  writeAgentMemory(p, "lumen", [
     "## Recent context · estado 2026-08-19",
     "- older",
     "",
@@ -67,9 +67,9 @@ test("with several dated sections the note lands under the newest", () => {
     "",
   ].join("\n"));
 
-  appendAgentMemory(p, "magui", "landed", { now: NOW });
+  appendAgentMemory(p, "lumen", "landed", { now: NOW });
 
-  const mem = readAgentMemory(p, "magui");
+  const mem = readAgentMemory(p, "lumen");
   assert.match(mem, /## Recent context · 2026-09-07 · reels 129\/130\n- 2026-09-07: landed\n- newer/);
   assert.doesNotMatch(mem, /estado 2026-08-19\n- 2026-09-07: landed/, "not the stale section");
   assert.match(mem, /## Cómo leer esta memoria/, "later sections untouched");
@@ -106,9 +106,9 @@ test("`$&` in the note is stored literally, not expanded", () => {
 
 test("the file actually changes — an append is never a silent no-op", () => {
   const p = project();
-  writeAgentMemory(p, "magui", "# Memory\n\n## Recent context · estado 2026-08-19\n- one\n");
-  const before = readAgentMemory(p, "magui");
-  const file = appendAgentMemory(p, "magui", "two", { now: NOW });
+  writeAgentMemory(p, "lumen", "# Memory\n\n## Recent context · estado 2026-08-19\n- one\n");
+  const before = readAgentMemory(p, "lumen");
+  const file = appendAgentMemory(p, "lumen", "two", { now: NOW });
   const after = fs.readFileSync(file, "utf8");
   assert.notEqual(after, before, "byte-identical rewrite is the bug this file exists for");
   assert.ok(after.length > before.length);
@@ -120,9 +120,9 @@ test("the file actually changes — an append is never a silent no-op", () => {
 // hand, which is what made the two-regex disagreement visible.
 test("the wild case: a single decorated heading and nothing else", () => {
   const p = project();
-  writeAgentMemory(p, "magui", "# Memory — magui\n\n## Recent context · estado 2026-08-19\n- owner pendientes\n");
-  const before = readAgentMemory(p, "magui");
-  const file = appendAgentMemory(p, "magui", "nota nueve", { now: NOW });
+  writeAgentMemory(p, "lumen", "# Memory — lumen\n\n## Recent context · estado 2026-08-19\n- owner pendientes\n");
+  const before = readAgentMemory(p, "lumen");
+  const file = appendAgentMemory(p, "lumen", "nota nueve", { now: NOW });
   const after = fs.readFileSync(file, "utf8");
   assert.notEqual(after, before);
   assert.match(after, /## Recent context · estado 2026-08-19\n- 2026-09-07: nota nueve\n- owner pendientes/);

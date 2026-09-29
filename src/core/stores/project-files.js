@@ -9,7 +9,7 @@
 //   - project root  — the repo directory (whole-project /files browser)
 //   - docs root      — a subfolder (config `docs.root`, default "docs") used by
 //                      the /docs editor, so specs/casework live in one place
-//                      (like Appsi's work/ folder of case folders).
+//                      (like Initech's work/ folder of case folders).
 //
 // Reads classify by extension: text is returned inline (utf8); images under a
 // size cap are returned base64 so the authenticated JSON API can render them

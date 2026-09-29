@@ -694,7 +694,7 @@ function splitForSpeech(text, { min = 12, limit = 80 } = {}) {
     // generated together, and the listener waits for both before hearing
     // either. `min` only exists so a two-word sentence doesn't become a
     // generation of its own, and it is deliberately small: a short greeting
-    // degrades the whole chunk it is folded into. "¡Hola Manu!" alone is
+    // degrades the whole chunk it is folded into. "¡Hola Juli!" alone is
     // bounded to about a second of possible damage, but merged ahead of a full
     // sentence it took the pair from 13 chars/s down to 8.
     if (cur.length >= min) flush();

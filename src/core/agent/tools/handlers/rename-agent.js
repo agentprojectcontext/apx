@@ -7,7 +7,7 @@ import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 // routines, group rosters, tasks, deliveries, code sessions, open background
 // jobs, board hooks, telegram routes, the RAG scope).
 //
-// WHY A TOOL. Asked to "cambiale el nombre al orchestrator de postbeam", the
+// WHY A TOOL. Asked to "cambiale el nombre al orchestrator de globex", the
 // super-agent had two bad options: `configure_agent({ name })`, which changes
 // the label and leaves the slug — so the card reads one thing and every routine,
 // room and task still names another — or a shell/write_file pass over

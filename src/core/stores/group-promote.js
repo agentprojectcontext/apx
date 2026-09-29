@@ -5,9 +5,9 @@
 // room is empty: the conversation you were having stays in the agent's own file,
 // invisible from the room, and the agent you just invited joins a thread with no
 // history — so the first thing anybody has to do is re-explain what was already
-// said. Manu, 2026-09-20: "cuando estamos en un chat común e invito a alguien,
-// en vez de invitarlo y ya convertir ese chat en grupo, arma otro chat en grupo
-// y eso rompe todo."
+// said. The owner, 2026-09-20: inviting someone into an ordinary chat should turn
+// THAT chat into a group, not build a second group chat beside it — which
+// breaks everything.
 //
 // So the invite PROMOTES the chat. The transcript is replayed onto the room's
 // ledger, in order and at the times it was actually said, and the source
@@ -146,8 +146,8 @@ export function promoteConversationToGroup({
 /**
  * Promote an a2a pair into a room the owner is in.
  *
- * "Los agent to agent para mí son grupo, entonces cuando empiezo a hablar
- * deberían convertirse en grupo" — Manu, 2026-09-20. He is describing what the
+ * An agent-to-agent thread is a group, so the moment the owner starts talking
+ * in it, it should become one — the owner, 2026-09-20. That describes what the
  * two things actually are: an a2a thread is a conversation between agents with
  * no seat for the owner, and the moment the owner has something to say, the
  * conversation they want is a room. Until now typing into an a2a pane sent a
@@ -158,9 +158,9 @@ export function promoteConversationToGroup({
  * those. A room is "the owner plus N project agents": the super-agent is not a
  * member of one (it is the thing that would otherwise be speaking for the
  * owner, and in a room the owner speaks for themselves), and an external coding
- * runtime is not a member either — nothing can seat it. So `roby~magui` becomes
- * a room with Magui in it and the owner in Roby's place, which is the
- * conversation that was wanted; `andy~magui` becomes a room with both.
+ * runtime is not a member either — nothing can seat it. So `roby~lumen` becomes
+ * a room with Lumen in it and the owner in Roby's place, which is the
+ * conversation that was wanted; `andy~lumen` becomes a room with both.
  *
  * The a2a thread itself is LEFT ALONE. It is the record of two agents talking
  * and the ledger is append-only: the room is where the conversation continues,

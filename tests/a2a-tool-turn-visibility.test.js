@@ -8,9 +8,9 @@
 // and nothing registered the run, so the peer worked in total silence and the
 // thread only moved once the reply was filed, minutes later.
 //
-// Manu, 2026-09-20: "en los últimos agent to agent, si lo mirás, la gente no
-// respondió. Hay un problema ahí. Debería responder y debería verse que está
-// respondiendo". They did respond. Nothing said so while it happened — and the
+// The owner, 2026-09-20: the latest agent-to-agent threads looked like nobody
+// had answered, and an answer should be visible while it is being written.
+// They did respond. Nothing said so while it happened — and the
 // only way to see the work at all was to press Stop, because the tool trace is
 // filed on the reply and a stopped turn is the one that files early.
 //

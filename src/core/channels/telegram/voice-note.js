@@ -81,7 +81,7 @@ function capAtSentence(text, maxChars) {
   const before = ends.filter((at) => at <= maxChars).pop() ?? 0;
   // A cut this early is not a preview, it is a greeting.
   //
-  // Measured on a real reply: "…de punta a punta, Manu!" ends a sentence at 45
+  // Measured on a real reply: "…de punta a punta, Juli!" ends a sentence at 45
   // characters and the next one does not end until past 330, so taking the last
   // ending inside the window spoke the salutation and nothing else — three
   // seconds of audio that said less than the notification did.

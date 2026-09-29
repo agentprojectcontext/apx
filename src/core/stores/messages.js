@@ -165,7 +165,7 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     final: fullMeta.final === true ? true : null,
     streamed: fullMeta.streamed === true ? true : null,
     // The a2a counterpart. `author` is who spoke; on an a2a row `meta.to` is who
-    // was spoken TO, and the pet needs both ends to say "de magui a roby" rather
+    // was spoken TO, and the pet needs both ends to say "de lumen a roby" rather
     // than naming a channel nobody can place. a2a ONLY: it is the one channel
     // where `to` is an agent's name and not an address (a chat id, a number)
     // that has no business on a signal feed.
@@ -370,7 +370,7 @@ export function getRecentTelegramTurns(
 // factual answer in the window rendered as this one sentence. On 2026-09-02 six
 // of the ten assistant turns Roby could see were literally this line, and
 // `zen:big-pickle` did the obvious thing — it wrote the sentence back as its own
-// reply, and Manu got `[omitted: …]` in Telegram twice. Tool logs were moved off
+// reply, and the owner got `[omitted: …]` in Telegram twice. Tool logs were moved off
 // the assistant side for exactly this failure (see TOOL_LOG_HEADER); a note the
 // model cannot mistake for its own words is not a sentence it can copy.
 const OMITTED_TURN_NOTE =
@@ -549,7 +549,7 @@ function a2aPairId(pair) {
 }
 /** The id of the a2a thread two peers share — the same one listProjectA2AThreads
  *  derives from the ledger, so a live turn can be keyed to the thread the inbox
- *  is looking at. Order-independent: claude→magui and magui→claude are one thread. */
+ *  is looking at. Order-independent: claude→lumen and lumen→claude are one thread. */
 export function a2aThreadId(from, to) {
   return a2aPairId([...new Set([from, to].filter(Boolean))].sort());
 }
@@ -871,8 +871,8 @@ const isControlRow = (r) => !!r.meta?.kind || r.type === "system";
  * Slug → display name, for the two places a group row is TEXT: the thread's
  * title and its preview line. A group stores its roster and its authors as
  * SLUGS — that is the identity every other field addresses by, and it stays —
- * but a list that prints them reads `romi · productor-reels` where the project
- * knows perfectly well it means `Romi · Frida`.
+ * but a list that prints them reads `nico · video-producer` where the project
+ * knows perfectly well it means `Nico · Frida`.
  */
 function agentNamer(projectRoot) {
   let bySlug;
@@ -1126,7 +1126,7 @@ export function removeGroupParticipant(logMessage, group_id, slug, participants)
  *  daemon entry is in hand.
  *
  *  `homeId` scopes a mixed-project room to the renamed agent's own project, so
- *  two projects that both own a "magui" never repoint each other's member;
+ *  two projects that both own a "lumen" never repoint each other's member;
  *  `hostId` is who a participant belongs to when the room has no `homes` map
  *  (single-project by construction). Passing neither renames every match.
  *
@@ -1552,8 +1552,8 @@ const CHANNEL_NAME_RE = /^[a-z0-9_-]+$/i;
 // ── One channel, several people ─────────────────────────────────────────────
 //
 // A thread used to be exactly one channel+day file, because every channel had
-// exactly one correspondent: Telegram is Manu, the web panel is Manu, the
-// desktop overlay is Manu. WhatsApp broke that assumption — the same day file
+// exactly one correspondent: Telegram is the owner, the web panel is the owner,
+// the desktop overlay is the owner. WhatsApp broke that assumption — the same day file
 // holds the owner, their partner and a stranger who wrote once — and reading it
 // as one thread showed three people's messages under one another's name.
 //
@@ -1610,9 +1610,9 @@ export function rowContact(r, channel = r?.channel) {
   //
   // The distinction is not pedantry. On WhatsApp a `sender_jid` names who the
   // conversation is WITH; on Telegram it names who a message is ABOUT — the
-  // secretary reports ("WhatsApp · Margarita Nudemberg: …") carry the jid of the
+  // secretary reports ("WhatsApp · Lucía Paz: …") carry the jid of the
   // person being reported on. Reading those as Telegram conversations turned
-  // five of Roby's own reports to Manu into threads titled "Magui" and "Manu",
+  // five of Roby's own reports to the owner into threads titled "Lu" and "Juli",
   // sitting in the inbox next to the real ones.
   if (channel !== CHANNELS.WHATSAPP) return null;
   // The owner, from what the row already says about itself. Rows written before
@@ -1827,7 +1827,7 @@ function hasWords(body) {
 
 // A thread's derived name. A whole-day thread is titled by the first thing said
 // in it; a person's thread is titled by the person, because "hola" is not what
-// distinguishes Magui's conversation from Carlos's — she is.
+// distinguishes Lucía's conversation from Tomás's — she is.
 //
 // The first thing said may have been a voice note or a photo, and what is
 // STORED for those is a marker written for the model to read: "[audio] …", or
@@ -1910,7 +1910,7 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
       // belonged to no project (so the phone opened it as project 0), and the
       // detail route — which DOES scope — answered `404: thread not found`
       // because every row in that day had been written inside another project.
-      // Manu, 2026-09-20: "Te veo charlando pero no me abre el post", with a
+      // The owner, 2026-09-20: the chat was visibly active but would not open, with a
       // screenshot of that exact 404 over an empty pane.
       //
       // A scoped read has already been filtered to one project, so the key is

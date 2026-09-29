@@ -24,7 +24,7 @@ beforeEach(() => {
   try { fs.rmSync(SELF_MEMORY_PATH, { force: true }); } catch { /* nothing there */ }
 });
 
-const DURABLE = "Manu prefers pnpm instead of npm for every APX package";
+const DURABLE = "Julián prefers pnpm instead of npm for every APX package";
 const CHATTER = "ok dale, gracias";
 
 // --------------------------------------------------------------------------
@@ -39,7 +39,7 @@ test("a lasting preference is durable; an acknowledgement is not", () => {
 test("today-scoped statements are rejected — they are false tomorrow", () => {
   // The costly failure mode is a note that was true once, injected into every
   // prompt forever.
-  assert.equal(looksDurable("today Manu prefers to work on the parser"), false);
+  assert.equal(looksDurable("today Julián prefers to work on the parser"), false);
   assert.equal(looksDurable("voy a revisar el deploy ahora mismo, siempre"), false);
 });
 
@@ -58,7 +58,7 @@ test("a line with no durability marker at all is rejected", () => {
 
 test("the same fact phrased differently is not saved twice", () => {
   const { kept, rejected } = proposeConsolidation(
-    ["Manu prefers pnpm rather than npm across every APX package"],
+    ["Julián prefers pnpm rather than npm across every APX package"],
     { existing: `# n\n\n## 2026-01-01\n- ${DURABLE}\n` },
   );
   assert.deepEqual(kept, []);
@@ -67,7 +67,7 @@ test("the same fact phrased differently is not saved twice", () => {
 
 test("one run cannot save the same fact twice from two lines", () => {
   const { kept } = proposeConsolidation(
-    [DURABLE, "Manu prefers pnpm instead of npm on all APX packages"],
+    [DURABLE, "Julián prefers pnpm instead of npm on all APX packages"],
     { existing: "" },
   );
   assert.equal(kept.length, 1);
@@ -90,7 +90,7 @@ test("a run proposes at most a handful, however much it was given", () => {
   // Genuinely unrelated facts, sharing no vocabulary — otherwise dedup does
   // the trimming and the ceiling is never exercised.
   const many = [
-    "Manu prefers pnpm over npm across every package here",
+    "Julián prefers pnpm over npm across every package here",
     "Deployment always happens through GitHub Actions, never manually",
     "Documentation must always ship bilingual, Spanish alongside English",
     "Telegram is always the primary channel; desktop stays secondary",

@@ -527,7 +527,7 @@ test("a room reads as a room: mentions by name, thread titled #room, speakers na
   const shaped = shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Hana" } });
   assert.equal(shaped.speaker, "Hana");
   assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: {} }).speaker, undefined, "an owner turn stays the owner's");
-  assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Manu", owner: true } }).speaker, undefined,
+  assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Julián", owner: true } }).speaker, undefined,
     "the owner writing from their Discord account is drawn as theirs");
   const q = shapeLedgerMessage({ type: "user", body: "gracias", meta: { room: "general", speaker: "Hana", reply_to_text: "Sí, acá estoy", reply_to_author: "you" } });
   assert.deepEqual(q.quote, { author: "you", text: "Sí, acá estoy" });

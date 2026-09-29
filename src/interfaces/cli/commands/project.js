@@ -114,7 +114,7 @@ export async function cmdProjectRebuild(args) {
  * accepts (numeric id, path, exact name, fuzzy name/path).
  *
  * WHY THIS EXISTS. Commands that edit files under `.apc/` need the path, not the
- * id, and they all resolved it by walking up from cwd. So `apx agent set magui
+ * id, and they all resolved it by walking up from cwd. So `apx agent set lumen
  * --tools …` run from anywhere but that one checkout failed with "not inside an
  * APC project (run `apx init` first)" — advice that would have scaffolded a
  * second project on top of the shell's cwd instead of editing the agent the

@@ -53,6 +53,15 @@ fi
 POLICY="$(printf "%s\n" "$POLICY" | tail -1)"
 ok "branch policy (${POLICY})"
 
+# -0) Private terms (AGENTS.md rule 3). Reads the owner's LOCAL denylist
+#     (spec/private-terms.txt or ~/.apx/private-terms.txt) and refuses the push
+#     if a tracked file carries one of its terms. No list here → passes silently.
+step "private terms (scripts/check-private-terms.js)"
+if ! node scripts/check-private-terms.js >&2; then
+  fail "a tracked file contains a term from the local private denylist (see above)"
+fi
+ok "private terms"
+
 # 0) Lint — the layering rule (core -> adapter -> surface) is enforced here,
 #    not by good intentions. Cheap, so it runs first and fails fast.
 step "linting (npm run lint)"

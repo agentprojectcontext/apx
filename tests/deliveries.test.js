@@ -64,7 +64,7 @@ test("answerDeliveries — a reply closes that agent's open deliveries, leaves o
   const s = fresh();
   const a1 = recordDelivery(s, { agent: "coach", routine: "r", notify: "x1" });
   recordDelivery(s, { agent: "coach", routine: "r", notify: "x2" }); // second pending
-  const other = recordDelivery(s, { agent: "magui", routine: "r", notify: "y" });
+  const other = recordDelivery(s, { agent: "lumen", routine: "r", notify: "y" });
   markDelivery(s, a1, DELIVERY_STATUS.NOTIFIED); // already notified — still closes
 
   const closed = answerDeliveries(s, "coach");

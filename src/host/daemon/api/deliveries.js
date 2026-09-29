@@ -1,5 +1,5 @@
 // The delivery queue over HTTP — a read-only window onto what agents have left
-// waiting for Manu, and what has been crossed off.
+// waiting for the owner, and what has been crossed off.
 //
 //   GET /projects/:pid/deliveries[?status=pending|notified|held|answered]
 //   GET /deliveries                — every project's queue, newest first

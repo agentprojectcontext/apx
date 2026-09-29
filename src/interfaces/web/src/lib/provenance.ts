@@ -3,10 +3,10 @@
 //
 // A different question from the channel (lib/channels.ts), which says where a
 // conversation HAPPENED. Both are true of the same row at once — "Zoya, from
-// Appsi, on the web" — so they travel as two badges and never share one slot.
+// Initech, on the web" — so they travel as two badges and never share one slot.
 // Sharing it means one of the two facts is always the one missing, which is
 // how an open conversation ended up with no way to tell WHOSE Zoya it was:
-// the list said "Zoya — Appsi · Web" and the header it opened said "Zoya · web".
+// the list said "Zoya — Initech · Web" and the header it opened said "Zoya · web".
 //
 // The default workspace is deliberately unlabelled. It is the super-agent's
 // own, it is where every conversation with no project of its own lands, and

@@ -139,7 +139,7 @@ test("reader: a tool result is never in the model's own voice", () => {
       direction: "out",
       type: "tool",
       body: `run_shell({"command":"adb devices"})`,
-      meta: { tool: "run_shell", result: { exit_code: 0, stdout: "R5CX91B2M6F device\n" } },
+      meta: { tool: "run_shell", result: { exit_code: 0, stdout: "ABC123DEF456 device\n" } },
     },
     {
       ts: `${today}T10:00:06Z`,
@@ -163,7 +163,7 @@ test("reader: a tool result is never in the model's own voice", () => {
   // The facts are still in the window, just not in the agent's voice.
   const log = turns.filter((t) => t.role === "system").map((t) => t.content).join("\n");
   assert.match(log, /adb devices/);
-  assert.match(log, /R5CX91B2M6F device/);
+  assert.match(log, /ABC123DEF456 device/);
   assert.match(log, /adb shell input keyevent 66/);
   // Both calls coalesce into ONE system turn, headed once — not once per line.
   assert.equal(turns.filter((t) => t.role === "system").length, 1);
@@ -293,7 +293,7 @@ test("reader: keepRecent caps verbatim turns; telegram wrapper delegates", () =>
 
 // The 2026-09-02 leak. A redacted answer used to come back wearing the
 // assistant's own voice, one identical sentence per factual turn — six of ten
-// in the window Roby could see — and the model wrote it back to Manu as its
+// in the window Roby could see — and the model wrote it back to the owner as its
 // reply. Now the answer is dropped and the note rides on the system side, with
 // the tool log, where nothing the model reads is its own past words.
 test("reader: a redacted answer never comes back in the assistant's voice", () => {
@@ -303,7 +303,7 @@ test("reader: a redacted answer never comes back in the assistant's voice", () =
     { ts: `${today}T10:00:00Z`, direction: "in",  type: "user",  body: "qué agentes tengo?" },
     { ts: `${today}T10:00:05Z`, direction: "out", type: "agent", body: "Tenés 2:\n- sofia: claude-haiku-4-5\n- martin: claude-sonnet-4-6" },
     { ts: `${today}T10:01:00Z`, direction: "in",  type: "user",  body: "y rutinas?" },
-    { ts: `${today}T10:01:05Z`, direction: "out", type: "agent", body: "Tenés **3** rutinas: golf-coach-am, april-check, magui-pipeline" },
+    { ts: `${today}T10:01:05Z`, direction: "out", type: "agent", body: "Tenés **3** rutinas: golf-coach-am, april-check, lumen-pipeline" },
     { ts: `${today}T10:02:00Z`, direction: "in",  type: "user",  body: "dale gracias" },
   ]);
   const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 61, _globalMessagesDir: dir });

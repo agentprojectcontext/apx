@@ -65,9 +65,9 @@ When the owner asks "what did X say on WhatsApp?", read it — never answer that
     "reply_to_groups": false,    // groups are off by default
     "contacts": [{
       "jid": "5491166666666@s.whatsapp.net",
-      "name": "Margarita",
-      "nickname": "Magui",
-      "relationship": "my wife",
+      "name": "Lucía",
+      "nickname": "Lu",
+      "relationship": "partner",
       "bio": "who they are, in the owner's words",
       "rules": "what the owner wants done with this person",
       "role": "contact",         // guest = never answered

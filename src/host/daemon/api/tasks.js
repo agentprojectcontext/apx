@@ -90,7 +90,7 @@ export function register(api, { project, projects, config, plugins, registries }
     }
 
     const { tasks, skipped } = listTasksAcrossProjects(entries, {
-      // Who "@Manu" is, so a comment that names the owner can raise the badge
+      // Who "@Julián" is, so a comment that names the owner can raise the badge
       // that says so. Resolved here and passed down: core stays free of config
       // imports, and a thread keeps saying who was addressed on the day it was
       // written.

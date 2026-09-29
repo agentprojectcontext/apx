@@ -20,8 +20,8 @@ const AGENTS = [
 ];
 
 const SAID = {
-  rocky: "Rocky habla del triage de Knot.",
-  ceo: "Zoya habla del brief de CarWash.",
+  rocky: "Rocky habla del triage de Orbit.",
+  ceo: "Zoya habla del brief de Bakery.",
 };
 
 const conversation = (slug: "rocky" | "ceo") => ({

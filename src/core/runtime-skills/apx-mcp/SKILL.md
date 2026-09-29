@@ -83,7 +83,7 @@ apx mcp add <name> --command python -- /abs/path/to/server.py
 # stdio env vars (one --env per var)
 apx mcp add <name> --command npx \
   --env GITHUB_TOKEN=ghp_xxx \
-  --env GITHUB_OWNER=manuel \
+  --env GITHUB_OWNER=acme \
   -- -y @modelcontextprotocol/server-github
 
 # http MCP — a remote streamable-HTTP endpoint. No command, no npx, no install.

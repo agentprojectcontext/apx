@@ -98,11 +98,11 @@ test("floor: a project agent's closing is written by the project agent's model",
   const asked = [];
   await floorReplyText({
     globalConfig: CONFIG,
-    model: "mock:magui",
+    model: "mock:lumen",
     text: "",
     authorLineFn: async (o) => { asked.push(o); return "ok"; },
   });
-  assert.equal(asked[0].model, "mock:magui");
+  assert.equal(asked[0].model, "mock:lumen");
 
   // And with no override the super-agent's own model is left to answer for it,
   // which is what author-line.js falls back to.
@@ -210,11 +210,11 @@ test("web: the streamed super-agent route never ends on an empty final", async (
 
 test("web: a project agent's empty turn is closed too, on both shapes", async () => {
   const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-agent-"));
-  const root = makeTempProject({ name: "northwind", agents: [{ slug: "magui", role: "Tester", model: "mock" }] });
+  const root = makeTempProject({ name: "northwind", agents: [{ slug: "lumen", role: "Tester", model: "mock" }] });
   const { server, url } = await serve(root, { storage });
   try {
     // Blocking.
-    const res = await fetch(`${url}/api/projects/7/agents/magui/chat`, {
+    const res = await fetch(`${url}/api/projects/7/agents/lumen/chat`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt: EMPTY, channel: "web" }),
@@ -225,13 +225,13 @@ test("web: a project agent's empty turn is closed too, on both shapes", async ()
 
     // The thread the user reopens holds the same line — an empty assistant turn
     // there is what the NEXT turn would read back as this one's answer.
-    const conv = readConversation(storage, "magui", body.conversation_id);
+    const conv = readConversation(storage, "lumen", body.conversation_id);
     const assistant = conv.turns.filter((x) => x.role === "assistant");
     assert.equal(assistant.length, 1);
     assert.equal(assistant[0].content, body.text);
 
     // Streamed.
-    const streamed = await fetch(`${url}/api/projects/7/agents/magui/chat/stream`, {
+    const streamed = await fetch(`${url}/api/projects/7/agents/lumen/chat/stream`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt: EMPTY, channel: "web", confirm: false }),
@@ -240,7 +240,7 @@ test("web: a project agent's empty turn is closed too, on both shapes", async ()
     const final = events.find((e) => e.type === "final");
     assert.ok(final, `the stream must finish, got: ${events.map((e) => e.type).join(",")}`);
     assert.match(final.result.text, AUTHORED);
-    const conv2 = readConversation(storage, "magui", final.result.conversation_id);
+    const conv2 = readConversation(storage, "lumen", final.result.conversation_id);
     assert.equal(conv2.turns.filter((x) => x.role === "assistant")[0].content, final.result.text);
   } finally {
     server.close();
@@ -252,10 +252,10 @@ test("web: an interrupted turn that wrote nothing still leaves no bubble", async
   // closing; an interruption is the user withdrawing the question, and the
   // answer to a withdrawn question is silence — not a line explaining itself.
   const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-abort-"));
-  const root = makeTempProject({ name: "northwind", agents: [{ slug: "magui", role: "Tester", model: "mock" }] });
+  const root = makeTempProject({ name: "northwind", agents: [{ slug: "lumen", role: "Tester", model: "mock" }] });
   const { server, url } = await serve(root, { storage });
   try {
-    const res = await fetch(`${url}/api/projects/7/agents/magui/chat/stream`, {
+    const res = await fetch(`${url}/api/projects/7/agents/lumen/chat/stream`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       // Held in the engine, so there is a turn to stop and nothing streamed yet.
@@ -276,8 +276,8 @@ test("web: an interrupted turn that wrote nothing still leaves no bubble", async
     assert.ok(aborted, `the stream must end as aborted, got: ${events.map((e) => e.type).join(",")}`);
     assert.equal(aborted.result.text, "", "nothing was written, so nothing is claimed");
 
-    const convId = listConversations(storage, "magui")[0]?.id;
-    const conv = readConversation(storage, "magui", convId);
+    const convId = listConversations(storage, "lumen")[0]?.id;
+    const conv = readConversation(storage, "lumen", convId);
     assert.deepEqual(
       conv.turns.filter((x) => x.role === "assistant"),
       [],

@@ -106,7 +106,7 @@ export function buildCondenserPrompt({ eventsBlock, openingBlock = "" }) {
 // keeps only this text. So a summary that came back truncated, empty-ish, or
 // stripped of its sections is not a degraded summary: it is amnesia written to
 // disk, permanently, for every turn it covered. It has happened in production —
-// one flaky response wrote `"USER_CONTEXT:\n- Manu"` over 350 turns and the
+// one flaky response wrote `"USER_CONTEXT:\n- Julián"` over 350 turns and the
 // agent spent the rest of the day re-deriving what it already knew.
 //
 // So a summary has to earn the right to stand in for the history:

@@ -62,7 +62,7 @@ function speakerName(event) {
  *  Roby. An id is what the ledger needs to keep one thread per correspondent;
  *  it is not what a sentence about that correspondent says. Everyone else keeps
  *  the name they were addressed by — an a2a address is a slug written lowercase
- *  (`magui`), and "de magui a roby" reads as a log line rather than as news, so
+ *  (`lumen`), and "de lumen a roby" reads as a log line rather than as news, so
  *  it gets a capital. A name that already carries its own casing (`Roby`,
  *  `iOS-bot`) is left exactly as its author wrote it. */
 function peerLabel(name) {

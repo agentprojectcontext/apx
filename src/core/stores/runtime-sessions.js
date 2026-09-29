@@ -77,7 +77,7 @@ export function closeRuntimeSession({ filePath, externalSessionPath, exitCode, r
  *
  * These files were only ever WRITTEN — created at spawn, closed at exit — and
  * read back one at a time by id when a run was resumed. Nothing listed them, so
- * "what sessions have you been launching?" (Manu, 2026-09-20) had no answer
+ * "what sessions have you been launching?" (the owner, 2026-09-20) had no answer
  * short of `ls` in a folder nobody documents.
  *
  * Frontmatter only: the body of these files is whatever the runtime wrote into
@@ -138,8 +138,8 @@ export function listRuntimeSessions(storageRoot, opts = {}) {
         // the process died past the point that writes `completed`. The file
         // then says "🔄 In progress" for ever, and a list that trusted it
         // showed two sessions as running eleven and twenty-three days after
-        // they stopped (Manu, 2026-09-20: "por qué estos dos se ven corriendo
-        // si ya terminaron?").
+        // they stopped (the owner, 2026-09-20: why do these two show as running when they
+        // already finished?).
         //
         // No registry can answer this across a restart, but arithmetic can: a
         // run cannot outlive its own deadline, and the longest one APX hands
@@ -193,7 +193,7 @@ function startedLongerAgoThan(started, ms) {
  * Exported so every surface answers it the same way. The CLI has its own
  * session reader and printed 🔄 off the stored `status` line, so `apx session
  * list` was still calling an eleven-day-old record "in progress" after the
- * panel had stopped — the same lie through a different door, and Manu's
+ * panel had stopped — the same lie through a different door, and the owner's
  * standing rule is that the CLI and the web say the same thing.
  */
 export function isAbandonedSession({ completed, started } = {}) {

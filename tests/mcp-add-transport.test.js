@@ -67,7 +67,7 @@ test("http: --url alone registers a remote server", async () => {
   const posts = installStub();
   const restore = silence();
   try {
-    await cmdMcpAdd(argv(["postbean"], { url: "https://mcp.example.com/mcp", scope: "runtime" }));
+    await cmdMcpAdd(argv(["globex"], { url: "https://mcp.example.com/mcp", scope: "runtime" }));
   } finally {
     restore();
   }
@@ -84,7 +84,7 @@ test("http: repeated --header parses both 'Name: value' and Name=value", async (
   const posts = installStub();
   const restore = silence();
   try {
-    await cmdMcpAdd(argv(["postbean"], {
+    await cmdMcpAdd(argv(["globex"], {
       url: "https://mcp.example.com/mcp",
       header: ["Authorization: Bearer abc.def=ghi", "X-Workspace=acme"],
       scope: "runtime",
@@ -104,7 +104,7 @@ test("http: --transport http is accepted as explicit sugar", async () => {
   const posts = installStub();
   const restore = silence();
   try {
-    await cmdMcpAdd(argv(["postbean"], {
+    await cmdMcpAdd(argv(["globex"], {
       transport: "http",
       url: "https://mcp.example.com/mcp",
       scope: "global",
@@ -140,7 +140,7 @@ test("rejects contradictory or incomplete transports with an actionable message"
 test("enable re-posts url/headers for an http MCP, never a null command", async () => {
   const posts = installStub([
     {
-      name: "postbean",
+      name: "globex",
       source: "runtime",
       transport: "http",
       url: "https://mcp.example.com/mcp",
@@ -150,7 +150,7 @@ test("enable re-posts url/headers for an http MCP, never a null command", async 
   ]);
   const restore = silence();
   try {
-    await cmdMcpEnable(argv(["postbean"], {}));
+    await cmdMcpEnable(argv(["globex"], {}));
   } finally {
     restore();
   }

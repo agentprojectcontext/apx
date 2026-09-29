@@ -262,7 +262,7 @@ export function ChatList({
   // group picker three blocks below — same array, same render — read Zoya,
   // Blake, Kira. The bug is old and only became visible when agents whose name
   // is not their slug arrived: before the executive layer almost every agent
-  // was `rocky`/Rocky, `magui`/Magui, and a slug WAS the name, capitalisation
+  // was `rocky`/Rocky, `lumen`/Lumen, and a slug WAS the name, capitalisation
   // aside. `AgentEntry` carries `name`, `icon` and `emoji` straight from
   // AGENTS.md; nothing had to be fetched, only not thrown away.
   const newChatAgents = useMemo(

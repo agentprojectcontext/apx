@@ -227,9 +227,9 @@ test("openai custom endpoint: the configured language is what gets spoken", asyn
     calls.length = 0;
     await openaiEngine.synthesize({
       text: "hola", outDir,
-      config: { ...base, clone: "/srv/voices/manu.wav", ref_text: "hola, probando" },
+      config: { ...base, clone: "/srv/voices/julian.wav", ref_text: "hola, probando" },
     });
-    assert.equal(calls[0].clone, "/srv/voices/manu.wav");
+    assert.equal(calls[0].clone, "/srv/voices/julian.wav");
     assert.equal(calls[0].ref_text, "hola, probando");
   } finally {
     global.fetch = realFetch;

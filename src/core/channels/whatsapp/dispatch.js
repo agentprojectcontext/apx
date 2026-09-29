@@ -377,8 +377,8 @@ export async function handleWhatsAppMessage(m, ctx) {
   // used to start a SECOND turn beside the first: two model calls, neither
   // able to see the other's message or the other's reply, both answering.
   //
-  // That is what it looked like on 2026-09-16. Manu wrote "desglosalo y
-  // mandame el detalle por telegram", then the audio with the four points
+  // That is what it looked like on 2026-09-16. The owner wrote "break it down
+  // and send me the detail on Telegram", then the audio with the four points
   // eight seconds later. Two answers came back: "Ya está, desglosé los cuatro
   // puntos" and, thirteen seconds after it, "¿Qué es lo que querés que
   // desglose? No tengo el contexto inmediato". Both were true about the turn

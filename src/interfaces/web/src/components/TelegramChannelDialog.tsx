@@ -83,7 +83,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
               const raw = e.target.value.trim();
               setDraft({ ...draft, owner_user_id: raw === "" ? undefined : /^\d+$/.test(raw) ? Number(raw) : raw });
             }}
-            placeholder="889721252"
+            placeholder="1234567890"
           />
         </Field>
         <Switch

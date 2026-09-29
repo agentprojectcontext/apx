@@ -27,10 +27,10 @@ const { emitBackgroundJobEvent } = await import("#core/events/bus.js");
 const { wakeShellJob, startShellJobWake } = await import("#host/daemon/shell-job-wake.js");
 
 const ROOT = makeTempProject({
-  name: "tecnomanu",
+  name: "acme",
   agents: [{ slug: "reels", model: "openai:test-model", description: "hace reels" }],
 });
-const PROJECT = { id: 7, name: "tecnomanu", path: ROOT, storagePath: path.join(TMP_HOME, "store"), config: {} };
+const PROJECT = { id: 7, name: "acme", path: ROOT, storagePath: path.join(TMP_HOME, "store"), config: {} };
 fs.mkdirSync(PROJECT.storagePath, { recursive: true });
 const PROJECTS = { get: () => PROJECT, list: () => [PROJECT], rebuild: () => {} };
 
@@ -161,7 +161,7 @@ test("an a2a job is not this listener's business", async () => {
     log: () => {},
   });
   try {
-    const job = openJob({ project_id: PROJECT.id, from: "reels", to: "magui", body: "¿cómo va?", wake: true });
+    const job = openJob({ project_id: PROJECT.id, from: "reels", to: "lumen", body: "¿cómo va?", wake: true });
     emitBackgroundJobEvent({ phase: "end", job: closeJob(job.id, { status: "done", result: "bien" }) });
     await new Promise((r) => setTimeout(r, 50));
     // Those are woken as a message from the peer (a2a/background.js). Two

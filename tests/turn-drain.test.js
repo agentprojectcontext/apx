@@ -149,7 +149,7 @@ const toolEvent = (id, tool, args, result) => [
 test("a cut turn is written down with the tools that really ran", async () => {
   writeResumableTurns([]);
   const turn = startActiveTurn("p1:conv:cut", {
-    abort: () => {}, prompt: "avisale a Juan", agent_slug: "magui", project_id: 1,
+    abort: () => {}, prompt: "avisale a Juan", agent_slug: "lumen", project_id: 1,
     conversation_id: "conv_1", surface: "agent",
   });
   for (const ev of toolEvent("t1", "send_whatsapp", { to: "+54", text: "listo" }, { ok: true })) {

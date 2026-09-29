@@ -13,7 +13,7 @@
 //   · /p/:pid/chat passed nothing at all, so the same conversation opened from
 //     the project and from the inbox showed two different lists
 //
-// The three links Manu compared are all the same component. The prop was the
+// The three links the owner compared are all the same component. The prop was the
 // last place a pane could still disagree with the chat inside it, so it is gone
 // rather than made consistent: there is nothing left to pass differently.
 import { test } from "node:test";

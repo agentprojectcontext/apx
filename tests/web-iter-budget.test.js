@@ -121,7 +121,7 @@ test("runSuperAgent: the web budget reaches the loop (and an explicit maxIters s
   }
 });
 
-// The same wall, on a project agent: Magui in the web chat stopped after 9
+// The same wall, on a project agent: Lumen in the web chat stopped after 9
 // actions and asked "¿seguimos?", turn after turn (2026-08-31). The budget
 // belongs to the SURFACE — a watched chat is a watched chat whether Roby or a
 // project agent is answering — but only runSuperAgent had been taught that, so
@@ -140,7 +140,7 @@ async function startAgentApi() {
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "tmp", apx: "installed" }));
   fs.writeFileSync(
-    path.join(root, ".apc", "agents", "magui.md"),
+    path.join(root, ".apc", "agents", "lumen.md"),
     ["---", "Role: Tester", "Model: mock", "---", "", "You are a test agent."].join("\n"),
   );
   const PROJECT = { id: "1", name: "tmp", path: root, storagePath: storage, logMessage: () => {} };
@@ -163,7 +163,7 @@ async function startAgentApi() {
   const server = await new Promise((r) => {
     const s = app.listen(0, "127.0.0.1", () => r(s));
   });
-  const base = `http://127.0.0.1:${server.address().port}/api/projects/1/agents/magui`;
+  const base = `http://127.0.0.1:${server.address().port}/api/projects/1/agents/lumen`;
   const post = (route, body) => fetch(`${base}/${route}`, {
     method: "POST",
     headers: { "content-type": "application/json" },

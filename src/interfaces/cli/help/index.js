@@ -160,8 +160,8 @@ export const HELP_TOPICS = new Map(Object.entries({
     options: [["--force", "Allow a target whose apx_id differs (a re-initialized project)."]],
     examples: [
       "apx project relink 18",
-      "apx project relink 18 /Volumes/disk/proyectos/cheto",
-      "apx project relink knot ../cheto",
+      "apx project relink 18 /path/to/northwind",
+      "apx project relink orbit ../northwind",
     ],
   }),
   "project add": topic({
@@ -314,8 +314,8 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx agent set reviewer --prompt - < prompt.md",
       "apx agent set reviewer --type specialist --area growth --icon kiwi",
-      "apx agent set magui --tools browser_navigate,browser_snapshot,browser_click --project appsi",
-      "apx agent set productor-reels --autonomy total",
+      "apx agent set lumen --tools browser_navigate,browser_snapshot,browser_click --project initech",
+      "apx agent set video-producer --autonomy total",
     ],
   }),
   "agent list": topic({
@@ -323,14 +323,14 @@ export const HELP_TOPICS = new Map(Object.entries({
     summary: "List agents available in an APC project (the one cwd is inside, unless --project says otherwise).",
     usage: ["apx agent list [--project <name|id|path>]", "apx agent ls [--project <name|id|path>]"],
     options: [PROJECT_FLAG],
-    examples: ["apx agent list", "apx agent list --project appsi"],
+    examples: ["apx agent list", "apx agent list --project initech"],
   }),
   "agent get": topic({
     title: "apx agent get",
     summary: "Print one project agent definition.",
     usage: ["apx agent get <slug> [--project <name|id|path>]", "apx agent show <slug> [--project <name|id|path>]"],
     options: [PROJECT_FLAG],
-    examples: ["apx agent get reviewer", "apx agent get magui --project appsi"],
+    examples: ["apx agent get reviewer", "apx agent get lumen --project initech"],
   }),
   "agent remove": topic({
     title: "apx agent remove",
@@ -760,7 +760,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
     examples: [
-      "apx obsidian set ~/Obsidian/Work --project appsi",
+      "apx obsidian set ~/Obsidian/Work --project initech",
       "apx obsidian set ~/Obsidian/Personal --global --mcp --memory",
       "apx obsidian sync --global",
       "apx obsidian status",
@@ -818,8 +818,8 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .",
       "apx mcp add github --scope runtime --project acme --command npx -- -y @modelcontextprotocol/server-github",
-      "apx mcp add postbean --url https://mcp.example.com/mcp --scope runtime",
-      "apx mcp add postbean --url https://mcp.example.com/mcp --header \"Authorization: Bearer $TOKEN\" --scope runtime",
+      "apx mcp add globex --url https://mcp.example.com/mcp --scope runtime",
+      "apx mcp add globex --url https://mcp.example.com/mcp --header \"Authorization: Bearer $TOKEN\" --scope runtime",
     ],
   }),
   "mcp remove": topic({
@@ -1005,8 +1005,8 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx telegram status",
       "apx telegram channel add",
       "apx telegram contacts",
-      "apx telegram role 889721252 editor",
-      "apx telegram owner default 889721252",
+      "apx telegram role 1234567890 editor",
+      "apx telegram owner default 1234567890",
       "apx telegram send \"hello\" --chat 123456",
     ],
   }),
@@ -1020,7 +1020,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     title: "apx telegram role",
     summary: "Assign a role to a contact by Telegram user_id. Roles gate which tools they can use.",
     usage: ["apx telegram role <user_id> <role>"],
-    examples: ["apx telegram role 889721252 editor", "apx telegram role 123456 guest"],
+    examples: ["apx telegram role 1234567890 editor", "apx telegram role 123456 guest"],
   }),
   "telegram roles": topic({
     title: "apx telegram roles",
@@ -1040,7 +1040,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     title: "apx telegram owner",
     summary: "Set who owns a channel (overrides their role to owner on that channel).",
     usage: ["apx telegram owner <channel> <user_id>"],
-    examples: ["apx telegram owner default 889721252"],
+    examples: ["apx telegram owner default 1234567890"],
   }),
   "telegram send": topic({
     title: "apx telegram send",
@@ -1352,7 +1352,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx send claude-code opencode:review \"Second thread, separate history\" --deliver",
       "apx send claude-code opencode \"Add the retry to the fetch helper\" --deliver --code --background",
       "apx send claude-code:acme-web roby \"Branch is green, 436 tests\" --severity status",
-      "apx send magui roby \"Postiz API is down, daily post failed\" --severity blocker --deliver",
+      "apx send lumen roby \"Postiz API is down, daily post failed\" --severity blocker --deliver",
     ],
     notes: [
       `<from> is YOU, and only you: a coding CLI sends as its own runtime id (${RUNTIME_LIST}), an agent as its slug from \`apx agent list\`, the orchestrator as its own name. Append :<session> to say WHICH conversation with you this is — apx send claude-code:acme-web roby "…".`,

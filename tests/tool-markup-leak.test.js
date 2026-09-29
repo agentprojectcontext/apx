@@ -59,9 +59,9 @@ test("several calls in one message all fire", () => {
 
 test("the history annotation for a stale turn is never spoken", () => {
   const clean = cleanTextOfPseudoToolCalls(
-    "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it] Hola Manu."
+    "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it] Hola Juli."
   );
-  assert.equal(clean, "Hola Manu.");
+  assert.equal(clean, "Hola Juli.");
 });
 
 test("DeepSeek DSML markup is parsed into real tool calls", () => {
@@ -249,7 +249,7 @@ test("a call written as prose runs, and none of it is spoken", async () => {
 // One generation past the fabricated tool log. The message store replaces a
 // past answer that carried data with an annotation, and while that annotation
 // rode in the assistant's own voice it filled the window — six of ten assistant
-// turns in Manu's Telegram thread were literally the same sentence. The model
+// turns in the owner's Telegram thread were literally the same sentence. The model
 // wrote it back as its reply, and the loop passed it through because
 // `cleanTextOfPseudoToolCalls(text) || text` put the markup back the moment the
 // cleaner emptied it. Both halves are covered here.

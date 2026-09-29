@@ -123,7 +123,7 @@ test("a turn being written says what it IS doing, not that it is doing it", () =
   const es = web("i18n", "es.ts");
   const en = web("i18n", "en.ts");
 
-  // The pill said "Romi está escribiendo…" and nothing else — an answer to the
+  // The pill said "Nico está escribiendo…" and nothing else — an answer to the
   // one question nobody had, since the bubble is right there. The line under a
   // live turn carries the questions a two-minute turn actually raises: which
   // model, how long, what it has spent, and which step it is on.

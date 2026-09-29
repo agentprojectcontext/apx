@@ -21,7 +21,7 @@ area: growth                     ← org-chart area
 icon: kiwi                       ← avatar blob preset
 ---
 
-You are Magui, the social producer for …   ← body: THE SYSTEM PROMPT
+You are Lumen, the social producer for …   ← body: THE SYSTEM PROMPT
 ## Responsibilities
 - …
 ## Hard limits
@@ -57,7 +57,7 @@ Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` →
 
 ## The name is a person; the job is the role
 
-`cfo` is the address — the filename, what a `Parent` points at, what a2a and an @mention carry. **`name` is who they are, and it is a person's name: Luis, Karla, Nora.** The job goes in `role`, the one line about it in `description`. Fold the job into the name and every surface says the address twice — "productor-reels · Productor Reels", a group bubble headed with a filename.
+`cfo` is the address — the filename, what a `Parent` points at, what a2a and an @mention carry. **`name` is who they are, and it is a person's name: Luis, Karla, Nora.** The job goes in `role`, the one line about it in `description`. Fold the job into the name and every surface says the address twice — "video-producer · Video Producer", a group bubble headed with a filename.
 
 - **Omit `name` and APX picks one** nobody on this machine is using, out of the same pool the vault importer draws from (`assets/agent-names.json`). That is the normal case: you rarely have a reason to prefer a name.
 - A name that is only the slug spelled out is read as the ROLE it actually is, and the agent is named from the pool. Nothing you wrote is lost — but don't rely on it: write the role in `role`.
@@ -193,8 +193,8 @@ All four write the same file, assign an avatar blob when none is given, and acce
 
 ```bash
 # DON'T create an agent with metadata only. It exits 0 and the agent is useless.
-apx agent add magui --role "Social Media Producer" --description "Productora social."
-# ↑ No --prompt ⇒ no instructions. Fix: apx agent set magui --prompt - <<'EOF' … EOF
+apx agent add lumen --role "Social Media Producer" --description "Productora social."
+# ↑ No --prompt ⇒ no instructions. Fix: apx agent set lumen --prompt - <<'EOF' … EOF
 
 # DON'T pack the instructions into --description. It is ONE LINE of metadata,
 # truncated in listings, and it is not the prompt.

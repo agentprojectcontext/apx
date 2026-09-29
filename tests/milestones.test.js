@@ -444,13 +444,13 @@ test("attribution is read whether it sits on the turn or under meta", () => {
     {
       role: "assistant", ts: "2026-09-19T10:01:00Z", content: "done",
       tool_summary: { total: 5, failed: 2, tools: [{ name: "run_shell" }] },
-      model: "groq:llama", agent_name: "Magui",
+      model: "groq:llama", agent_name: "Lumen",
     },
   ]);
   assert.equal(shaped[0].tools.total, 5);
   assert.equal(shaped[0].state, "failed");
   assert.equal(shaped[0].model, "groq:llama");
-  assert.equal(shaped[0].agent, "Magui");
+  assert.equal(shaped[0].agent, "Lumen");
 });
 
 test("a shaped tool row carries its result as a field, not as JSON in the body", () => {
@@ -586,7 +586,7 @@ test("the cross-chat timeline is built from the ledger, one thread at a time", a
   const rows = [
     { ts: "2026-09-19T10:00:00Z", channel: "telegram", type: "user", agent_slug: "rocky", body: "make the reel", meta: { conversation: "c1" } },
     { ts: "2026-09-19T10:05:00Z", channel: "telegram", type: "agent", agent_slug: "rocky", body: "done", meta: { conversation: "c1", tool_summary: { total: 2, failed: 0, tools: [] } } },
-    { ts: "2026-09-19T11:00:00Z", channel: "web", type: "user", agent_slug: "magui", body: "post the recap", meta: { conversation: "c2" } },
+    { ts: "2026-09-19T11:00:00Z", channel: "web", type: "user", agent_slug: "lumen", body: "post the recap", meta: { conversation: "c2" } },
   ];
   fs.writeFileSync(path.join(dir, "2026-09-19.jsonl"), rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
 

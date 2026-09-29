@@ -49,7 +49,7 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     "/m/chat",
     "/m/tasks",
     "/m/commitments",
-    "/m/chat/1/magui",
+    "/m/chat/1/lumen",
     // The super-agent has no project, so its `:pid` segment is a sentinel.
     "/m/chat/-/super_agent",
     "/m/chat/-/super_agent/telegram~2026-08-19",
@@ -61,7 +61,7 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     // world: the Android shell hardcodes it and QR codes have been scanned.
     "/mobile",
     "/mobile/anything",
-    "/mobile/chat/1/magui",
+    "/mobile/chat/1/lumen",
     "/mobile/chat/-/super_agent/telegram~2026-08-19",
   ];
   for (const p of known) {

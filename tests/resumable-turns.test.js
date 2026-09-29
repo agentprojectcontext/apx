@@ -20,7 +20,7 @@ const {
 } = await import("#core/stores/resumable-turns.js");
 
 const turn = (over = {}) => ({
-  turn_id: "turn_1", project_id: 1, agent_slug: "magui", conversation_id: "conv_1",
+  turn_id: "turn_1", project_id: 1, agent_slug: "lumen", conversation_id: "conv_1",
   prompt: "revisá los turnos del martes", partial_text: "", effects: [], in_flight: [],
   ...over,
 });

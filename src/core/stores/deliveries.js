@@ -1,17 +1,17 @@
 // The delivery queue — the "famoso delivery" made visible.
 //
 // When a routine run by a non-Roby agent leaves a message in the agent's own web
-// chat, it also drops a DELIVERY here: a lightweight record that Manu has
+// chat, it also drops a DELIVERY here: a lightweight record that the owner has
 // something waiting. This replaced the old a2a-message hack (an agent "chatting"
 // with Roby cluttered the inbox and leaked the `super_agent` slug into the UI).
 //
 // A delivery is not a chat. It is a small, foldable event log you can look at to
 // see what is piling up and what has been crossed off:
 //
-//   pending   — the agent left something; nobody has told Manu yet.
-//   notified  — Roby reached Manu about it (immediately for a priority/anchor
+//   pending   — the agent left something; nobody has told the owner yet.
+//   notified  — Roby reached the owner about it (immediately for a priority/anchor
 //               delivery, or later from the sweep for an ordinary one).
-//   answered  — Manu replied in the agent's chat (the delivery is done).
+//   answered  — the owner replied in the agent's chat (the delivery is done).
 //   held      — the interruption budget deliberately withheld the notify.
 //
 // Append-only JSONL, one event per line; `listDeliveries` folds it to the
@@ -85,7 +85,7 @@ export function markDelivery(storagePath, id, status, extra = {}) {
 }
 
 /**
- * Manu engaged with an agent (replied in its chat) → close that agent's open
+ * The owner engaged with an agent (replied in its chat) → close that agent's open
  * deliveries. A `pending` one being answered CANCELS its grace-window notify
  * before it fires; a `notified` one just gets crossed off. Returns how many were
  * closed, so a caller can skip the notify when it already had one in flight.

@@ -205,7 +205,7 @@ export function agentCardUrl(row: InboxRow): string {
  *
  * "Abrir en el proyecto" used to hand out `agentCardUrl`, which for a project
  * agent is its ficha — a different screen, answering a different question, with
- * the conversation you were reading nowhere on it. Manu, 2026-09-20: "open
+ * the conversation you were reading nowhere on it. The owner, 2026-09-20: "open
  * project debería abrir el chat pero en project y ahora abre el agente". A
  * pair, a room and the super-agent already landed on their chat; only the
  * commonest row of all did not.

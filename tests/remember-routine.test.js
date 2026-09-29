@@ -48,7 +48,7 @@ const inRoutine = (over = {}) =>
 // --------------------------------------------------------------------------
 
 test("a note lands in this routine's own memory", async () => {
-  const r = await inRoutine()({ note: "Manu reads the morning message on his phone, before the laptop" });
+  const r = await inRoutine()({ note: "The owner reads the morning message on their phone, before the laptop" });
   assert.equal(r.saved, true);
   assert.equal(r.routine, "day-close");
   assert.match(readRoutineMemory(STORE, "r_abc"), /reads the morning message/);

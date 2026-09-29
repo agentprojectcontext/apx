@@ -311,7 +311,7 @@ test("gemini per-call style overrides config.style", async () => {
 
 test("synthesize produces a playable WAV via mock engine", async () => {
   const result = await synthesize({
-    text: "hola manuel",
+    text: "hola julián",
     provider: "mock",
     globalConfig: { voice: { tts: { provider: "mock" } }, engines: {} },
   });

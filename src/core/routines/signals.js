@@ -211,7 +211,7 @@ function detectA2A(project, { now, a2a_since, a2a_alerts = false }) {
     // notify them a second time; the message still lives in the thread.
     .filter((m) => m.direction === "in" && !m.meta?.owner_notified && (m.body || "").trim())
     // TODO(notifications-menu): a2a alerting is OFF by default. Agent↔agent
-    // chatter — and simulated/test blockers like Magui's — was pinging the owner
+    // chatter — and simulated/test blockers like Lumen's — was pinging the owner
     // as noise, sometimes twice. Until there is a per-notification preferences
     // menu (choose which agents / severities / channels may alert, and on which
     // surface), only messages the owner EXPLICITLY asked to be told about

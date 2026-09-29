@@ -1,6 +1,6 @@
 // POST /api/engines/test — the one-shot connectivity probe behind the "test"
 // button on a provider card. It must reach the adapter behind a provider SLUG,
-// which is not always the adapter id (a provider named "carlos" can run on
+// which is not always the adapter id (a provider named "myollama" can run on
 // ollama), and it must not leak the model id into the prompt it sends.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -59,18 +59,18 @@ async function post(baseUrl, body) {
 test("answers through a provider whose slug is not the adapter id", async () => {
   // The mock adapter echoes the last user message back, so the reply proves
   // both that the right adapter was reached and what was actually sent.
-  const { server, baseUrl } = await listen(makeApp({ carlos: { engine: "mock" } }));
+  const { server, baseUrl } = await listen(makeApp({ myollama: { engine: "mock" } }));
   try {
     const { status, body } = await post(baseUrl, {
-      provider: "carlos",
+      provider: "myollama",
       model: "mock",
-      message: "hola carlos",
+      message: "hola myollama",
     });
     assert.equal(status, 200);
-    assert.equal(body.provider, "carlos");
+    assert.equal(body.provider, "myollama");
     assert.equal(body.model, "mock");
     assert.equal(body.served_model, "mock");
-    assert.match(body.text, /hola carlos/);
+    assert.match(body.text, /hola myollama/);
     assert.equal(typeof body.ms, "number");
   } finally { server.close(); }
 });

@@ -12,10 +12,10 @@
 //    than the toggle, never sharper. A modifier that could interrupt is a
 //    modifier you have to think about before pressing.
 //
-// 2. THE QUEUE THAT DID NOT HOLD. Manu queued a message, walked away, came back
+// 2. THE QUEUE THAT DID NOT HOLD. The owner queued a message, walked away, came back
 //    and it had gone out on top of the running turn. Same root cause as the
 //    invisible a2a turn: `chat-activity.ts` treated the `event` frames arriving
-//    while he was away as the turn ENDING, which put its id in `closedTurnIds`;
+//    while they were away as the turn ENDING, which put its id in `closedTurnIds`;
 //    on return `loadThread` discarded the daemon's live `active_turn` as stale,
 //    `following` went false, and the drain — which correctly refuses to run on
 //    top of a live turn — no longer believed there was one. Fixed in

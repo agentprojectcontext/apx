@@ -50,8 +50,8 @@ test("a pair offers the same invite a room does", () => {
 });
 
 test("a pair is drawn as a room: the speaker above the bubble", () => {
-  // "Los agent to agent para mí son grupo … debería tener el diseño de grupo
-  // que muestra el usuario arriba y la cita abajo" — Manu, 2026-09-20. Under
+  // An agent-to-agent pair should look like a group: the speaker above, the
+  // quote below — the owner's call, 2026-09-20. Under
   // the 1:1 layout the speaker went into the footer chip, which is the one
   // place that cannot tell two agents apart at a glance.
   assert.match(chatTab(), /showSpeaker=\{isMultiThread\}/);

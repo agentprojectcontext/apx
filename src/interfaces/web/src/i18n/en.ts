@@ -1715,7 +1715,7 @@ export const en = {
     route_hint:  "Answering agent; empty = APX super-agent.",
     owner_label: "owner_user_id",
     owner_hint:  "Telegram user_id of the channel owner. Overrides global role to 'owner' here. Leave empty — first private message claims it.",
-    owner_ph:    "889721252",
+    owner_ph:    "1234567890",
     respond_label: "Respond with engine (not echo)",
     name_required: "Name required",
     saved:       "Channel saved.",

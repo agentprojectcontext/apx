@@ -38,7 +38,7 @@ const runtimeRow = {
   preview: "claude-code: listo",
   last_activity_at: "2026-09-20T23:36:25Z",
   pinned: false,
-  project_name: "tecnomanu",
+  project_name: "acme",
   project_path: "/x",
   agent_emoji: null,
   agent_icon: "claude-code",
@@ -46,7 +46,7 @@ const runtimeRow = {
 
 const agentRow = {
   ...runtimeRow,
-  agent_slug: "romi",
+  agent_slug: "nico",
   kind: "agent",
   runtime: undefined,
   channel: "web",
@@ -55,8 +55,8 @@ const agentRow = {
 
 test("a runtime room opens as its own chat, never on the chat pane's path", () => {
   // Reached from the list of CONVERSATIONS, so it opens as one — its own
-  // full-screen route, not the sessions list with a sheet on top of it:
-  // "en el chat, si abro una sesión debe ser en modo chat" (Manu, 2026-09-20).
+  // full-screen route, not the sessions list with a sheet on top of it — the
+  // owner's ask: a session opened from the chat opens in chat mode (2026-09-20).
   const to = rowPath(runtimeRow);
   assert.equal(to, "/m/runtime/4/2026-09-20-01");
   // The shape that 404'd, spelled out so nobody reintroduces it: the slug
@@ -76,14 +76,14 @@ test("the sessions list keeps its own way in, for the other question", () => {
 
 test("every other row still opens its chat, unchanged", () => {
   const to = rowPath(agentRow);
-  assert.match(to, /^\/m\/chat\/4\/romi/);
+  assert.match(to, /^\/m\/chat\/4\/nico/);
 });
 
 test("the project-side entries point at the room too, not at an agent card", () => {
   // `runtime:<id>` names nobody on the roster: there is no ficha to open.
   assert.match(agentCardUrl(runtimeRow), /^\/m\/runtime\//);
   assert.match(chatInProjectUrl(runtimeRow), /^\/m\/runtime\//);
-  assert.match(agentCardUrl(agentRow), /^\/p\/4\/agents\/romi$/);
+  assert.match(agentCardUrl(agentRow), /^\/p\/4\/agents\/nico$/);
 });
 
 test("'am I already reading this?' recognises the room, so the bell stays quiet", () => {

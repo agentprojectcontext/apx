@@ -234,7 +234,7 @@ export function withContactIdentity(thread, cfg) {
     // key the inbox groups its rows by, now on the thread as well.
     //
     // One human writes from more than one address: every row in the roster has
-    // `alts`, and both spellings are live at once — "La Caja Seguros" has a
+    // `alts`, and both spellings are live at once — "Northwind Seguros" has a
     // thread under its LID and another under its phone jid ON THE SAME DAY. The
     // ledger is right to record each one as it arrived, so it is the reader
     // that has to decide they are one conversation. Without this a surface can
@@ -251,7 +251,7 @@ export function withContactIdentity(thread, cfg) {
  *
  * A key is what the ledger recorded when the message arrived; the roster is who
  * that turned out to be. Those differ whenever an identity is corrected after
- * the fact — Manu's first two WhatsApp messages were logged under `role: guest`,
+ * the fact — the owner's first two WhatsApp messages were logged under `role: guest`,
  * because at that moment the system genuinely did not know the LID writing to it
  * was the owner's. The ledger is not wrong and must not be rewritten: it says
  * what was true then. It is the READER that should show one person once.

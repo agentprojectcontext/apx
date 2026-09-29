@@ -2,10 +2,11 @@
 //
 // The abort half has worked for a while: a new message stops the running turn
 // ("no, stop, do this instead"). The half that was missing is continuity.
-// Manu, 2026-09-20: "si estás procesando texto o tool, se envíe como mensaje
-// que interrumpe y pare tu mensaje y continúes con la nueva info que mande".
+// The owner's ask, 2026-09-20: a message sent while a turn is still producing
+// text or running a tool should interrupt it, stop that reply, and CONTINUE
+// with the new information.
 //
-// "Continúes" is the load-bearing word. The replacement turn used to start
+// "Continue" is the load-bearing word. The replacement turn used to start
 // blind — conversation history filters tool rows out on purpose (they once ate
 // 84% of a thread's context), so the work the aborted turn had already done was
 // invisible to it, and it would happily send the same WhatsApp a second time.
@@ -23,14 +24,14 @@ function interruptedFrom(controller, now = Date.now()) {
 }
 
 test("a tool the interrupted turn already ran is not run again", () => {
-  // The turn was two tools deep into "avisale a Magui" when the owner typed
+  // The turn was two tools deep into "avisale a Lucía" when the owner typed
   // something else. Without the seed, the new turn's first move is to send that
   // WhatsApp again.
   const cut = {
-    text: "avisale a Magui que el backlog queda para el lunes",
+    text: "avisale a Lucía que el backlog queda para el lunes",
     startedAt: Date.now() - 42_000,
     effects: [
-      { tool: "send_whatsapp", args: { to: "magui", text: "el backlog queda para el lunes" }, result: { ok: true } },
+      { tool: "send_whatsapp", args: { to: "lucia", text: "el backlog queda para el lunes" }, result: { ok: true } },
       { tool: "create_task", args: { title: "curar backlog" }, result: { id: "t_1" } },
     ],
   };
@@ -38,7 +39,7 @@ test("a tool the interrupted turn already ran is not run again", () => {
   assert.equal(handoff.seconds, 42);
 
   const ledger = createSideEffectLedger({ prior: handoff.effects });
-  const sig = ledger.signature("send_whatsapp", { to: "magui", text: "el backlog queda para el lunes" });
+  const sig = ledger.signature("send_whatsapp", { to: "lucia", text: "el backlog queda para el lunes" });
   assert.equal(ledger.seen(sig), true, "the replacement turn knows it already went out");
   assert.deepEqual(ledger.previous(sig), { ok: true }, "and what it answered");
 });
@@ -50,13 +51,13 @@ test("re-wording the same message does not get it past the seed either", () => {
   const ledger = createSideEffectLedger({
     prior: [{
       tool: "send_telegram",
-      args: { chat_id: 1, text: "Listo Manu, ya le avisé a Magui que lo vemos el lunes" },
+      args: { chat_id: 1, text: "Listo Juli, ya le avisé a Lucía que lo vemos el lunes" },
       result: { ok: true },
     }],
   });
   const restated = ledger.nearDuplicate("send_telegram", {
     chat_id: 1,
-    text: "Ya le avisé a Magui: lo vemos el lunes 👍",
+    text: "Ya le avisé a Lucía: lo vemos el lunes 👍",
   });
   assert.ok(restated, "same thing, different opener — still the same message");
 });

@@ -14,8 +14,8 @@ test("encodeClaudeProjectPath matches Claude Code project directory naming", () 
     "-Users-user--apx-projects-default"
   );
   assert.equal(
-    encodeClaudeProjectPath("/Volumes/SSDT7Shield/proyectos_varios/nicho-apps"),
-    "-Volumes-SSDT7Shield-proyectos-varios-nicho-apps"
+    encodeClaudeProjectPath("/path/to/acme-apps"),
+    "-path-to-acme-apps"
   );
 });
 

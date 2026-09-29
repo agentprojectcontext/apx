@@ -115,7 +115,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // as the next thing said to it — and drawn HERE as what it actually is. As a
   // bubble it wore the owner's face and their voice, so a page of machine
   // English addressed to the model read as something they had written
-  // themselves: "¿qué es esto? no sé por qué lo veo" (Manu, 2026-09-14, on his
+  // themselves: "¿qué es esto? no sé por qué lo veo" (the owner, 2026-09-14, on their
   // own screen). The full text stays one click away, because when a job fails
   // the output in it is the only thing that says why.
   if (msg.automation === "background_job") {
@@ -128,8 +128,8 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // The ledger files a group turn under the speaker's SLUG (`author: slug`, in
   // appendGroupAgentMessage) because that is the room's identity — every
   // mention, avatar and turn is addressed by it. So the header read
-  // `productor-reels` while the "traído por" tag two words to its right, which
-  // resolves through the roster, read "Productor Reels": the same agent, on
+  // `video-producer` while the "traído por" tag two words to its right, which
+  // resolves through the roster, read "Video Producer": the same agent, on
   // the same line, spelled two ways.
   //
   // The roster answers wherever it can. `face.name` covers the speakers it

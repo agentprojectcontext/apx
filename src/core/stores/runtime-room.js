@@ -6,10 +6,10 @@
 // not a conversation: you could read that a session existed, and you could not
 // talk to it.
 //
-// Manu, 2026-09-20: "claude code, codex y opencode deberían verse en la lista de
-// chats y tratarse como grupo quizás — el agente habla como agente pero claude
-// recibe como yo mismo, y yo veo los 3 tipos: mi mensaje, el del agente y el de
-// claude".
+// The owner, 2026-09-20: Claude Code, Codex and OpenCode sessions should show in
+// the chat list and behave like a group — the agent speaks as the agent, Claude
+// receives as the owner, and the owner sees all three voices: their own message,
+// the agent's and Claude's.
 //
 // THREE VOICES, TWO SIDES. That observation is the whole design. From the
 // runtime's point of view there is exactly one user: `claude -p` takes a prompt

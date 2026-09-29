@@ -44,7 +44,7 @@ test("first private sender on an owner-less channel is claimed as owner", () => 
   const { sender, mutated } = registerSender({
     cfg,
     channelName: "default",
-    from: { id: 100, first_name: "Manu" },
+    from: { id: 100, first_name: "Julián" },
     chatType: "private",
   });
   assert.equal(mutated, true);
@@ -76,13 +76,13 @@ test("owner is recognized again across a NEW chat (different chat_id)", () => {
   const sender = resolveSender({
     cfg,
     channelName: "default",
-    from: { id: 100, first_name: "Manu (new phone)" },
+    from: { id: 100, first_name: "Julián (new phone)" },
     chatType: "private",
   });
   assert.equal(sender.isOwner, true);
   assert.equal(sender.role, "owner");
   // Name comes from the stored contact, not the new device's first_name.
-  assert.equal(sender.name, "Manu");
+  assert.equal(sender.name, "Julián");
 });
 
 test("owner is NOT auto-claimed in a group chat", () => {
@@ -117,12 +117,12 @@ test("a role assigned via config is honored on the next resolve", () => {
 test("buildRelationshipBlock: owner tells the model not to ask their name", () => {
   const block = buildRelationshipBlock({
     userId: 100,
-    name: "Manu",
+    name: "Julián",
     role: "owner",
     isOwner: true,
     isGroup: false,
   });
-  assert.match(block, /your owner, Manu/);
+  assert.match(block, /your owner, Julián/);
   assert.match(block, /never ask their name/);
 });
 

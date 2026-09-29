@@ -1,7 +1,7 @@
 // `write_project_memory` — the document-shaped half of a project's local memory.
 //
 // THE FAILURE THIS FIXES, from a real install (2026-09-06): asked to store a
-// full survey of Postbean — sections, a pricing table, operational notes — the
+// full survey of Globex — sections, a pricing table, operational notes — the
 // super-agent had no tool shaped like a document. `remember` takes "one
 // self-contained sentence", so the survey did not fit, and the model used the
 // tools that did: it wrote `memory.md` at the repo root. Nothing reads that
@@ -29,13 +29,13 @@ const { apcMemoryFile } = await import("#core/apc/paths.js");
 
 const root = makeTempProject("wpm");
 const storage = path.join(TMP_HOME, ".apx", "projects", "wpmproj");
-const project = { id: 1, name: "Postbean", path: root, storagePath: storage };
+const project = { id: 1, name: "Globex", path: root, storagePath: storage };
 const projects = { list: () => [project], get: () => project };
 const run = (args) => tool.makeHandler({ projects, channel: "code" })(args);
 
 test("a document lands in the runtime store, not in the repo", async () => {
-  const body = "# Postbean\n\n## Planes\n\n| Plan | Precio |\n|---|---|\n| Free | $0 |\n";
-  const r = await run({ project: "Postbean", content: body, mode: "replace" });
+  const body = "# Globex\n\n## Planes\n\n| Plan | Precio |\n|---|---|\n| Free | $0 |\n";
+  const r = await run({ project: "Globex", content: body, mode: "replace" });
 
   assert.equal(r.ok, true);
   assert.equal(r.path, projectLocalMemoryPath(project));
@@ -48,8 +48,8 @@ test("a document lands in the runtime store, not in the repo", async () => {
 });
 
 test("replace leaves the previous body behind", async () => {
-  await run({ project: "Postbean", content: "# first\n", mode: "replace" });
-  const r = await run({ project: "Postbean", content: "# second\n", mode: "replace" });
+  await run({ project: "Globex", content: "# first\n", mode: "replace" });
+  const r = await run({ project: "Globex", content: "# second\n", mode: "replace" });
 
   assert.equal(readProjectLocalMemory(project), "# second\n");
   assert.ok(r.backup, "a wholesale overwrite without a copy is not recoverable");
@@ -57,8 +57,8 @@ test("replace leaves the previous body behind", async () => {
 });
 
 test("append adds one dated bullet and keeps the document", async () => {
-  await run({ project: "Postbean", content: "# Postbean\n\n## Stack\n- Laravel 12\n", mode: "replace" });
-  const r = await run({ project: "Postbean", content: "Lemon Squeezy es el MoR, reemplazó a Stripe." });
+  await run({ project: "Globex", content: "# Globex\n\n## Stack\n- Laravel 12\n", mode: "replace" });
+  const r = await run({ project: "Globex", content: "Lemon Squeezy es el MoR, reemplazó a Stripe." });
 
   assert.equal(r.mode, "append");
   const mem = readProjectLocalMemory(project);
@@ -73,7 +73,7 @@ test("replace asks before overwriting", async () => {
     projects,
     requirePermission: (name, opts) => { asked.push([name, opts?.dangerous, opts?.args?.mode]); },
   });
-  await handler({ project: "Postbean", content: "# x\n", mode: "replace" });
+  await handler({ project: "Globex", content: "# x\n", mode: "replace" });
   assert.deepEqual(asked, [["write_project_memory", true, "replace"]]);
 });
 
@@ -84,7 +84,7 @@ test("an unknown project is an error, not a silent write somewhere else", async 
 });
 
 test("empty inputs are refused", async () => {
-  assert.ok((await run({ project: "Postbean", content: "  " })).error);
+  assert.ok((await run({ project: "Globex", content: "  " })).error);
   assert.ok((await run({ project: "", content: "x" })).error);
 });
 

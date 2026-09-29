@@ -156,7 +156,7 @@ test("when a preferred model fails, the router's own #1 is tried before the fall
   assert.equal(failed.retry_with, SPARE, "the router default, not the next fallback");
 });
 
-// Magui, 2026-09-23: pinned to luna with "if it fails, use the router" ticked.
+// Lumen, 2026-09-23: pinned to luna with "if it fails, use the router" ticked.
 // Luna's plan ran out and the routine STOPPED — the unwatched-turn rule beat
 // the owner's own instruction, with a free router model one step away.
 const ownerCfg = () => ({
