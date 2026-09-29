@@ -134,12 +134,19 @@ network or an inbound channel adds 4; structural adds 6; reaching `main` adds 8.
 - Layer dodges lint cannot see: a framework object passed into `core/`, `os.homedir()` wrapped to rebuild an `~/.apx` path.
 - Route handlers in `asyncRoute()`; no sync I/O on a request path (rule 15). Optional deps (`better-sqlite3`, `sqlite-vec`, `puppeteer`) are sometimes absent.
 - Real data (rule 3): `npm run check:private` catches shapes and the local list; an unlisted name is caught only by the reviewer.
+- Read the requirement and the diff before the author's notes; the notes say what the code was *meant* to do.
+- Walk every `catch`, default and fallback: does a failure reach a human, or does the feature quietly stop? This is the house failure mode.
+- A touched family (engines, runtimes, handlers, embed engines): check every sibling honors the options it is handed, or declares it cannot.
+- A regression test must fail before the fix; a test that re-asserts the code's structure catches nothing.
 - Each finding: `file:line`, the defect, inputs/state → wrong result. An empty result is valid.
 
 ### 4. Security / risk review
 Threat model: untrusted text (Telegram, web page, file, MCP result, another agent) reaching a tool call. See [`surfaces.md`](surfaces.md).
 - One token store (`token-store.js`), one WS check (`isWsUpgradeAuthorized` in `ws-auth.js`); the daemon may bind `0.0.0.0`, so reaching the port is not authorization.
 - Argument arrays, never paths interpolated into command strings. Paths bounded to the project. Writes via the atomic JSON helpers, never into a committed path unreviewed.
+- Model output never becomes unchecked authority: ask whether text from a message, page, file, MCP result or another agent can reach a shell command, a path or a send. A `cat "${path}"` built from user input has already happened here.
+- Renaming a tool without updating `names.js` silently disables the duplicate-send check. On retry, does the operation or a routine run twice?
+- Daemon-side fetches of URLs from config or model output are SSRF primitives; every outbound call has a timeout.
 - A guest Telegram sender must not reach owner tools. `apx config show --effective` and `apx status` print secrets; project-scoped tokens passed as tool arguments are not masked in the ledger or live feed.
 
 ### 5. Test + runtime proof
@@ -151,9 +158,11 @@ Threat model: untrusted text (Telegram, web page, file, MCP result, another agen
 - Check rules 7, 8, 9, 10, 12, 13, 16, [`architecture.md`](architecture.md), [`decisions/`](decisions/) and the siblings. Do not import patterns from elsewhere.
 - A consumer importing a concrete adapter instead of the registry is how `confirmation/adapters/` went half-dead.
 - Relying on a rule? Check [`enforcement.md`](enforcement.md) for whether it is a gate or prose; prefer adding a lint rule, test or ratchet. Never weaken a rule to get green.
+- First member of a family that will grow → build the registry now; the only member forever → don't.
 - `src/interfaces/tui/` is a vendored island with no `#core/` imports, by design.
 
 ### 7. Owner brief
+- Lead with the change in *behavior* for a person using APX, not the refactor. The UNVERIFIED list is never left empty to look better; plain sentences, no advocacy. Small change: what changed, evidence, UNVERIFIED, rollback is a complete brief.
 - Also list **assumptions** made without asking. Rollback: if `~/.apx` state or a file format changed, `git revert` + `apx restart` is not enough; say so.
 
 ### 8. Release check
