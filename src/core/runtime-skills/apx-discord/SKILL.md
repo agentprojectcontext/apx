@@ -27,6 +27,7 @@ apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>
 apx discord channel remove <channel_id>
 pbpaste | apx discord set --token-stdin
 apx discord set --owner <user_id,…> --names roby
+apx discord set --owner-only true    # answer ONLY the owner; everyone else is read, never answered
 apx discord set --knowledge-stdin < notes.md   # what the bot can do and answer (≤12k chars)
 ```
 
@@ -34,7 +35,7 @@ Ids are Discord snowflakes (digits). Never guess one — ask the owner to copy i
 
 ## Why it did not answer
 
-Decided by code, in this order, before any model runs: room not listed → own message → empty → another bot (stored, never answered) → `read` room → `mention` room and not called → per-person cooldown (`limits.user_cooldown_ms`) → per-room hourly cap (`limits.channel_replies_per_hour`). The owner's own account skips the two limits, not the mode. The daemon log says which one applied (`apx daemon logs`).
+Decided by code, in this order, before any model runs: room not listed → own message → empty → another bot (stored, never answered) → `read` room → `owner_only` on and the author is not in `discord.owner_ids` (stored, never answered, and never sent to the `useful` gate — with no owner id set, nobody is answered) → `mention` room and not called → per-person cooldown (`limits.user_cooldown_ms`) → per-room hourly cap (`limits.channel_replies_per_hour`). The owner's own account skips the two limits, not the mode. The daemon log says which one applied (`apx daemon logs`).
 
 A burst from one person inside `limits.burst_window_ms` gets ONE answer.
 

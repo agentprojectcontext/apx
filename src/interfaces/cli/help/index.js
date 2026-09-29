@@ -961,7 +961,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx discord channels",
       "apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]",
       "apx discord channel remove <channel_id>",
-      "apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]",
+      "apx discord set [--token-stdin] [--owner <id,…>] [--owner-only <true|false>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]",
     ],
     commands: [
       ["status", "Connection state, the bot account, the owner ids and the room list."],
@@ -973,12 +973,14 @@ export const HELP_TOPICS = new Map(Object.entries({
     options: [
       ["--token-stdin", "Read the bot token from stdin."],
       ["--owner <id,…>", "Your Discord user id(s). Exempt from rate limits; never given private context."],
+      ["--owner-only <true|false>", "Answer only the owner. Everyone else is still read (for context) but never answered, in any room mode."],
       ["--names <a,b>", "Words that count as calling the bot, besides an @mention or a reply."],
       ["--knowledge-stdin", "Read, from stdin, the notes on what the bot can do and answer (capped at 12k chars)."],
     ],
     examples: [
       "pbpaste | apx discord set --token-stdin",
       "apx discord set --owner 1234567890123456789 --names roby",
+      "apx discord set --owner-only true",
       "apx discord channel set 1234567890123456789 always --name apx-help",
       "apx discord channel set 1234567890123456790 mention --name general",
     ],

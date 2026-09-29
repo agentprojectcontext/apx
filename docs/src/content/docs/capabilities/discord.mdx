@@ -126,6 +126,18 @@ be one careless sentence from publishing it. Give the agent real work on Telegra
   your docs site or code. If it keeps getting a question wrong, put the answer in your notes.
 </Aside>
 
+## Answering only you
+
+Settings → Discord → *Who it answers* → **Only me** (or `apx discord set --owner-only true`)
+makes the bot answer your Discord ID and nobody else, in every room and every mode. It still
+reads every included room — that history is what lets it answer you well — but a message from
+anyone else is stored and never answered, and in a `useful` room it is not even sent to the
+check that decides whether to join in, so it costs nothing. The room's mode still applies to
+you: in a `mention` room you still have to call it.
+
+With no Discord ID set, "only me" means it answers nobody. Turn it off to go back to whoever
+each room's mode allows.
+
 ## Reference
 
 ```bash
@@ -133,7 +145,7 @@ apx discord [status]
 apx discord channels
 apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]
 apx discord channel remove <channel_id>
-apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
+apx discord set [--token-stdin] [--owner <id,…>] [--owner-only <true|false>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```
 
 The panel screen shows the bot's avatar large — click it to change it (the picture is cropped to a 512 px square; Discord rate-limits avatar changes to a couple an hour).

@@ -14,6 +14,8 @@ export interface DiscordStatus {
   /** Whether a token is saved. The token itself never leaves the daemon. */
   has_token: boolean;
   owner_ids: string[];
+  /** Answer only the owner; everyone else is read but never answered. */
+  owner_only?: boolean;
   names: string[];
   channels: DiscordChannelRow[];
   state: "off" | "connecting" | "connected" | "reconnecting" | "error";
@@ -45,6 +47,7 @@ export interface DiscordSettingsPatch {
   enabled?: boolean;
   token?: string;
   owner_ids?: string[];
+  owner_only?: boolean;
   names?: string[];
   knowledge?: string;
   reply_when?: string;

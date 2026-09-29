@@ -150,3 +150,14 @@ test("avatar: a bad file is a 400 before Discord is asked; a good one goes to th
     assert.equal((await call("PUT", "/discord/avatar", { data_url: png })).status, 503);
   });
 });
+
+test("settings: owner_only round-trips through the route and shows in status; a non-boolean is a 400", async () => {
+  await withApi(async (call) => {
+    const on = await call("PATCH", "/discord/settings", { owner_only: true });
+    assert.equal(on.status, 200);
+    assert.equal(on.body.owner_only, true);
+    assert.equal((await call("GET", "/discord/status")).body.owner_only, true);
+    assert.equal((await call("PATCH", "/discord/settings", { owner_only: "yes" })).status, 400);
+    assert.equal((await call("PATCH", "/discord/settings", { owner_only: false })).body.owner_only, false);
+  });
+});

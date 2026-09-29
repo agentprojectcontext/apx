@@ -6,6 +6,7 @@
 //     "enabled": true,
 //     "token": "…",                     // the bot token — a credential, never logged
 //     "owner_ids": ["1234567890"],      // the owner's Discord user id(s)
+//     "owner_only": false,              // true → answer ONLY the owner; everyone else is read, never answered
 //     "names": ["roby"],                // words that count as calling the bot
 //     "rules": "…",                     // hard rules for what it says — win over everything
 //     "knowledge": "…",                 // what it can do and answer — written by the owner, public
@@ -81,7 +82,7 @@ export const DISCORD_CONTEXT_DEFAULTS = Object.freeze({
 // not, and costs every call.
 export const KNOWLEDGE_MAX_CHARS = 12_000;
 
-const SETTABLE = ["enabled", "token", "owner_ids", "names", "knowledge", "reply_when", "gate_model", "rules"];
+const SETTABLE = ["enabled", "token", "owner_ids", "owner_only", "names", "knowledge", "reply_when", "gate_model", "rules"];
 
 export function normalizeDiscordMode(mode) {
   const m = String(mode || "").trim().toLowerCase();
@@ -134,6 +135,8 @@ export function readDiscordConfig(cfg = readConfig()) {
     enabled: d.enabled !== false,
     hasToken: typeof d.token === "string" && d.token.trim().length > 0,
     owner_ids: listOfIds(d.owner_ids),
+    // Off unless it is literally `true`: a typo must not silence a help room.
+    owner_only: d.owner_only === true,
     names: listOfNames(d.names),
     knowledge: typeof d.knowledge === "string" ? d.knowledge : "",
     reply_when: typeof d.reply_when === "string" ? d.reply_when : "",
@@ -189,6 +192,9 @@ export function patchDiscordConfig(patch = {}) {
       const m = String(patch[k] || "").trim();
       if (m && !m.includes(":")) throw new Error("gate_model must be provider:model");
       cfg.discord[k] = m;
+    } else if (k === "owner_only") {
+      if (typeof patch[k] !== "boolean") throw new Error("owner_only must be true or false");
+      cfg.discord[k] = patch[k];
     } else if (k === "names") {
       cfg.discord[k] = listOfNames(Array.isArray(patch[k]) ? patch[k] : [patch[k]]);
     } else {

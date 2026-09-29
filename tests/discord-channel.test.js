@@ -589,3 +589,62 @@ test("owner mark: rows stored before (or after an id change) are brought in line
   assert.deepEqual(back[2], rows[2], "rows the bot wrote are left alone");
   assert.equal(markOwnerRows([OWNER], { messagesDir: dir }), 0, "a second pass changes nothing");
 });
+
+// ── owner only ──────────────────────────────────────────────────────────────
+
+test("owner only: off by default, and only a literal true turns it on", () => {
+  assert.equal(readDiscordConfig({ discord: {} }).owner_only, false);
+  assert.equal(readDiscordConfig({ discord: { owner_only: "yes" } }).owner_only, false, "a typo must not silence a room");
+  assert.equal(readDiscordConfig({ discord: { owner_only: true } }).owner_only, true);
+});
+
+test("owner only: nobody else is answered in ANY mode — but everyone is still stored", () => {
+  const dc = baseDc({ owner_only: true });
+  const d = (m) => decideDiscordMessage(m, { dc, botId: BOT });
+  for (const [room, content] of [[HELP, "cómo instalo apx?"], [GENERAL, "roby ayudame"]]) {
+    const stranger = d(msg({ channel_id: room, content, mentions: [BOT] }));
+    assert.deepEqual([stranger.store, stranger.reply, stranger.reason], [true, false, SKIP_REASONS.OWNER_ONLY], room);
+    const owner = d(msg({ channel_id: room, content, mentions: [BOT], author: { id: OWNER, name: "Owner", bot: false } }));
+    assert.equal(owner.reply, true, `the owner is answered in ${room}`);
+  }
+  // The owner is still bound by the room's mode: `mention` means called.
+  const ownerUncalled = d(msg({ channel_id: GENERAL, content: "nota para mí", author: { id: OWNER, name: "Owner", bot: false } }));
+  assert.equal(ownerUncalled.reason, SKIP_REASONS.NOT_CALLED);
+  // A read room stays read, whoever writes.
+  assert.equal(d(msg({ channel_id: LURK, mentions: [BOT], author: { id: OWNER, name: "Owner", bot: false } })).reply, false);
+});
+
+test("owner only: with no owner id set it answers nobody", () => {
+  const d = decideDiscordMessage(msg({ channel_id: HELP }), { dc: baseDc({ owner_only: true, owner_ids: [] }), botId: BOT });
+  assert.deepEqual([d.store, d.reply, d.reason], [true, false, SKIP_REASONS.OWNER_ONLY]);
+});
+
+test("owner only: a stranger in a `useful` room never reaches the gate — no model call is spent", async () => {
+  e2eConfig();
+  patchDiscordConfig({ owner_ids: [OWNER], owner_only: true });
+  setDiscordChannel(GENERAL, { mode: "useful", name: "general" });
+  let gateCalls = 0;
+  let turns = 0;
+  const d = createDiscordDispatcher({
+    transport: fakeTransport(), settleMs: 0, log: () => {},
+    gate: async () => { gateCalls += 1; return { reply: true, reason: "would help" }; },
+    runTurn: async () => { turns += 1; return { text: "ok" }; },
+  });
+  try {
+    await d.handle(msg({ author: { id: "1000000000000000051", name: "Gala", bot: false }, content: "cómo se instala apx?" }));
+    await d.drain();
+    assert.equal(gateCalls, 0, "the gate costs a model call; a stranger must not trigger it");
+    assert.equal(turns, 0);
+    const stored = readGlobalMessages({ channel: "discord" }).filter((r) => r.body?.includes("cómo se instala apx?"));
+    assert.ok(stored.length >= 1, "the stranger's message is still part of the room");
+  } finally {
+    patchDiscordConfig({ owner_only: false });
+    setDiscordChannel(GENERAL, { mode: "mention", name: "general" });
+  }
+});
+
+test("owner only: the setting is a boolean or it is refused", () => {
+  assert.throws(() => patchDiscordConfig({ owner_only: "true" }), /owner_only must be true or false/);
+  assert.equal(patchDiscordConfig({ owner_only: true }).owner_only, true);
+  assert.equal(patchDiscordConfig({ owner_only: false }).owner_only, false);
+});
