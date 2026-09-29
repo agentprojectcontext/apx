@@ -1,3 +1,10 @@
+## [1.121.1](https://github.com/agentprojectcontext/apx/compare/v1.121.0...v1.121.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **web:** Agregar proyecto ya no se cierra solo sobre el inbox, y el ejemplo de ruta es de tu máquina ([6c6cbcf](https://github.com/agentprojectcontext/apx/commit/6c6cbcf657d7545fc654abca24536e4d1641cc9c))
+
 # [1.121.0](https://github.com/agentprojectcontext/apx/compare/v1.120.1...v1.121.0) (2026-09-29)
 
 

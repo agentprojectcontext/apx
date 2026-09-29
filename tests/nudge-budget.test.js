@@ -172,6 +172,25 @@ test("an unparseable window means never quiet, not always quiet", () => {
   assert.equal(isQuietAt("", new Date(2026, 0, 15, 3, 0)), false);
 });
 
+test("an all-day window is quiet every minute, including 23:59", () => {
+  // "00:00-23:59" used to leave 23:59 open (the end is exclusive), and a
+  // window with equal bounds was zero-width. Whoever writes either means all day.
+  const lastMinute = new Date(2026, 0, 15, 23, 59, 30);
+  const midnight = new Date(2026, 0, 16, 0, 0, 0);
+  for (const spec of ["00:00-23:59", "00:00-00:00", "00:00-24:00", "22:00-22:00"]) {
+    assert.equal(isQuietAt(spec, lastMinute), true, `${spec} at 23:59`);
+    assert.equal(isQuietAt(spec, midnight), true, `${spec} at 00:00`);
+    assert.equal(isQuietAt(spec, new Date(2026, 0, 15, 12, 0)), true, `${spec} at noon`);
+  }
+  // A window ending at 23:59 runs to midnight, not one minute short of it.
+  assert.equal(isQuietAt("20:00-23:59", lastMinute), true);
+  assert.equal(isQuietAt("20:00-23:59", midnight), false);
+  assert.equal(quietEndsAt("20:00-23:59", lastMinute).getTime(), midnight.getTime());
+  // 24:00 is only valid as an end, and only on the hour.
+  assert.equal(parseQuietHours("24:00-07:00"), null);
+  assert.equal(parseQuietHours("22:00-24:30"), null);
+});
+
 test("a suppressed nudge says when quiet ends, crossing midnight correctly", () => {
   const cfg = budget({ quiet_hours: "22:00-07:30" });
   const at2330 = new Date(2026, 0, 15, 23, 30);

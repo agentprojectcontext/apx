@@ -101,6 +101,25 @@ test("a settings change moves the policy, not just the words", () => {
   assert.equal(policy.weeklyCap, 1);
 });
 
+test("an all-day quiet window is quiet at 23h too, and out-of-range hours keep the default", () => {
+  // Same reading as the nudge gate's HH:MM windows: equal bounds and an end of
+  // 24 mean all day. "0-24" used to wrap to "0-0" — never quiet — and "22-22"
+  // was an empty window.
+  const at23 = new Date("2026-09-12T02:30:00Z"); // 23:30 in Buenos Aires
+  for (const spec of ["0-24", "0-0", "22-22"]) {
+    const policy = policyFrom({ quiet_hours: spec });
+    assert.equal(isQuietHour(at23, policy), true, `${spec} at 23h`);
+    assert.equal(isQuietHour(NOW, policy), true, `${spec} at noon`);
+  }
+  assert.equal(isQuietHour(at23, policyFrom({ quiet_hours: "20-24" })), true, "20-24 runs to midnight");
+  assert.equal(isQuietHour(NIGHT, policyFrom({ quiet_hours: "20-24" })), false, "…and stops there");
+  // The hour end stays exclusive: "20-23" is 8 PM to 11 PM, a real window.
+  assert.equal(isQuietHour(at23, policyFrom({ quiet_hours: "20-23" })), false);
+  // 25 used to wrap silently to 1. A value no clock has keeps the default.
+  assert.deepEqual(policyFrom({ quiet_hours: "22-25" }).quietHours, DEFAULT_POLICY.quietHours);
+  assert.deepEqual(policyFrom({ quiet_hours: "24-8" }).quietHours, DEFAULT_POLICY.quietHours);
+});
+
 test("the severity line is parsed and stripped, never delivered", () => {
   const { severity, body } = parseSeverity("SEVERITY: blocker\n- [app] x → y");
   assert.equal(severity, "blocker");
