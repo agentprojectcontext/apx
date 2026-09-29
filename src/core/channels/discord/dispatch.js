@@ -44,8 +44,11 @@ function relationshipFor(msg, dc) {
   return lines.join("\n");
 }
 
-function inboundMeta(msg) {
+function inboundMeta(msg, botIdOf = () => null, ownerIds = []) {
   return {
+    // The owner's own Discord account. The panel draws these on the owner's
+    // side of the thread; everyone else is named on the other side.
+    ...(ownerIds.includes(msg.author?.id) ? { owner: true } : {}),
     chat_id: msg.channel_id,
     // One thread per room: the inbox groups a Discord day by channel, not by
     // person, because a room is read as a room.
@@ -56,7 +59,13 @@ function inboundMeta(msg) {
     ...(msg.author?.bot ? { discord_bot: true } : {}),
     ...(msg.guild_id ? { guild_id: msg.guild_id } : {}),
     ...(msg.parent_id ? { parent_id: msg.parent_id } : {}),
-    ...(msg.reply_to?.id ? { reply_to_id: msg.reply_to.id } : {}),
+    ...(msg.reply_to?.id ? {
+      reply_to_id: msg.reply_to.id,
+      // What was replied to, as the surface shows it: a line, not the whole
+      // message — enough to read the thread the way Discord draws it.
+      reply_to_author: msg.reply_to.author_id === botIdOf() ? "you" : (msg.reply_to.author_name || null),
+      reply_to_text: String(msg.reply_to.content || "").replace(/\s+/g, " ").slice(0, 160),
+    } : {}),
     ...(msg.channel_name ? { room: msg.channel_name } : {}),
   };
 }
@@ -210,7 +219,7 @@ export function createDiscordDispatcher({
       // Stamped with OUR clock, like every other row. The indexer's cursor is
       // the latest ts it has seen; a row carrying Discord's slightly older
       // time could land behind it and never be indexed.
-      meta: { ...inboundMeta(msg), ...(msg.ts ? { discord_ts: msg.ts } : {}) },
+      meta: { ...inboundMeta(msg, () => transport.botId?.(), dc.owner_ids), ...(msg.ts ? { discord_ts: msg.ts } : {}) },
     });
     maybeCompact(msg.channel_id, dc);
 

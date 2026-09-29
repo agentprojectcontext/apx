@@ -527,8 +527,27 @@ test("a room reads as a room: mentions by name, thread titled #room, speakers na
   const shaped = shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Hana" } });
   assert.equal(shaped.speaker, "Hana");
   assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: {} }).speaker, undefined, "an owner turn stays the owner's");
+  assert.equal(shapeLedgerMessage({ type: "user", body: "hola", meta: { room: "general", speaker: "Manu", owner: true } }).speaker, undefined,
+    "the owner writing from their Discord account is drawn as theirs");
+  const q = shapeLedgerMessage({ type: "user", body: "gracias", meta: { room: "general", speaker: "Hana", reply_to_text: "Sí, acá estoy", reply_to_author: "you" } });
+  assert.deepEqual(q.quote, { author: "you", text: "Sí, acá estoy" });
   const threads = listGlobalThreads({ channels: ["discord"] });
   const general = threads.find((t) => String(t.id).includes(GENERAL));
   assert.equal(general?.title, "#general");
   assert.equal(general?.contact_name, "#general", "the inbox row is the room too");
+});
+
+test("inbound rows mark the owner and keep the quoted reply", async () => {
+  e2eConfig();
+  const d = createDiscordDispatcher({ transport: fakeTransport(), settleMs: 0, log: () => {}, runTurn: async () => ({ text: "ok" }) });
+  await d.handle(msg({ channel_id: LURK, channel_name: "lurk", author: { id: OWNER, name: "Owner" }, content: "nota del dueño",
+    reply_to: { id: "5", author_id: BOT, author_name: "Roby", content: "Sí, acá estoy" } }));
+  await d.handle(msg({ channel_id: LURK, channel_name: "lurk", author: { id: "1000000000000000061", name: "Ivo" }, content: "otra" }));
+  await d.drain();
+  const rows = readGlobalMessages({ channel: "discord", limit: 10 });
+  const own = rows.find((r) => r.body === "nota del dueño");
+  assert.equal(own.meta.owner, true);
+  assert.equal(own.meta.reply_to_author, "you");
+  assert.equal(own.meta.reply_to_text, "Sí, acá estoy");
+  assert.equal(rows.find((r) => r.body === "otra").meta.owner, undefined);
 });
