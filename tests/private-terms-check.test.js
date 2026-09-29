@@ -16,7 +16,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "apx-private-terms-"));
 process.env.APX_HOME = path.join(TMP, ".apx");
 fs.mkdirSync(process.env.APX_HOME, { recursive: true });
 
-const { parseTerms, findPrivateTerms, loadTerms, termFiles, fold } = await import("../scripts/check-private-terms.js");
+const { parseTerms, findPrivateTerms, findRealShapes, loadTerms, termFiles, fold } = await import("../scripts/check-private-terms.js");
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/check-private-terms.js");
 
@@ -84,14 +84,75 @@ test("the list is read from APX_HOME, or only from APX_PRIVATE_TERMS when that i
   fs.rmSync(path.join(process.env.APX_HOME, "private-terms.txt"));
 });
 
-test("with no list the script passes silently — CI has none, by design", () => {
+test("with no list the script still runs the public shapes — and the repo passes them", () => {
+  // No private list, as in CI. The built-in shapes still scan every tracked
+  // file of THIS repo, so this test is also the tip check.
   const res = spawnSync(process.execPath, [SCRIPT], {
     encoding: "utf8",
     env: { ...process.env, APX_PRIVATE_TERMS: path.join(TMP, "does-not-exist.txt") },
   });
   assert.equal(res.status, 0, res.stderr);
-  assert.equal(res.stdout, "");
+  assert.match(res.stdout, /ok \(shapes; no local list\)/);
   assert.equal(res.stderr, "");
+});
+
+// Real-looking values are ASSEMBLED at run time: a literal here would be a
+// real-shaped number sitting in a tracked file, which is what the check forbids.
+// The area code starts with 0, which no Argentine number does.
+const REALISH_PHONE = ["549", "0718", "293645"].join("");
+const REALISH_LID = ["8071", "6253", "4918", "273"].join("");
+const REALISH_TYPED = ["+54 9 07", "1829-3645"].join(" ");
+const REALISH_USER = ["", "Users", "jdoe-real", ".apx"].join("/");
+const REALISH_DISK = ["", "Volumes", "MyDisk", "projects"].join("/");
+
+function shapes(files) {
+  const t = tree(files);
+  return findRealShapes({ root: t.root, files: t.files }).map((h) => `${h.file}:${h.line}:${h.term}`);
+}
+
+test("a real-looking WhatsApp number or LID is caught with no list at all", () => {
+  assert.deepEqual(
+    shapes({
+      "a.js": `const jid = "${REALISH_PHONE}@s.whatsapp.net";\n`,
+      "b.md": `alias \`${REALISH_LID}@lid\`\n`,
+      "c.js": `// the owner wrote from ${REALISH_PHONE} yesterday\n`,
+      "d.md": `call ${REALISH_TYPED} tomorrow\n`,
+    }),
+    ["a.js:1:whatsapp-number", "b.md:1:whatsapp-number", "c.js:1:whatsapp-number", "d.md:1:whatsapp-number"],
+  );
+});
+
+test("invented numbers and WhatsApp's public service accounts pass", () => {
+  assert.deepEqual(
+    shapes({
+      "a.js": [
+        '"5491155550000@s.whatsapp.net"', // four identical digits
+        '"100000000000100@lid"',
+        '"5491122334455"', // doubled pairs
+        '"1234567890@s.whatsapp.net"', // a counting run
+        '"16505361212@s.whatsapp.net"', // WhatsApp's own service number
+        '"+54 9 11 5555-5555"',
+      ].join("\n"),
+    }),
+    [],
+  );
+});
+
+test("an absolute macOS path must name a placeholder user or disk", () => {
+  assert.deepEqual(
+    shapes({
+      "a.js": `const p = '${REALISH_USER}';\n`,
+      "b.md": `cwd: ${REALISH_DISK}\n`,
+      "c.js": [
+        "'/Users/you/project'",
+        "'/Volumes/work/repo'",
+        "saved to /Users/…]",
+        "'/path/to/project'",
+        "https://example.com/Users/jdoe", // a URL segment, not a local path
+      ].join("\n"),
+    }),
+    ["a.js:1:user-path", "b.md:1:user-path"],
+  );
 });
 
 test("the list itself is never tracked: spec/ is gitignored", () => {

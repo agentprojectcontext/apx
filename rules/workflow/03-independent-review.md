@@ -51,6 +51,13 @@ would not, it is not a regression test.
 **9. Is anything it documents now false?**
 Skills, `docs/`, the comment above the function, a table in `rules/`.
 
+**10. Did real data come along?**
+A name, a phone number, an employer, a local path, a quote of what somebody
+actually wrote — in a comment, a fixture, a test name or the commit message.
+The author debugged against the live install; the diff is where that leaks.
+`npm run check:private` catches the shapes and the owner's local list; a name
+that is on neither list is caught only here. Rule 3.
+
 ## Output
 
 Findings ranked most severe first. For each: **file:line**, one sentence on the

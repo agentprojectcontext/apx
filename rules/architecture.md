@@ -89,8 +89,17 @@ migrate callers; never add copy #2.
 
 ## Comments are decision records — keep them true
 
-House style is high-density "why" comments with failure anecdotes. They are
-load-bearing: agents trust them instead of re-checking. That makes a stale one
+House style is high-density "why" comments with **anonymised** failure
+anecdotes. Anonymised is not optional: this is a public repo, and the anecdote
+is written by an agent that just read the live install, so it arrives carrying
+whatever that install knew. Keep the date and the mechanism, drop the person:
+
+```js
+// ✗  <name> wrote from <their number> on 2026-09-08 and was answered with silence
+// ✓  on 2026-09-08 the owner wrote from their second line and was answered with silence
+```
+
+They are load-bearing: agents trust them instead of re-checking. That makes a stale one
 worse than none — a header claiming a consolidation happened stops the next
 reader from finding the surviving copies. When you finish (or abandon) a
 migration a comment describes, update the comment in the same change, and never
