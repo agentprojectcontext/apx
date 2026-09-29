@@ -4,10 +4,10 @@
 //
 //   "whatsapp": {
 //     "enabled": true,
-//     "self_jid":  "5491164169115@s.whatsapp.net",  // the line, recorded at connect
-//     "owner_jid": "5492944636430@s.whatsapp.net",  // the HUMAN — set by promoting a contact
+//     "self_jid":  "5491155550200@s.whatsapp.net",  // the line, recorded at connect
+//     "owner_jid": "5491155550100@s.whatsapp.net",  // the HUMAN — set by promoting a contact
 //     "self_is_owner": false,                       // tick when the line IS the owner's own phone
-//     "owner_alts": ["101666238013462@lid"],        // their other addresses, learned
+//     "owner_alts": ["100000000000100@lid"],        // their other addresses, learned
 //     "auto_reply": true,          // master switch for non-owner replies
 //     "reply_to_groups": false,
 //     "project": "/path/to/proj",  // where owner turns run; default project if unset
@@ -209,7 +209,7 @@ function validateRole(cfg, role) {
 }
 
 /**
- * A category, not a sentence. "esposa de Manu" belongs in `bio` — and was in
+ * A category, not a sentence. "esposa del dueño" belongs in `bio` — and was in
  * fact being written to both, which is how one prompt came to say the same
  * thing twice. The error names the options so an agent writing through the API
  * learns them instead of guessing again.

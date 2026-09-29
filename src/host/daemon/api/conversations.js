@@ -466,7 +466,7 @@ export function register(api, { projects, project, config, plugins, registries }
     // Canonicalise the SENDER the same way the recipient is canonicalised
     // below. Without this, `claude` and `claude-code` were two peers with two
     // histories, `apx` and `super_agent` likewise, and a coding CLI offering
-    // its project name (`knot`) minted a correspondent that names nobody. See
+    // its project name (`orbit`) minted a correspondent that names nobody. See
     // senderAddress.
     const from = senderAddress(fromRaw, agents, p.config || config);
     const fromAgent = agents.find((a) => a.slug === from) || { slug: from, fields: {}, synthetic: true };
@@ -486,7 +486,7 @@ export function register(api, { projects, project, config, plugins, registries }
       });
 
     // One peer, one thread. Everything below files under the name the peer
-    // actually has — `Magui`, `magui`, `default`, `roby` and `apx` are not five
+    // actually has — `Lumen`, `lumen`, `default`, `roby` and `apx` are not five
     // correspondents. Addressing the super-agent by any of its aliases used to
     // open a thread per alias, keyed by a string the inbox could not resolve to
     // anyone; a project agent addressed by display name or in the wrong case did

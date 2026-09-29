@@ -45,7 +45,7 @@ const CHANNELS = {
   },
   terminal: {
     note: "interactive `apx code` TUI / sys session",
-    meta: { cwd: "/Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx" },
+    meta: { cwd: "/path/to/apx" },
   },
   cli: {
     note: "one-shot `apx exec super-agent`",

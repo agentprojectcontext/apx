@@ -73,7 +73,7 @@ const DEFAULT_CONFIG = {
     // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
     // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
     telegram_max_iters: 0,
-    // Tool-loop budget for a routine that does NOT report to Telegram (Magui
+    // Tool-loop budget for a routine that does NOT report to Telegram (Lumen
     // filling a backlog, an agent working a repo): no human waits on it mid-run,
     // so it runs to completion rather than to a chat budget. 0/unset → built-in
     // ceiling (ROUTINE_UNCAPPED_TOOL_ITERS in src/core/agent/constants.js), which

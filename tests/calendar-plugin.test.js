@@ -39,7 +39,7 @@ function fakeGoogle(routes = {}) {
       // Code exchange returns a refresh token + id_token; refresh returns access.
       const body =
         grant === "authorization_code"
-          ? { refresh_token: "1//refresh-token", access_token: "ya29.fresh", expires_in: 3600, id_token: idToken("manu@gmail.com") }
+          ? { refresh_token: "1//refresh-token", access_token: "ya29.fresh", expires_in: 3600, id_token: idToken("owner@example.com") }
           : { access_token: "ya29.fake", expires_in: 3600 };
       return { ok: true, status: 200, json: async () => body };
     }
@@ -108,7 +108,7 @@ test("code exchange yields a refresh token and the account email", async () => {
     { fetchImpl: impl },
   );
   assert.equal(out.refresh_token, "1//refresh-token");
-  assert.equal(out.email, "manu@gmail.com");
+  assert.equal(out.email, "owner@example.com");
 });
 
 // --------------------------------------------------------------------------
@@ -176,7 +176,7 @@ test("creating an event with guests invites them and can add a Meet link", async
 
   const ev = await cal.createEvent(
     CONFIG,
-    { calendarId: "primary", title: "Reunión", start: "2026-08-20T18:00:00-03:00", end: "2026-08-20T19:00:00-03:00", attendees: ["carlos@x.com"], meet: true },
+    { calendarId: "primary", title: "Reunión", start: "2026-08-20T18:00:00-03:00", end: "2026-08-20T19:00:00-03:00", attendees: ["tomas@example.com"], meet: true },
     { fetchImpl: impl },
   );
 
@@ -185,7 +185,7 @@ test("creating an event with guests invites them and can add a Meet link", async
   assert.equal(url.searchParams.get("sendUpdates"), "all", "guests must actually receive an invitation");
   assert.equal(url.searchParams.get("conferenceDataVersion"), "1", "Meet needs the v1 conference flag");
   const body = JSON.parse(post.body);
-  assert.equal(body.attendees[0].email, "carlos@x.com");
+  assert.equal(body.attendees[0].email, "tomas@example.com");
   assert.equal(body.conferenceData.createRequest.conferenceSolutionKey.type, "hangoutsMeet");
   assert.equal(ev.meet_link, "https://meet.google.com/xyz");
 });
@@ -274,7 +274,7 @@ test("completeOAuth trades the code for a refresh token and activates", async ()
     assert.equal(patch.status, "active");
     assert.equal(patch.is_enabled, true);
     assert.equal(patch.config.refresh_token, "1//refresh-token");
-    assert.equal(patch.config.account_email, "manu@gmail.com");
+    assert.equal(patch.config.account_email, "owner@example.com");
     assert.equal(patch.config.calendar_id, "primary");
   } finally {
     globalThis.fetch = original;

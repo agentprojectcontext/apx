@@ -3,9 +3,9 @@ import { test, expect } from "./fixtures";
 // Work an agent left running, and the chat it belongs to.
 //
 // THE FAILURE, 2026-09-14. The count existed and the CONNECTION did not. A row
-// said "Roby is waiting on magui" at the very top of the window and did not say
+// said "Roby is waiting on lumen" at the very top of the window and did not say
 // which project, which chat, or how to get there — and the chat it came from
-// said nothing at all. Manu, reading both at once: "arriba se ve la tarea pero
+// said nothing at all. The owner, reading both at once: "arriba se ve la tarea pero
 // no se entiende bien, no dice de qué chat viene… la tarea la ejecutó en un
 // chat, debería aparecer en ese chat arriba donde ahora están los botones de
 // tool y abrir en el proyecto… y en el listado de chats, así como mostramos el
@@ -103,7 +103,7 @@ async function stub(page: import("@playwright/test").Page, jobs: unknown[]) {
 
 test.describe("background jobs", () => {
   // THE REVERSAL, 2026-09-14. This used to assert the opposite — that nothing
-  // running draws no chip at all, because "the appearance IS the news". Manu
+  // running draws no chip at all, because "the appearance IS the news". The owner
   // overruled it: "quizás estaría bueno que siempre arriba esté el numerador de
   // procesos traseros y que diga cero, en gris… como que tenga posibilidad de
   // estar viéndolo." A control that only exists while it matters cannot be
@@ -218,7 +218,7 @@ test.describe("background jobs", () => {
   test("the marks share the tag line, and stand side by side", async ({ page }) => {
     // Two facts at once: work is still out AND the agent said something this
     // device has not read. They used to take turns in one 12px slot, so the
-    // louder one erased the other. Manu: "el punto azul con la señal de proceso
+    // louder one erased the other. The owner: "el punto azul con la señal de proceso
     // segundo plano podrían ir doble (ambas a la vez)".
     await page.route((url) => url.pathname === "/api/projects", (route) =>
       route.fulfill({ json: [{ id: 7, name: "Northwind", path: "/p", kind: "company", agents: 2, apx_id: "nw1", storage_path: "/p" }] }));
@@ -264,7 +264,7 @@ test.describe("background jobs", () => {
   test("a deep link reaches an agent's conversation, not just a channel thread", async ({ page }) => {
     // ChatTab addresses a session two ways — `?channel=&thread=` and
     // `?agent=&conv=` — and this screen only ever read the first, so
-    // `/inbox?agent=X&conv=Y` silently opened the NEWEST chat instead. Manu
+    // `/inbox?agent=X&conv=Y` silently opened the NEWEST chat instead. The owner
     // refreshed on a conversation with a message parked in it, landed somewhere
     // else, and reasonably read that as the message being gone. It was not: he
     // was reading a different chat.

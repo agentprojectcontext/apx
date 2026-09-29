@@ -1,7 +1,7 @@
 // The wake-up greeting: written by the model the owner configured, and on the
 // record in the Telegram thread.
 //
-// On 2026-09-29 a restart sent the owner "Soy Roby, el fiel apoyo de Manu…"
+// On 2026-09-29 a restart sent the owner "Soy Roby, el fiel apoyo de <owner>…"
 // with a local disk path in it. The greeting was written by a HARDCODED
 // `ollama:qwen2.5:14b` — a model nobody had chosen, which usually was not
 // loaded (so the greeting was the plain "online. Ready.") and that morning

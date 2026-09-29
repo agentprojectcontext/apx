@@ -68,7 +68,7 @@ function buildSchema(entry) {
  * A bridged tool runs in the DAEMON's process, which stands in the apx checkout
  * — so a relative path it is handed resolves against that checkout instead of
  * against the project whose agent asked. `grep {path: "work/marketing/…"}` from
- * Magui in Appsi came back "path does not exist:
+ * Lumen in Initech came back "path does not exist:
  * /…/agentprojectcontext/apx/work/marketing/…". A native tool has the registry
  * to ask (see scopeProjects); a bridged one crosses HTTP and arrives with no
  * project at all, so the caller's directory has to travel WITH the request.

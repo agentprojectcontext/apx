@@ -128,7 +128,7 @@ test("POST /turns/abort stops a running project-agent turn and keeps the partial
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "tmp", apx: "installed" }));
   fs.writeFileSync(
-    path.join(root, ".apc", "agents", "magui.md"),
+    path.join(root, ".apc", "agents", "lumen.md"),
     ["---", "Role: Tester", "Model: mock", "---", "", "You are a test agent."].join("\n"),
   );
   const PROJECT = { id: "1", name: "tmp", path: root, storagePath: storage, logMessage: () => {} };
@@ -158,7 +158,7 @@ test("POST /turns/abort stops a running project-agent turn and keeps the partial
     // step, so without the abort this turn runs 400 iterations over ~24s. The
     // hold is what makes "stop it while it is running" a real state to test and
     // not a race against a mock that finishes instantly.
-    const res = await fetch(`${base}/api/projects/1/agents/magui/chat/stream`, {
+    const res = await fetch(`${base}/api/projects/1/agents/lumen/chat/stream`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt: "[mock:loop:list_agents] [mock:slow:60]", model: "mock", channel: "web" }),
@@ -205,8 +205,8 @@ test("POST /turns/abort stops a running project-agent turn and keeps the partial
 
     // The work the user watched happen stays in the thread: the message that
     // interrupts opens the next turn and reads this as its history.
-    const convId = conversationId || listConversations(storage, "magui")[0]?.id;
-    const conv = readConversation(storage, "magui", convId);
+    const convId = conversationId || listConversations(storage, "lumen")[0]?.id;
+    const conv = readConversation(storage, "lumen", convId);
     const assistant = conv.turns.filter((t) => t.role === "assistant");
     assert.equal(assistant.length, 1, "the partial was persisted, once");
     // The steps go in as their own rows, exactly as a finished turn writes them
@@ -311,7 +311,7 @@ test("a room's own thread key still wins over the channel's super-agent turn", (
 test("abortAllActiveTurns pulls every turn's abort hook", () => {
   const pulled = [];
   const a = startActiveTurn("p1:conv:one", { abort: () => pulled.push("one") });
-  const b = startActiveTurn("p1:thread:a2a:claude~magui", { abort: () => pulled.push("two") });
+  const b = startActiveTurn("p1:thread:a2a:claude~lumen", { abort: () => pulled.push("two") });
   try {
     assert.equal(abortAllActiveTurns(), 2);
     assert.deepEqual(pulled.sort(), ["one", "two"]);

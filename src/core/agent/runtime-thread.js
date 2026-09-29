@@ -4,9 +4,9 @@
 // only trace of it in a conversation was whatever the super-agent chose to say
 // about it. On 2026-09-20 that produced the worst possible version of the
 // story: six sessions were killed at the foreground deadline and Roby, reading
-// a `{ok: true, deduped: true}`, told the owner they were running. Manu, the
-// same afternoon: "así puedo ver qué hacen, qué hablan y qué sesiones vas
-// lanzando".
+// a `{ok: true, deduped: true}`, told the owner they were running. The owner, the
+// same afternoon, asked to see what the sessions do, what they say and which
+// ones get launched.
 //
 // So the session says so itself. Two rows on the ledger of the channel the call
 // came from — one when it starts, one when it ends — authored by the ENGINE

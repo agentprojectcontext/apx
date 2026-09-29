@@ -1,6 +1,6 @@
 // `rename_agent` — the rename button, reachable from a sentence.
 //
-// Asked to "cambiale el nombre al orchestrator de postbeam", an agent used to
+// Asked to "cambiale el nombre al orchestrator de globex", an agent used to
 // have two bad options: `configure_agent({ name })`, which relabels the card and
 // leaves the slug — so every routine, room and task still points at the old key
 // — or a shell pass over `.apc/agents/<slug>.md`, which moves the file and
@@ -125,20 +125,20 @@ test("rename_agent refuses a taken slug, an unusable one, and a no-op call", asy
 test("deleting an agent is an orchestrator's job too", () => {
   // `remove_agent` sat in the broad default, so any project agent could delete
   // any other one, irreversibly. It follows the role now, same as rename.
-  assert.ok(!resolveAgentAllowedTools({ slug: "magui", fields: {} }).includes("remove_agent"));
+  assert.ok(!resolveAgentAllowedTools({ slug: "lumen", fields: {} }).includes("remove_agent"));
   assert.ok(
     resolveAgentAllowedTools({ slug: "roby", fields: { Type: "orchestrator" } }).includes("remove_agent"),
   );
   // Declaring it on a specialist's card does not buy it either — the switch is
   // the role, not the paperwork.
   assert.ok(
-    !resolveAgentAllowedTools({ slug: "magui", fields: { Tools: ["remove_agent"] } })
+    !resolveAgentAllowedTools({ slug: "lumen", fields: { Tools: ["remove_agent"] } })
       .includes("remove_agent"),
   );
 });
 
 test("a specialist reaching for a role-gated tool lands on the log channel", () => {
-  const specialist = { slug: "magui", fields: { Name: "Magui", Type: "specialist" } };
+  const specialist = { slug: "lumen", fields: { Name: "Lumen", Type: "specialist" } };
   const allowedTools = resolveAgentAllowedTools(specialist);
   const denied = [];
   const session = createToolSession("web", {
@@ -157,8 +157,8 @@ test("a specialist reaching for a role-gated tool lands on the log channel", () 
   const note = rows.find((m) => m.meta?.kind === "tool_denied");
   assert.ok(note, `expected a tool_denied row, got ${JSON.stringify(rows.map((m) => m.meta?.kind))}`);
   assert.deepEqual(note.meta.tools, ["remove_agent"]);
-  assert.equal(note.meta.agent_slug, "magui");
-  assert.match(note.body, /Magui/);
+  assert.equal(note.meta.agent_slug, "lumen");
+  assert.match(note.body, /Lumen/);
 
   // An ordinary allowlist miss is not news: a narrowed card denies dozens every
   // turn, and logging those would bury the line that matters.
@@ -175,7 +175,7 @@ test("a specialist reaching for a role-gated tool lands on the log channel", () 
 });
 
 test("the tool belongs to orchestrators — a specialist cannot reach it", () => {
-  const specialist = { slug: "magui", fields: { Type: "specialist" } };
+  const specialist = { slug: "lumen", fields: { Type: "specialist" } };
   const orchestrator = { slug: "roby", fields: { Type: "orchestrator" } };
   const master = { slug: "ceo", fields: { Master: "true" } };
 
@@ -188,7 +188,7 @@ test("the tool belongs to orchestrators — a specialist cannot reach it", () =>
 
   // A HARD gate, unlike the host-only tier: the capability follows the role, so
   // writing it onto a specialist's card does not grant it.
-  const declared = { slug: "magui", fields: { Tools: ["rename_agent", "read_file"] } };
+  const declared = { slug: "lumen", fields: { Tools: ["rename_agent", "read_file"] } };
   assert.ok(!resolveAgentAllowedTools(declared).includes("rename_agent"));
   assert.ok(resolveAgentAllowedTools(declared).includes("read_file"), "the rest of the card stands");
   assert.ok(

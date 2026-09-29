@@ -8,7 +8,7 @@ import { CHAT_ROOT } from "./routes";
  * A route of its own rather than the sessions list with a sheet open, because
  * the two answer different questions about the same session: this one is
  * reached from the list of CONVERSATIONS, and a conversation opens as a
- * conversation — "en el chat, si abro una sesión debe ser en modo chat" (Manu,
+ * conversation — "en el chat, si abro una sesión debe ser en modo chat" (the owner,
  * 2026-09-20). The list keeps its floating detail for the other question.
  */
 export function MobileRuntimeRoom() {

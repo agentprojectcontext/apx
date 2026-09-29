@@ -244,7 +244,7 @@ test("one pair leaves, the other stays — including on a shared day file", asyn
     row("2026-08-25T10:00:00Z", "cursor", "roby", "uno"),
     row("2026-08-25T10:01:00Z", "aider", "roby", "dos"),
     JSON.stringify({ ts: "2026-08-25T10:02:00Z", channel: "web", direction: "in", type: "user",
-      author: "manu", body: "hola", meta: {} }),
+      author: "julian", body: "hola", meta: {} }),
   ].join("\n") + "\n");
   fs.writeFileSync(path.join(dir, "2026-08-26.jsonl"), row("2026-08-26T09:00:00Z", "aider", "roby", "tres") + "\n");
 

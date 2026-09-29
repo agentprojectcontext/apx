@@ -347,7 +347,7 @@ export async function runAgent({
   // an explicit instruction for a spent account: carry on down the router. The
   // unwatched-turn stop is about the other case, the router's own account
   // running dry under a fleet that all inherits it (2026-09-23). Without this,
-  // Magui pinned to luna with "use the router" ticked stopped on luna's 429
+  // Lumen pinned to luna with "use the router" ticked stopped on luna's 429
   // with a free big-pickle one step away.
   const ownerStart = [overrideModel, preferredModel]
     .find((m) => typeof m === "string" && m.includes(":") && m !== routerPrimary) || null;
@@ -593,7 +593,7 @@ export async function runAgent({
 
   // Collapse repeated greetings within a single turn. A turn can produce several
   // text segments (pre-tool narration + final answer) and weaker models greet in
-  // each one, so the user sees "¡Hola Manu!" twice. Keep the first greeting,
+  // each one, so the user sees "¡Hola Juli!" twice. Keep the first greeting,
   // strip any later one. Belt-and-suspenders over the action-discipline prompt
   // rule (which strong models follow but gemini-flash et al. often ignore).
   const greetingGuard = createGreetingGuard();
@@ -805,8 +805,8 @@ export async function runAgent({
     // The usage used to travel on the final event alone, which meant the one
     // moment you actually want the number — a turn that has been running for
     // two minutes and is on its ninth tool — was the one moment nobody could
-    // see it. Manu, watching a chat write: "el tiempo demorado y si se puede
-    // cuántos tokens va consumiendo".
+    // see it. The owner, watching a chat write, asked for exactly that: the
+    // elapsed time and, if possible, how many tokens it had used so far.
     //
     // It is the running TOTAL, not this call's delta, so a consumer that misses
     // an event (or joins mid-turn) still shows a true number rather than a

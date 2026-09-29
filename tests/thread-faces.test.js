@@ -180,15 +180,15 @@ test("legacy roby and roby-orchestrator rows keep recognizable avatars", async (
 
 test("a renamed agent's old slug still wears its face", async () => {
   await withProject(async ({ root }) => {
-    writeAgent(root, "romi", { name: "Romi", emoji: "🎬" });
-    const text = fs.readFileSync(path.join(root, ".apc", "agents", "romi.md"), "utf8");
+    writeAgent(root, "nico", { name: "Nico", emoji: "🎬" });
+    const text = fs.readFileSync(path.join(root, ".apc", "agents", "nico.md"), "utf8");
     fs.writeFileSync(
-      path.join(root, ".apc", "agents", "romi.md"),
+      path.join(root, ".apc", "agents", "nico.md"),
       text.replace("---\n", "---\naliases: reels\n"),
     );
     const resolver = createFaceResolver([root]);
     const former = resolver.face("reels", []);
-    assert.equal(former.name, "Romi");
+    assert.equal(former.name, "Nico");
     assert.equal(former.emoji, "🎬");
     assert.equal(former.slug, "reels", "the ledger address stays; the face is today's");
   });
@@ -197,7 +197,7 @@ test("a renamed agent's old slug still wears its face", async () => {
 test("a group keeps the name someone gave it, and gets one when nobody did", async () => {
   const root = makeTempProject({ name: "Group Project" });
   writeAgent(root, "andy", { name: "Andy", emoji: "🤖" });
-  writeAgent(root, "magui", { name: "Magui", icon: "orbit" });
+  writeAgent(root, "lumen", { name: "Lumen", icon: "orbit" });
   const projects = new ProjectManager({});
   projects.register(root);
   const id = projects.list()[0].id;
@@ -210,15 +210,15 @@ test("a group keeps the name someone gave it, and gets one when nobody did", asy
         body: JSON.stringify(body),
       })).json();
 
-    const unnamed = await create({ participants: ["andy", "magui"] });
-    const named = await create({ title: "Sprint review", participants: ["andy", "magui"] });
+    const unnamed = await create({ participants: ["andy", "lumen"] });
+    const named = await create({ title: "Sprint review", participants: ["andy", "lumen"] });
 
     const threads = await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads`).then((r) => r.json());
     const byId = (gid) => threads.find((t) => t.id === gid);
-    assert.equal(byId(unnamed.id).title, "Andy · Magui", "no name of its own → its members");
+    assert.equal(byId(unnamed.id).title, "Andy · Lumen", "no name of its own → its members");
     assert.equal(byId(named.id).title, "Sprint review", "a real name is never overwritten");
     assert.deepEqual(byId(named.id).participant_faces[1], {
-      slug: "magui", name: "Magui", emoji: null, icon: "orbit",
+      slug: "lumen", name: "Lumen", emoji: null, icon: "orbit",
     });
   } finally {
     server.close();

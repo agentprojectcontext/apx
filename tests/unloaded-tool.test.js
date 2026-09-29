@@ -62,7 +62,7 @@ test("an invented argument bounces — that is the guess this path is for", () =
       },
     },
   };
-  const r = argsSatisfySchema(completeTask, { project: "tecnomanu", id: "t_0vsz0p" });
+  const r = argsSatisfySchema(completeTask, { project: "acme", id: "t_0vsz0p" });
   assert.equal(r.ok, false);
 });
 

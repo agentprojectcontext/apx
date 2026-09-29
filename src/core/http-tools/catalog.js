@@ -639,7 +639,7 @@ export const TOOL_DEFINITIONS = Object.freeze([
       },
       required: ["text"],
     },
-    examples: [{ text: "Magui: listo el lote de ideas." }],
+    examples: [{ text: "Lumen: listo el lote de ideas." }],
   },
 
   // ── asana (native plugin) ─────────────────────────────────────────────────
@@ -722,7 +722,7 @@ export const DEFAULT_AGENT_TOOLS = Object.freeze([
   "project_info",
 ]);
 
-// Worker / editor agents (Magui and friends): the safe default PLUS write,
+// Worker / editor agents (Lumen and friends): the safe default PLUS write,
 // surgical edit, shell, and on-demand skills. Browser, HTTP, MCP, and
 // session tools stay opt-in. Asana / Telegram are extra per-agent.
 export const EDITOR_AGENT_TOOLS = Object.freeze([

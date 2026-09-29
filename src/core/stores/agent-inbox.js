@@ -36,7 +36,7 @@ function latestPerChannel(items) {
     // Per channel AND per person. A channel where one day holds several
     // correspondents (WhatsApp) is several conversations, and keying by the
     // channel alone kept whichever of them spoke last — so a message from
-    // Magui hid the one from Carlos, and the owner's own thread hid both.
+    // Lucía hid the one from Tomás, and the owner's own thread hid both.
     // Everything else has no contact, so this is the channel key it always was.
     const key = item.contact ? `${item.channel}\u0000${item.contact}` : item.channel;
     if (!byChannel.has(key)) byChannel.set(key, item);

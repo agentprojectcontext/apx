@@ -148,7 +148,7 @@ test("the history a peer is handed is what was SAID, not what its tools printed"
   // participants, so the pair filter alone kept them all, and a2aPairHistory
   // replayed a lint dump back at the peer as though somebody had said it.
   //
-  // Measured on the live magui~roby thread before this filter: 18 of the last
+  // Measured on the live lumen~roby thread before this filter: 18 of the last
   // 24 rows were tool exhaust, 84% of the characters, leaving six real lines of
   // a multi-day job for the peer to work from. It reads exactly like an agent
   // that has stopped understanding what it is doing, because it is one.
@@ -210,11 +210,11 @@ test("every alias for the super-agent lands in ONE thread, under its real id", a
   await withApi(async ({ baseUrl, id, storagePath }) => {
     const { listProjectA2AThreads } = await import("#core/stores/messages.js");
     for (const alias of ["default", "apx", "super-agent"]) {
-      const res = await send(baseUrl, id, { from: "magui", to: alias, body: `[Posteo] via ${alias}` });
+      const res = await send(baseUrl, id, { from: "lumen", to: alias, body: `[Posteo] via ${alias}` });
       assert.equal(res.status, 200, alias);
     }
     const threads = listProjectA2AThreads(storagePath);
-    assert.deepEqual(threads.map((t) => t.id), ["magui~super_agent"]);
+    assert.deepEqual(threads.map((t) => t.id), ["lumen~super_agent"]);
     assert.equal(threads[0].messages, 3, "three notices, one conversation");
     // And nothing was filed under the alias that was typed.
     assert.equal(threads.filter((t) => t.id.includes("default")).length, 0);
@@ -225,7 +225,7 @@ test("a peer addressed by display name or odd case is the same peer", async () =
   await withApi(async ({ baseUrl, id, storagePath }) => {
     const { listProjectA2AThreads } = await import("#core/stores/messages.js");
     for (const spelling of ["roby", "Roby", "ROBY"]) {
-      const res = await send(baseUrl, id, { from: "magui", to: spelling, body: `hola (${spelling})` });
+      const res = await send(baseUrl, id, { from: "lumen", to: spelling, body: `hola (${spelling})` });
       assert.equal(res.status, 200, spelling);
     }
     const threads = listProjectA2AThreads(storagePath);

@@ -43,7 +43,7 @@ function project() {
     );
   write("ceo", "Zoya");
   write("cfo", "Blake");
-  return { id: 1, name: "appsi", path: root, storagePath: path.join(root, ".store"), config: {} };
+  return { id: 1, name: "initech", path: root, storagePath: path.join(root, ".store"), config: {} };
 }
 
 function fresh() {

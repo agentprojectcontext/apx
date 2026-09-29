@@ -170,7 +170,7 @@ function fromTemplate(node) {
 }
 
 /**
- * nativeFlow — the current generation, and the one the La Caja bot used.
+ * nativeFlow — the current generation, and the one an insurer's bot used.
  *
  * Every button hides its real content in `buttonParamsJson`, a JSON STRING
  * whose shape depends on `name`: a quick reply is one option, a `single_select`

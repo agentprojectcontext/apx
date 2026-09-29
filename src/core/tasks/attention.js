@@ -32,9 +32,9 @@ export const BLOCKED_STATUS = "blocked";
  * disagree is how "@human, ping" fails to reach the human.
  *
  * Then the owner's real name, resolved by the caller from identity.json, and
- * each word of it: "@Manu" has to land for the person whose `owner_name` is
- * "Manu Bruna", which is the mention the feature was asked for. Same rule the
- * group chat uses for agents (`aliasesFor`), so "@Manu", "@manu" and "@Manú"
+ * each word of it: "@Julián" has to land for the person whose `owner_name` is
+ * "Julián Ríos", which is the mention the feature was asked for. Same rule the
+ * group chat uses for agents (`aliasesFor`), so "@Julián", "@julian" and "@JULIAN"
  * are one person on every surface.
  *
  * @param {string|null} ownerName  identity.json's `owner_name`, or null
@@ -152,7 +152,7 @@ export function commentPreview(task, aliases) {
  *
  * The NEWEST comment has to be the one naming them, and it has to be somebody
  * else's. Scanning the whole thread instead would leave "Requiere tu respuesta"
- * up forever on any task where an agent once said "@Manu?" — the owner answers,
+ * up forever on any task where an agent once said "@Julián?" — the owner answers,
  * and the badge stays, which teaches people to ignore it. Answering IS the way
  * this clears, so the newest comment is the only one that can raise it.
  */

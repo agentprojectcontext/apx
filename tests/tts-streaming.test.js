@@ -14,7 +14,7 @@ test("streaming and file routes decide the same voice", () => {
   // The whole reason _request exists. If these drift, the same reply is read by
   // one voice through the desktop and another through a voice note, and nothing
   // in either path would say so.
-  const args = { text: "Hola Manu.", config: QVOX, parentEnginesCfg: {} };
+  const args = { text: "Hola Juli.", config: QVOX, parentEnginesCfg: {} };
   const file = openai._request({ ...args, format: "wav" });
   const stream = openai._request({ ...args, format: "wav" });
   assert.equal(file.body.clone, stream.body.clone);

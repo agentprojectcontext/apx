@@ -6,7 +6,7 @@ import { projectMeta, resolveProject } from "../helpers.js";
 // A NAME IS A PERSON; the job goes in `role`.
 //
 // Left to itself a model writes the slug back out in title case — it created
-// `productor-reels` and called it "Productor Reels", `savia-agent` and called
+// `video-producer` and called it "Video Producer", `acme-agent` and called
 // it nothing at all — so the panel says the address twice and the group chat
 // heads a bubble with a filename. The vault importer never had this problem:
 // its role templates ship no persona, and the install gives each one a name
@@ -15,7 +15,7 @@ import { projectMeta, resolveProject } from "../helpers.js";
 // So a name that is only the slug spelled out is read as what it actually is:
 // the ROLE. It is kept (nothing the model wrote is thrown away) and the agent
 // is named by the same pool the importer draws from. Single-word slugs are
-// left alone — `romi`/"Romi" is a person whose handle happens to match, which
+// left alone — `nico`/"Nico" is a person whose handle happens to match, which
 // is the normal shape of an agent somebody named on purpose.
 function demoteSlugEcho(args) {
   const name = String(args.name || "").trim();

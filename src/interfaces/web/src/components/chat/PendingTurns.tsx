@@ -13,7 +13,7 @@ import type { QueuedTurn } from "../../hooks/useChat";
  * the moment you send it". Reading it back is what breaks: a parked line drawn
  * exactly like a sent one reads as sent, and the only thing saying otherwise was
  * a small clock on its footer. Scroll up and it is gone from view entirely —
- * still parked, still going to fire, and nowhere you can see it. Manu,
+ * still parked, still going to fire, and nowhere you can see it. The owner,
  * 2026-09-14: "es mejor ordenarlo digamos arriba del mismo textarea, como lo
  * hacemos acá en Claude".
  *

@@ -109,8 +109,8 @@ test("a record nothing ever closed stops claiming to be running", () => {
   // mid-flight, the machine sleeps, the process dies past the point that closes
   // the file. The record then says "🔄 In progress" for ever, and the list
   // showed two sessions under a spinner eleven and twenty-three days after they
-  // stopped — "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu,
-  // 2026-09-20). A run cannot outlive its own deadline, so time is the answer.
+  // stopped — the owner asked why those two still showed as running when they
+  // had finished (2026-09-20). A run cannot outlive its own deadline, so time is the answer.
   const root = makeTempProject({ name: "Uno", agents: [] });
   try {
     const fresh = createRuntimeSession({
@@ -285,7 +285,7 @@ test("a session is a room in the chat list, wearing the engine's face", async ()
       `${baseUrl}/api/projects/${id}/runtime-rooms/s-room-1`,
     ).then((r) => r.json());
     assert.equal(thread.messages.length, 2);
-    assert.equal(thread.messages[0].on_behalf_of, "owner", "Roby asked in Manu's name");
+    assert.equal(thread.messages[0].on_behalf_of, "owner", "Roby asked in the owner's name");
     assert.equal(thread.messages[1].agent, "claude-code", "and the engine answered as itself");
     void storage;
   } finally {

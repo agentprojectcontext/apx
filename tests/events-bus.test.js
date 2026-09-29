@@ -138,12 +138,12 @@ test("an a2a row announces the pair, the way the reader groups it", () => {
       agent_slug: "roby",
       author: "roby",
       ts: "2026-01-15T11:00:00Z",
-      meta: { to: "magui" },
+      meta: { to: "lumen" },
     }),
   );
   assert.equal(seen.length, 1);
   // Order-independent, like a2aThreadId: the pair is one thread from both ends.
-  assert.equal(seen[0].thread_id, a2aThreadId("magui", "roby"));
+  assert.equal(seen[0].thread_id, a2aThreadId("lumen", "roby"));
 });
 
 test("an ordinary project row has no room to announce", () => {

@@ -230,7 +230,7 @@ test("the ledger row is matched by the channel's own message id, and nothing els
 test("WhatsApp's own names fill an empty row and never overwrite the owner's", async () => {
   const cfg = reset([
     { jid: COMPANY, name: "", role: "contact", auto_reply: true },
-    { jid: CONTACT, name: "What Manu typed", role: "contact", auto_reply: true },
+    { jid: CONTACT, name: "What the owner typed", role: "contact", auto_reply: true },
   ]);
 
   const learned = learnWhatsAppNames(cfg, [
@@ -242,7 +242,7 @@ test("WhatsApp's own names fill an empty row and never overwrite the owner's", a
   const rows = readConfig().whatsapp.contacts;
   assert.equal(rows.find((c) => c.jid === COMPANY).name, "Northwind Seguros");
   assert.equal(rows.find((c) => c.jid === COMPANY).business, true);
-  assert.equal(rows.find((c) => c.jid === CONTACT).name, "What Manu typed");
+  assert.equal(rows.find((c) => c.jid === CONTACT).name, "What the owner typed");
 });
 
 test("a silence says WHICH silence — a muted contact is not a stranger", () => {

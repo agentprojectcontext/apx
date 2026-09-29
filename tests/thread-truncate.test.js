@@ -222,7 +222,7 @@ test("POST …/threads/:channel/:id/truncate — rewinds today's own-surface thr
   for (const [channel, id, why] of [
     ["telegram", today, /delivered/],
     ["whatsapp", today, /delivered/],
-    ["a2a", "magui~super_agent", /not rewound here/],
+    ["a2a", "lumen~super_agent", /not rewound here/],
     ["group", "g_1", /not rewound here/],
     ["web", "2020-01-01", /only today/],
   ]) {

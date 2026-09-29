@@ -125,7 +125,7 @@ test("the default mode is the cautious one", () => {
 
 // ── The message a blocked agent has to relay ────────────────────────────────
 //
-// 2026-09-20. `productor-reels` carried `autonomy: automatico` while the
+// 2026-09-20. `video-producer` carried `autonomy: automatico` while the
 // machine ran on `total`, so its own card NARROWED it — and a specialist whose
 // entire deliverable is a file in `briefs/` could not write one. In a group
 // room there is no confirmation dialog to raise, so the guard threw, and the

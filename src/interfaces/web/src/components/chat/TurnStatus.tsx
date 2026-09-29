@@ -68,12 +68,12 @@ function activityOf(msg: ChatMsg): string {
 /**
  * The line under a turn that is still being written.
  *
- * It replaces a pill that said "Romi está escribiendo…" and nothing else. That
+ * It replaces a pill that said "Nico está escribiendo…" and nothing else. That
  * sentence answers the one question you never had — somebody is obviously
  * writing, the bubble is right there — while the questions you DO have during a
  * two-minute turn had no answer anywhere: which model is answering, how long it
  * has been going, what it is spending, and whether the work it left running is
- * still out. Manu, 2026-09-20: "sobre todo ver el modelo que escribe, porque
+ * still out. The owner, 2026-09-20: "sobre todo ver el modelo que escribe, porque
  * puede pasar que se salteen dos y quede uno específico o el agente tenga un
  * modelo custom, y hasta que no termina de escribir no veo qué modelo se usó."
  *

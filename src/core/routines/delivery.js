@@ -44,7 +44,7 @@ const sendTg = (tg, message) => withConnectRetry(() => tg.send(message));
  * A project agent's ONE persistent web chat with the owner. A routine run by a
  * non-Roby agent posts its message here (a fixed thread reused across runs)
  * instead of into the super-agent's dated web channel — so golf-coach keeps a
- * single ongoing conversation you can reply to, the way Manu asked for. See
+ * single ongoing conversation you can reply to, the way the owner asked for. See
  * `deliverToAgentWebChat`.
  */
 export const AGENT_WEB_CHAT_ID = "web-main";
@@ -64,7 +64,7 @@ export const NO_DELIVERY = "none";
  * nothing in the code ever kept the promise. `routineOutputText` returns any
  * non-empty reply, so the sentence the model wrote to explain ITSELF was
  * delivered as if it were the news: "Me mantengo en silencio. La señal de
- * inactividad de 8 días en flit es de severidad baja…" arrived on Manu's phone
+ * inactividad de 8 días en umbrella es de severidad baja…" arrived on the owner's phone
  * twice on 2026-08-27, and each one was charged against the interruption budget
  * — two of that day's three unscheduled slots spent by a routine saying it had
  * nothing to say. The budget that exists to protect real messages was being
@@ -119,7 +119,7 @@ export function readAbstention(text) {
  * the decision as prose instead of the marker — "Silencio registrado. Corrida
  * nocturna de las 2 AM sin interrupciones…". readAbstention is marker-only, so
  * it was delivered; the detector's severity was `critical`; the gate checked
- * the critical bypass before quiet hours. Roby woke Manu at 2 AM to announce
+ * the critical bypass before quiet hours. Roby woke the owner at 2 AM to announce
  * his own silence. Three independent things had to go wrong, and this is the
  * backstop for the first of them.
  */
@@ -170,7 +170,7 @@ function mediaMeta(attachments) {
 /**
  * Post a non-Roby agent's routine output into that agent's OWN persistent web
  * chat — a single reused thread (`AGENT_WEB_CHAT_ID`) attributed to the agent,
- * NOT the super-agent's dated web channel. This is the rule Manu set: "a routine
+ * NOT the super-agent's dated web channel. This is the rule the owner set: "a routine
  * run by an agent that is not Roby creates its own chat with me on the web
  * channel" — golf-coach's tip lands in golf-coach's thread, and stays there to
  * be answered, run after run.
@@ -305,8 +305,8 @@ function ledgerAdapter(channel) {
 }
 
 /**
- * Roby tells Manu he has something waiting, on Telegram, in Roby's own words —
- * the second half of Manu's rule ("leave a delivery so Roby notifies me"), done
+ * Roby tells the owner they have something waiting, on Telegram, in Roby's own words —
+ * the second half of the owner's rule ("leave a delivery so Roby notifies me"), done
  * without the a2a-chat hack that used to clutter the inbox and leak the
  * `super_agent` slug into the UI.
  *
@@ -583,14 +583,14 @@ export function deliveryChannelIds() {
  *
  * Never a push channel — the whole point is that the routine decided not to
  * interrupt, and pushing "I decided not to interrupt you" is the interruption
- * it just declined to make. And not nowhere either: Manu's rule when he found
- * these on his phone was to leave them somewhere he can go and look at them.
+ * it just declined to make. And not nowhere either: the owner's rule on finding
+ * these on their phone was to leave them somewhere they can go and look at them.
  *
  * The first version of that rule read "somewhere quiet" as "the routine's own
  * non-push channels, or `web`", and on a real install every one of them is
  * `web` — so a watch running every two hours wrote twelve notes a day into the
- * SAME dated thread as the conversation. Manu, 2026-08-31: "está bien la señal
- * pero se ve muy seguido… ¿por qué no creamos canal log y que mande todo ahí?"
+ * SAME dated thread as the conversation. The owner, 2026-08-31: the signal is
+ * fine but it shows up far too often — make a `log` channel and send it all there.
  *
  * Ignoring the routine's configured channels is the point, not a shortcut. A
  * quiet channel that is also a chat is still the chat; the destination has to

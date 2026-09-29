@@ -71,8 +71,8 @@ export const NO_THREAD_JOBS = "\u0000none";
  * the agent looks idle and the peer looks dead.
  *
  * WHAT WAS MISSING, and it was the whole point. The count was here and the
- * CONNECTION was nowhere: a row said "Roby is waiting on magui" and did not say
- * which project, which chat, or how to get there. Manu, 2026-09-14: "arriba se
+ * CONNECTION was nowhere: a row said "Roby is waiting on lumen" and did not say
+ * which project, which chat, or how to get there. The owner, 2026-09-14: "arriba se
  * ve la tarea pero no se entiende bien, no dice de qué chat viene… y al abrir
  * el detalle del chat no se ve esa tarea y un botón que la abra". So a row is a
  * LINK now — it names its project and opens the thread the job is running in —
@@ -81,7 +81,7 @@ export const NO_THREAD_JOBS = "\u0000none";
  *
  * ALWAYS DRAWN, and that reverses what this file used to say. The rule here was
  * "drawn only when something is running — a permanent 0 chip is furniture, the
- * appearance IS the news", and Manu overruled it on 2026-09-14: "quizás estaría
+ * appearance IS the news", and the owner overruled it on 2026-09-14: "quizás estaría
  * bueno que siempre arriba esté el numerador de procesos traseros y que diga
  * cero, en gris, y cuando se pone en azul se resalta… como que tenga
  * posibilidad de estar viéndolo."
@@ -199,7 +199,7 @@ export function BackgroundJobsMenu({
         >
           {/* TWO GLYPHS, not one glyph in two moods. Keeping the spinner and
               simply freezing it read as a stuck load — a circle that is clearly
-              a progress indicator, not progressing. Manu: "el icono de spin es
+              a progress indicator, not progressing. The owner: "el icono de spin es
               sólo si carga; en segundo plano, cuando no está cargando, que sea
               como un doble cubo". So at rest it is stacked squares — the thing
               itself, a pile of work that happens to be empty — and the spinner
@@ -213,7 +213,7 @@ export function BackgroundJobsMenu({
               tasks", "1 task running" — on the theory that a bare count beside
               a wrench is a mystery glyph. On a phone that theory cost the
               width of the two controls next to it and still read as a label
-              rather than a status. Manu: "arriba tasks no debe decir nada…
+              rather than a status. The owner: "arriba tasks no debe decir nada…
               cuando hay un task o más ahí sí sale 1, 2 o número y si no hay
               podés poner incluso 0 y ya". The word survives where it was
               always the one that explained things: the tooltip and the

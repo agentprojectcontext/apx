@@ -149,7 +149,7 @@ export function AgentAvatar({
     // around it. Drawn at the same number of pixels the logo reads far bigger,
     // and a chat list where two of the rows are coding sessions looked like the
     // sessions had been given oversized icons — "los iconos crecieron por
-    // alguna razón y son gigantes" (Manu, 2026-09-20). The SLOT keeps the size
+    // alguna razón y son gigantes" (the owner, 2026-09-20). The SLOT keeps the size
     // it was handed, so every avatar column still lines up; only the ink
     // shrinks, to the weight the blobs beside it carry.
     return (

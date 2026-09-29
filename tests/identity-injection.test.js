@@ -16,12 +16,12 @@ import { TOOL_SCHEMAS } from "#core/agent/tools/registry.js";
 
 test("buildIdentityBlock: includes all fields when populated", () => {
   const block = buildIdentityBlock(
-    { agent_name: "Roby", personality: "curioso", owner_name: "tecnomanu", owner_context: "builds AI tools" },
+    { agent_name: "Roby", personality: "curioso", owner_name: "octocat", owner_context: "builds AI tools" },
     "es"
   );
   assert.ok(block.includes("Your name is Roby."), `missing agent_name in:\n${block}`);
   assert.ok(block.includes("Your personality: curioso."), `missing personality in:\n${block}`);
-  assert.ok(block.includes("Your owner is tecnomanu."), `missing owner_name in:\n${block}`);
+  assert.ok(block.includes("Your owner is octocat."), `missing owner_name in:\n${block}`);
   assert.ok(block.includes("Owner context: builds AI tools"), `missing owner_context in:\n${block}`);
   assert.ok(block.includes('"es"'), `missing language code in:\n${block}`);
 });

@@ -41,7 +41,7 @@ function fresh() {
   try { fs.rmSync(BACKGROUND_JOBS_DIR, { recursive: true, force: true }); } catch { /* nothing there */ }
 }
 
-const PROJECT = { id: 1, name: "appsi", path: "/tmp/appsi", storagePath: "/tmp/appsi-store" };
+const PROJECT = { id: 1, name: "initech", path: "/tmp/initech", storagePath: "/tmp/initech-store" };
 
 function job(extra = {}) {
   return openJob({ project_id: 1, from: "blake", to: "zoya", thread: "blake~zoya", body: "run the scorecard", wake: true, ...extra });

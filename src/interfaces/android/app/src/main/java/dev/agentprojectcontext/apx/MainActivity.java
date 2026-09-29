@@ -492,7 +492,7 @@ public final class MainActivity extends Activity {
      * half. The big half is that the native menu is reached through the page's
      * OWN JavaScript bridge (AndroidBridge.openOptions), so a page that never
      * loads is a phone that cannot be re-pointed at anything: the one screen
-     * that fixes the problem sat behind the thing that was broken. Manu,
+     * that fixes the problem sat behind the thing that was broken. The owner,
      * 2026-09-20, after the Mac's DHCP lease moved and the app kept asking for
      * the old address: "no pudo ni editar eso con el error que me da".
      *
@@ -602,7 +602,7 @@ public final class MainActivity extends Activity {
             // still answers ERROR_HOST_LOOKUP. Sending that reader after their
             // DNS — or their Tailscale — is sending them after the one thing
             // that cannot be the cause, and it is the commonest case there is:
-            // a LAN address whose lease moved is exactly what put Manu on this
+            // a LAN address whose lease moved is exactly what put the owner on this
             // screen. Only an address with a NAME in it gets the name answer.
             return looksNumeric(address)
                 ? "Esa dirección no está en la red donde está este teléfono. Suele pasar cuando la computadora cambió de IP, o cuando el teléfono está en otra red."

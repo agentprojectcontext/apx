@@ -3,9 +3,9 @@ import { test, expect } from "./fixtures";
 // A project whose folder was renamed or moved must SAY so, and must be
 // repairable from the panel without losing its id.
 //
-// The regression this covers: `/proyectos_varios/knot` was renamed to
-// `.../cheto`. A project is registered by path and nothing else, so every
-// derived fact fell back instead of failing — the rail kept drawing "knot" with
+// The regression this covers: `/projects/orbit` was renamed to
+// `.../northwind`. A project is registered by path and nothing else, so every
+// derived fact fell back instead of failing — the rail kept drawing "orbit" with
 // 0 agents and the old path in the breadcrumb, and nothing anywhere errored.
 // The only reading available to the user was that the rename had reverted.
 //
@@ -14,26 +14,26 @@ import { test, expect } from "./fixtures";
 // relink being present.
 const BASE = { id: 0, path: "/tmp/base", name: "Base", kind: "default" };
 const OK = { id: 76, path: "/tmp/proj-ok", name: "Sano", kind: "software", agents: 3, missing: false };
-const OLD_PATH = "/tmp/proyectos/knot";
-const NEW_PATH = "/tmp/proyectos/cheto";
+const OLD_PATH = "/tmp/projects/orbit";
+const NEW_PATH = "/tmp/projects/northwind";
 // What the daemon sends for a folder that is not there any more: the name has
 // already degraded to the basename of the dead path, and the agent count to 0.
 const GONE = {
   id: 77,
   path: OLD_PATH,
-  name: "knot",
+  name: "orbit",
   kind: "software",
   agents: 0,
   missing: true,
   missing_reason: "the folder no longer exists",
 };
-const REPAIRED = { ...GONE, path: NEW_PATH, name: "Cheto", agents: 8, missing: false, missing_reason: null };
+const REPAIRED = { ...GONE, path: NEW_PATH, name: "Northwind", agents: 8, missing: false, missing_reason: null };
 
 const CONFIG_BODY = {
   effective: {},
   project_only: {},
   project_config_path: "/tmp/config.json",
-  apc_project: { name: "Cheto" },
+  apc_project: { name: "Northwind" },
   project_json_path: `${NEW_PATH}/.apc/project.json`,
 };
 

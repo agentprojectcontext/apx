@@ -16,7 +16,7 @@
 // WhatsApp. So the rule came out backwards: a turn was followable if an HTTP
 // route happened to start it, and invisible if a person wrote to the bot.
 //
-// What Manu saw on 2026-09-14: Telegram showed "Escribiendo…" (that indicator
+// What the owner saw on 2026-09-14: Telegram showed "Escribiendo…" (that indicator
 // is the channel's own, sent by sendChatAction) while the same conversation on
 // the web sat dead. Refresh and the tools were all there, on disk, written as
 // they happened — the ledger was never the problem. Nothing was pushing, and

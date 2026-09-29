@@ -6,7 +6,7 @@
 // Blake, Kira. Same screen, same data, two answers.
 //
 // The bug is old and was invisible until today: before the executive layer
-// arrived almost every agent was `rocky`/Rocky, `magui`/Magui — the slug WAS
+// arrived almost every agent was `rocky`/Rocky, `lumen`/Lumen — the slug WAS
 // the name, capitalisation aside. `AgentEntry` carries `name`, `icon` and
 // `emoji` straight from AGENTS.md, so nothing had to be fetched; the data was
 // being thrown away one line after it arrived.

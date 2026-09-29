@@ -55,8 +55,8 @@ test("an agent's prompt speaks as the agent, and says it went out as the owner",
   // The whole reason the room exists. `claude -p` has exactly one user and does
   // not care who typed the words, so from the engine's side these two prompts
   // were identical — and a thread that drew them identically would be putting
-  // words in Manu's mouth. "El agente habla como agente pero claude recibe como
-  // yo mismo, y yo veo los 3 tipos" (2026-09-20).
+  // words in the owner's mouth. The agent speaks as the agent, the engine
+  // receives it as the owner, and the owner sees all three kinds (2026-09-20).
   const agentTurn = toChatMsgs(LINES, ENGINE)[2];
   assert.equal(agentTurn.role, "assistant");
   assert.equal(agentTurn.agent, "APX");
@@ -94,8 +94,8 @@ test("the waiting bubble is the ROOM's answer, not this tab's", () => {
   // The bug this exists for: the prompt reaches the ledger IMMEDIATELY —
   // `appendRuntimePrompt` runs before the engine is even spawned — so an
   // indicator hung off the locally-held turn switched off on the next poll,
-  // four seconds into a run that takes minutes. "No veo si está contestando"
-  // (Manu, 2026-09-20), and that is the half of it a local flag cannot fix.
+  // four seconds into a run that takes minutes. The owner could not tell whether
+  // it was answering (2026-09-20), and that is the half of it a local flag cannot fix.
   const asked = [...LINES, { role: "user", content: "y el lint?", ts: "2026-09-20T10:10:00Z" }];
   assert.equal(isAnswering(asked, T("10:12")), true, "a prompt with nothing under it is being worked on");
 

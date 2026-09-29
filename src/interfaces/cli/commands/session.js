@@ -80,7 +80,7 @@ function findSessionById(root, id) {
  *
  * `apx session list` was showing 🔄 for a record from eleven days earlier,
  * which is the same thing the sessions list was doing before 2026-09-20 —
- * "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu).
+ * "¿por qué estos dos se ven corriendo si ya terminaron?" (the owner).
  */
 function statusEmoji(session) {
   const status = typeof session === "string" ? session : session?.status || "";

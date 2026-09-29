@@ -11,7 +11,7 @@
 // resume path. So on 2026-09-20 nine Claude Code sessions ran, six of them died
 // at a deadline, and the only account of any of it was whatever the agent that
 // launched them chose to say — which, that afternoon, was that work was running
-// when it was not. Manu, the same day: "así puedo ver qué hacen, qué hablan y
+// when it was not. The owner, the same day: "así puedo ver qué hacen, qué hablan y
 // qué sesiones vas lanzando".
 //
 // CONTINUING ONE GOES STRAIGHT TO THE RUNTIME. The same ask names the part that

@@ -52,7 +52,7 @@ export function InboxScreen() {
   // session two ways — `?channel=&thread=` for a channel thread and
   // `?agent=&conv=` for an agent's conversation (see mobile/routes.ts) — and
   // this screen only ever read the first. So `/inbox?agent=X&conv=Y` opened the
-  // NEWEST chat instead, silently: Manu refreshed on a conversation with a
+  // NEWEST chat instead, silently: the owner refreshed on a conversation with a
   // message parked in it, landed in a different one, and reasonably read that
   // as the message having been lost. It had not — he was reading somewhere
   // else. `urlLooksAt` already answers "does this URL mean this row?" for every

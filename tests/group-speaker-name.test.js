@@ -3,8 +3,8 @@
 // The room's identity is the slug — a mention only reaches an agent if it
 // carries the exact `@slug`, the ledger files every turn under it, and the
 // roster is a list of them. None of that is a reason to PRINT one. On
-// 2026-09-20 the phone showed a bubble headed `romi` with the tag beside it
-// reading "traído por Productor Reels": the same kind of thing, on the same
+// 2026-09-20 the phone showed a bubble headed `nico` with the tag beside it
+// reading "traído por Video Producer": the same kind of thing, on the same
 // line, spelled as an address and as a name at once.
 //
 // Two halves, both here because they are one bug: the thread row (title and
@@ -39,20 +39,20 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 function seedRoom() {
   const root = makeTempProject({ name: "reels" });
   const project = { id: "grp", path: root };
-  createAgent(project, { slug: "romi", system: "x", name: "Romi" });
-  createAgent(project, { slug: "productor-reels", system: "x", name: "Frida", role: "Productor de reels" });
+  createAgent(project, { slug: "nico", system: "x", name: "Nico" });
+  createAgent(project, { slug: "video-producer", system: "x", name: "Frida", role: "Productor de reels" });
   const logMessage = (row) => appendMessageToFs({ projectRoot: root, ...row });
-  const gid = createGroupThread(logMessage, { participants: ["romi", "productor-reels"] });
+  const gid = createGroupThread(logMessage, { participants: ["nico", "video-producer"] });
   appendGroupOwnerMessage(logMessage, gid, "arranquen");
-  appendGroupAgentMessage(logMessage, gid, { slug: "romi", body: "dale" });
+  appendGroupAgentMessage(logMessage, gid, { slug: "nico", body: "dale" });
   return { root, gid };
 }
 
 test("a group with no title is named after the people in it", () => {
   const { root, gid } = seedRoom();
   try {
-    assert.equal(listProjectGroupThreads(root)[0].title, "Romi · Frida");
-    assert.equal(readProjectGroupThread(root, gid).title, "Romi · Frida");
+    assert.equal(listProjectGroupThreads(root)[0].title, "Nico · Frida");
+    assert.equal(readProjectGroupThread(root, gid).title, "Nico · Frida");
   } finally {
     cleanupTempProject(root);
   }
@@ -61,11 +61,11 @@ test("a group with no title is named after the people in it", () => {
 test("the roster it hands back is still slugs — that is the address", () => {
   const { root, gid } = seedRoom();
   try {
-    assert.deepEqual(readProjectGroupThread(root, gid).participants, ["romi", "productor-reels"]);
+    assert.deepEqual(readProjectGroupThread(root, gid).participants, ["nico", "video-producer"]);
     // And the turn keeps pointing at the slug, so the panel can resolve the
     // face, the mention and the "traído por" tag against the roster.
     const last = readProjectGroupThread(root, gid).messages.at(-1);
-    assert.equal(last.agent, "romi");
+    assert.equal(last.agent, "nico");
   } finally {
     cleanupTempProject(root);
   }
@@ -74,7 +74,7 @@ test("the roster it hands back is still slugs — that is the address", () => {
 test("the list preview says who spoke, by name", () => {
   const { root } = seedRoom();
   try {
-    assert.match(listProjectGroupThreads(root)[0].preview, /^Romi: dale/);
+    assert.match(listProjectGroupThreads(root)[0].preview, /^Nico: dale/);
   } finally {
     cleanupTempProject(root);
   }

@@ -76,7 +76,7 @@ export function normalizeJid(input) {
  *
  * WhatsApp addresses a person two ways and hands us whichever one applies to
  * the context: the phone JID (`5491155555555@s.whatsapp.net`) and the LID
- * (`101666238013462@lid`), its privacy-preserving id. A message carries one as
+ * (`100000000000100@lid`), its privacy-preserving id. A message carries one as
  * the primary and, when it knows it, the other in `…Alt`.
  *
  * Comparing only the primary is how the owner ends up a stranger on their own
@@ -346,7 +346,7 @@ export function silenceReason(cfg, sender) {
  * Promote a contact to owner, by any address they are known under.
  *
  * This is the escape hatch for an identity nobody can look up. WhatsApp may
- * address a person by a LID (`101666238013462@lid`) that appears nowhere in the
+ * address a person by a LID (`100000000000100@lid`) that appears nowhere in the
  * app, so "type your number in the Owner field" cannot work for them: the
  * number they know is not the address the message arrives under.
  *

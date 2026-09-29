@@ -32,7 +32,7 @@ function fakePoller() {
 const CTX = (msg) => ({
   msg,
   u: { update_id: 1 },
-  author: "@manu",
+  author: "@julian",
   chat_id: 42,
   text: msg.caption || "",
   incoming: detectIncomingFile(msg),

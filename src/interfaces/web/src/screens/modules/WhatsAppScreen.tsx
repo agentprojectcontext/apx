@@ -42,7 +42,7 @@ function WhatsAppConversations() {
   // the right call and is not: passing a channel switches the endpoint to one
   // row per agent instead of one row per person (`perChannel: !channel`), so
   // four conversations collapse into a single "super-agent on WhatsApp" row.
-  // The unscoped list is the one that keeps Magui, Carlos and a company apart.
+  // The unscoped list is the one that keeps Lucía, Tomás and a company apart.
   const { data, isLoading } = useSWR("/api/inbox", () => Inbox.list());
   const rows = useMemo(
     () => (data || []).filter((r: InboxRow) => r.channel === "whatsapp"),

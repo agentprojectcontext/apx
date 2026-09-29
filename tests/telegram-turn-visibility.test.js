@@ -1,9 +1,8 @@
 // A turn that arrives on Telegram is a turn the WHOLE system can see.
 //
-// THE FAILURE, 2026-09-14. Manu, reading the same conversation twice at once:
-// "en canal telegram cuando entro por web veo que está parado, pero si
-// actualizo siguen apareciendo tools y me sigue respondiendo, y en telegram
-// dice Escribiendo."
+// THE FAILURE, 2026-09-14. The owner, reading the same conversation twice at
+// once: opened from the web, the Telegram thread looked stopped; a refresh
+// kept showing new tools and replies; and Telegram itself said "typing".
 //
 // Both halves of that are one missing piece. The ledger was never the problem —
 // the tool rows were on disk as they happened, which is why a refresh showed
@@ -118,7 +117,7 @@ test("the tools a Telegram turn runs are recorded AND pushed", () => {
 
     // RECORDED: what somebody who opens the thread mid-turn catches up from.
     // Text alone is not enough — it makes a working turn look idle, which is
-    // the picture Manu was reading.
+    // the picture the owner was reading.
     const live = getActiveTurnByKey(superAgentTurnKey(1, "telegram"));
     const tool = live.parts.find((p) => p.kind === "tool");
     assert.equal(tool?.tool, "run_shell");
