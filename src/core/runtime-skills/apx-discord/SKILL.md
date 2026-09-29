@@ -14,6 +14,7 @@ A room that is not listed does not exist: not stored, not indexed, never answere
 | Mode | Speaks |
 |---|---|
 | `always` | on every message (a help room) |
+| `useful` | when called, and uncalled when a cheap model check (`discord.reply_when`, default: concrete project questions only) says it can help; capped by `limits.gate_checks_per_hour` |
 | `mention` | only when called — @mention, a reply to the bot, or one of `discord.names` as a whole word |
 | `read` | never; stored and summarised only |
 
@@ -22,7 +23,7 @@ A thread inherits its parent room's mode unless listed itself. Mode changes appl
 ```bash
 apx discord status
 apx discord channels
-apx discord channel set <channel_id> <always|mention|read> [--name <name>]
+apx discord channel set <channel_id> <always|useful|mention|read> [--name <name>]
 apx discord channel remove <channel_id>
 pbpaste | apx discord set --token-stdin
 apx discord set --owner <user_id,…> --names roby

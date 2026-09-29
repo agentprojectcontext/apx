@@ -1,6 +1,6 @@
 import { http } from "../http";
 
-export type DiscordMode = "always" | "mention" | "read";
+export type DiscordMode = "always" | "useful" | "mention" | "read";
 
 export interface DiscordChannelRow {
   id: string;
@@ -23,6 +23,9 @@ export interface DiscordStatus {
   guilds?: number;
   /** The owner's notes: what the bot can do and answer. Public by design. */
   knowledge?: string;
+  /** When a `useful` room may be answered uncalled. Empty = the built-in default. */
+  reply_when?: string;
+  gate_model?: string;
 }
 
 /** A text room of a server the bot is in, as Discord reported it. */
@@ -42,6 +45,7 @@ export interface DiscordSettingsPatch {
   owner_ids?: string[];
   names?: string[];
   knowledge?: string;
+  reply_when?: string;
 }
 
 export const Discord = {

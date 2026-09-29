@@ -21,7 +21,8 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readDiscordConfig } from "./config.js";
 import { decideDiscordMessage, createDiscordLimiter, SKIP_REASONS } from "./trigger.js";
-import { gatherDiscordContext } from "./context.js";
+import { gatherDiscordContext, roomRecords, recentWindow } from "./context.js";
+import { shouldReplyUncalled } from "./gate.js";
 import { postDiscord } from "./outbox.js";
 
 // How many new messages in a room before we ask the compactor whether it is
@@ -75,6 +76,7 @@ export function createDiscordDispatcher({
   log = () => {},
   notifyOwner = async () => {},
   runTurn = runSuperAgent,
+  gate = shouldReplyUncalled,
   compact = compactChannelIfNeeded,
   settleMs = null,
   limiter = createDiscordLimiter(),
@@ -115,9 +117,28 @@ export function createDiscordDispatcher({
       .finally(() => compacting.delete(roomId));
   }
 
-  async function answer(msg, dc) {
+  async function answer(msg, dc, { gated = false } = {}) {
     const roomId = msg.channel_id;
     const where = msg.channel_name ? `#${msg.channel_name}` : roomId;
+
+    // `useful` mode, uncalled: ask first, answer only on a yes. The reply slot
+    // is reserved only now — a NO must not spend the room's hourly replies.
+    if (gated) {
+      const recentLines = recentWindow(roomRecords(roomId), { limit: 10, maxChars: 2_000, excludeId: msg.id });
+      const verdict = await gate({
+        globalConfig: cfgNow(), dc, recent: recentLines, message: `${msg.author?.name || "someone"}: ${msg.content}`,
+      });
+      if (!verdict.reply) {
+        log(`discord: stayed quiet in ${where} (${verdict.reason || "not useful"})`);
+        return { replied: false, gated: true, reason: verdict.reason };
+      }
+      if (!limiter.check({ channelId: roomId, userId: msg.author?.id, limits: dc.limits }).ok) {
+        return { replied: false, gated: true, reason: "limit" };
+      }
+      limiter.record({ channelId: roomId, userId: msg.author?.id });
+      log(`discord: joining in ${where} uncalled (${verdict.reason || "useful"})`);
+    }
+
     try { await transport.typing?.(roomId); } catch { /* cosmetic */ }
 
     const config = cfgNow();
@@ -204,19 +225,24 @@ export function createDiscordDispatcher({
     // Reserve the slot NOW, not when the answer runs. Recording it after the
     // settle window let every distinct caller inside that window pass the
     // hourly cap: a raid of N accounts bought N model turns.
-    if (!collapsing) limiter.record({ channelId: msg.channel_id, userId: msg.author?.id });
+    // A gated candidate reserves nothing yet: it spends a gate check now and a
+    // reply slot only if the gate says yes (see answer()).
+    if (decision.gate) { if (!collapsing) limiter.recordGate({ channelId: msg.channel_id }); }
+    else if (!collapsing) limiter.record({ channelId: msg.channel_id, userId: msg.author?.id });
 
     // Settle: a newer message from the same person in the same room replaces
     // the one waiting. Their whole burst is in the room's recent window anyway.
     const prev = pending.get(key);
     if (prev) clearTimeout(prev.timer);
     const wait = settleMs ?? dc.limits.burst_window_ms;
-    const entry = { msg };
+    // A call inside a burst upgrades the whole burst: if any message of it
+    // called the bot, the answer does not wait on the gate.
+    const entry = { msg, gated: decision.gate && (!prev || prev.gated) };
     entry.done = new Promise((resolve) => {
       entry.resolve = resolve;
       entry.timer = setTimeout(() => {
         pending.delete(key);
-        const p = answer(entry.msg, readDiscordConfig(cfgNow()))
+        const p = answer(entry.msg, readDiscordConfig(cfgNow()), { gated: entry.gated })
           .catch((e) => {
             log(`discord: answer failed: ${e.message}`);
             return { replied: false, error: e.message };

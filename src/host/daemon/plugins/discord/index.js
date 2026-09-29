@@ -105,6 +105,8 @@ export default {
           owner_ids: dc.owner_ids,
           names: dc.names,
           knowledge: dc.knowledge,
+          reply_when: dc.reply_when,
+          gate_model: dc.gate_model,
           channels: Object.entries(dc.channels).map(([id, row]) => ({
             id,
             mode: row.mode,

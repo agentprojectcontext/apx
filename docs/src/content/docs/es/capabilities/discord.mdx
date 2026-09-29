@@ -56,6 +56,7 @@ al agente ahí.
 | Modo | Guarda y lee | Habla |
 |---|---|---|
 | `always` | sí | en cada mensaje — para un canal de ayuda, donde cada mensaje es una pregunta |
+| `useful` | sí | cuando lo llaman y, sin que lo llamen, cuando un chequeo rápido con un modelo ve que puede ayudar de verdad (tu criterio de *Cuándo contestar sin que lo llamen*) |
 | `mention` | sí | sólo cuando lo llaman: un @mención, una respuesta a un mensaje suyo, o uno de sus `--names` como palabra |
 | `read` | sí | nunca |
 
@@ -67,6 +68,14 @@ valen para el mensaje siguiente, sin reiniciar.
 apx discord channels                             # la lista
 apx discord channel remove 1234567890123456790   # dejar de leerlo del todo
 ```
+
+### `useful`: contestar sólo cuando aporta
+
+En un canal `useful` cada mensaje sin llamado es un **candidato**. Una llamada corta a un modelo —el
+mensaje, unas líneas del canal, tus notas y tu criterio— contesta sí o no en JSON; sólo un sí corre
+el turno de verdad. Un chequeo que falla o no se entiende es un no. Cada chequeo es una llamada
+paga, así que el canal tiene su propio tope (`limits.gate_checks_per_hour`, 120), y el modelo es
+`discord.gate_model`, si no tu modelo de compactación, si no el del super-agente.
 
 ## Canales concurridos: guardar es gratis, contestar no
 
@@ -121,7 +130,7 @@ el panel.
 ```bash
 apx discord [status]
 apx discord channels
-apx discord channel set <channel_id> <always|mention|read> [--name <nombre>]
+apx discord channel set <channel_id> <always|useful|mention|read> [--name <nombre>]
 apx discord channel remove <channel_id>
 apx discord set [--token-stdin] [--owner <id,…>] [--names <a,b>] [--knowledge-stdin] [--enabled <true|false>]
 ```
