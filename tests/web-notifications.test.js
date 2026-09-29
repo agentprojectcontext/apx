@@ -238,7 +238,10 @@ test("the inbox writes the open thread into the URL so looking() can see it", ()
   // still rings the bell.
   const tab = webSrc("screens", "project", "ChatTab.tsx");
   assert.match(tab, /const initialAddr = initialSelection && !onSelectionChange/);
-  assert.match(tab, /setSearchParams\(new URLSearchParams\(initialAddr\), \{ replace: true \}\)/);
+  // Merged into the query rather than replacing it, so a param the chat does
+  // not own (`action=add-project`) survives — see chat-query-merge.test.js.
+  assert.match(tab, /setSearchParams\(\(prev\) => withChatQuery\(prev, initialSelection\), \{ replace: true \}\)/);
+  assert.doesNotMatch(tab, /setSearchParams\(new URLSearchParams\(initialAddr\)/);
 });
 
 test("the tap lands in the shape of the surface that raised it", () => {

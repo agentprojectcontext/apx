@@ -175,6 +175,7 @@ export const en = {
     path_label:  "Absolute path",
     path_hint:   "Equivalent to apx project add /path/to/project",
     path_placeholder: "/path/to/my-project",
+    path_placeholder_name: "my-project",
     register:    "Register",
     kind_label: "Project type",
     kind_personal_desc: "Your own things. No team, no structure.",

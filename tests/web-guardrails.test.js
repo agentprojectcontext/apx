@@ -212,6 +212,10 @@ const SENTENCE_FRAGMENTS = new Set([
   // substituted into "Window model: {value}." — never a label on its own
   "modules_ui.desktop_model_inherit",
 
+  // a folder name joined onto the daemon's home to make an example path
+  // (hooks/useExamplePath.ts) — data, spelled the way a folder is
+  "add_project.path_placeholder_name",
+
   // spells out the three permission modes, whose names ARE lowercase in the
   // config file — capitalising them here would name values that do not exist
   "settings_ui.cfg_permission_hint",
