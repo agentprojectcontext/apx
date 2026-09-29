@@ -126,6 +126,29 @@ export function queryForChat(key: ChatKey): URLSearchParams {
   return next;
 }
 
+const CHAT_QUERY_KEYS = ["agent", "conv", "channel", "thread"];
+
+/**
+ * `prev` with the chat selection swapped for `key`, and every OTHER param kept.
+ *
+ * The chat owns four keys of the query, not the whole thing. Writing
+ * `queryForChat(key)` as the entire query erased whatever else lived there —
+ * `?action=add-project`, which is what keeps the Add project dialog open — so
+ * the dialog opened over the inbox and closed on the next render (2026-09-28).
+ */
+export function withChatQuery(prev: URLSearchParams, key: ChatKey): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  for (const k of CHAT_QUERY_KEYS) next.delete(k);
+  queryForChat(key).forEach((v, k) => next.set(k, v));
+  return next;
+}
+
+/** True when `params` already points at `key` — so a sync can skip the write. */
+export function queryShowsChat(params: URLSearchParams, key: ChatKey): boolean {
+  const want = queryForChat(key);
+  return CHAT_QUERY_KEYS.every((k) => params.get(k) === want.get(k));
+}
+
 export function chatPath(pid: string, slug: string, key?: ChatKey): string {
   const base = `${CHAT_ROOT}/${encodeURIComponent(pid)}/${encodeURIComponent(slug)}`;
   const session = key ? sessionParam(key) : null;

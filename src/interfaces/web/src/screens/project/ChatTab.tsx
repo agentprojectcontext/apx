@@ -11,7 +11,7 @@ import { ContextBar } from "../../components/chat/ContextBar";
 import { PendingTurns } from "../../components/chat/PendingTurns";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, chatKeyToString, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
-import { queryForChat } from "../mobile/routes";
+import { queryForChat, queryShowsChat, withChatQuery } from "../mobile/routes";
 import { SessionPicker } from "../../components/chat/SessionPicker";
 import { messageForInvite, parseInviteCommand } from "../../components/chat/ComposerCommands";
 import {
@@ -237,18 +237,24 @@ export function ChatTab({
       onSelectionChange(key);
       return;
     }
-    setSearchParams(queryForChat(key), { replace: true });
+    setSearchParams((prev) => withChatQuery(prev, key), { replace: true });
   };
 
   // An embedding host (the inbox) picks the thread via initialSelection and
   // never calls selectChat. Without this write, `/inbox` has no query, and
   // agent notifications cannot tell you are already reading the row that just
   // moved — they fire for a message already on screen.
+  //
+  // It merges, and skips when the URL already says it: `setSearchParams` changes
+  // identity on every URL change, so this runs again whenever ANY param moves —
+  // and when it replaced the whole query, opening Add project over the inbox
+  // (`&action=add-project`) was undone on the very next render.
   const initialAddr = initialSelection && !onSelectionChange ? queryForChat(initialSelection).toString() : "";
   useEffect(() => {
-    if (!initialAddr) return;
-    setSearchParams(new URLSearchParams(initialAddr), { replace: true });
-  }, [initialAddr, setSearchParams]);
+    if (!initialAddr || !initialSelection) return;
+    if (queryShowsChat(params, initialSelection)) return;
+    setSearchParams((prev) => withChatQuery(prev, initialSelection), { replace: true });
+  }, [initialAddr, setSearchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const agentList = agents.data || [];
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;

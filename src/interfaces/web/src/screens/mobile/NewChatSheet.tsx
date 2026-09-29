@@ -6,6 +6,7 @@ import { useInbox } from "../../hooks/useInbox";
 import { Groups } from "../../lib/api/groups";
 import { Runtimes } from "../../lib/api/runtimes";
 import { useProjects } from "../../hooks/useProjects";
+import { useExamplePath } from "../../hooks/useExamplePath";
 import { cn } from "../../lib/cn";
 import { pickableAgents } from "../../lib/new-chat";
 import { t } from "../../i18n";
@@ -53,6 +54,7 @@ export function NewChatSheet({
   const [engine, setEngine] = useState("");
   const [runtimePid, setRuntimePid] = useState("");
   const [runtimeCwd, setRuntimeCwd] = useState("");
+  const examplePath = useExamplePath();
   const [runtimePrompt, setRuntimePrompt] = useState("");
   const [engines, setEngines] = useState<{ id: string; installed: boolean }[] | null>(null);
   const [groupPick, setGroupPick] = useState<InboxRow[]>([]);
@@ -311,7 +313,7 @@ export function NewChatSheet({
                   <input
                     value={runtimeCwd}
                     onChange={(ev) => setRuntimeCwd(ev.target.value)}
-                    placeholder="/Volumes/…"
+                    placeholder={examplePath}
                     data-testid="new-runtime-cwd"
                     className="h-10 w-full rounded-lg border border-border bg-muted/30 px-3 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
                   />

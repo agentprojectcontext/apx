@@ -13,6 +13,7 @@ import { Filesystem } from "../../lib/api";
 import { Button, Empty, Input, Loading } from "../ui";
 import { useToast } from "../Toast";
 import { t } from "../../i18n";
+import { useExamplePath } from "../../hooks/useExamplePath";
 
 export function DirectoryPicker({
   value,
@@ -36,6 +37,7 @@ export function DirectoryPicker({
   testId?: string;
 }) {
   const toast = useToast();
+  const examplePath = useExamplePath();
   const [browseOpen, setBrowseOpen] = useState(false);
   const [browsePath, setBrowsePath] = useState("");
   const [entries, setEntries] = useState<string[]>([]);
@@ -86,7 +88,7 @@ export function DirectoryPicker({
         <Input
           autoFocus={autoFocus}
           data-testid={testId}
-          placeholder={placeholder ?? t("add_project.path_placeholder")}
+          placeholder={placeholder ?? examplePath}
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
