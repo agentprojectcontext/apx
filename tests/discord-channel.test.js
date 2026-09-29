@@ -570,3 +570,22 @@ test("the owner is answered as the owner, by name; a stranger claiming it is not
   assert.ok(!/Your owner, /.test(told2), "a display name is not an identity");
   assert.match(told2, /Dana Owner, a member of this Discord community/);
 });
+
+test("owner mark: rows stored before (or after an id change) are brought in line, and nothing else is touched", async () => {
+  const { markOwnerRows } = await import("#core/channels/discord/owner-rows.js");
+  const dir = fs.mkdtempSync(path.join(TMP_HOME, "owner-rows-"));
+  fs.mkdirSync(path.join(dir, "discord"));
+  const file = path.join(dir, "discord", "2026-09-01.jsonl");
+  const rows = [
+    { ts: "1", direction: "in", type: "user", body: "mío", meta: { discord_user_id: OWNER } },
+    { ts: "2", direction: "in", type: "user", body: "ajeno", meta: { discord_user_id: ALICE, owner: true } },
+    { ts: "3", direction: "out", type: "agent", body: "respuesta", meta: { chat_id: GENERAL } },
+  ];
+  fs.writeFileSync(file, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  assert.equal(markOwnerRows([OWNER], { messagesDir: dir }), 2);
+  const back = fs.readFileSync(file, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(back[0].meta.owner, true);
+  assert.equal(back[1].meta.owner, undefined, "no longer an owner id → unmarked");
+  assert.deepEqual(back[2], rows[2], "rows the bot wrote are left alone");
+  assert.equal(markOwnerRows([OWNER], { messagesDir: dir }), 0, "a second pass changes nothing");
+});
