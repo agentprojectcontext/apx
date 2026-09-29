@@ -540,7 +540,7 @@ export function ChatTab({
   // It used to open a fresh, empty group and leave you in it, with the
   // conversation you were having still in the agent's own file and invisible
   // from the room — so the agent that just walked in had no idea what had been
-  // said, and neither did the room. Manu, 2026-09-20: "en vez de invitarlo y ya
+  // said, and neither did the room. The owner, 2026-09-20: "en vez de invitarlo y ya
   // convertir ese chat en grupo, arma otro chat en grupo y eso rompe todo."
   //
   // `from` is what makes it a conversion: the daemon replays the transcript onto
@@ -576,7 +576,7 @@ export function ChatTab({
   // into this pane used to send a super-agent WEB turn, so the line left the
   // thread it was written in and landed on another channel — from here it just
   // disappeared. "Los agent to agent para mí son grupo, entonces cuando empiezo
-  // a hablar deberían convertirse en grupo" (Manu, 2026-09-20). The daemon
+  // a hablar deberían convertirse en grupo" (the owner, 2026-09-20). The daemon
   // seats whichever ends of the pair are agents of this project and carries the
   // exchange across, so the room opens with the conversation already in it.
   const promoteA2A = async (slug?: string): Promise<string | null> => {
@@ -760,7 +760,7 @@ export function ChatTab({
   // Date". But an id that is not a day at all — a room, an a2a pair — left the
   // header with no date, and so did a conversation opened by deep link, where
   // there is no list row to have carried one. Half the chats said when they
-  // were from and half said nothing. Manu, 2026-09-20: "podrían tener fecha,
+  // were from and half said nothing. The owner, 2026-09-20: "podrían tener fecha,
   // pero algunos tienen y otros no, podría tenerlo todos".
   //
   // So: the day in the id, then the file's own `started`, then whatever row
@@ -864,7 +864,7 @@ export function ChatTab({
   // of them. "Abrir en el proyecto" means THIS CHAT, seen inside its project —
   // it took you to the agent's ficha instead, which is a different screen
   // answering a different question, and the conversation you were reading was
-  // nowhere on it. Manu: "open project debería abrir el chat pero en project y
+  // nowhere on it. The owner: "open project debería abrir el chat pero en project y
   // ahora abre el agente… también necesitamos menú de ver agente". So the two
   // stand side by side: the chat where it lives, and the agent behind it.
   const openInProjectMeta = onOpenInProject
@@ -1047,7 +1047,7 @@ export function ChatTab({
   // ONE GEOMETRY FOR THE WHOLE HEADER STRIP. Tasks, tools and add-person are
   // three controls answering three questions, and they were drawn at three
   // sizes: an 11px chip spelling out a word, a 13px glyph wired to a switch,
-  // and a 20px icon in a 40px circle. Manu, looking at the phone: "el icono de
+  // and a 20px icon in a 40px circle. The owner, looking at the phone: "el icono de
   // invitar a un agente se ve enorme respecto a los otros dos, los 3 deberían
   // tener el mismo tamaño". Same box, same glyph — and the ⋯ takes it too,
   // because it stands in the same row and would inherit the complaint.
@@ -1055,7 +1055,7 @@ export function ChatTab({
   // THE SMALL BOX ON BOTH SURFACES, which is not the usual phone rule. A
   // header control is normally grown for the thumb there, and this row is the
   // exception on purpose: four 40px circles ate half of a 375px header and
-  // left the session name three letters wide. Manu: "en mobile el tamaño que
+  // left the session name three letters wide. The owner: "en mobile el tamaño que
   // quiero es el pequeño no el grande, pensá que ver el nombre arriba de
   // sesión y demás es importante". What the phone keeps is the touch
   // FEEDBACK — active: rather than hover:, which sticks on a touch screen.
@@ -1139,7 +1139,7 @@ export function ChatTab({
                 );
               }
               // On a channel that talks to several people, the face is the
-              // PERSON. The title above already says "Magui" and the meta line
+              // PERSON. The title above already says "Lucía" and the meta line
               // still names Roby — drawing Roby's blob here as well made four
               // WhatsApp threads look like four copies of the same chat.
               const avatar = (
@@ -1204,8 +1204,8 @@ export function ChatTab({
                   cannot push the channel and the date onto a second row.
 
                   ON THE PHONE this line keeps only the WHO. Four facts in an
-                  11px line squeezed beside a 36px face is how "Roby · tecnomanu
-                  · web · 20/9/2026" became "R… · tecno… · web": every one of
+                  11px line squeezed beside a 36px face is how "Roby · northwind
+                  · web · 20/9/2026" became "R… · north… · web": every one of
                   them truncated, so the line said nothing four times over.
                   Where and when moved to the band under the header, which has
                   the whole width to say them in. */}
@@ -1222,7 +1222,7 @@ export function ChatTab({
                   </span>
                 )}
                 {/* Where this agent comes FROM — the fact the header lost. The
-                    list row said "Zoya — Appsi · Web" and the conversation it
+                    list row said "Zoya — Initech · Web" and the conversation it
                     opened said "Zoya · web", so the moment you started reading
                     you could no longer tell whose Zoya you were reading. Its
                     own badge beside the channel's and never folded into it:
@@ -1254,7 +1254,7 @@ export function ChatTab({
             {/* Work this conversation left running, where the conversation is.
                 A background job is launched BY a turn in some chat, and until
                 now the only place it appeared was a count at the top of the
-                window, detached from everything. Manu, 2026-09-14: "la tarea la
+                window, detached from everything. The owner, 2026-09-14: "la tarea la
                 ejecutó en un chat, debería aparecer en ese chat arriba donde
                 ahora están los botones de tool y abrir en el proyecto". The
                 global mount stays — it is what tells you about chats you are
@@ -1270,7 +1270,7 @@ export function ChatTab({
               threadId={isA2A && selected.kind === "thread" ? selected.threadId : NO_THREAD_JOBS}
               // The other half of "what is running HERE": a command this chat's
               // agent left running is filed under the conversation, not under a
-              // pair. Without this an ordinary agent chat — the one Manu was
+              // pair. Without this an ordinary agent chat — the one the owner was
               // looking at while asking for exactly this — reads its own zero
               // while its agent renders thirteen reels.
               conversationId={conversationId}
@@ -1416,7 +1416,7 @@ export function ChatTab({
             {/* "Abrir en el proyecto" USED to stand here in words, and it was
                 the one thing on this row that was not a glyph — 160px of
                 header spent on a way OUT of the screen you are reading. It
-                lives in the ⋯ now, where the rest of the verbs are. Manu:
+                lives in the ⋯ now, where the rest of the verbs are. The owner:
                 "Open in project lo sacás y lo dejás dentro del menú
                 contextual… quedaría solo iconos y alguna palabra". */}
             {!compact && (
@@ -1475,7 +1475,7 @@ export function ChatTab({
 
             The phone's header was trying to be four things at once inside the
             width left over by a face and five controls: the session, the
-            agent, the project and the channel. Manu, 2026-09-20: "podrías
+            agent, the project and the channel. The owner, 2026-09-20: "podrías
             sumar una sección luego del título, así dividida por una línea
             gris… con el nombre del proyecto y el canal. Arriba quedaría la
             sesión y el nombre del agente, y en la barra esa sólo el proyecto
@@ -1536,7 +1536,7 @@ export function ChatTab({
                 faceFor={faceFor}
                 // A room names its speaker ABOVE the bubble — and an a2a pair
                 // IS a room: two agents talking, both of them "somebody else".
-                // Manu, 2026-09-20: "los agent to agent para mí son grupo …
+                // The owner, 2026-09-20: "los agent to agent para mí son grupo …
                 // debería tener el diseño de grupo que muestra el usuario
                 // arriba y la cita abajo." Under the 1:1 layout the speaker
                 // went in the footer chip, which is the one place that cannot

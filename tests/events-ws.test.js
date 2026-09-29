@@ -201,7 +201,7 @@ test("the pet is told when an agent launches a final, not when the owner sends",
 
   emitMessageEvent({
     scope: "global", channel: "telegram", thread: "2026-01-15",
-    direction: "in", type: "user", author: "@manu",
+    direction: "in", type: "user", author: "@julian",
   });
   emitMessageEvent({
     scope: "global", channel: "telegram", thread: "2026-01-15",
@@ -213,7 +213,7 @@ test("the pet is told when an agent launches a final, not when the owner sends",
   });
   emitMessageEvent({
     scope: "project", channel: "a2a", thread: "2026-01-15",
-    direction: "out", type: "agent", author: "magui", agent_slug: "magui", to: "roby",
+    direction: "out", type: "agent", author: "lumen", agent_slug: "lumen", to: "roby",
   });
   await wait(400);
 
@@ -221,7 +221,7 @@ test("the pet is told when an agent launches a final, not when the owner sends",
   assert.deepEqual(frame.notifications, [
     "Roby respondió en Telegram",
     "sofia respondió en Grupo",
-    "Nuevo mensaje de Magui a Roby",
+    "Nuevo mensaje de Lumen a Roby",
   ]);
   // The same lines with the channel each is about, so the phone can answer
   // "may this one ring me". Sent alongside the flat list rather than instead
@@ -230,7 +230,7 @@ test("the pet is told when an agent launches a final, not when the owner sends",
   assert.deepEqual(frame.notices, [
     { text: "Roby respondió en Telegram", channel: "telegram" },
     { text: "sofia respondió en Grupo", channel: "group" },
-    { text: "Nuevo mensaje de Magui a Roby", channel: "a2a" },
+    { text: "Nuevo mensaje de Lumen a Roby", channel: "a2a" },
   ]);
   // The recipient reaches the pet on the wire, not only inside the copy the
   // daemon computed: an older client that renders `events` itself gets it too.

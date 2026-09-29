@@ -24,7 +24,7 @@ function writeDay(base, channel, date, records) {
 test("listGlobalThreads: one entry per channel+day, titled by first user turn", () => {
   const base = tmpLedger();
   writeDay(base, "telegram", "2026-07-01", [
-    { ts: "2026-07-01T10:00:00Z", channel: "telegram", direction: "in", type: "user", author: "manu", body: "hola roby, cómo va el deploy?" },
+    { ts: "2026-07-01T10:00:00Z", channel: "telegram", direction: "in", type: "user", author: "julian", body: "hola roby, cómo va el deploy?" },
     { ts: "2026-07-01T10:00:05Z", channel: "telegram", direction: "out", type: "agent", body: "Va bien — 3 servicios arriba." },
   ]);
   writeDay(base, "web", "2026-07-02", [
@@ -179,7 +179,7 @@ const agentRow = (ts, body, project) => ({
 test("threads: a project sees its own chats, not another project's", () => {
   const base = tmpLedger();
   webDay(base, "2026-07-03", [
-    userRow("2026-07-03T09:00:00Z", "algo de postbeam", "8"),
+    userRow("2026-07-03T09:00:00Z", "algo de globex", "8"),
     agentRow("2026-07-03T09:00:01Z", "listo", "8"),
     userRow("2026-07-03T10:00:00Z", "algo de acme", "9"),
     agentRow("2026-07-03T10:00:01Z", "hecho", "9"),
@@ -188,7 +188,7 @@ test("threads: a project sees its own chats, not another project's", () => {
   const mine = listGlobalThreads({ project: "8", _globalMessagesDir: base });
   assert.equal(mine.length, 1);
   assert.equal(mine[0].messages, 2, "only this project's turns count");
-  assert.equal(mine[0].title, "algo de postbeam");
+  assert.equal(mine[0].title, "algo de globex");
   assert.equal(mine[0].project, "8", "a thread says which project's view it is");
 
   const theirs = listGlobalThreads({ project: "9", _globalMessagesDir: base });
@@ -320,7 +320,7 @@ test("deleteGlobalThread: deleting a project's chat spares the default workspace
   writeDay(base, "telegram", "2026-07-10", [
     { ts: "2026-07-10T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "sin proyecto" },
     { ts: "2026-07-10T09:00:01Z", channel: "telegram", direction: "out", type: "agent", body: "ok" },
-    { ts: "2026-07-10T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de postbeam", meta: { project_id: "8" } },
+    { ts: "2026-07-10T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de globex", meta: { project_id: "8" } },
   ]);
   assert.equal(deleteGlobalThread({ channel: "telegram", date: "2026-07-10", project: "8", _globalMessagesDir: base }), true);
 
@@ -334,7 +334,7 @@ test("deleteGlobalThread: the default workspace can delete its own unstamped cha
   const base = tmpLedger();
   writeDay(base, "telegram", "2026-07-11", [
     { ts: "2026-07-11T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "sin proyecto" },
-    { ts: "2026-07-11T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de postbeam", meta: { project_id: "8" } },
+    { ts: "2026-07-11T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de globex", meta: { project_id: "8" } },
   ]);
   assert.equal(deleteGlobalThread({ channel: "telegram", date: "2026-07-11", project: "0", _globalMessagesDir: base }), true);
   assert.deepEqual(

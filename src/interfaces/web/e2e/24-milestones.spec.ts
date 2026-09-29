@@ -27,7 +27,7 @@ const step = (over: Record<string, unknown> = {}) => ({
   ended_at: "2026-09-18T10:30:00Z",
   answered: true,
   tools: { total: 4, failed: 0, names: ["run_shell"] },
-  agent: "Magui",
+  agent: "Lumen",
   model: "anthropic:claude",
   channel: "web",
   conversation_id: "c1",
@@ -61,7 +61,7 @@ function statsFor(entries: { state: string }[]) {
 // With `agent` + `conv` in the URL the selection is decided on the first render
 // from the URL alone, before any list is fetched, so every assertion below is
 // about the timeline instead of about the fixture's luck.
-const CHAT = "/p/7/chat?agent=magui&conv=c1";
+const CHAT = "/p/7/chat?agent=lumen&conv=c1";
 
 async function stubTimeline(page: import("@playwright/test").Page, entries: unknown[]) {
   await page.route((url) => url.pathname === "/api/projects", (route) =>
@@ -164,7 +164,7 @@ test.describe("timeline", () => {
         state: "running",
         answered: false,
         started_at: "2026-09-18T11:00:00Z",
-        milestones: [{ id: "m1", state: "open", title: "Rendering", track: "Reel", detail: null, started_at: "2026-09-18T11:05:00Z", updated_at: "2026-09-18T11:05:00Z", closed_at: null, note: null, channel: "web", conversation_id: "c1", agent: "magui" }],
+        milestones: [{ id: "m1", state: "open", title: "Rendering", track: "Reel", detail: null, started_at: "2026-09-18T11:05:00Z", updated_at: "2026-09-18T11:05:00Z", closed_at: null, note: null, channel: "web", conversation_id: "c1", agent: "lumen" }],
       }),
     ]);
     await page.goto("/p/7");
@@ -272,12 +272,12 @@ test.describe("timeline", () => {
   // conversation was that". Without the link the answer is "go and find it".
   test("a step links to the chat it happened in", async ({ page }) => {
     await stubTimeline(page, [
-      step({ title: "Rendered the reel", conversation_id: "2026-09-18-01", agent_slug: "magui" }),
-      step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z", conversation_id: "2026-09-18-02", agent_slug: "magui" }),
+      step({ title: "Rendered the reel", conversation_id: "2026-09-18-01", agent_slug: "lumen" }),
+      step({ title: "Stalled thing", state: "open", answered: false, started_at: "2026-09-18T11:00:00Z", conversation_id: "2026-09-18-02", agent_slug: "lumen" }),
     ]);
     await page.goto("/p/7/timeline");
     await page.getByTestId("milestone-open-chat").first().click();
-    await expect(page).toHaveURL(/\/p\/7\/chat\?agent=magui&conv=2026-09-18-01$/);
+    await expect(page).toHaveURL(/\/p\/7\/chat\?agent=lumen&conv=2026-09-18-01$/);
   });
 
   // A guess is worse than no link: a step with no conversation to open would

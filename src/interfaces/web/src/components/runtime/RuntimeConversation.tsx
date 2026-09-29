@@ -17,7 +17,7 @@ import { t } from "../../i18n";
  *
  * It opened as a FICHA first — folder, start, finish, launched-by, notes, then
  * the transcript underneath — because the screen it grew out of was a list of
- * session records. Manu, the moment he opened one from the chat list: "no
+ * session records. The owner, the moment they opened one from the chat list: "no
  * entiendo por qué se ve así y no como un chat común… esta data de carpeta,
  * arrancó, terminó, podría ser un botón de info". He is right: a room reached
  * from a list of conversations is a conversation, and the paperwork is what you
@@ -34,7 +34,7 @@ import { t } from "../../i18n";
  * was nothing on screen between sending and the answer landing ("no veo si está
  * contestando"), and the thread had none of the day dividers, markdown, copy or
  * attachment handling every other thread has. "¿Por qué no usamos el modo chat
- * normal pero con ruta runtime?" (Manu, 2026-09-20) — so it does: `MessageList`
+ * normal pero con ruta runtime?" (the owner, 2026-09-20) — so it does: `MessageList`
  * and `Composer`, the same two components the agent chats are made of, over the
  * room's own messages.
  *
@@ -54,7 +54,7 @@ export function RuntimeRoomView({
    *
    * "chat" — reached from the list of conversations, so it IS one: the real
    *   chat surface, a back button, and the paperwork behind the ℹ. "no entiendo
-   *   por qué se ve así y no como un chat común" (Manu, 2026-09-20).
+   *   por qué se ve así y no como un chat común" (the owner, 2026-09-20).
    * "detail" — reached from the sessions list, where the run itself is the
    *   subject: the execution facts on screen, transcript underneath. That view
    *   was right and the first pass took it away from both. "sacaste la info en

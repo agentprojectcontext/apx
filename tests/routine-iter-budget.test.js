@@ -17,7 +17,7 @@ test("routineReportsToTelegram — telegram post_command (send_telegram suppress
 });
 
 test("routineReportsToTelegram — send_telegram merely being available does NOT count", () => {
-  // The broad default tool set carries send_telegram; a background routine (Magui
+  // The broad default tool set carries send_telegram; a background routine (Lumen
   // with post_commands:[] and allowed_tools:[]) must not be read as telegram-bound
   // just because it *could* send a summary.
   assert.equal(routineReportsToTelegram({ autoSuppress: [] }), false);

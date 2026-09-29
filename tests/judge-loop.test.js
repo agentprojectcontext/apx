@@ -476,14 +476,14 @@ test("judgeCompletion: the model that ran the turn is the last-resort scorer", a
 
 // ── Project agents ────────────────────────────────────────────────────────────
 // The judge used to be wired only into runSuperAgent, so Roby was continued
-// automatically and every project agent was left waiting to be poked: Magui
+// automatically and every project agent was left waiting to be poked: Lumen
 // announced her next step, wrote no tool call, and the turn ended there. Same
 // loop, same switch, same exclusions — now on the engine every project agent
 // runs through (run-turn.js).
 const projectAgentFixture = (judge = {}) => {
   const root = makeTempProject({
     name: "Judge Agent",
-    agents: [{ slug: "magui", role: "Tester", model: "mock" }],
+    agents: [{ slug: "lumen", role: "Tester", model: "mock" }],
   });
   const config = {
     model: "mock",
@@ -499,7 +499,7 @@ const projectAgentFixture = (judge = {}) => {
   };
   const projects = new ProjectManager(config);
   const p = projects.register(root);
-  const agent = readAgents(root).find((a) => a.slug === "magui");
+  const agent = readAgents(root).find((a) => a.slug === "lumen");
   return { root, projects, p, agent };
 };
 

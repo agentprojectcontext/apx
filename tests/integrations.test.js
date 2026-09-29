@@ -50,12 +50,12 @@ test("IntegrationStore: file is written chmod 0600 (tokens live here)", () => {
 test("redactRecord: hides secrets, exposes *_set flags", () => {
   const red = redactRecord({
     slug: "asana",
-    config: { personal_access_token: "1/secret", workspace_gid: "42", user_name: "Manu" },
+    config: { personal_access_token: "1/secret", workspace_gid: "42", user_name: "Julián" },
   });
   assert.equal(red.config.personal_access_token, undefined);
   assert.equal(red.config.personal_access_token_set, true);
   assert.equal(red.config.workspace_gid, "42");
-  assert.equal(red.config.user_name, "Manu");
+  assert.equal(red.config.user_name, "Julián");
 });
 
 test("resolveIntegration: project record wins over default; falls back otherwise", () => {

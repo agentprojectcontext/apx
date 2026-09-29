@@ -8,9 +8,9 @@ import assert from "node:assert/strict";
 import { inspectorRecord } from "#host/daemon/api/super-agent.js";
 
 test("inspectorRecord — keeps the row when a skill was loaded", () => {
-  const rec = inspectorRecord({ enabled: true, embedder: "tf", loaded: ["postbean-mcp"], hinted: [] });
+  const rec = inspectorRecord({ enabled: true, embedder: "tf", loaded: ["globex-mcp"], hinted: [] });
   assert.ok(rec);
-  assert.deepEqual(rec.loaded, ["postbean-mcp"]);
+  assert.deepEqual(rec.loaded, ["globex-mcp"]);
 });
 
 test("inspectorRecord — keeps the row on a scored-only (below-threshold) turn", () => {
@@ -18,11 +18,11 @@ test("inspectorRecord — keeps the row on a scored-only (below-threshold) turn"
     enabled: true,
     embedder: "tf",
     reason: "below_threshold",
-    scored: [{ slug: "postbean-mcp", sim: 0.31 }, { slug: "postiz", sim: 0.22 }],
+    scored: [{ slug: "globex-mcp", sim: 0.31 }, { slug: "postiz", sim: 0.22 }],
   });
   assert.ok(rec, "a scored-only turn must still be recorded");
   assert.equal(rec.embedder, "tf");
-  assert.equal(rec.scored?.[0]?.slug, "postbean-mcp");
+  assert.equal(rec.scored?.[0]?.slug, "globex-mcp");
   assert.equal(rec.loaded, undefined);
   assert.equal(rec.hinted, undefined);
 });

@@ -5,7 +5,7 @@
 // super-agent had no tool at all. What that produced, on a real turn: Ansel
 // finished its analysis, needed to tell Roby, and shelled out —
 //
-//   run_shell: cd /…/knot && apx send orchestrator default "…" --deliver
+//   run_shell: cd /…/northwind && apx send orchestrator default "…" --deliver
 //
 // `--deliver` blocks. Ansel sat frozen for the ten minutes the super-agent took
 // to answer, and from every surface both of them looked dead.
@@ -66,7 +66,7 @@ test("a message files one a2a thread with both peers on it", async () => {
     project: p,
     to: "jaro",
     from: "ansel",
-    body: "Necesito el brief de carwash.",
+    body: "Necesito el brief de la panadería.",
     config: {},
     replyFn: async () => ({ text: "Va.", model: "test:model" }),
   });
@@ -110,7 +110,7 @@ test("the peer is resolved, so the super-agent is a valid address", async () => 
     project: p,
     to: SUPERAGENT_ACTOR_ID,
     from: "ansel",
-    body: "Knot status: ya tengo el panorama.",
+    body: "Orbit status: ya tengo el panorama.",
     config: {},
     replyFn: async (args) => { got = args; return { text: "Recibido." }; },
   });

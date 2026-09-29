@@ -1,5 +1,5 @@
 // exec_agent routines must run the project agent's tool loop and persist a
-// conversation — otherwise a Magui-style cron dumps DSML tool markup as the
+// conversation — otherwise a Lumen-style cron dumps DSML tool markup as the
 // "answer", nothing on disk gets read, and the chat list stays empty.
 import fs from "node:fs";
 import os from "node:os";

@@ -38,7 +38,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 async function serveChat(root) {
   const app = express();
   app.use(express.json());
-  const p = { id: 8, name: "postbeam", path: root, storagePath: path.join(TMP_HOME, ".apx", "projects", "8"), config: null };
+  const p = { id: 8, name: "globex", path: root, storagePath: path.join(TMP_HOME, ".apx", "projects", "8"), config: null };
   const projects = { list: () => [p], get: () => p, rebuild: () => {} };
   const router = apiRouter(express, app);
   const ctx = {
@@ -59,7 +59,7 @@ async function serveChat(root) {
 }
 
 test("a web turn is stamped with its project and keeps its tool calls", async () => {
-  const root = makeTempProject({ name: "postbeam" });
+  const root = makeTempProject({ name: "globex" });
   const { server, url } = await serveChat(root);
   try {
     const res = await fetch(`${url}/api/projects/8/super-agent/chat`, {
@@ -151,7 +151,7 @@ test("streamed prose survives alongside tools, but only the final reply feeds hi
     model: "mock:test",
     usage: { input_tokens: 5, output_tokens: 3 },
     trace: [trace],
-    project: { id: "8", name: "postbeam" },
+    project: { id: "8", name: "globex" },
     timeline: [
       { kind: "text", text: "Primero verifico recursos." },
       { kind: "tool", trace },
@@ -193,7 +193,7 @@ test("the skill inspector's decision survives a reopen", () => {
     actor_kind: "superagent",
     agent_slug: "super_agent",
     body: "para la voz necesitás…",
-    meta: { project_id: "8", project_name: "postbeam", skill_inspector: decision },
+    meta: { project_id: "8", project_name: "globex", skill_inspector: decision },
   });
 
   const thread = readGlobalThread({ channel: "web", date: TODAY, project: "8" });
@@ -217,7 +217,7 @@ test("the model's thinking survives a reopen, and stays out of what feeds the mo
     actor_kind: "superagent",
     agent_slug: "super_agent",
     body: "Listo — ya traje la skill.",
-    meta: { project_id: "8", project_name: "postbeam", reasoning: thinking },
+    meta: { project_id: "8", project_name: "globex", reasoning: thinking },
   });
 
   const thread = readGlobalThread({ channel: "web", date: TODAY, project: "8" });

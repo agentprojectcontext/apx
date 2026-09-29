@@ -147,7 +147,7 @@ test("condenser: reader still surfaces the v2 record as [RESUMEN COMPACTADO]", (
 // --- the amnesia guard ------------------------------------------------------
 //
 // A compact record REPLACES the turns it covers. Production once wrote
-// `"USER_CONTEXT:\n- Manu"` over 350 turns — the agent then spent the day
+// `"USER_CONTEXT:\n- Julián"` over 350 turns — the agent then spent the day
 // re-deriving what it already knew. These pin the rule that a summary has to
 // earn the right to stand in for the history.
 
@@ -155,12 +155,12 @@ const { summaryRejectReason, countSummarySections } =
   await import("#core/memory/summarizer.js");
 
 test("summary guard: a truncated summary is refused, a real one passes", () => {
-  assert.match(summaryRejectReason("USER_CONTEXT:\n- Manu"), /too short/);
+  assert.match(summaryRejectReason("USER_CONTEXT:\n- Julián"), /too short/);
   assert.equal(summaryRejectReason(""), "empty");
   assert.match(summaryRejectReason("x".repeat(900)), /section/);
 
   const real =
-    "USER_CONTEXT:\n- Manu (APX dev).\n" + "- detail\n".repeat(40) +
+    "USER_CONTEXT:\n- Julián (APX dev).\n" + "- detail\n".repeat(40) +
     "PENDING:\n- publicar el reel\n";
   assert.equal(summaryRejectReason(real), null);
   assert.ok(countSummarySections(real) >= 2);

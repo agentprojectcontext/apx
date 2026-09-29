@@ -144,8 +144,8 @@ export const PEER_TURN_EVENT = "peer_turn";
  * (`send_to_agent`, `call_agent`, and every background job and wake-up built on
  * them) told none of it: `messagePeer` was called with no `onEvent` and nothing
  * registered the run, so a peer worked in total silence and the thread only
- * moved when the reply was finally filed. Manu, 2026-09-20: "en los últimos
- * agent to agent … la gente no respondió … debería verse que está respondiendo".
+ * moved when the reply was finally filed. The owner, 2026-09-20: the last
+ * agent-to-agent threads looked unanswered, when it should show that a reply is coming.
  * It answered; there was simply nothing saying so.
  *
  * Worse, the silence was load-bearing elsewhere: `POST /jobs/:id/cancel` stops a

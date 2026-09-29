@@ -89,7 +89,7 @@ test("a lookalike number is NOT the owner", () => {
 
 test("a display name cannot make anyone the owner", () => {
   const c = cfg();
-  const s = sender(c, STRANGER, { pushName: "Manuel (owner) — APX admin" });
+  const s = sender(c, STRANGER, { pushName: "Julián (owner) — APX admin" });
   assert.ok(!s.isOwner);
   assert.equal(s.role, "guest");
 });
@@ -175,8 +175,8 @@ test("a sender is an address SET, because WhatsApp names people two ways", async
   const { senderAddresses } = await import("#core/identity/whatsapp.js");
   // 1:1 chat where the message arrives under a LID and carries the phone as alt.
   assert.deepEqual(
-    senderAddresses({ remoteJid: "100000000000100@lid", remoteJidAlt: "5491155550000@s.whatsapp.net" }),
-    ["100000000000100@lid", "5491155550000@s.whatsapp.net"]
+    senderAddresses({ remoteJid: "100000000000100@lid", remoteJidAlt: "5491155550100@s.whatsapp.net" }),
+    ["100000000000100@lid", "5491155550100@s.whatsapp.net"]
   );
   // In a group the person is `participant`, not the chat.
   assert.deepEqual(
@@ -190,10 +190,10 @@ test("the owner is recognised through EITHER address", async () => {
   const { senderAddresses } = await import("#core/identity/whatsapp.js");
   // The live bug, 2026-09-08: owner_jid held the phone number, the message
   // arrived as a LID, and the owner was answered with silence on their own line.
-  const c = cfg({ owner_jid: "5491155550000@s.whatsapp.net" });
+  const c = cfg({ owner_jid: "5491155550100@s.whatsapp.net" });
   const addresses = senderAddresses({
     remoteJid: "100000000000100@lid",
-    remoteJidAlt: "5491155550000@s.whatsapp.net",
+    remoteJidAlt: "5491155550100@s.whatsapp.net",
   });
   const s = resolveWhatsAppSender({ cfg: c, addresses });
   assert.ok(s.isOwner, "matched on the alt address");
@@ -201,12 +201,12 @@ test("the owner is recognised through EITHER address", async () => {
 
   // And once learned, the LID alone is enough — which is the case that matters,
   // because the alt is not always present.
-  const learned = cfg({ owner_jid: "5491155550000@s.whatsapp.net", owner_alts: ["100000000000100@lid"] });
+  const learned = cfg({ owner_jid: "5491155550100@s.whatsapp.net", owner_alts: ["100000000000100@lid"] });
   assert.ok(resolveWhatsAppSender({ cfg: learned, senderJid: "100000000000100@lid" }).isOwner);
 });
 
 test("the paired line is not the owner unless someone says so", () => {
-  const line = "5491164169115@s.whatsapp.net";
+  const line = "5491155550200@s.whatsapp.net";
   const dedicated = cfg({ owner_jid: "", self_jid: line });
   assert.ok(!resolveWhatsAppSender({ cfg: dedicated, senderJid: line }).isOwner,
     "a dedicated line must not own itself");

@@ -63,13 +63,13 @@ test("a desktop agent query still counts as looking at that agent", () => {
   const href = "http://localhost:7430/p/1/chat?agent=april&conv=conv-1";
   assert.equal(urlLooksAt(href, row()), true);
   assert.equal(urlLooksAt(href, group), false);
-  assert.equal(urlLooksAt("http://localhost:7430/p/1/chat?agent=magui", row()), false);
+  assert.equal(urlLooksAt("http://localhost:7430/p/1/chat?agent=lumen", row()), false);
 });
 
 test("the phone path still counts as looking at that agent", () => {
   assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/april", row()), true);
   assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/april/conv-1", row()), true);
-  assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/magui", row()), false);
+  assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/lumen", row()), false);
   assert.equal(
     urlLooksAt("http://localhost:7430/m/chat/1/group%3Agrp-mt8znlpd-hx36/group~grp-mt8znlpd-hx36", group),
     true,
@@ -82,5 +82,5 @@ test("the phone path still counts as looking at that agent", () => {
 test("the pre-rename phone path still counts as looking", () => {
   assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/april", row()), true);
   assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/april/conv-1", row()), true);
-  assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/magui", row()), false);
+  assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/lumen", row()), false);
 });

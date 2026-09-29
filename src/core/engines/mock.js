@@ -201,7 +201,7 @@ export default {
 
     // `[mock:copyomitted]` → the leak of 2026-09-02: the model copies the
     // history annotation that stands in for a redacted answer and sends it as
-    // its whole reply, so Manu got `[omitted: this turn contained data that may
+    // its whole reply, so the owner got `[omitted: this turn contained data that may
     // be stale …]` in Telegram, twice. The reply is markup end to end — there
     // is no answer inside it to rescue — so the loop must end the turn empty
     // and let the surface's never-silent floor speak, never pass this on.

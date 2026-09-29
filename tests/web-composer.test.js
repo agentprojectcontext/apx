@@ -213,8 +213,8 @@ test("switching chats never leaves the previous transcript or stream in the pane
 // as an ordinary bubble at the foot of the thread, "in the conversation the
 // moment you send it". Reading it back is what broke — drawn like a sent
 // message it reads as sent, and scrolling up hid it while it was still going to
-// fire. Manu: "es mejor ordenarlo digamos arriba del mismo textarea, como lo
-// hacemos acá en Claude."
+// fire. The owner asked for it above the textarea instead, the way Claude's own
+// composer does it.
 test("what has not gone out yet lives above the field, not in the thread", () => {
   const list = web("components", "chat", "MessageList.tsx");
   const bubble = web("components", "chat", "MessageBubble.tsx");
@@ -417,9 +417,9 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.match(chats, /jobThread=\{th\.channel === "a2a" \? th\.id : null\}/, "…from the a2a pair id, the only kind a job has");
   // MOVED, 2026-09-14, one line UP. It used to trail the last message, which is
   // the line that wants every pixel it can get; the project/channel line above
-  // ends in two chips and has half the row to spare. Manu: "por el espacio que
-  // tenemos el loading podría ir al final de todo en la línea de proyecto y
-  // canal". Positional, and written to survive the props being reformatted
+  // ends in two chips and has half the row to spare. The owner asked for the
+  // loading mark at the very end of the project/channel line, where the room
+  // is. Positional, and written to survive the props being reformatted
   // onto their own lines.
   assert.match(
     inbox,
@@ -448,8 +448,8 @@ test("every chat rail reuses one running/unread indicator", () => {
   assert.doesNotMatch(indicator, /const status =/, "no single winner decides the slot any more");
 });
 
-// Manu, 2026-09-14: "faltaría el botón de mandar ahora y quizás ordenarlos
-// también a los mensajes, así se mandan en el orden que nos convenga".
+// The owner, 2026-09-14: a "send now" button was missing, and the queued
+// messages should be reorderable so they go out in the order that suits.
 test("the queue can be worked: send this one next, or move it a step", () => {
   const chat = web("hooks", "useChat.ts");
   const pending = web("components", "chat", "PendingTurns.tsx");

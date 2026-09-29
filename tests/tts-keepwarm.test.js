@@ -18,7 +18,7 @@ test("isSelfHosted accepts this machine and the local network", () => {
     "http://127.1.2.3:5111/v1",
     "http://localhost:5111/v1",
     "http://qvox.local:5111/v1",
-    "http://192.168.18.138:5111/v1",
+    "http://192.168.1.52:5111/v1",
     "http://10.0.0.4:8080/v1",
     "http://172.16.0.1/v1",
     "http://172.31.255.254/v1",

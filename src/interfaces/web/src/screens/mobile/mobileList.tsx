@@ -29,7 +29,7 @@ export function MobileListHeader({
    *  those need nothing. A screen you REACH from one of them — the sessions
    *  list, opened from the chat list's `>_` — has no tab of its own lighting
    *  up, and without this there is no way off it but the browser's own chrome,
-   *  which the installed app does not have: "no veo el botón de volver" (Manu,
+   *  which the installed app does not have: "no veo el botón de volver" (the owner,
    *  2026-09-20). */
   onBack?: () => void;
   /** Omit BOTH to get a header with no search box. A screen that is meant to be

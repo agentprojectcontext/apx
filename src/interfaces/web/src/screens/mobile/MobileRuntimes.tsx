@@ -17,7 +17,7 @@ const PAGE = 60;
 /**
  * Every session an external runtime ran, and a way to say more to one.
  *
- * "Así puedo ver qué hacen, qué hablan y qué sesiones vas lanzando" (Manu,
+ * "Así puedo ver qué hacen, qué hablan y qué sesiones vas lanzando" (the owner,
  * 2026-09-20). Until now a launch left a record nothing read: on that same
  * afternoon nine Claude Code sessions ran, six died at a deadline, and the only
  * account of any of it was what the agent that launched them said — which was
@@ -82,7 +82,7 @@ export function MobileRuntimes({ onBack }: { onBack?: () => void }) {
   // closes the file when the daemon is killed mid-run, so "🔄 In progress"
   // outlives the run by however long the file sits there. Reading it as
   // "running" put a session from eleven days ago at the top of the screen under
-  // a spinner — "¿por qué estos dos se ven corriendo si ya terminaron?" (Manu,
+  // a spinner — "¿por qué estos dos se ven corriendo si ya terminaron?" (the owner,
   // 2026-09-20). The daemon now says which open records are too old to be live
   // (`abandoned`), and those get a shelf of their own rather than being folded
   // in with the runs that finished — they did not finish, they were cut off.
@@ -195,7 +195,7 @@ function RuntimeSheet({ session, onClose }: {
             sets `data-[side=bottom]:h-auto`, and a data-attribute selector wins
             on specificity, so the plain class was ignored: a long session grew
             the sheet to 9193px and pushed its own ✕ off the top of the screen
-            with no way to close it (Manu, 2026-09-20). */}
+            with no way to close it (the owner, 2026-09-20). */}
         <SheetContent side="bottom" className="flex data-[side=bottom]:h-[88vh] flex-col gap-0 rounded-t-2xl p-0">
         {/* The title is the room's own header, so the sheet does not draw a
             second one above it. Screen readers still get one. */}

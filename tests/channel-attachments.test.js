@@ -34,7 +34,7 @@ const userRow = (body, meta) => ({
   channel: "telegram",
   direction: "in",
   type: "user",
-  author: "@manu",
+  author: "@julian",
   actor_id: "7",
   body,
   meta: { chat_id: 42, message_id: 1, type: "user", ...meta },

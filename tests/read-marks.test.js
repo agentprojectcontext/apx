@@ -1,7 +1,7 @@
 // "Read" belongs to the conversation, not to the browser that read it.
 //
 // THE BUG THIS EXISTS FOR. The panel kept read marks in `localStorage`, one
-// copy per device. Manu read every chat on the laptop, picked up the phone, and
+// copy per device. The owner read every chat on the laptop, picked up the phone, and
 // found forty blue rows — every one of them already read, and no way to clear
 // them except opening forty chats again. The badge had stopped meaning "there
 // is something here" and started meaning "you have not held THIS device since
@@ -17,7 +17,7 @@
 //     most worth pointing at, and "no mark" must not be read as "read"
 //   · a mark never moves backwards: two devices reading the same row in either
 //     order leave the newer of the two standing
-//   · the row's identity carries the PERSON, or Magui, Carlos and Manu share
+//   · the row's identity carries the PERSON, or Lucía, Tomás and the owner share
 //     one mark on WhatsApp and reading any of them reads all three
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -130,14 +130,14 @@ test("the mark keys off what the AGENT said, not off activity", async () => {
 test("two people on one channel are two rows, and two marks", async () => {
   await _resetReadMarksForTest();
   await readReadMarks();
-  const magui = row({ agent_slug: "roby", channel: "whatsapp", contact_person: "magui", preview_at: "2999-01-01T00:00:00Z" });
-  const carlos = { ...magui, contact_person: "carlos" };
-  assert.notEqual(readMarkKey(magui), readMarkKey(carlos));
+  const lucia = row({ agent_slug: "roby", channel: "whatsapp", contact_person: "lucia", preview_at: "2999-01-01T00:00:00Z" });
+  const tomas = { ...lucia, contact_person: "tomas" };
+  assert.notEqual(readMarkKey(lucia), readMarkKey(tomas));
 
-  await markRowsRead([{ ...magui, at: magui.preview_at }]);
+  await markRowsRead([{ ...lucia, at: lucia.preview_at }]);
   const store = await readReadMarks();
-  assert.equal(isRowUnread(magui, store), false);
-  assert.equal(isRowUnread(carlos, store), true, "reading one contact must not read the others");
+  assert.equal(isRowUnread(lucia, store), false);
+  assert.equal(isRowUnread(tomas, store), true, "reading one contact must not read the others");
 });
 
 test("decorateUnread stamps every row without touching the rest of it", async () => {

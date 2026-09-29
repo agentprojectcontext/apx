@@ -190,10 +190,10 @@ test("a routine gets the identity built-ins, not just the settings", async () =>
   // settings alone those slots came out empty, and the model was told "none of
   // that is what  asked for" — a sentence with a hole in it, shipped daily.
   const { writeIdentity } = await import("#core/identity/index.js");
-  writeIdentity({ owner_name: "Manu", agent_name: "Roby" });
+  writeIdentity({ owner_name: "Julián", agent_name: "Roby" });
 
   const anchor = dayOpen(secretaryRoutines());
 
-  assert.match(anchor.spec.prompt, /what Manu asked for/);
+  assert.match(anchor.spec.prompt, /what Julián asked for/);
   assert.doesNotMatch(anchor.spec.prompt, /\{\{owner_name\}\}/);
 });

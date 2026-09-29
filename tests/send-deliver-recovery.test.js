@@ -1,8 +1,8 @@
 // `apx send --deliver` and the difference between "not sent" and "sent, reply lost".
 //
 // THE FAILURE THIS FIXES, from a real install (2026-09-07): five
-// `apx send claude magui "…" --deliver` in a row, four of them ended with
-// `apx: fetch failed`. All five had been delivered and magui answered all five
+// `apx send claude lumen "…" --deliver` in a row, four of them ended with
+// `apx: fetch failed`. All five had been delivered and lumen answered all five
 // — the replies were on the thread 2 to 7 minutes later. The cause is a dead
 // heat: the daemon's budget for a delivered turn is 300 s and undici's
 // headersTimeout is the same 300 s, so a peer that uses its whole budget loses
@@ -71,11 +71,11 @@ test("a refusal from the daemon is NOT a transport failure", async () => {
   assert.equal(e.status, 400);
 });
 
-const SENT = "Dos cosas, Magui. Las voces hay que rehacerlas con Gemini y ojo con tu memoria.";
+const SENT = "Dos cosas, Lumen. El calendario hay que rehacerlo y ojo con los horarios.";
 
 test("the ledger says the message was never logged — safe to resend", async () => {
   serveRows([{ ts: "2026-09-07T18:00:00Z", author: "otro", direction: "out", body: "algo más" }]);
-  const seen = await readBackSend({ pid: 7, from: "claude", to: "magui", body: SENT, since: "2026-09-07T17:59:50Z" });
+  const seen = await readBackSend({ pid: 7, from: "claude", to: "lumen", body: SENT, since: "2026-09-07T17:59:50Z" });
   assert.equal(seen.logged, false);
   assert.equal(seen.reply, null);
 });
@@ -83,9 +83,9 @@ test("the ledger says the message was never logged — safe to resend", async ()
 test("the ledger says it WAS logged and the peer has answered", async () => {
   serveRows([
     { ts: "2026-09-07T18:00:06Z", author: "claude", direction: "out", body: SENT },
-    { ts: "2026-09-07T18:01:06Z", author: "magui", direction: "out", body: "Tenés razón en las dos cosas.", meta: { final: true } },
+    { ts: "2026-09-07T18:01:06Z", author: "lumen", direction: "out", body: "Tenés razón en las dos cosas.", meta: { final: true } },
   ]);
-  const seen = await readBackSend({ pid: 7, from: "claude", to: "magui", body: SENT, since: "2026-09-07T17:59:50Z" });
+  const seen = await readBackSend({ pid: 7, from: "claude", to: "lumen", body: SENT, since: "2026-09-07T17:59:50Z" });
   assert.equal(seen.logged, true);
   assert.equal(seen.sent_ts, "2026-09-07T18:00:06Z");
   assert.match(seen.reply.body, /Tenés razón/);
@@ -93,7 +93,7 @@ test("the ledger says it WAS logged and the peer has answered", async () => {
 
 test("logged, but the peer is still working — no reply yet, and that is not a failure", async () => {
   serveRows([{ ts: "2026-09-07T18:00:06Z", author: "claude", direction: "out", body: SENT }]);
-  const seen = await readBackSend({ pid: 7, from: "claude", to: "magui", body: SENT, since: "2026-09-07T17:59:50Z" });
+  const seen = await readBackSend({ pid: 7, from: "claude", to: "lumen", body: SENT, since: "2026-09-07T17:59:50Z" });
   assert.equal(seen.logged, true);
   assert.equal(seen.reply, null);
 });
@@ -101,15 +101,15 @@ test("logged, but the peer is still working — no reply yet, and that is not a 
 test("a non-final row from the peer is not mistaken for the reply", async () => {
   serveRows([
     { ts: "2026-09-07T18:00:06Z", author: "claude", direction: "out", body: SENT },
-    { ts: "2026-09-07T18:00:30Z", author: "magui", direction: "in", body: SENT },
+    { ts: "2026-09-07T18:00:30Z", author: "lumen", direction: "in", body: SENT },
   ]);
-  const seen = await readBackSend({ pid: 7, from: "claude", to: "magui", body: SENT, since: "2026-09-07T17:59:50Z" });
+  const seen = await readBackSend({ pid: 7, from: "claude", to: "lumen", body: SENT, since: "2026-09-07T17:59:50Z" });
   assert.equal(seen.reply, null, "the echoed inbound copy is not an answer");
 });
 
 test("the daemon itself unreachable: claim nothing", async () => {
   delete routes[MSGS];
-  const seen = await readBackSend({ pid: 7, from: "claude", to: "magui", body: SENT, since: "2026-09-07T17:59:50Z" });
+  const seen = await readBackSend({ pid: 7, from: "claude", to: "lumen", body: SENT, since: "2026-09-07T17:59:50Z" });
   assert.equal(seen.logged, null, "unknown must not be reported as 'not sent'");
 });
 
@@ -117,7 +117,7 @@ test("waiting for the reply gives up on a deadline instead of hanging", async ()
   serveRows([{ ts: "2026-09-07T18:00:06Z", author: "claude", direction: "out", body: SENT }]);
   const t0 = Date.now();
   const done = await awaitReplyOnThread({
-    pid: 7, from: "claude", to: "magui", body: SENT,
+    pid: 7, from: "claude", to: "lumen", body: SENT,
     since: "2026-09-07T17:59:50Z", deadline: Date.now() + 50,
   });
   assert.equal(done.reply, null);

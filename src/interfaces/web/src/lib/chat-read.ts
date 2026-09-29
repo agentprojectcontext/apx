@@ -18,8 +18,8 @@
 // The daemon does. This file used to keep the marks in localStorage, per
 // device, on the theory that "have I read this" is a property of the screen you
 // are sitting at. One person with two devices is all it takes to break that:
-// Manu read everything on the laptop, picked up the phone, and found forty blue
-// rows he had already read — with no way to clear them except opening forty
+// The owner read everything on the laptop, picked up the phone, and found forty blue
+// rows they had already read — with no way to clear them except opening forty
 // chats again. The dot had stopped meaning "there is something here".
 //
 // So the answer arrives ON the row (`row.unread`, decided in
@@ -52,8 +52,8 @@ const listeners = new Set<() => void>();
  * parse the other's spelling.
  *
  * The person is in it because on a channel that talks to several (WhatsApp),
- * every row is the super-agent's on the same channel: without this, Manu, Magui
- * and Carlos shared one key, so all three lit up as selected together and
+ * every row is the super-agent's on the same channel: without this, Julián, Lucía
+ * and Tomás shared one key, so all three lit up as selected together and
  * clicking any of them opened whichever the list found first.
  *
  * The PERSON and not the conversation id: the id is a day of the ledger and

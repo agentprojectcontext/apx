@@ -90,8 +90,8 @@ export function takenAgentNames({ apxHome = process.env.APX_HOME || path.join(pr
  *
  * THE POINT: a name-less agent is not a neutral default — every surface falls
  * back to printing its slug, so the panel says the address twice ("cfo / cfo",
- * "savia-agent · Savia Implementation Agent") and the group chat headers a
- * bubble with `productor-reels`. The vault importer has named its installs
+ * "acme-agent · Acme Implementation Agent") and the group chat headers a
+ * bubble with `video-producer`. The vault importer has named its installs
  * since day one; this is that same rule, for every other way an agent is born.
  *
  * @param {{name?:string, slug?:string, roster?:Array<{fields?:object}>}} spec

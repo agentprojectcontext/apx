@@ -56,8 +56,8 @@ export function buildNewAgentFields(projectPath, spec = {}, roster = []) {
   return {
     // Every agent gets a NAME, for the same reason it gets a face: the slug is
     // an address, and a surface with nothing else to print prints the address
-    // — "cfo / cfo", "savia-agent · Savia Implementation Agent", a group bubble
-    // headed `productor-reels`. The vault importer has named its installs from
+    // — "cfo / cfo", "acme-agent · Acme Implementation Agent", a group bubble
+    // headed `video-producer`. The vault importer has named its installs from
     // the start; this is that rule everywhere else (core/apc/agent-names.js).
     Name: newAgentName({ name, slug, roster }),
     Role: role || null,

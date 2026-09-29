@@ -164,8 +164,8 @@ export function shapeConversationMessage(t) {
     // A turn NOBODY TYPED. A background job's wake-up is filed as a user turn so
     // the agent reads it as the next thing said to it — but it is not something
     // the owner said, and a viewer that draws it in their voice puts a wall of
-    // machine English in their own chat bubble. Seen 2026-09-14, Manu reading
-    // his own screen: "¿qué es esto? no sé por qué lo veo". So the marker rides
+    // machine English in their own chat bubble. Seen 2026-09-14, the owner reading
+    // their own screen and asking what this was and why they were seeing it. So the marker rides
     // out with the turn and the viewer draws it as a notice.
     const automation = t.meta?.automation;
     return {

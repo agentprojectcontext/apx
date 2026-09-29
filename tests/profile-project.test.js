@@ -101,9 +101,9 @@ test("the block renders with this machine's super-agent name, not a hardcoded on
   const root = makeTempProject({ name: "block" });
   try {
     useProjectProfile(projectOf(root), "acme");
-    const block = buildProjectProfileBlock(root, { owner_name: "Manu" }, { super_agent: { name: "Roby" } });
+    const block = buildProjectProfileBlock(root, { owner_name: "Julián" }, { super_agent: { name: "Roby" } });
     assert.match(block, /Above you is Roby/);
-    assert.match(block, /writes to Manu/);
+    assert.match(block, /writes to Julián/);
     assert.match(block, /Cap: 4/);
     assert.doesNotMatch(block, /\{\{/, "an unresolved variable would reach the model as literal braces");
   } finally {

@@ -26,7 +26,7 @@ function capture(fn) {
 test("the owner's send is not news", () => {
   assert.deepEqual(
     mascotNotificationsFromEvents([
-      { direction: "in", type: "user", channel: "telegram", author: "@manu" },
+      { direction: "in", type: "user", channel: "telegram", author: "@julian" },
       { direction: "in", type: "user", channel: "group", author: "owner" },
       { direction: "in", type: "user", channel: "web", author: "user" },
     ]),
@@ -39,12 +39,12 @@ test("an agent's launched final on telegram, group, or a2a is one bubble per age
     mascotNotificationsFromEvents([
       { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
       { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
-      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+      { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "roby" },
     ]),
     [
       "Roby respondió en Telegram",
       "sofia respondió en Grupo",
-      "Nuevo mensaje de Magui a Roby",
+      "Nuevo mensaje de Lumen a Roby",
     ],
   );
 });
@@ -52,14 +52,14 @@ test("an agent's launched final on telegram, group, or a2a is one bubble per age
 test("an a2a bubble names both ends, and one sender reaching two peers is two bubbles", () => {
   assert.deepEqual(
     mascotNotificationsFromEvents([
-      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
-      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "martin" },
-      { direction: "out", type: "agent", channel: "a2a", author: "roby", agent_slug: "roby", to: "magui" },
+      { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "roby" },
+      { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "martin" },
+      { direction: "out", type: "agent", channel: "a2a", author: "roby", agent_slug: "roby", to: "lumen" },
     ]),
     [
-      "Nuevo mensaje de Magui a Roby",
-      "Nuevo mensaje de Magui a Martin",
-      "Nuevo mensaje de Roby a Magui",
+      "Nuevo mensaje de Lumen a Roby",
+      "Nuevo mensaje de Lumen a Martin",
+      "Nuevo mensaje de Roby a Lumen",
     ],
   );
 });
@@ -74,12 +74,12 @@ test("the super-agent is named, not filed: a bubble says Roby, not super_agent",
   assert.notEqual(roby, "super_agent");
   assert.deepEqual(
     mascotNotificationsFromEvents([
-      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "super_agent" },
-      { direction: "out", type: "agent", channel: "a2a", author: "super_agent", agent_slug: "super_agent", to: "magui" },
+      { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "super_agent" },
+      { direction: "out", type: "agent", channel: "a2a", author: "super_agent", agent_slug: "super_agent", to: "lumen" },
     ]),
     [
-      `Nuevo mensaje de Magui a ${roby}`,
-      `Nuevo mensaje de ${roby} a Magui`,
+      `Nuevo mensaje de Lumen a ${roby}`,
+      `Nuevo mensaje de ${roby} a Lumen`,
     ],
   );
 });
@@ -185,8 +185,8 @@ test("an a2a row announces its recipient, and no other channel does", () => {
       channel: "a2a",
       direction: "out",
       type: "agent",
-      agent_slug: "magui",
-      author: "magui",
+      agent_slug: "lumen",
+      author: "lumen",
       body: "quedó programado el reel",
       meta: { to: "roby", final: true },
     });
@@ -198,9 +198,9 @@ test("an a2a row announces its recipient, and no other channel does", () => {
       direction: "in",
       type: "agent",
       agent_slug: "roby",
-      author: "magui",
+      author: "lumen",
       body: "quedó programado el reel",
-      meta: { from: "magui" },
+      meta: { from: "lumen" },
     });
     // `to` is an agent name only on a2a. Anywhere else it could be an address,
     // so it stays off the wire.
@@ -218,7 +218,7 @@ test("an a2a row announces its recipient, and no other channel does", () => {
   assert.equal(seen[0].to, "roby");
   assert.equal(seen[2].to, null);
   assert.deepEqual(mascotNotificationsFromEvents(seen), [
-    "Nuevo mensaje de Magui a Roby",
+    "Nuevo mensaje de Lumen a Roby",
     "Roby respondió en Telegram",
   ]);
 });
@@ -228,12 +228,12 @@ test("every bubble carries the channel a device filters on", () => {
     mascotNoticesFromEvents([
       { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
       { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
-      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+      { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "roby" },
     ]),
     [
       { text: "Roby respondió en Telegram", channel: "telegram" },
       { text: "sofia respondió en Grupo", channel: "group" },
-      { text: "Nuevo mensaje de Magui a Roby", channel: "a2a" },
+      { text: "Nuevo mensaje de Lumen a Roby", channel: "a2a" },
     ],
   );
 });
@@ -261,7 +261,7 @@ test("the lines are the notices, and every channel is one a client can offer", (
     { direction: "out", type: "agent", channel: "web", via: "routine_delivery", agent_slug: "golf-coach", notify: "🏌️" },
     { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
     { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
-    { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+    { direction: "out", type: "agent", channel: "a2a", author: "lumen", agent_slug: "lumen", to: "roby" },
   ];
   const notices = mascotNoticesFromEvents(events);
   // The flat list an older APK still reads is exactly these lines, in order.

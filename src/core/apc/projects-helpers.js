@@ -17,8 +17,8 @@ export function projectMeta(projects, entry) {
  *
  * `resolveProject` used to read an omitted `project` argument as "the default
  * project", which is right for the super-agent (it orchestrates across all of
- * them) and wrong for anyone who lives in one. A routine run by Magui in Appsi
- * called `run_shell tail work/marketing/magui/brain.md` and got
+ * them) and wrong for anyone who lives in one. A routine run by Lumen in Initech
+ * called `run_shell tail work/marketing/lumen/brain.md` and got
  * `~/.apx/projects/default` — her own notes, one directory over, reported as
  * "No such file or directory". Every scheduled run since had been working from
  * an empty memory and writing its entry where nobody reads it.

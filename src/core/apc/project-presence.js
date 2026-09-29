@@ -8,8 +8,8 @@
 // basename of the path that no longer exists, `readAgents()` finds no directory
 // and answers 0, and `rebuild` reports "0 agents" with a zero exit code.
 //
-// That is how renaming `/proyectos_varios/knot` to `/proyectos_varios/cheto`
-// turned a project called "Cheto" with eight agents back into "knot" with none.
+// That is how renaming `/projects/orbit` to `/projects/northwind`
+// turned a project called "Northwind" with eight agents back into "orbit" with none.
 // Nothing in the CLI or the panel said a word, so the only reading available to
 // the user was that the rename had reverted itself.
 //

@@ -52,7 +52,7 @@ test("a delegation is filed as an a2a conversation, both halves", async () => {
   const out = await delegateToAgent({
     project: p,
     agent: AGENT,
-    prompt: "Revisá el módulo de carwash y abrí la task.",
+    prompt: "Revisá el módulo de la panadería y abrí la task.",
     config: {},
     replyFn: async (args) => {
       seen.push(args);

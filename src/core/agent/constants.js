@@ -15,7 +15,7 @@ export const TELEGRAM_TOOL_ITERS = 1000;
 // A background routine that does NOT report to Telegram has no human waiting on
 // a bounded chat turn: nobody is going to read a "want me to keep going?"
 // wrap-up, let alone answer it. Capping such a run at the conversational budget
-// just filed a half-finished record — Magui hitting ~23 steps and stopping
+// just filed a half-finished record — Lumen hitting ~23 steps and stopping
 // mid-backlog. So a non-Telegram routine runs until the work is actually done:
 // the loop already ends on its own the moment the model stops calling tools
 // (run-agent.js), and this high finite ceiling stays only as a runaway backstop.
@@ -90,7 +90,7 @@ export const GROUP_TOOL_ITERS = 50;
 //
 // 20, down from 50 (2026-09-23). Fifty steps per hop let one peer burn a whole
 // usage window on a task that should have come back with a question: agents
-// "re-verified" a broken Cheto MCP for dozens of steps each instead of
+// "re-verified" a broken Northwind MCP for dozens of steps each instead of
 // reporting it. Twenty is still double the conversational budget — room for
 // real work — and the closing step (A2A_WRAPUP_SIGNAL in run-agent.js) hands
 // the decision to continue back to the agent that asked, which can re-send

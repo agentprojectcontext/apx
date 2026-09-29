@@ -1,7 +1,7 @@
 import { resolveProject } from "../helpers.js";
 
 // The catalog of ONE MCP server. `list_mcps` names the servers; without this
-// the model knew a server called "postbean" existed and had no way to learn
+// the model knew a server called "globex" existed and had no way to learn
 // what it could ask it for. In practice it guessed tool names, got
 // `Tool [tools] not found`, and then went reading the server's own source to
 // reverse-engineer the contract — a dozen shell calls to recover something the

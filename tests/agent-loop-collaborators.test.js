@@ -13,7 +13,7 @@ import { TOOLS } from "#core/agent/tools/names.js";
 
 test("greeting guard: the first greeting survives, later ones are stripped", () => {
   const g = createGreetingGuard();
-  assert.equal(g.apply("¡Hola Manu! Voy a revisar."), "¡Hola Manu! Voy a revisar.");
+  assert.equal(g.apply("¡Hola Julián! Voy a revisar."), "¡Hola Julián! Voy a revisar.");
   assert.equal(g.apply("Hola de nuevo, ya está listo."), "ya está listo.");
 });
 
@@ -76,7 +76,7 @@ test("side-effect ledger: a repeated world-changing call is caught", () => {
 test("message ledger: a re-worded repeat of the same message is one message", () => {
   const led = createSideEffectLedger();
   const first = {
-    text: '📲 WhatsApp de Juan Pérez: "hacen service de Amarok? cuánto sale el de 60 mil km?" ' +
+    text: '📲 WhatsApp de Juan Pérez: "hacen service de la camioneta? cuánto sale el de 60 mil km?" ' +
           "Le respondí que lo consulto con vos.",
   };
   const sig = led.signature(TOOLS.SEND_TELEGRAM, first);
@@ -84,7 +84,7 @@ test("message ledger: a re-worded repeat of the same message is one message", ()
   led.record(sig, { ok: true, sent: 1 }, { name: TOOLS.SEND_TELEGRAM, args: first });
 
   const reworded = {
-    text: '📱 *Consulta WhatsApp de Juan Pérez*: "hacen service de Amarok? cuánto sale el de 60 mil km?" ' +
+    text: '📱 *Consulta WhatsApp de Juan Pérez*: "hacen service de la camioneta? cuánto sale el de 60 mil km?" ' +
           "Le respondí que lo consultaba con vos.",
   };
   assert.equal(led.seen(led.signature(TOOLS.SEND_TELEGRAM, reworded)), false, "not an exact match");
@@ -97,7 +97,7 @@ test("message ledger: a re-worded repeat of the same message is one message", ()
 
 test("message ledger: a different message still gets through", () => {
   const led = createSideEffectLedger();
-  const first = { text: "Juan pregunta por el service de Amarok de 60 mil km." };
+  const first = { text: "Juan pregunta por el service de la camioneta de 60 mil km." };
   led.record(led.signature(TOOLS.SEND_TELEGRAM, first), { ok: true }, { name: TOOLS.SEND_TELEGRAM, args: first });
 
   const second = { text: "Encontré tres turnos disponibles para la semana que viene." };

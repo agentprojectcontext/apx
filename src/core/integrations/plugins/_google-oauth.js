@@ -6,7 +6,7 @@
 // events on it, but Google blocks it from inviting other people or minting a
 // Meet link unless the whole account lives inside a Google Workspace domain
 // with Domain-Wide Delegation — a thing a personal @gmail.com simply does not
-// have. So "agendá una reunión con Carlos y mandale el Meet" was impossible.
+// have. So "agendá una reunión con Tomás y mandale el Meet" was impossible.
 //
 // User OAuth acts AS YOU. You consent once in the browser, Google hands back a
 // refresh token, and from then on APX creates events, sends invitations, and

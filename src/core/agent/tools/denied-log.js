@@ -7,8 +7,8 @@
 // see is a refusal it will argue with — but it also means the one case worth
 // knowing about leaves no trace: an agent that goes looking for the delete
 // button anyway, by name, gets a flat "not available to you" and the turn moves
-// on. Manu's rule for anything an agent decided not to do (or could not) is to
-// leave it somewhere he can go and look at it.
+// on. The owner's rule for anything an agent decided not to do (or could not) is to
+// leave it somewhere they can go and look at it.
 //
 // So: `log`. Never a push channel — this is not urgent, and waking somebody to
 // say "nothing happened" is the interruption the gate just prevented — and

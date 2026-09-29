@@ -26,7 +26,7 @@ function makeProject() {
   const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-"));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "acme", apx: "installed" }));
-  for (const [slug, name] of [["magui", "Magui"], ["andy", "Andy"]]) {
+  for (const [slug, name] of [["lumen", "Lumen"], ["andy", "Andy"]]) {
     fs.writeFileSync(
       path.join(root, ".apc", "agents", `${slug}.md`),
       ["---", `Name: ${name}`, "Role: Tester", "Model: mock", "---", "", "A test agent."].join("\n"),
@@ -63,21 +63,21 @@ const post = (base, pid, body) =>
 test("creating a room from a 1:1 carries the 1:1 into it", async () => {
   const P = makeProject();
   const conv = startConversation({
-    storagePath: P.storagePath, agentSlug: "magui", engine: "mock", channel: "web",
+    storagePath: P.storagePath, agentSlug: "lumen", engine: "mock", channel: "web",
   });
   appendTurn({ filePath: conv.path, role: "user", content: "¿Seguimos con el brief?" });
-  appendTurn({ filePath: conv.path, role: "assistant", content: "Dale.", meta: { agent: "magui" } });
+  appendTurn({ filePath: conv.path, role: "assistant", content: "Dale.", meta: { agent: "lumen" } });
 
   const { server, base } = await serve(P);
   try {
     const res = await post(base, P.id, {
-      participants: ["magui", "andy"],
-      from: { agent: "magui", conversation: conv.id },
+      participants: ["lumen", "andy"],
+      from: { agent: "lumen", conversation: conv.id },
     });
     assert.equal(res.status, 201);
     const body = await res.json();
     assert.equal(body.imported, 2, "the answer says how much was carried");
-    assert.deepEqual(body.participants.sort(), ["andy", "magui"]);
+    assert.deepEqual(body.participants.sort(), ["andy", "lumen"]);
     const room = readProjectGroupThread(P.storagePath, body.id);
     assert.deepEqual(room.messages.map((m) => m.content), ["¿Seguimos con el brief?", "Dale."]);
   } finally { server.close(); }
@@ -89,25 +89,25 @@ test("creating a room from an a2a pair needs no participants at all", async () =
   // guard every other shape passes.
   const P = makeProject();
   P.logMessage({
-    agent_slug: "magui", channel: "a2a", direction: "in", author: "andy",
+    agent_slug: "lumen", channel: "a2a", direction: "in", author: "andy",
     body: "¿Cómo va acme?", meta: { from: "andy" }, ts: "2026-09-11T10:00:00Z", external_id: "x1",
   });
   P.logMessage({
-    agent_slug: "magui", channel: "a2a", direction: "out", type: "agent", actor_kind: "agent",
-    actor_id: "magui", author: "magui", body: "Cerrado.", meta: { to: "andy", final: true },
+    agent_slug: "lumen", channel: "a2a", direction: "out", type: "agent", actor_kind: "agent",
+    actor_id: "lumen", author: "lumen", body: "Cerrado.", meta: { to: "andy", final: true },
     ts: "2026-09-11T10:01:00Z", external_id: "x2",
   });
   P.logMessage({
-    agent_slug: "andy", channel: "a2a", direction: "in", author: "magui",
-    body: "Cerrado.", meta: { from: "magui" }, ts: "2026-09-11T10:01:00Z", external_id: "x2",
+    agent_slug: "andy", channel: "a2a", direction: "in", author: "lumen",
+    body: "Cerrado.", meta: { from: "lumen" }, ts: "2026-09-11T10:01:00Z", external_id: "x2",
   });
 
   const { server, base } = await serve(P);
   try {
-    const res = await post(base, P.id, { from: { thread: a2aThreadId("andy", "magui") } });
+    const res = await post(base, P.id, { from: { thread: a2aThreadId("andy", "lumen") } });
     assert.equal(res.status, 201);
     const body = await res.json();
-    assert.deepEqual(body.participants.sort(), ["andy", "magui"]);
+    assert.deepEqual(body.participants.sort(), ["andy", "lumen"]);
     assert.equal(body.imported, 2);
     const room = readProjectGroupThread(P.storagePath, body.id);
     assert.deepEqual(room.messages.map((m) => m.content), ["¿Cómo va acme?", "Cerrado."]);
@@ -118,7 +118,7 @@ test("a half-written `from` is refused rather than guessed at", async () => {
   const P = makeProject();
   const { server, base } = await serve(P);
   try {
-    const res = await post(base, P.id, { participants: ["magui"], from: { agent: "magui" } });
+    const res = await post(base, P.id, { participants: ["lumen"], from: { agent: "lumen" } });
     assert.equal(res.status, 400);
     assert.match((await res.json()).error, /both agent and conversation/);
   } finally { server.close(); }
@@ -129,7 +129,7 @@ test("promoting a conversation of an agent that does not exist 404s", async () =
   const { server, base } = await serve(P);
   try {
     const res = await post(base, P.id, {
-      participants: ["magui"],
+      participants: ["lumen"],
       from: { agent: "nadie", conversation: "2026-01-01-01" },
     });
     assert.equal(res.status, 404);
@@ -140,7 +140,7 @@ test("creating a plain room still works exactly as it did", async () => {
   const P = makeProject();
   const { server, base } = await serve(P);
   try {
-    const res = await post(base, P.id, { participants: ["magui", "andy"], title: "Acme" });
+    const res = await post(base, P.id, { participants: ["lumen", "andy"], title: "Acme" });
     assert.equal(res.status, 201);
     const body = await res.json();
     assert.equal(body.title, "Acme");

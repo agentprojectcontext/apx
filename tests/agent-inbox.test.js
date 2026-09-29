@@ -269,8 +269,8 @@ test("the super-agent row opens under the project its chat happened in", () => {
   // written inside another project is not project 0's thread to read, so the
   // daemon answered `404: thread not found` over an empty pane.
   //
-  // Manu, 2026-09-20, with a screenshot of exactly that: "Te veo charlando pero
-  // no me abre el post."
+  // The owner, 2026-09-20, with a screenshot of exactly that: the chat was
+  // visibly active but the thread would not open.
   const p = makeProject("alpha", ["scout"]);
   try {
     seedGlobalThread("web", "2026-08-03", [
@@ -449,26 +449,26 @@ function writeConversationOn(project, slug, { id, channel, startedAt, lastAt, tu
 }
 
 test("a routine conversation is never the inbox headline — the last real chat is", () => {
-  const p = makeProject("routines", ["magui"]);
+  const p = makeProject("routines", ["lumen"]);
   try {
     // Older real chat...
-    writeConversationOn(p, "magui", {
+    writeConversationOn(p, "lumen", {
       id: "c1-web", channel: "web",
       startedAt: "2026-08-01T09:00:00Z", lastAt: "2026-08-01T09:01:00Z",
       turns: [{ role: "assistant", ts: "2026-08-01T09:01:00Z", content: "posted the daily." }],
     });
     // ...and a NEWER routine run on top of it.
-    writeConversationOn(p, "magui", {
+    writeConversationOn(p, "lumen", {
       id: "c2-routine", channel: "routine",
       startedAt: "2026-08-01T12:00:00Z", lastAt: "2026-08-01T12:01:00Z",
       turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "cron tick done." }],
     });
 
     const { rows } = listAgentInbox([p]);
-    const magui = rows.find((r) => r.agent_slug === "magui");
-    assert.ok(magui, "magui is in the inbox");
-    assert.equal(magui.channel, "web", "the routine run does not become the row's channel");
-    assert.equal(magui.preview, "posted the daily.", "the preview is the last real chat, not the routine tick");
+    const lumen = rows.find((r) => r.agent_slug === "lumen");
+    assert.ok(lumen, "lumen is in the inbox");
+    assert.equal(lumen.channel, "web", "the routine run does not become the row's channel");
+    assert.equal(lumen.preview, "posted the daily.", "the preview is the last real chat, not the routine tick");
   } finally {
     cleanup(p);
   }

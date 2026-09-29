@@ -17,7 +17,7 @@ Listing returns `bundled ∪ user`, with `source: "bundled" | "user" | "user-ove
 
 ## Bundled starter pack (14 templates)
 
-### Named team (from nicho-apps)
+### Named team (from acme-apps)
 
 | Slug | Role | Strength |
 |---|---|---|

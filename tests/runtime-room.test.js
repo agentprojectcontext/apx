@@ -1,9 +1,9 @@
 // A runtime session, as a room you can read — and the three voices in it.
 //
-// Manu, 2026-09-20: "claude code, codex y opencode deberían verse en la lista
-// de chats y tratarse como grupo quizás — el agente habla como agente pero
-// claude recibe como yo mismo, y yo veo los 3 tipos: mi mensaje, el del agente
-// y el de claude."
+// The owner's ask, 2026-09-20: Claude Code, Codex and OpenCode sessions should
+// show up in the chat list and be treated like a group — the agent speaks as
+// the agent, the engine receives it as the owner, and the owner sees all three
+// kinds: their own message, the agent's, and the engine's.
 //
 // From the engine's side there is ONE user: `claude -p` takes a prompt and does
 // not care who typed it. From the room's side there are three speakers. This
@@ -129,7 +129,7 @@ test("three voices: yours on the right, the agent's in its own name, the engine'
 
       const byAgent = room.messages[0];
       // The engine received it as the user. The room says who actually wrote it.
-      assert.equal(byAgent.on_behalf_of, "owner", "Roby wrote it in Manu's name");
+      assert.equal(byAgent.on_behalf_of, "owner", "Roby wrote it in the owner's name");
       assert.equal(room.messages[2].role, "user", "the owner's line is the owner's");
       assert.equal(room.messages[2].on_behalf_of, undefined, "nobody wrote it for them");
     });

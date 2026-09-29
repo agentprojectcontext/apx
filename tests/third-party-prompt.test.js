@@ -31,7 +31,7 @@ const SECRETS = {
   projectPath:   "/ZZPATHZZ/proyectos/secreto",
   lazyTools:     "ZZTOOLZZ_transferir_plata",
   suffix:        "ZZSUFFIXZZ-formato-interno",
-  ownerName:     "ZZOWNERZZ-Manuel",
+  ownerName:     "ZZOWNERZZ-Julián",
 };
 
 const projects = {
@@ -54,7 +54,7 @@ const globalConfig = {
 const poisonedInputs = {
   globalConfig,
   projects,
-  listSkills: () => [{ slug: "siete-app", description: "los 7 negocios" }],
+  listSkills: () => [{ slug: "acme-board", description: "el tablero de proyectos" }],
   contextNote: SECRETS.contextNote,
   channelMeta: { projectId: 7, projectName: SECRETS.projectName, projectPath: SECRETS.projectPath },
   systemSuffix: SECRETS.suffix,

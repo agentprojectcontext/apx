@@ -25,7 +25,7 @@ export type InspectorTrace = {
  * thing you own, so it has to be reachable from where it is named.
  */
 // How much of a near-miss is worth showing as "considered". The offline `tf`
-// fallback embedder scores everything low and compressed — an on-topic postbean
+// fallback embedder scores everything low and compressed — an on-topic globex
 // query lands around 0.18-0.28 — so the calibrated 0.40 hint bar hides even a
 // clearly relevant match. This low floor keeps those visible; it can't fully
 // separate signal from noise on `tf` (that needs a real embedder — ollama/

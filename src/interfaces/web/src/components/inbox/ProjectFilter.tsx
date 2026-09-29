@@ -47,7 +47,7 @@ export function ProjectFilter({
  *
  * Its own badge, next to but never inside the channel's: they are two facts
  * about the same conversation and either one alone leaves a reader guessing.
- * "Zoya · Web" does not say whose Zoya; "Zoya · Appsi" does not say where she
+ * "Zoya · Web" does not say whose Zoya; "Zoya · Initech" does not say where she
  * said it.
  *
  * Nothing is drawn for the default workspace. That is where the super-agent
@@ -73,7 +73,7 @@ export function ProjectTag({
   // the inbox has answered. `projectLabel` fell back to the id, so those wore
   // a badge reading "4" — which does not look like a missing name, it looks
   // like the agent has been renamed: "¿qué pasó con Roby que ahora se llama
-  // 4?" (Manu, 2026-09-20). Fixing the one row that produced it left the other
+  // 4?" (the owner, 2026-09-20). Fixing the one row that produced it left the other
   // doors open, the same way five surfaces each built a runtime destination by
   // hand the week before.
   //

@@ -107,7 +107,7 @@ export async function triggerWakeup(config, log, deps = {}) {
 
   // A SYSTEM notice, not an initiative: "the daemon came back" is an alert
   // the owner needs to see after every restart, so the interruption budget does
-  // not get a say (Manu, 2026-09-29: "es un warn o alert, no puede evitarse").
+  // not get a say (the owner, 2026-09-29: "es un warn o alert, no puede evitarse").
   // It is not counted against the daily allowance either, and carries no
   // "useful / noise" buttons — there is nothing to learn from an alert. The
   // one courtesy it keeps is the quiet hours: inside them it still goes out,

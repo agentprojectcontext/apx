@@ -233,7 +233,7 @@ function wrapOnEventForLog(send, { trace_id, channel, reasoning }) {
  * Measured 2026-09-08, one "Gracias" from a contact:
  *   22:11:27 in  channel  Gracias
  *   22:11:28 in  bridge   [WhatsApp de …]: Gracias
- *   22:11:29 out channel  De nada Magui!            ← actually sent
+ *   22:11:29 out channel  De nada Lucía!            ← actually sent
  *   22:11:30 out bridge   De nada! Cualquier cosa…  ← written here, sent nowhere
  *
  * Two model turns per message, two answers that can contradict each other, and

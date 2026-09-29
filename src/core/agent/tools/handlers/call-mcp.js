@@ -22,10 +22,10 @@ export default {
   // `call_mcp` carries NO dangerous flag, on purpose.
   //
   // It used to be graded per call: split the target tool's name into words and
-  // look them up in two lists of English verbs and nouns, so `cheto_task_update`
+  // look them up in two lists of English verbs and nouns, so `northwind_task_update`
   // was "dangerous" because it contains "update". Under `automatico` that means
   // a confirmation dialog, and a routine has nobody to show one to — so the
-  // company-council-cmo run died on `cheto_task_update` with "Action requires
+  // board-cmo run died on `northwind_task_update` with "Action requires
   // user confirmation", which was not true: nothing about that call needed a
   // person. Putting `call_mcp` in the routine's allowed_tools did not help
   // either, because `automatico` does not consult the allowlist at all.

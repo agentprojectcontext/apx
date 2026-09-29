@@ -1,9 +1,9 @@
 // AN AGENT IS A PERSON, NOT A FILENAME.
 //
-// 2026-09-20, from Manu's own screen: Roby created `savia-agent` (no name at
-// all, so the panel printed the slug and the role badge beside it read "Savia
-// Implementation Agent") and `productor-reels`, which it named "Productor
-// Reels" — the slug, spelled out. The group chat then headed that agent's
+// 2026-09-20, from the owner's own screen: Roby created `acme-agent` (no name at
+// all, so the panel printed the slug and the role badge beside it read "Acme
+// Implementation Agent") and `video-producer`, which it named "Video
+// Producer" — the slug, spelled out. The group chat then headed that agent's
 // bubbles with the address while the "traído por" tag two words away read the
 // name: the same agent, one line, two spellings.
 //
@@ -47,10 +47,10 @@ function makeCreateHandler(root) {
 test("an agent created without a name is named from the pool", () => {
   const root = makeTempProject({ name: "unnamed" });
   try {
-    createAgent(project(root), { slug: "savia-agent", system: "do things" });
-    const name = agent(root, "savia-agent")?.fields?.Name;
+    createAgent(project(root), { slug: "acme-agent", system: "do things" });
+    const name = agent(root, "acme-agent")?.fields?.Name;
     assert.ok(name, "a name-less agent is how the panel ends up printing the slug");
-    assert.notEqual(name, "savia-agent", "the slug is an address, not a name");
+    assert.notEqual(name, "acme-agent", "the slug is an address, not a name");
     assert.ok(agentNamePool().includes(name), `${name} must come from the shared pool`);
   } finally {
     cleanupTempProject(root);
@@ -60,8 +60,8 @@ test("an agent created without a name is named from the pool", () => {
 test("the name the caller asked for is the name it gets", () => {
   const root = makeTempProject({ name: "named" });
   try {
-    createAgent(project(root), { slug: "romi", system: "edit", name: "Romi" });
-    assert.equal(agent(root, "romi").fields.Name, "Romi");
+    createAgent(project(root), { slug: "nico", system: "edit", name: "Nico" });
+    assert.equal(agent(root, "nico").fields.Name, "Nico");
   } finally {
     cleanupTempProject(root);
   }
@@ -90,12 +90,12 @@ test("create_agent reads a name that is only the slug as the ROLE it is", async 
   const root = makeTempProject({ name: "echo" });
   try {
     const out = await makeCreateHandler(root)({
-      project: root, slug: "productor-reels", name: "Productor Reels", system: "x",
+      project: root, slug: "video-producer", name: "Video Producer", system: "x",
     });
     assert.equal(out.ok, true);
-    const created = agent(root, "productor-reels").fields;
-    assert.notEqual(created.Name, "Productor Reels", "that is the job, not a name");
-    assert.equal(created.Role, "Productor Reels", "and nothing the model wrote is thrown away");
+    const created = agent(root, "video-producer").fields;
+    assert.notEqual(created.Name, "Video Producer", "that is the job, not a name");
+    assert.equal(created.Role, "Video Producer", "and nothing the model wrote is thrown away");
     assert.equal(out.name, created.Name, "the answer says which name it ended up with");
   } finally {
     cleanupTempProject(root);
@@ -105,10 +105,10 @@ test("create_agent reads a name that is only the slug as the ROLE it is", async 
 test("a one-word slug that matches its name is a person, and is left alone", async () => {
   const root = makeTempProject({ name: "person" });
   try {
-    // `romi`/"Romi" is the normal shape of an agent somebody named on purpose;
+    // `nico`/"Nico" is the normal shape of an agent somebody named on purpose;
     // demoting it would rename a person because their handle is their name.
-    await makeCreateHandler(root)({ project: root, slug: "romi", name: "Romi", system: "x" });
-    assert.equal(agent(root, "romi").fields.Name, "Romi");
+    await makeCreateHandler(root)({ project: root, slug: "nico", name: "Nico", system: "x" });
+    assert.equal(agent(root, "nico").fields.Name, "Nico");
   } finally {
     cleanupTempProject(root);
   }
@@ -130,18 +130,18 @@ test("an area nobody created yet is created, with a role for the agent in it", (
   const root = makeTempProject({ name: "org" });
   try {
     createAgent(project(root), {
-      slug: "savia-agent", system: "x", role: "Savia Implementation Agent", area: "Producto",
+      slug: "acme-agent", system: "x", role: "Acme Implementation Agent", area: "Producto",
       description: "one line",
     });
     const org = readOrganization(root);
     const area = org.areas.find((a) => a.slug === "producto");
     assert.ok(area, "an Area pointing at nothing is invisible to the Structure screen");
     assert.equal(area.name, "Producto");
-    const role = org.roles.find((r) => r.slug === "savia-agent");
+    const role = org.roles.find((r) => r.slug === "acme-agent");
     assert.ok(role, "a team member belongs on the org chart, not only in the agent list");
-    assert.equal(role.name, "Savia Implementation Agent");
+    assert.equal(role.name, "Acme Implementation Agent");
     assert.equal(role.area, "producto");
-    assert.equal(agent(root, "savia-agent").fields.Area, "producto");
+    assert.equal(agent(root, "acme-agent").fields.Area, "producto");
   } finally {
     cleanupTempProject(root);
   }

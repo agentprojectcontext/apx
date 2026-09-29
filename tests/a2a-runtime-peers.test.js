@@ -337,7 +337,7 @@ test("resolvePeer matches agents by slug, display name, and superagent aliases",
   const mockAgents = [
     { slug: "andy", name: "Andy", fields: { Name: "Andy", Role: "Orchestrator", Type: "orchestrator" } },
     { slug: "crypto-analyst", name: "Crypto Analyst", fields: { Name: "Crypto Analyst", Role: "Analyst" } },
-    { slug: "romi", name: "Romi", fields: { Name: "Romi", Aliases: ["reels"] } },
+    { slug: "nico", name: "Nico", fields: { Name: "Nico", Aliases: ["reels"] } },
   ];
 
   // Exact slug
@@ -345,7 +345,7 @@ test("resolvePeer matches agents by slug, display name, and superagent aliases",
   // Display name
   assert.equal(resolvePeer("Crypto Analyst", mockAgents)?.name, "crypto-analyst");
   // A former slug still addresses the agent that used to wear it.
-  assert.equal(resolvePeer("reels", mockAgents)?.name, "romi");
+  assert.equal(resolvePeer("reels", mockAgents)?.name, "nico");
   // Superagent aliases — every spelling lands on the SAME name, and it is the
   // id the rest of APX already knows the super-agent by. It used to be
   // "default", which no agent list or face resolver can place: an exchange with
@@ -447,10 +447,10 @@ test("an APC agent A2A reply honors disabled fallback", async () => {
 });
 
 test("peerAddress is the canonical name, and keeps a :thread suffix", () => {
-  const mockAgents = [{ slug: "magui", name: "Magui", fields: { Name: "Magui" } }];
+  const mockAgents = [{ slug: "lumen", name: "Lumen", fields: { Name: "Lumen" } }];
   // Whatever was typed, one thread per peer.
-  assert.equal(peerAddress(resolvePeer("Magui", mockAgents)), "magui");
-  assert.equal(peerAddress(resolvePeer("MAGUI", mockAgents)), "magui");
+  assert.equal(peerAddress(resolvePeer("Lumen", mockAgents)), "lumen");
+  assert.equal(peerAddress(resolvePeer("LUMEN", mockAgents)), "lumen");
   assert.equal(peerAddress(resolvePeer("default", mockAgents)), SUPERAGENT_ACTOR_ID);
   assert.equal(peerAddress(resolvePeer("apx", mockAgents)), SUPERAGENT_ACTOR_ID);
   // …except the suffix, which exists precisely to keep two threads apart.

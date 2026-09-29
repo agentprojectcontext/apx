@@ -209,7 +209,7 @@ export function MobileChatList({
           It sat in the top-right row with the directory, the sessions list and
           settings — four round buttons squeezing the title until "Bandeja de
           agentes" wrapped onto a second line, and all of them at the far end of
-          a reach from the bottom of a phone. Manu, 2026-09-20: "el botón de más
+          a reach from the bottom of a phone. The owner, 2026-09-20: "el botón de más
           podría ser un círculo flotante abajo de todo antes de la barra de menú,
           así se libera un poco la botonera superior y no se rompe el título".
           Inside this screen rather than over the tab bar, so it rides above the

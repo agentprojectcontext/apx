@@ -4,8 +4,8 @@
 // reels had no way to run anything that takes minutes. `run_shell` waits, and is
 // killed at 600 s at the very most — so the agent either held its turn open in
 // silence or reported whatever a SIGTERM left in the buffer, and the owner
-// watching the chat saw neither work nor an explanation: "no te veo ejecutar
-// tools que estén haciendo reels".
+// watching the chat saw neither work nor an explanation — no tool rendering
+// any reel.
 //
 // Every assertion below is one of the ways that goes wrong a second time.
 import fs from "node:fs";
@@ -28,7 +28,7 @@ const { deliverWake } = await import("#core/agent/a2a/background.js");
 const { onBackgroundJobEvent } = await import("#core/events/bus.js");
 const { default: runShell } = await import("#core/agent/tools/handlers/run-shell.js");
 
-const PROJECT = { id: 7, name: "tecnomanu", path: TMP_HOME, storagePath: TMP_HOME, config: {} };
+const PROJECT = { id: 7, name: "acme", path: TMP_HOME, storagePath: TMP_HOME, config: {} };
 
 function fresh() {
   try { fs.rmSync(BACKGROUND_JOBS_DIR, { recursive: true, force: true }); } catch { /* nothing there */ }
@@ -162,7 +162,7 @@ test("three open jobs is the wall, and the refusal says what to do instead", asy
   assert.match(refused.error, /Wait for one to finish/i);
   // The wall is per agent, not global: somebody else is not blocked by this.
   const other = runShellInBackground({
-    project: PROJECT, from: "magui", command: "true", cwd: TMP_HOME,
+    project: PROJECT, from: "lumen", command: "true", cwd: TMP_HOME,
   });
   assert.equal(other.ok, true);
 
@@ -216,7 +216,7 @@ test("the tool records which chat to come back to", async () => {
     channelMeta: { agentSlug: "reels", conversation_id: "web-main", projectPath: TMP_HOME },
   };
   const out = await runShell.makeHandler(ctx)({
-    command: "true", background: true, project: "tecnomanu",
+    command: "true", background: true, project: "acme",
   });
   assert.equal(out.ok, true);
   const job = readJob(out.job_id);
@@ -281,10 +281,10 @@ test("a foreground command inside an a2a turn sees the chain depth", async () =>
     channel: "a2a",
     channelMeta: { agentSlug: "reels", a2aDepth: 2, projectPath: TMP_HOME },
   };
-  const out = await runShell.makeHandler(ctx)({ command: 'printf "%s" "$APX_A2A_DEPTH"', project: "tecnomanu" });
+  const out = await runShell.makeHandler(ctx)({ command: 'printf "%s" "$APX_A2A_DEPTH"', project: "acme" });
   assert.equal(String(out.stdout).trim(), "2");
   const outside = await runShell.makeHandler({ ...ctx, channel: "web", channelMeta: { agentSlug: "reels" } })({
-    command: 'printf "[%s]" "$APX_A2A_DEPTH"', project: "tecnomanu",
+    command: 'printf "[%s]" "$APX_A2A_DEPTH"', project: "acme",
   });
   assert.equal(String(outside.stdout).trim(), "[]", "outside an exchange there is no chain to count");
   const cli = fs.readFileSync(new URL("../src/interfaces/cli/commands/a2a.js", import.meta.url), "utf8");

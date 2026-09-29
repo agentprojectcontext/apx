@@ -17,7 +17,7 @@ export type NameOf = (slug: string) => string;
 // reads as a handle in any theme. Exported so a literal (non-markdown) bubble —
 // the user's own — can highlight mentions the same way.
 //
-// THE CHIP SAYS THE NAME. `@productor-reels` is what has to be TYPED — the
+// THE CHIP SAYS THE NAME. `@video-producer` is what has to be TYPED — the
 // mention only reaches an agent if it carries the exact slug, which is why the
 // composer inserts one and the text on disk keeps it — but nobody has to READ
 // an address. So the handle is resolved here, at render, and the raw one is a

@@ -262,7 +262,7 @@ export function NewChatSheet({
                 decide without that answer is decidable now: "podría ir dejando
                 elegir proyecto, carpeta y texto y deja el botón de arrancar
                 gris hasta que aparezcan los engines y se seleccione alguno"
-                (Manu, 2026-09-20). Only the engine row waits, and only the
+                (the owner, 2026-09-20). Only the engine row waits, and only the
                 button stays locked. */}
                 <label className="space-y-1">
                   <span className="text-xs font-medium text-muted-fg">{t("mobile.runtimes_new_engine")}</span>

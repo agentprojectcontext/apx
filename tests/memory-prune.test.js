@@ -25,7 +25,7 @@ const WEATHER_NOTEBOOK = `# Roby's notebook
 
 ## 2026-08-01
 - [11:00][routine] Hoy en Bariloche hace -6°C con sensación de -10°C y neblina.
-- [12:00][telegram] Manu decidió que el deploy de APX corre siempre desde main.
+- [12:00][telegram] Julián decidió que el deploy de APX corre siempre desde main.
 
 ## 2026-08-02
 - [11:01][routine] Hoy en Bariloche hace 1°C con sensación de -3°C y nevadas fuertes.
@@ -89,7 +89,7 @@ test("same opener, different facts: never collapsed", () => {
 - [telegram] Se agregó el MCP global 'brightbean-mcp' de tipo HTTP y se inicializó la variable global 'brightbeanToken' en ~/.apx/vars.json para que el usuario la edite.
 
 ## 2026-07-02
-- [telegram] Se agregó el MCP 'obsidian-mcp' apuntando al vault personal de Manu.
+- [telegram] Se agregó el MCP 'obsidian-mcp' apuntando al vault personal de Julián.
 `;
   assert.equal(planPrune(mcps).removed.length, 0);
 });
@@ -149,7 +149,7 @@ test("an empty notebook is a no-op, not an error", () => {
 });
 
 test("a clean notebook written by appendSelfMemory stays clean", () => {
-  appendSelfMemory("Manu prefiere respuestas cortas", { channel: "telegram" });
+  appendSelfMemory("Julián prefiere respuestas cortas", { channel: "telegram" });
   appendSelfMemory("El daemon corre desde el checkout principal", { channel: "web" });
   const r = pruneSelfMemory({ apply: true });
   assert.equal(r.removed.length, 0);

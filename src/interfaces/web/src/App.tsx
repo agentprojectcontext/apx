@@ -166,7 +166,7 @@ function Shell() {
               <Route path="/desktop/*"  element={<DesktopScreen />} />
               <Route path="/code/*"     element={<CodeScreen />} />
               {/* The code sessions as a LIST, at desktop width. The same
-                  screen the phone shows, minus the phone's tab bar: Manu asked
+                  screen the phone shows, minus the phone's tab bar: the owner asked
                   for the access, not for a second list to keep in step. */}
               <Route path="/runtimes"   element={<MobileRuntimes />} />
               <Route path="/whatsapp"   element={<WhatsAppScreen />} />
