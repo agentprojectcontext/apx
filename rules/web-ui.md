@@ -33,6 +33,19 @@ pane, while the default is an inline dashed card for the gap where the list
 would have been. A master-detail with nothing to pick hides the whole
 box — one message, not an empty list beside an empty pane.
 
+## The URL query is shared
+
+A screen keeps its tab, filter or open row in the query; the shell keeps its
+dialogs there (`?action=add-project`); the chat keeps its thread. So a
+component writes **only its own keys**, always as
+`setParams((prev) => { const q = new URLSearchParams(prev); …; return q; })`.
+Handing over a whole new query — `setParams({ tab })`, `setSearchParams({})`,
+or a copy of the `params` your render saw — erases the others. That is how Add
+project closed itself over `/inbox` (2026-09-28). The panel's ESLint config
+makes anything but the `prev =>` form an error. An effect that writes the URL
+must also skip the write when the URL already says it, or it runs again on
+every URL change (`setSearchParams` changes identity with each one).
+
 ## Data layer
 
 - **All requests through `src/lib/api/*`** — one module per resource, uniform
@@ -70,5 +83,7 @@ with it.
 3. Strings in BOTH `es.ts` and `en.ts`; tooltips via `<Tip>`; destructive
    actions via `<ConfirmDialog>`.
 4. Typed SWR hook if the resource is shared; revalidate after mutations.
-5. Playwright spec in `e2e/`.
+5. Playwright spec in `e2e/`, as a journey: open every dialog of the screen,
+   and open the shell's dialogs (Add project) over it, wait, and assert they
+   stayed. Run it with `npm run e2e:gate` (a fresh install), not only `pnpm e2e`.
 6. `npx tsc --noEmit` clean.

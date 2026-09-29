@@ -3,8 +3,10 @@
 #
 # Commits go through freely — but a push (which is the closest thing to
 # "deploy" we have) must NOT succeed unless:
+#   0. The branch policy allows it (scripts/push-policy.js, rule 19).
 #   1. The backend test suite passes.
 #   2. The web bundle builds cleanly (vite build + web typecheck).
+#   3. For a push that reaches main: the e2e gate passes (scripts/e2e-gate.js).
 #
 # Anything that produces a dist/ or any other build output needs to be
 # validated here, because the daemon ships those files via prepack/install
@@ -31,6 +33,18 @@ ok()   { printf "%s✓%s %s\n" "$C_GREEN" "$C_RST" "$1" >&2; }
 skip() { printf "%s· skip%s %s\n" "$C_DIM" "$C_RST" "$1" >&2; }
 
 START="$(date +%s)"
+
+# -1) Branch policy (AGENTS.md rule 19). git hands the pushed refs on stdin;
+#     scripts/push-policy.js refuses commits that exist only on main (work goes
+#     through `staging` or a feature branch — hotfixes excepted, via a
+#     `hotfix/<slug>` branch or APX_HOTFIX=1) and says whether this push reaches
+#     main, in which case the e2e gate runs after the checks below.
+step "branch policy (scripts/push-policy.js)"
+if ! POLICY="$(node scripts/push-policy.js)"; then
+  fail "push refused by the branch policy (see above)"
+fi
+POLICY="$(printf "%s\n" "$POLICY" | tail -1)"
+ok "branch policy (${POLICY})"
 
 # 0) Lint — the layering rule (core -> adapter -> surface) is enforced here,
 #    not by good intentions. Cheap, so it runs first and fails fast.
@@ -88,6 +102,26 @@ else
     fail "web typecheck failed (full log: /tmp/apx-pre-push-tsc.log)"
   fi
   ok "web typecheck"
+fi
+
+# 3) The e2e gate — only for pushes that reach main, merges and hotfixes alike.
+#    A daemon of its own on a fresh APX_HOME, the production bundle, real user
+#    journeys (scripts/e2e-gate.js). It reuses the bundle built above — and
+#    when that build was skipped (APX_SKIP_WEB_BUILD=1) it builds its own,
+#    because an e2e run against a stale dist would test yesterday's panel.
+if [ "$POLICY" = "gate" ]; then
+  step "e2e gate (scripts/e2e-gate.js) — this push reaches main"
+  if [ "${APX_SKIP_WEB_BUILD:-}" = "1" ]; then
+    GATE=(env -u APX_SKIP_WEB_BUILD node scripts/e2e-gate.js)
+  else
+    GATE=(env APX_E2E_SKIP_BUILD=1 node scripts/e2e-gate.js)
+  fi
+  if ! "${GATE[@]}" >/tmp/apx-pre-push-e2e.log 2>&1; then
+    printf "%s\n" "── last 60 lines of the e2e gate ──" >&2
+    tail -60 /tmp/apx-pre-push-e2e.log >&2
+    fail "e2e gate failed — main only takes green (full log: /tmp/apx-pre-push-e2e.log)"
+  fi
+  ok "e2e gate"
 fi
 
 END="$(date +%s)"

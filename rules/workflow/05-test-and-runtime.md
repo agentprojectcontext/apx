@@ -31,9 +31,13 @@ file. `preflight` runs both; `lint` alone is not a gate.
 Not in preflight, and you have to remember them:
 
 ```bash
-cd src/interfaces/web && pnpm exec playwright test   # 14 specs; need a booted daemon
-cd docs && pnpm build                                # only if you touched docs/
+npm run e2e:gate          # every Playwright spec against a fresh install — required to reach main
+cd docs && pnpm build     # only if you touched docs/
 ```
+
+The pre-push hook runs the e2e gate by itself when the push reaches `main`
+([`09-reaching-main.md`](09-reaching-main.md)); for a feature branch it is on
+you — run it before calling a panel change done.
 
 ## The runtime step — do not skip it
 

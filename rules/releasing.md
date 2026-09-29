@@ -3,7 +3,10 @@
 > Deep dive for [`AGENTS.md`](../AGENTS.md) rule 18. Read it before writing a
 > commit message here, once.
 
-There is no manual version bump in this repo and no release branch. Every push
+There is no manual version bump in this repo and no release branch. Work lands
+on `staging` or a feature branch and reaches `main` by merge, through the e2e
+gate — or as a marked hotfix, through the same gate (rule 19,
+[`workflow/09-reaching-main.md`](workflow/09-reaching-main.md)). Every push
 to `main` that passes CI runs semantic-release, which reads the commit subjects
 since the last tag and decides three things from them alone: whether there is a
 new version, what number it gets, and what `CHANGELOG.md` says. `package.json`'s
@@ -75,7 +78,9 @@ and however much of it is test code.
 2. `release` runs semantic-release: analyse commits → notes → `CHANGELOG.md` →
    `npm publish` → tag → GitHub release.
 3. It pushes `chore(release): <version> [skip ci]`. The `[skip ci]` is what
-   stops that commit from starting the cycle again.
+   stops that commit from starting the cycle again. That push goes straight to
+   a protected `main`, which is why the ruleset lets GitHub Actions bypass it —
+   remove that bypass and every release fails after tagging.
 4. The npm tarball takes minutes to propagate after the workflow goes green, so
    a green release with the old version still showing on the registry is normal
    for a few minutes and is not a failed publish.
@@ -88,7 +93,8 @@ not do, and it used to kill every release *after* tagging.
 
     git log origin/main..HEAD --format='%s'
 
-Read the types, not the prose. Every line that changes what a user experiences
+A merge into `main` releases every commit it brings, so this is the list to read
+before merging `staging`, not only before a single push. Read the types, not the prose. Every line that changes what a user experiences
 must be `feat`, `fix` or `perf`, or it will not ship.
 
 `.githooks/commit-msg` checks the shape — that the type is a word the release

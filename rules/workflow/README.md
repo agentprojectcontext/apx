@@ -2,7 +2,7 @@
 
 > Deep dive for [`AGENTS.md`](../../AGENTS.md). The hub names the stages; these are
 > the playbooks. Each is **read-on-demand**: open the one for the stage you are
-> in, not all eight.
+> in, not all nine.
 
 Most code here is written by an agent, and the owner does not know every library
 in the tree. That inverts what documentation is for. The scarce thing is not
@@ -30,6 +30,7 @@ PLAN ──▶ IMPLEMENT ──▶ REVIEW (fresh context) ──▶ TEST + RUNTI
 | 6 | [`06-architecture-drift.md`](06-architecture-drift.md) | new module, new family, moved logic, new dependency |
 | 7 | [`07-owner-brief.md`](07-owner-brief.md) | always — it is what the owner actually reads |
 | 8 | [`08-incident-map.md`](08-incident-map.md) | something is broken and you don't know why yet |
+| 9 | [`09-reaching-main.md`](09-reaching-main.md) | before a merge or a hotfix reaches `main` — branches, the e2e gate |
 
 ## The three rules that make the rest work
 
