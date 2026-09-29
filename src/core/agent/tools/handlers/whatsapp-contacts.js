@@ -29,6 +29,7 @@ import {
   REPLY_POLICIES,
 } from "#core/identity/whatsapp.js";
 import { readConfig } from "#core/config/index.js";
+import { readWhatsAppHistory } from "#core/channels/whatsapp/thread.js";
 
 /** What a row means in one word, so the agent does not have to infer it. */
 function statusOf(cfg, row) {
@@ -68,7 +69,8 @@ export default {
       description:
         "Read and manage the WhatsApp roster — the allowlist that decides whose messages get answered. " +
         "`list` shows everyone (add `pending: true` for the ones APX added by writing to them and nobody has " +
-        "reviewed). `find` looks somebody up by name or number. `save` adds or updates one: give it a role to " +
+        "reviewed). `find` looks somebody up by name or number. `thread` reads what was said with one person " +
+        "(read-only; `query` names them, `limit` caps it). `save` adds or updates one: give it a role to " +
         "let APX hold conversations with them, or auto_reply false to mute them. `forget` removes the row. " +
         "Use this instead of telling the owner to go and click in Settings.",
       parameters: {
@@ -76,13 +78,14 @@ export default {
         properties: {
           action: {
             type: "string",
-            enum: ["list", "find", "save", "forget"],
-            description: "list | find | save | forget",
+            enum: ["list", "find", "thread", "save", "forget"],
+            description: "list | find | thread | save | forget",
           },
           query: {
             type: "string",
-            description: "for `find`: a name, a nickname or a phone number, in any format",
+            description: "for `find` and `thread`: a name, a nickname or a phone number, in any format",
           },
+          limit: { type: "integer", description: "for `thread`: newest messages to return (default 20)" },
           jid: {
             type: "string",
             description:
@@ -155,6 +158,12 @@ export default {
         return fold(r.name).includes(q) || fold(r.nickname).includes(q);
       });
       return { ok: true, count: hits.length, contacts: hits.map(view) };
+    }
+
+    if (action === "thread") {
+      const who = args.jid || args.query;
+      if (!String(who || "").trim()) throw new Error("whatsapp_contacts: `thread` needs a query or jid");
+      return readWhatsAppHistory({ contact: who, limit: args.limit ?? 20, cfg });
     }
 
     if (action === "save") {

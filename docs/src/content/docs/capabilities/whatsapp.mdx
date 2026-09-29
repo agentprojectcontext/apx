@@ -237,6 +237,17 @@ Messages the owner types on their own phone are recorded too (WhatsApp mirrors t
 companion device as `fromMe`). They are logged and never answered — replying would be answering
 yourself — and carry `meta.authored_by: "owner"` so a thread reads as the whole conversation.
 
+## Asking what somebody said
+
+The owner's agent can read the whole line. Ask "what did Rodrigo say on WhatsApp?" and it reads that
+conversation: by name, nickname, a number typed any way, or a JID. One person's phone number and
+`…@lid` come back as one conversation, and what they said in a group is included and marked as such.
+A name that matches two people gets a question back, never a guess.
+
+Plain message search covers WhatsApp and Telegram too, next to the project's own history. A public
+room (Discord) is searched only when named. Contacts themselves never get this: their turns are
+sealed and have no tools.
+
 ## API
 
 All routes are under `/api/whatsapp`.
