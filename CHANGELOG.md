@@ -1,3 +1,18 @@
+# [1.122.0](https://github.com/agentprojectcontext/apx/compare/v1.121.1...v1.122.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **chat:** un chat ya no se abre vacío cuando cambian los ids de proyecto, y si no se puede abrir lo dice ([aaa21ba](https://github.com/agentprojectcontext/apx/commit/aaa21baf398b9a5293dea62fbb1ed83c417ac3dc))
+* **company:** las horas de silencio de todo el día se leen igual que en el gate de nudges ([5a4754c](https://github.com/agentprojectcontext/apx/commit/5a4754cc352c6a29cccffe6a9330f2c89b23d3bd))
+* **nudge:** una ventana de silencio de todo el día cubre también las 23:59 ([13f65cb](https://github.com/agentprojectcontext/apx/commit/13f65cb0712279a8286aca52e9f4116e6c340eaa))
+* **web:** ninguna pantalla borra de la URL lo que pusieron otras — y ahora es error de lint ([2961323](https://github.com/agentprojectcontext/apx/commit/2961323a1c98872adcf1bbf770c938dffc63068a))
+
+
+### Features
+
+* **discord:** el bot puede contestarle sólo al owner ([9195103](https://github.com/agentprojectcontext/apx/commit/91951032929324ab48dc6e2110b6eddc69a315af))
+
 ## [1.121.1](https://github.com/agentprojectcontext/apx/compare/v1.121.0...v1.121.1) (2026-09-29)
 
 
