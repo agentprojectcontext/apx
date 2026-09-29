@@ -105,6 +105,8 @@ export interface ChatMsg {
   /** Somebody else in a room (a Discord channel) — not the owner. The bubble
    *  goes on the left under their name instead of reading as yours. */
   speaker?: string;
+  /** What this room message replied to (Discord's quoted line). */
+  quote?: { author: string | null; text: string };
   /** Composed HERE, in this tab, rather than read back from storage.
    *  A reply typed into a Telegram thread goes out on the `web` channel, so the
    *  Telegram thread file will never contain it — and a background refresh that
@@ -549,6 +551,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         ...(m.media ? { media: [m.media] } : {}),
         ...(m.interactive?.options?.length ? { interactive: m.interactive } : {}),
         ...(m.speaker ? { speaker: m.speaker } : {}),
+        ...(m.quote ? { quote: m.quote } : {}),
         ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),
       });
     } else if (m.role === "assistant" || m.role === "tool") {

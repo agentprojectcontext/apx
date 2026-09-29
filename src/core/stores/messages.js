@@ -1979,7 +1979,11 @@ export function shapeLedgerMessage(r) {
         : {}),
       ...(r.meta?.interactive_selection ? { chose: r.meta.interactive_selection } : {}),
       // A ROOM (a Discord channel): this turn is someone else's, by name.
-      ...(r.meta?.room && r.meta?.speaker ? { speaker: r.meta.speaker } : {}),
+      // Unless it is the owner writing from their own account: that is theirs.
+      ...(r.meta?.room && r.meta?.speaker && !r.meta?.owner ? { speaker: r.meta.speaker } : {}),
+      ...(r.meta?.room && r.meta?.reply_to_text
+        ? { quote: { author: r.meta.reply_to_author || null, text: r.meta.reply_to_text } }
+        : {}),
     };
   }
   const usage = r.meta?.usage;

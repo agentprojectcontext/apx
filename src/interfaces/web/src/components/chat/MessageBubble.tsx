@@ -17,6 +17,7 @@ import { textOf, type ChatMsg, type ChatPart } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 import { useAutoGrow } from "../../hooks/useAutoGrow";
+import { usePersonaName } from "../../hooks/usePersonaName";
 
 interface Props {
   msg: ChatMsg;
@@ -90,6 +91,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   const [draft, setDraft] = useState("");
   // Opened by hand for a message long enough that painting it stops the tab.
   const [showAll, setShowAll] = useState(false);
+  const persona = usePersonaName();
   // The edit box is as tall as what's being edited. It used to size itself off
   // the number of NEWLINES in the draft, so a long message written as one
   // paragraph — which is most of them — got two squashed rows with a scrollbar.
@@ -327,6 +329,14 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             tag when a mention pulled them in — the way a group chat reads. */}
         {msg.speaker ? (
           <div className="text-[11px] font-semibold leading-none text-foreground/90">{msg.speaker}</div>
+        ) : null}
+        {msg.quote ? (
+          // Discord's reply line: who was answered and a line of what they said.
+          <div className="flex min-w-0 items-center gap-1 text-[11px] text-muted-fg">
+            <CornerDownRight size={11} className="shrink-0" />
+            <span className="shrink-0 font-medium">{msg.quote.author === "you" ? persona : (msg.quote.author || "")}</span>
+            <span className="truncate">{msg.quote.text}</span>
+          </div>
         ) : null}
         {showSpeaker && !mine && (msg.agent || msg.agentId) && (
           <div className="flex items-center gap-1.5 text-[11px] leading-none">
