@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
-import { Camera, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Camera, Loader2, RefreshCw } from "lucide-react";
 import { Section } from "../Section";
 import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
@@ -9,7 +9,21 @@ import { Discord, type DiscordMode, type DiscordRoom, type DiscordStatus } from 
 import { t } from "../../i18n";
 import { usePersonaName } from "../../hooks/usePersonaName";
 
-const MODES: DiscordMode[] = ["always", "mention", "read"];
+const MODES: DiscordMode[] = ["read", "mention", "always"];
+
+// The select's value for a room that is not on the list. Not a mode: choosing
+// it removes the room, and the bot stops reading it altogether.
+const OFF = "off";
+
+interface RoomRow {
+  id: string;
+  name: string | null;
+  guild: string | null;
+  category: string | null;
+  mode: DiscordMode | null;
+  /** Listed, but the server no longer shows it to the bot. */
+  missing: boolean;
+}
 
 // Mirrors KNOWLEDGE_MAX_CHARS in core/channels/discord/config.js.
 const KNOWLEDGE_MAX = 12_000;
@@ -70,9 +84,7 @@ export function DiscordPanel() {
   const [knowledge, setKnowledge] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [newId, setNewId] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newMode, setNewMode] = useState<DiscordMode>("read");
+  const [onlyIncluded, setOnlyIncluded] = useState(false);
 
   const connected = data?.state === "connected";
   const { data: roomsData, mutate: mutateRooms } = useSWR<{ rooms: DiscordRoom[] }>(
@@ -80,7 +92,6 @@ export function DiscordPanel() {
     () => Discord.rooms(),
     { refreshInterval: 15_000 },
   );
-  const [pickMode, setPickMode] = useState<DiscordMode>("read");
   const avatarInput = useRef<HTMLInputElement>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -97,7 +108,9 @@ export function DiscordPanel() {
 
   if (isLoading || !data) return <Loading />;
 
-  const modeOptions = MODES.map((m) => ({ value: m, label: t(`settings.discord.mode_${m}`) }));
+  // Least to most talkative, after "not included".
+  const modeOptions = (["read", "mention", "always"] as DiscordMode[]).map((m) => ({ value: m, label: t(`settings.discord.mode_${m}`) }));
+  const offOption = { value: OFF, label: t("settings.discord.mode_off") };
   const ownersBad = splitList(owners).filter((x) => !isSnowflake(x));
 
   const save = async () => {
@@ -146,39 +159,32 @@ export function DiscordPanel() {
     }
   };
 
-  const pick = async (room: DiscordRoom) => {
+  // One row per room: every text channel the bot can see, plus any room still
+  // listed that the server no longer shows (deleted, or made private), so it
+  // can be taken off the list.
+  const serverRooms = roomsData?.rooms || [];
+  const seen = new Set(serverRooms.map((r) => r.id));
+  const rows: RoomRow[] = [
+    ...serverRooms.map((r) => ({ id: r.id, name: r.name, guild: r.guild, category: r.category, mode: r.mode, missing: false })),
+    ...data.channels
+      .filter((c) => !seen.has(c.id))
+      .map((c) => ({ id: c.id, name: c.name || null, guild: null, category: null, mode: c.mode, missing: connected && serverRooms.length > 0 })),
+  ];
+  const shown = onlyIncluded ? rows.filter((r) => r.mode) : rows;
+  const groups = new Map<string, RoomRow[]>();
+  for (const r of shown) {
+    const key = r.missing ? t("settings.discord.not_visible") : [r.guild, r.category].filter(Boolean).join(" · ");
+    groups.set(key, [...(groups.get(key) || []), r]);
+  }
+
+  const setRoom = async (row: RoomRow, value: string) => {
     try {
-      await Discord.setChannel(room.id, { mode: pickMode, ...(room.name ? { name: room.name } : {}) });
+      if (value === OFF) {
+        if (row.mode) await Discord.removeChannel(row.id);
+      } else {
+        await Discord.setChannel(row.id, { mode: value as DiscordMode, ...(row.name ? { name: row.name } : {}) });
+      }
       await Promise.all([mutate(), mutateRooms()]);
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
-  const setMode = async (id: string, mode: DiscordMode) => {
-    try {
-      await Discord.setChannel(id, { mode });
-      await mutate();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
-  const remove = async (id: string) => {
-    try {
-      await Discord.removeChannel(id);
-      await mutate();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
-  const add = async () => {
-    try {
-      await Discord.setChannel(newId.trim(), { mode: newMode, ...(newName.trim() ? { name: newName.trim().replace(/^#/, "") } : {}) });
-      setNewId("");
-      setNewName("");
-      await mutate();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -273,82 +279,56 @@ export function DiscordPanel() {
         </div>
       </Section>
 
-      <Section title={t("settings.discord.channels_title")} description={t("settings.discord.channels_subtitle")}>
-        <div className="divide-y divide-border rounded-md border border-border" data-testid="discord-channels">
-          {data.channels.length === 0 ? (
+      <Section
+        title={t("settings.discord.channels_title")}
+        description={t("settings.discord.channels_subtitle")}
+        filters={rows.length ? (
+          <Switch checked={onlyIncluded} onChange={setOnlyIncluded} label={t("settings.discord.only_included")} />
+        ) : undefined}
+      >
+        {connected && data.guilds === 0 ? (
+          <p className="mb-3 text-[12px] text-muted-foreground">
+            {t("settings.discord.rooms_need_invite")}{" "}
+            {data.bot ? (
+              <a className="text-primary underline" href={inviteUrl(data.bot.id)} target="_blank" rel="noreferrer">
+                {t("settings.discord.invite")}
+              </a>
+            ) : null}
+          </p>
+        ) : !connected ? (
+          <p className="mb-3 text-[12px] text-muted-foreground">{t("settings.discord.rooms_need_connection")}</p>
+        ) : null}
+
+        <div className="max-h-[32rem] overflow-auto rounded-md border border-border" data-testid="discord-channels">
+          {shown.length === 0 ? (
             <p className="p-3 text-sm text-muted-foreground">{t("settings.discord.no_channels")}</p>
           ) : (
-            data.channels.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 p-2.5">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{c.name ? `#${c.name}` : c.id}</div>
-                  {c.name ? <div className="truncate font-mono text-[11px] text-muted-foreground">{c.id}</div> : null}
+            [...groups.entries()].map(([heading, list]) => (
+              <div key={heading || "rooms"}>
+                {heading ? (
+                  <div className="sticky top-0 z-10 border-b border-border bg-muted/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
+                    {heading}
+                  </div>
+                ) : null}
+                <div className="divide-y divide-border">
+                  {list.map((r) => (
+                    <div key={r.id} className="flex items-center gap-3 px-2.5 py-1.5" data-testid={`discord-room-${r.id}`}>
+                      <div className={`min-w-0 flex-1 ${r.mode ? "" : "opacity-55"}`}>
+                        <div className="truncate text-sm">{r.name ? `#${r.name}` : r.id}</div>
+                        {r.missing ? <div className="truncate text-[11px] text-muted-foreground">{t("settings.discord.not_visible_hint")}</div> : null}
+                      </div>
+                      <UiSelect
+                        className="w-40"
+                        value={r.mode || OFF}
+                        onChange={(v) => setRoom(r, v)}
+                        options={[offOption, ...modeOptions]}
+                      />
+                    </div>
+                  ))}
                 </div>
-                <UiSelect
-                  className="w-44"
-                  value={c.mode}
-                  onChange={(v) => setMode(c.id, v as DiscordMode)}
-                  options={modeOptions}
-                />
-                <Button size="sm" variant="ghost" aria-label={t("settings.discord.remove")} onClick={() => remove(c.id)}>
-                  <Trash2 size={14} />
-                </Button>
               </div>
             ))
           )}
-        </div>
-
-        <div className="mt-5" data-testid="discord-rooms">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-muted-foreground">{t("settings.discord.server_rooms")}</span>
-            <UiSelect className="w-44" value={pickMode} onChange={(v) => setPickMode(v as DiscordMode)} options={modeOptions} />
-          </div>
-          {!connected ? (
-            <p className="text-[12px] text-muted-foreground">{t("settings.discord.rooms_need_connection")}</p>
-          ) : data.guilds === 0 || !(roomsData?.rooms || []).length ? (
-            <p className="text-[12px] text-muted-foreground">
-              {t("settings.discord.rooms_need_invite")}{" "}
-              {data.bot ? (
-                <a className="text-primary underline" href={inviteUrl(data.bot.id)} target="_blank" rel="noreferrer">
-                  {t("settings.discord.invite")}
-                </a>
-              ) : null}
-            </p>
-          ) : (
-            <div className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
-              {(roomsData?.rooms || []).filter((r) => !r.mode).map((r) => (
-                <div key={r.id} className="flex items-center gap-3 px-2.5 py-1.5">
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">#{r.name}</div>
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {[r.guild, r.category].filter(Boolean).join(" · ")}
-                    </div>
-                  </div>
-                  <Button size="sm" onClick={() => pick(r)}>{t("settings.discord.add")}</Button>
-                </div>
-              ))}
-              {(roomsData?.rooms || []).every((r) => r.mode) ? (
-                <p className="p-3 text-[12px] text-muted-foreground">{t("settings.discord.all_listed")}</p>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 text-xs font-medium text-muted-foreground">{t("settings.discord.by_id")}</div>
-        <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-          <Field
-            label={t("settings.discord.channel_id")}
-            error={newId && !isSnowflake(newId) ? t("settings.discord.bad_id", { id: newId }) : undefined}
-          >
-            <Input value={newId} placeholder="1234567890123456789" onChange={(e) => setNewId(e.target.value)} />
-          </Field>
-          <Field label={t("settings.discord.channel_name")}>
-            <Input value={newName} placeholder="general" onChange={(e) => setNewName(e.target.value)} />
-          </Field>
-          <UiSelect className="w-44" value={newMode} onChange={(v) => setNewMode(v as DiscordMode)} options={modeOptions} />
-        </div>
-        <div className="mt-3">
-          <Button onClick={add} disabled={!isSnowflake(newId)}>{t("settings.discord.add_channel")}</Button>
         </div>
 
         <ul className="mt-4 space-y-1 text-[12px] text-muted-foreground">
