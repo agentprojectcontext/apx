@@ -78,14 +78,20 @@ Then merge `main` back into `staging` so the fix is not lost at the next merge.
 
 ## What GitHub enforces
 
-A ruleset on `main` requires the `verify` and `e2e` checks and forbids
-force-pushes and deletion. Two actors bypass it, on purpose:
+The ruleset `main: no force-push, no deletion (rule 19)` forbids exactly
+that on `main`; the repository admin bypasses it. Both rules leave the
+fast-forward push semantic-release makes untouched.
 
-- **the repository admin** — a hotfix is pushed directly, so its checks cannot
-  have run on GitHub yet; the local gate ran instead, and CI still runs after
-  the push, and `release` still waits on both;
-- **GitHub Actions** — semantic-release pushes `chore(release): x.y.z [skip ci]`
-  to `main`. Without the bypass every release would fail after tagging.
+It does **not** require the `verify` and `e2e` checks, and that is a known gap,
+not an oversight. semantic-release pushes `chore(release): x.y.z [skip ci]` to
+`main` with the workflow's `GITHUB_TOKEN`; a `[skip ci]` commit never gets
+checks, so requiring them would block every release after tagging — and a
+repository ruleset refuses the GitHub Actions app as a bypass actor ("must be
+part of the ruleset source or owner organization"). Closing the gap needs the
+release job to push with a credential that CAN bypass (a deploy key or an
+admin's token as a secret). Until then "green before main" is held by the
+pre-push hook, by CI on every PR and `staging` push, and by `release`
+refusing to publish unless `verify` and `e2e` passed on that exact commit.
 
 ## What is NOT enforced
 
