@@ -8,6 +8,7 @@ import { createDiscordGateway } from "#core/channels/discord/gateway.js";
 import { createDiscordDispatcher } from "#core/channels/discord/dispatch.js";
 import { readDiscordConfig, discordToken } from "#core/channels/discord/config.js";
 import { postDiscord } from "#core/channels/discord/outbox.js";
+import { markOwnerRows } from "#core/channels/discord/owner-rows.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readConfig } from "#core/config/index.js";
@@ -61,6 +62,13 @@ export default {
           log("discord: no bot token — idle until discord.token is set");
           lastStatus = { state: "off" };
           return;
+        }
+        // Before the connection opens, while nothing else writes these files.
+        try {
+          const n = markOwnerRows(dc.owner_ids);
+          if (n) log(`discord: owner mark updated on ${n} stored message${n === 1 ? "" : "s"}`);
+        } catch (e) {
+          log(`discord: could not update the owner mark: ${e.message}`);
         }
         if (!Object.keys(dc.channels).length) {
           log("discord: no channels listed yet — connecting, but the bot will read and say nothing until you add one (apx discord channel set <id> <mode>)");
