@@ -54,7 +54,7 @@ early return survived in two separate components.
 | URL query written only as `setParams((prev) => …)` — never a whole new query | 11 | `src/interfaces/web/eslint.config.js` (`no-restricted-syntax`) |
 | Commits reach `main` only by merge, or as a marked hotfix | 19 | `.githooks/pre-push` → `scripts/push-policy.js`, pinned by `tests/push-policy.test.js` |
 | A push to `main` passes the e2e gate (fresh install, real journeys) | 19 | `.githooks/pre-push` → `scripts/e2e-gate.js`; CI job `e2e` runs the same script |
-| `main` requires `verify` + `e2e`; no force-push, no deletion | 19 | GitHub ruleset on `main` (bypass: repo admin for hotfixes, GitHub Actions for the release commit) |
+| No force-push to `main`, no deleting it | 19 | GitHub ruleset on `main` (bypass: repo admin). It does NOT require the checks — see [`workflow/09-reaching-main.md`](workflow/09-reaching-main.md#what-github-enforces) |
 | Panel `any` + `exhaustive-deps` count may only fall | — | `scripts/lint-web.js` (baseline 38) |
 | Vendored TUI type errors may only fall | — | `scripts/typecheck-tui.js` (baseline 174) |
 | Panel types | 11 | `tsc --noEmit` in `src/interfaces/web` |
@@ -153,9 +153,10 @@ npm run preflight
   runs `scripts/e2e-gate.js`, the same entry point as the hook; job `release`
   needs both, and is the thing that publishes to npm. It runs on pull requests
   and on pushes to `main` and `staging`.
-- **The GitHub ruleset on `main`** makes `verify` and `e2e` required and
-  forbids force-push and deletion. The repo admin (hotfixes) and GitHub Actions
-  (semantic-release's release commit) bypass it — see
+- **The GitHub ruleset on `main`** forbids force-push and deletion (the repo
+  admin bypasses it). It does not require `verify`/`e2e`: semantic-release's
+  `[skip ci]` release commit would then be blocked, and the Actions app cannot
+  be a bypass actor on a repository ruleset — see
   [`workflow/09-reaching-main.md`](workflow/09-reaching-main.md).
 - **Publishing waits for that gate**, and until 2026-09-14 it did not. The
   release lived in its own workflow on the same `push: [main]` trigger, so it

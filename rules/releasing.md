@@ -79,8 +79,10 @@ and however much of it is test code.
    `npm publish` → tag → GitHub release.
 3. It pushes `chore(release): <version> [skip ci]`. The `[skip ci]` is what
    stops that commit from starting the cycle again. That push goes straight to
-   a protected `main`, which is why the ruleset lets GitHub Actions bypass it —
-   remove that bypass and every release fails after tagging.
+   `main`, and it is a fast-forward with no checks — which is why the ruleset
+   on `main` forbids force-push and deletion but does NOT require the
+   `verify`/`e2e` checks: requiring them would block this commit and fail every
+   release after tagging.
 4. The npm tarball takes minutes to propagate after the workflow goes green, so
    a green release with the old version still showing on the registry is normal
    for a few minutes and is not a failed publish.

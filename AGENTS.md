@@ -252,8 +252,9 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     and come back). The one exception is a **hotfix** — pushed from a
     `hotfix/<slug>` branch or with `APX_HOTFIX=1` — which may skip `staging`
     but never the gate. The pre-push hook enforces both (`scripts/push-policy.js`
-    + `scripts/e2e-gate.js`), CI runs the same gate, and a GitHub ruleset
-    requires it on `main`. Why: on 2026-09-28 Add project closed itself a
+    + `scripts/e2e-gate.js`), CI runs the same gate, `release` publishes
+    nothing unless it passed, and a GitHub ruleset forbids force-pushing or
+    deleting `main`. Why: on 2026-09-28 Add project closed itself a
     second after opening over `/inbox` — every screen passed its own spec, and
     nothing exercised them together. Procedure:
     [`rules/workflow/09-reaching-main.md`](rules/workflow/09-reaching-main.md).
