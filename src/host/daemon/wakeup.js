@@ -1,9 +1,12 @@
 // Wake-up message — sent via Telegram once per daemon restart (with cooldown).
 import fetch from "node-fetch";
 import { readIdentity, writeIdentity } from "#core/identity/index.js";
-import { resolveProvider, getAdapter } from "#core/engines/index.js";
+import { callEngine } from "#core/engines/index.js";
 import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
 import { resolveChannels, resolveBotToken, resolveChatId } from "#core/channels/telegram/helpers.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
+import { CHANNELS } from "#core/constants/channels.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
@@ -24,12 +27,29 @@ export function detectLanguage(identity, config) {
   return ISO_TO_LANGUAGE[code] || "English";
 }
 
-async function generateMessage(identity, engineConfig) {
+/**
+ * The model the greeting is written with: the super-agent's OWN model when it
+ * has one, else its router model — what Roby answers with everywhere else.
+ * This used to be a hardcoded `ollama:qwen2.5:14b`: on a machine where that
+ * model was not loaded the greeting fell back to "online. Ready.", and the one
+ * morning Ollama happened to answer, a model nobody had chosen wrote the
+ * message instead. Null → no model configured → the plain line.
+ */
+export function wakeupModel(config) {
+  const sa = config?.super_agent || {};
+  for (const m of [sa.self_model, sa.model]) {
+    if (typeof m === "string" && m.includes(":")) return m;
+  }
+  return null;
+}
+
+async function generateMessage(identity, config, callEngineFn = callEngine) {
+  const modelId = wakeupModel(config);
+  if (!modelId) return null;
   try {
-    const { provider, model } = resolveProvider("ollama:qwen2.5:14b");
-    const engine = getAdapter(provider);
-    const language = detectLanguage(identity, engineConfig);
-    const result = await engine.chat({
+    const language = detectLanguage(identity, config);
+    const result = await callEngineFn({
+      modelId,
       system: `You are ${identity.agent_name}, an AI agent assistant. Your personality: ${identity.personality || "direct, curious, helpful"}. Your owner is ${identity.owner_name}. Context: ${identity.owner_context || "AI developer"}.`,
       messages: [
         {
@@ -39,14 +59,18 @@ async function generateMessage(identity, engineConfig) {
             `Write it in ${language}. ` +
             `Be yourself — direct, slightly witty, concrete. 2-3 sentences max. ` +
             `Mention who you are, who you're here for, and one thing you're ready to help with. ` +
+            // The context above can hold local paths (a disk, a folder); a
+            // Telegram greeting has no business printing them.
+            `Never include file paths, URLs, ids or technical details. ` +
             `No emojis. No greetings like 'Hello!' or 'Hola!' — start differently.`,
         },
       ],
-      model,
-      config: engineConfig?.engines?.ollama || {},
+      config,
       maxTokens: 150,
+      // Nobody asked for this turn: the spend breaker counts it as unwatched.
+      attribution: { channel: CHANNELS.TELEGRAM, agent: SUPERAGENT_ACTOR_ID, unwatched: true },
     });
-    return result.text?.trim() || null;
+    return result?.text?.trim() || null;
   } catch {
     return null;
   }
@@ -64,7 +88,7 @@ async function sendTelegram(token, chatId, text, reply_markup) {
   return json;
 }
 
-export async function triggerWakeup(config, log) {
+export async function triggerWakeup(config, log, deps = {}) {
   const identity = readIdentity();
   if (!identity) return;
 
@@ -94,12 +118,34 @@ export async function triggerWakeup(config, log) {
   }
 
   try {
-    const message = await generateMessage(identity, config);
+    const message = await generateMessage(identity, config, deps.callEngineFn);
     const text = message || `${identity.agent_name} online. Ready.`;
-    await sendTelegram(botToken, chatId, text, nudgeFeedbackKeyboard(gate.nudge_id));
+    const sent = await (deps.sendFn || sendTelegram)(botToken, chatId, text, nudgeFeedbackKeyboard(gate.nudge_id));
     recordNudge(gate, { chat_id: chatId, preview: text });
+    // Into the Telegram thread, like every other message Roby sends there. It
+    // went straight to the Bot API and nowhere else, so when the owner asked
+    // "where did this come from?" Roby searched its own messages, found
+    // nothing, and could not say — it had never seen itself send it.
+    appendGlobalMessage({
+      channel: CHANNELS.TELEGRAM,
+      direction: "out",
+      type: "agent",
+      actor_id: SUPERAGENT_ACTOR_ID,
+      actor_kind: "superagent",
+      agent_slug: SUPERAGENT_ACTOR_ID,
+      author: identity.agent_name || undefined,
+      body: text,
+      meta: {
+        chat_id: chatId,
+        tg_channel: channel.name,
+        wakeup: true,
+        nudge_id: gate.nudge_id,
+        ...(message ? { model: wakeupModel(config) } : {}),
+        ...(sent?.result?.message_id ? { external_id: String(sent.result.message_id) } : {}),
+      },
+    });
     writeIdentity({ last_wakeup: new Date().toISOString() });
-    log?.(`wakeup: sent to Telegram chat ${chatId}`);
+    log?.(`wakeup: sent to Telegram chat ${chatId}${message ? ` (written by ${wakeupModel(config)})` : " (plain line: no model answered)"}`);
   } catch (e) {
     log?.(`wakeup: failed — ${e.message}`);
   }
