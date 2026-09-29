@@ -7,6 +7,7 @@ import { Groups } from "../../lib/api/groups";
 import { Runtimes } from "../../lib/api/runtimes";
 import { useProjects } from "../../hooks/useProjects";
 import { cn } from "../../lib/cn";
+import { pickableAgents } from "../../lib/new-chat";
 import { t } from "../../i18n";
 import type { InboxRow } from "../../lib/api/inbox";
 
@@ -16,10 +17,12 @@ export type GroupMember = { project_id: number | string; slug: string };
  * "New" on inbox / phone: pick any agent (every project) for a 1:1, or several
  * for a group room — including mixing agents that live in different projects.
  *
- * The list behind this is web-only and hides quiet agents; this sheet asks for
- * the FULL roster (`include_empty`) so an agent you have never opened is still
- * one tap away. a2a rows are conversations between agents, not someone you
- * start a new chat with, so they stay out.
+ * A new chat is always a fresh WEB session, so this sheet asks for the
+ * web-scoped roster — one row per agent — and the FULL one (`include_empty`) so
+ * an agent you have never opened is still one tap away. The every-channel list
+ * would put the super-agent here once per channel (see pickableAgents). a2a
+ * rows are conversations between agents, not someone you start a new chat
+ * with, so they stay out.
  */
 export function NewChatSheet({
   open,
@@ -41,7 +44,7 @@ export function NewChatSheet({
   /** After a coding session is launched. Caller navigates to its room. */
   onRuntimeStarted?: (info: { project_id: number | string; session_id: string }) => void;
 }) {
-  const { rows, isLoading } = useInbox(true, null);
+  const { rows, isLoading } = useInbox(true, "web");
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"root" | "agent" | "group" | "runtime">("root");
   // The new-session form. Kept flat rather than in an object: four independent
@@ -110,10 +113,7 @@ export function NewChatSheet({
     }
   };
 
-  const agents = useMemo(
-    () => rows.filter((r) => r.kind === "agent" || r.kind === "super_agent"),
-    [rows],
-  );
+  const agents = useMemo(() => pickableAgents(rows), [rows]);
 
   // Groups need real project agents (tools + .apc). Super-agent stays 1:1 only.
   const groupAgents = useMemo(
