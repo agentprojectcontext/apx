@@ -20,7 +20,7 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
-import { CHANNELS } from "../constants/channels.js";
+import { CHANNELS, PUBLIC_CHANNELS } from "../constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 
 import { nowIso } from "../util/time.js";
@@ -1503,6 +1503,41 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
   }
   all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
   return all.slice(-limit);
+}
+
+/**
+ * Full-text search over the GLOBAL channel ledgers (telegram, whatsapp, web,
+ * desktop …), newest first — the other half of `searchProjectMessages`.
+ *
+ * Those channels live in `~/.apx/messages/<channel>/`, never in a project, so
+ * a search that only opened the project ledger could not find a single thing
+ * the owner said on Telegram or anybody wrote on WhatsApp.
+ *
+ * Conversation rows only (`user` / `agent`). Public channels are left out
+ * unless named: a stranger's text in a public room is not the owner's history.
+ */
+export function searchGlobalMessages(query, { channels = null, limit = 50 } = {}) {
+  if (!query) return [];
+  const q = String(query).toLowerCase();
+  let wanted = channels;
+  if (!wanted) {
+    wanted = fs.existsSync(GLOBAL_MESSAGES_DIR)
+      ? fs.readdirSync(GLOBAL_MESSAGES_DIR).filter((f) => {
+          if (!CHANNEL_NAME_RE.test(f) || PUBLIC_CHANNELS.has(f)) return false;
+          return fs.statSync(path.join(GLOBAL_MESSAGES_DIR, f)).isDirectory();
+        })
+      : [];
+  }
+  const hits = [];
+  for (const channel of wanted) {
+    if (!CHANNEL_NAME_RE.test(channel)) continue;
+    for (const m of readGlobalMessages({ channel, limit: Infinity })) {
+      if (m.type !== "user" && m.type !== "agent") continue;
+      if ((m.body || "").toLowerCase().includes(q)) hits.push(m);
+    }
+  }
+  hits.sort((a, b) => (b.ts || "").localeCompare(a.ts || ""));
+  return hits.slice(0, Math.min(limit, 500));
 }
 
 // ---------------------------------------------------------------------------
