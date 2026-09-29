@@ -1,0 +1,300 @@
+// Inbound Discord: store it, decide whether to speak, and if so, speak once.
+//
+// The order is the design, as on WhatsApp. Whether a room is listed, whether
+// the bot was called and whether a limit applies are all settled by code
+// (./trigger.js) before any model sees the message. By the time a turn runs,
+// the only open question is the wording.
+//
+// Every turn here is SEALED (`audience: "third_party"`), the owner's included:
+// the reply is posted in a public room, so a turn with the owner's memory,
+// projects or tools would be one careless sentence away from publishing them.
+// The owner gives the agent real work on Telegram or the panel, not here.
+//
+// A burst is one question. People write "roby" / "una pregunta" / the actual
+// question as three messages; answering the first would answer a third of it.
+// So a call opens a short settle window per (room, person) and the turn runs
+// on whatever that person said by the time it closes.
+import { CHANNELS } from "#core/constants/channels.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
+import { readConfig } from "#core/config/index.js";
+import { readIdentity } from "#core/identity/self.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
+import { compactChannelIfNeeded } from "#core/memory/index.js";
+import { readDiscordConfig } from "./config.js";
+import { decideDiscordMessage, createDiscordLimiter, SKIP_REASONS } from "./trigger.js";
+import { gatherDiscordContext, roomRecords, recentWindow } from "./context.js";
+import { shouldReplyUncalled } from "./gate.js";
+import { postDiscord } from "./outbox.js";
+
+// How many new messages in a room before we ask the compactor whether it is
+// time for a summary. The compactor decides; this only keeps us from asking on
+// every single message of a busy room.
+const COMPACT_CHECK_EVERY = 20;
+
+// One report to the owner per room per window. The owner wants to know the bot
+// spoke in their community — not to be pinged for every reply.
+const REPORT_WINDOW_MS = 30 * 60_000;
+
+/**
+ * Who the turn is talking to. For a stranger, their Discord name and nothing
+ * else. For the owner — recognised by account id, never by what a message
+ * claims — the name they go by, so the agent talks to them rather than at a
+ * member of the public. The owner's name is theirs to put in their own room;
+ * nothing else about them is added.
+ */
+export function relationshipFor(msg, dc) {
+  const discordName = msg.author?.name || "someone";
+  if ((dc.owner_ids || []).includes(msg.author?.id)) {
+    let ownerName = "";
+    try { ownerName = String(readIdentity()?.owner_name || "").trim(); } catch { /* no identity yet */ }
+    const name = ownerName || discordName;
+    return [
+      "# Who you are answering",
+      `Your owner, ${name} (on Discord: ${discordName}), writing from their own account — verified by account id before this turn.`,
+      `Talk to them as your owner: by name, familiar and direct. The room is public, so nothing private goes in the answer.`,
+    ].join("\n");
+  }
+  return `# Who you are answering\n${discordName}, a member of this Discord community.`;
+}
+
+function inboundMeta(msg, botIdOf = () => null, ownerIds = []) {
+  return {
+    // The owner's own Discord account. The panel draws these on the owner's
+    // side of the thread; everyone else is named on the other side.
+    ...(ownerIds.includes(msg.author?.id) ? { owner: true } : {}),
+    chat_id: msg.channel_id,
+    // One thread per room: the inbox groups a Discord day by channel, not by
+    // person, because a room is read as a room.
+    contact_key: msg.channel_id,
+    message_id: msg.id,
+    speaker: msg.author?.name || "",
+    discord_user_id: msg.author?.id || "",
+    ...(msg.author?.bot ? { discord_bot: true } : {}),
+    ...(msg.guild_id ? { guild_id: msg.guild_id } : {}),
+    ...(msg.parent_id ? { parent_id: msg.parent_id } : {}),
+    ...(msg.reply_to?.id ? {
+      reply_to_id: msg.reply_to.id,
+      // What was replied to, as the surface shows it: a line, not the whole
+      // message — enough to read the thread the way Discord draws it.
+      reply_to_author: msg.reply_to.author_id === botIdOf() ? "you" : (msg.reply_to.author_name || null),
+      reply_to_text: String(msg.reply_to.content || "").replace(/\s+/g, " ").slice(0, 160),
+    } : {}),
+    ...(msg.channel_name ? { room: msg.channel_name } : {}),
+  };
+}
+
+/**
+ * Build the dispatcher for one connected bot.
+ *
+ * transport: { botId() → string, send(channelId, text, { replyTo }) → {id}, typing(channelId) }
+ * runTurn / settleMs / now are injectable for tests; nothing else is.
+ */
+export function createDiscordDispatcher({
+  transport,
+  globalConfig = null,
+  projects = null,
+  plugins = null,
+  registries = null,
+  log = () => {},
+  notifyOwner = async () => {},
+  runTurn = runSuperAgent,
+  gate = shouldReplyUncalled,
+  compact = compactChannelIfNeeded,
+  settleMs = null,
+  limiter = createDiscordLimiter(),
+} = {}) {
+  const pending = new Map();      // room|user → { timer, msg }
+  const sinceCompact = new Map(); // room → messages stored since the last check
+  const compacting = new Set();   // rooms with a compaction in flight
+  const lastReport = new Map();   // room|kind → ms
+  const running = new Set();      // turns in flight, for stop()/tests
+
+  const cfgNow = () => globalConfig || readConfig();
+
+  async function report(kind, roomId, text) {
+    const key = `${roomId}|${kind}`;
+    const last = lastReport.get(key);
+    if (last !== undefined && Date.now() - last < REPORT_WINDOW_MS) return;
+    lastReport.set(key, Date.now());
+    try { await notifyOwner(text, { kind: `discord_${kind}` }); } catch { /* the log line below still says it */ }
+  }
+
+  function maybeCompact(roomId, dc) {
+    const n = (sinceCompact.get(roomId) || 0) + 1;
+    sinceCompact.set(roomId, n);
+    if (n < COMPACT_CHECK_EVERY || compacting.has(roomId)) return;
+    sinceCompact.set(roomId, 0);
+    compacting.add(roomId);
+    compact({
+      channel: CHANNELS.DISCORD,
+      chat_id: roomId,
+      config: cfgNow(),
+      log,
+      maxTurns: dc.context.summary_threshold,
+      keepRecent: dc.context.recent_messages,
+      keepFirst: 0,
+      max_age_hours: 14 * 24,
+    })
+      .catch((e) => log(`discord: summary for ${roomId} failed: ${e.message}`))
+      .finally(() => compacting.delete(roomId));
+  }
+
+  async function answer(msg, dc, { gated = false } = {}) {
+    const roomId = msg.channel_id;
+    const where = msg.channel_name ? `#${msg.channel_name}` : roomId;
+
+    // `useful` mode, uncalled: ask first, answer only on a yes. The reply slot
+    // is reserved only now — a NO must not spend the room's hourly replies.
+    if (gated) {
+      const recentLines = recentWindow(roomRecords(roomId), { limit: 10, maxChars: 2_000, excludeId: msg.id });
+      const verdict = await gate({
+        globalConfig: cfgNow(), dc, recent: recentLines, message: `${msg.author?.name || "someone"}: ${msg.content}`,
+      });
+      if (!verdict.reply) {
+        log(`discord: stayed quiet in ${where} (${verdict.reason || "not useful"})`);
+        return { replied: false, gated: true, reason: verdict.reason };
+      }
+      if (!limiter.check({ channelId: roomId, userId: msg.author?.id, limits: dc.limits }).ok) {
+        return { replied: false, gated: true, reason: "limit" };
+      }
+      limiter.record({ channelId: roomId, userId: msg.author?.id });
+      log(`discord: joining in ${where} uncalled (${verdict.reason || "useful"})`);
+    }
+
+    try { await transport.typing?.(roomId); } catch { /* cosmetic */ }
+
+    const config = cfgNow();
+    let text = "";
+    try {
+      const note = await gatherDiscordContext(msg, { dc, config, roomName: msg.channel_name || "" });
+      const turn = await runTurn({
+        globalConfig: config,
+        projects,
+        plugins,
+        registries,
+        prompt: `${msg.author?.name || "someone"}: ${msg.content}`,
+        previousMessages: [],
+        channel: CHANNELS.DISCORD,
+        audience: "third_party",
+        channelNote: note,
+        relationshipBlock: relationshipFor(msg, dc),
+        channelMeta: { chatId: roomId, discord: true, roomName: msg.channel_name || "" },
+      });
+      text = String(turn?.text || "").trim();
+    } catch (e) {
+      log(`discord: turn for ${msg.author?.name} in ${where} failed: ${e.message}`);
+      await report("failed", roomId, `Discord ${where}: ${String(msg.author?.name || "alguien").slice(0, 40)} me llamó y no pude contestar (${e.message}).`);
+      return { replied: false, error: e.message };
+    }
+    if (!text) {
+      log(`discord: empty reply for ${msg.author?.name} in ${where} — nothing posted`);
+      return { replied: false, error: "empty reply" };
+    }
+
+    const { parts, firstId } = await postDiscord({
+      transport,
+      channelId: roomId,
+      text,
+      replyTo: msg.id,
+      room: msg.channel_name || null,
+      log,
+    });
+    log(`discord: answered ${msg.author?.name} in ${where} (${text.length} chars, ${parts} message${parts === 1 ? "" : "s"})`);
+    // No quote of the reply and a capped name: this lands in the owner's own
+    // Telegram thread, and both were steered by whoever wrote in the room.
+    await report("replied", roomId, `Discord ${where}: le contesté a ${String(msg.author?.name || "alguien").slice(0, 40)}.`);
+    return { replied: true, messageId: firstId };
+  }
+
+  /**
+   * Handle one inbound message. Resolves with the decision as soon as it is
+   * made; the answer itself runs after the settle window, in the background.
+   */
+  async function handle(msg) {
+    const dc = readDiscordConfig(cfgNow());
+    // A message from someone whose answer is already waiting joins that answer
+    // instead of asking the limits again: the cooldown their first call just
+    // reserved would otherwise refuse the rest of their own burst.
+    const key = `${msg.channel_id}|${msg.author?.id}`;
+    const collapsing = pending.has(key);
+    const decision = decideDiscordMessage(msg, {
+      dc, botId: transport.botId?.(), limiter: collapsing ? null : limiter,
+    });
+    if (!decision.store) return decision;
+
+    appendGlobalMessage({
+      channel: CHANNELS.DISCORD,
+      direction: "in",
+      type: "user",
+      author: msg.author?.name || "",
+      actor_id: `discord:${msg.author?.id || "unknown"}`,
+      body: msg.content,
+      // Stamped with OUR clock, like every other row. The indexer's cursor is
+      // the latest ts it has seen; a row carrying Discord's slightly older
+      // time could land behind it and never be indexed.
+      meta: { ...inboundMeta(msg, () => transport.botId?.(), dc.owner_ids), ...(msg.ts ? { discord_ts: msg.ts } : {}) },
+    });
+    maybeCompact(msg.channel_id, dc);
+
+    if (!decision.reply) {
+      if (decision.reason === SKIP_REASONS.CHANNEL_CAP) {
+        const where = msg.channel_name ? `#${msg.channel_name}` : msg.channel_id;
+        log(`discord: ${where} hit its hourly reply cap — staying quiet`);
+        await report("cap", msg.channel_id, `Discord ${where}: llegué al tope de respuestas por hora y me callé. Si es flood o spam, conviene mirarlo.`);
+      }
+      return decision;
+    }
+
+    // Reserve the slot NOW, not when the answer runs. Recording it after the
+    // settle window let every distinct caller inside that window pass the
+    // hourly cap: a raid of N accounts bought N model turns.
+    // A gated candidate reserves nothing yet: it spends a gate check now and a
+    // reply slot only if the gate says yes (see answer()).
+    if (decision.gate) { if (!collapsing) limiter.recordGate({ channelId: msg.channel_id }); }
+    else if (!collapsing) limiter.record({ channelId: msg.channel_id, userId: msg.author?.id });
+
+    // Settle: a newer message from the same person in the same room replaces
+    // the one waiting. Their whole burst is in the room's recent window anyway.
+    const prev = pending.get(key);
+    if (prev) clearTimeout(prev.timer);
+    const wait = settleMs ?? dc.limits.burst_window_ms;
+    // A call inside a burst upgrades the whole burst: if any message of it
+    // called the bot, the answer does not wait on the gate.
+    const entry = { msg, gated: decision.gate && (!prev || prev.gated) };
+    entry.done = new Promise((resolve) => {
+      entry.resolve = resolve;
+      entry.timer = setTimeout(() => {
+        pending.delete(key);
+        const p = answer(entry.msg, readDiscordConfig(cfgNow()), { gated: entry.gated })
+          .catch((e) => {
+            log(`discord: answer failed: ${e.message}`);
+            return { replied: false, error: e.message };
+          })
+          .finally(() => running.delete(p));
+        running.add(p);
+        p.then(resolve);
+      }, wait);
+    });
+    // The superseded message is answered by the same turn as the newer one.
+    if (prev) prev.resolve(entry.done);
+    pending.set(key, entry);
+    return { ...decision, done: entry.done };
+  }
+
+  return {
+    handle,
+    /** Wait for every answer in flight. Tests and a clean shutdown use it. */
+    async drain() {
+      while (pending.size || running.size) {
+        await Promise.all([...[...pending.values()].map((e) => e.done), ...running]);
+      }
+    },
+    stop() {
+      for (const e of pending.values()) {
+        clearTimeout(e.timer);
+        e.resolve({ replied: false, error: "stopped" });
+      }
+      pending.clear();
+    },
+  };
+}

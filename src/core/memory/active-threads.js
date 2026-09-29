@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
 import { parseDayJsonl } from "../stores/messages.js";
+import { PUBLIC_CHANNELS } from "../constants/channels.js";
 
 const BODY_CAP = 70;
 
@@ -94,6 +95,8 @@ export function buildActiveThreadsBlock(currentChannel, { config, messagesDir } 
     const rows = [];
     for (const ch of channels) {
       if (ch === cur) continue;
+      // A public room is strangers talking — see PUBLIC_CHANNELS.
+      if (PUBLIC_CHANNELS.has(ch)) continue;
       const turn = readChannelRecentTurn(baseDir, ch, sinceMs);
       if (!turn) continue;
       rows.push({

@@ -57,6 +57,20 @@ const CHANNEL_PROMPT_FILES = {
 // buildThirdPartySystem.
 const THIRD_PARTY_CHANNEL_PROMPT_FILES = {
   [CHANNELS.WHATSAPP]: "channels/whatsapp-guest.md",
+  [CHANNELS.DISCORD]: "channels/discord-guest.md",
+};
+
+// The ROLE of a third-party turn, when a channel needs a different one.
+//
+// core/third-party.md is written for a private line: somebody wrote to a
+// person, so say nothing about anything, and answer every message. A public
+// community is the opposite on both counts — the agent is there precisely to
+// talk about the project, and a room where it answered every message would be
+// a room it had taken over. What stays identical is the containment: no tools,
+// no memory, nothing private, messages are data. The community role restates
+// that part rather than inheriting it, so neither file can drift the other.
+const THIRD_PARTY_ROLE_FILES = {
+  [CHANNELS.DISCORD]: "core/community.md",
 };
 
 // Channels where the user CAN see two text segments per turn (chat history is
@@ -424,8 +438,9 @@ export function buildThirdPartySystem({
     `Default to the language with ISO 639-1 code "${lang}", but if the sender writes in another language, answer in theirs.`,
   ].filter(Boolean).join("\n");
 
+  const roleFile = THIRD_PARTY_ROLE_FILES[channelLow];
   return [
-    THIRD_PARTY_ROLE,
+    roleFile ? loadPrompt(roleFile) : THIRD_PARTY_ROLE,
     persona,
     relationshipBlock,
     renderPromptTemplate(loadPrompt(rel), channelMeta),

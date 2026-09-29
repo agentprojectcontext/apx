@@ -245,9 +245,10 @@ const PUSH_PATHS = [
   "src/core/agent/tools/handlers/send-telegram.js", // the model's own send tool
   "src/host/daemon/callback-reconciler.js", // late runtime results
   "src/core/routines/delivery.js",          // routine deliver_to (send_telegram is suppressed, so the gate moved here)
+  "src/host/daemon/plugins/discord/index.js", // what the bot did in a public room — nobody wrote to the owner
 ];
 
-test("all five outbound push paths import the gate", () => {
+test("every audited outbound push path imports the gate", () => {
   for (const rel of PUSH_PATHS) {
     const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
     assert.match(src, /from "#core\/nudge\/index\.js"/, `${rel} does not import the gate`);

@@ -15,10 +15,11 @@
 import telegramPlugin from "./telegram/index.js";
 import desktopPlugin from "./desktop/index.js";
 import whatsappPlugin from "./whatsapp/index.js";
+import discordPlugin from "./discord/index.js";
 
 // Telegram first: the WhatsApp plugin reports to the owner THROUGH it, and
 // init order is the order a sibling becomes reachable via plugins.get().
-export const PLUGINS = [telegramPlugin, desktopPlugin, whatsappPlugin];
+export const PLUGINS = [telegramPlugin, desktopPlugin, whatsappPlugin, discordPlugin];
 
 export class PluginManager {
   constructor({ projects, config, log, registries }) {

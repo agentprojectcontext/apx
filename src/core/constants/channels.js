@@ -27,6 +27,10 @@ export const CHANNELS = Object.freeze({
   LOG: "log",                 // Readable, never delivered (routine abstentions)
   DIRECT: "direct",           // Planned: 1:1 channel that isn't a chat platform
   WHATSAPP: "whatsapp",       // Planned: WhatsApp bot integration
+  // A public community server. Rooms, not people: one thread per Discord
+  // channel, and everyone in it — the owner included — is answered by a sealed
+  // turn, because whatever is written there is read by strangers.
+  DISCORD: "discord",
 });
 
 /**
@@ -42,8 +46,20 @@ export const CHANNELS = Object.freeze({
  * and never delivered.
  */
 export const DELIVERED_CHANNELS = Object.freeze(
-  new Set([CHANNELS.TELEGRAM, CHANNELS.WHATSAPP]),
+  new Set([CHANNELS.TELEGRAM, CHANNELS.WHATSAPP, CHANNELS.DISCORD]),
 );
+
+/**
+ * Channels anyone can write to — a public room, not a person the owner chose.
+ *
+ * Their text must never enter an owner turn as if it were the owner's own
+ * conversation. The "active threads on other channels" block is the path this
+ * closes: it quotes the latest inbound line of every channel into every owner
+ * turn, tools included, framed as "pick it up naturally" — so in a busy public
+ * room any stranger would be writing ~70 characters of the owner's prompt.
+ * (WhatsApp is not here: its writers are contacts the owner put on a roster.)
+ */
+export const PUBLIC_CHANNELS = Object.freeze(new Set([CHANNELS.DISCORD]));
 
 /** Threads that are a ROOM inside a channel rather than a day of one. They are
  *  project-scoped ledgers with their own rewind (a group) or a deliberate
