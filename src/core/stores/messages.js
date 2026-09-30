@@ -29,6 +29,7 @@ import { emitMessageEvent } from "../events/bus.js";
 import { cleanTextOfPseudoToolCalls } from "../agent/tools/tool-call-parser.js";
 import { attachmentsMeta } from "./media-archive.js";
 import { readAgents } from "../apc/parser.js";
+import { memoFile, memoFileSync } from "../util/file-memo.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -509,6 +510,96 @@ export async function readProjectMessagesInRange(projectRoot, { since, until, li
   return Number.isFinite(limit) && limit > 0 ? all.slice(-limit) : all;
 }
 
+// ── Room channels, remembered per day file ──────────────────────────────────
+// The a2a, group and runtime lists are asked for on every inbox and sidebar
+// fetch, and the panel fetches on every live-feed event — so during a turn they
+// re-parsed every day file a project ever wrote, several times a second, on the
+// event loop. One parse of a day file now buckets the three room channels, and
+// it is kept until that file changes (util/file-memo.js). The buckets are
+// SHARED: callers copy before they sort or mutate.
+const ROOM_CHANNELS = [CHANNELS.A2A, "group", CHANNELS.RUNTIME];
+const ROOM_LINE_RE = /"channel"\s*:\s*"(?:a2a|group|runtime)"/;
+const DAY_FILE_RE = /^\d{4}-\d{2}-\d{2}\.jsonl$/;
+
+// Most of a ledger is tool traffic on other channels; dropping lines that
+// cannot be a room row before JSON.parse is most of the cost of a miss. A line
+// that merely MENTIONS one passes here and is dropped by the channel check.
+function roomBuckets(text) {
+  const kept = text.split("\n").filter((l) => ROOM_LINE_RE.test(l)).join("\n");
+  const out = Object.fromEntries(ROOM_CHANNELS.map((c) => [c, []]));
+  for (const m of parseDayJsonl(kept)) if (out[m.channel]) out[m.channel].push(m);
+  return out;
+}
+
+const dayFilesNewestFirst = (names) => names.filter((f) => DAY_FILE_RE.test(f)).sort().reverse();
+
+// Oldest file first before the stable sort, so rows with equal timestamps
+// come out in the order the full scan in readProjectMessages gave them.
+function newestRows(pickedNewestFirst, cap) {
+  return pickedNewestFirst.reverse().flat()
+    .sort((a, b) => (b.ts || "").localeCompare(a.ts || ""))
+    .slice(0, cap);
+}
+
+/**
+ * The newest `limit` rows of one room channel, newest first — exactly what
+ * `readProjectMessages(root, { channel, limit })` answers, without opening the
+ * days it does not need: a day file only holds rows stamped that day, so once
+ * `limit` rows are in hand every older file sorts below all of them.
+ */
+export function readRoomRows(projectRoot, channel, { limit = 1000 } = {}) {
+  const dir = path.join(projectRoot, "messages");
+  let names;
+  try { names = fs.readdirSync(dir); } catch { return []; }
+  const cap = Math.min(limit, 1000);
+  const picked = [];
+  let n = 0;
+  for (const f of dayFilesNewestFirst(names)) {
+    const rows = memoFileSync("room-rows", path.join(dir, f), roomBuckets)?.[channel] || [];
+    picked.push(rows);
+    n += rows.length;
+    if (n >= cap) break;
+  }
+  return newestRows(picked, cap);
+}
+
+/** `readRoomRows` for a request path (rule 15). Same memo, same answer. */
+export async function readRoomRowsAsync(projectRoot, channel, { limit = 1000 } = {}) {
+  const dir = path.join(projectRoot, "messages");
+  let names;
+  try { names = await fsp.readdir(dir); } catch { return []; }
+  const cap = Math.min(limit, 1000);
+  const picked = [];
+  let n = 0;
+  for (const f of dayFilesNewestFirst(names)) {
+    const rows = (await memoFile("room-rows", path.join(dir, f), roomBuckets))?.[channel] || [];
+    picked.push(rows);
+    n += rows.length;
+    if (n >= cap) break;
+  }
+  return newestRows(picked, cap);
+}
+
+/**
+ * Rows of one room channel since `since`, oldest first, reading only the day
+ * files inside the window — the room-channel counterpart of
+ * readProjectMessagesInRange. `limit` keeps the newest n OF THIS CHANNEL.
+ */
+export async function readRoomRowsSince(projectRoot, channel, { since, limit = 4000 } = {}) {
+  const dir = path.join(projectRoot, "messages");
+  let names;
+  try { names = await fsp.readdir(dir); } catch { return []; }
+  const fromDay = since ? String(since).slice(0, 10) : null;
+  const all = [];
+  for (const f of dayFilesNewestFirst(names)) {
+    if (fromDay && f.slice(0, 10) < fromDay) break;
+    const rows = (await memoFile("room-rows", path.join(dir, f), roomBuckets))?.[channel] || [];
+    for (const m of rows) if (!since || m.ts >= since) all.push(m);
+  }
+  all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  return Number.isFinite(limit) && limit > 0 ? all.slice(-limit) : all;
+}
+
 export function searchProjectMessages(projectRoot, query, limit = 50) {
   if (!query) return [];
   const q = query.toLowerCase();
@@ -618,7 +709,15 @@ export function dedupA2A(msgs) {
  *  listGlobalThreads() row so the web sidebar renders it in the a2a group,
  *  plus `participants` for the double-avatar face. */
 export function listProjectA2AThreads(projectRoot) {
-  const msgs = readProjectMessages(projectRoot, { channel: "a2a", limit: 1000 });
+  return a2aThreadsFrom(readRoomRows(projectRoot, CHANNELS.A2A, { limit: 1000 }));
+}
+
+/** `listProjectA2AThreads` for a request path (rule 15). */
+export async function listProjectA2AThreadsAsync(projectRoot) {
+  return a2aThreadsFrom(await readRoomRowsAsync(projectRoot, CHANNELS.A2A, { limit: 1000 }));
+}
+
+function a2aThreadsFrom(msgs) {
   const byPair = new Map();
   for (const m of msgs) {
     const pair = a2aPair(m);
@@ -861,7 +960,10 @@ export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reas
 }
 
 function groupRows(projectRoot, group_id) {
-  return readProjectMessages(projectRoot, { channel: GROUP_CHANNEL, limit: 4000 })
+  return shapeGroupRows(readRoomRows(projectRoot, GROUP_CHANNEL, { limit: 4000 }), group_id);
+}
+function shapeGroupRows(rows, group_id) {
+  return rows
     .filter((m) => m.meta?.group_id && (group_id ? m.meta.group_id === group_id : true))
     .sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
 }
@@ -891,9 +993,18 @@ function agentNamer(projectRoot) {
 /** One thread row per group in this project, shaped like a listProjectA2AThreads
  *  row so the web sidebar and inbox render it in a group. */
 export function listProjectGroupThreads(projectRoot) {
-  const nameOf = agentNamer(projectRoot);
+  return groupThreadsFrom(groupRows(projectRoot, null), agentNamer(projectRoot));
+}
+
+/** `listProjectGroupThreads` for a request path (rule 15). */
+export async function listProjectGroupThreadsAsync(projectRoot) {
+  const rows = shapeGroupRows(await readRoomRowsAsync(projectRoot, GROUP_CHANNEL, { limit: 4000 }), null);
+  return groupThreadsFrom(rows, agentNamer(projectRoot));
+}
+
+function groupThreadsFrom(rows, nameOf) {
   const byId = new Map();
-  for (const r of groupRows(projectRoot, null)) {
+  for (const r of rows) {
     const gid = r.meta.group_id;
     const g = byId.get(gid) || { id: gid, participants: [], title: null, homes: null, created: null, display: [], last: null, lastAgent: null };
     if (Array.isArray(r.meta.participants)) g.participants = r.meta.participants; // latest control wins
@@ -1782,6 +1893,13 @@ function readThreadMeta(base) {
     return {};
   }
 }
+async function readThreadMetaAsync(base) {
+  try {
+    return JSON.parse(await fsp.readFile(threadMetaPath(base), "utf8")) || {};
+  } catch {
+    return {};
+  }
+}
 
 /** Key one thread. Channel and date both, because the same date exists in every
  *  channel and they are different conversations. */
@@ -1895,8 +2013,7 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
       })
   ).filter((c) => CHANNEL_NAME_RE.test(c));
 
-  const meta = readThreadMeta(base);
-  const out = [];
+  const days = [];
   for (const ch of chans) {
     const dir = path.join(base, ch);
     let files;
@@ -1904,58 +2021,131 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
     for (const f of files) {
       const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
       if (!m) continue;
-      const msgs = keepForProject(
-        parseDayJsonl(fs.readFileSync(path.join(dir, f), "utf8")).filter(
-          (r) => r.type === "user" || r.type === "agent"
-        ),
-        project,
-      );
-      if (!msgs.length) continue;
+      const day = memoFileSync("global-day", path.join(dir, f), (text) => globalDayThreads(ch, m[1], text), { fresh: stampsStillResolve });
+      if (day) days.push({ ch, day });
+    }
+  }
+  return shapeGlobalThreads(days, readThreadMeta(base), { project, includeArchived });
+}
 
-      // One day file becomes one thread per person in it. For every channel but
-      // WhatsApp that is a single group keyed `null` — the plain date — so this
-      // is the same loop it always was, run once.
-      //
-      // …and per PROJECT, when nobody narrowed to one. An UNSCOPED read is the
-      // cross-project view the agent inbox takes, and the web channel is used
-      // from every project: merging them produced a row that could not be
-      // opened. The inbox listed the super-agent's latest web day, said it
-      // belonged to no project (so the phone opened it as project 0), and the
-      // detail route — which DOES scope — answered `404: thread not found`
-      // because every row in that day had been written inside another project.
-      // The owner, 2026-09-20: the chat was visibly active but would not open, with a
-      // screenshot of that exact 404 over an empty pane.
-      //
-      // A scoped read has already been filtered to one project, so the key is
-      // constant there and this is the same single group it always was.
-      const groups = new Map();
-      for (const r of msgs) {
-        const home = rowProject(r) ?? DEFAULT_THREAD_PROJECT;
-        const key = `${rowContact(r, ch) ?? ""}\u0000${home}`;
-        if (!groups.has(key)) groups.set(key, { contact: rowContact(r, ch), project: home, rows: [] });
-        groups.get(key).rows.push(r);
-      }
+/** `listGlobalThreads` for a request path (rule 15). Same memo, same answer. */
+export async function listGlobalThreadsAsync({ channels, project, includeArchived = false, _globalMessagesDir } = {}) {
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  let chans = channels && channels.length ? channels : null;
+  if (!chans) {
+    let names;
+    try { names = await fsp.readdir(base); } catch { return []; }
+    const isDir = await Promise.all(names.map((f) => fsp.stat(path.join(base, f)).then((st) => st.isDirectory(), () => false)));
+    chans = names.filter((_, i) => isDir[i]);
+  }
+  chans = chans.filter((c) => CHANNEL_NAME_RE.test(c));
 
-      for (const { contact, project: home, rows } of groups.values()) {
-        const id = threadId(m[1], contact);
-        const over = meta[threadKey(ch, id)] || {};
-        if (over.archived && !includeArchived) continue;
-        out.push({
-          id,
-          channel: ch,
-          // WHICH project's view this thread belongs to — the answer the detail
-          // route needs and the reason a row is openable at all. Always set, so
-          // a caller never has to guess "0" for it.
-          project: home,
-          ...(contact ? { contact, contact_name: roomLabel(rows) || contactName(rows) } : {}),
-          // What the reader called it wins over the first thing that was said.
-          title: over.title || threadTitle(ch, id, contact, rows),
-          archived: over.archived || undefined,
-          messages: rows.length,
-          started_at: rows[0].ts,
-          last_ts: rows[rows.length - 1].ts,
-        });
-      }
+  const days = [];
+  for (const ch of chans) {
+    const dir = path.join(base, ch);
+    let files;
+    try { files = await fsp.readdir(dir); } catch { continue; }
+    for (const f of files) {
+      const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
+      if (!m) continue;
+      const day = await memoFile("global-day", path.join(dir, f), (text) => globalDayThreads(ch, m[1], text), { fresh: stampsStillResolve });
+      if (day) days.push({ ch, day });
+    }
+  }
+  return shapeGlobalThreads(days, await readThreadMetaAsync(base), { project, includeArchived });
+}
+
+// The project stamp a row carries, as written — before the resolver maps it to
+// the project that holds it NOW. "" for an unstamped row.
+function projectStampKey(r) {
+  const m = r?.meta;
+  const v = m?.project_id;
+  if (v === undefined || v === null || v === "") return "";
+  return JSON.stringify([String(v), m.project_apx_id ?? null, m.project_name ?? null]);
+}
+function resolveStamps(stamps) {
+  return stamps.map((k) => {
+    if (!k) return "";
+    const [project_id, project_apx_id, project_name] = JSON.parse(k);
+    return rowProject({ meta: { project_id, project_apx_id, project_name } }) ?? "";
+  }).join("\u0000");
+}
+// A day's threads are split by project, and which project a stamp names can
+// change without the file changing (a project renamed or re-registered) — so a
+// remembered day is only good while its stamps still resolve the same way.
+const stampsStillResolve = (day) => resolveStamps(day.stamps) === day.resolved;
+
+// One day file of one channel, reduced to its threads. Unscoped: a scoped read
+// is the subset whose `project` matches, which is the same set of rows the
+// scoped grouping used to build.
+function globalDayThreads(ch, date, text) {
+  const msgs = parseDayJsonl(text).filter((r) => r.type === "user" || r.type === "agent");
+  const stamps = [...new Set(msgs.map(projectStampKey))];
+  const threads = [];
+  if (msgs.length) {
+    // One day file becomes one thread per person in it. For every channel but
+    // WhatsApp that is a single group keyed `null` — the plain date — so this
+    // is the same loop it always was, run once.
+    //
+    // …and per PROJECT, when nobody narrowed to one. An UNSCOPED read is the
+    // cross-project view the agent inbox takes, and the web channel is used
+    // from every project: merging them produced a row that could not be
+    // opened. The inbox listed the super-agent's latest web day, said it
+    // belonged to no project (so the phone opened it as project 0), and the
+    // detail route — which DOES scope — answered `404: thread not found`
+    // because every row in that day had been written inside another project.
+    // The owner, 2026-09-20: the chat was visibly active but would not open, with a
+    // screenshot of that exact 404 over an empty pane.
+    //
+    // A scoped read keeps the threads whose project matches (shapeGlobalThreads),
+    // which is the same group the scoped grouping always built.
+    const groups = new Map();
+    for (const r of msgs) {
+      const home = rowProject(r) ?? DEFAULT_THREAD_PROJECT;
+      const key = `${rowContact(r, ch) ?? ""}\u0000${home}`;
+      if (!groups.has(key)) groups.set(key, { contact: rowContact(r, ch), project: home, rows: [] });
+      groups.get(key).rows.push(r);
+    }
+    for (const { contact, project: home, rows } of groups.values()) {
+      const id = threadId(date, contact);
+      threads.push({
+        id,
+        project: home,
+        contact,
+        contact_name: contact ? (roomLabel(rows) || contactName(rows)) : undefined,
+        title: threadTitle(ch, id, contact, rows),
+        messages: rows.length,
+        started_at: rows[0].ts,
+        last_ts: rows[rows.length - 1].ts,
+      });
+    }
+  }
+  return { stamps, resolved: resolveStamps(stamps), threads };
+}
+
+function shapeGlobalThreads(days, meta, { project, includeArchived }) {
+  const want = project === undefined || project === null || project === "" ? null : String(project);
+  const out = [];
+  for (const { ch, day } of days) {
+    for (const t of day.threads) {
+      if (want !== null && t.project !== want) continue;
+      const over = meta[threadKey(ch, t.id)] || {};
+      if (over.archived && !includeArchived) continue;
+      out.push({
+        id: t.id,
+        channel: ch,
+        // WHICH project's view this thread belongs to — the answer the detail
+        // route needs and the reason a row is openable at all. Always set, so
+        // a caller never has to guess "0" for it.
+        project: t.project,
+        ...(t.contact ? { contact: t.contact, contact_name: t.contact_name } : {}),
+        // What the reader called it wins over the first thing that was said.
+        title: over.title || t.title,
+        archived: over.archived || undefined,
+        messages: t.messages,
+        started_at: t.started_at,
+        last_ts: t.last_ts,
+      });
     }
   }
   out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
@@ -2154,19 +2344,49 @@ export function shapeLedgerMessage(r) {
 }
 
 export function readGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
+  const at = globalThreadFile({ channel, date, _globalMessagesDir });
+  if (!at || !fs.existsSync(at.file)) return null;
+  return globalThreadFrom(at, project, parseDayJsonl(fs.readFileSync(at.file, "utf8")), () => readThreadMeta(at.base));
+}
+
+/**
+ * The two lines a list row stands a super-agent thread on — its last reply and
+ * its last user/assistant turn — without shaping the whole thread per request.
+ * Remembered per day file like the thread list, and re-derived when the file
+ * changes or its project stamps resolve differently.
+ */
+export async function readGlobalThreadTail({ channel, date, project, _globalMessagesDir } = {}) {
+  const at = globalThreadFile({ channel, date, _globalMessagesDir });
+  if (!at) return null;
+  const scope = project === undefined || project === null ? "" : String(project);
+  return memoFile(`global-tail\u0000${scope}\u0000${date}`, at.file, (text) => {
+    const rows = parseDayJsonl(text);
+    const stamps = [...new Set(rows.map(projectStampKey))];
+    const thread = globalThreadFrom(at, project, rows, () => ({}));
+    const said = [...(thread?.messages || [])].reverse();
+    return {
+      stamps,
+      resolved: resolveStamps(stamps),
+      lastReply: said.find((m) => m.role === "assistant") || null,
+      lastTurn: said.find((m) => m.role === "user" || m.role === "assistant") || null,
+    };
+  }, { fresh: stampsStillResolve });
+}
+
+function globalThreadFile({ channel, date, _globalMessagesDir }) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
   // `date` is the thread id, which since WhatsApp may name a person inside the
   // day. Parsing here rather than at every call site is what let the id stay a
   // single opaque string for the URL, the sidebar and the inbox row.
   const parsed = parseThreadId(date);
   if (!parsed) return null;
-  const { contact } = parsed;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
-  const file = path.join(base, channel, `${parsed.date}.jsonl`);
-  if (!fs.existsSync(file)) return null;
+  return { base, channel, date, contact: parsed.contact, file: path.join(base, channel, `${parsed.date}.jsonl`) };
+}
+
+function globalThreadFrom({ channel, date, contact }, project, parsedRows, readMeta) {
   const rows = keepForProject(
-    parseDayJsonl(fs.readFileSync(file, "utf8"))
-      .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
+    parsedRows.filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
     project,
   ).filter((r) => (contact ? rowContact(r, channel) === contact : true));
   // A person's thread that holds nothing is not a thread. Without this an id
@@ -2182,7 +2402,7 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
   // The thread's name travels with it. Deriving it a second time on the client
   // would put the same rule in two places, and the reader's own name for it —
   // which only this index knows — would never reach the header at all.
-  const over = readThreadMeta(base)[threadKey(channel, date)] || {};
+  const over = readMeta()[threadKey(channel, date)] || {};
   return {
     id: date,
     channel,
