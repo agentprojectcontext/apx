@@ -15,9 +15,9 @@
 // ordering has a deterministic tiebreak because nowIso() only has second
 // resolution.
 import { readAgents } from "../apc/parser.js";
-import { listConversations } from "./conversations.js";
+import { listConversationsAsync } from "./conversations.js";
 import { CHANNELS } from "../constants/channels.js";
-import { listGlobalThreads, readGlobalThread, previewText } from "./messages.js";
+import { listGlobalThreadsAsync, readGlobalThreadTail, previewText } from "./messages.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 import { readConfig } from "../config/index.js";
 import { resolveSuperAgentBlob } from "../apc/agent-identity.js";
@@ -81,9 +81,12 @@ function byRecency(a, b) {
  *                    headline per agent, so a list can group by channel and a
  *                    quiet channel is not hidden behind a louder one. Ignored
  *                    when `channel` is set — that already scopes to one.
- * @returns {{ rows: object[], skipped: {id:any, error:string}[] }}
+ * Async because it is the inbox route's whole body (rule 15): every read goes
+ * through fs/promises and a per-file memo, so an unchanged project costs stats.
+ *
+ * @returns {Promise<{ rows: object[], skipped: {id:any, error:string}[] }>}
  */
-export function listAgentInbox(projects, opts = {}) {
+export async function listAgentInbox(projects, opts = {}) {
   const { limit, includeEmpty = false, channel = null, perChannel = false } = opts || {};
   const rows = [];
   const skipped = [];
@@ -107,7 +110,7 @@ export function listAgentInbox(projects, opts = {}) {
     for (const agent of agents) {
       let conversations = [];
       try {
-        conversations = listConversations(entry.storagePath, agent.slug);
+        conversations = await listConversationsAsync(entry.storagePath, agent.slug);
       } catch {
         // One agent's unreadable conversation directory must not drop the
         // whole project from the inbox.
@@ -170,7 +173,7 @@ export function listAgentInbox(projects, opts = {}) {
   // The super-agent is the single voice the owner talks to and the others
   // report through it. It is pinned first and marked distinct so the hierarchy
   // is visible, rather than sorted in among its own reports.
-  const superRows = buildSuperAgentRows({ channel, perChannel });
+  const superRows = await buildSuperAgentRows({ channel, perChannel });
   const out = [...superRows, ...rows];
 
   return {
@@ -187,11 +190,11 @@ export function listAgentInbox(projects, opts = {}) {
  * (~/.apx/messages/<channel>/YYYY-MM-DD.jsonl). So recency and the preview come
  * from there, not from agents/<slug>/conversations.
  */
-function buildSuperAgentRows(opts = {}) {
+async function buildSuperAgentRows(opts = {}) {
   const { channel = null, perChannel = false } = opts || {};
   let threads = [];
   try {
-    threads = listGlobalThreads();
+    threads = await listGlobalThreadsAsync();
   } catch {
     threads = [];
   }
@@ -204,14 +207,14 @@ function buildSuperAgentRows(opts = {}) {
   // conversations, not one row wearing whichever channel spoke last.
   if (perChannel) {
     const heads = latestPerChannel(eligible);
-    if (!heads.length) return [superAgentRow(null, threads)];
-    return heads.map((t) => superAgentRow(t, threads));
+    if (!heads.length) return [await superAgentRow(null, threads)];
+    return Promise.all(heads.map((t) => superAgentRow(t, threads)));
   }
-  return [superAgentRow(eligible[0] || null, threads)];
+  return [await superAgentRow(eligible[0] || null, threads)];
 }
 
 /** One super-agent row for one headline thread (or none yet). */
-function superAgentRow(latest, threads) {
+async function superAgentRow(latest, threads) {
   // `messages` counts every thread on purpose: it is the super-agent's total
   // volume, not this row's. The headline is picked by the caller — a routine
   // run is never one, and the row stays pinned even with no thread yet (it
@@ -231,10 +234,9 @@ function superAgentRow(latest, threads) {
       // Scoped to the thread's own project, the way the detail route reads it.
       // Unscoped, a web day used from two projects came back as one pile and
       // the row previewed a line that is not in the conversation it opens.
-      const thread = readGlobalThread({ channel: latest.channel, date: latest.id, project: latest.project });
-      const said = [...(thread?.messages || [])].reverse();
-      const lastReply = said.find((m) => m.role === "assistant");
-      const lastTurn = said.find((m) => m.role === "user" || m.role === "assistant");
+      const tail = await readGlobalThreadTail({ channel: latest.channel, date: latest.id, project: latest.project });
+      const lastReply = tail?.lastReply;
+      const lastTurn = tail?.lastTurn;
       preview = oneLine(lastReply);
       previewAt = lastReply?.ts || null;
       lastMessage = oneLine(lastTurn);

@@ -2,10 +2,12 @@
 // Filesystem is source of truth. storagePath = ~/.apx/projects/<apx_id>
 
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { mediaFromMeta, previewText } from "#core/stores/messages.js";
+import { memoFile, memoFileSync } from "#core/util/file-memo.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -281,15 +283,28 @@ export function deleteConversation(storagePath, agentSlug, idOrFilename) {
 export function listConversations(storagePath, agentSlug, { includeArchived = false } = {}) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .reverse()
-    .map((f) => summarizeConversation(path.join(dir, f), agentSlug, f))
+  return conversationFiles(fs.readdirSync(dir))
+    .map((f) => memoFileSync("conversation-summary", path.join(dir, f), (text) => summarizeConversation(text, agentSlug, f)))
     .filter(Boolean)
+    .map((c) => ({ ...c }))
     .filter((c) => includeArchived || !c.archived);
 }
+
+/** `listConversations` for a request path (rule 15). Each summary is kept
+ *  until its file changes, so an unchanged conversation is never re-parsed. */
+export async function listConversationsAsync(storagePath, agentSlug, { includeArchived = false } = {}) {
+  const dir = path.join(storagePath, "agents", agentSlug, "conversations");
+  let names;
+  try { names = await fsp.readdir(dir); } catch { return []; }
+  const summaries = await Promise.all(conversationFiles(names).map((f) =>
+    memoFile("conversation-summary", path.join(dir, f), (text) => summarizeConversation(text, agentSlug, f))));
+  return summaries
+    .filter(Boolean)
+    .map((c) => ({ ...c }))
+    .filter((c) => includeArchived || !c.archived);
+}
+
+const conversationFiles = (names) => names.filter((f) => f.endsWith(".md")).sort().reverse();
 
 /**
  * What a conversation is CALLED.
@@ -327,13 +342,10 @@ function oneLine(turn) {
   return previewText(body, mediaFromMeta(turn.meta)).slice(0, 160) || undefined;
 }
 
-// Lightweight summary used by the chat list sidebar — reads frontmatter and
-// counts turns without loading the whole conversation into memory beyond what
-// `fs.readFileSync` already does. The fields match `ConversationListEntry` on
-// the frontend so the sidebar can group + filter without a second roundtrip.
-function summarizeConversation(filePath, agentSlug, filename) {
-  let text;
-  try { text = fs.readFileSync(filePath, "utf8"); } catch { return null; }
+// Lightweight summary used by the chat list sidebar — frontmatter plus turn
+// counts. The fields match `ConversationListEntry` on the frontend so the
+// sidebar can group + filter without a second roundtrip.
+function summarizeConversation(text, agentSlug, filename) {
   const { fm, turns } = parseConversation(text);
   const messages = turns.filter((t) => t.role === "user" || t.role === "assistant").length;
   const title = conversationTitle(fm, turns);

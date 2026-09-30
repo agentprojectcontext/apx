@@ -38,7 +38,7 @@
 // session that died before printing one.
 import {
   readProjectMessages,
-  readProjectMessagesInRange,
+  readRoomRowsSince,
   shapeLedgerMessage,
   previewText,
   mediaFromMeta,
@@ -154,12 +154,14 @@ export function listProjectRuntimeRooms(projectRoot) {
  *
  * The cost: `readProjectMessages` filters by `since` AFTER parsing, so it opens
  * every day file a project has ever written whatever window you ask for — and
- * the inbox runs this once per project on a request path. `readProjectMessagesInRange`
- * exists for exactly that and answers the window from the file NAMES.
+ * the inbox runs this once per project on a request path. `readRoomRowsSince`
+ * answers the window from the file NAMES and remembers each day's runtime rows
+ * until the file changes. Its limit counts runtime rows only, so a busy week on
+ * other channels no longer pushes a session out of the list.
  */
 export async function listRecentProjectRuntimeRooms(projectRoot, { days = 7 } = {}) {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const rows = await readProjectMessagesInRange(projectRoot, { since, limit: 4000 });
+  const rows = await readRoomRowsSince(projectRoot, RUNTIME_CHANNEL, { since, limit: 4000 });
   return roomsFrom(shapeRows(rows, null));
 }
 
