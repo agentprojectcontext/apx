@@ -26,6 +26,8 @@ import listArtifacts from "./handlers/list-artifacts.js";
 import readFile from "./handlers/read-file.js";
 import writeFile from "./handlers/write-file.js";
 import editFile from "./handlers/edit-file.js";
+import applyPatch from "./handlers/apply-patch.js";
+import todoWrite from "./handlers/todo-write.js";
 import runShell from "./handlers/run-shell.js";
 import tailMessages from "./handlers/tail-messages.js";
 import searchMessages from "./handlers/search-messages.js";
@@ -81,7 +83,7 @@ import obsidianWriteNote from "./handlers/obsidian-write-note.js";
 import obsidianListNotes from "./handlers/obsidian-list-notes.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
-import { TOOLS, CODE_CHANNEL_TOOLS, WHATSAPP_CHANNEL_TOOLS } from "./names.js";
+import { TOOLS, CODE_CORE_TOOLS, WHATSAPP_CHANNEL_TOOLS } from "./names.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 const NATIVE_TOOLS = [
@@ -112,6 +114,8 @@ const NATIVE_TOOLS = [
   readFile,
   writeFile,
   editFile,
+  applyPatch,
+  todoWrite,
   runShell,
   tailMessages,
   searchMessages,
@@ -304,13 +308,10 @@ const FULL_CHANNELS = new Set([
   CHANNELS.ROUTINE,
   CHANNELS.API,
   CHANNELS.WEB,
-  CHANNELS.CODE,
-  CHANNELS.WEB_CODE,
 ]);
 
-// Coding surfaces — even on the lightweight set, these channels get the
-// git_* tools promoted into the base so the model can inspect the repo
-// without round-tripping through discover_tools every turn.
+// Coding surfaces start on CODE_CORE_TOOLS (names.js): the tools a coding
+// turn actually uses, with the rest one discover_tools away.
 const CODE_CHANNELS = new Set([
   CHANNELS.CODE,
   CHANNELS.WEB_CODE,
@@ -383,6 +384,8 @@ const NATIVE_CATEGORY = {
   [TOOLS.READ_FILE]:           "files",
   [TOOLS.WRITE_FILE]:          "files",
   [TOOLS.EDIT_FILE]:           "files",
+  [TOOLS.APPLY_PATCH]:         "files",
+  [TOOLS.TODO_WRITE]:          "code",
   [TOOLS.LIST_FILES]:          "files",
   [TOOLS.SEARCH_FILES]:        "files",
   [TOOLS.RUN_SHELL]:           "shell",
@@ -434,7 +437,7 @@ export const BASE_TOOL_SCHEMAS = ALL_TOOLS
 const schemaName = (s) => s?.function?.name || s?.name;
 
 // Code-channel base = BASE + git_* tools. Pre-computed once.
-const CODE_BASE_TOOL_NAMES = new Set([...BASE_TOOL_NAMES, ...CODE_CHANNEL_TOOLS]);
+const CODE_BASE_TOOL_NAMES = new Set(CODE_CORE_TOOLS);
 
 // WhatsApp base = BASE + send_whatsapp. Telegram gets `send_telegram` in the
 // base set for exactly this reason; WhatsApp was left out and its channel
@@ -449,9 +452,8 @@ const CODE_BASE_TOOL_SCHEMAS = ALL_TOOLS
 
 /**
  * Choose the INITIAL tool schema list for a channel.
- *   - FULL_CHANNELS (api, web, code, web_code, routine) get the whole registry.
- *   - CODE_CHANNELS overlap with FULL, but when something forces a smaller set
- *     (CODE_PLAN_TOOLS allowlist) the git_* tools are still in their base.
+ *   - FULL_CHANNELS (api, web, routine) get the whole registry.
+ *   - CODE_CHANNELS (code, web_code) start on the curated coding set.
  *   - Everything else is "lightweight" and starts on BASE_TOOL_NAMES.
  *
  * `full: true` forces the complete registry regardless of channel.

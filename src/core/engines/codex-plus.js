@@ -54,11 +54,20 @@ function toResponsesTools(tools) {
  * Convert APX/OpenAI chat messages into Responses `input` items.
  * System prompt is pulled out as `instructions` by the caller.
  */
-function toResponsesInput(messages, { model = null } = {}) {
+function toResponsesInput(messages, { model = null, systemIsInstructions = true } = {}) {
   const input = [];
-  for (const m of messages) {
+  for (const [idx, m] of messages.entries()) {
     if (!m || !m.role) continue;
-    if (m.role === "system") continue; // handled as instructions
+    if (m.role === "system") {
+      // The leading one may BE the instructions (no explicit system given).
+      if (idx === 0 && systemIsInstructions) continue;
+      // Mid-history system turns are the tool log and compaction summaries —
+      // what already ran. Dropping them left the model blind to its own past
+      // work: asked "did you use the MCP?", it answered no.
+      const text = textOf(m.content);
+      if (text) input.push({ type: "message", role: "developer", content: [{ type: "input_text", text }] });
+      continue;
+    }
 
     if (m.role === "tool") {
       const callId = m.tool_call_id || m.id;
@@ -333,7 +342,7 @@ const engine = {
     const base = String(config.base_url || CODEX_PLUS_BASE_URL).replace(/\/$/, "");
     const instructions = extractInstructions(system, messages);
     const { model: wireModel, effort } = splitModelEffort(model, config);
-    const input = toResponsesInput(messages, { model: wireModel });
+    const input = toResponsesInput(messages, { model: wireModel, systemIsInstructions: !system });
     const responseTools = toResponsesTools(tools);
 
     const body = {

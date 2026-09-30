@@ -318,3 +318,22 @@ test("encrypted reasoning survives a tool round: captured from the stream, repla
     }
   });
 });
+
+test("a mid-history system turn (the tool log) reaches the model as a developer message", () => {
+  // Dropped before: GPT on this engine never saw which tools had run in earlier
+  // turns, and asked whether it had used the MCP it said no.
+  const log = "[Tool log — what already ran in this conversation.]\n[tool result: call_mcp] (server=social) → ok";
+  const input = toResponsesInput(
+    [
+      { role: "user", content: "revisá los posts" },
+      { role: "system", content: log },
+      { role: "assistant", content: "Hay 3 agendados." },
+      { role: "user", content: "¿usaste el MCP?" },
+    ],
+    { systemIsInstructions: false },
+  );
+  assert.deepEqual(input.map((i) => i.role), ["user", "developer", "assistant", "user"]);
+  assert.match(input[1].content[0].text, /call_mcp/);
+  // The leading system turn is still the instructions when no system was given.
+  assert.equal(toResponsesInput([{ role: "system", content: "rules" }, { role: "user", content: "hi" }])[0].role, "user");
+});

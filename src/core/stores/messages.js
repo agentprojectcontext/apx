@@ -1268,6 +1268,19 @@ function renderToolResult(m) {
   return `${head} → ` + result.slice(0, Math.max(120, TOOL_CONTEXT_CAP - head.length - 3));
 }
 
+/**
+ * The same system-side tool log, for a store that keeps calls as parts instead
+ * of ledger rows (code sessions). `calls` = [{ tool, args, result }]. "" when
+ * there is nothing to show.
+ */
+export function renderToolLog(calls, { max = 30 } = {}) {
+  const lines = (calls || [])
+    .filter((c) => c && c.tool)
+    .slice(-max)
+    .map((c) => renderToolResult({ body: "", meta: { tool_name: c.tool, args: c.args, result: c.result } }));
+  return lines.length ? `${TOOL_LOG_HEADER}\n${lines.join("\n")}` : "";
+}
+
 // Collapse consecutive same-role entries into one message. Keeps the model
 // context clean and side-steps engines (Anthropic) that dislike consecutive
 // same-role turns once tool results land on the assistant side.
