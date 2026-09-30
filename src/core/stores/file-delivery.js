@@ -97,8 +97,16 @@ function isSensitive(file) {
 export function deliveryPolicy(cfg = {}) {
   const raw = cfg?.file_delivery || {};
   const kinds = { ...DEFAULT_FILE_DELIVERY.kinds };
-  for (const k of FILE_KINDS) {
-    if (typeof raw.kinds?.[k] === "boolean") kinds[k] = raw.kinds[k];
+  if (Array.isArray(raw.kinds)) {
+    // `["image", "video"]` — the natural way to write it by hand, and what
+    // `apx config set file_delivery.kinds '["image","video"]'` stores. It used
+    // to be ignored whole, silently leaving images only.
+    const on = new Set(raw.kinds.map((k) => String(k).toLowerCase()));
+    for (const k of FILE_KINDS) kinds[k] = on.has(k);
+  } else {
+    for (const k of FILE_KINDS) {
+      if (typeof raw.kinds?.[k] === "boolean") kinds[k] = raw.kinds[k];
+    }
   }
   const max = Number(raw.max_mb);
   return {
