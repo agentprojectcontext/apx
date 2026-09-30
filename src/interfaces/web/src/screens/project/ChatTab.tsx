@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { attachmentsOf, isRoomChannel, textOf, useChat, type ChatMsg, type SendOptions } from "../../hooks/useChat";
+import { attachmentsOf, textOf, useChat, type ChatMsg, type SendOptions } from "../../hooks/useChat";
 import type { Forwarded, ForwardSource } from "../../lib/forwarded";
 import { parkForward, peekForward, takeForward } from "../../lib/forward-handoff";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
