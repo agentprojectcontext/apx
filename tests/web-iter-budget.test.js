@@ -280,3 +280,11 @@ test("an a2a turn that runs out of steps closes to the agent that asked", async 
   const web = await run({ channel: CHANNELS.WEB });
   assert.match(web.text, /Ask whether they want you to keep going/);
 });
+
+test("channelToolIters — `apx exec` gets room to hand work off and check it", async () => {
+  // Ten steps ended every orchestrating exec with "¿sigo?" and the work done.
+  const { CLI_TOOL_ITERS } = await import("#core/agent/constants.js");
+  assert.equal(channelToolIters({}, CHANNELS.CLI), CLI_TOOL_ITERS);
+  assert.ok(CLI_TOOL_ITERS > MAX_TOOL_ITERS && CLI_TOOL_ITERS < WEB_TOOL_ITERS, "more than chat, bounded unlike web");
+  assert.equal(channelToolIters({ super_agent: { cli_max_iters: 15 } }, CHANNELS.CLI), 15);
+});

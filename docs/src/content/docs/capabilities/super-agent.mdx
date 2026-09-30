@@ -417,6 +417,7 @@ is where every tool-loop budget lives, including the routine one that governs pr
 |---|---|---|
 | Telegram | `telegram_max_iters` (1000) | Each real tool start is visible and Telegram keeps the typing indicator alive, so the turn normally runs until work is done. |
 | Web chat + sidebar | `web_max_iters` (1000) | Every call renders live and you're one click from stopping it — *you* are the guardrail, so the turn runs until the work is done. |
+| `apx exec` | `cli_max_iters` (40) | Room to hand work to a project's agent and check it; bounded, because scripts and other agents call it too. From `apx exec` a hand-off to another agent waits for the answer instead of running in the background. |
 | Routines (non-Telegram) | `routine_max_iters` (1000) | Nobody is waiting mid-run to answer "want me to keep going?". |
 | Group rooms | `group_max_iters` (50) | The one surface where a single message fans out — see below. |
 | Coding surfaces | Explicit, plus the completion contract | They stop on `finish`, not on a count. |

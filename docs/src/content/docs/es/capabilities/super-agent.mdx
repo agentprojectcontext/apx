@@ -428,6 +428,7 @@ gobierna agentes de proyecto.)
 |---|---|---|
 | Telegram | `telegram_max_iters` (1000) | Inicio de cada tool queda visible y Telegram mantiene indicador escribiendo, así turno normalmente corre hasta terminar. |
 | Chat web + sidebar | `web_max_iters` (1000) | Cada llamada se dibuja en vivo y estás a un click de frenarlo — la baranda sos vos, así que el turno corre hasta terminar el trabajo. |
+| `apx exec` | `cli_max_iters` (40) | Da lugar para pasarle trabajo al agente de un proyecto y verificarlo; tiene tope porque también lo usan scripts y otros agentes. Desde `apx exec`, pasarle trabajo a otro agente espera la respuesta en vez de quedar en segundo plano. |
 | Rutinas (sin Telegram) | `routine_max_iters` (1000) | Nadie está esperando a mitad de la corrida para contestar "¿sigo?". |
 | Salas grupales | `group_max_iters` (50) | La única superficie donde un mensaje se abre en varios — ver abajo. |
 | Superficies de código | Explícito, más el completion contract | Frenan en `finish`, no en un número. |

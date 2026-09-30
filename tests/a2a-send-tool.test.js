@@ -118,3 +118,22 @@ test("the peer is resolved, so the super-agent is a valid address", async () => 
   assert.equal(got.fromAddress, "ansel");
   cleanupTempProject(p.path);
 });
+
+test("send_to_agent: from a one-shot `apx exec`, a background hand-off waits instead", async () => {
+  // Leaving it running there reached nobody: the process exits with the turn,
+  // and the model then tried to wait for the answer by hand. At the depth wall
+  // the two paths refuse with different words, which shows which one ran.
+  const { default: sendToAgent } = await import("#core/agent/tools/handlers/send-to-agent.js");
+  const { MAX_BACKGROUND_DEPTH } = await import("#core/agent/a2a/background.js");
+  const root = makeTempProject({ name: "northwind", agents: [{ slug: "ansel" }] });
+  try {
+    const projects = { get: () => ({ id: 1, path: root, name: "northwind", config: {} }), list: () => [{ id: 1 }] };
+    const atWall = { a2aDepth: MAX_BACKGROUND_DEPTH - 1 };
+    const cli = await sendToAgent.makeHandler({ projects, channel: "cli", channelMeta: atWall })({ to: "ansel", message: "fix it", background: true });
+    assert.match(cli.error, /^send_to_agent: hand-off depth limit/, "the blocking path ran");
+    const tg = await sendToAgent.makeHandler({ projects, channel: "telegram", channelMeta: atWall })({ to: "ansel", message: "fix it", background: true });
+    assert.match(tg.error, /^background send: hand-off depth limit/, "elsewhere it is still left running");
+  } finally {
+    cleanupTempProject(root);
+  }
+});

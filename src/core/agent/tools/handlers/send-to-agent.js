@@ -3,6 +3,7 @@ import { isUnwatchedTurn } from "#core/agent/quota.js";
 import { messagePeer } from "#core/agent/a2a/delegate.js";
 import { sendInBackground, MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
 import { resolveProject } from "../helpers.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 export default {
   name: "send_to_agent",
@@ -77,6 +78,49 @@ export default {
     const depth = Number(channelMeta?.a2aDepth) || 0;
     const config = p.config || globalConfig;
 
+    // Blocking. Bounded by the same wall as the background path — a chain of
+    // agents waiting on each other is no less a chain for being synchronous,
+    // and this path had no limit at all. `depth + 1`, like the background path
+    // (which receives depth already incremented): with `depth >=` a woken turn
+    // at depth 2 could not send in the background but COULD block-send, and
+    // that one extra hop was the "Confirmado y registrado" round of every
+    // ping-pong.
+    const blockingSend = () => {
+      if (depth + 1 >= MAX_BACKGROUND_DEPTH) {
+        return {
+          error:
+            `send_to_agent: hand-off depth limit (${MAX_BACKGROUND_DEPTH}) reached. ` +
+            `This chain of agents passing work to each other has gone as far as it may. ` +
+            `Answer with what you have instead of asking somebody else.`,
+        };
+      }
+      return messagePeer({
+        project: p,
+        to,
+        body: message,
+        from,
+        config,
+        projects,
+        plugins,
+        registries,
+        depth: depth + 1,
+        // The blocking path: the caller waits for this answer, so if the caller
+        // is watched the peer's turn is too. (The background path is not — the
+        // caller has moved on.)
+        watched: !isUnwatchedTurn(channel, channelMeta),
+      });
+    };
+
+    // `apx exec` is one shot: the owner is reading stdout and the process exits
+    // with the turn, so an answer that wakes a later turn reaches nobody — and
+    // the model then tried to wait for it by hand. There, the hand-off waits.
+    if (background && channel === CHANNELS.CLI) {
+      const answer = await blockingSend();
+      return answer && typeof answer === "object" && !Array.isArray(answer)
+        ? { ...answer, note: "Waited for the answer instead of leaving it running: this is a one-shot `apx exec`, nothing would read a later wake-up." }
+        : answer;
+    }
+
     if (background) {
       return sendInBackground({
         project: p,
@@ -95,36 +139,6 @@ export default {
       });
     }
 
-    // Blocking. Bounded by the same wall as the background path — a chain of
-    // agents waiting on each other is no less a chain for being synchronous,
-    // and this path had no limit at all. `depth + 1`, like the background path
-    // (which receives depth already incremented): with `depth >=` a woken turn
-    // at depth 2 could not send in the background but COULD block-send, and
-    // that one extra hop was the "Confirmado y registrado" round of every
-    // ping-pong.
-    if (depth + 1 >= MAX_BACKGROUND_DEPTH) {
-      return {
-        error:
-          `send_to_agent: hand-off depth limit (${MAX_BACKGROUND_DEPTH}) reached. ` +
-          `This chain of agents passing work to each other has gone as far as it may. ` +
-          `Answer with what you have instead of asking somebody else.`,
-      };
-    }
-
-    return messagePeer({
-      project: p,
-      to,
-      body: message,
-      from,
-      config,
-      projects,
-      plugins,
-      registries,
-      depth: depth + 1,
-      // The blocking path: the caller waits for this answer, so if the caller
-      // is watched the peer's turn is too. (The background path is not — the
-      // caller has moved on.)
-      watched: !isUnwatchedTurn(channel, channelMeta),
-    });
+    return blockingSend();
   },
 };

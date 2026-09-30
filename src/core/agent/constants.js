@@ -103,6 +103,14 @@ export const GROUP_TOOL_ITERS = 50;
 //
 // Overridable per-deployment via config.super_agent.a2a_max_iters.
 export const A2A_TOOL_ITERS = 20;
+
+// `apx exec` (the cli channel). Ten steps was the conversational default, and
+// an owner at a terminal asking for real work — hand a fix to a project's
+// agent, then check it — hit it every time and got "¿sigo?" back with the
+// work already done. Not WEB's run-to-completion either: scripts and other
+// agents call `apx exec` too, with nobody reading. Overridable via
+// config.super_agent.cli_max_iters.
+export const CLI_TOOL_ITERS = 40;
 // ONE TURN, ONE BUDGET. Every number above is the budget for a TURN, not for
 // one pass of the tool loop — and a turn can run the loop more than once, when
 // the completion judge sends it back to finish something (agent/judge.js). Those
@@ -148,6 +156,10 @@ export function channelToolIters(config, channel) {
   if (channel === CHANNELS.A2A) {
     const raw = Number(config?.super_agent?.a2a_max_iters);
     return Number.isFinite(raw) && raw > 0 ? raw : A2A_TOOL_ITERS;
+  }
+  if (channel === CHANNELS.CLI) {
+    const raw = Number(config?.super_agent?.cli_max_iters);
+    return Number.isFinite(raw) && raw > 0 ? raw : CLI_TOOL_ITERS;
   }
   if (!RUN_TO_COMPLETION_CHANNELS.has(channel)) return null;
   const raw = Number(config?.super_agent?.web_max_iters);
