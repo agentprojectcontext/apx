@@ -46,6 +46,7 @@ import {
 import { messagesForModel } from "./model-capabilities.js";
 import { attachDirectoryRules } from "./loop/directory-rules.js";
 import { createDelegationGuard } from "./loop/delegation-guard.js";
+import { secretWriteTarget } from "./loop/secret-guard.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -1026,7 +1027,28 @@ export async function runAgent({
         // effect, and only an effect is worth remembering (see the record call
         // at the end of this block).
         let ranForReal = true;
-        if (riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
+        // A write to a credentials file asks the owner in every permission
+        // mode, `total` included (loop/secret-guard.js).
+        const secretTarget = secretWriteTarget(name, args, toolHandlerCtx);
+        if (secretTarget) {
+          const requestConfirmation = toolHandlerCtx?.requestConfirmation;
+          const description = `writes a file that holds credentials: ${secretTarget}`;
+          let approved = false;
+          if (typeof requestConfirmation === "function") {
+            try {
+              approved = await requestConfirmation(name, args, description);
+            } catch {
+              approved = false;
+            }
+          }
+          if (!approved) {
+            riskDenied =
+              `Not run: this ${description}. Changing credentials needs the owner's explicit confirmation` +
+              (typeof requestConfirmation === "function" ? " and they did not give it." : ", and this channel cannot ask for it.") +
+              " Use the native tool for it (add_mcp, `apx config set`) or ask the owner to make the change.";
+          }
+        }
+        if (!riskDenied && riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
           const description = buildConfirmDescription(name, args);
           const requestConfirmation = toolHandlerCtx?.requestConfirmation;
           if (typeof requestConfirmation !== "function") {

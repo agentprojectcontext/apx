@@ -316,6 +316,11 @@ to web, Desktop, and the native Android mascot.
 | `automatico` | APX decides automatically (recommended) |
 | `permiso` | Only tools in `allowed_tools`; everything else asks |
 
+In every mode, `total` included, writing a file that holds credentials — `~/.apx/config.json`, an
+`mcps.json`, `auth.json`, a `.env`, a key — asks for your confirmation first, whether the agent uses
+a file tool or the shell. Where the channel cannot ask, the write is refused. The native tools that
+manage those files (`add_mcp`, `apx config set`) are not affected.
+
 ```bash
 apx permission set automatico
 ```

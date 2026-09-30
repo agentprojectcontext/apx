@@ -323,6 +323,11 @@ web, Desktop y mascota Android nativa.
 | `automatico` | APX decide automáticamente (recomendado) |
 | `permiso` | Solo las herramientas en `allowed_tools`; todo lo demás pregunta |
 
+En todos los modos, `total` incluido, escribir un archivo que guarda credenciales — `~/.apx/config.json`,
+un `mcps.json`, `auth.json`, un `.env`, una llave — pide tu confirmación antes, sea con una herramienta
+de archivos o por shell. Si el canal no puede preguntar, la escritura se rechaza. Las herramientas
+nativas que manejan esos archivos (`add_mcp`, `apx config set`) no se ven afectadas.
+
 ```bash
 apx permission set automatico
 ```
