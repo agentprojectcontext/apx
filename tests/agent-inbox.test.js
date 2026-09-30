@@ -58,7 +58,7 @@ const TURNS = [
 
 // --------------------------------------------------------------------------
 
-test("the preview is what the AGENT last said, not what the user asked", () => {
+test("the preview is what the AGENT last said, not what the user asked", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -68,7 +68,7 @@ test("the preview is what the AGENT last said, not what the user asked", () => {
       turns: TURNS,
     });
 
-    const { rows } = listAgentInbox([p]);
+    const { rows } = await listAgentInbox([p]);
     const scout = rows.find((r) => r.agent_slug === "scout");
 
     assert.ok(scout, "the agent should appear");
@@ -88,7 +88,7 @@ test("the preview is what the AGENT last said, not what the user asked", () => {
 // you sent a message, and again for each of the 24 steps that followed.
 // `preview_at` is the timestamp of the thing the preview came from.
 
-test("preview_at is the agent's reply, not the thread's last movement", () => {
+test("preview_at is the agent's reply, not the thread's last movement", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -103,7 +103,7 @@ test("preview_at is the agent's reply, not the thread's last movement", () => {
       ],
     });
 
-    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    const scout = (await listAgentInbox([p])).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.last_activity_at, "2026-08-01T10:05:00Z", "the thread did move");
     assert.equal(scout.preview_at, "2026-08-01T10:01:00Z", "but the agent has not spoken since");
     assert.equal(scout.preview, "report filed. 9 receipts, nothing over policy.");
@@ -119,7 +119,7 @@ test("preview_at is the agent's reply, not the thread's last movement", () => {
 // over a message you had just sent, or "(nothing said yet)" over a thread with
 // forty messages in it.
 
-test("the row's line is the last thing SAID, including your own message", () => {
+test("the row's line is the last thing SAID, including your own message", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -132,7 +132,7 @@ test("the row's line is the last thing SAID, including your own message", () => 
       ],
     });
 
-    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    const scout = (await listAgentInbox([p])).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.last_message, "and the invoices?");
     assert.equal(scout.last_role, "user", "so the row can mark it as yours");
     assert.equal(
@@ -145,7 +145,7 @@ test("the row's line is the last thing SAID, including your own message", () => 
   }
 });
 
-test("a chat nobody has answered yet still has a line", () => {
+test("a chat nobody has answered yet still has a line", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -155,7 +155,7 @@ test("a chat nobody has answered yet still has a line", () => {
       turns: [{ role: "user", ts: "2026-08-01T10:00:00Z", content: "how are the receipts?" }],
     });
 
-    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    const scout = (await listAgentInbox([p])).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.preview, null, "nothing was replied");
     assert.equal(scout.last_message, "how are the receipts?", "but something was said");
     assert.equal(scout.last_role, "user");
@@ -164,7 +164,7 @@ test("a chat nobody has answered yet still has a line", () => {
   }
 });
 
-test("a tool row does not count as the agent speaking", () => {
+test("a tool row does not count as the agent speaking", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -178,7 +178,7 @@ test("a tool row does not count as the agent speaking", () => {
       ],
     });
 
-    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    const scout = (await listAgentInbox([p])).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.preview_at, "2026-08-01T10:01:00Z", "mid-turn work is not an answer");
     assert.equal(scout.last_message, "check again", "and it is not a line on the row either");
     assert.equal(scout.last_role, "user");
@@ -187,14 +187,14 @@ test("a tool row does not count as the agent speaking", () => {
   }
 });
 
-test("rows carry the project they came from, and the agent's display name", () => {
+test("rows carry the project they came from, and the agent's display name", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
       id: "c1", startedAt: "2026-08-01T10:00:00Z", lastAt: "2026-08-01T10:01:00Z", turns: TURNS,
     });
 
-    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    const scout = (await listAgentInbox([p])).rows.find((r) => r.agent_slug === "scout");
     assert.equal(scout.project_id, "alpha");
     assert.equal(scout.project_name, "alpha");
     assert.equal(scout.agent_name, "SCOUT", "Name from the agent's frontmatter");
@@ -216,7 +216,7 @@ function seedGlobalThread(channel, date, rows) {
   );
 }
 
-test("the super-agent is pinned first and marked distinct", () => {
+test("the super-agent is pinned first and marked distinct", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     // The agent spoke MORE recently than the super-agent — it still goes second.
@@ -228,7 +228,7 @@ test("the super-agent is pinned first and marked distinct", () => {
       { ts: "2026-08-01T10:01:00Z", type: "agent", body: "all quiet.", actor_id: SUPERAGENT_ACTOR_ID },
     ]);
 
-    const { rows } = listAgentInbox([p]);
+    const { rows } = await listAgentInbox([p]);
     assert.equal(rows[0].kind, "super_agent", "the single voice sits at the top");
     assert.equal(rows[0].pinned, true);
     assert.equal(rows[0].agent_slug, SUPERAGENT_ACTOR_ID);
@@ -239,7 +239,7 @@ test("the super-agent is pinned first and marked distinct", () => {
   }
 });
 
-test("the super-agent row says when it last spoke, not when it was last written to", () => {
+test("the super-agent row says when it last spoke, not when it was last written to", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     seedGlobalThread("whatsapp", "2026-08-02", [
@@ -249,7 +249,7 @@ test("the super-agent row says when it last spoke, not when it was last written 
       { ts: "2026-08-02T10:04:00Z", type: "user", body: "[WhatsApp de juan]: ?" },
     ]);
 
-    const row = listAgentInbox([p], { channel: "whatsapp" }).rows
+    const row = (await listAgentInbox([p], { channel: "whatsapp" })).rows
       .find((r) => r.kind === "super_agent");
     assert.equal(row.last_activity_at, "2026-08-02T10:04:00Z");
     assert.equal(row.preview_at, "2026-08-02T10:01:00Z", "the last thing IT said");
@@ -261,7 +261,7 @@ test("the super-agent row says when it last spoke, not when it was last written 
   }
 });
 
-test("the super-agent row opens under the project its chat happened in", () => {
+test("the super-agent row opens under the project its chat happened in", async () => {
   // THE 404 THIS CLOSES. The row is built from an UNSCOPED read of the ledger —
   // every project's chats at once — and it used to report `project_id: null`
   // for all of them. The phone reads that as project 0 (`row.project_id ?? 0`),
@@ -277,7 +277,7 @@ test("the super-agent row opens under the project its chat happened in", () => {
       { ts: "2026-08-03T10:00:00Z", type: "user", body: "algo de acme", meta: { project_id: "alpha" } },
       { ts: "2026-08-03T10:01:00Z", type: "agent", body: "hecho", actor_id: SUPERAGENT_ACTOR_ID, meta: { project_id: "alpha" } },
     ]);
-    const row = listAgentInbox([p], { channel: "web" }).rows.find((r) => r.kind === "super_agent");
+    const row = (await listAgentInbox([p], { channel: "web" })).rows.find((r) => r.kind === "super_agent");
     assert.equal(row.conversation_id, "2026-08-03");
     assert.equal(row.project_id, "alpha", "the row has to name the project the thread lives in");
     // …and the preview is that project's conversation, not a merge of every
@@ -288,7 +288,7 @@ test("the super-agent row opens under the project its chat happened in", () => {
   }
 });
 
-test("a channel with no project of its own still opens in the default workspace", () => {
+test("a channel with no project of its own still opens in the default workspace", async () => {
   // Telegram, desktop and deck write one daemon-wide channel: those chats are
   // the default workspace's, which is the "0" the phone was already falling
   // back to — so nothing about them moves.
@@ -298,14 +298,14 @@ test("a channel with no project of its own still opens in the default workspace"
       { ts: "2026-08-04T10:00:00Z", type: "user", body: "status?" },
       { ts: "2026-08-04T10:01:00Z", type: "agent", body: "all quiet.", actor_id: SUPERAGENT_ACTOR_ID },
     ]);
-    const row = listAgentInbox([p], { channel: "telegram" }).rows.find((r) => r.kind === "super_agent");
+    const row = (await listAgentInbox([p], { channel: "telegram" })).rows.find((r) => r.kind === "super_agent");
     assert.equal(row.project_id, "0");
   } finally {
     cleanup(p);
   }
 });
 
-test("agents are ordered most-recent-first across projects", () => {
+test("agents are ordered most-recent-first across projects", async () => {
   const a = makeProject("alpha", ["older"]);
   const b = makeProject("beta", ["newer"]);
   try {
@@ -316,7 +316,7 @@ test("agents are ordered most-recent-first across projects", () => {
       id: "c2", startedAt: "2026-08-09T10:00:00Z", lastAt: "2026-08-09T10:00:00Z", turns: TURNS,
     });
 
-    const agents = listAgentInbox([a, b]).rows.filter((r) => r.kind === "agent");
+    const agents = (await listAgentInbox([a, b])).rows.filter((r) => r.kind === "agent");
     assert.deepEqual(agents.map((r) => r.agent_slug), ["newer", "older"]);
   } finally {
     cleanup(a, b);
@@ -325,7 +325,7 @@ test("agents are ordered most-recent-first across projects", () => {
 
 // nowIso() has second resolution, so same-second activity is normal and the
 // order must not reshuffle between identical calls.
-test("ties break deterministically", () => {
+test("ties break deterministically", async () => {
   const a = makeProject("alpha", ["one", "two", "three"]);
   try {
     for (const slug of ["one", "two", "three"]) {
@@ -333,32 +333,32 @@ test("ties break deterministically", () => {
         id: "c", startedAt: "2026-08-01T10:00:00Z", lastAt: "2026-08-01T10:00:00Z", turns: TURNS,
       });
     }
-    const once = listAgentInbox([a]).rows.map((r) => r.agent_slug);
-    const twice = listAgentInbox([a]).rows.map((r) => r.agent_slug);
+    const once = (await listAgentInbox([a])).rows.map((r) => r.agent_slug);
+    const twice = (await listAgentInbox([a])).rows.map((r) => r.agent_slug);
     assert.deepEqual(twice, once);
   } finally {
     cleanup(a);
   }
 });
 
-test("agents nobody has talked to are hidden unless asked for", () => {
+test("agents nobody has talked to are hidden unless asked for", async () => {
   const p = makeProject("alpha", ["spoken", "silent"]);
   try {
     writeConversation(p, "spoken", {
       id: "c1", startedAt: "2026-08-01T10:00:00Z", lastAt: "2026-08-01T10:00:00Z", turns: TURNS,
     });
 
-    const quiet = listAgentInbox([p]).rows.filter((r) => r.kind === "agent");
+    const quiet = (await listAgentInbox([p])).rows.filter((r) => r.kind === "agent");
     assert.deepEqual(quiet.map((r) => r.agent_slug), ["spoken"]);
 
-    const all = listAgentInbox([p], { includeEmpty: true }).rows.filter((r) => r.kind === "agent");
+    const all = (await listAgentInbox([p], { includeEmpty: true })).rows.filter((r) => r.kind === "agent");
     assert.deepEqual(all.map((r) => r.agent_slug).sort(), ["silent", "spoken"]);
   } finally {
     cleanup(p);
   }
 });
 
-test("an unreadable project is skipped and named, never fatal", () => {
+test("an unreadable project is skipped and named, never fatal", async () => {
   const good = makeProject("alpha", ["scout"]);
   try {
     writeConversation(good, "scout", {
@@ -366,7 +366,7 @@ test("an unreadable project is skipped and named, never fatal", () => {
     });
 
     const broken = { id: "broken", name: "broken", path: "/definitely/not/here", storagePath: "/nope" };
-    const { rows, skipped } = listAgentInbox([good, broken]);
+    const { rows, skipped } = await listAgentInbox([good, broken]);
 
     assert.ok(rows.some((r) => r.agent_slug === "scout"), "the good project survives");
     assert.equal(rows.filter((r) => r.project_id === "broken").length, 0);
@@ -378,7 +378,7 @@ test("an unreadable project is skipped and named, never fatal", () => {
   }
 });
 
-test("limit applies after the merge, with the pinned row included", () => {
+test("limit applies after the merge, with the pinned row included", async () => {
   const p = makeProject("alpha", ["a", "b", "c"]);
   try {
     for (const slug of ["a", "b", "c"]) {
@@ -390,7 +390,7 @@ test("limit applies after the merge, with the pinned row included", () => {
       id: "s", startedAt: "2026-08-01T10:00:00Z", lastAt: "2026-08-01T10:00:00Z", turns: TURNS,
     });
 
-    const { rows } = listAgentInbox([p], { limit: 2 });
+    const { rows } = await listAgentInbox([p], { limit: 2 });
     assert.equal(rows.length, 2);
     assert.equal(rows[0].kind, "super_agent", "the pin survives the cap");
   } finally {
@@ -398,7 +398,7 @@ test("limit applies after the merge, with the pinned row included", () => {
   }
 });
 
-test("conversation summaries expose the last reply without loading the thread", () => {
+test("conversation summaries expose the last reply without loading the thread", async () => {
   const p = makeProject("alpha", ["scout"]);
   try {
     writeConversation(p, "scout", {
@@ -448,7 +448,7 @@ function writeConversationOn(project, slug, { id, channel, startedAt, lastAt, tu
   fs.writeFileSync(path.join(dir, `${id}.md`), fm + body + "\n");
 }
 
-test("a routine conversation is never the inbox headline — the last real chat is", () => {
+test("a routine conversation is never the inbox headline — the last real chat is", async () => {
   const p = makeProject("routines", ["lumen"]);
   try {
     // Older real chat...
@@ -464,7 +464,7 @@ test("a routine conversation is never the inbox headline — the last real chat 
       turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "cron tick done." }],
     });
 
-    const { rows } = listAgentInbox([p]);
+    const { rows } = await listAgentInbox([p]);
     const lumen = rows.find((r) => r.agent_slug === "lumen");
     assert.ok(lumen, "lumen is in the inbox");
     assert.equal(lumen.channel, "web", "the routine run does not become the row's channel");
@@ -474,7 +474,7 @@ test("a routine conversation is never the inbox headline — the last real chat 
   }
 });
 
-test("an agent whose only activity is a routine drops out of the inbox", () => {
+test("an agent whose only activity is a routine drops out of the inbox", async () => {
   const p = makeProject("routine-only", ["ghost"]);
   try {
     writeConversationOn(p, "ghost", {
@@ -483,11 +483,11 @@ test("an agent whose only activity is a routine drops out of the inbox", () => {
       turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "cron tick done." }],
     });
 
-    const { rows } = listAgentInbox([p]);
+    const { rows } = await listAgentInbox([p]);
     assert.equal(rows.find((r) => r.agent_slug === "ghost"), undefined, "no chat, no row");
 
     // ...but includeEmpty still surfaces it, with no channel.
-    const { rows: withEmpty } = listAgentInbox([p], { includeEmpty: true });
+    const { rows: withEmpty } = await listAgentInbox([p], { includeEmpty: true });
     const ghost = withEmpty.find((r) => r.agent_slug === "ghost");
     assert.ok(ghost, "includeEmpty surfaces the agent");
     assert.equal(ghost.channel, null, "and it carries no routine channel");
@@ -499,7 +499,7 @@ test("an agent whose only activity is a routine drops out of the inbox", () => {
 // The inbox and the phone are WEB-ONLY: `channel: "web"` scopes each agent's row
 // to its web chat so a Telegram thread never surfaces there. This is the one axis
 // where APX is a messaging app; project-first navigation still sees every channel.
-test("channel scope surfaces the web chat and drops a telegram-only agent", () => {
+test("channel scope surfaces the web chat and drops a telegram-only agent", async () => {
   const p = makeProject("scoped", ["webby", "teleonly"]);
   try {
     // webby has both a telegram chat and a web one. listConversations orders by
@@ -522,12 +522,12 @@ test("channel scope surfaces the web chat and drops a telegram-only agent", () =
     });
 
     // Unscoped: webby follows recency to its telegram chat, teleonly is present.
-    const { rows: all } = listAgentInbox([p]);
+    const { rows: all } = await listAgentInbox([p]);
     assert.equal(all.find((r) => r.agent_slug === "webby").channel, "telegram");
     assert.ok(all.find((r) => r.agent_slug === "teleonly"), "telegram-only agent shows unscoped");
 
     // Web-scoped: webby pins to its web chat, teleonly drops out entirely.
-    const { rows: web } = listAgentInbox([p], { channel: "web" });
+    const { rows: web } = await listAgentInbox([p], { channel: "web" });
     const webby = web.find((r) => r.agent_slug === "webby");
     assert.ok(webby, "webby stays, on its web chat");
     assert.equal(webby.channel, "web", "the row is scoped to the web channel");
@@ -535,7 +535,7 @@ test("channel scope surfaces the web chat and drops a telegram-only agent", () =
     assert.equal(web.find((r) => r.agent_slug === "teleonly"), undefined, "no web chat, no web-scoped row");
 
     // ...unless includeEmpty is asked for (the "new chat" roster).
-    const { rows: roster } = listAgentInbox([p], { channel: "web", includeEmpty: true });
+    const { rows: roster } = await listAgentInbox([p], { channel: "web", includeEmpty: true });
     assert.ok(roster.find((r) => r.agent_slug === "teleonly"), "includeEmpty keeps it in the roster");
   } finally {
     cleanup(p);

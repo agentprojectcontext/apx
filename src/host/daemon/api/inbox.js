@@ -11,7 +11,7 @@
 // the other. See core/stores/read-marks.js.
 import { listAgentInbox } from "#core/stores/agent-inbox.js";
 import { readReadMarks, decorateUnread, markRowsRead } from "#core/stores/read-marks.js";
-import { listProjectA2AThreads, listProjectGroupThreads } from "#core/stores/messages.js";
+import { listProjectA2AThreadsAsync, listProjectGroupThreadsAsync } from "#core/stores/messages.js";
 import { listRecentProjectRuntimeRooms } from "#core/stores/runtime-room.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
@@ -45,11 +45,11 @@ function activeTurnForRow(row, activeTurns) {
 // Faces and the "Andy · Claude" title come from the shared resolver in
 // thread-faces.js, the same one the Chats sidebar and the thread header read
 // through — this row is not where that gets decided.
-function a2aInboxRows(entries, faces) {
+async function a2aInboxRows(entries, faces) {
   const rows = [];
   for (const e of entries) {
     let threads = [];
-    try { threads = listProjectA2AThreads(e.storagePath); } catch { /* skip */ }
+    try { threads = await listProjectA2AThreadsAsync(e.storagePath); } catch { /* skip */ }
     const agents = readAgentsSafe(e.path);
     for (const raw of threads) {
       const th = faces.decorate(raw, agents);
@@ -82,11 +82,11 @@ function a2aInboxRows(entries, faces) {
 // them in here too so the one place that shows EVERY conversation shows them.
 // Shaped exactly like an a2a row (kind "group") so the frontend reuses the same
 // multi-face rendering and thread-selection it already has for a2a.
-function groupInboxRows(entries, faces) {
+async function groupInboxRows(entries, faces) {
   const rows = [];
   for (const e of entries) {
     let threads = [];
-    try { threads = listProjectGroupThreads(e.storagePath); } catch { /* skip */ }
+    try { threads = await listProjectGroupThreadsAsync(e.storagePath); } catch { /* skip */ }
     const agents = readAgentsSafe(e.path);
     for (const raw of threads) {
       const th = faces.decorate(raw, agents);
@@ -192,7 +192,7 @@ export function register(api, { projects }) {
         ? req.query.channel
         : null;
 
-      const { rows, skipped } = listAgentInbox(entries, {
+      const { rows, skipped } = await listAgentInbox(entries, {
         includeEmpty: req.query.include_empty === "1" || req.query.include_empty === "true",
         channel,
         // No `?channel=` means "show me everything", and everything now means
@@ -281,7 +281,7 @@ export function register(api, { projects }) {
       // Merge a2a group chats in and re-sort so the newest conversation wins
       // regardless of whether it was an individual or a group one.
       const activeTurns = listActiveTurns();
-      const merged = [...deduped, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces), ...(await runtimeInboxRows(entries))]
+      const merged = [...deduped, ...(await a2aInboxRows(entries, faces)), ...(await groupInboxRows(entries, faces)), ...(await runtimeInboxRows(entries))]
         .map((row) => ({ ...row, active_turn: activeTurnForRow(row, activeTurns) }))
         .sort(
         (a, b) => new Date(b.last_activity_at || 0).getTime() - new Date(a.last_activity_at || 0).getTime()
