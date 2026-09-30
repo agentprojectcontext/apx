@@ -7,6 +7,7 @@ import codex from "#core/runtimes/codex.js";
 import cursorAgent from "#core/runtimes/cursor-agent.js";
 import geminiCli from "#core/runtimes/gemini-cli.js";
 import qwenCode from "#core/runtimes/qwen-code.js";
+import claudeCode from "#core/runtimes/claude-code.js";
 import { RUNTIME_IDS, getRuntime } from "#core/runtimes/index.js";
 
 async function withFakeBinary(name, body, fn) {
@@ -146,5 +147,23 @@ test("qwen-code runtime passes system prompt separately", async () => {
       "do work",
     ]);
     assert.equal(r.output, "qwen output");
+  });
+});
+
+test("claude-code: a coding run may edit — `-p` has nobody to approve a prompt", async () => {
+  // Without a permission mode, headless Claude Code refused every edit and a
+  // delegated fix came back untouched. Full trust in APX also lets it run shell.
+  const out = JSON.stringify({ result: "ok", session_id: "s1" });
+  for (const [permissionMode, expected] of [[null, "acceptEdits"], ["automatico", "acceptEdits"], ["total", "bypassPermissions"]]) {
+    await withFakeBinary("claude", fakeNodeScript(out), async (env) => {
+      await claudeCode.run({ prompt: "fix it", cwd: process.cwd(), env, timeoutMs: SPAWN_TIMEOUT_MS, permissionMode });
+      const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
+      assert.equal(args[args.indexOf("--permission-mode") + 1], expected);
+    });
+  }
+  await withFakeBinary("claude", fakeNodeScript(out), async (env) => {
+    await claudeCode.run({ prompt: "hi", cwd: process.cwd(), env, timeoutMs: SPAWN_TIMEOUT_MS, mode: "chat", permissionMode: "total" });
+    const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
+    assert.equal(args[args.indexOf("--permission-mode") + 1], "plan", "a chat stays read-only whatever the trust");
   });
 });

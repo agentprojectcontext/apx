@@ -22,13 +22,10 @@ import { noteDeniedTools } from "#core/agent/tools/denied-log.js";
 import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { agentForcedModel, agentModelFallback } from "#core/agent/agent-model.js";
-import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
+import { channelToolIters, MAX_TOOL_ITERS, AGENT_TURN_MAX_TOKENS } from "#core/agent/constants.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
 
-// A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
-// truncates an agent mid-answer on the surface where the whole answer is the
-// point. Same headroom the routine runner gives itself.
-export const AGENT_TURN_MAX_TOKENS = 4096;
+export { AGENT_TURN_MAX_TOKENS };
 
 /**
  * Fold an agent's own autonomy over the project's permission mode.

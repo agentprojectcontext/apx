@@ -6,6 +6,11 @@ import { CHANNELS } from "#core/constants/channels.js";
 // Coding surfaces (web Code / terminal Build) raise this via maxIters and use
 // the finish-tool completionContract instead.
 export const MAX_TOOL_ITERS = 10;
+
+// Output cap for one step of an agent turn. run-agent's 512 default truncates a
+// reply mid-answer, and on a reasoning model the chain of thought spends it
+// before a single tool argument (an edit_file body) is written.
+export const AGENT_TURN_MAX_TOKENS = 4096;
 // Telegram is an owner-controlled work surface too. Its live action notices
 // make long turns observable, so stopping after a small count and asking
 // "should I continue?" is friction rather than a guardrail. This is a runaway

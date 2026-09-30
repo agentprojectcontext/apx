@@ -54,7 +54,7 @@ function toResponsesTools(tools) {
  * Convert APX/OpenAI chat messages into Responses `input` items.
  * System prompt is pulled out as `instructions` by the caller.
  */
-function toResponsesInput(messages) {
+function toResponsesInput(messages, { model = null } = {}) {
   const input = [];
   for (const m of messages) {
     if (!m || !m.role) continue;
@@ -73,6 +73,15 @@ function toResponsesInput(messages) {
 
     if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length) {
       // Prior assistant tool round: emit function_call items (and optional text).
+      // With store:false the encrypted reasoning items are the only way the
+      // model keeps its plan across a tool round; they go back ahead of the
+      // calls they produced, as the Codex CLI does.
+      for (const r of Array.isArray(m._responsesReasoning) ? m._responsesReasoning : []) {
+        // Encrypted for the model that wrote it; a fallback model rejects it.
+        if (r?.encrypted_content && (!model || !r.model || r.model === model)) {
+          input.push({ type: "reasoning", summary: Array.isArray(r.summary) ? r.summary : [], encrypted_content: r.encrypted_content });
+        }
+      }
       const prose = textOf(m.content);
       if (prose) {
         input.push({
@@ -147,7 +156,7 @@ function extractInstructions(system, messages) {
 /**
  * Consume a Codex Responses SSE stream into the openai-compatible result shape.
  */
-async function readResponsesStream(res, onToken, onReasoningToken) {
+async function readResponsesStream(res, onToken, onReasoningToken, { model = null } = {}) {
   let text = "";
   let reasoning = "";
   let finishReason = "stop";
@@ -156,6 +165,8 @@ async function readResponsesStream(res, onToken, onReasoningToken) {
   const toolByItem = new Map();
   /** @type {Array<{ id: string, type: string, function: { name: string, arguments: string } }>} */
   const toolCalls = [];
+  /** Encrypted reasoning items, replayed on the next request (see toResponsesInput). */
+  const reasoningItems = [];
   let rawCompleted = null;
 
   for await (const ev of streamSseDataEvents(res)) {
@@ -211,6 +222,10 @@ async function readResponsesStream(res, onToken, onReasoningToken) {
 
     if (type === "response.output_item.done") {
       const item = ev.item;
+      if (item?.type === "reasoning" && item.encrypted_content) {
+        reasoningItems.push({ model, summary: item.summary || [], encrypted_content: item.encrypted_content });
+        continue;
+      }
       if (item?.type === "function_call") {
         const id = item.call_id || item.id;
         toolCalls.push({
@@ -268,6 +283,7 @@ async function readResponsesStream(res, onToken, onReasoningToken) {
     finish_reason: uniqueTools.length ? "tool_calls" : finishReason,
     usage,
     raw: rawCompleted,
+    ...(reasoningItems.length ? { _responsesReasoning: reasoningItems } : {}),
   };
 }
 
@@ -316,10 +332,10 @@ const engine = {
     const creds = await loadCodexPlusCreds(config);
     const base = String(config.base_url || CODEX_PLUS_BASE_URL).replace(/\/$/, "");
     const instructions = extractInstructions(system, messages);
-    const input = toResponsesInput(messages);
+    const { model: wireModel, effort } = splitModelEffort(model, config);
+    const input = toResponsesInput(messages, { model: wireModel });
     const responseTools = toResponsesTools(tools);
 
-    const { model: wireModel, effort } = splitModelEffort(model, config);
     const body = {
       model: wireModel,
       instructions,
@@ -334,6 +350,7 @@ const engine = {
       base.includes("/backend-api/codex");
     if (maxTokens && !official) body.max_output_tokens = maxTokens;
     if (effort) body.reasoning = { effort, summary: "auto" };
+    if (effort || official) body.include = ["reasoning.encrypted_content"];
     if (responseTools) {
       body.tools = responseTools;
       body.tool_choice =
@@ -364,7 +381,7 @@ const engine = {
       throw new Error(`codex-plus ${res.status}: ${detail}`);
     }
 
-    return readResponsesStream(res, onToken, onReasoningToken);
+    return readResponsesStream(res, onToken, onReasoningToken, { model: wireModel });
   },
 
   /** Models from the local Codex CLI cache (no network). */

@@ -419,9 +419,12 @@ export async function runAgent({
   // routine's own `deliver_to`. We filter the schemas the engine
   // sees AND keep a deny-set so a model that hallucinates a suppressed tool
   // call gets a clear error rather than firing.
-  let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
-    ? filterToolSchemas(toolSchemas, suppressTools)
+  const liveToolSchemas = toolHandlerCtx?.toolSession?.withActivated
+    ? toolHandlerCtx.toolSession.withActivated(toolSchemas)
     : toolSchemas;
+  let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
+    ? filterToolSchemas(liveToolSchemas, suppressTools)
+    : liveToolSchemas;
   const suppressed = new Set(Array.isArray(suppressTools) ? suppressTools : []);
   if (suppressed.size > 0) {
     await emitProgress(onEvent, {
@@ -939,6 +942,9 @@ export async function runAgent({
       // Stored under an underscore so only the adapters that ask for it put it
       // back on the wire (see zen.js modelReplaysReasoning).
       ...(result.reasoning ? { _reasoning: result.reasoning } : {}),
+      // Responses API reasoners (codex-plus) keep their chain of thought across
+      // tool rounds only through these encrypted items.
+      ...(result._responsesReasoning ? { _responsesReasoning: result._responsesReasoning } : {}),
     });
 
     let finishSummary = null;

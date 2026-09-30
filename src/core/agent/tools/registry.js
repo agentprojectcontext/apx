@@ -490,6 +490,20 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
     pending: [],
     activeNames,
 
+    // `base` plus every tool this session activated since. A judge round or a
+    // retry re-enters the loop with the initial set; without this, a tool the
+    // session already counts as loaded never reaches the model again.
+    withActivated(base = initial) {
+      const sent = new Set(base.map(schemaName));
+      const extra = [];
+      for (const name of activeNames) {
+        if (sent.has(name)) continue;
+        const meta = META_BY_NAME.get(name);
+        if (meta) extra.push(meta.schema);
+      }
+      return extra.length ? [...base, ...extra] : base;
+    },
+
     // Tools that exist but aren't loaded yet (and are permitted by the gate).
     notLoaded() {
       return TOOL_META.filter((m) => !activeNames.has(m.name) && permits(m.name));

@@ -49,6 +49,9 @@ export function createOpenAiCompatibleEngine({
   // for some models — Zen's free tier 403s a blocking one. An engine says so
   // here instead of every caller having to pass an onToken it does not want.
   forceStream = null,
+  // (body, { model, config }) => void. Last word on the request body, for an
+  // engine whose API renamed or dropped a field for some models (openai.js).
+  decorateBody = null,
 }) {
   function getKey(config) {
     return config?.api_key || process.env[apiKeyEnv] || defaultApiKey || "";
@@ -183,6 +186,7 @@ export function createOpenAiCompatibleEngine({
       // (verified against Zen: reasoning_tokens drops to 0). Only sent when the
       // operator asked for it — a provider that never heard of the field 400s.
       if (config?.thinking === false) body.reasoning_effort = "none";
+      if (decorateBody) decorateBody(body, { model, config });
 
       if (tools && tools.length > 0) {
         body.tools = tools;

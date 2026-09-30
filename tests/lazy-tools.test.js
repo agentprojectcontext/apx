@@ -256,3 +256,27 @@ test("run-agent: a bounced call is not remembered as done, so the retry can run"
   ledger.record(sig, { ok: true }, { name: "send_telegram", args: { chat_id: 1, text: "hola" } });
   assert.equal(ledger.seen(sig), true, "one that did is remembered");
 });
+
+test("run-agent: a second pass keeps the tools the session activated", async () => {
+  // Judge rounds re-enter runAgent with the session's INITIAL schemas. The
+  // session already counted call_mcp as loaded, so discover_tools answered
+  // `already_loaded` and never re-queued it: the model looped on list_mcps for
+  // 19 steps asking for a tool it no longer had.
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const session = createToolSession("telegram");
+  assert.ok(!session.initialSchemas.map(nameOf).includes("call_mcp"));
+  session.activate({ names: ["call_mcp", "list_mcp_tools"] });
+  session.pending = []; // the first pass already drained them
+  const second = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: "[mock:tools] seguí",
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: () => ({}),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 3,
+  });
+  assert.match(second.text, /\bcall_mcp\b/);
+  assert.match(second.text, /\blist_mcp_tools\b/);
+  assert.equal(session.activate({ names: ["call_mcp"] }).already_loaded[0], "call_mcp");
+});

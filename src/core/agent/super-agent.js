@@ -14,7 +14,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
-import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
+import { channelToolIters, MAX_TOOL_ITERS, AGENT_TURN_MAX_TOKENS } from "#core/agent/constants.js";
 import { mobilityContextBlock } from "#core/mobility/state.js";
 
 export {
@@ -238,7 +238,7 @@ export async function runSuperAgent({
       onReasoningToken,
       agentName: resolveAgentName(globalConfig),
       suppressTools,
-      ...(maxTokens ? { maxTokens } : {}),
+      maxTokens: maxTokens || AGENT_TURN_MAX_TOKENS,
       maxIters: iters,
       ...(completionContract ? { completionContract: true } : {}),
     });
