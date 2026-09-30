@@ -1,3 +1,24 @@
+# [1.123.0](https://github.com/agentprojectcontext/apx/compare/v1.122.5...v1.123.0) (2026-09-30)
+
+
+### Bug Fixes
+
+* **a2a:** el mensaje que abre un intercambio muestra los tokens y el modelo de quien lo escribió ([3a22d5b](https://github.com/agentprojectcontext/apx/commit/3a22d5b9ee8a06e954fee4823c7c18faed1186ce))
+* **a2a:** preguntar dos veces no arranca el trabajo de nuevo, nadie espera desde un a2a y el chat muestra quién está trabajando ([543527e](https://github.com/agentprojectcontext/apx/commit/543527e44037a5d3ecf9888f2297987b90a82289))
+* **agent:** `apx exec` espera al agente al que le pasa trabajo y tiene lugar para verificarlo ([84b6486](https://github.com/agentprojectcontext/apx/commit/84b6486b35954043f5500b7c8dc352239e44d845))
+* **agent:** el juez ya no pierde las tools activadas y las sesiones de código trabajan en su proyecto ([7122631](https://github.com/agentprojectcontext/apx/commit/7122631afa3c37702c17a86812585a16d3b45f77))
+* **files:** file_delivery.kinds escrito como lista habilita esos tipos ([1e10bfc](https://github.com/agentprojectcontext/apx/commit/1e10bfcad280331692289e99d0abb548cf6ddb10))
+
+
+### Features
+
+* **agent:** cada turno sabe de qué proyecto se habla y trae sus agentes, MCPs, reglas y memoria ([ee45cb4](https://github.com/agentprojectcontext/apx/commit/ee45cb40c90af5b2c6db1606aa2cb40e2506720f))
+* **agent:** contrato de ejecución para modelos no-Claude, una sola regla de delegación y ninguna orden contradictoria ([fb4f07a](https://github.com/agentprojectcontext/apx/commit/fb4f07a53405c690bf2c805b7324c282a3033469))
+* **agent:** escribir un archivo con credenciales pide confirmación en cualquier modo de permisos ([06dcedb](https://github.com/agentprojectcontext/apx/commit/06dcedbd584a3bedd6d656f6ea674b9cf577b247))
+* **agent:** una sola regla para esperar o dejar corriendo, y el chat muestra cuál se usó ([2a4578f](https://github.com/agentprojectcontext/apx/commit/2a4578f5f17d7370d7a8ae9e5ab6c7484390da61))
+* **code:** loop de código con apply_patch, read_file paginado, checklist y un set de tools propio ([fecffc7](https://github.com/agentprojectcontext/apx/commit/fecffc738b009952e7db1276814e3451c18b672e))
+* **memory:** Core de hechos permanentes en cada turno, revisión post-turno y un "¿seguís?" que no corta el trabajo ([0271fe2](https://github.com/agentprojectcontext/apx/commit/0271fe25442edcb25308020ac057ea72d443cd7a))
+
 ## [1.122.5](https://github.com/agentprojectcontext/apx/compare/v1.122.4...v1.122.5) (2026-09-30)
 
 
