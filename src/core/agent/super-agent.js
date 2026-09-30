@@ -11,7 +11,9 @@ import {
   selectModelByRules,
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
+import { memoryBlockFor, projectRecallBlock, buildActiveThreadsBlock } from "#core/memory/index.js";
+import { resolveTurnProject, buildSituationBlock } from "#core/agent/context/turn-context.js";
+import { resolveAgentsCap } from "#core/agent/prompt-builder.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
 import { channelToolIters, MAX_TOOL_ITERS, AGENT_TURN_MAX_TOKENS } from "#core/agent/constants.js";
@@ -130,8 +132,28 @@ export async function runSuperAgent({
 
   let memoryBlock = "";
   let activeThreadsBlock = "";
+  let situationBlock = "";
   if (!noTools) {
-    memoryBlock = await memoryBlockFor(prompt, { config: globalConfig, channel });
+    // Which project this turn is about, and what the agent must know about it.
+    // See core/agent/context/turn-context.js.
+    let turnProject = null;
+    try {
+      turnProject = resolveTurnProject({ prompt, previousMessages, projects, channelMeta });
+      situationBlock = buildSituationBlock({
+        resolved: turnProject,
+        registries,
+        agentsMdMaxChars: turnProject?.reason === "pinned"
+          ? resolveAgentsCap(turnProject.project.path, globalConfig)
+          : undefined,
+      });
+    } catch {
+      /* best-effort: a turn without situational context still runs */
+    }
+    const [globalRecall, projectRecall] = await Promise.all([
+      memoryBlockFor(prompt, { config: globalConfig, channel }),
+      turnProject ? projectRecallBlock(prompt, { project: turnProject.project, config: globalConfig }) : "",
+    ]);
+    memoryBlock = [globalRecall, projectRecall].filter(Boolean).join("\n\n");
     // "Hilos activos en otros canales" — pure-recency cross-channel awareness.
     // Skipped for autonomous routines (no human to reference other threads).
     if (channel !== CHANNELS.ROUTINE) {
@@ -174,6 +196,7 @@ export async function runSuperAgent({
     // Compact "tools you can activate" block (names only, no schemas). Empty on
     // full channels and tool-free callers, where it's omitted from the prompt.
     lazyToolsBlock: buildLazyToolsBlock(toolSession),
+    situationBlock,
     skipSkillsHint,
     audience,
     channelNote,

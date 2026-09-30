@@ -224,6 +224,21 @@ export async function roomRecallBlock(message, { scope, config, heading, intro, 
   }
 }
 
+// The super-agent's recall for a turn that is about a project: that project's
+// rows only. The global recall excludes every scoped row on purpose, so without
+// this a note saved with `remember({project})` never came back to the agent that
+// saved it. Returns "" on disabled/empty/error.
+export async function projectRecallBlock(message, { project, config, budgetMs } = {}) {
+  if (!project || project.id == null || String(project.id) === "0") return "";
+  return roomRecallBlock(message, {
+    scope: `project:${project.id}`,
+    config,
+    budgetMs,
+    heading: `Relevant memory (project ${project.name || project.id})`,
+    intro: "Notes recovered from this project's memory. Treat them as known facts about it.",
+  });
+}
+
 // Consumer for a project-agent turn (Pieza 5). Retrieves the agent's OWN memory
 // plus its project's memory in one scoped query, isolated from every other
 // agent/project and from the super-agent's global recall. RAG-only (the agent's

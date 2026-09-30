@@ -61,6 +61,14 @@ export const AGENT_TYPES = Object.freeze([
   { value: "monitor",      label: "Monitor",      description: "Watches state and reports." },
 ]);
 
+/** Does this agent lead a team? `orchestrator` implies it; `is_master` says it. */
+export function isMasterAgent(agent) {
+  const f = agent?.fields || {};
+  if (String(f.Type || agent?.type || "").toLowerCase() === "orchestrator") return true;
+  const flag = f.Master ?? f.Primary ?? agent?.is_master;
+  return String(flag ?? "").toLowerCase() === "true";
+}
+
 export const AGENT_TYPE_VALUES = Object.freeze(AGENT_TYPES.map((t) => t.value));
 
 export function isAgentType(v) {

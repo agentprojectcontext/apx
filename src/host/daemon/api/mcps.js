@@ -74,7 +74,7 @@ export function register(api, { projects, registries, project }) {
     if (scope === null) {
       return res.status(400).json({ error: `unknown scope "${req.query?.scope}" (use shared|runtime|global)` });
     }
-    const { name, command, args, env, url, headers, enabled } = req.body || {};
+    const { name, command, args, env, url, headers, enabled, description } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
 
     let json;
@@ -95,6 +95,7 @@ export function register(api, { projects, registries, project }) {
       ...(url !== undefined ? { url } : {}),
       ...(headers !== undefined ? { headers } : {}),
       ...(enabled !== undefined ? { enabled } : {}),
+      ...(typeof description === "string" ? { description } : {}),
     };
     try {
       writeScope(scope, p, json);

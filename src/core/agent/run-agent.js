@@ -44,6 +44,7 @@ import {
   withImageDescription,
 } from "./vision-bridge.js";
 import { messagesForModel } from "./model-capabilities.js";
+import { attachDirectoryRules } from "./loop/directory-rules.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -490,6 +491,11 @@ export async function runAgent({
   // that queue into effectiveSchemas at the top of each iteration, so tools
   // activated on step N are callable from step N+1. No session → no-op.
   const toolSession = toolHandlerCtx?.toolSession || null;
+  // Folder rules already shown this turn. On the session when there is one, so
+  // a judge round does not attach the same AGENTS.md again.
+  const folderRulesSeen = toolSession
+    ? (toolSession.folderRulesSeen ||= new Set(toolHandlerCtx?.rulesInPrompt || []))
+    : new Set(toolHandlerCtx?.rulesInPrompt || []);
 
   const schemaOnTheWire = (n) =>
     effectiveSchemas.some((sc) => (sc?.function?.name || sc?.name) === n);
@@ -1110,6 +1116,9 @@ export async function runAgent({
         const { images, ...rest } = toolResult;
         toolResult = { ...rest, ...(toolImages ? { images_attached: toolImages.length } : {}) };
       }
+
+      // A folder's own AGENTS.md reaches the model the first time the work does.
+      toolResult = attachDirectoryRules({ name, args, result: toolResult, ctx: toolHandlerCtx, seen: folderRulesSeen });
 
       const traceItem = {
         id: traceId,

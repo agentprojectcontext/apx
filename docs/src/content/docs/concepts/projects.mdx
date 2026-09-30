@@ -172,6 +172,22 @@ APX maintains a built-in project at id `default` (`~/.apx/projects/default/`). T
 super-agent's scratch workspace — it is used when no project is active or explicitly addressed.
 Do not use it for real work; it is shared across all contexts.
 
+## How a project reaches the agent
+
+You do not have to be "inside" a project for the agent to work on it. On every turn APX decides
+which project the turn is about — the one the surface works in (a project chat, a code session),
+else one you **name in the message**, else one named earlier in the same conversation — and puts
+into the agent's context:
+
+- the project's agents, with its lead (the agent work should be delegated to);
+- the MCP servers it can use there, with what each is for;
+- its `AGENTS.md`, and the list of subfolders that carry their own `AGENTS.md`;
+- the durable part of its memory (everything above the first dated `## YYYY-MM-DD` section).
+
+Rules that apply to one folder only belong in that folder's `AGENTS.md`: the first time a tool
+touches the folder in a turn, its rules are attached to the tool result, so the agent reads them
+exactly when the work gets there. Project agents always receive their own project's `AGENTS.md`.
+
 ## Next
 
 - [Agents](/apx/docs/concepts/agents/) — define personas inside a project.

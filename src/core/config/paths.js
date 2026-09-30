@@ -86,6 +86,9 @@ export let TASK_READS_PATH;
 /** Mobility preferences such as "do not mention more trips today". */
 export let MOBILITY_PATH;
 
+/** What each MCP server offered the last time its tools were listed. */
+export let MCP_CATALOG_PATH;
+
 /** Unified log tree. Everything writes here so one tail follows the system. */
 export let LOG_DIR;
 export let APX_LOG_PATH;
@@ -134,6 +137,7 @@ function rebuild(home) {
   READ_MARKS_PATH = path.join(home, "read-marks.json");
   TASK_READS_PATH = path.join(home, "task-reads.json");
   MOBILITY_PATH = path.join(home, "mobility.json");
+  MCP_CATALOG_PATH = path.join(home, "mcp-catalog.json");
   LOG_DIR = path.join(home, "logs");
   APX_LOG_PATH = path.join(LOG_DIR, "apx.log");
   ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");

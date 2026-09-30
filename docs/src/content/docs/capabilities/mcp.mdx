@@ -133,8 +133,19 @@ between scopes. Run it first when a server "doesn't appear" to an agent.
 ## How agents consume MCP servers
 
 Agents do not need any extra configuration to use a registered server — the daemon merges the
-three scopes at startup and injects the full tool list into the agent's context. From inside a
-conversation the agent calls tools by name exactly as the server defines them.
+three scopes and the agent reaches them through `list_mcp_tools` and `call_mcp`.
+
+When a turn is about a project (the surface works inside it, or you name it in the message), the
+agent's context lists that project's servers with what each one is for: the `--description` you
+gave it and the tools it offered the last time they were listed. Describe a server when you add
+it so the agent knows when to reach for it:
+
+```bash
+apx mcp add social --url https://mcp.example.com/mcp --scope runtime --description "Schedules social posts"
+```
+
+The tool summary refreshes itself every time a server's tools are listed (`apx mcp tools <name>`
+or the agent's own `list_mcp_tools`).
 
 The `apx-mcp` binary (installed alongside `apx`) is a separate MCP bridge that exposes APX's
 own tools to external hosts like Claude Desktop. It is not related to the servers you register

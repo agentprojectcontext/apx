@@ -15,7 +15,7 @@ APX exposes MCP servers via three scopes; resolution priority **runtime > shared
 
 ## Super-agent tool
 
-The super-agent registers an MCP with the **`add_mcp`** tool (name + `command`/`args`/`env` for stdio, or `url`/`headers` for http; `scope` = runtime | shared | global, default runtime) — no shelling to `apx mcp add`. Then `list_mcp_tools` to see what it exposes and `call_mcp` to run one. Secrets go in `runtime`/`global` scope, never `shared` (committed).
+The super-agent registers an MCP with the **`add_mcp`** tool (name + `command`/`args`/`env` for stdio, or `url`/`headers` for http; `scope` = runtime | shared | global, default runtime) — no shelling to `apx mcp add`. Give it a one-line `description` of what it is for: agents see it (plus the tools it offered last time it was listed) next to the name in their per-turn project context and in `list_mcps`. Then `list_mcp_tools` to see what it exposes and `call_mcp` to run one. Secrets go in `runtime`/`global` scope, never `shared` (committed).
 
 ## Concrete CLI calls
 

@@ -10,6 +10,7 @@ import { loadAll } from "./sources.js";
 import { interpolate, MissingVarError } from "#core/vars/interpolate.js";
 import { loadAllVars } from "#core/vars/sources.js";
 import { envWithPath } from "#core/util/path-env.js";
+import { recordMcpTools } from "./catalog.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const LOG_CAP = 64;            // entries per MCP we keep in memory
@@ -484,6 +485,7 @@ function entryToMeta(e) {
     transport: e.transport || "stdio",
     source: e.source,
     enabled: e.enabled,
+    description: e.description || null,
   };
 }
 
@@ -569,7 +571,9 @@ export class McpRegistry {
 
   async listTools(name) {
     const proc = this._ensureProcess(name);
-    return proc.listTools();
+    const result = await proc.listTools();
+    recordMcpTools(this.getByName(name), result?.tools);
+    return result;
   }
 
   getLogs(name) {
