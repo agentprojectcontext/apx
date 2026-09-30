@@ -1,6 +1,11 @@
 // Daemon shapes. Mirror the responses returned by src/host/daemon/api/*.
 // If you find yourself reaching for `any`, add a type here first.
 
+// Type-only, so nothing of the panel's runtime is pulled into a module that is
+// meant to be erased at build time. The shape lives beside the rest of what a
+// forward knows about itself (lib/forwarded.ts), not here.
+import type { Forwarded } from "../lib/forwarded";
+
 export type ProjectKind =
   | "personal"
   | "company"
@@ -520,6 +525,10 @@ export interface ConversationMessage {
    *  text already names the options (a model answers a menu by writing "2"); a
    *  person taps, so the buttons are handed over too. */
   interactive?: InteractiveMenu;
+  /** Carried in from another session: the quote, and where it came from. The
+   *  `content` still holds the marker the model was handed; the viewer strips
+   *  it (`stripForwardMarker`) and draws this as a card instead. */
+  forwarded?: Forwarded;
   /** A menu option this message PICKED. */
   chose?: { id?: string; title?: string; description?: string };
   /** Who wrote it, when the thread is a ROOM (a Discord channel) rather than a

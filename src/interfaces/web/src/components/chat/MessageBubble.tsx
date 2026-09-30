@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { modelLabel } from "../agents/modelEffort";
-import { Bot, ChevronDown, CornerDownRight, Copy, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";
+import { Bot, ChevronDown, CornerDownRight, Copy, Forward, Info, Pencil, RefreshCw, SquareStack } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
@@ -10,6 +10,8 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
+import { ForwardedQuote } from "./ForwardedQuote";
+import { stripForwardMarker } from "../../lib/forwarded";
 import { InteractiveOptions } from "./InteractiveOptions";
 import { TurnStatus, type JobScope } from "./TurnStatus";
 import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
@@ -45,6 +47,14 @@ interface Props {
   /** Edit this user turn and re-send, dropping everything after it. Absent → no
    *  edit affordance. */
   onEdit?: (text: string) => void;
+  /** Hand this message to another session. Offered on BOTH sides of the
+   *  conversation: what you want to show somebody else is as often the answer
+   *  as the question. Absent → no forward affordance (previews, and the
+   *  surfaces with nowhere to forward to). */
+  onForward?: () => void;
+  /** Open the session a forwarded quote came from. Absent → the card names its
+   *  source without linking to it. */
+  onOpenForwardSource?: () => void;
   /** Group style: name each speaker in a header ABOVE the bubble (with a "traído
    *  por X" tag when a mention pulled them in), the way a group chat reads. Off
    *  in a 1:1, where the single agent is already named in the header. */
@@ -81,7 +91,7 @@ function safeSlice(text: string, n: number): string {
   return text.slice(0, cut);
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true, dayInDivider, jobScope }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, onRegenerate, onEdit, onForward, onOpenForwardSource, showSpeaker, nameOf, showTools = true, dayInDivider, jobScope }: Props) {
   // Hooks before any early return. The group-notice branch below returns without
   // rendering a bubble, and these two used to sit after it — so a notice arriving
   // mid-thread ("X joined the chat") changed the hook count for that row and React
@@ -153,7 +163,10 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // rendered as a bare caption, or as the placeholder text where a caption was
   // never written.
   const media = msg.media;
-  const copyText = media?.length ? stripMediaMarker(textOf(msg), media.length) : textOf(msg);
+  // What the READER would copy: their own words. The quote is drawn as a card
+  // of its own and the attachment markers name a path on the daemon, so neither
+  // belongs on the clipboard when somebody copies a message.
+  const copyText = visibleTextOf(textOf(msg), media, msg.forwarded);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
   // A user turn is never grouped — it has no tools, and the segmenter would
   // return one plain part per message anyway; blocks only shape the agent side.
@@ -205,7 +218,7 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // is how a menu is answered in words — and printing it under real buttons
   // says the same thing twice, in the uglier of the two ways.
   const visibleText = (raw: string | undefined) => {
-    const text = textOfPart(raw, media);
+    const text = visibleTextOf(raw, media, msg.forwarded);
     return msg.interactive?.options?.length ? stripMenuMarker(text) : text;
   };
 
@@ -364,6 +377,13 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
               </span>
             )}
           </div>
+        )}
+
+        {/* Carried in from another session. Above the turn's own words, because
+            that is the shape of the message: here is the thing somebody said
+            somewhere else, here is what I say about it. */}
+        {msg.forwarded && (
+          <ForwardedQuote fwd={msg.forwarded} onOpen={onOpenForwardSource} compact={compact} />
         )}
 
         {/* What was actually sent: the voice note plays, the photo is the photo,
@@ -574,6 +594,23 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 </button>
               </Tip>
             )}
+            {/* Hand this message to another session — an agent, or the
+                super-agent — with a line of your own under it. Offered on both
+                sides: an answer is as often the thing worth passing on as the
+                question that got it. */}
+            {onForward && copyText && !editing && (
+              <Tip content={t("forward.action")}>
+                <button
+                  type="button"
+                  data-testid="forward-message"
+                  onClick={onForward}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  aria-label={t("forward.action")}
+                >
+                  <Forward size={10} /> {!compact && t("forward.action")}
+                </button>
+              </Tip>
+            )}
             {/* Edit your turn and re-ask (drops everything below). */}
             {mine && onEdit && !editing && (
               <Tip content={t("chat_ui.edit")}>
@@ -616,11 +653,23 @@ function stripMenuMarker(text: string): string {
   return text.replace(MENU_MARKER, "").trimEnd();
 }
 
-/** The visible text of a part: with attachments, the machine-facing markers
- *  are dropped and what is left (a caption, or the voice transcript) is shown. */
-function textOfPart(text: string | undefined, media: unknown[] | undefined): string {
+/**
+ * The visible text of a part: every machine-facing marker dropped, and what is
+ * left — a caption, a voice transcript, the note written under a quote — shown.
+ *
+ * The forward block comes off FIRST, and the order is not a style choice: the
+ * attachment strip takes a leading `[…]` off the front of the text, and a
+ * forwarded turn's front is `[forwarded message — …]`. Run the other way round
+ * it eats the head of the quote block and leaves the `> ` lines on screen.
+ */
+export function visibleTextOf(
+  text: string | undefined,
+  media: unknown[] | undefined,
+  forwarded: unknown,
+): string {
   if (!text) return "";
-  return media?.length ? stripMediaMarker(text, media.length) : text;
+  const body = forwarded ? stripForwardMarker(text) : text;
+  return media?.length ? stripMediaMarker(body, media.length) : body;
 }
 
 /** 1219686 → "1.2M". The raw count fit while the row was hover-only and had the

@@ -30,6 +30,7 @@ import { cleanTextOfPseudoToolCalls } from "../agent/tools/tool-call-parser.js";
 import { attachmentsMeta } from "./media-archive.js";
 import { readAgents } from "../apc/parser.js";
 import { memoFile, memoFileSync } from "../util/file-memo.js";
+import { forwardReadable } from "./forwards.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -1952,7 +1953,7 @@ function contactName(rows) {
  *  marker is removed? A caption-less photo and an untranscribable voice note
  *  both leave nothing behind, and neither can name a conversation. */
 function hasWords(body) {
-  const rest = String(body || "").replace(/^\[[^\]]*\]\s*/, "").trim();
+  const rest = forwardReadable(String(body || "")).replace(/^\[[^\]]*\]\s*/, "").trim();
   return !!rest && !/^\(.*\)$/.test(rest);
 }
 
@@ -2224,7 +2225,9 @@ const MEDIA_GLYPH = {
  * @param {object|null} media  what mediaFromMeta returned for that row
  */
 export function previewText(body, media) {
-  const text = String(body || "").replace(/\s+/g, " ").trim();
+  // A forwarded turn is stored with its quote block ahead of the note; a list
+  // shows the note (or the quote's first line), never the machine marker.
+  const text = forwardReadable(String(body || "")).replace(/\s+/g, " ").trim();
   if (!media) return text;
   const caption = text.replace(/^\[[^\]]*\]\s*/, "").trim();
   const glyph = MEDIA_GLYPH[media.kind] || MEDIA_GLYPH.file;
@@ -2298,6 +2301,10 @@ export function shapeLedgerMessage(r) {
       ...(r.meta?.room && r.meta?.reply_to_text
         ? { quote: { author: r.meta.reply_to_author || null, text: r.meta.reply_to_text } }
         : {}),
+      // Handed in from another session — the quote's provenance, so every
+      // surface reading this row draws the same card instead of the
+      // machine-facing marker sitting in the body.
+      ...(r.meta?.forwarded ? { forwarded: r.meta.forwarded } : {}),
     };
   }
   const usage = r.meta?.usage;

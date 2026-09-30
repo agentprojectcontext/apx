@@ -235,8 +235,8 @@ La pestaña **Chat** habla con el super-agente (Roby) y con cada agente del proy
 barra lateral es channel-first, agrupada como **Web, Telegram, Desktop, Voice, Agent ↔
 Agent, Schedule, Other** — en ese orden. Además de tus propias conversaciones web,
 también muestra los hilos por día del super-agente de cualquier otro canal (Telegram,
-Desktop, Deck), así una conversación que pasó por Telegram queda visible y se puede
-continuar desde la web.
+Desktop, Deck), así una conversación que pasó por Telegram queda visible desde la
+web — y se puede seguir ahí, en una sesión aparte.
 
 El botón **"+ New"** abre un selector de agente (super-agente o cualquier agente del
 proyecto) e inicia una sesión nueva que recién se materializa bajo el grupo Web cuando
@@ -292,6 +292,46 @@ muestra los que se abrieron desde él, más los hilos de canal (Telegram, Deskto
 que no pertenecen a ningún proyecto en particular.
 
 ![Pestaña Chat — barra lateral channel-first con hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
+
+#### Reenviar un mensaje a otra sesión
+
+Cualquier mensaje de cualquier conversación —tuyo o de un agente— tiene una
+acción **Reenviar** al lado de **Copiar**. Pregunta dos cosas: a quién le llega y
+en qué parte de su historia cae. La sesión más reciente de quien elijas viene
+preseleccionada, así seguir una charla que ya venías teniendo es un solo clic;
+**Sesión nueva** es siempre la primera opción para el otro caso. Lo que escribas
+va debajo de la cita, y podés dejarlo vacío: "mirá esto" es un mensaje completo,
+y el agente responde al mensaje reenviado.
+
+La lista no se limita a este proyecto. Para vos la instalación es un solo
+conjunto de agentes, así que el selector cruza todos los proyectos registrados,
+agrupados por el nombre de cada uno, con un buscador que matchea el nombre de la
+persona, su slug o el proyecto donde está (lo sirve `GET
+/api/agents`). Reenviar a otro proyecto te lleva ahí y la charla sigue
+en el chat de ese proyecto — la cita guarda de qué proyecto SALIÓ, así el link
+de la tarjeta sigue abriendo la conversación correcta.
+
+Del otro lado llega como una tarjeta que dice de dónde salió, quién lo dijo y
+cuándo, con un link de vuelta a esa sesión — así el reenvío se lee como una cita
+y no como un texto pegado sin autor. El agente lee los mismos tres datos: la
+cita viaja en el prompt, marcada como palabras de otro.
+
+Hay conversaciones que no pueden recibir un reenvío, y quedan fuera de la lista
+en vez de ofrecerse para después rebotar: los hilos de Telegram y WhatsApp (el
+mensaje está en el teléfono de alguien; un turno escrito acá sale por `web`), los
+transcripts entre agentes, los grupos, y cualquier hilo del super-agente que no
+sea el de hoy en esta superficie — el super-agente no tiene archivo de
+conversación, sus turnos se escriben con el reloj, y un mensaje puesto en el de
+ayer se vería en un hilo y quedaría registrado en otro.
+
+#### Responder dentro de un hilo de Telegram o WhatsApp
+
+Esos hilos se leen acá y no se pueden escribir: el mensaje se entregó en la
+plataforma de otro, y APX no puede retirarlo ni agregarle nada. El composer lo
+dice arriba del campo, y después hace lo honesto — lo que escribas sigue en una
+**sesión nueva con el super-agente**, con el último mensaje del hilo citado
+arriba del tuyo, y el panel se mueve ahí mientras manda. Antes la respuesta
+parecía caer en el hilo de Telegram y desaparecía en la siguiente recarga.
 
 ### Tasks
 

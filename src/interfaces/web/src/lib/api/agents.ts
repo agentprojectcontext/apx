@@ -2,6 +2,7 @@ import { http, streamNdjson } from "../http";
 import type {
   AgentDetail, AgentEntry, AgentToolCatalog, ChatStreamEvent, ChatUsage,
 } from "../../types/daemon";
+import type { Forwarded } from "../forwarded";
 
 /**
  * One row of the cross-project roster (`GET /api/agents`).
@@ -73,7 +74,15 @@ export const Agents = {
   chatStream: (
     pid: string,
     slug: string,
-    body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] },
+    body: {
+      prompt: string;
+      conversation_id?: string;
+      model?: string;
+      channel?: string;
+      attachments?: { path: string; name?: string }[];
+      /** A message brought in from another session — see core/stores/forwards.js. */
+      forwarded?: Forwarded;
+    },
     onEvent: (ev: ChatStreamEvent) => void,
     signal?: AbortSignal,
   ) => streamNdjson<ChatStreamEvent>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat/stream`, body, onEvent, signal),

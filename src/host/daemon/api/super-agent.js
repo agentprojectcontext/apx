@@ -22,6 +22,7 @@ import { summarizeTrace, inspectorRecord } from "#core/agent/skills/inspector.js
 export { inspectorRecord };
 import { resolveTurnSkills, mergeContextNote } from "#core/agent/skills/turn-skills.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { forwardPrompt, normalizeForward } from "#core/stores/forwards.js";
 import { readTurnAttachments } from "./media.js";
 import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, isVisibleTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
 import { broadcastTurn } from "../events-ws.js";
@@ -90,15 +91,18 @@ const ledgerScope = (project) => ledgerProjectStamp(project);
  *
  * Best-effort: a logging failure never breaks the turn.
  */
-function logInboundTurn(channel, { prompt, project, media }) {
+function logInboundTurn(channel, { prompt, project, media, forwarded }) {
   if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
   try {
     appendGlobalMessage({
       channel, direction: "in", type: "user", author: "user", body: prompt,
       // `media` records the file the turn was sent with (local_path, name, mime
       // — see readTurnAttachments), which is what lets a reopened thread render
-      // the photo instead of the marker text the agent was handed.
-      meta: { ...ledgerScope(project), ...(media || {}) },
+      // the photo instead of the marker text the agent was handed. `forwarded`
+      // does the same job for a quote carried in from another session: the body
+      // holds the machine-facing marker, and this is what the panel draws as a
+      // card saying where it came from.
+      meta: { ...ledgerScope(project), ...(media || {}), ...(forwarded ? { forwarded } : {}) },
     });
   } catch { /* the ledger is a record, not a dependency */ }
 }
@@ -274,7 +278,14 @@ export function register(api, { projects, registries, plugins, project, config }
     // photo with no caption IS a turn: the marker built below stands in for the
     // text, exactly as it does when the same photo arrives over Telegram.
     const turnFiles = readTurnAttachments(req.body?.attachments);
-    if (!rawPrompt && !turnFiles.markers.length) {
+    // A message carried in from another session — the quote, plus where it came
+    // from. Validated here rather than trusted: the text is capped and the
+    // marker is built on this side, so a client cannot write its own.
+    const forwarded = normalizeForward(req.body?.forwarded);
+    // A forward IS a turn, with or without a note under it: "read this" is a
+    // complete thing to say, and refusing it would make the empty composer the
+    // one way to hand somebody a message.
+    if (!rawPrompt && !turnFiles.markers.length && !forwarded) {
       return res.status(400).json({ error: "prompt required" });
     }
     const ctx = resolveSuperAgentContext(req, p);
@@ -304,11 +315,14 @@ export function register(api, { projects, registries, plugins, project, config }
     // What the model reads, and what the ledger stores: the attachment markers
     // first, then whatever was typed. The markers are built on this side so the
     // path they name is one the daemon resolved, not one a client claimed.
-    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // A forwarded quote goes ABOVE what was typed, on its own lines: it is what
+    // the turn is about, and the note under it is the answer to it.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;
 
     // Before a single token: the message exists now, and the panel (and the
     // inbox, and the live feed) should say so while the turn is still working.
-    logInboundTurn(ctx.channel, { prompt: turnPrompt, project: p, media: turnFiles.media });
+    logInboundTurn(ctx.channel, { prompt: turnPrompt, project: p, media: turnFiles.media, forwarded });
 
     res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
     res.setHeader("cache-control", "no-cache, no-transform");
@@ -587,9 +601,15 @@ export function register(api, { projects, registries, plugins, project, config }
     if (whatsappHandledByChannel(plugins, req.body?.channel)) {
       return res.json({ ok: true, skipped: "handled by the whatsapp channel" });
     }
-    const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
+    const { prompt: typed, previousMessages, model, maxIters, maxTokens, completionContract } =
       req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    // Same contract as the streamed route above: the quote is validated here,
+    // written into the prompt the model reads, and recorded on the turn. This
+    // endpoint has its own callers (the phone bridge, `SuperAgent.send`), and a
+    // forward that worked on one of the two would be the worst of both.
+    const forwarded = normalizeForward(req.body?.forwarded);
+    if (!typed && !forwarded) return res.status(400).json({ error: "prompt required" });
+    const prompt = forwarded ? forwardPrompt(forwarded, typed || "") : typed;
     const ctx = resolveSuperAgentContext(req, p);
     let inspectorTrace = null;
     let skipSkillsHint = false;
@@ -605,7 +625,7 @@ export function register(api, { projects, registries, plugins, project, config }
     }
     // The message is on the record before the turn starts. This is the endpoint
     // the phone bridge posts to, and its turns are the long ones.
-    logInboundTurn(ctx.channel, { prompt, project: p });
+    logInboundTurn(ctx.channel, { prompt, project: p, forwarded });
     // Nothing is streamed to this caller, but the turn can still produce prose
     // before its closing comes back empty — which is what tells the floor
     // whether the turn worked or did nothing at all.

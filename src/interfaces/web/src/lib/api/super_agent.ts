@@ -1,5 +1,6 @@
 import { http, streamNdjson } from "../http";
 import type { ChatStreamEvent, ConversationMessage } from "../../types/daemon";
+import type { Forwarded } from "../forwarded";
 
 export interface SuperAgentSendBody {
   prompt: string;
@@ -17,6 +18,10 @@ export interface SuperAgentSendBody {
   /** Files this turn carries, as paths the daemon stored (POST /media/upload).
    *  It re-resolves each one inside ~/.apx/media before reading it. */
   attachments?: { path: string; name?: string }[];
+  /** A message brought in from another session. The daemon normalises it, folds
+   *  the quote into the prompt the model reads, and records it on the turn so
+   *  every surface draws the same card — see core/stores/forwards.js. */
+  forwarded?: Forwarded;
 }
 
 export const SuperAgent = {
