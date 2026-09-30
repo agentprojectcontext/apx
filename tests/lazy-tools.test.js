@@ -44,7 +44,11 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // 36 with send_file. "Mandame una captura" is one sentence, and a tool the
   // model has to discover first is a turn that already went out saying "te la
   // adjunto" with nothing attached — the exact failure that added it.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 36);
+  // 38 with list_mcp_tools + call_mcp. The owner's real work runs on MCP
+  // servers; cold, the path was four steps long and the model quit before the
+  // last one, telling the owner it had no way to do what an MCP does.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 38);
+  assert.ok(BASE_TOOL_NAMES.has("call_mcp") && BASE_TOOL_NAMES.has("list_mcp_tools"));
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
@@ -264,8 +268,8 @@ test("run-agent: a second pass keeps the tools the session activated", async () 
   // 19 steps asking for a tool it no longer had.
   const { runAgent } = await import("#core/agent/run-agent.js");
   const session = createToolSession("telegram");
-  assert.ok(!session.initialSchemas.map(nameOf).includes("call_mcp"));
-  session.activate({ names: ["call_mcp", "list_mcp_tools"] });
+  assert.ok(!session.initialSchemas.map(nameOf).includes("web_search"));
+  session.activate({ names: ["web_search", "http_get"] });
   session.pending = []; // the first pass already drained them
   const second = await runAgent({
     globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
@@ -276,7 +280,7 @@ test("run-agent: a second pass keeps the tools the session activated", async () 
     toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
     maxIters: 3,
   });
-  assert.match(second.text, /\bcall_mcp\b/);
-  assert.match(second.text, /\blist_mcp_tools\b/);
-  assert.equal(session.activate({ names: ["call_mcp"] }).already_loaded[0], "call_mcp");
+  assert.match(second.text, /\bweb_search\b/);
+  assert.match(second.text, /\bhttp_get\b/);
+  assert.equal(session.activate({ names: ["web_search"] }).already_loaded[0], "web_search");
 });

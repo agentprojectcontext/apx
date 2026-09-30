@@ -203,6 +203,12 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.LIST_PROJECTS,
   TOOLS.LIST_AGENTS,
   TOOLS.LIST_MCPS,
+  // The MCP pair is hot because the owner's real work runs on MCP servers
+  // (scheduling posts, deploys). Cold, reaching one took list_mcps →
+  // discover_tools → list_mcp_tools → call_mcp, and on Telegram the model gave
+  // up before the last step and said it had no way to do it.
+  TOOLS.LIST_MCP_TOOLS,
+  TOOLS.CALL_MCP,
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
   // A skill shown "loaded on demand" is useless without the tool that pages it,
@@ -522,8 +528,8 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
         available_count: pool.length,
         categories: byCategory,
         hint:
-          "Activá lo que necesites con discover_tools({ category: \"<cat>\" }) o " +
-          "discover_tools({ names: [\"tool_a\", \"tool_b\"] }). Quedan disponibles desde tu próximo paso.",
+          "Activate what you need with discover_tools({ category: \"<cat>\" }) or " +
+          "discover_tools({ names: [\"tool_a\", \"tool_b\"] }). They are callable from your next step.",
       };
     },
 
@@ -563,8 +569,10 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
         ...(unknown.length ? { unknown } : {}),
         ...(denied.length ? { denied } : {}),
         note: activated.length
-          ? `Activé ${activated.length} tool(s): ${activated.join(", ")}. Ya las podés usar desde tu próximo paso.`
-          : "No se activó ninguna tool nueva.",
+          ? `Activated ${activated.length} tool(s): ${activated.join(", ")}. Callable from your next step.`
+          : alreadyLoaded.length
+            ? `Already loaded: ${alreadyLoaded.join(", ")} — call them directly.`
+            : "No tool was activated.",
       };
     },
   };
@@ -589,16 +597,17 @@ export function buildLazyToolsBlock(session) {
     .map((cat) => `- ${cat}: ${byCategory[cat].join(", ")}`);
 
   return [
-    "# Tools adicionales (activación on-demand)",
-    "Tenés las tools base siempre cargadas. Estas otras EXISTEN pero no están",
-    "cargadas (para ahorrar tokens). Activalas cuando las necesites con",
-    "discover_tools — quedan disponibles desde tu próximo paso:",
-    '  • discover_tools()                              → catálogo completo (nombre + descripción)',
-    '  • discover_tools({ category: "browser" })       → activa toda una categoría',
-    '  • discover_tools({ names: ["browser_navigate"] })→ activa tools puntuales',
-    "Si no encontrás la tool que buscás, llamá discover_tools() sin argumentos.",
+    "# More tools (activated on demand)",
+    "Your base tools are always loaded. These others EXIST but are not loaded, to",
+    "save tokens. Activate them with discover_tools when you need one — they are",
+    "callable from your next step:",
+    '  • discover_tools()                               → full catalog (name + description)',
+    '  • discover_tools({ category: "browser" })        → a whole category',
+    '  • discover_tools({ names: ["browser_navigate"] }) → specific tools',
+    "A tool you need and do not see is almost always here: activate it instead of",
+    "saying you cannot do something.",
     "",
-    `Tools no cargadas (solo nombres, ${pool.length} en total):`,
+    `Not loaded (names only, ${pool.length} in total):`,
     ...lines,
   ].join("\n");
 }

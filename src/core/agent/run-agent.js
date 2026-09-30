@@ -18,7 +18,7 @@ import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS
 import { TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
-import { buildRuntimeBlock } from "./prompt-builder.js";
+import { buildRuntimeBlock, buildExecutionContractBlock } from "./prompt-builder.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 import {
   securityRiskConfig,
@@ -45,6 +45,7 @@ import {
 } from "./vision-bridge.js";
 import { messagesForModel } from "./model-capabilities.js";
 import { attachDirectoryRules } from "./loop/directory-rules.js";
+import { createDelegationGuard } from "./loop/delegation-guard.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -493,6 +494,8 @@ export async function runAgent({
   const toolSession = toolHandlerCtx?.toolSession || null;
   // Folder rules already shown this turn. On the session when there is one, so
   // a judge round does not attach the same AGENTS.md again.
+  // Instructions already handed to each agent this turn (see loop/delegation-guard.js).
+  const delegationGuard = createDelegationGuard(toolSession ? (toolSession.delegations ||= new Map()) : new Map());
   const folderRulesSeen = toolSession
     ? (toolSession.folderRulesSeen ||= new Set(toolHandlerCtx?.rulesInPrompt || []))
     : new Set(toolHandlerCtx?.rulesInPrompt || []);
@@ -534,7 +537,7 @@ export async function runAgent({
       activated: name,
       schema: schema?.function || schema || null,
       why: fits.reason,
-      note: "Ya está cargada. Llamala de nuevo usando exactamente los parámetros de arriba.",
+      note: "It is loaded now. Call it again using exactly the parameters above.",
     };
   };
 
@@ -746,7 +749,9 @@ export async function runAgent({
     // providers mid-turn, and a line that named the model we STARTED on would
     // be exactly the kind of stale fact this block exists to kill.
     const runtime = buildRuntimeBlock(activeModel);
-    const systemForCall = runtime ? `${system}\n\n${runtime}` : system;
+    // Per call for the same reason: which family is answering decides whether
+    // the execution contract applies.
+    const systemForCall = [system, buildExecutionContractBlock(activeModel), runtime].filter(Boolean).join("\n\n");
     const baseSystem = usePseudoTools
       ? pseudoToolSystem(systemForCall, effectiveSchemas)
       : systemForCall;
@@ -999,8 +1004,8 @@ export async function runAgent({
           ok: true,
           deduped: true,
           note: restated
-            ? `Ya dije esto mismo con "${name}" en este turno; no lo repito.`
-            : `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
+            ? `I already said this with "${name}" in this turn; not repeating it.`
+            : `I already ran "${name}" with these same arguments in this turn; not repeating it.`,
           previous: restated || sideEffects.previous(sig),
         };
         await emitProgress(onEvent, {
@@ -1058,6 +1063,7 @@ export async function runAgent({
             else if (toolSession && !suppressed.has(name) && !schemaOnTheWire(name)) {
               bounced = revealUnloadedTool(toolSession, name, args);
             }
+            if (!bounced) bounced = delegationGuard.check(name, args);
             if (bounced) { toolResult = bounced; ranForReal = false; }
             // Under a watchdog, not a bare await. A handler that never settles
             // used to hang the turn permanently — past its own timeout, past
@@ -1101,6 +1107,7 @@ export async function runAgent({
         // owner that sessions were running. A refusal must leave the retry
         // possible; the dedup is there to stop a SECOND effect, not a first one.
         if (ranForReal) sideEffects.record(sig, summarizeForTrace(toolResult), { name, args });
+        if (ranForReal && !(toolResult && typeof toolResult === "object" && toolResult.error)) delegationGuard.record(name, args);
       }
 
       // A tool may return images for the MODEL to see (view_media loads a skill

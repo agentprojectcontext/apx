@@ -51,6 +51,12 @@ export default {
               "answer to. Your context is NOT kept while you wait, so put everything " +
               "you will need to act on the reply into `message` itself.",
           },
+          followup: {
+            type: "boolean",
+            description:
+              "Only when you already instructed this agent earlier in THIS turn and this " +
+              "message deliberately corrects or extends that instruction. Say so in the text.",
+          },
         },
         required: ["to", "message"],
       },

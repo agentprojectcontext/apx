@@ -29,6 +29,12 @@ export default {
               "The task, self-contained. The agent sees the prior turns of THIS " +
               "delegation thread and nothing else of your conversation.",
           },
+          followup: {
+            type: "boolean",
+            description:
+              "Only when you already instructed this agent earlier in THIS turn and this " +
+              "message deliberately corrects or extends that instruction. Say so in the text.",
+          },
         },
         required: ["agent", "prompt"],
       },

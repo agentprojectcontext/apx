@@ -335,6 +335,24 @@ export function buildRuntimeBlock(modelId) {
   ].join("\n");
 }
 
+// Model families that need the execution contract (prompts/models/execution.md).
+// The failure modes it names — stopping early, answering from memory, calling
+// work done unchecked, contradicting its own delegation — are what non-Claude
+// models did on this install; Claude does not show them and gets nothing extra.
+// `mock:gpt…` opts the offline engine in so the gate can be tested.
+const EXECUTION_CONTRACT_EXEMPT = /^(anthropic|claude-subscription|claude-code):|(^|[:/])claude/i;
+
+export function needsExecutionContract(modelId) {
+  const id = String(modelId || "");
+  if (!id) return false;
+  if (id.startsWith("mock:") || id === "mock") return /gpt/i.test(id);
+  return !EXECUTION_CONTRACT_EXEMPT.test(id);
+}
+
+export function buildExecutionContractBlock(modelId) {
+  return needsExecutionContract(modelId) ? loadPrompt("models/execution.md").trim() : "";
+}
+
 // Super-agent notebook (~/.apx/memory.md), bounded. Returns "" when empty.
 // Project agents have their own per-agent memory.md handled in buildAgentSystem.
 export function buildSelfMemoryBlock() {
