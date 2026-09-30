@@ -1,3 +1,10 @@
+## [1.122.5](https://github.com/agentprojectcontext/apx/compare/v1.122.4...v1.122.5) (2026-09-30)
+
+
+### Bug Fixes
+
+* **vault:** los agentes del vault, los packs y los nombres viajan en el paquete de npm ([f6a881c](https://github.com/agentprojectcontext/apx/commit/f6a881c512a0ad7180a9123a7cb5ce83efe70a32))
+
 ## [1.122.4](https://github.com/agentprojectcontext/apx/compare/v1.122.3...v1.122.4) (2026-09-29)
 
 
