@@ -270,6 +270,8 @@ export function sendInBackground({
   plugins,
   registries,
   messagePeerFn = messagePeer,
+  // { model, usage } the sending turn had spent; lands on its message.
+  senderSpend = null,
 }) {
   if (!project) return { error: "background send: no project" };
   if (!from || !to) return { error: "background send: from and to are required" };
@@ -349,7 +351,7 @@ export function sendInBackground({
   // Un-awaited on purpose — this is the whole point of the module. The promise
   // is safe detached because both arms settle the job and neither rethrows.
   Promise.resolve()
-    .then(() => messagePeerFn({ project, from: sender, to: address, body, config, projects, plugins, registries, depth }))
+    .then(() => messagePeerFn({ project, from: sender, to: address, body, config, projects, plugins, registries, depth, senderSpend }))
     .then(
       (result) => closeJob(job.id, { status: "done", result: result?.text || "" }),
       (e) => closeJob(job.id, { status: "failed", result: e?.message || String(e) }),

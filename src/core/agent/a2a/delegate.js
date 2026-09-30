@@ -29,7 +29,7 @@ import { replyAsAgent, replyToPeer } from "./reply.js";
 import { resolvePeer, peerAddress, senderAddress } from "./peers.js";
 import { readAgents } from "#core/apc/parser.js";
 import { a2aPairHistory } from "./history.js";
-import { runPeerAndFileReply } from "./file-reply.js";
+import { runPeerAndFileReply, fileA2AMessage } from "./file-reply.js";
 
 /**
  * Deliver `prompt` to `agent` as the super-agent, and file both halves.
@@ -60,6 +60,8 @@ export async function delegateToAgent({
   // function's job is the thread it files, and that is worth asserting without
   // standing up an engine.
   replyFn = replyAsAgent,
+  // { model, usage } the sending turn had spent when it wrote this.
+  senderSpend = null,
 }) {
   const to = agent.slug;
   const thread = a2aThreadId(from, to);
@@ -67,20 +69,9 @@ export async function delegateToAgent({
   // arrives as something the agent already heard.
   const history = a2aPairHistory(project.storagePath, from, to, to, historyLimit);
 
-  const ts = new Date().toISOString();
-  const messageId = shortId("a2a");
-  // Both halves of every utterance, the same shape `apx send --deliver` writes:
-  // one row owned by the sender, one by the recipient. That pairing is what
-  // makes `listProjectA2AThreads` see a conversation rather than two monologues.
-  project.logMessage({
-    agent_slug: to,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    author: from,
-    body: prompt,
-    meta: { from, via: "delegation" },
-    ts,
-    external_id: messageId,
+  // Both halves of the utterance, with what the sender's turn spent on it.
+  fileA2AMessage(project, {
+    from, to, body: prompt, via: "delegation", model: senderSpend?.model, usage: senderSpend?.usage,
   });
 
   const result = await runPeerAndFileReply({
@@ -167,6 +158,8 @@ export async function messagePeer({
   // The owner is waiting on this from a live chat (see quota.js isUnwatchedTurn).
   watched = false,
   replyFn = replyToPeer,
+  // { model, usage } the sending turn had spent when it wrote this.
+  senderSpend = null,
 }) {
   const agents = readAgents(project.path);
   const peer = resolvePeer(to, agents, config);
@@ -191,18 +184,23 @@ export async function messagePeer({
   const thread = a2aThreadId(sender, address);
   const history = a2aPairHistory(project.storagePath, sender, address, address, historyLimit);
 
-  const ts = new Date().toISOString();
-  const messageId = shortId("a2a");
-  project.logMessage({
-    agent_slug: address,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    author: sender,
-    body,
-    meta: { from: sender, via: "tool", ...(wakeFor ? { wake_for: wakeFor } : {}) },
-    ts,
-    external_id: messageId,
-  });
+  if (wakeFor) {
+    // A wake-up notice to a waiting agent: its inbox only, nobody spoke it.
+    project.logMessage({
+      agent_slug: address,
+      channel: CHANNELS.A2A,
+      direction: "in",
+      author: sender,
+      body,
+      meta: { from: sender, via: "tool", wake_for: wakeFor },
+      ts: new Date().toISOString(),
+      external_id: shortId("a2a"),
+    });
+  } else {
+    fileA2AMessage(project, {
+      from: sender, to: address, body, via: "tool", model: senderSpend?.model, usage: senderSpend?.usage,
+    });
+  }
 
   const result = await runPeerAndFileReply({
     project,

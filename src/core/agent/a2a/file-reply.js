@@ -91,6 +91,40 @@ export function fileA2AReply(project, {
 }
 
 /**
+ * The message that OPENS an exchange (or a new turn of one), both halves: the
+ * speaker's copy with the model and the tokens its turn had spent writing it,
+ * and the recipient's inbox copy. The tools used to write only the inbox half —
+ * no model, no usage — so every message an agent started showed no tokens,
+ * while every reply did.
+ */
+export function fileA2AMessage(project, { from, to, body, via, extraMeta = {}, ts, model, usage }) {
+  const at = ts || new Date().toISOString();
+  const id = shortId("a2a");
+  const spent = usage && (usage.input_tokens || usage.output_tokens) ? usage : null;
+  project.logMessage({
+    agent_slug: from,
+    channel: CHANNELS.A2A,
+    direction: "out",
+    author: from,
+    body,
+    meta: { to, ...(via ? { via } : {}), final: true, ...(model ? { model } : {}), ...(spent ? { usage: spent } : {}), ...extraMeta },
+    ts: at,
+    external_id: id,
+  });
+  project.logMessage({
+    agent_slug: to,
+    channel: CHANNELS.A2A,
+    direction: "in",
+    author: from,
+    body,
+    meta: { from, ...(via ? { via } : {}), ...extraMeta },
+    ts: at,
+    external_id: id,
+  });
+  return { ts: at, id };
+}
+
+/**
  * Run the peer, file whatever it produced — including the case where the
  * engine dies after tools already ran. Re-throws so the tool/route still
  * reports the failure; the thread is no longer empty when that happens.

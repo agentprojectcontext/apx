@@ -473,6 +473,10 @@ export async function runAgent({
   // when a newer turn supersedes this one. Handlers read it at call time.
   if (toolHandlerCtx && signal) toolHandlerCtx.abortSignal = signal;
 
+  // What this turn has spent so far, for a tool that files a message the turn
+  // wrote mid-way (send_to_agent / call_agent put it on the a2a row). Set
+  // before the handlers are built: they receive a copy of this context.
+  if (toolHandlerCtx) toolHandlerCtx.turnSpend = () => ({ model: activeModel, usage: { ...totalUsage } });
   const rawHandlers = makeToolHandlers(toolHandlerCtx);
   const handlers = suppressed.size > 0
     ? new Proxy(rawHandlers, {

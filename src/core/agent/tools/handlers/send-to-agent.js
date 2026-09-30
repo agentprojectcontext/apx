@@ -63,7 +63,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta }) => async ({ project, to, message, background = false, wake_me = true }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta, turnSpend }) => async ({ project, to, message, background = false, wake_me = true }) => {
     const p = resolveProject(projects, project);
     // WHO is writing. A project agent's turn stamps its slug on the tool
     // context (core/agent/run-turn.js); the super-agent's does not, and there
@@ -85,6 +85,8 @@ export default {
     // at depth 2 could not send in the background but COULD block-send, and
     // that one extra hop was the "Confirmado y registrado" round of every
     // ping-pong.
+    // What the sending turn had spent when it wrote this — shown on its message.
+    const senderSpend = typeof turnSpend === "function" ? turnSpend() : null;
     const blockingSend = () => {
       if (depth + 1 >= MAX_BACKGROUND_DEPTH) {
         return {
@@ -108,6 +110,7 @@ export default {
         // is watched the peer's turn is too. (The background path is not — the
         // caller has moved on.)
         watched: !isUnwatchedTurn(channel, channelMeta),
+        senderSpend,
       });
     };
 
@@ -136,6 +139,7 @@ export default {
         projects,
         plugins,
         registries,
+        senderSpend,
       });
     }
 

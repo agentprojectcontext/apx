@@ -40,7 +40,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta }) => async ({ project, agent: slug, prompt }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta, turnSpend }) => async ({ project, agent: slug, prompt }) => {
     const p = resolveProject(projects, project);
     const agent = readAgents(p.path).find((a) => a.slug === slug);
     if (!agent) throw new Error(`agent ${slug} not found`);
@@ -80,6 +80,7 @@ export default {
       projects,
       plugins,
       registries,
+      senderSpend: typeof turnSpend === "function" ? turnSpend() : null,
     });
   },
 };
