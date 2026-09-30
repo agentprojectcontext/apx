@@ -1,0 +1,20 @@
+{
+  "name": "@apx/terminal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "`apx2` — the terminal. A thin client of the core protocol plus a few local-only commands.",
+  "type": "module",
+  "bin": {
+    "apx2": "./src/main.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@apx/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*"
+  }
+}

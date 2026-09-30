@@ -1,0 +1,290 @@
+/* APX design tokens.
+ *
+ * One semantic vocabulary (--apx-*), four value sets: two LOOKS × two MODES.
+ *   look  = "minimal" (v2: warm greys, ink accent, pills, no borders)
+ *         | "classic" (v1: cool greys, APX green selection, 12px radius, mono meta)
+ *   mode  = "light" | "dark"
+ * Components read ONLY these variables, so switching look/mode is a token swap —
+ * the markup never changes. Set them with <ApxProvider look mode>, or by hand with
+ * data-apx-look / data-apx-mode on any ancestor.
+ */
+
+/* ── Shared (look-independent) ─────────────────────────────────────────────── */
+.apx,
+[data-apx-look] {
+  --apx-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --apx-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --apx-text-2xs: 11px;
+  --apx-text-xs: 12px;
+  --apx-text-sm: 13px;
+  --apx-text-md: 14px;
+  --apx-text-lg: 16px;
+  --apx-text-xl: 20px;
+  --apx-text-2xl: 28px;
+  --apx-leading: 1.45;
+
+  --apx-weight-regular: 400;
+  --apx-weight-medium: 500;
+  --apx-weight-semibold: 600;
+
+  --apx-space-1: 4px;
+  --apx-space-2: 8px;
+  --apx-space-3: 12px;
+  --apx-space-4: 16px;
+  --apx-space-5: 20px;
+  --apx-space-6: 24px;
+  --apx-space-8: 32px;
+
+  --apx-radius-pill: 999px;
+  --apx-duration: 140ms;
+  --apx-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Fixed status hues — the same in every look. */
+  --apx-online: #22c55e;
+}
+
+/* ── Look: minimal · light (default) ───────────────────────────────────────── */
+.apx,
+[data-apx-look="minimal"] {
+  --apx-bg: #faf9f7;
+  --apx-surface: #ffffff;
+  --apx-surface-raised: #ffffff;
+  --apx-sidebar: #f4f3f0;
+  --apx-fill: #efeeea;
+  --apx-fill-hover: #e8e7e3;
+  --apx-fill-strong: #e2e1dc;
+  --apx-fg: #161616;
+  --apx-fg-muted: #5f5e5a;
+  --apx-fg-subtle: #8e8d88;
+  --apx-border: #e7e5e0;
+  --apx-border-strong: #d6d4ce;
+  --apx-overlay: rgb(20 20 18 / 0.28);
+
+  --apx-accent: #141414;
+  --apx-accent-hover: #2b2b2b;
+  --apx-accent-fg: #ffffff;
+
+  --apx-brand: #1a9460;
+  --apx-brand-soft: #e2f3e9;
+  --apx-brand-soft-fg: #13704a;
+  --apx-violet: #7a4de6;
+  --apx-violet-soft: #eee8fc;
+  --apx-violet-soft-fg: #5b33c4;
+  --apx-info: #2f6fe0;
+  --apx-info-soft: #e6eefc;
+  --apx-info-soft-fg: #2358b8;
+  --apx-warning: #c2650f;
+  --apx-warning-soft: #fbecda;
+  --apx-warning-soft-fg: #9a4d08;
+  --apx-danger: #d23c3c;
+  --apx-danger-soft: #fce8e8;
+  --apx-danger-soft-fg: #b02a2a;
+
+  --apx-ring: rgb(26 148 96 / 0.35);
+  --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --apx-shadow-md: 0 1px 3px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+
+  --apx-radius-sm: 8px;
+  --apx-radius-md: 12px;
+  --apx-radius-lg: 18px;
+  --apx-radius-xl: 24px;
+
+  /* Component-level decisions that differ between looks. */
+  --apx-control-radius: var(--apx-radius-pill);
+  --apx-control-h-sm: 28px;
+  --apx-control-h-md: 34px;
+  --apx-control-h-lg: 42px;
+  --apx-input-bg: var(--apx-fill);
+  --apx-input-border: transparent;
+  --apx-bubble-bg: var(--apx-fill);
+  --apx-bubble-fg: var(--apx-fg);
+  --apx-bubble-mine-bg: var(--apx-accent);
+  --apx-bubble-mine-fg: var(--apx-accent-fg);
+  --apx-bubble-radius: 18px;
+  --apx-bubble-border: transparent;
+  --apx-row-radius: 10px;
+  --apx-row-selected-bg: var(--apx-fill-strong);
+  --apx-row-selected-border: transparent;
+  --apx-group-bg: var(--apx-fill);
+  --apx-group-border: transparent;
+  --apx-card-border: var(--apx-border);
+  --apx-composer-radius: 26px;
+  --apx-composer-bg: var(--apx-surface);
+  --apx-tag-font: var(--apx-font-sans);
+  --apx-tag-transform: none;
+  --apx-tag-tracking: 0;
+  --apx-tag-radius: var(--apx-radius-pill);
+  --apx-meta-font: var(--apx-font-sans);
+  --apx-selection: var(--apx-accent);
+  --apx-selection-fg: var(--apx-accent-fg);
+
+  color-scheme: light;
+}
+
+/* ── Look: minimal · dark ──────────────────────────────────────────────────── */
+[data-apx-look="minimal"][data-apx-mode="dark"] {
+  --apx-bg: #161615;
+  --apx-surface: #1e1e1d;
+  --apx-surface-raised: #252524;
+  --apx-sidebar: #1a1a19;
+  --apx-fill: #272726;
+  --apx-fill-hover: #2e2e2c;
+  --apx-fill-strong: #353533;
+  --apx-fg: #ededeb;
+  --apx-fg-muted: #a6a59f;
+  --apx-fg-subtle: #767570;
+  --apx-border: #2c2c2a;
+  --apx-border-strong: #3b3b38;
+  --apx-overlay: rgb(0 0 0 / 0.55);
+
+  --apx-accent: #f1f0ec;
+  --apx-accent-hover: #ffffff;
+  --apx-accent-fg: #141414;
+
+  --apx-brand: #3ec98b;
+  --apx-brand-soft: rgb(62 201 139 / 0.14);
+  --apx-brand-soft-fg: #6fdcaa;
+  --apx-violet: #a47ff5;
+  --apx-violet-soft: rgb(164 127 245 / 0.16);
+  --apx-violet-soft-fg: #c2a8fa;
+  --apx-info: #6a9cf5;
+  --apx-info-soft: rgb(106 156 245 / 0.15);
+  --apx-info-soft-fg: #9dbdf8;
+  --apx-warning: #eb9a4b;
+  --apx-warning-soft: rgb(235 154 75 / 0.15);
+  --apx-warning-soft-fg: #f2b779;
+  --apx-danger: #f06464;
+  --apx-danger-soft: rgb(240 100 100 / 0.15);
+  --apx-danger-soft-fg: #f59393;
+
+  --apx-ring: rgb(62 201 139 / 0.4);
+  --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --apx-shadow-md: 0 1px 3px rgb(0 0 0 / 0.35), 0 10px 30px rgb(0 0 0 / 0.4);
+
+  color-scheme: dark;
+}
+
+/* ── Look: classic · light (APX v1 "lifted" light) ─────────────────────────── */
+[data-apx-look="classic"] {
+  --apx-bg: hsl(220 20% 92%);
+  --apx-surface: hsl(220 24% 99%);
+  --apx-surface-raised: hsl(220 24% 99%);
+  --apx-sidebar: hsl(220 24% 99%);
+  --apx-fill: hsl(60 4% 95%);
+  --apx-fill-hover: hsl(220 22% 90%);
+  --apx-fill-strong: hsl(220 22% 88%);
+  --apx-fg: hsl(222 24% 12%);
+  --apx-fg-muted: hsl(220 13% 34%);
+  --apx-fg-subtle: hsl(220 10% 48%);
+  --apx-border: hsl(220 16% 83%);
+  --apx-border-strong: hsl(220 14% 74%);
+  --apx-overlay: rgb(15 20 30 / 0.4);
+
+  --apx-accent: hsl(152 62% 30%);
+  --apx-accent-hover: hsl(152 62% 26%);
+  --apx-accent-fg: hsl(150 40% 98%);
+
+  --apx-brand: hsl(152 62% 30%);
+  --apx-brand-soft: hsl(152 42% 90%);
+  --apx-brand-soft-fg: hsl(152 62% 24%);
+  --apx-violet: hsl(262 60% 52%);
+  --apx-violet-soft: hsl(262 70% 94%);
+  --apx-violet-soft-fg: hsl(262 55% 42%);
+  --apx-info: hsl(220 70% 50%);
+  --apx-info-soft: hsl(220 80% 94%);
+  --apx-info-soft-fg: hsl(220 65% 40%);
+  --apx-warning: hsl(30 80% 42%);
+  --apx-warning-soft: hsl(34 90% 92%);
+  --apx-warning-soft-fg: hsl(28 80% 32%);
+  --apx-danger: hsl(0 72% 46%);
+  --apx-danger-soft: hsl(0 80% 95%);
+  --apx-danger-soft-fg: hsl(0 72% 40%);
+
+  --apx-ring: hsl(152 58% 36% / 0.45);
+  --apx-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --apx-shadow-md: 0 2px 6px rgb(15 23 42 / 0.08), 0 12px 28px rgb(15 23 42 / 0.1);
+
+  --apx-radius-sm: 6px;
+  --apx-radius-md: 10px;
+  --apx-radius-lg: 12px;
+  --apx-radius-xl: 16px;
+
+  --apx-control-radius: 8px;
+  --apx-control-h-sm: 26px;
+  --apx-control-h-md: 32px;
+  --apx-control-h-lg: 36px;
+  --apx-input-bg: transparent;
+  --apx-input-border: var(--apx-border);
+  --apx-bubble-bg: var(--apx-fill);
+  --apx-bubble-fg: var(--apx-fg);
+  --apx-bubble-mine-bg: hsl(152 42% 85%);
+  --apx-bubble-mine-fg: hsl(152 50% 14%);
+  --apx-bubble-radius: 12px;
+  --apx-bubble-border: transparent;
+  --apx-row-radius: 10px;
+  --apx-row-selected-bg: hsl(152 42% 92%);
+  --apx-row-selected-border: hsl(152 45% 60%);
+  --apx-group-bg: transparent;
+  --apx-group-border: var(--apx-border);
+  --apx-card-border: var(--apx-border);
+  --apx-composer-radius: 12px;
+  --apx-composer-bg: var(--apx-surface);
+  --apx-tag-font: var(--apx-font-mono);
+  --apx-tag-transform: uppercase;
+  --apx-tag-tracking: 0.04em;
+  --apx-tag-radius: 4px;
+  --apx-meta-font: var(--apx-font-mono);
+  --apx-selection: var(--apx-accent);
+  --apx-selection-fg: var(--apx-accent-fg);
+
+  color-scheme: light;
+}
+
+/* ── Look: classic · dark (APX v1 dark, kept as-is) ────────────────────────── */
+[data-apx-look="classic"][data-apx-mode="dark"] {
+  --apx-bg: hsl(222 22% 5%);
+  --apx-surface: hsl(222 16% 9%);
+  --apx-surface-raised: hsl(222 16% 11%);
+  --apx-sidebar: hsl(222 18% 7%);
+  --apx-fill: hsl(222 14% 12%);
+  --apx-fill-hover: hsl(222 14% 15%);
+  --apx-fill-strong: hsl(222 14% 18%);
+  --apx-fg: hsl(210 16% 92%);
+  --apx-fg-muted: hsl(217 10% 64%);
+  --apx-fg-subtle: hsl(217 8% 46%);
+  --apx-border: hsl(222 14% 18%);
+  --apx-border-strong: hsl(222 12% 26%);
+  --apx-overlay: rgb(0 0 0 / 0.6);
+
+  --apx-accent: hsl(152 58% 45%);
+  --apx-accent-hover: hsl(152 58% 52%);
+  --apx-accent-fg: hsl(155 60% 6%);
+
+  --apx-brand: hsl(152 58% 45%);
+  --apx-brand-soft: hsl(152 40% 45% / 0.14);
+  --apx-brand-soft-fg: hsl(152 58% 58%);
+  --apx-violet: hsl(262 80% 70%);
+  --apx-violet-soft: hsl(262 60% 60% / 0.16);
+  --apx-violet-soft-fg: hsl(262 85% 78%);
+  --apx-info: hsl(217 91% 60%);
+  --apx-info-soft: hsl(217 80% 60% / 0.14);
+  --apx-info-soft-fg: hsl(217 91% 72%);
+  --apx-warning: hsl(32 90% 58%);
+  --apx-warning-soft: hsl(32 90% 55% / 0.14);
+  --apx-warning-soft-fg: hsl(32 90% 66%);
+  --apx-danger: hsl(0 72% 58%);
+  --apx-danger-soft: hsl(0 62% 50% / 0.16);
+  --apx-danger-soft-fg: hsl(0 80% 70%);
+
+  --apx-ring: hsl(152 60% 45% / 0.5);
+  --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --apx-shadow-md: 0 2px 8px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.5);
+
+  --apx-bubble-mine-bg: hsl(152 28% 21%);
+  --apx-bubble-mine-fg: hsl(150 30% 94%);
+  --apx-row-selected-bg: hsl(152 30% 14%);
+  --apx-row-selected-border: hsl(152 40% 30%);
+
+  color-scheme: dark;
+}

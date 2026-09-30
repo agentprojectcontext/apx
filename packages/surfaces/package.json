@@ -1,0 +1,19 @@
+{
+  "name": "@apx/surfaces",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Widgets, apps and artifacts: manifest schema, sandbox host and the window.apx bridge. One primitive, three placements (inline, sidebar, fullscreen) + publish.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*"
+  }
+}

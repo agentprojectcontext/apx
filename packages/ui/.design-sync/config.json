@@ -1,0 +1,79 @@
+{
+  "shape": "package",
+  "pkg": "@apx/ui",
+  "globalName": "ApxUI",
+  "buildCmd": "pnpm --filter @apx/ui build",
+  "cssEntry": "dist/styles.css",
+  "provider": {
+    "component": "ApxProvider",
+    "props": {
+      "look": "minimal",
+      "mode": "light"
+    }
+  },
+  "docsMap": {
+    "Icons": "src/Icons.md"
+  },
+  "overrides": {
+    "Composer": {
+      "cardMode": "column"
+    },
+    "Dialog": {
+      "cardMode": "single",
+      "primaryStory": "Form",
+      "viewport": "560x420"
+    },
+    "Menu": {
+      "cardMode": "single",
+      "viewport": "320x300"
+    },
+    "Tooltip": {
+      "cardMode": "single",
+      "viewport": "360x160"
+    },
+    "ApxProvider": {
+      "cardMode": "column"
+    },
+    "Icons": {
+      "cardMode": "column"
+    },
+    "AgentAvatar": {
+      "cardMode": "column"
+    },
+    "Message": {
+      "cardMode": "column"
+    },
+    "ActionGroup": {
+      "cardMode": "column"
+    },
+    "Tabs": {
+      "cardMode": "column"
+    },
+    "Card": {
+      "cardMode": "column"
+    },
+    "SystemNote": {
+      "cardMode": "column"
+    },
+    "VoiceNote": {
+      "cardMode": "column"
+    },
+    "Checkbox": {
+      "cardMode": "column"
+    },
+    "Input": {
+      "cardMode": "column"
+    },
+    "Switch": {
+      "cardMode": "column"
+    },
+    "Textarea": {
+      "cardMode": "column"
+    },
+    "AgentChip": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md",
+  "projectId": "adfa91bc-fe19-4d97-a98e-d968b4457ebe"
+}

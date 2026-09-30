@@ -1,0 +1,40 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+.shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100%;
+}
+.shell__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-right: 1px solid var(--apx-border, #0001);
+}
+.shell__brand {
+  font-weight: 600;
+  padding: 6px 8px 14px;
+}
+.shell__main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+}
+.shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+.shell__thread {
+  padding: 20px;
+  overflow: auto;
+}
+.shell__composer {
+  padding: 12px 20px 20px;
+}

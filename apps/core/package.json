@@ -1,0 +1,25 @@
+{
+  "name": "@apx/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The head of APX: the daemon. Owns state, agents, threads, channels, scheduler and the protocol server.",
+  "type": "module",
+  "bin": {
+    "apx-core": "./src/main.ts"
+  },
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p .",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@apx/protocol": "workspace:*",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*",
+    "@types/ws": "^8.18.1"
+  }
+}

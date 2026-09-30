@@ -1,0 +1,24 @@
+{
+  "name": "apx-v2",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.11.0",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @apx/core dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "pnpm -r --if-present test",
+    "check:private": "node scripts/check-private-terms.ts",
+    "preflight": "pnpm check:private && pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@types/node": "^24.10.0",
+    "typescript": "^7.0.2"
+  }
+}

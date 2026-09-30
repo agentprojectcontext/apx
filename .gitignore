@@ -1,0 +1,26 @@
+# deps / builds
+node_modules/
+dist/
+out/
+*.tsbuildinfo
+.turbo/
+
+# workspace-only folders (never in the repo)
+_ref/
+_design/
+.scratch/
+
+# local-only
+.env
+.env.*
+!.env.example
+spec/private-terms.txt
+.DS_Store
+
+# design-sync machine state (see packages/ui/.design-sync)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+playground/out/

@@ -1,0 +1,21 @@
+{
+  "name": "@apx/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The one typed contract spoken by core, terminal, web, desktop, mobile and nodes: frames, methods, events and the client SDK.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*"
+  }
+}

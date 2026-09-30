@@ -1,0 +1,4 @@
+{
+  "extends": "@apx/config/tsconfig.node.json",
+  "include": ["src"]
+}
