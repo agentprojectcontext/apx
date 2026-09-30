@@ -39,6 +39,26 @@ export function scopeProjects(projects, projectId) {
   return Object.assign(Object.create(projects), { current: () => self });
 }
 
+/**
+ * `scopeProjects` for a working session that runs in a directory. A cwd inside
+ * the project keeps the project root; a cwd outside it (`apx exec --code` from
+ * an unregistered folder lands in `default`) becomes the root, so an
+ * unqualified read or shell resolves where the owner is actually working.
+ */
+export function scopeProjectsToWorkdir(projects, projectId, cwd) {
+  const scoped = scopeProjects(projects, projectId);
+  const self = scoped?.current?.();
+  if (!self || typeof cwd !== "string" || !path.isAbsolute(cwd)) return scoped;
+  const root = path.resolve(self.path || "");
+  const dir = path.resolve(cwd);
+  if (dir === root || dir.startsWith(root + path.sep)) return scoped;
+  const rooted = Object.assign(Object.create(self), { path: dir });
+  // The model names the session's project explicitly as often as not
+  // (`project: "default"`); that must land in the same root.
+  const get = (id) => (String(id) === String(self.id) ? rooted : projects.get(id));
+  return Object.assign(Object.create(projects), { current: () => rooted, get });
+}
+
 export function resolveProject(projects, target, { allowMulti = false } = {}) {
   if (target === undefined || target === null || target === "") {
     if (allowMulti) return null;

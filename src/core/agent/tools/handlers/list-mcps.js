@@ -1,4 +1,5 @@
 import { resolveProject } from "../helpers.js";
+import { cachedMcpTools } from "#core/mcp/catalog.js";
 
 export default {
   name: "list_mcps",
@@ -17,14 +18,21 @@ export default {
     },
   },
   makeHandler: ({ projects, registries }) => ({ project } = {}) => {
-    const row = (m) => ({
-      name: m.name,
-      source: m.source,
-      transport: m.transport,
-      enabled: !!m.enabled,
-      command: m.command,
-      url: m.url,
-    });
+    // What a server is FOR matters more to the model than how it is spawned:
+    // the description the owner wrote, and the tools it offered last time.
+    const row = (m) => {
+      const cached = cachedMcpTools(m);
+      return {
+        name: m.name,
+        source: m.source,
+        transport: m.transport,
+        enabled: !!m.enabled,
+        ...(m.description ? { description: m.description } : {}),
+        ...(cached?.tools?.length ? { tools: cached.tools.map((t) => t.name) } : {}),
+        command: m.command,
+        url: m.url,
+      };
+    };
 
     const p = resolveProject(projects, project, { allowMulti: true });
     if (p) {

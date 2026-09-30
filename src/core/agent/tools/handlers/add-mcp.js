@@ -47,6 +47,7 @@ export default {
           env:     { type: "object", description: "stdio: environment variables { KEY: value }." },
           url:     { type: "string", description: "http: the remote endpoint URL." },
           headers: { type: "object", description: "http: request headers { Header: value }." },
+          description: { type: "string", description: "What the server is for, in one line — shown to agents next to its name." },
           scope:   { type: "string", enum: ["runtime", "shared", "global"], description: "Where to store it. Default: runtime." },
           enabled: { type: "boolean", description: "Enable it now (default true)." },
         },
@@ -54,7 +55,7 @@ export default {
     },
   },
   makeHandler: ({ projects, registries, requirePermission }) => async (args = {}) => {
-    const { project, name, command, args: cmdArgs, env, url, headers, enabled } = args;
+    const { project, name, command, args: cmdArgs, env, url, headers, enabled, description } = args;
     await requirePermission("add_mcp", { dangerous: true, args: { name, scope: args.scope } });
     if (!name) return { error: "name required" };
     if (!command && !url) return { error: "either command (stdio) or url (http) required" };
@@ -83,6 +84,7 @@ export default {
         ...(env !== undefined ? { env } : {}),
         ...(url !== undefined ? { url } : {}),
         ...(headers !== undefined ? { headers } : {}),
+        ...(typeof description === "string" ? { description } : {}),
         enabled: enabled === undefined ? true : !!enabled,
       };
       writeScope(scope, p, json);

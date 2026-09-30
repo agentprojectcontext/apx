@@ -28,7 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { projectStorageRoot } from "../config/index.js";
 import { getOrCreateApxId } from "../apc/scaffold.js";
-import { appendDatedBullet } from "#core/memory/dated-log.js";
+import { appendDatedBullet, upsertCoreFact } from "#core/memory/dated-log.js";
 
 // Accepts a registry entry ({ storagePath }) or a bare project root, matching
 // core/agent/memory.js — the same two shapes callers already have in hand.
@@ -57,6 +57,17 @@ export function writeProjectLocalMemory(projectOrRoot, body) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, body);
   return { path: file, bytes: Buffer.byteLength(body, "utf8") };
+}
+
+/** Add (or replace) a durable fact in the project memory's `## Core`. */
+export function addProjectCoreFact(projectOrRoot, fact, { replaces = "", projectName = "" } = {}) {
+  const header = projectName
+    ? `# ${projectName} — local memory (not committed)`
+    : "# Project local memory (not committed)";
+  const r = upsertCoreFact(readProjectLocalMemory(projectOrRoot), fact, { replaces, header });
+  const file = projectLocalMemoryPath(projectOrRoot);
+  if (r.added) writeProjectLocalMemory(projectOrRoot, r.body);
+  return { path: file, ...r, body: undefined };
 }
 
 /** Append one dated note. Creates the file on first write. */

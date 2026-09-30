@@ -25,6 +25,7 @@ import { useToast } from "./Toast";
 import { t } from "../i18n";
 import { usePersonaName } from "../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../hooks/useGlobalConfig";
+import { SUPER_AGENT_ACTOR } from "../lib/jobs-scope";
 
 const PID = "0";
 const CHANNEL = "web_sidebar" as const;
@@ -166,7 +167,7 @@ export function RobyBubble({
             placeholder={t("superagent.placeholder")}
             context={
               <>
-                <ContextBar msgs={msgs} projectId={PID} docked />
+                <ContextBar msgs={msgs} projectId={PID} agentSlug={SUPER_AGENT_ACTOR} docked />
                 <PendingTurns queued={queued} onUnqueue={unqueue} onSendNow={sendNow} onMove={moveQueued} docked />
                 {showAsk && pendingAsk ? (
                   <InlineAskPanel

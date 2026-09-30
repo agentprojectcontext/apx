@@ -133,8 +133,19 @@ entre alcances. Ejecutalo primero cuando un servidor "no aparece" para un agente
 ## Cómo consumen los agentes los servidores MCP
 
 Los agentes no necesitan ninguna configuración extra para usar un servidor registrado — el daemon fusiona los
-tres alcances al arrancar e inyecta la lista completa de herramientas en el contexto del agente. Desde adentro de una
-conversación el agente llama las herramientas por nombre exactamente como las define el servidor.
+tres alcances y el agente los alcanza con `list_mcp_tools` y `call_mcp`.
+
+Cuando un turno trata sobre un proyecto (la superficie trabaja dentro de él, o lo nombrás en el mensaje), el
+contexto del agente lista los servidores de ese proyecto con para qué sirve cada uno: la `--description` que le
+diste y las herramientas que ofreció la última vez que se listaron. Describí el servidor al agregarlo para que el
+agente sepa cuándo usarlo:
+
+```bash
+apx mcp add social --url https://mcp.example.com/mcp --scope runtime --description "Agenda posteos en redes"
+```
+
+El resumen de herramientas se actualiza solo cada vez que se listan las del servidor (`apx mcp tools <nombre>`
+o el propio `list_mcp_tools` del agente).
 
 El binario `apx-mcp` (instalado junto con `apx`) es un puente MCP separado que expone las propias herramientas de APX
 a hosts externos como Claude Desktop. No tiene relación con los servidores que registrás

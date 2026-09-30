@@ -1,5 +1,5 @@
-import { appendSelfMemory } from "#core/agent/self-memory.js";
-import { appendProjectLocalMemory } from "#core/stores/project-memory.js";
+import { appendSelfMemory, addSelfCoreFact } from "#core/agent/self-memory.js";
+import { appendProjectLocalMemory, addProjectCoreFact } from "#core/stores/project-memory.js";
 import { appendRoutineMemory, resolveRoutineStorage } from "#core/stores/routine-memory.js";
 import { looksDurable } from "#core/memory/consolidate.js";
 import { resolveProject, projectMeta } from "../helpers.js";
@@ -56,14 +56,25 @@ export default {
             description:
               "Optional: project id, name or path. Give it when the fact is about ONE project (what it is, its stack, who owns it, a decision taken in it) — the note lands in that project's local memory instead of your notebook. Leave it empty for facts that matter on every channel.",
           },
+          durable: {
+            type: "boolean",
+            description:
+              "true for a standing rule, preference or fact that should be in front of you on EVERY future turn (\"posts are scheduled at 18:00, never published on the spot\", \"the owner wants short replies\"). It goes to the memory's Core, which ships in every prompt and holds at most 40 facts. Leave false for what happened (the dated log, found by search when relevant).",
+          },
+          replaces: {
+            type: "string",
+            description:
+              "With durable: the exact text of a Core fact this one supersedes (it is rewritten in place). Use it to correct a rule, or when Core is full.",
+          },
         },
       },
     },
   },
-  makeHandler: (ctx = {}) => ({ note, channel, project } = {}) => {
+  makeHandler: (ctx = {}) => ({ note, channel, project, durable = false, replaces = "" } = {}) => {
     if (!note || !String(note).trim()) return { error: "note required" };
     const text = String(note).trim();
     try {
+      if (durable === true) return saveCoreFact(ctx, text, { project, replaces });
       // An explicit project wins over the routine divert below: the model has
       // said where this belongs, and a project fact is durable by definition.
       if (project !== undefined && project !== null && String(project).trim()) {
@@ -114,3 +125,33 @@ export default {
     }
   },
 };
+
+// A standing fact goes to the Core of the notebook (or of the project's local
+// memory) — the part that ships in every prompt — instead of the dated log.
+function saveCoreFact(ctx, text, { project, replaces }) {
+  let r;
+  let scope = "global";
+  let projectName = null;
+  if (project !== undefined && project !== null && String(project).trim()) {
+    let p;
+    try {
+      p = resolveProject(ctx.projects, String(project).trim());
+    } catch (e) {
+      return { error: e.message };
+    }
+    projectName = projectMeta(ctx.projects, p).name;
+    r = addProjectCoreFact(p, text, { replaces, projectName });
+    scope = "project";
+  } else {
+    r = addSelfCoreFact(text, { replaces });
+  }
+  if (r.duplicate) return { saved: false, duplicate: true, note: "already in Core — nothing to do" };
+  if (r.notFound) return { error: `replaces: no Core fact matches "${replaces}"` };
+  if (r.full) {
+    return {
+      error: "Core is full (40 facts). Merge or retire one: call again with `replaces` set to the fact this supersedes.",
+      core: r.facts,
+    };
+  }
+  return { saved: true, scope: `${scope}-core`, ...(projectName ? { project: projectName } : {}), note: text, ...(r.replaced ? { replaced: r.replaced } : {}) };
+}

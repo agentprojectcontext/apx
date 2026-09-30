@@ -202,8 +202,27 @@ function normalizeForResend(text) {
  */
 export function isImpatientResend(prev, text, { now = Date.now } = {}) {
   if (!prev?.text) return false;
-  const incoming = normalizeForResend(text);
-  if (!incoming) return false;
-  if (incoming !== normalizeForResend(prev.text)) return false;
+  if (!isAliveCheck(text)) {
+    const incoming = normalizeForResend(text);
+    if (!incoming || incoming !== normalizeForResend(prev.text)) return false;
+  }
   return now() - (prev.startedAt || 0) < RESEND_WINDOW_MS;
+}
+
+// "¿Cómo?", "¿y?", "¿seguís?", "hola?" — a short ping in the middle of a quiet
+// turn is the same question as a resend: are you still there. It used to
+// interrupt the turn, which restarted the work from zero; on 2026-09-29 a
+// "Cómo?" three minutes into a scheduling job threw the whole job away.
+const ALIVE_CHECKS = new Set([
+  "como", "y", "hola", "che", "seguis", "estas", "estas ahi", "seguis ahi", "y entonces", "entonces",
+  "que paso", "sigue", "sigues", "hay novedades", "novedades", "respondeme", "dale",
+  "hello", "and", "so", "still there", "you there", "are you there", "any news", "status",
+]);
+
+/** Is this inbound only asking whether the running turn is still alive? */
+export function isAliveCheck(text) {
+  const raw = String(text || "").trim();
+  if (!raw || raw.length > 24) return false;
+  if (/^[?¿!.\s]+$/.test(raw)) return true;
+  return ALIVE_CHECKS.has(normalizeForResend(raw));
 }

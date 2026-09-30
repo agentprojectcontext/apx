@@ -163,6 +163,9 @@ function normalize(name, server, sourceId) {
     headers: server.headers || null,
     transport: server.url ? "http" : "stdio",
     enabled,
+    // Free text the owner wrote about what the server is for; shown to the
+    // agent next to the server name so it knows when to reach for it.
+    description: typeof server.description === "string" ? server.description : null,
     raw: server,
   };
 }

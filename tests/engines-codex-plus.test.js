@@ -272,3 +272,68 @@ test("the effort reaches the wire, and the suffix does not", async () => {
     }
   });
 });
+
+test("encrypted reasoning survives a tool round: captured from the stream, replayed ahead of the calls", async () => {
+  // store:false + no replayed reasoning made a GPT-class model re-plan from
+  // scratch after every tool result — slower, and it changed strategy mid-task.
+  await withIsolatedApxHome(async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-plus-"));
+    const authPath = writeAuth(dir);
+    const prevFetch = globalThis.fetch;
+    const sent = [];
+    globalThis.fetch = async (_url, init) => {
+      sent.push(JSON.parse(init.body));
+      const enc = new TextEncoder();
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(enc.encode(
+            'data: {"type":"response.output_item.done","item":{"id":"rs_1","type":"reasoning","summary":[],"encrypted_content":"ENC_A"}}\n' +
+            'data: {"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","call_id":"call_1","name":"ping","arguments":"{}"}}\n' +
+            'data: {"type":"response.completed","response":{"status":"completed"}}\n'));
+          controller.close();
+        },
+      });
+      return { ok: true, body, text: async () => "" };
+    };
+    try {
+      const config = { engines: { "codex-plus": { auth_path: authPath } } };
+      const first = await callEngine({ modelId: "codex-plus:gpt-5.6-luna@high", system: "s", messages: [{ role: "user", content: "go" }], config });
+      assert.deepEqual(sent[0].include, ["reasoning.encrypted_content"]);
+      assert.equal(first._responsesReasoning?.[0]?.encrypted_content, "ENC_A");
+      const history = [
+        { role: "user", content: "go" },
+        { role: "assistant", content: "", tool_calls: first.tool_calls, _responsesReasoning: first._responsesReasoning },
+        { role: "tool", tool_call_id: "call_1", content: "pong" },
+      ];
+      await callEngine({ modelId: "codex-plus:gpt-5.6-luna@high", system: "s", messages: history, config });
+      const types = sent[1].input.map((i) => i.type);
+      assert.deepEqual(types, ["message", "reasoning", "function_call", "function_call_output"]);
+      assert.equal(sent[1].input[1].encrypted_content, "ENC_A");
+      assert.equal(sent[1].input[1].id, undefined, "store:false has no item to point at");
+      // A fallback to another model must not receive a blob encrypted for this one.
+      await callEngine({ modelId: "codex-plus:gpt-6.1-sol", system: "s", messages: history, config });
+      assert.ok(!sent[2].input.some((i) => i.type === "reasoning"));
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+  });
+});
+
+test("a mid-history system turn (the tool log) reaches the model as a developer message", () => {
+  // Dropped before: GPT on this engine never saw which tools had run in earlier
+  // turns, and asked whether it had used the MCP it said no.
+  const log = "[Tool log — what already ran in this conversation.]\n[tool result: call_mcp] (server=social) → ok";
+  const input = toResponsesInput(
+    [
+      { role: "user", content: "revisá los posts" },
+      { role: "system", content: log },
+      { role: "assistant", content: "Hay 3 agendados." },
+      { role: "user", content: "¿usaste el MCP?" },
+    ],
+    { systemIsInstructions: false },
+  );
+  assert.deepEqual(input.map((i) => i.role), ["user", "developer", "assistant", "user"]);
+  assert.match(input[1].content[0].text, /call_mcp/);
+  // The leading system turn is still the instructions when no system was given.
+  assert.equal(toResponsesInput([{ role: "system", content: "rules" }, { role: "user", content: "hi" }])[0].role, "user");
+});

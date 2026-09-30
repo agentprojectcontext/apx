@@ -61,9 +61,14 @@ Output ONLY the summary sections (max ~900 tokens).`;
  */
 export function resolveCompactModels(config = {}) {
   const mem = config.memory || {};
+  const routerDefault = config.super_agent?.model || "";
   return {
     primary: mem.compact_model || "ollama:gemma4:31b-cloud",
-    fallback: mem.compact_fallback_model || config.super_agent?.model || "",
+    fallback: mem.compact_fallback_model || routerDefault,
+    // The router default stays the last link even when a fallback is set: a
+    // spent cloud quota plus a too-small local fallback left Telegram with no
+    // compaction at all, carrying 30–40 raw turns into every reply.
+    last: mem.compact_fallback_model ? routerDefault : "",
   };
 }
 
@@ -164,8 +169,8 @@ export async function summarizeStructured({
   prevSummary = "",
   onReject = null,
 }) {
-  for (const modelId of [models.primary, models.fallback]) {
-    if (!modelId) continue;
+  const chain = [...new Set([models.primary, models.fallback, models.last].filter(Boolean))];
+  for (const modelId of chain) {
     try {
       const r = await callEngine({
         modelId,

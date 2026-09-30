@@ -2,7 +2,9 @@ import { readAgents } from "#core/apc/parser.js";
 import { isUnwatchedTurn } from "#core/agent/quota.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 import { delegateToAgent } from "#core/agent/a2a/delegate.js";
-import { MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
+import { MAX_BACKGROUND_DEPTH, sendInBackground } from "#core/agent/a2a/background.js";
+import { openJobWith, alreadyRunningReply } from "#core/agent/a2a/in-flight.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import { resolveProject } from "../helpers.js";
 
 export default {
@@ -29,12 +31,18 @@ export default {
               "The task, self-contained. The agent sees the prior turns of THIS " +
               "delegation thread and nothing else of your conversation.",
           },
+          followup: {
+            type: "boolean",
+            description:
+              "Only when you already instructed this agent earlier in THIS turn and this " +
+              "message deliberately corrects or extends that instruction. Say so in the text.",
+          },
         },
         required: ["agent", "prompt"],
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta }) => async ({ project, agent: slug, prompt }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta, turnSpend }) => async ({ project, agent: slug, prompt, followup = false }) => {
     const p = resolveProject(projects, project);
     const agent = readAgents(p.path).find((a) => a.slug === slug);
     if (!agent) throw new Error(`agent ${slug} not found`);
@@ -45,6 +53,10 @@ export default {
     // Same source as send_to_agent — the turn's stamp, never an argument.
     const from = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
     if (slug === from) throw new Error("that is you — call_agent is for reaching someone else");
+    // Already working on something this caller handed over: report that
+    // instead of opening another turn (a2a/in-flight.js).
+    const inFlight = followup === true ? null : openJobWith({ projectId: p.id, from, to: slug });
+    if (inFlight) return alreadyRunningReply(inFlight);
     // The chain counts here too. Without it a delegation restarted every
     // chain at depth 0, and the depth wall only held for send_to_agent.
     const depth = Number(channelMeta?.a2aDepth) || 0;
@@ -55,6 +67,18 @@ export default {
           `This chain of agents passing work to each other has gone as far as it may. ` +
           `Answer with what you have instead of asking somebody else.`,
       };
+    }
+
+    // Inside an a2a turn nobody waits on another agent: a chain of blocking
+    // calls left three agents idle behind one render. The hand-off goes to the
+    // background and this turn carries on (or ends) — it is woken with the answer.
+    if (channel === CHANNELS.A2A) {
+      const r = await sendInBackground({
+        project: p, from, to: slug, body: prompt, wake: true, depth: depth + 1,
+        config: p.config || globalConfig, projects, plugins, registries,
+        senderSpend: typeof turnSpend === "function" ? turnSpend() : null,
+      });
+      return r?.error ? r : { ...r, note: `Handed to ${slug} in the background (no waiting on another agent from an a2a turn). You will be woken with the answer; reply now with what you handed over.` };
     }
 
     // Everything else — the model, the tool loop, the system prompt, the two
@@ -74,6 +98,7 @@ export default {
       projects,
       plugins,
       registries,
+      senderSpend: typeof turnSpend === "function" ? turnSpend() : null,
     });
   },
 };
