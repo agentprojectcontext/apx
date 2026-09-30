@@ -20,7 +20,7 @@ import { readIdentity } from "../identity/index.js";
 import { agentsMdFile } from "../apc/paths.js";
 import { readAgents } from "../apc/parser.js";
 import { isMasterAgent } from "../apc/agent-identity.js";
-import { readSelfMemoryForPrompt } from "./self-memory.js";
+import { readSelfMemoryForPrompt, readSelfCoreFacts } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
@@ -353,6 +353,24 @@ export function buildExecutionContractBlock(modelId) {
   return needsExecutionContract(modelId) ? loadPrompt("models/execution.md").trim() : "";
 }
 
+// The notebook's Core: the standing facts that ship every turn, whatever the
+// broker retrieved. "" when the notebook has no Core yet.
+export function buildNotebookCoreBlock() {
+  let facts = [];
+  try {
+    facts = readSelfCoreFacts();
+  } catch {
+    facts = [];
+  }
+  if (!facts.length) return "";
+  return [
+    "# Standing facts (your notebook's Core)",
+    "Rules, preferences and facts you keep in front of you on every turn. They hold until the owner says otherwise — correct one with `remember` (durable, replaces).",
+    "",
+    ...facts.map((f) => `- ${f}`),
+  ].join("\n");
+}
+
 // Super-agent notebook (~/.apx/memory.md), bounded. Returns "" when empty.
 // Project agents have their own per-agent memory.md handled in buildAgentSystem.
 export function buildSelfMemoryBlock() {
@@ -598,6 +616,7 @@ export function buildSuperAgentSystem({
     buildProfileBlock(identity, globalConfig),
     customInstructions,
     ownerExtra,
+    buildNotebookCoreBlock(),
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,
     relationshipBlock,

@@ -148,8 +148,8 @@ export async function handleUpdate(self, u) {
           const line = await authorLine({
             globalConfig: self.globalConfig,
             instruction:
-              `You are ${Math.round(secs / 60) || 1} minute(s) into working on exactly this request ` +
-              `and the user just sent it again, which means the quiet made them think you stopped. ` +
+              `You are ${Math.round(secs / 60) || 1} minute(s) into working on their request ` +
+              `and the user just wrote again (resending it, or a short "still there?"), which means the quiet made them think you stopped. ` +
               `In ONE short line: you are still on it, and say what you are doing right now. ` +
               `Do not restart, do not apologise at length, do not promise a time.`,
           });

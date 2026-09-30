@@ -19,7 +19,7 @@ import { SELF_MEMORY_PATH } from "../config/paths.js";
 
 export { SELF_MEMORY_PATH };
 import { resolveAgentName } from "../identity/index.js";
-import { appendDatedBullet } from "#core/memory/dated-log.js";
+import { appendDatedBullet, upsertCoreFact, readCoreFacts, CORE_HEADING } from "#core/memory/dated-log.js";
 
 function notebookHeader() {
   let name = "";
@@ -40,9 +40,35 @@ export function readSelfMemory() {
   }
 }
 
-/** Bounded slice for the system prompt. Returns "" when the notebook is empty. */
+/** The notebook's durable core (`## Core`), in order. */
+export function readSelfCoreFacts() {
+  return readCoreFacts(readSelfMemory());
+}
+
+/**
+ * Add (or, with `replaces`, rewrite) a durable fact in the notebook's core —
+ * the part that ships in every prompt. Returns upsertCoreFact's verdict.
+ */
+export function addSelfCoreFact(fact, { replaces = "" } = {}) {
+  fs.mkdirSync(path.dirname(SELF_MEMORY_PATH), { recursive: true });
+  const r = upsertCoreFact(readSelfMemory(), fact, { replaces, header: notebookHeader() });
+  if (r.added) fs.writeFileSync(SELF_MEMORY_PATH, r.body);
+  return { path: SELF_MEMORY_PATH, ...r, body: undefined };
+}
+
+/** The body without its core section, so the dated slice never repeats it. */
+function withoutCore(body) {
+  const lines = body.split("\n");
+  const start = lines.findIndex((l) => l.trim() === CORE_HEADING);
+  if (start < 0) return body;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) if (lines[i].startsWith("## ")) { end = i; break; }
+  return [...lines.slice(0, start), ...lines.slice(end)].join("\n");
+}
+
+/** Bounded slice of the dated log for the system prompt. "" when empty. */
 export function readSelfMemoryForPrompt(limit = SELF_MEMORY_PROMPT_LIMIT) {
-  const body = readSelfMemory().trim();
+  const body = withoutCore(readSelfMemory()).trim();
   if (!body) return "";
   if (body.length <= limit) return body;
 
