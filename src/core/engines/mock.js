@@ -53,6 +53,16 @@ export default {
         raw: { model, mock: true },
       };
     }
+    // `[mock:tools]` → the names of the tool schemas this request carried, so a
+    // test can assert what actually reached the model on a given step.
+    if (/\[mock:tools\]/.test(userText)) {
+      const names = (tools || []).map((t) => t?.function?.name || t?.name).filter(Boolean);
+      return {
+        text: `tools: ${names.join(",")}`,
+        usage: { input_tokens: userText.length, output_tokens: 0 },
+        raw: { model, mock: true },
+      };
+    }
     // `[mock:empty]` → a dud turn (no text, no tools) to exercise the loop's
     // empty-retry / never-end-silent guard.
     if (/\[mock:empty\]/.test(userText)) {

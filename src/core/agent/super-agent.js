@@ -11,11 +11,17 @@ import {
   selectModelByRules,
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
+import { memoryBlockFor, projectRecallBlock, buildActiveThreadsBlock } from "#core/memory/index.js";
+import { resolveTurnProject, buildSituationBlock } from "#core/agent/context/turn-context.js";
+import { resolveAgentsCap } from "#core/agent/prompt-builder.js";
+import { reviewTurnForMemory, turnWorthReviewing } from "#core/memory/turn-review.js";
+import { loggerFor } from "#core/logging.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
-import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
+import { channelToolIters, MAX_TOOL_ITERS, AGENT_TURN_MAX_TOKENS } from "#core/agent/constants.js";
 import { mobilityContextBlock } from "#core/mobility/state.js";
+
+const memLog = loggerFor("memory");
 
 export {
   buildIdentityBlock,
@@ -130,8 +136,28 @@ export async function runSuperAgent({
 
   let memoryBlock = "";
   let activeThreadsBlock = "";
+  let situationBlock = "";
+  let turnProject = null;
   if (!noTools) {
-    memoryBlock = await memoryBlockFor(prompt, { config: globalConfig, channel });
+    // Which project this turn is about, and what the agent must know about it.
+    // See core/agent/context/turn-context.js.
+    try {
+      turnProject = resolveTurnProject({ prompt, previousMessages, projects, channelMeta });
+      situationBlock = buildSituationBlock({
+        resolved: turnProject,
+        registries,
+        agentsMdMaxChars: turnProject?.reason === "pinned"
+          ? resolveAgentsCap(turnProject.project.path, globalConfig)
+          : undefined,
+      });
+    } catch {
+      /* best-effort: a turn without situational context still runs */
+    }
+    const [globalRecall, projectRecall] = await Promise.all([
+      memoryBlockFor(prompt, { config: globalConfig, channel }),
+      turnProject ? projectRecallBlock(prompt, { project: turnProject.project, config: globalConfig }) : "",
+    ]);
+    memoryBlock = [globalRecall, projectRecall].filter(Boolean).join("\n\n");
     // "Hilos activos en otros canales" — pure-recency cross-channel awareness.
     // Skipped for autonomous routines (no human to reference other threads).
     if (channel !== CHANNELS.ROUTINE) {
@@ -174,6 +200,7 @@ export async function runSuperAgent({
     // Compact "tools you can activate" block (names only, no schemas). Empty on
     // full channels and tool-free callers, where it's omitted from the prompt.
     lazyToolsBlock: buildLazyToolsBlock(toolSession),
+    situationBlock,
     skipSkillsHint,
     audience,
     channelNote,
@@ -238,10 +265,28 @@ export async function runSuperAgent({
       onReasoningToken,
       agentName: resolveAgentName(globalConfig),
       suppressTools,
-      ...(maxTokens ? { maxTokens } : {}),
+      maxTokens: maxTokens || AGENT_TURN_MAX_TOKENS,
       maxIters: iters,
       ...(completionContract ? { completionContract: true } : {}),
     });
+
+  // The owner may have just stated a standing rule: have it reviewed for the
+  // memory's Core without holding the reply (core/memory/turn-review.js). Only
+  // the owner's own turns — not routines, peers, guests or sub-agents.
+  const afterTurn = (final) => {
+    const ownerTurn = !noTools && !thirdParty && subagentDepth === 0 && allowedTools === "*"
+      && channel !== CHANNELS.ROUTINE && channel !== CHANNELS.A2A;
+    if (ownerTurn && turnWorthReviewing(prompt)) {
+      reviewTurnForMemory({
+        userText: prompt,
+        replyText: final?.text,
+        project: turnProject?.project || null,
+        config: globalConfig,
+        log: (line) => memLog.info(line),
+      }).catch(() => {});
+    }
+    return final;
+  };
 
   const result = await runOnce(prompt, previousMessages);
 
@@ -263,7 +308,7 @@ export async function runSuperAgent({
     ? jCfg.enabled
     : jCfg.continue_unfinished && continuableTurn(result);
   if (!judging || noTools || subagentDepth > 0 || signal?.aborted) {
-    return { ...result, media: mediaSink };
+    return afterTurn({ ...result, media: mediaSink });
   }
   // Rolling refinement history: each round sees the original goal, its own
   // prior reply, and the judge's follow-up as ordinary conversation turns.
@@ -285,5 +330,5 @@ export async function runSuperAgent({
       return next;
     },
   });
-  return { ...judged, media: mediaSink };
+  return afterTurn({ ...judged, media: mediaSink });
 }

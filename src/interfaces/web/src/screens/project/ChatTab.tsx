@@ -49,6 +49,7 @@ import {
   liveActivityKey,
   threadActivityKey,
 } from "../../lib/chat-activity";
+import { SUPER_AGENT_ACTOR } from "../../lib/jobs-scope";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
 // super-agent (persona "Roby" for the owner). Picked so it can't collide
@@ -1671,14 +1672,26 @@ export function ChatTab({
               // to answer somewhere other than the thing you answer with.
               context={
                 <>
-                  <ContextBar msgs={msgs} projectId={pid} docked onOpenChange={setCtxOpen} />
+                  <ContextBar
+                    msgs={msgs}
+                    projectId={pid}
+                    // Roby's chat counts the work Roby handed out, in whichever
+                    // project it runs — its delegations live in the project of
+                    // the agent it reached, never in this one.
+                    agentSlug={activeIsRoby && !isA2A ? SUPER_AGENT_ACTOR : undefined}
+                    docked
+                    onOpenChange={setCtxOpen}
+                  />
                   {/* What you wrote that has not gone out yet. Welded to the
                       top of the field for the same reason the strip and the
                       questions are: it belongs to the thing you type with, not
                       to the conversation it has not joined. */}
                   <PendingTurns queued={queued} onUnqueue={unqueue} onSendNow={sendNow} onMove={moveQueued} docked />
                   {(() => {
-                    const pending = !streaming ? pendingAskQuestions(msgs) : null;
+                    // An a2a thread has nobody to answer a question card: one an
+                    // agent asked there used to stay pinned for days, and every
+                    // answer forked a new group instead of reaching anyone.
+                    const pending = !streaming && !isA2A ? pendingAskQuestions(msgs) : null;
                     if (!pending || pending.turnKey === dismissedAskKey) return null;
                     return (
                       <InlineAskPanel

@@ -810,6 +810,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--url <endpoint>", "Endpoint of a remote streamable-HTTP MCP server. Mutually exclusive with --command."],
       ["--header \"Name: value\"", "HTTP header for --url (also accepts Name=value). Repeatable. Put tokens in --scope runtime."],
       ["--transport <stdio|http>", "Optional; inferred from --command / --url."],
+      ["--description <text>", "What the server is for. Agents see it next to the name when choosing a server."],
       ["--scope <s>", "shared = .apc/mcps.json (committable); runtime = ~/.apx/projects/<id>/mcps.json (per-project, local, chmod 0600 — use for tokens); global = ~/.apx/mcps.json (machine-wide)."],
       ["--env KEY=VAL", "Environment variable (stdio only). Repeatable."],
       ["--project <name|id|path>", "Pin command to a specific project."],
@@ -818,7 +819,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .",
       "apx mcp add github --scope runtime --project acme --command npx -- -y @modelcontextprotocol/server-github",
-      "apx mcp add globex --url https://mcp.example.com/mcp --scope runtime",
+      "apx mcp add globex --url https://mcp.example.com/mcp --scope runtime --description \"Schedules social posts\"",
       "apx mcp add globex --url https://mcp.example.com/mcp --header \"Authorization: Bearer $TOKEN\" --scope runtime",
     ],
   }),

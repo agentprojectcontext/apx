@@ -502,6 +502,14 @@ corre un turno en una sesión nueva titulada con tu prompt, imprime la respuesta
 imprime el id de la sesión por stderr para que puedas abrirla en el panel. Pasá
 `--session <id>` para continuar una existente.
 
+Si lo corrés desde una carpeta que no es un proyecto registrado, la sesión trabaja en esa carpeta.
+
+En modo build el asistente lee el `AGENTS.md` del proyecto, lleva una checklist en trabajos de varios
+pasos, edita con patches (`apply_patch`) o reemplazos exactos, corre los tests o checks del propio
+proyecto antes de dar el cambio por hecho y termina con el diff. Arranca sólo con las tools de código;
+lo demás (navegador, calendario, mensajería) lo activa cuando lo necesita. Cada turno nuevo de una
+sesión sabe qué archivos leyeron y cambiaron los turnos anteriores.
+
 ### Config
 
 La configuración global vive bajo **Settings** (`/settings/*`), agrupada en secciones.

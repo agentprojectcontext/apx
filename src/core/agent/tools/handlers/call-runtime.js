@@ -48,6 +48,8 @@ function runtimeFailureNextStep(runtime, reason) {
     `STOP. Tell the user, in your own words and their language, that "${runtime}" did not run`,
     `and why (${reason}).`,
     "Do NOT silently retry another runtime: a different engine's answer is not the one they asked for.",
+    "If they did not ask for this runtime by name and your own file and shell tools can finish the job,",
+    "you may do it yourself — and say plainly that the runtime failed and you did it directly.",
     "If a different runtime could still do the job, say so and let them choose;",
     "if the cause looks fixable on their machine (login, quota, missing binary, stale version),",
     "say what they would need to do. Never present a fallback runtime's output as if the requested one produced it.",
@@ -352,6 +354,7 @@ export default {
           prompt: effectivePrompt,
           cwd: runCwd,
           timeoutMs: effectiveTimeoutS * 1000,
+          permissionMode: globalConfig?.super_agent?.permission_mode || null,
         });
 
         // A killed process can outlive its own SIGTERM: an orphaned grandchild

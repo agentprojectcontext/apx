@@ -494,7 +494,15 @@ apx exec --code "refactor the auth middleware"
 
 runs one turn in a fresh session titled from your prompt, prints the reply on
 stdout, and prints the session id on stderr so you can open it in the panel.
-Pass `--session <id>` to continue an existing one.
+Pass `--session <id>` to continue an existing one. Run from a folder that is not
+a registered project, the session works in that folder.
+
+In build mode the assistant reads the project's `AGENTS.md`, keeps a checklist
+for multi-step work, edits with patches (`apply_patch`) or exact replacements,
+runs the project's own tests or checks before calling the change done, and ends
+with the diff. It starts with the coding tools only; anything else (browser,
+calendar, messaging) it activates on demand. Each new turn in a session knows
+which files the previous turns read and changed.
 
 ### Config
 

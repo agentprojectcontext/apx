@@ -85,3 +85,17 @@ test("telegram plugin stop() aborts every in-flight turn", () => {
   assert.match(stop[0], /activeRequests/, "stop must walk in-flight requests");
   assert.match(stop[0], /\.abort\(\)/, "stop must abort each controller");
 });
+
+test("isImpatientResend: a short 'still there?' ping keeps the running turn", () => {
+  // 2026-09-29: "Cómo?" three minutes into a scheduling job interrupted it and
+  // the work started over from zero.
+  const t0 = 1_000_000;
+  const prev = { text: "agendá el reel para mañana a la tarde", startedAt: t0 };
+  const now = () => t0 + 180_000;
+  for (const ping of ["Cómo?", "¿y?", "??", "seguís?", "Hola?", "estás ahí?"]) {
+    assert.equal(isImpatientResend(prev, ping, { now }), true, ping);
+  }
+  for (const order of ["no, pará", "cómo lo vas a agendar? a las 18", "mejor publicalo el viernes"]) {
+    assert.equal(isImpatientResend(prev, order, { now }), false, order);
+  }
+});

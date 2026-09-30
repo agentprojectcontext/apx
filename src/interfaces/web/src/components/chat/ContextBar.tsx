@@ -5,6 +5,7 @@ import { FILE_TOOLS } from "./ToolCall";
 import { t } from "../../i18n";
 import type { ChatMsg, ToolPart } from "../../hooks/useChat";
 import { useBackgroundJobs } from "../../hooks/useBackgroundJobs";
+import { jobsForScope } from "../../lib/jobs-scope";
 
 interface ChangedFile {
   path: string;
@@ -41,8 +42,12 @@ function filePathOf(args?: Record<string, unknown>): string | undefined {
  * and it wrapped to two rows to do it. Every word of that still exists, one
  * tap away. Renders nothing until the agent has actually done something.
  */
-export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
+export function ContextBar({ msgs, docked = false, onOpenChange, projectId, agentSlug }: {
   msgs: ChatMsg[];
+  /** Count the work THIS agent handed out (and what it was handed on to),
+   *  wherever it runs, instead of the project's. Roby's chat lives in
+   *  `default` while its delegations run in other projects. */
+  agentSlug?: string;
   /** Scope for the background-job count. Without it the strip would count every
    *  project's jobs, which is a number about somebody else's work. */
   projectId?: string | number | null;
@@ -58,7 +63,9 @@ export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
   // Work agents in this project left running. Live: the hook fetches what is
   // already open and then follows the feed, so a job that started before this
   // screen mounted is counted too.
-  const { jobs } = useBackgroundJobs(projectId);
+  const { jobs: openJobs } = useBackgroundJobs(agentSlug ? null : projectId);
+  const scoped = useMemo(() => jobsForScope(openJobs, { projectId, agentSlug }), [openJobs, projectId, agentSlug]);
+  const jobs = scoped.map((s) => s.job);
   // Told OUTSIDE the updater. A state updater runs during render, and calling
   // the host's setState from in there is React updating one component while
   // rendering another — which it refuses, mid-render, taking whatever else was
@@ -111,7 +118,7 @@ export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
   }, [msgs]);
 
   const totalTok = inTok + outTok;
-  if (totalTok === 0 && toolCount === 0 && actors.length === 0) return null;
+  if (totalTok === 0 && toolCount === 0 && actors.length === 0 && jobs.length === 0) return null;
 
   const detail = (
     <div
@@ -137,6 +144,37 @@ export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
           </li>
         )}
       </ul>
+      {scoped.length > 0 && (
+        // Who is working right now, as a chain: what this chat handed out, and
+        // indented under it what those agents handed on. A hand-off to a third
+        // agent used to happen in a thread of its own and leave no trace here.
+        <div>
+          <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <LoaderCircle size={10} className="animate-spin motion-reduce:animate-none" />
+            {t("chat_ui.ctx_working")}
+          </div>
+          <ul className="space-y-0.5">
+            {scoped.map(({ job: j, depth }) => {
+              const mins = j.created_at ? Math.max(0, Math.round((Date.now() - Date.parse(j.created_at)) / 60000)) : null;
+              const what = String(j.body || j.command || "").replace(/\s+/g, " ").slice(0, 120);
+              return (
+                <li key={j.id} className="flex items-baseline gap-2 text-[11px]" style={{ paddingLeft: depth * 12 }}>
+                  <Bot size={11} className="shrink-0 self-center text-emerald-700 dark:text-emerald-400" />
+                  <span className="shrink-0 font-medium">
+                    {j.kind === "shell" ? j.from : `${j.from} → ${j.to ?? ""}`}
+                  </span>
+                  <span className="min-w-0 truncate text-muted-foreground">{what}</span>
+                  {mins != null && (
+                    <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
+                      {t("chat_ui.job_since_min", { n: mins })}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
       {actors.length > 0 && (
         <ul className="space-y-0.5">
           {actors.map((a) => (
@@ -232,7 +270,11 @@ export function ContextBar({ msgs, docked = false, onOpenChange, projectId }: {
               )
               .join("\n")}
           >
-            <LoaderCircle size={12} className="animate-spin motion-reduce:animate-none" />
+            {/* A green robot turning: agents working for this chat, right now. */}
+            <span className="relative inline-flex size-3.5 items-center justify-center">
+              <LoaderCircle size={14} className="absolute animate-spin motion-reduce:animate-none" />
+              <Bot size={8} />
+            </span>
             {jobs.length === 1
               ? t("chat_ui.jobs_running_one")
               : t("chat_ui.jobs_running", { n: jobs.length })}

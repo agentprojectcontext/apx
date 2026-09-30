@@ -26,6 +26,9 @@ import listArtifacts from "./handlers/list-artifacts.js";
 import readFile from "./handlers/read-file.js";
 import writeFile from "./handlers/write-file.js";
 import editFile from "./handlers/edit-file.js";
+import applyPatch from "./handlers/apply-patch.js";
+import todoWrite from "./handlers/todo-write.js";
+import checkJobs from "./handlers/check-jobs.js";
 import runShell from "./handlers/run-shell.js";
 import tailMessages from "./handlers/tail-messages.js";
 import searchMessages from "./handlers/search-messages.js";
@@ -81,7 +84,7 @@ import obsidianWriteNote from "./handlers/obsidian-write-note.js";
 import obsidianListNotes from "./handlers/obsidian-list-notes.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
-import { TOOLS, CODE_CHANNEL_TOOLS, WHATSAPP_CHANNEL_TOOLS } from "./names.js";
+import { TOOLS, CODE_CORE_TOOLS, WHATSAPP_CHANNEL_TOOLS } from "./names.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 const NATIVE_TOOLS = [
@@ -112,6 +115,9 @@ const NATIVE_TOOLS = [
   readFile,
   writeFile,
   editFile,
+  applyPatch,
+  todoWrite,
+  checkJobs,
   runShell,
   tailMessages,
   searchMessages,
@@ -203,6 +209,12 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.LIST_PROJECTS,
   TOOLS.LIST_AGENTS,
   TOOLS.LIST_MCPS,
+  // The MCP pair is hot because the owner's real work runs on MCP servers
+  // (scheduling posts, deploys). Cold, reaching one took list_mcps →
+  // discover_tools → list_mcp_tools → call_mcp, and on Telegram the model gave
+  // up before the last step and said it had no way to do it.
+  TOOLS.LIST_MCP_TOOLS,
+  TOOLS.CALL_MCP,
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
   // A skill shown "loaded on demand" is useless without the tool that pages it,
@@ -236,6 +248,9 @@ export const BASE_TOOL_NAMES = new Set([
   // which blocks its whole turn until the other side answers — which is how one
   // agent froze for ten minutes waiting on another.
   TOOLS.SEND_TO_AGENT,
+  // Its read half: "where did that get to?" answered from the job, not by
+  // waking the agent doing it (which starts the work over).
+  TOOLS.CHECK_JOBS,
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
@@ -298,13 +313,10 @@ const FULL_CHANNELS = new Set([
   CHANNELS.ROUTINE,
   CHANNELS.API,
   CHANNELS.WEB,
-  CHANNELS.CODE,
-  CHANNELS.WEB_CODE,
 ]);
 
-// Coding surfaces — even on the lightweight set, these channels get the
-// git_* tools promoted into the base so the model can inspect the repo
-// without round-tripping through discover_tools every turn.
+// Coding surfaces start on CODE_CORE_TOOLS (names.js): the tools a coding
+// turn actually uses, with the rest one discover_tools away.
 const CODE_CHANNELS = new Set([
   CHANNELS.CODE,
   CHANNELS.WEB_CODE,
@@ -377,6 +389,9 @@ const NATIVE_CATEGORY = {
   [TOOLS.READ_FILE]:           "files",
   [TOOLS.WRITE_FILE]:          "files",
   [TOOLS.EDIT_FILE]:           "files",
+  [TOOLS.APPLY_PATCH]:         "files",
+  [TOOLS.TODO_WRITE]:          "code",
+  [TOOLS.CHECK_JOBS]:          "agents",
   [TOOLS.LIST_FILES]:          "files",
   [TOOLS.SEARCH_FILES]:        "files",
   [TOOLS.RUN_SHELL]:           "shell",
@@ -428,7 +443,7 @@ export const BASE_TOOL_SCHEMAS = ALL_TOOLS
 const schemaName = (s) => s?.function?.name || s?.name;
 
 // Code-channel base = BASE + git_* tools. Pre-computed once.
-const CODE_BASE_TOOL_NAMES = new Set([...BASE_TOOL_NAMES, ...CODE_CHANNEL_TOOLS]);
+const CODE_BASE_TOOL_NAMES = new Set(CODE_CORE_TOOLS);
 
 // WhatsApp base = BASE + send_whatsapp. Telegram gets `send_telegram` in the
 // base set for exactly this reason; WhatsApp was left out and its channel
@@ -443,9 +458,8 @@ const CODE_BASE_TOOL_SCHEMAS = ALL_TOOLS
 
 /**
  * Choose the INITIAL tool schema list for a channel.
- *   - FULL_CHANNELS (api, web, code, web_code, routine) get the whole registry.
- *   - CODE_CHANNELS overlap with FULL, but when something forces a smaller set
- *     (CODE_PLAN_TOOLS allowlist) the git_* tools are still in their base.
+ *   - FULL_CHANNELS (api, web, routine) get the whole registry.
+ *   - CODE_CHANNELS (code, web_code) start on the curated coding set.
  *   - Everything else is "lightweight" and starts on BASE_TOOL_NAMES.
  *
  * `full: true` forces the complete registry regardless of channel.
@@ -472,10 +486,19 @@ export function schemasForChannel(channel, { full = false } = {}) {
  * (run-turn records the role-gated ones on the `log` channel, so an agent
  * reaching for a tool its role does not carry is visible rather than silent).
  */
+const CHANNEL_DENIED_TOOLS = {
+  [CHANNELS.A2A]: new Set([TOOLS.ASK_QUESTIONS]),
+};
+
 export function createToolSession(channel, { full = false, allowedTools = "*", onDenied = null } = {}) {
   const allowAll = allowedTools === "*";
   const allow = allowAll || !Array.isArray(allowedTools) ? null : new Set(allowedTools);
-  const permits = (name) => allowAll || (allow ? allow.has(name) : false);
+  // Tools a channel can never use, whatever the role allows. On a2a nobody can
+  // answer a question card: it was filed as an empty reply, the owner found it
+  // pinned to the thread for days, and every answer forked a new group.
+  const channelDenied = CHANNEL_DENIED_TOOLS[channel] || null;
+  const permits = (name) =>
+    !(channelDenied && channelDenied.has(name)) && (allowAll || (allow ? allow.has(name) : false));
 
   // If the role gate is "[]" (no tools), start empty and stay empty.
   const gateEmpty = Array.isArray(allowedTools) && allowedTools.length === 0;
@@ -489,6 +512,20 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
     initialSchemas: initial,
     pending: [],
     activeNames,
+
+    // `base` plus every tool this session activated since. A judge round or a
+    // retry re-enters the loop with the initial set; without this, a tool the
+    // session already counts as loaded never reaches the model again.
+    withActivated(base = initial) {
+      const sent = new Set(base.map(schemaName));
+      const extra = [];
+      for (const name of activeNames) {
+        if (sent.has(name)) continue;
+        const meta = META_BY_NAME.get(name);
+        if (meta) extra.push(meta.schema);
+      }
+      return extra.length ? [...base, ...extra] : base;
+    },
 
     // Tools that exist but aren't loaded yet (and are permitted by the gate).
     notLoaded() {
@@ -508,8 +545,8 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
         available_count: pool.length,
         categories: byCategory,
         hint:
-          "Activá lo que necesites con discover_tools({ category: \"<cat>\" }) o " +
-          "discover_tools({ names: [\"tool_a\", \"tool_b\"] }). Quedan disponibles desde tu próximo paso.",
+          "Activate what you need with discover_tools({ category: \"<cat>\" }) or " +
+          "discover_tools({ names: [\"tool_a\", \"tool_b\"] }). They are callable from your next step.",
       };
     },
 
@@ -549,8 +586,10 @@ export function createToolSession(channel, { full = false, allowedTools = "*", o
         ...(unknown.length ? { unknown } : {}),
         ...(denied.length ? { denied } : {}),
         note: activated.length
-          ? `Activé ${activated.length} tool(s): ${activated.join(", ")}. Ya las podés usar desde tu próximo paso.`
-          : "No se activó ninguna tool nueva.",
+          ? `Activated ${activated.length} tool(s): ${activated.join(", ")}. Callable from your next step.`
+          : alreadyLoaded.length
+            ? `Already loaded: ${alreadyLoaded.join(", ")} — call them directly.`
+            : "No tool was activated.",
       };
     },
   };
@@ -575,16 +614,17 @@ export function buildLazyToolsBlock(session) {
     .map((cat) => `- ${cat}: ${byCategory[cat].join(", ")}`);
 
   return [
-    "# Tools adicionales (activación on-demand)",
-    "Tenés las tools base siempre cargadas. Estas otras EXISTEN pero no están",
-    "cargadas (para ahorrar tokens). Activalas cuando las necesites con",
-    "discover_tools — quedan disponibles desde tu próximo paso:",
-    '  • discover_tools()                              → catálogo completo (nombre + descripción)',
-    '  • discover_tools({ category: "browser" })       → activa toda una categoría',
-    '  • discover_tools({ names: ["browser_navigate"] })→ activa tools puntuales',
-    "Si no encontrás la tool que buscás, llamá discover_tools() sin argumentos.",
+    "# More tools (activated on demand)",
+    "Your base tools are always loaded. These others EXIST but are not loaded, to",
+    "save tokens. Activate them with discover_tools when you need one — they are",
+    "callable from your next step:",
+    '  • discover_tools()                               → full catalog (name + description)',
+    '  • discover_tools({ category: "browser" })        → a whole category',
+    '  • discover_tools({ names: ["browser_navigate"] }) → specific tools',
+    "A tool you need and do not see is almost always here: activate it instead of",
+    "saying you cannot do something.",
     "",
-    `Tools no cargadas (solo nombres, ${pool.length} en total):`,
+    `Not loaded (names only, ${pool.length} in total):`,
     ...lines,
   ].join("\n");
 }

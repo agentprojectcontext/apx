@@ -155,6 +155,11 @@ export async function cmdMcpAdd(args) {
     };
   }
 
+  // What the server is for, in the owner's words — the agent reads it next to
+  // the name when deciding which server to reach for.
+  const description = flagValue(args.flags.description);
+  if (description) body.description = description;
+
   const result = await http.post(
     `/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`,
     body

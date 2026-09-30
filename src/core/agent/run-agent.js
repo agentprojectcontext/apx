@@ -18,7 +18,7 @@ import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS
 import { TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
-import { buildRuntimeBlock } from "./prompt-builder.js";
+import { buildRuntimeBlock, buildExecutionContractBlock } from "./prompt-builder.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 import {
   securityRiskConfig,
@@ -44,6 +44,9 @@ import {
   withImageDescription,
 } from "./vision-bridge.js";
 import { messagesForModel } from "./model-capabilities.js";
+import { attachDirectoryRules } from "./loop/directory-rules.js";
+import { createDelegationGuard } from "./loop/delegation-guard.js";
+import { secretWriteTarget } from "./loop/secret-guard.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -419,9 +422,12 @@ export async function runAgent({
   // routine's own `deliver_to`. We filter the schemas the engine
   // sees AND keep a deny-set so a model that hallucinates a suppressed tool
   // call gets a clear error rather than firing.
-  let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
-    ? filterToolSchemas(toolSchemas, suppressTools)
+  const liveToolSchemas = toolHandlerCtx?.toolSession?.withActivated
+    ? toolHandlerCtx.toolSession.withActivated(toolSchemas)
     : toolSchemas;
+  let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
+    ? filterToolSchemas(liveToolSchemas, suppressTools)
+    : liveToolSchemas;
   const suppressed = new Set(Array.isArray(suppressTools) ? suppressTools : []);
   if (suppressed.size > 0) {
     await emitProgress(onEvent, {
@@ -468,6 +474,10 @@ export async function runAgent({
   // when a newer turn supersedes this one. Handlers read it at call time.
   if (toolHandlerCtx && signal) toolHandlerCtx.abortSignal = signal;
 
+  // What this turn has spent so far, for a tool that files a message the turn
+  // wrote mid-way (send_to_agent / call_agent put it on the a2a row). Set
+  // before the handlers are built: they receive a copy of this context.
+  if (toolHandlerCtx) toolHandlerCtx.turnSpend = () => ({ model: activeModel, usage: { ...totalUsage } });
   const rawHandlers = makeToolHandlers(toolHandlerCtx);
   const handlers = suppressed.size > 0
     ? new Proxy(rawHandlers, {
@@ -487,6 +497,13 @@ export async function runAgent({
   // that queue into effectiveSchemas at the top of each iteration, so tools
   // activated on step N are callable from step N+1. No session → no-op.
   const toolSession = toolHandlerCtx?.toolSession || null;
+  // Folder rules already shown this turn. On the session when there is one, so
+  // a judge round does not attach the same AGENTS.md again.
+  // Instructions already handed to each agent this turn (see loop/delegation-guard.js).
+  const delegationGuard = createDelegationGuard(toolSession ? (toolSession.delegations ||= new Map()) : new Map());
+  const folderRulesSeen = toolSession
+    ? (toolSession.folderRulesSeen ||= new Set(toolHandlerCtx?.rulesInPrompt || []))
+    : new Set(toolHandlerCtx?.rulesInPrompt || []);
 
   const schemaOnTheWire = (n) =>
     effectiveSchemas.some((sc) => (sc?.function?.name || sc?.name) === n);
@@ -525,7 +542,7 @@ export async function runAgent({
       activated: name,
       schema: schema?.function || schema || null,
       why: fits.reason,
-      note: "Ya está cargada. Llamala de nuevo usando exactamente los parámetros de arriba.",
+      note: "It is loaded now. Call it again using exactly the parameters above.",
     };
   };
 
@@ -737,7 +754,9 @@ export async function runAgent({
     // providers mid-turn, and a line that named the model we STARTED on would
     // be exactly the kind of stale fact this block exists to kill.
     const runtime = buildRuntimeBlock(activeModel);
-    const systemForCall = runtime ? `${system}\n\n${runtime}` : system;
+    // Per call for the same reason: which family is answering decides whether
+    // the execution contract applies.
+    const systemForCall = [system, buildExecutionContractBlock(activeModel), runtime].filter(Boolean).join("\n\n");
     const baseSystem = usePseudoTools
       ? pseudoToolSystem(systemForCall, effectiveSchemas)
       : systemForCall;
@@ -939,6 +958,9 @@ export async function runAgent({
       // Stored under an underscore so only the adapters that ask for it put it
       // back on the wire (see zen.js modelReplaysReasoning).
       ...(result.reasoning ? { _reasoning: result.reasoning } : {}),
+      // Responses API reasoners (codex-plus) keep their chain of thought across
+      // tool rounds only through these encrypted items.
+      ...(result._responsesReasoning ? { _responsesReasoning: result._responsesReasoning } : {}),
     });
 
     let finishSummary = null;
@@ -987,8 +1009,8 @@ export async function runAgent({
           ok: true,
           deduped: true,
           note: restated
-            ? `Ya dije esto mismo con "${name}" en este turno; no lo repito.`
-            : `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
+            ? `I already said this with "${name}" in this turn; not repeating it.`
+            : `I already ran "${name}" with these same arguments in this turn; not repeating it.`,
           previous: restated || sideEffects.previous(sig),
         };
         await emitProgress(onEvent, {
@@ -1005,7 +1027,28 @@ export async function runAgent({
         // effect, and only an effect is worth remembering (see the record call
         // at the end of this block).
         let ranForReal = true;
-        if (riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
+        // A write to a credentials file asks the owner in every permission
+        // mode, `total` included (loop/secret-guard.js).
+        const secretTarget = secretWriteTarget(name, args, toolHandlerCtx);
+        if (secretTarget) {
+          const requestConfirmation = toolHandlerCtx?.requestConfirmation;
+          const description = `writes a file that holds credentials: ${secretTarget}`;
+          let approved = false;
+          if (typeof requestConfirmation === "function") {
+            try {
+              approved = await requestConfirmation(name, args, description);
+            } catch {
+              approved = false;
+            }
+          }
+          if (!approved) {
+            riskDenied =
+              `Not run: this ${description}. Changing credentials needs the owner's explicit confirmation` +
+              (typeof requestConfirmation === "function" ? " and they did not give it." : ", and this channel cannot ask for it.") +
+              " Use the native tool for it (add_mcp, `apx config set`) or ask the owner to make the change.";
+          }
+        }
+        if (!riskDenied && riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
           const description = buildConfirmDescription(name, args);
           const requestConfirmation = toolHandlerCtx?.requestConfirmation;
           if (typeof requestConfirmation !== "function") {
@@ -1046,6 +1089,7 @@ export async function runAgent({
             else if (toolSession && !suppressed.has(name) && !schemaOnTheWire(name)) {
               bounced = revealUnloadedTool(toolSession, name, args);
             }
+            if (!bounced) bounced = delegationGuard.check(name, args);
             if (bounced) { toolResult = bounced; ranForReal = false; }
             // Under a watchdog, not a bare await. A handler that never settles
             // used to hang the turn permanently — past its own timeout, past
@@ -1089,6 +1133,7 @@ export async function runAgent({
         // owner that sessions were running. A refusal must leave the retry
         // possible; the dedup is there to stop a SECOND effect, not a first one.
         if (ranForReal) sideEffects.record(sig, summarizeForTrace(toolResult), { name, args });
+        if (ranForReal && !(toolResult && typeof toolResult === "object" && toolResult.error)) delegationGuard.record(name, args);
       }
 
       // A tool may return images for the MODEL to see (view_media loads a skill
@@ -1104,6 +1149,9 @@ export async function runAgent({
         const { images, ...rest } = toolResult;
         toolResult = { ...rest, ...(toolImages ? { images_attached: toolImages.length } : {}) };
       }
+
+      // A folder's own AGENTS.md reaches the model the first time the work does.
+      toolResult = attachDirectoryRules({ name, args, result: toolResult, ctx: toolHandlerCtx, seen: folderRulesSeen });
 
       const traceItem = {
         id: traceId,

@@ -80,6 +80,7 @@ Never create a memory file yourself. A `memory.md` or `MEMORY.md` at the repo ro
 | What you have | Tool |
 |---|---|
 | One durable sentence | `remember(note, project)` |
+| A standing rule for the project (every turn should see it) | `remember(note, project, durable: true)` — goes to the memory's `## Core` |
 | A whole document — a survey, the stack, sections, a table | `write_project_memory(project, content, mode)` |
 
 ```

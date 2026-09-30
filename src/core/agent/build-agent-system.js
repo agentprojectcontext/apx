@@ -19,11 +19,13 @@ import {
   buildRelationshipBlock,
   buildUserContextBlock,
   buildSegmentDiscipline,
+  resolveAgentsCap,
 } from "./prompt-builder.js";
 import { readJson } from "#core/util/json-file.js";
 import { resolveAgentName } from "../identity/self.js";
 import { readIdentity } from "../identity/index.js";
 import { buildProjectProfileBlock } from "#core/profiles/project.js";
+import { buildProjectContractBlock } from "#core/agent/context/turn-context.js";
 
 // Cap the injected agent body so an over-long authored file can't blow the
 // token budget. Mirrors PROJECT_AGENTS_MAX_CHARS for AGENTS.md.
@@ -156,10 +158,20 @@ export function buildAgentSystem(project, agent, {
     companyBlock = "";
   }
 
+  let projectContract = "";
+  try {
+    projectContract = buildProjectContractBlock(project, {
+      agentsMdMaxChars: project?.path ? resolveAgentsCap(project.path, globalConfig) : undefined,
+    });
+  } catch {
+    projectContract = "";
+  }
+
   return [
     roleBlock,
     profileLines.join("\n"),
     companyBlock,
+    projectContract,
     customInstructions,
     userContext,
     memoryBlock,

@@ -18,7 +18,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readIdentity } from "../identity/index.js";
 import { agentsMdFile } from "../apc/paths.js";
-import { readSelfMemoryForPrompt } from "./self-memory.js";
+import { readAgents } from "../apc/parser.js";
+import { isMasterAgent } from "../apc/agent-identity.js";
+import { readSelfMemoryForPrompt, readSelfCoreFacts } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
@@ -214,7 +216,7 @@ function isOwnProject(projectPath) {
   }
 }
 
-function resolveAgentsCap(projectPath, globalConfig) {
+export function resolveAgentsCap(projectPath, globalConfig) {
   if (isOwnProject(projectPath)) return 0;
   const raw = globalConfig?.super_agent?.project_agents_max_chars;
   if (raw === 0) return 0;
@@ -333,6 +335,42 @@ export function buildRuntimeBlock(modelId) {
   ].join("\n");
 }
 
+// Model families that need the execution contract (prompts/models/execution.md).
+// The failure modes it names — stopping early, answering from memory, calling
+// work done unchecked, contradicting its own delegation — are what non-Claude
+// models did on this install; Claude does not show them and gets nothing extra.
+// `mock:gpt…` opts the offline engine in so the gate can be tested.
+const EXECUTION_CONTRACT_EXEMPT = /^(anthropic|claude-subscription|claude-code):|(^|[:/])claude/i;
+
+export function needsExecutionContract(modelId) {
+  const id = String(modelId || "");
+  if (!id) return false;
+  if (id.startsWith("mock:") || id === "mock") return /gpt/i.test(id);
+  return !EXECUTION_CONTRACT_EXEMPT.test(id);
+}
+
+export function buildExecutionContractBlock(modelId) {
+  return needsExecutionContract(modelId) ? loadPrompt("models/execution.md").trim() : "";
+}
+
+// The notebook's Core: the standing facts that ship every turn, whatever the
+// broker retrieved. "" when the notebook has no Core yet.
+export function buildNotebookCoreBlock() {
+  let facts = [];
+  try {
+    facts = readSelfCoreFacts();
+  } catch {
+    facts = [];
+  }
+  if (!facts.length) return "";
+  return [
+    "# Standing facts (your notebook's Core)",
+    "Rules, preferences and facts you keep in front of you on every turn. They hold until the owner says otherwise — correct one with `remember` (durable, replaces).",
+    "",
+    ...facts.map((f) => `- ${f}`),
+  ].join("\n");
+}
+
 // Super-agent notebook (~/.apx/memory.md), bounded. Returns "" when empty.
 // Project agents have their own per-agent memory.md handled in buildAgentSystem.
 export function buildSelfMemoryBlock() {
@@ -357,15 +395,31 @@ export function isSuperAgentEnabled(cfg) {
 // Omits the [kind] prefix when kind="default" so we don't get `[default] "default"`.
 // ---------------------------------------------------------------------------
 
+// Who to hand a project's work to, without a tool call: agent count and lead.
+function teamTag(root) {
+  try {
+    const agents = readAgents(root) || [];
+    if (!agents.length) return "";
+    const lead = agents.find(isMasterAgent);
+    return ` — ${agents.length} agent${agents.length === 1 ? "" : "s"}${lead ? `, lead \`${lead.slug}\`` : ""}`;
+  } catch {
+    return "";
+  }
+}
+
 function buildProjectIndex(projects) {
   const list = projects?.list?.() || [];
   if (!list.length) return "";
   const lines = list.map((p) => {
     if (p.id === 0) return `  ${p.id}: "${p.name}" (global workspace, ${p.path})`;
     const kindTag = p.kind && p.kind !== "default" && p.kind !== "other" ? ` [${p.kind}]` : "";
-    return `  ${p.id}:${kindTag} "${p.name}" (${p.path})`;
+    return `  ${p.id}:${kindTag} "${p.name}" (${p.path})${teamTag(p.path)}`;
   });
-  return ["# Registered projects (index only — call tools for details)", ...lines].join("\n");
+  return [
+    "# Registered projects (index only — call tools for details)",
+    "Naming one in a message brings its rules, agents and MCP servers into your context.",
+    ...lines,
+  ].join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -473,6 +527,9 @@ export function buildSuperAgentSystem({
   activeThreadsBlock = "",
   // Compact "tools you can activate" hint (names of not-loaded tools).
   lazyToolsBlock = "",
+  // "# This turn's project" (core/agent/context/turn-context.js). When set it
+  // carries the project's AGENTS.md itself, so the plain block is skipped.
+  situationBlock = "",
   // When the skill inspector middleware is active, the daemon already injected
   // the right skill bodies/hints into contextNote — and the catalog-wide slug
   // dump becomes counterproductive (it nudges the model to load skills the
@@ -559,12 +616,13 @@ export function buildSuperAgentSystem({
     buildProfileBlock(identity, globalConfig),
     customInstructions,
     ownerExtra,
+    buildNotebookCoreBlock(),
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,
     relationshipBlock,
     extraContext,
     buildProjectIndex(projects),
-    buildProjectAgentsBlock(channelMeta?.projectPath, globalConfig),
+    situationBlock || buildProjectAgentsBlock(channelMeta?.projectPath, globalConfig),
     skipSkillsHint ? "" : buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
     voiceBlock,

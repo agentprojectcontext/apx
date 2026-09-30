@@ -696,3 +696,27 @@ test("zen: a tool call on a tool-free call is dropped, or rotated past when it i
     globalThis.fetch = originalFetch;
   }
 });
+
+test("openai: reasoning models get max_completion_tokens and no temperature", async () => {
+  const { default: openai, isOpenAiReasoningModel } = await import("#core/engines/openai.js");
+  assert.ok(isOpenAiReasoningModel("gpt-5.2") && isOpenAiReasoningModel("o3-mini") && isOpenAiReasoningModel("gpt-6.1-sol"));
+  assert.ok(!isOpenAiReasoningModel("gpt-4o-mini") && !isOpenAiReasoningModel("gpt-4.1"));
+  const sent = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    sent.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }], usage: {} }) };
+  };
+  try {
+    const call = (model) => openai.chat({ model, maxTokens: 900, temperature: 0.7, messages: [{ role: "user", content: "ping" }], config: { api_key: "k" } });
+    await call("gpt-5.2");
+    await call("gpt-4o-mini");
+    assert.equal(sent[0].max_completion_tokens, 900);
+    assert.equal(sent[0].max_tokens, undefined);
+    assert.equal(sent[0].temperature, undefined);
+    assert.equal(sent[1].max_tokens, 900, "older chat models keep the classic fields");
+    assert.equal(sent[1].temperature, 0.7);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

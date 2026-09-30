@@ -44,7 +44,13 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // 36 with send_file. "Mandame una captura" is one sentence, and a tool the
   // model has to discover first is a turn that already went out saying "te la
   // adjunto" with nothing attached — the exact failure that added it.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 36);
+  // 38 with list_mcp_tools + call_mcp. The owner's real work runs on MCP
+  // servers; cold, the path was four steps long and the model quit before the
+  // last one, telling the owner it had no way to do what an MCP does.
+  // 39 with check_jobs: "where did that get to?" has to be answerable from the
+  // phone without waking the agent doing the work — which starts it over.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 39);
+  assert.ok(BASE_TOOL_NAMES.has("call_mcp") && BASE_TOOL_NAMES.has("list_mcp_tools"));
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
@@ -71,7 +77,7 @@ test("telegram session starts on base and lists everything else as not-loaded", 
 });
 
 test("full channels load everything and produce no lazy block", () => {
-  for (const ch of ["web", "code", "routine", "api"]) {
+  for (const ch of ["web", "routine", "api"]) {
     const s = createToolSession(ch);
     assert.equal(s.initialSchemas.length, TOOL_SCHEMAS.length, `${ch} should be full`);
     assert.equal(s.notLoaded().length, 0, `${ch} should have nothing on-demand`);
@@ -255,4 +261,28 @@ test("run-agent: a bounced call is not remembered as done, so the retry can run"
   assert.equal(ledger.seen(sig), false, "a call that never ran leaves no trace");
   ledger.record(sig, { ok: true }, { name: "send_telegram", args: { chat_id: 1, text: "hola" } });
   assert.equal(ledger.seen(sig), true, "one that did is remembered");
+});
+
+test("run-agent: a second pass keeps the tools the session activated", async () => {
+  // Judge rounds re-enter runAgent with the session's INITIAL schemas. The
+  // session already counted call_mcp as loaded, so discover_tools answered
+  // `already_loaded` and never re-queued it: the model looped on list_mcps for
+  // 19 steps asking for a tool it no longer had.
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const session = createToolSession("telegram");
+  assert.ok(!session.initialSchemas.map(nameOf).includes("web_search"));
+  session.activate({ names: ["web_search", "http_get"] });
+  session.pending = []; // the first pass already drained them
+  const second = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: "[mock:tools] seguí",
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: () => ({}),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 3,
+  });
+  assert.match(second.text, /\bweb_search\b/);
+  assert.match(second.text, /\bhttp_get\b/);
+  assert.equal(session.activate({ names: ["web_search"] }).already_loaded[0], "web_search");
 });

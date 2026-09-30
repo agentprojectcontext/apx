@@ -374,6 +374,26 @@ test("compactChannelIfNeeded: over threshold writes a compact record via the moc
   assert.ok(again.skipped, "no re-compaction once caught up");
 });
 
+test("summarizer: a configured fallback does not hide the router default", async () => {
+  // Spent cloud quota on the primary + a local fallback too small to write the
+  // sections = no compaction at all. The router default must still be tried.
+  const { summarizeStructured, resolveCompactModels, buildCondenserPrompt, renderEvents } =
+    await import("#core/memory/summarizer.js");
+  const config = {
+    super_agent: { model: "mock:router" },
+    memory: { compact_model: "mock:fail-429", compact_fallback_model: "mock:fail-500" },
+  };
+  const rejected = [];
+  const out = await summarizeStructured({
+    prompt: buildCondenserPrompt({ eventsBlock: renderEvents([{ role: "user", content: "hola" }]) }),
+    models: resolveCompactModels(config),
+    config,
+    onReject: (r) => rejected.push(r.model),
+  });
+  assert.deepEqual(rejected, ["mock:fail-429", "mock:fail-500"]);
+  assert.equal(out?.model, "mock:router");
+});
+
 test.after(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true });
 });

@@ -20,6 +20,7 @@ import {
 import { cn } from "../../lib/cn";
 import type { ToolPart } from "../../hooks/useChat";
 import { t } from "../../i18n";
+import { handOffMode } from "../../lib/tool-mode";
 
 // Map registered tool names (core/agent tools) to an icon + friendly label.
 // Built per-call so t() runs against the active locale at render time.
@@ -35,6 +36,9 @@ function toolMeta(): Record<string, { icon: typeof Wrench; label: string }> {
     run_shell: { icon: Terminal, label: t("shared_ui.tool_run_shell") },
     send_telegram: { icon: Send, label: t("shared_ui.tool_send_telegram") },
     call_agent: { icon: Bot, label: t("shared_ui.tool_call_agent") },
+    send_to_agent: { icon: Bot, label: t("shared_ui.tool_send_to_agent") },
+    apply_patch: { icon: FilePen, label: t("shared_ui.tool_apply_patch") },
+    todo_write: { icon: ListTodo, label: t("shared_ui.tool_todo_write") },
     call_mcp: { icon: Plug, label: t("shared_ui.tool_call_mcp") },
     call_runtime: { icon: Bot, label: t("shared_ui.tool_call_runtime") },
     create_task: { icon: ListTodo, label: t("shared_ui.tool_create_task") },
@@ -46,7 +50,8 @@ function toolMeta(): Record<string, { icon: typeof Wrench; label: string }> {
   };
 }
 
-const FILE_TOOLS = new Set(["write_file", "edit_file"]);
+const FILE_TOOLS = new Set(["write_file", "edit_file", "apply_patch"]);
+
 
 function metaFor(tool: string) {
   return toolMeta()[tool] || { icon: Wrench, label: tool };
@@ -107,6 +112,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
   const summary = argSummary(part.tool, part.args);
   const isFile = FILE_TOOLS.has(part.tool);
   const hasBody = !!part.args || part.result !== undefined;
+  const mode = handOffMode(part);
 
   return (
     <div
@@ -138,6 +144,23 @@ export function ToolCall({ part }: { part: ToolPart }) {
         <span className="shrink-0 font-medium">{label}</span>
         {summary && <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">{summary}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-1">
+          {mode && (
+            <span
+              data-testid="tool-mode"
+              className={cn(
+                "rounded px-1 text-[10px]",
+                mode === "background" ? "bg-sky-500/10 text-sky-700 dark:text-sky-400" : "text-muted-foreground",
+              )}
+            >
+              {t(
+                mode === "background"
+                  ? "shared_ui.tool_mode_background"
+                  : part.status === "running"
+                    ? "shared_ui.tool_mode_waiting"
+                    : "shared_ui.tool_mode_waited",
+              )}
+            </span>
+          )}
           {/* The two outcomes that are not "it worked" say so in words. Colour
               alone is not a report — and it is the only one a phone gets. */}
           {(part.status === "deduped" || part.status === "error") && (

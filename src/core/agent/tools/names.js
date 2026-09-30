@@ -38,6 +38,9 @@ export const TOOLS = Object.freeze({
   READ_FILE:           "read_file",
   WRITE_FILE:          "write_file",
   EDIT_FILE:           "edit_file",
+  APPLY_PATCH:         "apply_patch",
+  TODO_WRITE:          "todo_write",
+  CHECK_JOBS:          "check_jobs",
   SEARCH_FILES:        "search_files",
   RUN_SHELL:           "run_shell",
 
@@ -134,6 +137,8 @@ export const TOOLS = Object.freeze({
   GLOB:                "glob",
   FETCH:               "fetch",
   SEARCH:              "search",
+  HTTP_GET:            "http_get",
+  WEB_SEARCH:          "web_search",
 });
 
 /**
@@ -168,6 +173,9 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.READ_FILE,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,
+  TOOLS.APPLY_PATCH,
+  TOOLS.TODO_WRITE,
+  TOOLS.CHECK_JOBS,
   TOOLS.SEARCH_FILES,
   TOOLS.RUN_SHELL,
   TOOLS.TAIL_MESSAGES,
@@ -259,6 +267,52 @@ export const CODE_CHANNEL_TOOLS = Object.freeze([
 ]);
 
 /**
+ * What a coding surface starts with. A coding turn used to carry the whole
+ * registry — 99 schemas, ~20k tokens per request, WhatsApp and calendars
+ * included — and a model with that many exits takes them (it handed a
+ * two-line fix to another runtime instead of editing the file). The rest stays
+ * one `discover_tools` away.
+ */
+export const CODE_CORE_TOOLS = Object.freeze([
+  TOOLS.DISCOVER_TOOLS,
+  // Read and search.
+  TOOLS.READ_FILE,
+  TOOLS.LIST_FILES,
+  TOOLS.SEARCH_FILES,
+  TOOLS.GREP,
+  TOOLS.GLOB,
+  // Change.
+  TOOLS.EDIT_FILE,
+  TOOLS.APPLY_PATCH,
+  TOOLS.WRITE_FILE,
+  TOOLS.RUN_SHELL,
+  // Track and verify.
+  TOOLS.TODO_WRITE,
+  ...CODE_CHANNEL_TOOLS,
+  // Reach out when the work needs it.
+  TOOLS.HTTP_GET,
+  TOOLS.WEB_SEARCH,
+  TOOLS.LIST_MCPS,
+  TOOLS.LIST_MCP_TOOLS,
+  TOOLS.CALL_MCP,
+  TOOLS.LIST_SKILLS,
+  TOOLS.LOAD_SKILL,
+  TOOLS.READ_SKILL,
+  TOOLS.CALL_RUNTIME,
+  TOOLS.RUN_SUBAGENT,
+  TOOLS.SEND_TO_AGENT,
+  TOOLS.CHECK_JOBS,
+  TOOLS.ASK_QUESTIONS,
+  // Context.
+  TOOLS.LIST_PROJECTS,
+  TOOLS.SEARCH_MESSAGES,
+  TOOLS.REMEMBER,
+  TOOLS.GET_TASK,
+  TOOLS.UPDATE_TASK,
+  TOOLS.COMMENT_TASK,
+]);
+
+/**
  * Read-only allow-list for the Code module's PLAN mode: the agent explores
  * the repo and proposes changes without mutating anything. Build mode uses
  * the full registry — see CODE_BUILD_TOOLS below.
@@ -337,6 +391,7 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.REMEMBER_ROUTINE,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,
+  TOOLS.APPLY_PATCH,
   TOOLS.RUN_SHELL,
   TOOLS.CALL_RUNTIME,
   TOOLS.ADD_PROJECT,

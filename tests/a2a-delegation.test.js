@@ -130,7 +130,7 @@ test("the instruction reaches the agent before its own answer does", async () =>
     /engine down/,
   );
   const filed = rows(p);
-  assert.equal(filed.length, 3, "inbound plus both halves of the failure reply");
+  assert.equal(filed.length, 4, "both halves of the ask plus both halves of the failure reply");
   const ask = filed.find((r) => r.body === "Algo que falla.");
   const reply = filed.find((r) => r.direction === "out" && r.author === "jaro");
   assert.equal(ask.author, SUPERAGENT_ACTOR_ID);
@@ -220,4 +220,49 @@ test("call_agent from a watched chat delegates watched; from a routine it does n
   assert.equal(isUnwatchedTurn(CHANNELS.WEB, { unwatched: true }), true, "an agent-started task comment");
   const src = fs.readFileSync(new URL("../src/core/agent/tools/handlers/call-agent.js", import.meta.url), "utf8");
   assert.match(src, /watched: !isUnwatchedTurn\(channel, channelMeta\)/);
+});
+
+
+test("the message that opens a delegation carries the tokens its sender spent", async () => {
+  // Every message an agent started showed no tokens while every reply did:
+  // the tool wrote only the recipient's copy, with no model and no usage.
+  const p = project();
+  await delegateToAgent({
+    project: p, agent: AGENT, prompt: "Revisá el deploy.", config: {},
+    senderSpend: { model: "mock:sender", usage: { input_tokens: 1200, output_tokens: 80 } },
+    replyFn: async () => ({ text: "Listo.", model: "mock:peer", usage: { input_tokens: 900, output_tokens: 40 } }),
+  });
+  const ask = rows(p).filter((r) => r.body === "Revisá el deploy.");
+  const speaker = ask.find((r) => r.direction === "out");
+  assert.ok(speaker, "the sender's own copy is filed");
+  assert.equal(speaker.meta.model, "mock:sender");
+  assert.deepEqual(speaker.meta.usage, { input_tokens: 1200, output_tokens: 80 });
+  assert.ok(ask.find((r) => r.direction === "in"), "and the recipient's inbox copy");
+  assert.equal(ask[0].external_id, ask[1].external_id, "one utterance, two halves");
+  // And the thread the panel reads shows it once, with its tokens.
+  const { readProjectA2AThread, a2aThreadId } = await import("#core/stores/messages.js");
+  const thread = readProjectA2AThread(p.storagePath, a2aThreadId(SUPERAGENT_ACTOR_ID, AGENT.slug));
+  const shown = thread.messages.filter((m) => m.content === "Revisá el deploy.");
+  assert.equal(shown.length, 1);
+  assert.equal(shown[0].usage?.input_tokens, 1200);
+  cleanupTempProject(p.path);
+});
+
+test("the loop tells a delegating tool what its turn has spent so far", async () => {
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const { createToolSession } = await import("#core/agent/tools/registry.js");
+  const session = createToolSession("web");
+  let seen = null;
+  const args = JSON.stringify({ to: "jaro", message: "hola" });
+  await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: `[mock:tool:send_to_agent] [mock:args:${args}] avisale`,
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: (ctx) => ({ send_to_agent: async () => { seen = ctx.turnSpend(); return { ok: true }; } }),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 2,
+  });
+  assert.equal(seen.model, "mock:test");
+  assert.ok(seen.usage.input_tokens > 0, "the model call that wrote the message is counted");
 });

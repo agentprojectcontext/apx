@@ -170,6 +170,20 @@ respuesta: el peer ya contestó y no espera nada. Archivado como respuesta, el
 "recibido, gracias" caía en la bandeja del peer, el peer confirmaba de vuelta, y
 una respuesta se volvía una ronda de acuses de recibo, cada uno un tool loop entero.
 
+### Reglas para pasar trabajo
+
+- **Preguntar dos veces no lo arranca dos veces.** Mientras sigue corriendo algo que le pasaste a un
+  agente, volver a llamarlo (`call_agent` o `send_to_agent`) devuelve el trabajo en curso — qué está
+  haciendo y hace cuánto — en vez de abrirle otro turno. `check_jobs` lee ese estado sin tocar a nadie.
+  Una corrección a propósito pasa con `followup: true`.
+- **Nadie espera desde adentro de un a2a.** Un agente que le contesta a otro pasa el trabajo en segundo
+  plano, nunca esperando a un tercero; lo pesado (un render, una producción) corre como trabajo propio en
+  segundo plano, no dentro de la conversación.
+- **Sin tarjetas de pregunta en a2a.** Ahí nadie puede contestarlas: si un agente necesita al dueño, el
+  super-agente le pregunta por su propio canal.
+- El chat muestra cada pase como *Esperando* / *Esperó* o *En segundo plano*, y la barra de escritura del
+  chat del super-agente lista todos los agentes trabajando para él, con la cadena debajo de cada uno.
+
 ### Qué conserva el que espera, y qué no
 
 Un turno despertado es un turno **nuevo**. Recibe la respuesta, un resumen de lo
@@ -323,6 +337,11 @@ web, Desktop y mascota Android nativa.
 | `automatico` | APX decide automáticamente (recomendado) |
 | `permiso` | Solo las herramientas en `allowed_tools`; todo lo demás pregunta |
 
+En todos los modos, `total` incluido, escribir un archivo que guarda credenciales — `~/.apx/config.json`,
+un `mcps.json`, `auth.json`, un `.env`, una llave — pide tu confirmación antes, sea con una herramienta
+de archivos o por shell. Si el canal no puede preguntar, la escritura se rechaza. Las herramientas
+nativas que manejan esos archivos (`add_mcp`, `apx config set`) no se ven afectadas.
+
 ```bash
 apx permission set automatico
 ```
@@ -428,6 +447,7 @@ gobierna agentes de proyecto.)
 |---|---|---|
 | Telegram | `telegram_max_iters` (1000) | Inicio de cada tool queda visible y Telegram mantiene indicador escribiendo, así turno normalmente corre hasta terminar. |
 | Chat web + sidebar | `web_max_iters` (1000) | Cada llamada se dibuja en vivo y estás a un click de frenarlo — la baranda sos vos, así que el turno corre hasta terminar el trabajo. |
+| `apx exec` | `cli_max_iters` (40) | Da lugar para pasarle trabajo al agente de un proyecto y verificarlo; tiene tope porque también lo usan scripts y otros agentes. Desde `apx exec`, pasarle trabajo a otro agente espera la respuesta en vez de quedar en segundo plano. |
 | Rutinas (sin Telegram) | `routine_max_iters` (1000) | Nadie está esperando a mitad de la corrida para contestar "¿sigo?". |
 | Salas grupales | `group_max_iters` (50) | La única superficie donde un mensaje se abre en varios — ver abajo. |
 | Superficies de código | Explícito, más el completion contract | Frenan en `finish`, no en un número. |

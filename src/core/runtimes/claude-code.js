@@ -6,6 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { PERMISSION_MODES } from "#core/constants/permissions.js";
 import { runProcess } from "./_spawn.js";
 
 export function encodeClaudeProjectPath(cwd) {
@@ -36,12 +37,16 @@ export default {
 
   sessions: "capture",
 
-  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code" }) {
+  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code", permissionMode = null }) {
     const args = ["-p", prompt, "--output-format", "json"];
     // `plan` is Claude Code's own read-only mode: it answers normally but will
     // not edit. That is what a plain a2a message should get — a peer you talked
     // to should not be able to rewrite your checkout because it was asked to.
     if (mode === "chat") args.push("--permission-mode", "plan");
+    // `-p` has nobody to approve an edit, so the default mode refused every one
+    // and a delegated fix came back untouched. APX's own mode decides how far
+    // the worker may go: full trust also runs shell (tests) unprompted.
+    else args.push("--permission-mode", permissionMode === PERMISSION_MODES.TOTAL ? "bypassPermissions" : "acceptEdits");
     if (resumeSessionId) args.push("--resume", resumeSessionId);
     if (system) {
       args.push("--append-system-prompt", system);

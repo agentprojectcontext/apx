@@ -15,6 +15,7 @@ import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { CODE_MODES, DEFAULT_CODE_MODE } from "../constants/code-modes.js";
 import { readJson, writeJson } from "#core/util/json-file.js";
+import { renderToolLog } from "./messages.js";
 
 function sessionsDir(storagePath) {
   return path.join(storagePath, "code-sessions");
@@ -223,16 +224,24 @@ function summarizeAskQuestionsPart(part) {
  * summary so the model doesn't lose track of what it already asked.
  */
 export function codeSessionHistory(session) {
-  return (session?.messages || []).map((m) => {
+  const out = [];
+  for (const m of session?.messages || []) {
     const chunks = [];
+    const calls = [];
     for (const p of m.parts || []) {
       if (!p) continue;
       if (p.kind === "text" && p.text) chunks.push(p.text);
       else if (p.kind === "tool" && p.tool === "ask_questions") {
         const summary = summarizeAskQuestionsPart(p);
         if (summary) chunks.push(summary);
-      }
+      } else if (p.kind === "tool" && p.tool) calls.push(p);
     }
-    return { role: m.role, content: chunks.join("\n\n").trim() };
-  });
+    // What the turn DID, on the system side (never in the model's own voice):
+    // without it the next turn — "it still fails, check the test" — had no
+    // record of which files were read or edited and re-did the work blind.
+    const log = m.role === "assistant" ? renderToolLog(calls) : "";
+    if (log) out.push({ role: "system", content: log });
+    out.push({ role: m.role, content: chunks.join("\n\n").trim() });
+  }
+  return out;
 }

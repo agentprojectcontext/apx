@@ -51,6 +51,7 @@ import { makeTurnAccumulator } from "#core/agent/stream/turn-accumulator.js";
 import { captureBaseline, diffAgainstBaseline, initGitRepo } from "#core/git-baseline.js";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
+import { scopeProjectsToWorkdir } from "#core/apc/projects-helpers.js";
 import { CODE_PLAN_TOOLS, CODE_BUILD_TOOLS } from "#core/agent/tools/names.js";
 import { codeModeGuidance } from "#core/agent/prompts/modes/index.js";
 
@@ -320,10 +321,14 @@ export function register(api, { projects, project, config, registries, plugins }
       return turn;
     };
 
+    // The session's project is what an unqualified path means; without the
+    // scope every read/edit/shell fell through to the default project.
+    const sessionProjects = scopeProjectsToWorkdir(projects, p.id, cwd);
+    const workRoot = sessionProjects?.current?.()?.path || p.path;
     try {
       const saResult = await runSuperAgent({
         globalConfig: config,
-        projects,
+        projects: sessionProjects,
         plugins,
         registries,
         prompt,
@@ -331,7 +336,7 @@ export function register(api, { projects, project, config, registries, plugins }
         channelMeta: {
           projectId: String(p.id),
           projectName: p.name,
-          projectPath: p.path,
+          projectPath: workRoot,
           // `code.md` renders {{cwd}}; a missing var renders empty, so the web
           // surface is unaffected by carrying the key.
           cwd: typeof cwd === "string" && cwd ? cwd : p.path,

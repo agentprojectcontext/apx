@@ -33,6 +33,22 @@ Cuando el super-agente llama a su herramienta `remember`, el dato se agrega a
 El archivo se crea al arrancar el daemon si no existe. _No_ se committea al repo — es
 estado global local de la máquina.
 
+#### Los hechos permanentes van al Core
+
+La bitácora con fecha sólo crece, y un prompt sólo puede llevar su parte más nueva — así que una
+regla escrita hace semanas dejaba de llegarle al agente. Una regla, preferencia o dato permanente va
+en cambio a la sección `## Core` del principio del archivo, que se inyecta en **todos** los turnos:
+
+```bash
+# "a partir de ahora los reels se agendan a las 18, nunca se publican en el momento"
+# → remember(durable: true) → "## Core" en ~/.apx/memory.md (o en la memoria del proyecto)
+```
+
+El Core guarda hasta 40 hechos; pasado eso el agente reemplaza o une uno (`replaces`). La bitácora
+de abajo queda para la búsqueda. Después de un turno en el que fijás una regla (siempre, nunca, a
+partir de ahora, prefiero…), un modelo barato revisa el intercambio y suma solo al Core lo que
+fijaste — como mucho dos hechos, nunca repetidos. Se apaga con `memory.auto_review: false`.
+
 #### Un dato de un proyecto va a ese proyecto
 
 `remember` acepta un `project` opcional (id, nombre o path). Con eso, la nota se agrega a la
@@ -192,7 +208,9 @@ Todas las claves viven bajo `config.memory`:
 | `keep_recent` | `40` | Turnos que quedan textuales después de la compactación. |
 | `keep_first` | `2` | Turnos iniciales citados textuales en el prompt del condenser (objetivo original). |
 | `compact_model` | `ollama:gemma4:31b-cloud` | Modelo primario para la generación de resúmenes. |
-| `compact_fallback_model` | _(super_agent.model)_ | Fallback si el primario está caído. |
+| `compact_fallback_model` | _(super_agent.model)_ | Fallback si el primario está caído; el default del router (`super_agent.model`) se prueba siempre al final. |
+| `auto_review` | `true` | Revisa los turnos del dueño que fijan una regla y la suma al Core. |
+| `review_model` | _(cadena de compactación)_ | Modelo para esa revisión; por defecto, la cadena de compactación. |
 | `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, o `tf`. |
 | `active_threads.enabled` | `true` | Mostrar turnos recientes de otros canales. |
 | `active_threads.window_hours` | `6` | Qué tan atrás mirar turnos de otros canales. |

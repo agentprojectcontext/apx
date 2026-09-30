@@ -177,3 +177,12 @@ test("telegram — a turn whose text all streamed still delivers its files", asy
   });
   assert.deepEqual(self.sent.map((s) => s.type), ["photo"]);
 });
+
+test("file_delivery.kinds written as a list enables exactly those kinds", async () => {
+  // `["image","video"]` was ignored whole and left images only, so a finished
+  // render came back as "sending video files is turned off" with video on.
+  const { deliveryPolicy, allowedKinds } = await import("#core/stores/file-delivery.js");
+  assert.deepEqual(allowedKinds(deliveryPolicy({ file_delivery: { kinds: ["image", "video"] } })), ["image", "video"]);
+  assert.deepEqual(allowedKinds(deliveryPolicy({ file_delivery: { kinds: ["Video"] } })), ["video"]);
+  assert.deepEqual(allowedKinds(deliveryPolicy({ file_delivery: { kinds: { video: true } } })), ["image", "video"], "the object form still merges over the default");
+});

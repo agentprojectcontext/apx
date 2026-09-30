@@ -36,7 +36,9 @@ export default {
       throw new Error(`search text appears ${matches} times; set all=true or use a more specific search`);
     }
 
-    const after = all ? before.split(search).join(replace) : before.replace(search, replace);
+    // A function replacer: a string one reads `$&`, `$'`, `$$` as patterns and
+    // silently rewrites code that contains them (shell, regex, template strings).
+    const after = all ? before.split(search).join(replace) : before.replace(search, () => replace);
     fs.writeFileSync(target, after, "utf8");
     return { ok: true, path: target, replacements: all ? matches : 1 };
   },

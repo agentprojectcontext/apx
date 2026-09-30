@@ -33,6 +33,22 @@ When the super-agent calls its `remember` tool, the fact is appended to
 The file is created on daemon boot if it doesn't exist. It is _not_ committed to the repo — it
 is machine-local global state.
 
+#### Standing facts go to Core
+
+The dated log only grows, and a prompt can only carry its newest end — so a rule written weeks
+ago would stop reaching the agent. A standing rule, preference or fact goes instead to the
+`## Core` section at the top of the file, which is injected on **every** turn:
+
+```bash
+# "a partir de ahora los reels se agendan a las 18, nunca se publican en el momento"
+# → remember(durable: true) → "## Core" in ~/.apx/memory.md (or in the project's memory)
+```
+
+Core holds up to 40 facts; past that the agent replaces or merges one (`replaces`). The dated log
+below it is left to retrieval. After a turn in which you state a rule (siempre, nunca, a partir de
+ahora, prefiero…), a cheap model reviews the exchange and adds what you set to Core by itself —
+at most two facts, never a duplicate. Turn it off with `memory.auto_review: false`.
+
 #### A fact about one project goes to that project
 
 `remember` takes an optional `project` (id, name, or path). With it, the note is appended to that
@@ -191,7 +207,9 @@ All keys live under `config.memory`:
 | `keep_recent` | `40` | Turns left verbatim after compaction. |
 | `keep_first` | `2` | Opening turns quoted verbatim into the condenser prompt (original goal). |
 | `compact_model` | `ollama:gemma4:31b-cloud` | Primary model for summarisation. |
-| `compact_fallback_model` | _(super_agent.model)_ | Fallback if primary is down. |
+| `compact_fallback_model` | _(super_agent.model)_ | Fallback if primary is down; the router default (`super_agent.model`) is always tried last. |
+| `auto_review` | `true` | Review owner turns that state a rule and add it to Core. |
+| `review_model` | _(compact chain)_ | Model for that review; defaults to the compaction chain. |
 | `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, or `tf`. |
 | `active_threads.enabled` | `true` | Show recent turns from other channels. |
 | `active_threads.window_hours` | `6` | How far back to look for other-channel turns. |

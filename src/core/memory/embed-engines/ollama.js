@@ -5,6 +5,7 @@
 import { l2normalize } from "../embeddings.js";
 
 const DEFAULT_MODEL = "nomic-embed-text";
+const DEFAULT_KEEP_ALIVE = "2h";
 
 // Exported: the settings panel has to say WHERE this engine is, and the answer
 // has to come from the same precedence the call itself uses. A second copy that
@@ -43,7 +44,10 @@ export default {
       const res = await fetch(`${base}/api/embeddings`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model, prompt: text }),
+        // Ollama unloads an idle model after 5 minutes, and a cold one takes
+        // seconds — longer than the per-turn memory budget, so the first
+        // message after a pause recalled nothing. Kept loaded between turns.
+        body: JSON.stringify({ model, prompt: text, keep_alive: config.keep_alive ?? DEFAULT_KEEP_ALIVE }),
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`ollama embeddings ${res.status}`);

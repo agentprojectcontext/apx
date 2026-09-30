@@ -171,6 +171,21 @@ APX mantiene un proyecto incorporado con id `default` (`~/.apx/projects/default/
 workspace de borrador del super-agente — se usa cuando no hay ningún proyecto activo o direccionado explícitamente.
 No lo uses para trabajo real; se comparte entre todos los contextos.
 
+## Cómo llega un proyecto al agente
+
+No hace falta estar "dentro" de un proyecto para que el agente trabaje en él. En cada turno APX decide
+de qué proyecto se trata — el de la superficie (un chat de proyecto, una sesión de código), si no uno que
+**nombrás en el mensaje**, si no uno nombrado antes en la misma conversación — y le pone en el contexto:
+
+- los agentes del proyecto, con su líder (a quien delegarle el trabajo);
+- los servidores MCP que puede usar ahí, con para qué sirve cada uno;
+- su `AGENTS.md`, y la lista de subcarpetas que tienen su propio `AGENTS.md`;
+- la parte durable de su memoria (todo lo que está arriba de la primera sección fechada `## AAAA-MM-DD`).
+
+Las reglas que valen para una sola carpeta van en el `AGENTS.md` de esa carpeta: la primera vez que una
+tool toca la carpeta en un turno, sus reglas se adjuntan al resultado, así el agente las lee justo cuando
+el trabajo llega ahí. Los agentes de proyecto siempre reciben el `AGENTS.md` de su propio proyecto.
+
 ## Próximo
 
 - [Agentes](/apx/docs/es/concepts/agents/) — definí personas dentro de un proyecto.
