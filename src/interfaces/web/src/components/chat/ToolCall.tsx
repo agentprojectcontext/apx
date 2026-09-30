@@ -152,7 +152,13 @@ export function ToolCall({ part }: { part: ToolPart }) {
                 mode === "background" ? "bg-sky-500/10 text-sky-700 dark:text-sky-400" : "text-muted-foreground",
               )}
             >
-              {t(mode === "background" ? "shared_ui.tool_mode_background" : "shared_ui.tool_mode_waited")}
+              {t(
+                mode === "background"
+                  ? "shared_ui.tool_mode_background"
+                  : part.status === "running"
+                    ? "shared_ui.tool_mode_waiting"
+                    : "shared_ui.tool_mode_waited",
+              )}
             </span>
           )}
           {/* The two outcomes that are not "it worked" say so in words. Colour

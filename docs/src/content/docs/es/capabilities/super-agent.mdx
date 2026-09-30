@@ -170,6 +170,20 @@ respuesta: el peer ya contestó y no espera nada. Archivado como respuesta, el
 "recibido, gracias" caía en la bandeja del peer, el peer confirmaba de vuelta, y
 una respuesta se volvía una ronda de acuses de recibo, cada uno un tool loop entero.
 
+### Reglas para pasar trabajo
+
+- **Preguntar dos veces no lo arranca dos veces.** Mientras sigue corriendo algo que le pasaste a un
+  agente, volver a llamarlo (`call_agent` o `send_to_agent`) devuelve el trabajo en curso — qué está
+  haciendo y hace cuánto — en vez de abrirle otro turno. `check_jobs` lee ese estado sin tocar a nadie.
+  Una corrección a propósito pasa con `followup: true`.
+- **Nadie espera desde adentro de un a2a.** Un agente que le contesta a otro pasa el trabajo en segundo
+  plano, nunca esperando a un tercero; lo pesado (un render, una producción) corre como trabajo propio en
+  segundo plano, no dentro de la conversación.
+- **Sin tarjetas de pregunta en a2a.** Ahí nadie puede contestarlas: si un agente necesita al dueño, el
+  super-agente le pregunta por su propio canal.
+- El chat muestra cada pase como *Esperando* / *Esperó* o *En segundo plano*, y la barra de escritura del
+  chat del super-agente lista todos los agentes trabajando para él, con la cadena debajo de cada uno.
+
 ### Qué conserva el que espera, y qué no
 
 Un turno despertado es un turno **nuevo**. Recibe la respuesta, un resumen de lo

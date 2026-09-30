@@ -4,6 +4,7 @@ import { messagePeer } from "#core/agent/a2a/delegate.js";
 import { sendInBackground, MAX_BACKGROUND_DEPTH } from "#core/agent/a2a/background.js";
 import { resolveProject } from "../helpers.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { openJobWith, alreadyRunningReply } from "#core/agent/a2a/in-flight.js";
 
 export default {
   name: "send_to_agent",
@@ -63,7 +64,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta, turnSpend }) => async ({ project, to, message, background = false, wake_me = true }) => {
+  makeHandler: ({ projects, globalConfig, plugins, registries, channel, channelMeta, turnSpend }) => async ({ project, to, message, background = false, wake_me = true, followup = false }) => {
     const p = resolveProject(projects, project);
     // WHO is writing. A project agent's turn stamps its slug on the tool
     // context (core/agent/run-turn.js); the super-agent's does not, and there
@@ -72,6 +73,13 @@ export default {
     // the owner reads as a record of who said what.
     const from = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
     if (to === from) throw new Error("that is you — send_to_agent is for reaching someone else");
+
+    // Already working on something this sender handed over: report that
+    // instead of sending it again (a2a/in-flight.js).
+    const inFlight = followup === true ? null : openJobWith({ projectId: p.id, from, to });
+    if (inFlight) return alreadyRunningReply(inFlight);
+    // Inside an a2a turn nobody waits on another agent — see call_agent.
+    if (channel === CHANNELS.A2A) background = true;
 
     // How deep the chain already is. An a2a turn carries it (see
     // replyAsAgent); a turn that arrived some other way is the start of one.

@@ -170,6 +170,20 @@ peer already answered and is waiting on nothing. Filing it as a reply used to pu
 "received, thanks" in the peer's inbox, the peer confirmed back, and one answer
 turned into a round of acknowledgements, each a full tool loop.
 
+### Rules for handing work on
+
+- **Asking twice does not start it twice.** While a hand-off to an agent is still running, calling
+  that agent again (`call_agent` or `send_to_agent`) returns the running job — what it is doing and
+  for how long — instead of opening a new turn. `check_jobs` reads the same status without touching
+  anyone. A deliberate correction goes through with `followup: true`.
+- **Nobody waits from inside an a2a thread.** An agent answering another agent hands work on in the
+  background, never by waiting on a third one; heavy work (a render, a production) runs as its own
+  background job, not inside the conversation.
+- **No question cards in a2a.** Nobody there can answer one: if an agent needs the owner, the
+  super-agent asks on its own channel.
+- The chat shows each hand-off as *Waiting* / *Waited* or *Background*, and the composer bar of the
+  super-agent's chat lists every agent working for it, with the chain below each one.
+
 ### What the sender keeps, and what it does not
 
 A woken turn is a **new** turn. It gets the reply, a recap of what was asked, and

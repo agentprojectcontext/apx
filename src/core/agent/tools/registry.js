@@ -28,6 +28,7 @@ import writeFile from "./handlers/write-file.js";
 import editFile from "./handlers/edit-file.js";
 import applyPatch from "./handlers/apply-patch.js";
 import todoWrite from "./handlers/todo-write.js";
+import checkJobs from "./handlers/check-jobs.js";
 import runShell from "./handlers/run-shell.js";
 import tailMessages from "./handlers/tail-messages.js";
 import searchMessages from "./handlers/search-messages.js";
@@ -116,6 +117,7 @@ const NATIVE_TOOLS = [
   editFile,
   applyPatch,
   todoWrite,
+  checkJobs,
   runShell,
   tailMessages,
   searchMessages,
@@ -246,6 +248,9 @@ export const BASE_TOOL_NAMES = new Set([
   // which blocks its whole turn until the other side answers — which is how one
   // agent froze for ten minutes waiting on another.
   TOOLS.SEND_TO_AGENT,
+  // Its read half: "where did that get to?" answered from the job, not by
+  // waking the agent doing it (which starts the work over).
+  TOOLS.CHECK_JOBS,
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
@@ -386,6 +391,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.EDIT_FILE]:           "files",
   [TOOLS.APPLY_PATCH]:         "files",
   [TOOLS.TODO_WRITE]:          "code",
+  [TOOLS.CHECK_JOBS]:          "agents",
   [TOOLS.LIST_FILES]:          "files",
   [TOOLS.SEARCH_FILES]:        "files",
   [TOOLS.RUN_SHELL]:           "shell",
@@ -480,10 +486,19 @@ export function schemasForChannel(channel, { full = false } = {}) {
  * (run-turn records the role-gated ones on the `log` channel, so an agent
  * reaching for a tool its role does not carry is visible rather than silent).
  */
+const CHANNEL_DENIED_TOOLS = {
+  [CHANNELS.A2A]: new Set([TOOLS.ASK_QUESTIONS]),
+};
+
 export function createToolSession(channel, { full = false, allowedTools = "*", onDenied = null } = {}) {
   const allowAll = allowedTools === "*";
   const allow = allowAll || !Array.isArray(allowedTools) ? null : new Set(allowedTools);
-  const permits = (name) => allowAll || (allow ? allow.has(name) : false);
+  // Tools a channel can never use, whatever the role allows. On a2a nobody can
+  // answer a question card: it was filed as an empty reply, the owner found it
+  // pinned to the thread for days, and every answer forked a new group.
+  const channelDenied = CHANNEL_DENIED_TOOLS[channel] || null;
+  const permits = (name) =>
+    !(channelDenied && channelDenied.has(name)) && (allowAll || (allow ? allow.has(name) : false));
 
   // If the role gate is "[]" (no tools), start empty and stay empty.
   const gateEmpty = Array.isArray(allowedTools) && allowedTools.length === 0;

@@ -2333,6 +2333,8 @@ export const en = {
     job_wake_done:       "The work it left running finished",
     job_wake_failed:     "The work it left running did not finish cleanly",
     job_running_command: "Running: {command}",
+    ctx_working:         "Working now",
+    job_since_min:       "{n} min",
     // A turn that ran tools, said something, then ran more: several blocks,
     // ONE count. Numbered against the turn so the second block does not read
     // as a second turn starting over at one.
@@ -3360,6 +3362,7 @@ export const en = {
     tool_todo_write:       "Checklist",
     tool_mode_background:  "Background",
     tool_mode_waited:      "Waited",
+    tool_mode_waiting:     "Waiting",
     dedup:                 "Dedup",
     tool_running:          "Running",
     tool_error:            "Failed",

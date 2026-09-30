@@ -40,6 +40,7 @@ export const TOOLS = Object.freeze({
   EDIT_FILE:           "edit_file",
   APPLY_PATCH:         "apply_patch",
   TODO_WRITE:          "todo_write",
+  CHECK_JOBS:          "check_jobs",
   SEARCH_FILES:        "search_files",
   RUN_SHELL:           "run_shell",
 
@@ -174,6 +175,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.EDIT_FILE,
   TOOLS.APPLY_PATCH,
   TOOLS.TODO_WRITE,
+  TOOLS.CHECK_JOBS,
   TOOLS.SEARCH_FILES,
   TOOLS.RUN_SHELL,
   TOOLS.TAIL_MESSAGES,
@@ -299,6 +301,7 @@ export const CODE_CORE_TOOLS = Object.freeze([
   TOOLS.CALL_RUNTIME,
   TOOLS.RUN_SUBAGENT,
   TOOLS.SEND_TO_AGENT,
+  TOOLS.CHECK_JOBS,
   TOOLS.ASK_QUESTIONS,
   // Context.
   TOOLS.LIST_PROJECTS,

@@ -47,7 +47,9 @@ test("base set is a strict, smaller subset of the full registry", () => {
   // 38 with list_mcp_tools + call_mcp. The owner's real work runs on MCP
   // servers; cold, the path was four steps long and the model quit before the
   // last one, telling the owner it had no way to do what an MCP does.
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 38);
+  // 39 with check_jobs: "where did that get to?" has to be answerable from the
+  // phone without waking the agent doing the work — which starts it over.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 39);
   assert.ok(BASE_TOOL_NAMES.has("call_mcp") && BASE_TOOL_NAMES.has("list_mcp_tools"));
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
