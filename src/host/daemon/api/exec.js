@@ -14,6 +14,7 @@ import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { startConversation, appendTurn, setStatus } from "#core/stores/conversations.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
+import { forwardPrompt, normalizeForward } from "#core/stores/forwards.js";
 // The turn itself — shared with the background-job wake-up, which takes the
 // same turn in the same chat when a command an agent left running exits.
 import {
@@ -29,6 +30,15 @@ import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 // How long a streamed turn may go silent before it writes a keepalive byte.
 // Matches api/super-agent.js — comfortably under undici's body timeout.
 const KEEPALIVE_MS = 20_000;
+
+/** What a user turn records about itself beyond its text: the file it carried,
+ *  and where it was forwarded from. `undefined` when it is neither, because
+ *  `appendTurn` writes the meta as a JSON header and an empty object there is a
+ *  `{}` on every plain line of every conversation file. */
+function turnMeta(media, forwarded) {
+  const meta = { ...(media || {}), ...(forwarded ? { forwarded } : {}) };
+  return Object.keys(meta).length ? meta : undefined;
+}
 
 
 /**
@@ -176,6 +186,10 @@ export function register(api, { projects, project, config, plugins, registries }
       channel,
       channelMeta,
       attachments,
+      // A message carried in from another session: the quote plus where it came
+      // from. Normalised rather than trusted — the marker the model reads is
+      // built on this side, from a capped copy of the text.
+      forwarded: rawForwarded,
     } = req.body || {};
     // Files the composer uploaded to ~/.apx/media and named on this turn,
     // resolved the way the super-agent turn resolves them: images ride on the
@@ -183,10 +197,15 @@ export function register(api, { projects, project, config, plugins, registries }
     // a photo with no caption is still a turn and a non-vision engine is told a
     // file arrived and where it lives.
     const turnFiles = readTurnAttachments(attachments);
-    if (!prompt && !turnFiles.markers.length) {
+    const forwarded = normalizeForward(rawForwarded);
+    // A forward IS a turn, with or without a note under it — same guard as the
+    // super-agent's stream.
+    if (!prompt && !turnFiles.markers.length && !forwarded) {
       return res.status(400).json({ error: "prompt required" });
     }
-    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // The quote first, on its own lines; what was typed answers it underneath.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;
     const target = await resolveTarget(req, res, p, config);
     if (!target) return;
     const { agent, modelId } = target;
@@ -199,7 +218,15 @@ export function register(api, { projects, project, config, plugins, registries }
           .json({ error: `conversation ${conversation_id} not found` });
       }
 
-      appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
+      appendTurn({
+        filePath: turn.conv.path,
+        role: "user",
+        content: turnPrompt,
+        // Where a forwarded quote came from, recorded beside the attachment it
+        // may also carry: the body holds the machine-facing marker, and this is
+        // what the panel draws as a card instead of it.
+        meta: turnMeta(turnFiles.media, forwarded),
+      });
       // The owner replied in this agent's chat → close its open deliveries (and cancel
       // any grace-window notify still pending). See core/stores/deliveries.js.
       try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
@@ -259,6 +286,10 @@ export function register(api, { projects, project, config, plugins, registries }
       channel,
       channelMeta,
       attachments,
+      // A message carried in from another session: the quote plus where it came
+      // from. Normalised rather than trusted — the marker the model reads is
+      // built on this side, from a capped copy of the text.
+      forwarded: rawForwarded,
     } = req.body || {};
     // Files the composer uploaded to ~/.apx/media and named on this turn,
     // resolved the way the super-agent turn resolves them: images ride on the
@@ -266,10 +297,15 @@ export function register(api, { projects, project, config, plugins, registries }
     // a photo with no caption is still a turn and a non-vision engine is told a
     // file arrived and where it lives.
     const turnFiles = readTurnAttachments(attachments);
-    if (!prompt && !turnFiles.markers.length) {
+    const forwarded = normalizeForward(rawForwarded);
+    // A forward IS a turn, with or without a note under it — same guard as the
+    // super-agent's stream.
+    if (!prompt && !turnFiles.markers.length && !forwarded) {
       return res.status(400).json({ error: "prompt required" });
     }
-    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    const typed = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    // The quote first, on its own lines; what was typed answers it underneath.
+    const turnPrompt = forwarded ? forwardPrompt(forwarded, typed) : typed;
     const target = await resolveTarget(req, res, p, config);
     if (!target) return;
     const { agent, modelId } = target;
@@ -301,7 +337,15 @@ export function register(api, { projects, project, config, plugins, registries }
     keepalive.unref?.();
     res.on("close", () => clearInterval(keepalive));
 
-    appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
+    appendTurn({
+      filePath: turn.conv.path,
+      role: "user",
+      content: turnPrompt,
+      // Where a forwarded quote came from, recorded beside the attachment it
+      // may also carry: the body holds the machine-facing marker, and this is
+      // what the panel draws as a card instead of it.
+      meta: turnMeta(turnFiles.media, forwarded),
+    });
     // The owner replied in this agent's chat → close its open deliveries (and cancel
     // any grace-window notify still pending). See core/stores/deliveries.js.
     try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }

@@ -96,12 +96,12 @@ test("web/desktop/voice: persisted agent turns carry model and usage", () => {
   // And both endpoints still record what arrived, before they answer it.
   assert.match(
     API_SUPER_AGENT,
-    /logInboundTurn\(ctx\.channel, \{ prompt: turnPrompt, project: p, media: turnFiles\.media \}\)/,
+    /logInboundTurn\(ctx\.channel, \{ prompt: turnPrompt, project: p, media: turnFiles\.media, forwarded \}\)/,
     "the streaming endpoint writes the inbound message up front",
   );
   assert.match(
     API_SUPER_AGENT,
-    /logInboundTurn\(ctx\.channel, \{ prompt, project: p \}\)/,
+    /logInboundTurn\(ctx\.channel, \{ prompt, project: p, forwarded \}\)/,
     "and so does the blocking one",
   );
   assert.match(

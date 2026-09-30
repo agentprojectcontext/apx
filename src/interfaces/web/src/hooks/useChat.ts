@@ -3,6 +3,7 @@ import { SuperAgent, Agents, Conversations, Groups, Turns } from "../lib/api";
 import { HttpError } from "../lib/http";
 import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, InteractiveMenu, MessageMedia, SentMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
+import { forwardMarker, stripForwardMarker, type Forwarded } from "../lib/forwarded";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
 import { queueOnSend, onChatPrefsChange } from "../lib/chat-prefs";
@@ -107,6 +108,11 @@ export interface ChatMsg {
   speaker?: string;
   /** What this room message replied to (Discord's quoted line). */
   quote?: { author: string | null; text: string };
+  /** This turn carried a message in from ANOTHER session: the quote and where
+   *  it came from. The text still holds the marker the model was handed — the
+   *  bubble strips it and draws the quote as a card, the way it does with an
+   *  attachment marker. */
+  forwarded?: Forwarded;
   /** Composed HERE, in this tab, rather than read back from storage.
    *  A reply typed into a Telegram thread goes out on the `web` channel, so the
    *  Telegram thread file will never contain it — and a background refresh that
@@ -153,6 +159,10 @@ export interface SendOptions {
    *  it back into the room instead of out as a 1:1 web turn. The queue is one
    *  per chat and only the entry knows which kind of chat it was written in. */
   group_id?: string;
+  /** A message brought in from another session, quoted above whatever was
+   *  typed. The daemon builds the marker the model reads and records this on
+   *  the turn, so every surface can draw the card — see lib/forwarded.ts. */
+  forwarded?: Forwarded;
 }
 
 /** A turn written while the previous one was still running.
@@ -454,7 +464,15 @@ export function historyTextOf(msg: ChatMsg): string {
       if (s) chunks.push(s);
     }
   }
-  return chunks.join("\n\n").trim();
+  const text = chunks.join("\n\n").trim();
+  // A turn that carried a message in from somewhere else. Read back from
+  // storage the quote is already in the text (the daemon wrote the marker
+  // there); composed in THIS pane it is not, and the next turn's history would
+  // hand the model a reply to something it was never shown.
+  if (msg.forwarded && !text.startsWith("[forwarded message")) {
+    return [forwardMarker(msg.forwarded), text].filter(Boolean).join("\n\n");
+  }
+  return text;
 }
 
 /** Re-send shape for files already on a stored turn (edit / regenerate). */
@@ -555,6 +573,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         ...(m.speaker ? { speaker: m.speaker } : {}),
         ...(m.quote ? { quote: m.quote } : {}),
         ...(m.automation ? { automation: m.automation, job: m.job ?? null } : {}),
+        ...(m.forwarded ? { forwarded: m.forwarded } : {}),
       });
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is
@@ -675,17 +694,36 @@ function mediaPathsKey(m: ChatMsg): string {
   return (m.media || []).map((x) => x.path).filter(Boolean).join("\0");
 }
 
+/**
+ * What makes two copies of the same turn the same turn, for this merge.
+ *
+ * Not the raw text. A forwarded turn is STORED with the quote marker the daemon
+ * wrote at the head of it, and the copy this pane composed has only the note
+ * typed under it — so comparing texts would never match, and every background
+ * refresh would leave the same message in the thread twice. The comparison is
+ * therefore made on what the person actually wrote, plus the quote it carried:
+ * two forwards of different messages with the same empty note are still two
+ * turns.
+ */
+function mergeKey(m: ChatMsg): string {
+  // The quote is keyed by its head only: the daemon caps a long quote
+  // (MAX_QUOTE in core/stores/forwards.js) and appends "…", so the stored copy
+  // of a 5000-char forward never equals the optimistic bubble's full text —
+  // and a full-text key kept both on screen.
+  return `${m.role}|${stripForwardMarker(textOf(m))}|${(m.forwarded?.text || "").trim().slice(0, 200)}`;
+}
+
 export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {
   const extras = current.filter((m) => m.local);
   if (!extras.length) return remote;
-  const seenText = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
+  const seenText = new Set(remote.map(mergeKey));
   const seenMedia = new Set(
     remote.filter((m) => mediaPathsKey(m)).map((m) => `${m.role}|${mediaPathsKey(m)}`),
   );
   return [
     ...remote,
     ...extras.filter((m) => {
-      if (seenText.has(`${m.role}|${textOf(m)}`)) return false;
+      if (seenText.has(mergeKey(m))) return false;
       const paths = mediaPathsKey(m);
       if (paths && seenMedia.has(`${m.role}|${paths}`)) return false;
       return true;
@@ -1436,8 +1474,10 @@ export function useChat(
     async (text: string, opts: SendOptions = {}) => {
       const trimmed = text.trim();
       const files = opts.attachments || [];
-      // A photo with no caption is a turn; text alone still is one.
-      if (!trimmed && !files.length) return;
+      // A photo with no caption is a turn; text alone still is one. So is a
+      // message forwarded in from another session with nothing typed under it:
+      // "read this" is a complete thing to say.
+      if (!trimmed && !files.length && !opts.forwarded) return;
       const nowIso = () => new Date().toISOString();
       // The bubble a turn gets, whether it goes out now or in a minute. The
       // marker rides on the turn's text the way it does on every other channel:
@@ -1451,6 +1491,11 @@ export function useChat(
         // being read is not the channel this turn goes out on.
         local: true,
         ...(files.length ? { media: files.map(mediaOf) } : {}),
+        // The quote is drawn from here, so the card is on screen the moment the
+        // message is — not one round trip later. The daemon writes the marker
+        // into the stored text; this bubble holds only what was typed, and
+        // `mergeKey` is what keeps the two from reading as two messages.
+        ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
       });
 
       // Written while the previous turn was still going. It joins the thread
@@ -1541,6 +1586,9 @@ export function useChat(
               ...(opts.attachments?.length
                 ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
                 : {}),
+              // Where this turn was carried in from. The daemon builds the
+              // marker the model reads and records the quote on the turn.
+              ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
             },
             (ev) => {
               if (!ownsView()) return;
@@ -1605,6 +1653,7 @@ export function useChat(
             ...(opts.attachments?.length
               ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
               : {}),
+            ...(opts.forwarded ? { forwarded: opts.forwarded } : {}),
         },
           (ev) => { if (ownsView()) applyEvent(ev); },
           ctrl.signal,

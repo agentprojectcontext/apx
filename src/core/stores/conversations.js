@@ -8,6 +8,7 @@ import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { mediaFromMeta, previewText } from "#core/stores/messages.js";
 import { memoFile, memoFileSync } from "#core/util/file-memo.js";
+import { forwardReadable } from "#core/stores/forwards.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -174,6 +175,10 @@ export function shapeConversationMessage(t) {
       ...base,
       ...mediaFields,
       ...(automation ? { automation, job: t.meta?.job || null } : {}),
+      // Handed in from another session. The body still holds the marker the
+      // model was given; this is what lets the viewer draw the quote as a card
+      // that names where it came from, and strip the marker out of the text.
+      ...(t.meta?.forwarded ? { forwarded: t.meta.forwarded } : {}),
     };
   }
   if (t.role === "assistant") {
@@ -324,7 +329,7 @@ export function conversationTitle(fm = {}, turns = []) {
   const firstUser = turns.find((t) => t.role === "user");
   return (
     (typeof fm.title === "string" && fm.title.trim()) ||
-    (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
+    forwardReadable(firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
     undefined
   );
 }
