@@ -1,3 +1,10 @@
+## [1.123.1](https://github.com/agentprojectcontext/apx/compare/v1.123.0...v1.123.1) (2026-09-30)
+
+
+### Performance Improvements
+
+* **inbox:** GET /api/inbox ya no bloquea el daemon re-parseando el ledger en cada pedido ([#52](https://github.com/agentprojectcontext/apx/issues/52)) ([c2f0e4a](https://github.com/agentprojectcontext/apx/commit/c2f0e4a4215fd99bebf475d6ece458b178d58276))
+
 # [1.123.0](https://github.com/agentprojectcontext/apx/compare/v1.122.5...v1.123.0) (2026-09-30)
 
 
