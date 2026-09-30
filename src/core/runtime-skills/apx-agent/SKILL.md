@@ -59,7 +59,7 @@ Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` →
 
 `cfo` is the address — the filename, what a `Parent` points at, what a2a and an @mention carry. **`name` is who they are, and it is a person's name: Luis, Karla, Nora.** The job goes in `role`, the one line about it in `description`. Fold the job into the name and every surface says the address twice — "video-producer · Video Producer", a group bubble headed with a filename.
 
-- **Omit `name` and APX picks one** nobody on this machine is using, out of the same pool the vault importer draws from (`assets/agent-names.json`). That is the normal case: you rarely have a reason to prefer a name.
+- **Omit `name` and APX picks one** nobody on this machine is using, out of the same pool the vault importer draws from (`src/core/assets/agent-names.json`). That is the normal case: you rarely have a reason to prefer a name.
 - A name that is only the slug spelled out is read as the ROLE it actually is, and the agent is named from the pool. Nothing you wrote is lost — but don't rely on it: write the role in `role`.
 - `create_agent` answers with the `name` the agent ended up with. Use it when you talk about them.
 - An `area` the project has never heard of is **created**, and the agent gets a role on the org chart. So `area` is worth passing, not worth inventing twice — call `list_agents`/`org` first and reuse the area that exists.

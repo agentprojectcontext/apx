@@ -34,7 +34,7 @@ const __dir = path.dirname(fileURLToPath(import.meta.url));
 export { takenAgentNames };
 
 /** Shipped with APX, read-only — same layering as the agent vault itself. */
-export const BUNDLED_PACKS_FILE = path.resolve(__dir, "../../../assets/agent-vault-packs.json");
+export const BUNDLED_PACKS_FILE = path.resolve(__dir, "../assets/agent-vault-packs.json");
 /** Optional user layer: a pack defined here replaces the bundled one with that id. */
 export const USER_PACKS_FILE = path.join(AGENT_VAULT_DIR, "packs.json");
 

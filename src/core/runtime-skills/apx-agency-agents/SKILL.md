@@ -9,7 +9,7 @@ Global, project-agnostic library of agent templates. Two layers, deduped per-slu
 
 | Layer | Where | Mutability |
 |---|---|---|
-| **Bundled** | `<repo>/assets/agent-vault-defaults/<slug>.md` | Read-only. Visible unless tombstoned. |
+| **Bundled** | `<repo>/src/core/assets/agent-vault-defaults/<slug>.md` | Read-only. Visible unless tombstoned. |
 | **User** | `~/.apx/agents/<slug>.md` | Read-write. Overrides bundled with same slug. |
 | **Tombstones** | `~/.apx/agents/.removed.json` | Bundled slugs the user hid. |
 
@@ -80,7 +80,7 @@ Agent defaults tab (`/p/0/agent-defaults`): same CRUD — "New" (POST `/api/agen
 ## File locations
 
 ```
-<APX repo>/assets/agent-vault-defaults/<slug>.md   ← canonical bundle (committed)
+<APX repo>/src/core/assets/agent-vault-defaults/<slug>.md   ← canonical bundle (committed)
 ~/.apx/agents/<slug>.md                            ← user vault (sync target)
 <project>/.apc/agents/<slug>.md                    ← project-local copy (after import --copy)
 ```
@@ -122,4 +122,4 @@ is_master: false
 
 - **Bundled defaults are always present** — no sync step. Removing tombstones; editing copies to user layer.
 - The templates are named after ROLES, not personas: `orchestrator`, `pm`, `developer`. The persona is assigned when the agent is installed, from the shared name pool, so a project never ends up with an agent whose name shadows the super-agent's own.
-- The `agency-agents` skill in `~/.claude/skills/` pulls from `msitarzewski/agency-agents` on GitHub. APX bundles a snapshot in `assets/agent-vault-defaults/` so installs are offline-first. To refresh upstream, edit the bundle and re-commit; user overrides are untouched.
+- The `agency-agents` skill in `~/.claude/skills/` pulls from `msitarzewski/agency-agents` on GitHub. APX bundles a snapshot in `src/core/assets/agent-vault-defaults/` so installs are offline-first. To refresh upstream, edit the bundle and re-commit; user overrides are untouched.

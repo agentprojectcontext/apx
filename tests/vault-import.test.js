@@ -1,6 +1,6 @@
 // Importing a BUNDLED vault agent has to work on a machine whose user vault is
 // empty — which is the normal machine. ~/.apx/agents only holds what the user
-// added themselves; the templates APX ships live in assets/agent-vault-defaults.
+// added themselves; the templates APX ships live in src/core/assets/agent-vault-defaults.
 //
 // Regression: the import paths resolved the slug with a hand-built
 // `path.join(VAULT_DIR, slug + ".md")`, i.e. the user layer only. So every

@@ -19,7 +19,7 @@ Para el CRUD de agentes por proyecto (agregar, editar, memoria) mirá [Conceptos
 
 | Capa | Ubicación | Mutabilidad |
 |---|---|---|
-| Incluida | `<APX package>/assets/agent-vault-defaults/<slug>.md` | Solo lectura en disco. Siempre visible salvo que esté marcada como eliminada (tombstone). |
+| Incluida | `<APX package>/src/core/assets/agent-vault-defaults/<slug>.md` | Solo lectura en disco. Siempre visible salvo que esté marcada como eliminada (tombstone). |
 | Usuario | `~/.apx/agents/<slug>.md` | Lectura-escritura. Un archivo de usuario con el mismo slug eclipsa al incluido. |
 
 Editar una plantilla incluida es **copia al escribir (copy-on-write)** — APX materializa una copia en tu capa de usuario
@@ -163,7 +163,7 @@ is_master: false
 ## Dónde viven los archivos
 
 ```text
-<APX package>/assets/agent-vault-defaults/<slug>.md   ← incluida (committeada al repo de APX)
+<APX package>/src/core/assets/agent-vault-defaults/<slug>.md   ← incluida (committeada al repo de APX)
 ~/.apx/agents/<slug>.md                                ← bóveda de usuario (tus overrides)
 <project>/.apc/agents/<slug>.md                        ← copia local del proyecto (después de --copy)
 ~/.apx/agents/.removed.json                            ← lista de tombstones

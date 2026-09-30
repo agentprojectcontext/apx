@@ -52,7 +52,7 @@ test("the templates themselves stay English — that copy reaches the model", ()
   const ceo = readVaultAgents().find((a) => a.slug === "ceo");
   assert.match(ceo.fields.Role, /Chief Executive Officer/);
   const onDisk = fs.readFileSync(
-    path.resolve("assets/agent-vault-defaults/ceo.md"),
+    path.resolve("src/core/assets/agent-vault-defaults/ceo.md"),
     "utf8",
   );
   assert.match(onDisk, /^role: Chief Executive Officer$/m);

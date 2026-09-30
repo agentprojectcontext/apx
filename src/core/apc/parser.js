@@ -87,7 +87,7 @@ import { readJson } from "#core/util/json-file.js";
 const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const VAULT_DIR = AGENT_VAULT_DIR;
-export const BUNDLED_VAULT_DIR = path.resolve(__parserDir, "../../../assets/agent-vault-defaults");
+export const BUNDLED_VAULT_DIR = path.resolve(__parserDir, "../assets/agent-vault-defaults");
 export const VAULT_TOMBSTONE_PATH = path.join(VAULT_DIR, ".removed.json");
 
 function readVaultDirRaw(dir) {

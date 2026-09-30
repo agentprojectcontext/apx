@@ -1,5 +1,5 @@
 // Vault = global agent templates. Two layers:
-//   - bundled defaults shipped with APX (assets/agent-vault-defaults/)
+//   - bundled defaults shipped with APX (src/core/assets/agent-vault-defaults/)
 //   - user overrides + brand-new ones in ~/.apx/agents/ (copy-on-write)
 //
 // This module owns the *normalisation* of vault input patches: which fields

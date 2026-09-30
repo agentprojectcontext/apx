@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { readAgents } from "#core/apc/parser.js";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
-export const NAMES_FILE = path.resolve(__dir, "../../../assets/agent-names.json");
+export const NAMES_FILE = path.resolve(__dir, "../assets/agent-names.json");
 
 let cached = null;
 

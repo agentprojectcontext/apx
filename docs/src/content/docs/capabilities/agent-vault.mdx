@@ -19,7 +19,7 @@ For per-project agent CRUD (adding, editing, memory) see [Concepts — Agents](/
 
 | Layer | Location | Mutability |
 |---|---|---|
-| Bundled | `<APX package>/assets/agent-vault-defaults/<slug>.md` | Read-only on disk. Always visible unless tombstoned. |
+| Bundled | `<APX package>/src/core/assets/agent-vault-defaults/<slug>.md` | Read-only on disk. Always visible unless tombstoned. |
 | User | `~/.apx/agents/<slug>.md` | Read-write. A user file with the same slug shadows the bundled one. |
 
 Editing a bundled template is **copy-on-write** — APX materializes a copy in your user layer
@@ -163,7 +163,7 @@ is_master: false
 ## Where files live
 
 ```text
-<APX package>/assets/agent-vault-defaults/<slug>.md   ← bundled (committed to APX repo)
+<APX package>/src/core/assets/agent-vault-defaults/<slug>.md   ← bundled (committed to APX repo)
 ~/.apx/agents/<slug>.md                                ← user vault (your overrides)
 <project>/.apc/agents/<slug>.md                        ← project-local copy (after --copy)
 ~/.apx/agents/.removed.json                            ← tombstones list

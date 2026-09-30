@@ -107,7 +107,7 @@ function promptPreview(body, max = PROMPT_PREVIEW_CHARS) {
 
 export function register(api, { projects, project }) {
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
-  // APX (assets/agent-vault-defaults/) + user overrides/new ones in
+  // APX (src/core/assets/agent-vault-defaults/) + user overrides/new ones in
   // ~/.apx/agents/. The user layer wins per slug; tombstones in .removed.json
   // hide bundled entries. GET merges both with `source` set per item.
   api.get("/agents/vault", (req, res) => {

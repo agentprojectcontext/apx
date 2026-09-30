@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { AGENT_VAULT_DIR } from "#core/config/paths.js";
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS = path.resolve(__dir, "../../../assets");
+const ASSETS = path.resolve(__dir, "../assets");
 
 /** `es-AR` → ["es-AR", "es"]. A package that ships one Spanish file serves both. */
 function langCandidates(lang) {
