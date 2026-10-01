@@ -2,8 +2,12 @@ import type { EngineStatus } from "@apx/protocol";
 import { Badge, Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { loadEngines, setDefaultEngine } from "../data/engines.ts";
+import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { DefaultModel } from "./models/DefaultModel.tsx";
+import { ModelCatalog } from "./models/ModelCatalog.tsx";
+import { RouterEditor } from "./models/RouterEditor.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
 const LOOK: Record<EngineStatus["id"], { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey }> = {
@@ -18,7 +22,7 @@ const LOGIN_HINT: Record<EngineStatus["id"], MessageKey> = {
   codex: "engine.login.codex",
 };
 
-/** Engines and models: installed → logged in → default, from engines.status. */
+/** Engines (installed → signed in → default), the install default model, the router and the model catalog. */
 export function EnginesSection() {
   const t = useT();
   const engines = useData((s) => s.engines);
@@ -26,6 +30,8 @@ export function EnginesSection() {
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     void loadEngines();
+    void loadCatalog();
+    void loadModelsConfig();
   }, []);
   const refresh = async () => {
     setRefreshing(true);
@@ -76,6 +82,9 @@ export function EnginesSection() {
           ))}
         </div>
       )}
+      <DefaultModel />
+      <RouterEditor />
+      <ModelCatalog />
     </>
   );
 }

@@ -1,7 +1,8 @@
 import type { Agent } from "@apx/protocol";
 import { AgentAvatar, Button, EmptyState, IconButton, Icons, SegmentedControl } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { agentEngineLabel, engineLabel, PROFILE_KEY } from "../data/engines.ts";
+import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
+import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
@@ -12,7 +13,7 @@ import { teamOf } from "./ProjectOverview.tsx";
 // Who sits on top of the hierarchy, in order: an orchestrator, then a CEO, then any "lead".
 const LEADS = [/orchestr|orquest/i, /\bceo\b|chief executive/i, /\blead\b/i];
 
-/** Team: the project's agents as a hierarchy (lead on top) or a list, with engine and browser profile. */
+/** Team: the project's agents as a hierarchy (lead on top) or a list, with model and browser profile. */
 export function ProjectTeam({ project }: { project: ProjectEntry }) {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -95,22 +96,12 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
   );
 }
 
-/** Short engine name for chips. Own harness → tinted chip; inherited default → plain chip, explained on hover. */
-function useEngine(agent: Agent): { text: string; title: string; own: boolean } {
-  const t = useT();
-  const engines = useData((s) => s.engines);
-  if (agent.harness) return { text: engineLabel(agent.harness, engines), title: t("team.ownEngine"), own: true };
-  const def = engines.find((e) => e.default);
-  return { text: def?.label ?? t("engine.default"), title: agentEngineLabel(undefined, engines), own: false };
-}
-
 function leadLabel(agent: Agent, t: T): string {
   return agent.kind === "secretary" ? t("agent.super") : t("team.orchestrator");
 }
 
 function AgentCard({ agent, lead = false, projectId }: { agent: Agent; lead?: boolean; projectId: string }) {
   const t = useT();
-  const engine = useEngine(agent);
   return (
     <div className="agentcard">
       <div className="agentcard__top">
@@ -132,9 +123,7 @@ function AgentCard({ agent, lead = false, projectId }: { agent: Agent; lead?: bo
       </div>
       <span className="agentcard__role">{agent.role || t("team.noRole")}</span>
       <div className="agentcard__foot">
-        <span className={engine.own ? "chip chip--mono is-own" : "chip chip--mono"} title={engine.title}>
-          {engine.text}
-        </span>
+        <AgentModelPicker agent={agent} chip />
         <span className="chip" title={t("team.browserProfile")}>
           <Icons.Globe size={11} />
           {t(PROFILE_KEY[agent.browser_profile])}
@@ -146,7 +135,6 @@ function AgentCard({ agent, lead = false, projectId }: { agent: Agent; lead?: bo
 
 function AgentRow({ agent, lead, projectId }: { agent: Agent; lead: boolean; projectId: string }) {
   const t = useT();
-  const engine = useEngine(agent);
   return (
     <li className="team__row">
       <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
@@ -158,8 +146,8 @@ function AgentRow({ agent, lead, projectId }: { agent: Agent; lead: boolean; pro
         <span className="agentcard__slug">{agent.id}</span>
       </span>
       <span className="team__cell team__muted">{agent.role || t("team.noRole")}</span>
-      <span className="team__cell team__mono" title={engine.title}>
-        {engine.text}
+      <span className="team__cell team__mono">
+        <AgentModelPicker agent={agent} chip />
       </span>
       <span className="team__cell team__subtle">{t(PROFILE_KEY[agent.browser_profile])}</span>
       <Button size="sm" variant="ghost" onClick={() => void startChat(agent, projectId)}>

@@ -2,6 +2,7 @@
 // same set as the components. Size with the `size` prop (14–18 in controls).
 import {
   AppWindow,
+  ArrowDown,
   ArrowLeft,
   ArrowUp,
   Bell,
@@ -78,6 +79,7 @@ import {
 
 export const Icons = {
   AppWindow,
+  ArrowDown,
   ArrowLeft,
   ArrowUp,
   Bell,

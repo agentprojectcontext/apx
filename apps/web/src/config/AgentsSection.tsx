@@ -1,22 +1,25 @@
-import type { Agent, EngineStatus, HarnessId } from "@apx/protocol";
-import { AgentAvatar, Icons, Menu, type MenuEntry, ProjectTile, SearchField, SegmentedControl } from "@apx/ui";
-import { useMemo, useState } from "react";
+import type { Agent } from "@apx/protocol";
+import { AgentAvatar, ProjectTile, SearchField, SegmentedControl } from "@apx/ui";
+import { useEffect, useMemo, useState } from "react";
 import { setAgentBrowserProfile } from "../data/actions.ts";
-import { agentEngineLabel, engineLabel, PROFILE_KEY, setAgentHarness } from "../data/engines.ts";
+import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, DEFAULT_PID, projectInitial, projectTone } from "../data/identity.ts";
+import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
-const HARNESSES: readonly HarnessId[] = ["native", "claude", "codex"];
-
-/** Agents: which engine runs each agent and which browser profile it uses. */
+/** Agents: which model each agent runs on and which browser profile it uses. */
 export function AgentsSection() {
   const t = useT();
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
-  const engines = useData((s) => s.engines);
   const [q, setQ] = useState("");
+  useEffect(() => {
+    void loadCatalog();
+    void loadModelsConfig();
+  }, []);
   const list = useMemo(
     () =>
       Object.values(agents)
@@ -51,7 +54,7 @@ export function AgentsSection() {
                   {project?.name ?? (a.kind === "secretary" ? t("agents.superGlobal") : t("agents.global"))}
                 </span>
               </span>
-              <HarnessPicker agent={a} engines={engines} />
+              <AgentModelPicker agent={a} />
               <SegmentedControl
                 size="sm"
                 label={t("agents.profileOf", { name: a.name })}
@@ -68,43 +71,5 @@ export function AgentsSection() {
         })}
       </ul>
     </>
-  );
-}
-
-function HarnessPicker({ agent, engines }: { agent: Agent; engines: EngineStatus[] }) {
-  const t = useT();
-  const current = agent.harness;
-  const check = (on: boolean) => (on ? <Icons.Check /> : <span />);
-  const items: MenuEntry[] = [
-    { type: "label", label: t("agents.engineOf", { name: agent.name }) },
-    {
-      label: agentEngineLabel(undefined, engines),
-      icon: check(current == null),
-      onSelect: () => void setAgentHarness(agent.id, null),
-    },
-    { type: "separator" },
-    ...HARNESSES.map((h): MenuEntry => {
-      const e = engines.find((x) => x.id === h);
-      const usable = !e || (e.installed && e.logged_in);
-      return {
-        label: engineLabel(h, engines),
-        icon: check(current === h),
-        shortcut: e && !e.installed ? t("engine.notInstalled") : e && !e.logged_in ? t("engine.noSession") : undefined,
-        disabled: !usable && current !== h,
-        onSelect: () => void setAgentHarness(agent.id, h),
-      };
-    }),
-  ];
-  return (
-    <Menu
-      align="end"
-      items={items}
-      trigger={
-        <button type="button" className="selectbtn" aria-label={t("agents.engineOf", { name: agent.name })}>
-          <span className="selectbtn__text">{agentEngineLabel(current, engines)}</span>
-          <Icons.ChevronDown size={12} />
-        </button>
-      }
-    />
   );
 }
