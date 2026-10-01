@@ -82,13 +82,27 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         return { tabs: this.list() };
       case "browser.open": {
         const p = browserMethods["browser.open"].params.parse(raw);
-        const tab = await this.open(p.url, p.profile, { kind: "agent", by: p.by, since: new Date().toISOString() });
+        // A tab the human opens from the panel is nobody's until an agent picks it up.
+        const control: TabControl =
+          p.by === "operator" ? { kind: "idle" } : { kind: "agent", by: p.by, since: new Date().toISOString() };
+        const tab = await this.open(p.url, p.profile, control);
         return this.info(tab);
       }
       case "browser.navigate": {
         const p = browserMethods["browser.navigate"].params.parse(raw);
-        const tab = this.#drive(p.tab, p.by);
+        const tab = p.by === "operator" ? this.#get(p.tab) : this.#drive(p.tab, p.by);
         await this.#load(tab, p.url);
+        return { url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
+      }
+      case "browser.history": {
+        const p = browserMethods["browser.history"].params.parse(raw);
+        // The human's own toolbar calls as "operator" and must not take the tab over as an agent.
+        const tab = p.by === "operator" ? this.#get(p.tab) : this.#drive(p.tab, p.by);
+        const nav = tab.view.webContents.navigationHistory;
+        if (p.action === "back" && nav.canGoBack()) nav.goBack();
+        else if (p.action === "forward" && nav.canGoForward()) nav.goForward();
+        else if (p.action === "reload") tab.view.webContents.reload();
+        await this.#settle(tab);
         return { url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
       }
       case "browser.snapshot": {

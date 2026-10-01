@@ -75,6 +75,7 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
     const history = sanitizeHistory(store.modelLog(thread.id) as ChatMessage[]);
     const userMsg: ChatMessage = { role: "user", content: `${turnPreamble(thread)}\n\n${input}` };
     const fresh: ChatMessage[] = [userMsg];
+    const tokens = { input: 0, output: 0 };
 
     try {
       let finalText = "";
@@ -94,6 +95,10 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
         );
         if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
         fresh.push(res.message);
+        if (res.usage) {
+          tokens.input += res.usage.prompt_tokens ?? 0;
+          tokens.output += res.usage.completion_tokens ?? 0;
+        }
         if (display.model !== res.model) flush({ model: res.model });
         const calls = res.message.tool_calls ?? [];
         if (res.message.content) {
@@ -135,6 +140,7 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
         upsertPart((p) => p.type === "text", { type: "text", text: finalText });
       }
       store.appendModelLog(thread.id, fresh);
+      if (tokens.input || tokens.output) current = store.setRunUsage(current, tokens);
       current = store.setRunState(current, "completed");
       store.patchThread(thread.id, {
         state: "idle",

@@ -23,8 +23,7 @@ export class ApxError extends Error {
 
 /** Methods whose server deadline exceeds the default: the client must wait longer than the server (rule 9). */
 function clientDeadline(method: string, params: unknown, fallback: number): number {
-  if (method === "browser.handoff")
-    return (((params as { timeout_s?: number }) ?? {}).timeout_s ?? 300) * 1000 + 20_000;
+  if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   if (method === "system.import_v1") return 60_000;
   return fallback;
@@ -112,7 +111,11 @@ export class ApxSocket {
       const timer = setTimeout(() => reject(new Error("welcome timeout")), this.timeoutMs);
       ws.addEventListener("open", () => ws.send(JSON.stringify(hello)));
       ws.addEventListener("error", () => reject(new Error(`socket error: ${this.url}`)));
-      ws.addEventListener("close", () => this.#failAll(new Error("socket closed")));
+      ws.addEventListener("close", () => {
+        clearTimeout(timer);
+        if (!this.welcome) reject(new Error("socket closed before welcome"));
+        this.#failAll(new Error("socket closed"));
+      });
       ws.addEventListener("message", (msg) => {
         const frame = ServerFrame.safeParse(JSON.parse(String(msg.data)));
         if (!frame.success) return;

@@ -109,6 +109,8 @@ export const Run = z.object({
   error: z.string().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
+  /** Tokens reported by the provider for the whole run, when it reports them. */
+  usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
 });
 export type Run = z.infer<typeof Run>;
 

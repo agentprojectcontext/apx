@@ -40,4 +40,5 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE surfaces ADD COLUMN share_token TEXT;
   CREATE UNIQUE INDEX surfaces_share ON surfaces(share_token) WHERE share_token IS NOT NULL;
   `,
+  `ALTER TABLE runs ADD COLUMN usage TEXT;`,
 ];

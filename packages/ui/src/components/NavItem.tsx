@@ -9,7 +9,11 @@ export interface NavItemProps {
   count?: number;
   /** Highlight the count as needing attention. */
   attention?: boolean;
+  /** Right-aligned slot after the count: a lock icon, a running dot. */
+  trailing?: ReactNode;
   active?: boolean;
+  /** Icon-only rail mode: hides label, count and trailing; the label becomes the tooltip/aria-label. */
+  collapsed?: boolean;
   /** Indent level for nested items (a project's sub-sections). */
   depth?: 0 | 1;
   href?: string;
@@ -23,26 +27,54 @@ export function NavItem({
   icon,
   count,
   attention = false,
+  trailing,
   active = false,
+  collapsed = false,
   depth = 0,
   href,
   onClick,
   className,
 }: NavItemProps) {
-  const cls = cx("apx-nav", depth === 1 && "apx-nav--nested", active && "is-active", className);
+  const cls = cx(
+    "apx-nav",
+    depth === 1 && "apx-nav--nested",
+    collapsed && "apx-nav--collapsed",
+    active && "is-active",
+    className,
+  );
+  const name = collapsed && typeof label === "string" ? label : undefined;
+  const badge = count != null && count > 0 && (
+    <span className={cx("apx-nav__count", attention && "is-attention")}>{count}</span>
+  );
   const inner = (
     <>
       {icon && <span className="apx-nav__icon">{icon}</span>}
-      <span className="apx-nav__label">{label}</span>
-      {count != null && count > 0 && <span className={cx("apx-nav__count", attention && "is-attention")}>{count}</span>}
+      {!collapsed && <span className="apx-nav__label">{label}</span>}
+      {!collapsed && badge}
+      {!collapsed && trailing && <span className="apx-nav__trailing">{trailing}</span>}
+      {collapsed && count != null && count > 0 && <span className="apx-nav__dot" aria-hidden="true" />}
     </>
   );
   return href ? (
-    <a className={cls} href={href} aria-current={active ? "page" : undefined} onClick={onClick}>
+    <a
+      className={cls}
+      href={href}
+      aria-current={active ? "page" : undefined}
+      aria-label={name}
+      title={name}
+      onClick={onClick}
+    >
       {inner}
     </a>
   ) : (
-    <button type="button" className={cls} aria-current={active ? "page" : undefined} onClick={onClick}>
+    <button
+      type="button"
+      className={cls}
+      aria-current={active ? "page" : undefined}
+      aria-label={name}
+      title={name}
+      onClick={onClick}
+    >
       {inner}
     </button>
   );

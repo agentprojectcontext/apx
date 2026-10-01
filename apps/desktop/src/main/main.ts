@@ -19,7 +19,13 @@ app.whenReady().then(() => {
 
   // The panel never shares a partition with web tabs; its preload only exposes the bounds bridge.
   const panel = new WebContentsView({
-    webPreferences: { partition: "persist:apx-ui", sandbox: true, preload: path.join(DIST, "panel-preload.cjs") },
+    webPreferences: {
+      partition: "persist:apx-ui",
+      sandbox: true,
+      preload: path.join(DIST, "panel-preload.cjs"),
+      // The panel must keep applying live events while the window is behind others.
+      backgroundThrottling: false,
+    },
   });
   win.contentView.addChildView(panel);
   let shown: WebContentsView | undefined;
@@ -63,6 +69,15 @@ app.whenReady().then(() => {
     layout();
   });
 
+  ipcMain.on("panel:browser-tab", (e, tab: unknown) => {
+    if (e.sender !== panel.webContents || typeof tab !== "string") return;
+    try {
+      host.select(tab);
+    } catch {
+      // unknown tab: the panel's list is stale; the next tabs event corrects it
+    }
+  });
+
   const loadPanel = async () => {
     for (const url of [WEB_URL, CORE_URL]) {
       try {
@@ -75,6 +90,19 @@ app.whenReady().then(() => {
     );
   };
   void loadPanel();
+
+  // Dev-only: `kill -USR2 <pid>` writes the panel, the visible tab and the slot so a script can compose them.
+  const captureDir = process.env.APX_CAPTURE_DIR;
+  if (captureDir) {
+    process.on("SIGUSR2", async () => {
+      const fs = await import("node:fs");
+      fs.mkdirSync(captureDir, { recursive: true });
+      fs.writeFileSync(path.join(captureDir, "panel.png"), (await panel.webContents.capturePage()).toPNG());
+      if (shown && slot)
+        fs.writeFileSync(path.join(captureDir, "tab.png"), (await shown.webContents.capturePage()).toPNG());
+      fs.writeFileSync(path.join(captureDir, "slot.json"), JSON.stringify({ slot, at: Date.now() }));
+    });
+  }
 
   startNodeLink(host, CORE_URL, () => {});
 });

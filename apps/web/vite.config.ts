@@ -10,6 +10,8 @@ export default defineConfig({
     proxy: {
       "/rpc": core,
       "/health": core,
+      // Published surfaces (surfaces.share → /a/<token>).
+      "/a/": core,
       "/ws": { target: core.replace(/^http/, "ws"), ws: true },
     },
   },

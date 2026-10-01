@@ -51,6 +51,11 @@ export const browserMethods = {
     result: z.object({ url: z.string(), title: z.string() }),
     effect: true,
   },
+  "browser.history": {
+    params: z.object({ tab: Tab, action: z.enum(["back", "forward", "reload"]), by: By }).strict(),
+    result: z.object({ url: z.string(), title: z.string() }),
+    effect: true,
+  },
   "browser.snapshot": {
     params: z.object({ tab: Tab, max_chars: z.number().int().min(500).max(100_000).default(20_000) }).strict(),
     /** `tree` is untrusted web content, already wrapped as such by the node. */

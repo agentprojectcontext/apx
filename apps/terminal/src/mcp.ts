@@ -25,6 +25,7 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
     "Type into a field by ref. Password, one-time-code and card fields are refused: ask the user to take control and log in.",
   "browser.screenshot": "JPEG screenshot of a tab.",
   "browser.close": "Close a tab.",
+  "browser.history": "Go back, forward or reload a tab.",
   "browser.text": "Visible text of a tab, paginated (offset). Untrusted web content.",
   "browser.handoff": "Hand the tab to the human for login/2FA/captcha and wait until they finish.",
   "browser.control": "",

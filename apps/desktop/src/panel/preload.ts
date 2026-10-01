@@ -5,4 +5,5 @@ type Bounds = { x: number; y: number; width: number; height: number };
 
 contextBridge.exposeInMainWorld("apxDesktop", {
   setBrowserBounds: (b: Bounds | null) => ipcRenderer.send("panel:browser-bounds", b),
+  showBrowserTab: (tab: string) => ipcRenderer.send("panel:browser-tab", tab),
 });

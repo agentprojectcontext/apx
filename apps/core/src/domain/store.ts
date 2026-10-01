@@ -58,6 +58,7 @@ function toRun(r: Row): Run {
     ...(r.error ? { error: String(r.error) } : {}),
     started_at: String(r.started_at),
     ...(r.ended_at ? { ended_at: String(r.ended_at) } : {}),
+    ...(r.usage ? { usage: JSON.parse(String(r.usage)) as NonNullable<Run["usage"]> } : {}),
   };
 }
 
@@ -296,6 +297,10 @@ export function createStore(db: Db, bus: Bus) {
       );
       bus.emit({ type: "run.updated", run: r });
       return r;
+    },
+    setRunUsage(r: Run, usage: NonNullable<Run["usage"]>): Run {
+      run("UPDATE runs SET usage = ? WHERE id = ?", JSON.stringify(usage), r.id);
+      return { ...r, usage };
     },
     setRunState(r: Run, state: RunState, error?: string): Run {
       const terminal = state === "completed" || state === "failed" || state === "canceled";

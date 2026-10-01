@@ -27,10 +27,12 @@ export type LlmConfig = {
   timeoutMs: number;
 };
 
+export type Usage = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+
 export type Completion = {
   message: Extract<ChatMessage, { role: "assistant" }>;
   model: string;
-  usage?: { total_tokens?: number };
+  usage?: Usage;
 };
 
 export function llmConfigFromEnv(env: NodeJS.ProcessEnv = process.env): LlmConfig {
@@ -91,6 +93,7 @@ async function readStream(
   res: Response,
   onText: (soFar: string) => void,
   onChunk: () => void,
+  onUsage: (u: Usage) => void,
 ): Promise<Completion["message"]> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("no response body");
@@ -114,8 +117,13 @@ async function readStream(
       if (data === "[DONE]") continue;
       let delta: Delta | undefined;
       try {
-        const chunk = JSON.parse(data) as { choices?: Array<{ delta?: Delta }>; error?: { message?: string } };
+        const chunk = JSON.parse(data) as {
+          choices?: Array<{ delta?: Delta }>;
+          error?: { message?: string };
+          usage?: Usage;
+        };
         if (chunk.error) throw new Error(`stream error: ${chunk.error.message ?? "unknown"}`);
+        if (chunk.usage) onUsage(chunk.usage);
         delta = chunk.choices?.[0]?.delta;
       } catch (err) {
         if (err instanceof Error && err.message.startsWith("stream error")) throw err;
@@ -172,7 +180,7 @@ export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm 
               model,
               messages,
               ...(tools.length ? { tools, tool_choice: "auto" } : {}),
-              ...(onText ? { stream: true } : {}),
+              ...(onText ? { stream: true, stream_options: { include_usage: true } } : {}),
             }),
             signal: AbortSignal.any([signal, deadline.signal]),
           }).catch((e: unknown) => {
@@ -181,7 +189,11 @@ export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm 
           });
           if (res.ok && onText) {
             try {
-              return { message: await readStream(res, onText, armIdle), model };
+              let usage: Usage | undefined;
+              const message = await readStream(res, onText, armIdle, (u) => {
+                usage = u;
+              });
+              return { message, model, ...(usage ? { usage } : {}) };
             } catch (err) {
               if (signal.aborted) throw new Error("canceled");
               lastErr = `${model}: stream failed: ${String(err)}`;
