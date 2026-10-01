@@ -5,11 +5,14 @@ import type { RunTrigger } from "@apx/protocol";
 import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Harnesses } from "../harness/index.ts";
+import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
 import type { Tool } from "../tools/types.ts";
-import { A2A_DEADLINE_MS, createDelegations } from "./delegation.ts";
+import { tripped } from "./breaker.ts";
+import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import { createInputs, Shutdown } from "./inputs.ts";
+import { A2A_DEADLINE_MS } from "./limits.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
@@ -68,6 +71,29 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     live,
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
+      const name = agent?.name ?? child.agent_id;
+      const paused = tripped(store, parent.thread_id);
+      if (paused) {
+        // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
+        store.modelLog.append(parent.thread_id, child.id, [
+          systemNote(
+            `A task you delegated to ${name} ended (${child.state}) while agents were paused:\n${answer.slice(0, 4000)}`,
+          ),
+        ]);
+        store.messages.add({
+          thread_id: parent.thread_id,
+          author: { kind: "system" },
+          parts: [
+            {
+              type: "notice",
+              level: "warn",
+              code: "breaker.paused",
+              text: `Paused: ${paused}. ${name} finished; write to continue.`,
+            },
+          ],
+        });
+        return;
+      }
       admit({
         thread_id: parent.thread_id,
         agent_id: parent.agent_id,

@@ -11,6 +11,7 @@ const toThread = (r: Row): Thread => ({
   agent_ids: JSON.parse(String(r.agent_ids)) as string[],
   ...opt("project_id", r.project_id),
   ...opt("parent_id", r.parent_id),
+  ...opt("session", r.session),
   state: r.state as Thread["state"],
   preview: String(r.preview),
   unread: Number(r.unread),
@@ -49,6 +50,15 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
     children(parentId: string): string[] {
       return all("SELECT id FROM threads WHERE parent_id = ?", parentId).map((r) => String(r.id));
     },
+    /** The a2a sessions a thread opened, newest first. */
+    sessions(parentId: string): Thread[] {
+      return all("SELECT * FROM threads WHERE parent_id = ? ORDER BY updated_at DESC LIMIT 50", parentId).map(toThread);
+    },
+    /** A session of `parentId` by name or by sub-thread id. */
+    session(parentId: string, ref: string): Thread | undefined {
+      const r = one("SELECT * FROM threads WHERE parent_id = ? AND (session = ? OR id = ?)", parentId, ref, ref);
+      return r ? toThread(r) : undefined;
+    },
     get(id: string): Thread | undefined {
       const r = one("SELECT * FROM threads WHERE id = ?", id);
       return r ? toThread(r) : undefined;
@@ -57,19 +67,21 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       t: Pick<Thread, "kind" | "title" | "agent_ids"> & {
         project_id?: string | undefined;
         parent_id?: string | undefined;
+        session?: string | undefined;
         id?: string;
       },
     ): Thread {
       const ts = now();
       const id = t.id ?? newId("th");
       run(
-        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
+        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, session, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
         id,
         t.kind,
         t.title,
         JSON.stringify(t.agent_ids),
         t.project_id ?? null,
         t.parent_id ?? null,
+        t.session ?? null,
         ts,
         ts,
       );

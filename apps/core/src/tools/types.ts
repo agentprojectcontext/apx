@@ -26,8 +26,12 @@ export type ToolContext = {
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */
   call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
-  /** Hands a task to another agent: the one a2a path. Returns the answer, or a note that it continues later. */
-  delegate(to: AgentRecord, task: string, waitMs: number): Promise<string>;
+  /** Hands a task to another agent (a new session, or one to continue): the one a2a path. */
+  delegate(
+    to: { agent?: AgentRecord | undefined; session?: string | undefined },
+    task: string,
+    waitMs: number,
+  ): Promise<string>;
   /** Asks the owner and waits (durably) for the answer; the same machine confirmations use. */
   askOwner(prompt: string, options?: string[]): Promise<InputRecord>;
 };

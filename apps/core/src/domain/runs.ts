@@ -119,6 +119,22 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     children(runId: string): RunRecord[] {
       return all("SELECT * FROM runs WHERE parent_run_id = ?", runId).map(toRun);
     },
+    /** Turns agents started on their own (delegations, results waking callers) in these threads since the owner's last. */
+    unattended(threadIds: string[]): { runs: number; tokens: number } {
+      if (!threadIds.length) return { runs: 0, tokens: 0 };
+      const ids = threadIds.map(() => "?").join(", ");
+      const last = one(
+        `SELECT MAX(created_at) AS at FROM runs WHERE thread_id IN (${ids}) AND trigger = 'user'`,
+        ...threadIds,
+      );
+      const r = one(
+        `SELECT COUNT(*) AS n, COALESCE(SUM(COALESCE(json_extract(usage, '$.input'), 0) + COALESCE(json_extract(usage, '$.output'), 0)), 0) AS t
+         FROM runs WHERE thread_id IN (${ids}) AND trigger IN ('a2a', 'a2a_result') AND created_at > ?`,
+        ...threadIds,
+        String(last?.at ?? ""),
+      );
+      return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0) };
+    },
     /** Delegations from this thread still queued or running. */
     activeDelegations(parentThreadId: string): number {
       const r = one(

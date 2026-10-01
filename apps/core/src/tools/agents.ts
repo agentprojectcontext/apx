@@ -1,10 +1,9 @@
 // Finding and asking other agents. `delegate` is the only way an agent talks to another one.
 import { z } from "zod";
+import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
-
-export const MAX_DEPTH = 2;
 
 export function agentTools(store: Store): Tool[] {
   return [
@@ -33,22 +32,40 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Ask another agent to do a task (use its id; a name works when it is unique). It works in a sub-thread the owner can open. If it answers within wait_s you get the answer now; otherwise you get the result later in a new turn: never poll for it.",
+        "Ask another agent to do a task. It works in a session (a sub-thread the owner can open). Give agent (id, or a unique name) to start one; give session (a name, or the one a previous delegate returned) to continue that session with the same agent, who keeps its context. If it answers within wait_s you get the answer now; otherwise you get the result later in a new turn: never poll for it.",
       args: z.object({
-        agent: z.string().describe("agent id (or unique name)"),
+        agent: z.string().optional().describe("agent id or unique name; needed to start a new session"),
+        session: z.string().max(60).optional().describe("session name: continues it, or names the new one"),
         task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
         wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
       }),
       effect: "message",
       // The wait itself is bounded by wait_s; this covers the bookkeeping around it.
       deadlineMs: 130_000,
-      title: (a) => `Asked ${String(a.agent)}`,
+      title: (a) => `Asked ${String(a.agent ?? a.session)}`,
       async run(a, ctx) {
-        if (ctx.run.depth >= MAX_DEPTH) return "refused: delegation depth limit reached; do it yourself.";
-        const found = store.agents.resolve(a.agent, ctx.thread.project_id);
-        if ("error" in found) return found.error;
-        if (found.agent.id === ctx.agent.id) return "refused: you cannot delegate to yourself.";
-        return ctx.delegate(found.agent, a.task, (a.wait_s ?? 60) * 1000);
+        let agent: AgentRecord | undefined;
+        if (a.agent) {
+          const found = store.agents.resolve(a.agent, ctx.thread.project_id);
+          if ("error" in found) return found.error;
+          agent = found.agent;
+        }
+        return ctx.delegate({ agent, session: a.session }, a.task, (a.wait_s ?? 60) * 1000);
+      },
+    }),
+    defineTool({
+      name: "list_sessions",
+      description: "Sessions this thread opened with other agents: name, agent, state and what it last said.",
+      args: z.object({}),
+      effect: "none",
+      deadlineMs: 5_000,
+      title: () => "Looked up sessions",
+      async run(_a, ctx) {
+        const rows = store.threads.sessions(ctx.thread.id).map((t) => {
+          const who = store.agents.get(t.agent_ids[0] ?? "")?.name ?? t.agent_ids[0];
+          return `- ${t.session ?? t.id} · ${who} · ${t.state}${t.preview ? ` · ${t.preview.slice(0, 120)}` : ""}`;
+        });
+        return rows.length ? untrusted("sessions", {}, rows.join("\n")) : "no sessions yet";
       },
     }),
   ];

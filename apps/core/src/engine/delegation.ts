@@ -6,12 +6,22 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { agentReply } from "../tools/agents.ts";
+import { tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
-
-export const A2A_DEADLINE_MS = 10 * 60_000;
-export const MAX_ACTIVE_DELEGATIONS = 3;
+import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
+
+/** Whom to ask: an agent (a new session), a session by name or id (the same agent, with its context), or both. */
+export type DelegateTo = { agent?: AgentRecord | undefined; session?: string | undefined };
+
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "session";
 
 export function createDelegations(deps: {
   store: Store;
@@ -53,6 +63,16 @@ export function createDelegations(deps: {
     store.messages.setPart({ ...msg, parts }, index);
   }
 
+  /** A free session name under `parentId`, from what the caller asked for (or the agent's name). */
+  function sessionName(parentId: string, wanted: string): string {
+    const base = slug(wanted);
+    for (let n = 1; n < 100; n++) {
+      const name = n === 1 ? base : `${base}-${n}`;
+      if (!store.threads.session(parentId, name)) return name;
+    }
+    return `${base}-${Date.now().toString(36)}`;
+  }
+
   /** Agents already involved from the top thread down to `threadId`, to refuse A→B→A cycles. */
   function chainAgents(threadId: string): string[] {
     const ids: string[] = [];
@@ -65,21 +85,38 @@ export function createDelegations(deps: {
   }
 
   return {
-    async delegate(from: Caller, to: AgentRecord, task: string, waitMs: number): Promise<string> {
+    async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
       if (!parentThread) return "refused: the thread is gone";
+      if (from.run.depth >= MAX_DEPTH) return "refused: delegation depth limit reached; do it yourself.";
+      const existing = req.session ? store.threads.session(parentThread.id, req.session) : undefined;
+      const toId = existing?.agent_ids[0] ?? req.agent?.id;
+      if (existing && req.agent && req.agent.id !== toId)
+        return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
+      const to = toId ? store.agents.get(toId) : undefined;
+      if (!to)
+        return req.session
+          ? `refused: no session "${req.session}" in this thread; give an agent to start one (see list_sessions).`
+          : "refused: say which agent to ask.";
+      if (to.id === from.agent.id) return "refused: you cannot delegate to yourself.";
       if (chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
+      const paused = tripped(store, parentThread.id);
+      if (paused) return `refused: ${paused}. Tell the owner what you were about to delegate.`;
       if (store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS)
         return `refused: ${MAX_ACTIVE_DELEGATIONS} delegations are already running from this thread; wait for their results.`;
       deps.live.set(from.run.id, from.display);
-      const sub = store.threads.create({
-        kind: "a2a",
-        title: `${from.agent.name} → ${to.name}: ${task.slice(0, 60)}`,
-        agent_ids: [to.id, from.agent.id],
-        project_id: parentThread.project_id,
-        parent_id: parentThread.id,
-      });
+      const name = existing?.session ?? sessionName(parentThread.id, req.session ?? to.name);
+      const sub =
+        existing ??
+        store.threads.create({
+          kind: "a2a",
+          title: `${from.agent.name} → ${to.name}: ${task.slice(0, 60)}`,
+          agent_ids: [to.id, from.agent.id],
+          project_id: parentThread.project_id,
+          parent_id: parentThread.id,
+          session: name,
+        });
       store.messages.add({
         thread_id: sub.id,
         author: { kind: "agent", id: from.agent.id },
@@ -119,8 +156,9 @@ export function createDelegations(deps: {
       const quick = await done;
       clearTimeout(timer);
       inline.delete(child.id);
-      if (quick) return agentReply(to.name, answerOf(quick), quick.state);
-      return `${to.name} keeps working in a sub-thread. You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
+      const resume = `(session "${name}": delegate with session="${name}" to continue it with ${to.name}, who keeps the context)`;
+      if (quick) return `${agentReply(to.name, answerOf(quick), quick.state)}\n${resume}`;
+      return `${to.name} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 
     /** A delegated run ended: settle its card, then hand the answer to the waiting caller or deliver it later. */

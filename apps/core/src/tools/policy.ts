@@ -43,3 +43,25 @@ export function authorize(tool: Tool, agent: AgentRecord, untrusted: boolean): D
     return { kind: "confirm", reason: "content from outside (web, another agent or a message) is in this turn" };
   return { kind: "allow" };
 }
+
+const STRICTNESS = { ask: 0, standard: 1, total: 2 } as const;
+
+/**
+ * A delegated run works with no more than whoever asked for it: only the tools every agent up the chain may use,
+ * and the strictest autonomy among them.
+ */
+export function inherit(
+  agent: AgentRecord,
+  callers: AgentRecord[],
+  tools: Tool[],
+): { agent: AgentRecord; tools: Tool[] } {
+  let allowed = allowedTools(agent, tools);
+  let autonomy = agent.autonomy ?? "standard";
+  for (const c of callers) {
+    const theirs = new Set(allowedTools(c, tools).map((t) => t.name));
+    allowed = allowed.filter((t) => theirs.has(t.name));
+    const a = c.autonomy ?? "standard";
+    if (STRICTNESS[a] < STRICTNESS[autonomy]) autonomy = a;
+  }
+  return { agent: { ...agent, autonomy }, tools: allowed };
+}

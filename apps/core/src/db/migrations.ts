@@ -143,4 +143,9 @@ export const MIGRATIONS: readonly string[] = [
   -- A tool's full output; the model gets head and tail, and read_output pages through the rest.
   ALTER TABLE steps ADD COLUMN output TEXT;
   `,
+  `
+  -- a2a sessions: a delegation's sub-thread has a name its caller uses to continue it later (unique per parent).
+  ALTER TABLE threads ADD COLUMN session TEXT;
+  CREATE UNIQUE INDEX threads_session ON threads(parent_id, session) WHERE session IS NOT NULL;
+  `,
 ];
