@@ -1,77 +1,77 @@
-// Window = APX panel (left) + browser chrome and the active tab (right). The tab views are siblings, never
-// children of the panel, so a panel reload does not kill tabs.
+// The window is the APX panel (web). The panel reserves a slot for the browser and reports its bounds;
+// the active tab's native view is positioned over that slot. Tab views are siblings of the panel, so a
+// panel reload never kills tabs.
 import path from "node:path";
-import { app, BaseWindow, ipcMain, WebContentsView } from "electron";
+import { app, BaseWindow, ipcMain, Notification, WebContentsView } from "electron";
 import { BrowserHost } from "./browser/host.ts";
 import { startNodeLink } from "./node-link.ts";
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
-const CHROME_H = 84;
 const DIST = import.meta.dirname;
+
+type Bounds = { x: number; y: number; width: number; height: number };
 
 app.whenReady().then(() => {
   const win = new BaseWindow({ width: 1480, height: 920, minWidth: 980, minHeight: 600, title: "APX" });
   const host = new BrowserHost();
-  let core: "connected" | "offline" = "offline";
 
-  // The panel and the browser chrome never share a partition with web tabs.
-  const panel = new WebContentsView({ webPreferences: { partition: "persist:apx-ui", sandbox: true } });
-  const chrome = new WebContentsView({
-    webPreferences: { partition: "apx-chrome", sandbox: true, preload: path.join(DIST, "chrome-preload.cjs") },
+  // The panel never shares a partition with web tabs; its preload only exposes the bounds bridge.
+  const panel = new WebContentsView({
+    webPreferences: { partition: "persist:apx-ui", sandbox: true, preload: path.join(DIST, "panel-preload.cjs") },
   });
   win.contentView.addChildView(panel);
-  win.contentView.addChildView(chrome);
   let shown: WebContentsView | undefined;
+  let slot: Bounds | null = null;
 
   const layout = () => {
     const { width, height } = win.getContentBounds();
-    const left = Math.max(380, Math.round(width * 0.4));
-    panel.setBounds({ x: 0, y: 0, width: left, height });
-    chrome.setBounds({ x: left, y: 0, width: width - left, height: CHROME_H });
-    shown?.setBounds({ x: left, y: CHROME_H, width: width - left, height: height - CHROME_H });
+    panel.setBounds({ x: 0, y: 0, width, height });
+    if (!shown) return;
+    if (slot && slot.width > 0 && slot.height > 0) {
+      shown.setVisible(true);
+      shown.setBounds(slot);
+    } else {
+      shown.setVisible(false);
+    }
   };
   host.onShow = (view) => {
     if (shown && shown !== view) win.contentView.removeChildView(shown);
     shown = view;
-    if (view) win.contentView.addChildView(view);
+    if (view) win.contentView.addChildView(view); // added last → drawn above the panel
     layout();
+  };
+  host.onAttention = (message) => {
+    win.show();
+    win.focus();
+    if (Notification.isSupported()) new Notification({ title: "APX", body: message }).show();
   };
   win.on("resize", layout);
   layout();
 
-  void panel.webContents
-    .loadURL(WEB_URL)
-    .catch(() =>
-      panel.webContents.loadURL(
-        `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">APX panel not running at ${WEB_URL}.<br>Start it with <code>pnpm --filter @apx/web dev</code>.</body>`,
-      ),
-    );
-  void chrome.webContents.loadFile(path.join(DIST, "chrome.html"));
-
-  const pushState = () => {
-    if (chrome.webContents.isDestroyed()) return;
-    chrome.webContents.send("state", { tabs: host.list(), active: host.active, core });
-  };
-  host.on("changed", pushState);
-  chrome.webContents.on("did-finish-load", pushState);
-
-  // The chrome UI is the human's hand: these are user actions, never agent ones.
-  ipcMain.handle("chrome:new", (_e, url: string) =>
-    host
-      .open(url || "https://example.com", "shared", { kind: "user", since: new Date().toISOString() })
-      .then(() => undefined),
-  );
-  ipcMain.handle("chrome:select", (_e, id: string) => host.select(id));
-  ipcMain.handle("chrome:close", (_e, id: string) => host.close(id));
-  ipcMain.handle("chrome:navigate", (_e, id: string, url: string) => host.userNavigate(id, url));
-  ipcMain.handle("chrome:take", (_e, id: string) => host.takeControl(id));
-  ipcMain.handle("chrome:give", (_e, id: string) => host.giveBack(id));
-
-  startNodeLink(host, CORE_URL, (s) => {
-    core = s;
-    pushState();
+  ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
+    if (e.sender !== panel.webContents) return;
+    slot =
+      b && Number.isFinite(b.x)
+        ? { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) }
+        : null;
+    layout();
   });
+
+  const loadPanel = async () => {
+    for (const url of [WEB_URL, CORE_URL]) {
+      try {
+        await panel.webContents.loadURL(url);
+        return;
+      } catch {}
+    }
+    await panel.webContents.loadURL(
+      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">APX core not reachable at ${CORE_URL}. Start it with <code>pnpm dev</code>.</body>`,
+    );
+  };
+  void loadPanel();
+
+  startNodeLink(host, CORE_URL, () => {});
 });
 
 app.on("window-all-closed", () => app.quit());

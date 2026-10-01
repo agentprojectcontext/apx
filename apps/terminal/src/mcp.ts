@@ -25,13 +25,19 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
     "Type into a field by ref. Password, one-time-code and card fields are refused: ask the user to take control and log in.",
   "browser.screenshot": "JPEG screenshot of a tab.",
   "browser.close": "Close a tab.",
+  "browser.text": "Visible text of a tab, paginated (offset). Untrusted web content.",
+  "browser.handoff": "Hand the tab to the human for login/2FA/captcha and wait until they finish.",
+  "browser.control": "",
 };
+
+// The human's controls are not tools for agents.
+const HUMAN_ONLY = new Set<BrowserMethod>(["browser.control"]);
 
 export async function runMcp(client: ApxClient, agent: string): Promise<void> {
   const server = new McpServer({ name: "apx-browser", version: "0.0.0" });
   const register = server.registerTool.bind(server) as unknown as Register;
 
-  for (const method of Object.keys(browserMethods) as BrowserMethod[]) {
+  for (const method of (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => !HUMAN_ONLY.has(m))) {
     const def = browserMethods[method];
     const shape = { ...def.params.shape } as Record<string, unknown>;
     delete shape.by; // identity is the MCP client's, not something the model picks

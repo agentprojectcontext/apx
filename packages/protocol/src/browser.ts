@@ -14,6 +14,7 @@ export type BrowserProfile = z.infer<typeof BrowserProfile>;
 
 export const TabControl = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("agent"), by: z.string(), since: z.string() }),
+  z.object({ kind: z.literal("handoff"), by: z.string(), reason: z.string(), since: z.string() }),
   z.object({ kind: z.literal("user"), since: z.string() }),
   z.object({ kind: z.literal("idle") }),
 ]);
@@ -77,6 +78,37 @@ export const browserMethods = {
   "browser.screenshot": {
     params: z.object({ tab: Tab }).strict(),
     result: z.object({ mime: z.literal("image/jpeg"), data: z.string(), bytes: z.number().int() }),
+    effect: false,
+  },
+  /** The human's hand from any operator: take the tab, give it back, or finish a handoff. */
+  "browser.control": {
+    params: z.object({ tab: Tab, mode: z.enum(["user", "idle", "done"]) }).strict(),
+    result: TabInfo,
+    effect: true,
+  },
+  /** The agent hands the tab to the human (login, 2FA, captcha) and waits until they finish or the deadline passes. */
+  "browser.handoff": {
+    params: z
+      .object({
+        tab: Tab,
+        reason: z.string().max(300),
+        by: By,
+        timeout_s: z.number().int().min(10).max(900).default(300),
+      })
+      .strict(),
+    result: z.object({ resolved: z.boolean(), url: z.string(), title: z.string() }),
+    effect: true,
+  },
+  /** Visible text of the page, paginated. Untrusted web content. */
+  "browser.text": {
+    params: z
+      .object({
+        tab: Tab,
+        offset: z.number().int().min(0).default(0),
+        max_chars: z.number().int().min(200).max(50_000).default(8_000),
+      })
+      .strict(),
+    result: z.object({ url: z.string(), text: z.string(), total: z.number().int(), truncated: z.boolean() }),
     effect: false,
   },
   "browser.close": {

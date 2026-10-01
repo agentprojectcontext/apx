@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import { ClientFrame, type HelloFrame, PROTOCOL_VERSION } from "@apx/protocol";
-import { WebSocketServer } from "ws";
+import { type WebSocket, WebSocketServer } from "ws";
+import type { Bus } from "../bus.ts";
 import type { Identity } from "../identity.ts";
 import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
@@ -9,16 +10,24 @@ import type { Dispatch } from "../rpc/router.ts";
 
 export function attachWs(
   server: Server,
-  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker },
+  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker; bus: Bus },
 ) {
-  const { dispatch, identity, log, broker } = deps;
+  const { dispatch, identity, log, broker, bus } = deps;
   const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 8 * 1024 * 1024 });
+  const operators = new Set<WebSocket>();
+  let seq = 0;
+  // One stream for core events; a client that sees a seq gap refetches instead of expecting a replay.
+  bus.on((event) => {
+    const frame = JSON.stringify({ t: "event", stream: "core", seq: ++seq, type: event.type, payload: event });
+    for (const ws of operators) if (ws.readyState === ws.OPEN) ws.send(frame);
+  });
 
   wss.on("connection", (ws) => {
     let hello: HelloFrame | undefined;
     const session = randomUUID();
 
     ws.on("close", () => {
+      operators.delete(ws);
       if (hello?.role === "node") {
         broker.detach(session);
         log.info({ session, node: hello.client.name }, "node disconnected");
@@ -39,6 +48,7 @@ export function attachWs(
           return;
         }
         hello = frame;
+        if (frame.role === "operator") operators.add(ws);
         if (frame.role === "node") {
           broker.attach({
             session,

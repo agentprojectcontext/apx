@@ -41,6 +41,9 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #active: string | undefined;
   #seq = 0;
   #configured = new WeakSet<Session>();
+  #handoffs = new Map<string, (ok: boolean) => void>();
+  /** Called when a tab needs the human (handoff): the window should come forward and notify. */
+  onAttention: (message: string) => void = () => {};
   /** Called whenever the visible tab changes, so the window can lay it out. */
   onShow: (view: WebContentsView | undefined) => void = () => {};
 
@@ -100,6 +103,46 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.screenshot"].params.parse(raw);
         const jpeg = await this.#get(p.tab).cdp.screenshot();
         return { mime: "image/jpeg", data: jpeg.toString("base64"), bytes: jpeg.length };
+      }
+      case "browser.text": {
+        const p = browserMethods["browser.text"].params.parse(raw);
+        const wc = this.#get(p.tab).view.webContents;
+        // Isolated world: the page's scripts cannot see or patch this read.
+        const [full] = (await wc.executeJavaScriptInIsolatedWorld(999, [
+          { code: "document.body ? document.body.innerText : ''" },
+        ])) as [string];
+        const text = String(full ?? "").replace(/\n{3,}/g, "\n\n");
+        const slice = text.slice(p.offset, p.offset + p.max_chars);
+        return { url: wc.getURL(), text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };
+      }
+      case "browser.control": {
+        const p = browserMethods["browser.control"].params.parse(raw);
+        if (p.mode === "user") this.takeControl(p.tab);
+        else this.giveBack(p.tab, p.mode === "done");
+        // Let a resumed handoff settle its new control state before reporting it.
+        await new Promise((r) => setImmediate(r));
+        return this.info(this.#get(p.tab));
+      }
+      case "browser.handoff": {
+        const p = browserMethods["browser.handoff"].params.parse(raw);
+        const tab = this.#get(p.tab);
+        tab.control = { kind: "handoff", by: p.by, reason: p.reason, since: new Date().toISOString() };
+        this.select(tab.id);
+        this.onAttention(`${p.by} necesita que ${p.reason}`);
+        this.emit("changed");
+        const resolved = await new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => {
+            this.#handoffs.delete(tab.id);
+            resolve(false);
+          }, p.timeout_s * 1000);
+          this.#handoffs.set(tab.id, (ok) => {
+            clearTimeout(timer);
+            resolve(ok);
+          });
+        });
+        if (resolved) tab.control = { kind: "agent", by: p.by, since: new Date().toISOString() };
+        this.emit("changed");
+        return { resolved, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
       }
       case "browser.close": {
         const p = browserMethods["browser.close"].params.parse(raw);
@@ -183,8 +226,16 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     this.emit("changed");
   }
 
-  giveBack(id: string): void {
-    this.#get(id).control = { kind: "idle" };
+  /** `done` also finishes a pending handoff, so the waiting agent resumes. */
+  giveBack(id: string, _done = false): void {
+    const tab = this.#get(id);
+    const waiter = this.#handoffs.get(id);
+    if (waiter) {
+      this.#handoffs.delete(id);
+      waiter(true);
+      return;
+    }
+    tab.control = { kind: "idle" };
     this.emit("changed");
   }
 
@@ -201,8 +252,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   #drive(id: string, by: string): Tab {
     const tab = this.#get(id);
-    if (tab.control.kind === "user") {
-      throw new ApxError({ code: "paused_by_user", message: "the user took control of this tab; wait or ask them" });
+    if (tab.control.kind === "user" || tab.control.kind === "handoff") {
+      throw new ApxError({ code: "paused_by_user", message: "the human has this tab right now; wait or ask them" });
     }
     if (tab.control.kind !== "agent" || tab.control.by !== by) {
       tab.control = { kind: "agent", by, since: new Date().toISOString() };

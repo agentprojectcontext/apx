@@ -1,10 +1,38 @@
+import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import path from "node:path";
 import type { Log } from "../log.ts";
 import type { Dispatch } from "../rpc/router.ts";
 
 const MAX_BODY = 1024 * 1024;
 
-export function httpHandler(dispatch: Dispatch, log: Log, token: string | undefined) {
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript",
+  ".css": "text/css",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".json": "application/json",
+  ".woff2": "font/woff2",
+};
+
+/** Serves the built web panel (SPA fallback to index.html). Paths cannot escape the dist folder. */
+function serveStatic(dist: string, pathname: string, res: ServerResponse): boolean {
+  const root = path.resolve(dist);
+  let file = path.resolve(root, `.${decodeURIComponent(pathname)}`);
+  if (!file.startsWith(root)) return false;
+  if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "index.html");
+  if (!fs.existsSync(file)) return false;
+  res.writeHead(200, {
+    "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
+    "cache-control": file.endsWith("index.html") ? "no-cache" : "public, max-age=31536000, immutable",
+  });
+  fs.createReadStream(file).pipe(res);
+  return true;
+}
+
+export function httpHandler(dispatch: Dispatch, log: Log, token: string | undefined, webDist?: string) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://core");
     if (req.method === "GET" && url.pathname === "/health") {
@@ -33,6 +61,7 @@ export function httpHandler(dispatch: Dispatch, log: Log, token: string | undefi
       );
       return send(res, out.ok ? 200 : statusFor(out.error.code), out);
     }
+    if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;
     send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });
   };
 }

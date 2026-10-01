@@ -17,7 +17,13 @@ export type Handlers = { [M in MethodName]: Handler<M> };
 
 export type DispatchResult = { ok: true; result: unknown } | { ok: false; error: ApxErrorShape };
 
-export function createRouter(handlers: Handlers) {
+/** Remembers the answer to a side-effect call so a retried request with the same key gets it, not a second effect. */
+export type IdemStore = {
+  get(key: string, method: string): unknown | undefined;
+  put(key: string, method: string, response: unknown): void;
+};
+
+export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
   return async function dispatch(
     method: string,
     rawParams: unknown,
@@ -31,6 +37,10 @@ export function createRouter(handlers: Handlers) {
     if (def.effect && !idem) {
       return { ok: false, error: { code: ErrorCode.BadRequest, message: `${method} requires an idempotency key` } };
     }
+    if (def.effect && idem && idemStore) {
+      const seen = idemStore.get(idem, method);
+      if (seen !== undefined) return { ok: true, result: seen };
+    }
     const parsed = def.params.safeParse(rawParams ?? {});
     if (!parsed.success) {
       return {
@@ -41,7 +51,9 @@ export function createRouter(handlers: Handlers) {
     try {
       const handler = handlers[method] as Handler<typeof method>;
       const result = await handler(parsed.data as never, ctx);
-      return { ok: true, result: def.result.parse(result) };
+      const out = def.result.parse(result);
+      if (def.effect && idem && idemStore) idemStore.put(idem, method, out);
+      return { ok: true, result: out };
     } catch (err) {
       if (err instanceof CallError) return { ok: false, error: err.shape };
       ctx.log.error({ method, err: String(err) }, "handler failed");

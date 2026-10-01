@@ -1,4 +1,4 @@
-// Bundles main (ESM) and the chrome preload (CJS: sandboxed preloads cannot be ESM) into dist/.
+// Bundles main (ESM) and the panel preload (CJS: sandboxed preloads cannot be ESM) into dist/.
 import fs from "node:fs";
 import path from "node:path";
 import { type BuildOptions, build } from "esbuild";
@@ -23,9 +23,8 @@ await build({
 });
 await build({
   ...common,
-  entryPoints: [path.join(root, "src/chrome/preload.ts")],
-  outfile: path.join(out, "chrome-preload.cjs"),
+  entryPoints: [path.join(root, "src/panel/preload.ts")],
+  outfile: path.join(out, "panel-preload.cjs"),
   format: "cjs",
 });
-fs.copyFileSync(path.join(root, "src/chrome/chrome.html"), path.join(out, "chrome.html"));
 console.log("built apps/desktop/dist");
