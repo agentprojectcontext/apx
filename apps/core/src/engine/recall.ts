@@ -12,7 +12,6 @@ const MATCHES = 5;
 /** Ids remembered as shown, per agent: older ones may be shown again (they left the context long ago). */
 const SHOWN_CAP = 200;
 
-
 /**
  * `from`: the oldest model log seq still in the model's view. Returns the block and, when something changed, the
  * bookkeeping to store once the input's seq is known.

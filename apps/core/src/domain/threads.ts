@@ -61,6 +61,10 @@ export type ThreadContext = {
   memory_since?: Record<string, number>;
 };
 
+/** What a thread list shows of the last thing said. */
+export const PREVIEW_CHARS = 160;
+export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
+
 export type LogEntry = { seq: number; run_id: string | undefined; item: unknown };
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus) {

@@ -25,7 +25,6 @@ const AUX_TIMEOUT_MS = 90_000;
 
 export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
 
-
 const SUMMARY_PROMPT = [
   "You compress a conversation between an owner and their AI agent so the agent can go on without the full transcript.",
   "Write in the language the conversation uses. Use exactly these Markdown headings, in this order, each once:",

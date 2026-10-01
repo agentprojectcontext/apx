@@ -2,18 +2,17 @@
 // the answer of a turn whose last words came from a channel, confirmations with buttons, and notices to the owner.
 // What comes in is handled by inbound.ts; sending goes through the durable outbox (delivery.ts).
 // See DECISIONS.md#d-014
-import type { ChannelInfo, CoreEvent, MethodName, Params, Part, Result } from "@apx/protocol";
-import { methods } from "@apx/protocol";
+import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import { noticePrefs } from "../domain/notices.ts";
 import type { RunRecord } from "../domain/runs.ts";
+import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
-import { CallError, errorMessage } from "../errors.ts";
+import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
-import type { CallContext } from "../rpc/context.ts";
-import type { Dispatch } from "../rpc/router.ts";
+import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
@@ -41,8 +40,8 @@ export function createChannels(deps: {
   bus: Bus;
   log: Log;
   factories: Record<string, AdapterFactory>;
-  /** The router, late-bound: channel messages enter like any client's. */
-  dispatch: () => Dispatch | undefined;
+  /** The router, as a client: channel messages enter through the same door as everyone's. */
+  call: InternalCall;
 }) {
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
@@ -59,19 +58,6 @@ export function createChannels(deps: {
     } catch {
       return [];
     }
-  }
-
-  async function call<M extends MethodName>(method: M, params: Params<M>, ctx: Partial<CallContext>, key?: string) {
-    const dispatch = deps.dispatch();
-    if (!dispatch) throw new Error("the router is not ready");
-    const r = await dispatch(
-      method,
-      params,
-      { transport: "internal", role: "operator", actor: "human", session: undefined, log, ...ctx },
-      methods[method].effect ? (key ?? `channel:${method}:${crypto.randomUUID()}`) : undefined,
-    );
-    if (!r.ok) throw new CallError(r.error);
-    return r.result as Result<M>;
   }
 
   const delivery = createDelivery({
@@ -112,15 +98,15 @@ export function createChannels(deps: {
 
   /** In the app: a notice in the Home chat. */
   function noticeInApp(code: string, textEn: string): void {
-    if (!store.threads.get("home")) return;
+    if (!store.threads.get(HOME_THREAD_ID)) return;
     store.messages.add({
-      thread_id: "home",
+      thread_id: HOME_THREAD_ID,
       author: { kind: "system" },
       parts: [{ type: "notice", level: "info", code, text: textEn }],
     });
   }
 
-  const inbound = createInbound({ store, log, call, delivery, configs, notifyOwner, noticeInApp });
+  const inbound = createInbound({ store, log, call: deps.call, delivery, configs, notifyOwner, noticeInApp });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
@@ -136,8 +122,7 @@ export function createChannels(deps: {
   }
 
   // ── replies, confirmations, typing ────────────────────────────────────
-  const replyTo = (threadId: string) =>
-    store.threads.context(threadId).reply_to;
+  const replyTo = (threadId: string) => store.threads.context(threadId).reply_to;
 
   /**
    * A run ended: while the thread's last words from the owner (or contact) came from a channel, the answer goes back

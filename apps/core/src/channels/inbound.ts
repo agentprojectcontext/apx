@@ -1,12 +1,13 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
-import type { MethodName, Params, Result, Thread } from "@apx/protocol";
+import type { Thread } from "@apx/protocol";
 import type { Inbound, InboundAction, Presentation } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
+import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
-import type { CallContext } from "../rpc/context.ts";
+import type { InternalCall } from "../rpc/internal.ts";
 import type { Delivery } from "./delivery.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -15,17 +16,10 @@ import type { ChannelConfig } from "./types.ts";
 const CONTACT_PER_HOUR = 20;
 const HOUR_MS = 3600_000;
 
-export type Call = <M extends MethodName>(
-  method: M,
-  params: Params<M>,
-  ctx: Partial<CallContext>,
-  key?: string,
-) => Promise<Result<M>>;
-
 export function createInbound(deps: {
   store: Store;
   log: Log;
-  call: Call;
+  call: InternalCall;
   delivery: Delivery;
   configs(): ChannelConfig[];
   notifyOwner(body: Presentation, kind?: "notice" | "input" | "pairing", threadId?: string): void;
@@ -137,7 +131,7 @@ export function createInbound(deps: {
   }
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
-    const home = store.threads.get("home");
+    const home = store.threads.get(HOME_THREAD_ID);
     if (cfg.owner_thread === "home" && home) return home;
     return (
       store.threads.byConversation(cfg.id, conversation) ??

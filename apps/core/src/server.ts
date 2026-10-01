@@ -6,7 +6,7 @@ import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { BROWSER_CAP, type HarnessId, methods, type Result } from "@apx/protocol";
+import { BROWSER_CAP, type HarnessId } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { createChannels } from "./channels/manager.ts";
@@ -19,7 +19,6 @@ import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
-import { CallError } from "./errors.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
@@ -33,6 +32,7 @@ import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
+import { internalCaller } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
@@ -132,25 +132,14 @@ export async function createCore(
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
   let routed: Dispatch | undefined;
-  const call: ToolCall = async (method, params, as) => {
-    if (!routed) throw new Error("the router is not ready");
-    const r = await routed(
+  const internal = internalCaller(() => routed, log);
+  const call: ToolCall = (method, params, as) =>
+    internal(
       method,
       params,
-      {
-        transport: "internal",
-        role: "operator",
-        actor: "agent",
-        session: undefined,
-        log,
-        agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id },
-      },
-      // In-process calls are never retried by a transport; the key only satisfies the effect contract.
-      methods[method].effect ? `tool:${as.run.id}:${as.callId}:${randomUUID()}` : undefined,
+      { actor: "agent", agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id } },
+      `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
-    if (!r.ok) throw new CallError(r.error);
-    return r.result as Result<typeof method>;
-  };
   const mcp = createMcp({ store, secrets, log });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
@@ -160,7 +149,7 @@ export async function createCore(
     bus,
     log,
     factories: opts.channelAdapters ?? { telegram: telegramAdapter },
-    dispatch: () => routed,
+    call: internal,
   });
   const engine = createEngine({
     store,

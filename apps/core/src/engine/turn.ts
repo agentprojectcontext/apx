@@ -5,6 +5,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
 import { Canceled, errorMessage } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
@@ -154,11 +155,7 @@ function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   // A contact's turn knows nothing of the owner's: no notes, no roster, no skills.
   const sealed = turn.audience.kind === "contact";
   const ctxState = store.threads.context(thread.id);
-  const { items: history, from } = project(
-    store.modelLog.list(thread.id),
-    HISTORY_BUDGET_CHARS,
-    ctxState.compaction,
-  );
+  const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
   const recalled = sealed ? {} : recallFor(store, agent.id, thread, turn.input.text, ctxState, from);
@@ -309,7 +306,7 @@ async function finishRun(
   run = store.runs.setState(run, "completed");
   store.threads.patch(thread.id, {
     state: "idle",
-    preview: (text || (t.exec.toolsRan ? "Finished without a message." : "No answer.")).slice(0, 160),
+    preview: previewOf(text || (t.exec.toolsRan ? "Finished without a message." : "No answer.")),
     unread: (store.threads.get(thread.id)?.unread ?? 0) + 1,
   });
   return run;
@@ -330,6 +327,6 @@ function failRun(
   t.display.notice(canceled ? "info" : "error", canceled ? "run.canceled" : "run.failed", message);
   closeTurnLog(store, t.run, canceled ? "The owner canceled this turn." : `This turn failed: ${reason}`);
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
-  store.threads.patch(t.turn.thread.id, { state: canceled ? "canceled" : "failed", preview: message.slice(0, 160) });
+  store.threads.patch(t.turn.thread.id, { state: canceled ? "canceled" : "failed", preview: previewOf(message) });
   return run;
 }
