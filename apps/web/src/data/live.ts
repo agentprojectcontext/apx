@@ -6,6 +6,7 @@ import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { jobsChanged } from "./jobs.ts";
 import { data, upsertMessage } from "./state.ts";
+import { taskChanged } from "./tasks.ts";
 
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
 
@@ -135,6 +136,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "job.updated":
       jobsChanged();
+      return;
+    case "task.updated":
+      taskChanged(ev.task);
       return;
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));

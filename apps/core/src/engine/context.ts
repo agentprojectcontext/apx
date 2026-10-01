@@ -95,12 +95,15 @@ export function turnInput(opts: {
   now: Date;
   roster?: string | undefined;
   memory?: string | undefined;
+  /** In a task's conversation: the task as it is now. */
+  task?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
   const head = [
     `[context: ${when} · channel: app]`,
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
+    opts.task ? `[task]\n${opts.task}` : "",
   ].filter(Boolean);
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }

@@ -27,6 +27,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import { taskBlock } from "./office.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
@@ -177,6 +178,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
       now: new Date(),
       roster: rosterChanged ? roster.text : undefined,
       memory: recalled.text,
+      task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
     }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);

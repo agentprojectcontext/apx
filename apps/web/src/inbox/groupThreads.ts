@@ -1,13 +1,12 @@
 import type { Project, Thread } from "@apx/protocol";
-import { DEFAULT_PROJECT, inProject, isWorking } from "../data/identity.ts";
+import { DEFAULT_PROJECT, inProject, isListed, isWorking } from "../data/identity.ts";
 
 /** Top-level chats the Inbox shows (sub-threads between agents live inside their caller's chat). */
 function visible(threads: Record<string, Thread>, opts: { projectId?: string; query?: string }): Thread[] {
   const q = opts.query?.trim().toLowerCase();
   return Object.values(threads).filter(
     (t) =>
-      !t.parent_id &&
-      t.kind !== "a2a" &&
+      isListed(t) &&
       (!opts.projectId || inProject(t, opts.projectId)) &&
       (!q || `${t.title} ${t.preview}`.toLowerCase().includes(q)),
   );
@@ -35,7 +34,7 @@ export function groupByProject(
   const byId = new Map(projects.map((p) => [p.id, p]));
   const groups = new Map<string, ThreadGroup>();
   for (const t of Object.values(threads)) {
-    if (t.parent_id || t.kind === "a2a") continue;
+    if (!isListed(t)) continue;
     if (opts.projectId && !inProject(t, opts.projectId)) continue;
     if (q && !`${t.title} ${t.preview}`.toLowerCase().includes(q)) continue;
     const key = t.project_id ?? NO_PROJECT;

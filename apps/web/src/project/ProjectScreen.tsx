@@ -1,12 +1,13 @@
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
 import { useEffect } from "react";
-import { findProject, inProject, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
+import { findProject, inProject, isListed, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
+import { TasksBoard } from "../tasks/TasksBoard.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectResources } from "./ProjectResources.tsx";
@@ -103,11 +104,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "team":
       return <ProjectTeam project={project} />;
     case "tasks":
-      return (
-        <SoonPane icon={<Icons.ListChecks />} title={t("project.tasks.title")}>
-          {t("project.tasks.body")}
-        </SoonPane>
-      );
+      return <TasksBoard projectId={project.id} />;
     case "routines":
       return (
         <SoonPane icon={<Icons.Clock />} title={t("project.tab.routines")}>
@@ -144,7 +141,7 @@ function useKeepThreadInProject(pid: string | undefined, tab: ProjectTab) {
     const current = threadId ? threads[threadId] : undefined;
     if (current && (inProject(current, pid) || current.parent_id)) return;
     const latest = Object.values(threads)
-      .filter((t) => !t.parent_id && t.kind !== "a2a" && inProject(t, pid))
+      .filter((t) => isListed(t) && inProject(t, pid))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
     if (latest?.id !== threadId) nav.set({ threadId: latest?.id });
   }, [pid, tab, threadId, threads]);

@@ -1,6 +1,7 @@
 import type { EngineStatus } from "@apx/protocol";
 import { Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useMemo } from "react";
+import { isListed } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { AccountRow } from "./AccountRow.tsx";
@@ -24,7 +25,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
 
   const unread = useMemo(() => {
     let n = 0;
-    for (const t of Object.values(threads)) if (!t.parent_id && t.kind !== "a2a") n += t.unread;
+    for (const t of Object.values(threads)) if (isListed(t)) n += t.unread;
     return n;
   }, [threads]);
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);

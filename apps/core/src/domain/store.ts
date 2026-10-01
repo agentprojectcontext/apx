@@ -14,6 +14,7 @@ import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
 import { sql } from "./sql.ts";
 import { surfacesRepo } from "./surfaces.ts";
+import { tasksRepo } from "./tasks.ts";
 import { messagesRepo, modelLogRepo, threadsRepo } from "./threads.ts";
 
 export function createStore(db: Db, bus: Bus) {
@@ -33,6 +34,7 @@ export function createStore(db: Db, bus: Bus) {
     persons: personsRepo(q),
     channels: channelsRepo(q),
     surfaces: surfacesRepo(q, bus),
+    tasks: tasksRepo(q, bus),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),
     idempotency: idempotencyRepo(q),

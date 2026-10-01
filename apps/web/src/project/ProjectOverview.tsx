@@ -2,7 +2,7 @@ import type { Agent } from "@apx/protocol";
 import { AgentAvatar, EmptyState, Icons, ProjectTile, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, inProject, isWorking, type ProjectEntry, threadAgent } from "../data/identity.ts";
+import { blobOf, inProject, isListed, isWorking, type ProjectEntry, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -18,7 +18,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
   const chats = useMemo(
     () =>
       Object.values(threads)
-        .filter((t) => !t.parent_id && t.kind !== "a2a" && inProject(t, pid))
+        .filter((t) => isListed(t) && inProject(t, pid))
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [threads, pid],
   );

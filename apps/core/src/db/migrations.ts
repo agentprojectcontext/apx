@@ -302,4 +302,35 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE memories ADD COLUMN embedding BLOB;
   ALTER TABLE memories ADD COLUMN embedding_model TEXT;
   `,
+  `
+  -- Office: tasks (the row is the current state; task_events keeps the history) with a thread for their conversation.
+  CREATE TABLE tasks (
+    id TEXT PRIMARY KEY,
+    project_id TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'open',
+    assignee TEXT,
+    parent_id TEXT,
+    thread_id TEXT NOT NULL,
+    awaits_owner INTEGER NOT NULL DEFAULT 0,
+    due_at TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    activity_at TEXT NOT NULL
+  );
+  CREATE INDEX tasks_project ON tasks(project_id, state, activity_at);
+  CREATE UNIQUE INDEX tasks_thread ON tasks(thread_id);
+  CREATE TABLE task_events (
+    n INTEGER PRIMARY KEY,
+    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    at TEXT NOT NULL,
+    op TEXT NOT NULL,
+    by TEXT NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}'
+  );
+  CREATE INDEX task_events_task ON task_events(task_id, n);
+  `,
 ];

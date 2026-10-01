@@ -18,6 +18,7 @@ import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
+import { afterTaskTurn } from "./engine/office.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -41,6 +42,7 @@ import { memoryHandlers } from "./rpc/memory.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
+import { taskHandlers } from "./rpc/tasks.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { createSecrets } from "./secrets.ts";
 import { createServices } from "./services/registry.ts";
@@ -52,6 +54,7 @@ import { ownerTools } from "./tools/owner.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
+import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
@@ -131,6 +134,7 @@ export async function createCore(
     ...skillTools(store, config.home),
     ...memoryTools(),
     ...mediaTools(),
+    ...taskTools(),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -170,6 +174,7 @@ export async function createCore(
     afterRun: (run) => {
       upkeep.afterRun(run);
       channels.afterRun(run);
+      afterTaskTurn(store, engine.admit, run);
     },
   });
 
@@ -188,6 +193,7 @@ export async function createCore(
       ...memoryHandlers(store, memory),
       ...channelHandlers(store, channels),
       ...mediaHandlers(services),
+      ...taskHandlers(store, engine),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({

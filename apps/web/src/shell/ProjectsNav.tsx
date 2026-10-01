@@ -2,6 +2,7 @@ import { Icons, NavItem, Popover, ProjectTile, SectionLabel } from "@apx/ui";
 import { useMemo, useState } from "react";
 import {
   inProject,
+  isListed,
   isWorking,
   type ProjectEntry,
   projectEntries,
@@ -33,7 +34,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
 
   const { shown, rest, running } = useMemo(() => {
     const entries = projectEntries(projects);
-    const live = Object.values(threads).filter((th) => !th.parent_id && th.kind !== "a2a");
+    const live = Object.values(threads).filter(isListed);
     const lastActive = new Map<string, string>();
     const running = new Set<string>();
     for (const p of entries)

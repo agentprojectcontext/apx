@@ -7,6 +7,7 @@ import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { ProjectScreen } from "../project/ProjectScreen.tsx";
 import { SoonScreen } from "../project/SoonPane.tsx";
+import { TasksScreen } from "../tasks/TasksScreen.tsx";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
 import { go, showsChat, useNav } from "./nav.ts";
@@ -41,8 +42,10 @@ export function Shell() {
             <AppScreen />
           ) : view === "project" ? (
             <ProjectScreen layout={layout} />
-          ) : view === "tasks" || view === "resources" ? (
-            <SoonScreen kind={view} />
+          ) : view === "tasks" ? (
+            <TasksScreen />
+          ) : view === "resources" ? (
+            <SoonScreen />
           ) : (
             <ChatWorkspace layout={layout} />
           )}

@@ -29,6 +29,10 @@ import {
   ServiceSettings,
   Surface,
   SurfaceSummary,
+  Task,
+  TaskColumn,
+  TaskEvent,
+  TaskState,
   Thread,
   WritePolicy,
 } from "./domain.ts";
@@ -585,6 +589,67 @@ export const appMethods = {
     params: z.object({ id: Id }).strict(),
     result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
     effect: false,
+  },
+  /** Tasks (open by default) with the board's columns. An agent sees its own thread's project's and the global ones. */
+  "tasks.list": {
+    params: z
+      .object({
+        project: Id.optional(),
+        state: TaskState.optional(),
+        assignee: Id.optional(),
+        limit: z.number().int().min(1).max(500).default(200),
+      })
+      .strict(),
+    result: z.object({ tasks: z.array(Task), columns: z.array(TaskColumn) }),
+    effect: false,
+  },
+  "tasks.get": {
+    params: z.object({ task: Id }).strict(),
+    result: z.object({ task: Task, events: z.array(TaskEvent) }),
+    effect: false,
+  },
+  "tasks.create": {
+    params: z
+      .object({
+        title: z.string().trim().min(1).max(200),
+        description: z.string().max(10_000).optional(),
+        project: Id.optional(),
+        assignee: Id.optional(),
+        status: z.string().max(40).optional(),
+        parent: Id.optional(),
+        due_at: z.string().max(40).optional(),
+      })
+      .strict(),
+    result: Task,
+    effect: true,
+  },
+  /** Changes what is given; `assignee: null` / `due_at: null` clear them. */
+  "tasks.update": {
+    params: z
+      .object({
+        task: Id,
+        title: z.string().trim().min(1).max(200).optional(),
+        description: z.string().max(10_000).optional(),
+        status: z.string().max(40).optional(),
+        assignee: Id.nullable().optional(),
+        due_at: z.string().max(40).nullable().optional(),
+        awaits_owner: z.boolean().optional(),
+      })
+      .strict(),
+    result: Task,
+    effect: true,
+  },
+  /** Done, dropped, or open again. */
+  "tasks.close": {
+    params: z.object({ task: Id, state: TaskState, note: z.string().max(2000).optional() }).strict(),
+    result: Task,
+    effect: true,
+  },
+  /** A comment in the task's conversation; an @mentioned agent answers there. */
+  "tasks.comment": {
+    params: z.object({ task: Id, text: z.string().trim().min(1).max(20_000) }).strict(),
+    result: z.object({ message: Message, runs: z.array(Run) }),
+    effect: true,
   },
   "notices.get": {
     params: z.object({}).strict(),

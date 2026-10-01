@@ -128,7 +128,7 @@ export const RunState = z.enum(["submitted", "working", "input-required", "compl
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel"]);
+export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel", "task", "routine"]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
@@ -517,6 +517,45 @@ export const MemorySettings = z.object({
 });
 export type MemorySettings = z.infer<typeof MemorySettings>;
 
+/**
+ * A task: work someone owns, in a board column, with its history as events and its conversation as a thread (a
+ * comment that @mentions an agent runs a turn of that agent there). `done` and `dropped` are states, not columns.
+ */
+export const TaskState = z.enum(["open", "done", "dropped"]);
+export type TaskState = z.infer<typeof TaskState>;
+export const TaskColumn = z.object({ id: z.string(), label: z.string() });
+export type TaskColumn = z.infer<typeof TaskColumn>;
+export const Task = z.object({
+  id: Id,
+  project_id: Id.optional(),
+  title: z.string(),
+  /** For people; what an agent should do goes in the comments. */
+  description: z.string(),
+  status: z.string(),
+  state: TaskState,
+  /** The agent working on it. */
+  assignee: Id.optional(),
+  parent_id: Id.optional(),
+  thread_id: Id,
+  /** Waiting for the owner (a decision, an answer). */
+  awaits_owner: z.boolean(),
+  due_at: z.string().optional(),
+  /** Who created it: "owner" or an agent's id. */
+  created_by: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  /** Last time anything happened: an edit, a comment, a turn. */
+  activity_at: z.string(),
+});
+export type Task = z.infer<typeof Task>;
+export const TaskEvent = z.object({
+  at: z.string(),
+  op: z.enum(["create", "update", "move", "assign", "comment", "done", "drop", "reopen"]),
+  by: z.string(),
+  data: z.record(z.string(), z.unknown()).default({}),
+});
+export type TaskEvent = z.infer<typeof TaskEvent>;
+
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /** The channel to use (its id); none = the first running channel that knows the owner. */
@@ -604,6 +643,7 @@ export const CoreEvent = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("run.updated"), run: Run }),
   z.object({ type: z.literal("job.updated"), job: Job }),
+  z.object({ type: z.literal("task.updated"), task: Task }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(z.unknown()) }),
 ]);

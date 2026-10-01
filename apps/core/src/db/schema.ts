@@ -248,6 +248,33 @@ export interface SurfacesTable {
   share_token: string | null;
 }
 
+export interface TaskEventsTable {
+  n: Generated<number>;
+  task_id: string;
+  at: string;
+  op: string;
+  by: string;
+  data: Generated<string>;
+}
+
+export interface TasksTable {
+  id: string;
+  project_id: string | null;
+  title: string;
+  description: Generated<string>;
+  status: string;
+  state: Generated<string>;
+  assignee: string | null;
+  parent_id: string | null;
+  thread_id: string;
+  awaits_owner: Generated<number>;
+  due_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  activity_at: string;
+}
+
 export interface ThreadsTable {
   id: string;
   kind: string;
@@ -289,5 +316,7 @@ export interface Database {
   runs: RunsTable;
   steps: StepsTable;
   surfaces: SurfacesTable;
+  task_events: TaskEventsTable;
+  tasks: TasksTable;
   threads: ThreadsTable;
 }

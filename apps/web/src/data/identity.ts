@@ -32,6 +32,11 @@ export function projectName(projects: Project[], id: string | undefined): string
 /** Group label for threads without a project. */
 export const DEFAULT_PROJECT = "Default";
 
+/** Threads the chat lists show: not a sub-thread between agents, nor a task's or a routine's conversation. */
+export function isListed(t: Pick<Thread, "parent_id" | "kind">): boolean {
+  return !t.parent_id && t.kind !== "a2a" && t.kind !== "task" && t.kind !== "routine";
+}
+
 export function isWorking(state: Thread["state"] | undefined): boolean {
   return state === "submitted" || state === "working";
 }

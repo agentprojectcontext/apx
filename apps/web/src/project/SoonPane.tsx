@@ -18,31 +18,18 @@ export function SoonPane({ icon, title, children }: { icon: ReactNode; title: st
   );
 }
 
-/** Tasks / Resources as top-level views: page title + the placeholder. */
-export function SoonScreen({ kind }: { kind: "tasks" | "resources" }) {
+/** Resources as a top-level view: page title + the placeholder. */
+export function SoonScreen() {
   const t = useT();
-  const copy =
-    kind === "tasks"
-      ? {
-          title: t("nav.tasks"),
-          lead: t("tasks.lead"),
-          icon: <Icons.ListChecks />,
-          text: t("tasks.body"),
-        }
-      : {
-          title: t("nav.resources"),
-          lead: t("resources.lead"),
-          icon: <Icons.Layers />,
-          text: t("resources.body"),
-        };
+  const title = t("nav.resources");
   return (
-    <section className="page" aria-label={copy.title}>
+    <section className="page" aria-label={title}>
       <header className="page__head">
-        <h1 className="page__title">{copy.title}</h1>
-        <p className="page__lead">{copy.lead}</p>
+        <h1 className="page__title">{title}</h1>
+        <p className="page__lead">{t("resources.lead")}</p>
       </header>
-      <SoonPane icon={copy.icon} title={t("common.comingSoon", { name: copy.title })}>
-        {copy.text}
+      <SoonPane icon={<Icons.Layers />} title={t("common.comingSoon", { name: title })}>
+        {t("resources.body")}
       </SoonPane>
     </section>
   );
