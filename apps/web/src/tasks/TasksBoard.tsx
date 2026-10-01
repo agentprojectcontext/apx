@@ -20,6 +20,7 @@ import { blobOf, DEFAULT_PID } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { closeTask, commentTask, createTask, loadTasks, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { type CommitmentDraft, CommitmentFields, CommitmentMeta, CommitmentsList, dayOf } from "./Commitments.tsx";
 
 const COLUMN_KEYS: Record<string, MessageKey> = {
   backlog: "tasks.col.backlog",
@@ -42,7 +43,7 @@ export function TasksBoard({ projectId }: { projectId?: string | undefined }) {
   const ready = useTasks((s) => s.ready);
   const [open, setOpen] = useState<string>();
   const [creating, setCreating] = useState(false);
-  const [show, setShow] = useState<"open" | "done">("open");
+  const [show, setShow] = useState<"open" | "commitments" | "done">("open");
   useEffect(() => {
     void loadTasks();
   }, []);
@@ -63,9 +64,10 @@ export function TasksBoard({ projectId }: { projectId?: string | undefined }) {
           size="sm"
           label={t("tasks.show")}
           value={show}
-          onValueChange={(v) => setShow(v as "open" | "done")}
+          onValueChange={(v) => setShow(v as "open" | "commitments" | "done")}
           options={[
             { value: "open", label: t("tasks.open") },
+            { value: "commitments", label: t("commitments.tab") },
             { value: "done", label: t("tasks.done") },
           ]}
         />
@@ -78,6 +80,8 @@ export function TasksBoard({ projectId }: { projectId?: string | undefined }) {
         <EmptyState variant="dashed" size="lg" icon={<Icons.ListChecks />} title={t("tasks.emptyTitle")}>
           {t("tasks.empty")}
         </EmptyState>
+      ) : show === "commitments" ? (
+        <CommitmentsList tasks={tasks} onOpen={setOpen} />
       ) : show === "done" ? (
         <ul className="board__done">
           {tasks
@@ -124,6 +128,7 @@ function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
             {t("tasks.awaitsYou")}
           </Badge>
         )}
+        <CommitmentMeta task={task} />
         {task.state !== "open" && <Badge>{t(`tasks.state.${task.state}`)}</Badge>}
         <span className="taskcard__when">{shortWhen(task.activity_at)}</span>
       </span>
@@ -136,12 +141,15 @@ function NewTask({ projectId, onClose }: { projectId?: string | undefined; onClo
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignee, setAssignee] = useState<string>();
+  const [commitment, setCommitment] = useState<CommitmentDraft>({ owed_by: "owner" });
   const save = async () => {
     await createTask({
       title: title.trim(),
       ...(description.trim() ? { description: description.trim() } : {}),
       ...(projectId && projectId !== DEFAULT_PID ? { project: projectId } : {}),
       ...(assignee ? { assignee } : {}),
+      ...(commitment.person ? { person: commitment.person, owed_by: commitment.owed_by } : {}),
+      ...(commitment.due ? { due_at: commitment.due } : {}),
     });
     onClose();
   };
@@ -176,6 +184,7 @@ function NewTask({ projectId, onClose }: { projectId?: string | undefined; onClo
           onChange={(e) => setDescription(e.currentTarget.value)}
         />
         <AssigneePicker value={assignee} projectId={projectId} onChange={setAssignee} />
+        <CommitmentFields value={commitment} onChange={setCommitment} />
       </div>
     </Dialog>
   );
@@ -268,6 +277,16 @@ function TaskDetail({ task, onClose }: { task: Task; onClose: () => void }) {
             </Button>
           )}
         </div>
+        <CommitmentFields
+          value={{ person: task.person_id, owed_by: task.owed_by ?? "owner", due: dayOf(task.due_at) }}
+          onChange={(v) =>
+            void updateTask(task.id, {
+              ...(v.person !== task.person_id ? { person: v.person ?? null } : {}),
+              ...(v.person && v.owed_by !== (task.owed_by ?? "owner") ? { owed_by: v.owed_by } : {}),
+              ...(v.due !== dayOf(task.due_at) ? { due_at: v.due ?? null } : {}),
+            })
+          }
+        />
         {task.description && <p className="taskdetail__desc">{task.description}</p>}
         <div className="taskdetail__history">
           {events.map((e, i) => (

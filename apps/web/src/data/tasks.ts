@@ -36,7 +36,15 @@ export function taskChanged(task: Task): void {
   store.set((s) => ({ tasks: { ...s.tasks, [task.id]: task } }));
 }
 
-export async function createTask(p: { title: string; description?: string; project?: string; assignee?: string }) {
+export async function createTask(p: {
+  title: string;
+  description?: string;
+  project?: string;
+  assignee?: string;
+  person?: string;
+  owed_by?: "owner" | "person";
+  due_at?: string;
+}) {
   try {
     taskChanged(await client.call("tasks.create", p));
   } catch (e) {
@@ -46,7 +54,16 @@ export async function createTask(p: { title: string; description?: string; proje
 
 export async function updateTask(
   task: string,
-  c: { status?: string; assignee?: string | null; title?: string; description?: string; awaits_owner?: boolean },
+  c: {
+    status?: string;
+    assignee?: string | null;
+    title?: string;
+    description?: string;
+    awaits_owner?: boolean;
+    person?: string | null;
+    owed_by?: "owner" | "person";
+    due_at?: string | null;
+  },
 ) {
   try {
     taskChanged(await client.call("tasks.update", { task, ...c }));

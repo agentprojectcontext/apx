@@ -160,7 +160,7 @@ export async function createCore(
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
   const memory = createMemoryIndex({ store, services, log });
-  const attention = createAttention({ store, bus });
+  const attention = createAttention({ store, bus, ...(opts.clock ? { now: opts.clock } : {}) });
   const channels = createChannels({
     store,
     secrets,
@@ -193,6 +193,14 @@ export async function createCore(
     admit: (a) => engine.admit(a),
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
+    eachTick: (at) => {
+      for (const t of store.tasks.remindDue(at.toISOString())) {
+        const person = t.person_id ? store.persons.get(t.person_id)?.name : undefined;
+        const text = channelTexts(store).due(t.title, person, t.owed_by);
+        attention.add({ kind: "due", level: "warn", title: t.title, body: text, thread_id: t.thread_id, ref: t.id });
+        channels.notifyOwner({ text }, "notice", t.thread_id);
+      }
+    },
     deliver: ({ routine, run, text, failed }) => {
       const texts = channelTexts(store);
       const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);

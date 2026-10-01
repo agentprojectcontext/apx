@@ -850,6 +850,20 @@ export const en = {
   "attention.kind.task": "Task waiting for you",
   "attention.kind.routine": "Routine",
   "attention.kind.channel": "Channel",
+  "commitments.tab": "Commitments",
+  "commitments.youOwe": "to {name}",
+  "commitments.theyOwe": "{name} owes you",
+  "commitments.youOweGroup": "You owe",
+  "commitments.theyOweGroup": "Owed to you",
+  "commitments.noPerson": "No person",
+  "commitments.who": "Who owes it",
+  "commitments.owner": "I owe it",
+  "commitments.person": "They owe me",
+  "commitments.due": "Due",
+  "commitments.emptyTitle": "No commitments",
+  "commitments.empty":
+    "A task with a person is a commitment: what you promised someone, or what they owe you. You are reminded on its day.",
+  "attention.kind.due": "Due",
 } as const;
 
 export type MessageKey = keyof typeof en;

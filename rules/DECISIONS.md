@@ -147,3 +147,10 @@ fields, local time) plus "every N minutes" (5 at least), "once" and "by hand"; n
 The prompt is the owner's own words (trusted); the agent answers `SKIP` when there is nothing to say, and only other
 answers reach the owner. Routines are owner-only methods for now: an agent creating standing work for itself is a
 persistent rule and needs its own confirmation design.
+
+## D-017 — 2026-10-01 — Commitments are tasks with a person; one tray for what wants the owner
+A commitment (what the owner promised someone, or what someone owes the owner) is a task with `person_id` and
+`owed_by`, not a second aggregate: it already has a state, a history, a due date and a conversation, and the board,
+tools and reminders work for both. A due task is reminded once (`reminded_at`, cleared when the date moves) by the
+scheduler's tick. Everything that wants the owner lands in one `notifications` table with a `ref`, so a notice about
+the same thing replaces the unread one and leaves by itself once answered, done or moved; channels only mirror it.

@@ -13,7 +13,15 @@ export const DEFAULT_COLUMNS: TaskColumn[] = [
   { id: "review", label: "Review" },
 ];
 
-const toTask = (r: Selectable<TasksTable>): Task => ({
+/** Tasks with the name of their commitment's person. */
+const tasksQuery = () =>
+  qb
+    .selectFrom("tasks")
+    .leftJoin("persons", "persons.id", "tasks.person_id")
+    .selectAll("tasks")
+    .select("persons.name as person_name");
+
+const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Task => ({
   id: r.id,
   ...(r.project_id ? { project_id: r.project_id } : {}),
   title: r.title,
@@ -25,6 +33,13 @@ const toTask = (r: Selectable<TasksTable>): Task => ({
   thread_id: r.thread_id,
   awaits_owner: Boolean(r.awaits_owner),
   ...(r.due_at ? { due_at: r.due_at } : {}),
+  ...(r.person_id
+    ? {
+        person_id: r.person_id,
+        person_name: r.person_name ?? r.person_id,
+        owed_by: (r.owed_by ?? "owner") as "owner" | "person",
+      }
+    : {}),
   created_by: r.created_by,
   created_at: r.created_at,
   updated_at: r.updated_at,
@@ -39,6 +54,8 @@ export type TaskChange = Partial<{
   assignee: string | null;
   due_at: string | null;
   awaits_owner: boolean;
+  person_id: string | null;
+  owed_by: "owner" | "person";
 }>;
 
 export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
@@ -48,30 +65,39 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
 
   const repo = {
     get(id: string): Task | undefined {
-      const r = one(qb.selectFrom("tasks").selectAll().where("id", "=", id));
+      const r = one(tasksQuery().where("tasks.id", "=", id));
       return r ? toTask(r) : undefined;
     },
     byThread(threadId: string): Task | undefined {
-      const r = one(qb.selectFrom("tasks").selectAll().where("thread_id", "=", threadId));
+      const r = one(tasksQuery().where("tasks.thread_id", "=", threadId));
       return r ? toTask(r) : undefined;
     },
     /** Newest activity first. `projects` limits to those projects (undefined in the list = tasks without one). */
-    list(o: { projects?: Array<string | undefined>; state?: TaskState; assignee?: string; limit: number }): Task[] {
-      let q = qb.selectFrom("tasks").selectAll();
+    list(o: {
+      projects?: Array<string | undefined>;
+      state?: TaskState;
+      assignee?: string;
+      commitments?: boolean;
+      person?: string;
+      limit: number;
+    }): Task[] {
+      let q = tasksQuery();
       if (o.projects) {
         const ids = o.projects.filter((p): p is string => p !== undefined);
         const global = o.projects.includes(undefined);
         if (!ids.length && !global) return [];
         q = q.where((eb) =>
           eb.or([
-            ...(ids.length ? [eb("project_id", "in", ids)] : []),
-            ...(global ? [eb("project_id", "is", null)] : []),
+            ...(ids.length ? [eb("tasks.project_id", "in", ids)] : []),
+            ...(global ? [eb("tasks.project_id", "is", null)] : []),
           ]),
         );
       }
-      if (o.state) q = q.where("state", "=", o.state);
-      if (o.assignee) q = q.where("assignee", "=", o.assignee);
-      return all(q.orderBy("activity_at", "desc").limit(o.limit)).map(toTask);
+      if (o.state) q = q.where("tasks.state", "=", o.state);
+      if (o.assignee) q = q.where("tasks.assignee", "=", o.assignee);
+      if (o.commitments) q = q.where("tasks.person_id", "is not", null);
+      if (o.person) q = q.where("tasks.person_id", "=", o.person);
+      return all(q.orderBy("tasks.activity_at", "desc").limit(o.limit)).map(toTask);
     },
     create(t: {
       title: string;
@@ -81,6 +107,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       status: string;
       parent_id?: string | undefined;
       due_at?: string | undefined;
+      person_id?: string | undefined;
+      owed_by?: "owner" | "person" | undefined;
       thread_id: string;
       by: string;
     }): Task {
@@ -97,6 +125,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           parent_id: t.parent_id ?? null,
           thread_id: t.thread_id,
           due_at: t.due_at ?? null,
+          person_id: t.person_id ?? null,
+          owed_by: t.person_id ? (t.owed_by ?? "owner") : null,
           created_by: t.by,
           created_at: at,
           updated_at: at,
@@ -122,7 +152,12 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.status !== undefined ? { status: c.status } : {}),
             ...(c.state !== undefined ? { state: c.state } : {}),
             ...(c.assignee !== undefined ? { assignee: c.assignee } : {}),
-            ...(c.due_at !== undefined ? { due_at: c.due_at } : {}),
+            // A new date is reminded again.
+            ...(c.due_at !== undefined ? { due_at: c.due_at, reminded_at: null } : {}),
+            ...(c.person_id !== undefined
+              ? { person_id: c.person_id, owed_by: c.person_id ? (c.owed_by ?? cur.owed_by ?? "owner") : null }
+              : {}),
+            ...(c.person_id === undefined && c.owed_by !== undefined && cur.person_id ? { owed_by: c.owed_by } : {}),
             ...(c.awaits_owner !== undefined ? { awaits_owner: c.awaits_owner ? 1 : 0 } : {}),
             updated_at: at,
             activity_at: at,
@@ -140,6 +175,27 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       if (op === "comment") event(id, "comment", by);
       const task = repo.get(id);
       if (task) emit(task);
+    },
+    /** Open tasks whose date has come and that were not reminded yet; marks them reminded. */
+    remindDue(at: string): Task[] {
+      const rows = all(
+        tasksQuery()
+          .where("tasks.state", "=", "open")
+          .where("tasks.due_at", "<=", at)
+          .where("tasks.reminded_at", "is", null),
+      );
+      if (rows.length)
+        run(
+          qb
+            .updateTable("tasks")
+            .set({ reminded_at: at })
+            .where(
+              "id",
+              "in",
+              rows.map((r) => r.id),
+            ),
+        );
+      return rows.map(toTask);
     },
     events(id: string): TaskEvent[] {
       return all(qb.selectFrom("task_events").selectAll().where("task_id", "=", id).orderBy("n")).map((r) => ({

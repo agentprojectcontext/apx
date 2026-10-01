@@ -308,6 +308,9 @@ export interface TasksTable {
   created_at: string;
   updated_at: string;
   activity_at: string;
+  person_id: string | null;
+  owed_by: string | null;
+  reminded_at: string | null;
 }
 
 export interface ThreadsTable {

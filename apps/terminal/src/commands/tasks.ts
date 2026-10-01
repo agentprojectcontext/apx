@@ -2,7 +2,8 @@
 import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = `apx2 tasks [--project p]                 Open tasks by column
-apx2 tasks add <title…> [--project p] [--agent a]
+apx2 tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+apx2 tasks commitments                    What you owe and what you are owed
 apx2 tasks move <id> <column>
 apx2 tasks done|drop|reopen <id>
 apx2 tasks say <id> <text…>               Comment; @agent asks that agent there`;
@@ -10,7 +11,13 @@ apx2 tasks say <id> <text…>               Comment; @agent asks that agent ther
 export async function tasks(
   client: ApxClient,
   [sub, id, ...rest]: string[],
-  opts: { project?: string | undefined; agent?: string | undefined },
+  opts: {
+    project?: string | undefined;
+    agent?: string | undefined;
+    person?: string | undefined;
+    owed?: string | undefined;
+    due?: string | undefined;
+  },
 ): Promise<void> {
   if (sub === "add") {
     const title = [id, ...rest].filter(Boolean).join(" ");
@@ -19,8 +26,27 @@ export async function tasks(
       title,
       ...(opts.project ? { project: opts.project } : {}),
       ...(opts.agent ? { assignee: opts.agent } : {}),
+      ...(opts.person ? { person: opts.person, owed_by: opts.owed === "them" ? "person" : "owner" } : {}),
+      ...(opts.due ? { due_at: opts.due } : {}),
     });
-    console.log(`${t.id}  ${t.status}`);
+    console.log(`${t.id}  ${t.status}${t.due_at ? `  due ${new Date(t.due_at).toLocaleString()}` : ""}`);
+    return;
+  }
+  if (sub === "commitments") {
+    const { tasks: list } = await client.call("tasks.list", { commitments: true });
+    for (const [label, owed] of [
+      ["You owe", "owner"],
+      ["Owed to you", "person"],
+    ] as const) {
+      const rows = list.filter((t) => t.owed_by === owed);
+      if (!rows.length) continue;
+      console.log(`\n${label}`);
+      for (const t of rows)
+        console.log(
+          `  ${t.id}  ${t.title}  · ${t.person_name}${t.due_at ? `  · due ${new Date(t.due_at).toLocaleString()}` : ""}`,
+        );
+    }
+    if (!list.length) console.log("(no open commitments)");
     return;
   }
   if (sub === "move" && id && rest[0]) {

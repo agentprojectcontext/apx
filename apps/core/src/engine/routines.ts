@@ -32,6 +32,8 @@ export function createScheduler(deps: {
   deliver: RoutineDelivery;
   log: Log;
   now?: () => Date;
+  /** Other work on the same clock (due reminders). */
+  eachTick?: (at: Date) => void;
 }) {
   const { store, log } = deps;
   const clock = deps.now ?? (() => new Date());
@@ -70,6 +72,11 @@ export function createScheduler(deps: {
 
   function tick(): void {
     const at = clock();
+    try {
+      deps.eachTick?.(at);
+    } catch (err) {
+      log.warn({ err: errorMessage(err, 200) }, "tick work failed");
+    }
     for (const r of store.routines.due(at.toISOString())) {
       const next = nextTime(r, at, at);
       try {

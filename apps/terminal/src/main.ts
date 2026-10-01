@@ -101,6 +101,9 @@ const { values, positionals } = parseArgs({
     refresh: { type: "boolean" },
     project: { type: "string" },
     cron: { type: "string" },
+    person: { type: "string" },
+    owed: { type: "string" },
+    due: { type: "string" },
     every: { type: "string" },
     at: { type: "string" },
     role: { type: "string" },
@@ -172,7 +175,13 @@ try {
       break;
     }
     case "tasks":
-      await tasks(client, rest, { project: values.project, agent: values.agent });
+      await tasks(client, rest, {
+        project: values.project,
+        agent: values.agent,
+        person: values.person,
+        owed: values.owed,
+        due: values.due,
+      });
       break;
     case "notifications":
       await notifications(client, rest);

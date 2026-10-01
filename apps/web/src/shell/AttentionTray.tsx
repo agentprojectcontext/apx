@@ -9,6 +9,7 @@ import { go } from "./nav.ts";
 const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   input: Icons.Hand,
   task: Icons.ListChecks,
+  due: Icons.Calendar,
   routine: Icons.Clock,
   channel: Icons.Send,
 };
@@ -16,7 +17,7 @@ const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
 /** Opens what a notice is about. A question stays in the tray until it is answered. */
 function openNotice(n: Notification): void {
   if (n.kind !== "input") void readNotifications([n.id]);
-  if (n.kind === "task") go.view("tasks");
+  if (n.kind === "task" || n.kind === "due") go.view("tasks");
   else if (n.thread_id) go.inboxThread(n.thread_id);
   else if (n.kind === "channel") go.config("telegram");
 }

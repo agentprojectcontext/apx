@@ -377,4 +377,12 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX notifications_unread ON notifications(read_at, created_at);
   CREATE INDEX notifications_ref ON notifications(kind, ref);
   `,
+  `
+  -- Commitments are tasks with a person on the other side: who owes whom. A due task is reminded once (reminded_at),
+  -- again only if its date moves.
+  ALTER TABLE tasks ADD COLUMN person_id TEXT;
+  ALTER TABLE tasks ADD COLUMN owed_by TEXT;
+  ALTER TABLE tasks ADD COLUMN reminded_at TEXT;
+  CREATE INDEX tasks_due ON tasks(state, due_at);
+  `,
 ];

@@ -858,4 +858,18 @@ export const es: Partial<Record<MessageKey, string>> = {
   "attention.kind.task": "Tarea que te espera",
   "attention.kind.routine": "Rutina",
   "attention.kind.channel": "Canal",
+  "commitments.tab": "Compromisos",
+  "commitments.youOwe": "para {name}",
+  "commitments.theyOwe": "te lo debe {name}",
+  "commitments.youOweGroup": "Debés vos",
+  "commitments.theyOweGroup": "Te deben",
+  "commitments.noPerson": "Sin persona",
+  "commitments.who": "Quién lo debe",
+  "commitments.owner": "Lo debo yo",
+  "commitments.person": "Me lo deben",
+  "commitments.due": "Vence",
+  "commitments.emptyTitle": "Sin compromisos",
+  "commitments.empty":
+    "Una tarea con una persona es un compromiso: lo que le prometiste a alguien o lo que te deben. Te aviso el día que vence.",
+  "attention.kind.due": "Vence",
 };

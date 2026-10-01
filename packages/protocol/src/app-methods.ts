@@ -601,6 +601,9 @@ export const appMethods = {
         project: Id.optional(),
         state: TaskState.optional(),
         assignee: Id.optional(),
+        /** Only commitments (tasks with a person), or one person's. */
+        commitments: z.boolean().optional(),
+        person: Id.optional(),
         limit: z.number().int().min(1).max(500).default(200),
       })
       .strict(),
@@ -622,6 +625,9 @@ export const appMethods = {
         status: z.string().max(40).optional(),
         parent: Id.optional(),
         due_at: z.string().max(40).optional(),
+        /** A commitment: the person (id or exact name) and who owes it (default: the owner). */
+        person: z.string().max(80).optional(),
+        owed_by: z.enum(["owner", "person"]).optional(),
       })
       .strict(),
     result: Task,
@@ -638,6 +644,8 @@ export const appMethods = {
         assignee: Id.nullable().optional(),
         due_at: z.string().max(40).nullable().optional(),
         awaits_owner: z.boolean().optional(),
+        person: z.string().max(80).nullable().optional(),
+        owed_by: z.enum(["owner", "person"]).optional(),
       })
       .strict(),
     result: Task,

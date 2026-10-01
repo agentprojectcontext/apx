@@ -6,8 +6,9 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "./audience.ts";
 
-export function createAttention(deps: { store: Store; bus: Bus }) {
+export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date }) {
   const { store } = deps;
+  const clock = deps.now ?? (() => new Date());
 
   function onEvent(e: CoreEvent): void {
     if (e.type === "message.part" && e.part.type === "input") {
@@ -28,9 +29,12 @@ export function createAttention(deps: { store: Store; bus: Bus }) {
         ref: e.part.input_id,
       });
     } else if (e.type === "task.updated") {
-      if (e.task.awaits_owner && e.task.state === "open")
-        store.notifications.add({ kind: "task", title: e.task.title, thread_id: e.task.thread_id, ref: e.task.id });
-      else store.notifications.resolve("task", e.task.id);
+      const t = e.task;
+      if (t.awaits_owner && t.state === "open")
+        store.notifications.add({ kind: "task", title: t.title, thread_id: t.thread_id, ref: t.id });
+      else store.notifications.resolve("task", t.id);
+      // Done, dropped or moved to a later date: the reminder is moot.
+      if (t.state !== "open" || !t.due_at || t.due_at > clock().toISOString()) store.notifications.resolve("due", t.id);
     }
   }
 

@@ -540,6 +540,10 @@ export const Task = z.object({
   /** Waiting for the owner (a decision, an answer). */
   awaits_owner: z.boolean(),
   due_at: z.string().optional(),
+  /** A commitment: the person on the other side, and who owes it (the owner promised it, or the person did). */
+  person_id: Id.optional(),
+  person_name: z.string().optional(),
+  owed_by: z.enum(["owner", "person"]).optional(),
   /** Who created it: "owner" or an agent's id. */
   created_by: z.string(),
   created_at: z.string(),
@@ -601,7 +605,7 @@ export const Routine = z.object({
 export type Routine = z.infer<typeof Routine>;
 
 /** What a notice in the attention tray is about. */
-export const NotificationKind = z.enum(["input", "task", "routine", "channel"]);
+export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel"]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
 /**

@@ -22,6 +22,15 @@ export function columnsOf(store: Store): TaskColumn[] {
   }
 }
 
+/** A due date as a moment: a bare day ("2026-10-05") means 09:00 that day, local time. */
+export function dueOf(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  const d = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]), 9) : new Date(text);
+  if (Number.isNaN(d.getTime())) throw badRequest(`"${text}" is not a date`);
+  return d.toISOString();
+}
+
 export function taskHandlers(store: Store, engine: Engine) {
   /** The agent's project (from its thread), or undefined for the owner. */
   const agentScope = (ctx: CallContext) =>
@@ -49,13 +58,21 @@ export function taskHandlers(store: Store, engine: Engine) {
   const checkAgent = (id: string | null | undefined) => {
     if (id && !store.agents.get(id)) throw notFound(`agent ${id}`);
   };
+  /** A person by id or exact name (any case); the owner is never a commitment's counterpart. */
+  const personOf = (ref: string): string => {
+    const key = ref.trim().toLowerCase();
+    const p = store.persons.get(ref) ?? store.persons.list().find((x) => x.name.toLowerCase() === key);
+    if (!p) throw notFound(`person ${ref} (add them to your contacts first)`);
+    if (p.role === "owner") throw badRequest("a commitment is with someone else, not with the owner");
+    return p.id;
+  };
 
   return {
-    "tasks.list": ({ project, state, assignee, limit }, ctx) => {
+    "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
       const scope = agentScope(ctx);
       const projects = scope ? [scope.project, undefined] : project ? [project] : undefined;
       return {
-        tasks: store.tasks.list({ projects, state: state ?? "open", assignee, limit }),
+        tasks: store.tasks.list({ projects, state: state ?? "open", assignee, commitments, person, limit }),
         columns: columnsOf(store),
       };
     },
@@ -70,6 +87,8 @@ export function taskHandlers(store: Store, engine: Engine) {
       const project = scope ? scope.project : p.project;
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
+      const person = p.person ? personOf(p.person) : undefined;
+      const due = dueOf(p.due_at);
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
@@ -82,17 +101,27 @@ export function taskHandlers(store: Store, engine: Engine) {
           assignee: p.assignee,
           status: p.status ?? columnsOf(store)[0]?.id ?? "todo",
           parent_id: p.parent,
-          due_at: p.due_at,
+          due_at: due ?? undefined,
+          person_id: person,
+          owed_by: p.owed_by,
           thread_id: thread.id,
           by: by(ctx),
         });
       });
     },
-    "tasks.update": ({ task, ...c }, ctx) => {
+    "tasks.update": ({ task, person, due_at, ...c }, ctx) => {
       visible(task, ctx);
       checkStatus(c.status);
       checkAgent(c.assignee);
-      return store.tasks.change(task, c, by(ctx)) as Task;
+      return store.tasks.change(
+        task,
+        {
+          ...c,
+          ...(person !== undefined ? { person_id: person === null ? null : personOf(person) } : {}),
+          ...(due_at !== undefined ? { due_at: dueOf(due_at) } : {}),
+        },
+        by(ctx),
+      ) as Task;
     },
     "tasks.close": ({ task, state, note }, ctx) => {
       visible(task, ctx);
