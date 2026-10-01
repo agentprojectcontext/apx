@@ -52,6 +52,8 @@ export const Author = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user") }),
   z.object({ kind: z.literal("agent"), id: Id }),
   z.object({ kind: z.literal("system") }),
+  /** Text sent by a widget's sendPrompt(): shown apart from the owner's own messages. */
+  z.object({ kind: z.literal("surface"), id: Id, title: z.string() }),
 ]);
 export type Author = z.infer<typeof Author>;
 

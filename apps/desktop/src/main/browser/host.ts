@@ -23,6 +23,14 @@ function partitionFor(profile: BrowserProfile, seq: number): string {
   return `persist:apx-agent-${profile.slice("agent:".length)}`;
 }
 
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
+let blockedPorts = new Set<string>();
+
+/** APX's own core and panel must never load inside a tab: a driven tab would hold the owner's controls. */
+export function blockAppOrigins(urls: string[]): void {
+  blockedPorts = new Set(urls.map((u) => new URL(u).port || "80"));
+}
+
 export function assertNavigable(url: string): void {
   let u: URL;
   try {
@@ -35,6 +43,12 @@ export function assertNavigable(url: string): void {
   }
   if (u.username || u.password)
     throw new ApxError({ code: "bad_request", message: "navigation blocked: credentials in URL" });
+  if (LOOPBACK.has(u.hostname) && blockedPorts.has(u.port || "80")) {
+    throw new ApxError({ code: "bad_request", message: "navigation blocked: that is APX itself" });
+  }
+  if (/^169\.254\./.test(u.hostname) || u.hostname === "metadata.google.internal") {
+    throw new ApxError({ code: "bad_request", message: "navigation blocked: link-local/metadata address" });
+  }
 }
 
 export class BrowserHost extends EventEmitter<{ changed: [] }> {
@@ -79,7 +93,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       }
       case "browser.snapshot": {
         const p = browserMethods["browser.snapshot"].params.parse(raw);
-        const tab = this.#get(p.tab);
+        const tab = this.#readable(p.tab);
         const wc = tab.view.webContents;
         const snap = await tab.cdp.snapshot(p.max_chars);
         // Page text is data, never instructions, wherever it ends up (rule 10).
@@ -107,7 +121,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       }
       case "browser.text": {
         const p = browserMethods["browser.text"].params.parse(raw);
-        const wc = this.#get(p.tab).view.webContents;
+        const wc = this.#readable(p.tab).view.webContents;
         // Isolated world: the page's scripts cannot see or patch this read.
         const [full] = (await wc.executeJavaScriptInIsolatedWorld(999, [
           { code: "document.body ? document.body.innerText : ''" },
@@ -127,21 +141,24 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       case "browser.handoff": {
         const p = browserMethods["browser.handoff"].params.parse(raw);
         const tab = this.#get(p.tab);
+        if (tab.control.kind === "handoff" || this.#handoffs.has(tab.id)) {
+          throw new ApxError({ code: "paused_by_user", message: "this tab is already waiting for the human" });
+        }
         tab.control = { kind: "handoff", by: p.by, reason: p.reason, since: new Date().toISOString() };
         this.select(tab.id);
         this.onAttention(`${p.by} necesita que ${p.reason}`);
         this.emit("changed");
         const resolved = await new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => {
-            this.#handoffs.delete(tab.id);
-            resolve(false);
-          }, p.timeout_s * 1000);
-          this.#handoffs.set(tab.id, (ok) => {
+          const waiter = (ok: boolean) => {
             clearTimeout(timer);
+            if (this.#handoffs.get(tab.id) === waiter) this.#handoffs.delete(tab.id);
             resolve(ok);
-          });
+          };
+          const timer = setTimeout(() => waiter(false), p.timeout_s * 1000);
+          this.#handoffs.set(tab.id, waiter);
         });
-        if (resolved) tab.control = { kind: "agent", by: p.by, since: new Date().toISOString() };
+        if (!this.#tabs.has(tab.id)) return { resolved: false, url: "", title: "" };
+        tab.control = resolved ? { kind: "agent", by: p.by, since: new Date().toISOString() } : { kind: "idle" };
         this.emit("changed");
         return { resolved, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
       }
@@ -194,13 +211,17 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       } catch {}
       return { action: "deny" };
     });
-    wc.on("will-navigate", (e, next) => {
+    // Same guard for clicks, redirects and subframes: a redirect must not reach what a direct load cannot.
+    const guard = (e: { preventDefault(): void }, next: string) => {
       try {
         assertNavigable(next);
       } catch {
         e.preventDefault();
       }
-    });
+    };
+    wc.on("will-navigate", (e) => guard(e, e.url));
+    wc.on("will-redirect", (e) => guard(e, e.url));
+    wc.on("will-frame-navigate", (e) => guard(e, e.url));
     for (const ev of ["did-navigate", "did-navigate-in-page", "page-title-updated", "did-stop-loading"] as const) {
       wc.on(ev as "did-stop-loading", () => this.emit("changed"));
     }
@@ -224,6 +245,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   async close(id: string): Promise<void> {
     const tab = this.#get(id);
     this.#tabs.delete(id);
+    this.#handoffs.get(id)?.(false);
     const ses = tab.view.webContents.session;
     tab.view.webContents.close();
     // In-memory partitions live until app exit unless cleared.
@@ -241,13 +263,12 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     this.emit("changed");
   }
 
-  /** `done` also finishes a pending handoff, so the waiting agent resumes. */
-  giveBack(id: string, _done = false): void {
+  /** `done` finishes a pending handoff (the agent resumes); `idle` ends it as not done. */
+  giveBack(id: string, done = false): void {
     const tab = this.#get(id);
     const waiter = this.#handoffs.get(id);
     if (waiter) {
-      this.#handoffs.delete(id);
-      waiter(true);
+      waiter(done);
       return;
     }
     tab.control = { kind: "idle" };
@@ -263,6 +284,15 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     const src = discoverSources().find((s) => s.id === id);
     if (!src) throw new ApxError({ code: "bad_request", message: `unknown cookie source ${id}` });
     return src;
+  }
+
+  /** Reading page content while the human has the tab could expose what they type (codes, card data). */
+  #readable(id: string): Tab {
+    const tab = this.#get(id);
+    if (tab.control.kind === "user" || tab.control.kind === "handoff") {
+      throw new ApxError({ code: "paused_by_user", message: "the human has this tab right now; wait for them" });
+    }
+    return tab;
   }
 
   #get(id: string): Tab {

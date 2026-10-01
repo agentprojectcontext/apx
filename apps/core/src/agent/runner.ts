@@ -19,6 +19,8 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
   const byName = new Map(tools.map((t) => [t.spec.function.name, t]));
   const queues = new Map<string, Promise<unknown>>();
   const controllers = new Map<string, Set<AbortController>>();
+  /** Runs accepted but not started yet, so a cancel can reach them in the queue. */
+  const queued = new Map<string, Set<string>>();
 
   /** Serializes runs per thread: a second message waits for the first turn instead of racing it. */
   function enqueue<T>(threadId: string, job: () => Promise<T>): Promise<T> {
@@ -115,6 +117,7 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
           });
           if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
           const out = await runTool(tool, args, ctx);
+          if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
           upsertPart((p) => p.type === "tool" && p.call_id === c.id, {
             type: "tool",
             call_id: c.id,
@@ -145,14 +148,15 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
       const message = canceled ? "Cancelado." : `No pude terminar: ${err instanceof Error ? err.message : String(err)}`;
       log.warn({ thread: thread.id, agent: agent.id, err: String(err) }, "run failed");
       upsertPart((p) => p.type === "text", { type: "text", text: message });
-      // Keep the model log consistent: only the user's input is recorded when the turn did not finish.
-      store.appendModelLog(thread.id, [userMsg, { role: "assistant", content: message }]);
+      // Keep what already happened (a posted form must not be repeated next turn) but never a dangling call.
+      store.appendModelLog(thread.id, completedSteps(fresh));
       current = store.setRunState(current, canceled ? "canceled" : "failed", message);
       store.patchThread(thread.id, { state: canceled ? "canceled" : "failed", preview: message.slice(0, 160) });
       return message;
     } finally {
       clearTimeout(timer);
       set.delete(ac);
+      if (!set.size && controllers.get(thread.id) === set) controllers.delete(thread.id);
     }
   }
 
@@ -163,7 +167,12 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
   ): Promise<{ ok: boolean; text: string }> {
     if (!tool) return { ok: false, text: "unknown tool" };
     try {
-      return { ok: true, text: await tool.run(args, ctx) };
+      const aborted = new Promise<never>((_, reject) => {
+        if (ctx.signal.aborted) reject(ctx.signal.reason);
+        ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
+      });
+      aborted.catch(() => {});
+      return { ok: true, text: await Promise.race([tool.run(args, ctx), aborted]) };
     } catch (err) {
       const shape = (err as { shape?: { code: string; message: string } }).shape;
       return {
@@ -239,6 +248,11 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
   /** Cancels the thread's running turns and, recursively, every sub-thread spawned from it. */
   function cancel(threadId: string): number {
     let n = 0;
+    const waiting = queued.get(threadId);
+    if (waiting?.size) {
+      n += waiting.size;
+      waiting.clear();
+    }
     for (const ac of controllers.get(threadId) ?? []) {
       ac.abort(new Error("canceled by user"));
       n++;
@@ -252,14 +266,43 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
     /** Starts a turn for the human's message; returns the run at once. */
     start(threadId: string, agent: AgentRecord, input: string): Run {
       const run = store.createRun(threadId, agent.id);
-      void enqueue(threadId, () => turn(run, agent, input, 0)).catch((err) =>
-        log.error({ err: String(err) }, "turn crashed"),
-      );
+      const waiting = queued.get(threadId) ?? new Set();
+      waiting.add(run.id);
+      queued.set(threadId, waiting);
+      void enqueue(threadId, async () => {
+        if (!waiting.delete(run.id)) {
+          store.setRunState(run, "canceled", "canceled before it started");
+          store.patchThread(threadId, { state: "canceled" });
+          return "";
+        }
+        return turn(run, agent, input, 0);
+      }).catch((err) => log.error({ err: String(err) }, "turn crashed"));
       return run;
     },
     cancel,
     tools,
   };
+}
+
+/** The turn's items up to the last fully answered tool step; unanswered calls get a synthetic "not run" result. */
+export function completedSteps(fresh: ChatMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (let i = 0; i < fresh.length; i++) {
+    const m = fresh[i] as ChatMessage;
+    out.push(m);
+    if (m.role !== "assistant" || !m.tool_calls?.length) continue;
+    const answered = new Set<string>();
+    while (fresh[i + 1]?.role === "tool") {
+      const t = fresh[++i] as Extract<ChatMessage, { role: "tool" }>;
+      answered.add(t.tool_call_id);
+      out.push(t);
+    }
+    for (const c of m.tool_calls) {
+      if (!answered.has(c.id))
+        out.push({ role: "tool", tool_call_id: c.id, content: "not run: the turn was interrupted" });
+    }
+  }
+  return out;
 }
 
 /** Drops a leading orphan (tool result or assistant tool-call without its results) so providers accept the history. */

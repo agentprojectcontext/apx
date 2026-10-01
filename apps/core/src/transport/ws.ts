@@ -7,13 +7,23 @@ import type { Identity } from "../identity.ts";
 import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import type { Dispatch } from "../rpc/router.ts";
+import { type Gate, mayBeNode, refuse } from "./guard.ts";
 
 export function attachWs(
   server: Server,
-  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker; bus: Bus },
+  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker; bus: Bus; gate: Gate },
 ) {
-  const { dispatch, identity, log, broker, bus } = deps;
-  const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 8 * 1024 * 1024 });
+  const { dispatch, identity, log, broker, bus, gate } = deps;
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws",
+    maxPayload: 8 * 1024 * 1024,
+    verifyClient: ({ req }, done) => {
+      const why = refuse(req, gate, new URL(req.url ?? "/", "http://core").searchParams.get("token"));
+      if (why) log.warn({ origin: req.headers.origin, why }, "socket refused");
+      done(!why, 403, why);
+    },
+  });
   const operators = new Set<WebSocket>();
   let seq = 0;
   // One stream for core events; a client that sees a seq gap refetches instead of expecting a replay.
@@ -22,7 +32,8 @@ export function attachWs(
     for (const ws of operators) if (ws.readyState === ws.OPEN) ws.send(frame);
   });
 
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, req) => {
+    const canBeNode = mayBeNode(req);
     let hello: HelloFrame | undefined;
     const session = randomUUID();
 
@@ -45,6 +56,10 @@ export function attachWs(
       if (frame.t === "hello") {
         if (frame.protocol !== PROTOCOL_VERSION) {
           ws.close(1008, `protocol ${frame.protocol} unsupported (server speaks ${PROTOCOL_VERSION})`);
+          return;
+        }
+        if (frame.role === "node" && !canBeNode) {
+          ws.close(1008, "browser pages cannot register as nodes");
           return;
         }
         hello = frame;

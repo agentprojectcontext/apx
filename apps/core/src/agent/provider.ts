@@ -87,7 +87,11 @@ type Delta = {
 };
 
 /** Reads an OpenAI-style SSE stream into one assistant message, merging tool-call fragments by index. */
-async function readStream(res: Response, onText: (soFar: string) => void): Promise<Completion["message"]> {
+async function readStream(
+  res: Response,
+  onText: (soFar: string) => void,
+  onChunk: () => void,
+): Promise<Completion["message"]> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("no response body");
   const decoder = new TextDecoder();
@@ -98,6 +102,7 @@ async function readStream(res: Response, onText: (soFar: string) => void): Promi
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
+    onChunk();
     buf += decoder.decode(value, { stream: true });
     let nl = buf.indexOf("\n");
     while (nl >= 0) {
@@ -109,8 +114,11 @@ async function readStream(res: Response, onText: (soFar: string) => void): Promi
       if (data === "[DONE]") continue;
       let delta: Delta | undefined;
       try {
-        delta = (JSON.parse(data) as { choices?: Array<{ delta?: Delta }> }).choices?.[0]?.delta;
-      } catch {
+        const chunk = JSON.parse(data) as { choices?: Array<{ delta?: Delta }>; error?: { message?: string } };
+        if (chunk.error) throw new Error(`stream error: ${chunk.error.message ?? "unknown"}`);
+        delta = chunk.choices?.[0]?.delta;
+      } catch (err) {
+        if (err instanceof Error && err.message.startsWith("stream error")) throw err;
         continue;
       }
       if (!delta) continue;
@@ -130,6 +138,8 @@ async function readStream(res: Response, onText: (soFar: string) => void): Promi
       for (const [k, v] of Object.entries(delta)) if (!["content", "tool_calls", "role"].includes(k)) extra[k] = v;
     }
   }
+  // An empty answer (filtered, cut, provider error) is a failure to retry, never a silent "done".
+  if (!text && !calls.length) throw new Error("empty stream");
   return {
     role: "assistant",
     content: text || null,
@@ -148,6 +158,13 @@ export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm 
       for (const model of cfg.models) {
         for (let attempt = 0; attempt < 2; attempt++) {
           if (signal.aborted) throw new Error("canceled");
+          // Timeout until the first byte, then an idle timer: long streamed answers must not be cut mid-way.
+          const deadline = new AbortController();
+          let idle = setTimeout(() => deadline.abort(new Error("first-byte timeout")), cfg.timeoutMs);
+          const armIdle = () => {
+            clearTimeout(idle);
+            idle = setTimeout(() => deadline.abort(new Error("stream idle timeout")), 30_000);
+          };
           const res = await fetchImpl(`${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
             method: "POST",
             headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
@@ -157,21 +174,23 @@ export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm 
               ...(tools.length ? { tools, tool_choice: "auto" } : {}),
               ...(onText ? { stream: true } : {}),
             }),
-            signal: AbortSignal.any([signal, AbortSignal.timeout(cfg.timeoutMs)]),
+            signal: AbortSignal.any([signal, deadline.signal]),
           }).catch((e: unknown) => {
             if (signal.aborted) throw new Error("canceled");
             return { ok: false, status: 0, text: async () => String(e) } as unknown as Response;
           });
           if (res.ok && onText) {
             try {
-              return { message: await readStream(res, onText), model };
+              return { message: await readStream(res, onText, armIdle), model };
             } catch (err) {
               if (signal.aborted) throw new Error("canceled");
               lastErr = `${model}: stream failed: ${String(err)}`;
               continue;
+            } finally {
+              clearTimeout(idle);
             }
           }
-          const raw = await res.text();
+          const raw = await res.text().finally(() => clearTimeout(idle));
           if (res.ok) {
             const body = JSON.parse(raw) as {
               choices?: Array<{ message?: Completion["message"] }>;

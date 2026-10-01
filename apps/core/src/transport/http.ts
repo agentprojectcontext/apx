@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Log } from "../log.ts";
 import type { Dispatch } from "../rpc/router.ts";
+import { type Gate, refuse } from "./guard.ts";
 
 const MAX_BODY = 1024 * 1024;
 
@@ -20,8 +21,14 @@ const MIME: Record<string, string> = {
 /** Serves the built web panel (SPA fallback to index.html). Paths cannot escape the dist folder. */
 function serveStatic(dist: string, pathname: string, res: ServerResponse): boolean {
   const root = path.resolve(dist);
-  let file = path.resolve(root, `.${decodeURIComponent(pathname)}`);
-  if (!file.startsWith(root)) return false;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+  let file = path.resolve(root, `.${decoded}`);
+  if (file !== root && !file.startsWith(root + path.sep)) return false;
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "index.html");
   if (!fs.existsSync(file)) return false;
   res.writeHead(200, {
@@ -46,14 +53,8 @@ function artifactPage(title: string, html: string): string {
   return doc;
 }
 
-export function httpHandler(
-  dispatch: Dispatch,
-  log: Log,
-  token: string | undefined,
-  webDist?: string,
-  pages?: PublicPages,
-) {
-  return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: string, pages?: PublicPages) {
+  const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://core");
     if (req.method === "GET" && url.pathname === "/health") {
       return send(
@@ -63,8 +64,14 @@ export function httpHandler(
       );
     }
     if (req.method === "POST" && url.pathname.startsWith("/rpc/")) {
-      if (token && req.headers.authorization !== `Bearer ${token}`) {
-        return send(res, 401, { ok: false, error: { code: "unauthorized", message: "missing or bad token" } });
+      const why = refuse(req, gate);
+      if (why) return send(res, 403, { ok: false, error: { code: "unauthorized", message: why } });
+      // A JSON content type forces a CORS preflight, so a foreign page cannot post a "simple" request here.
+      if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) {
+        return send(res, 415, {
+          ok: false,
+          error: { code: "bad_request", message: "content-type must be application/json" },
+        });
       }
       let body: unknown;
       try {
@@ -95,6 +102,13 @@ export function httpHandler(
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;
     send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });
+  };
+  return (req: IncomingMessage, res: ServerResponse): void => {
+    handle(req, res).catch((err: unknown) => {
+      log.error({ err: String(err), path: req.url }, "http handler failed");
+      if (!res.headersSent) send(res, 500, { ok: false, error: { code: "internal", message: "internal error" } });
+      else res.destroy();
+    });
   };
 }
 

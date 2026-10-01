@@ -192,7 +192,12 @@ async function chat(text: string, thread: string): Promise<void> {
   if (!text) throw new Error('usage: apx2 chat "<text>"');
   const socket = await client.connect();
   const printed = new Set<string>();
+  // Only this send's run counts: an earlier queued run on the same thread must not end the wait.
+  let runId: string | undefined;
+  const ended = new Set<string>();
+  let finish: () => void = () => {};
   const done = new Promise<void>((resolve) => {
+    finish = resolve;
     socket.onEvent((e) => {
       const ev = e.payload as {
         type: string;
@@ -220,18 +225,24 @@ async function chat(text: string, thread: string): Promise<void> {
           else if (p.type === "browser") console.log(`  ◎ browser ${p.state}: ${p.url}`);
         }
       }
+      const r = ev.run as { id?: string; thread_id: string; state: string } | undefined;
       if (
         ev.type === "run.updated" &&
-        ev.run?.thread_id === thread &&
-        ["completed", "failed", "canceled"].includes(ev.run.state)
-      )
-        resolve();
+        r?.id &&
+        r.thread_id === thread &&
+        ["completed", "failed", "canceled"].includes(r.state)
+      ) {
+        ended.add(r.id);
+        if (r.id === runId) resolve();
+      }
     });
   });
-  await socket.call("threads.send", { thread, text });
+  const sent = await socket.call("threads.send", { thread, text });
+  runId = sent.run?.id;
+  if (!runId || ended.has(runId)) finish();
   await done;
   const { messages } = await socket.call("threads.get", { thread });
-  const last = messages.at(-1);
+  const last = messages.filter((m) => m.run_id === runId).at(-1) ?? messages.at(-1);
   const answer = last?.parts.find((p) => p.type === "text");
   console.log(
     `\n${answer && answer.type === "text" ? answer.text : "(no text)"}${last?.model ? `\n— ${last.model}` : ""}`,

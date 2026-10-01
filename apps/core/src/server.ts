@@ -19,6 +19,7 @@ import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { createRouter } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
+import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
 
@@ -35,6 +36,7 @@ export async function createCore(config: CoreConfig, opts: { quiet?: boolean; ll
   const bus = createBus();
   const store = createStore(db, bus);
   seed(store);
+  store.pruneIdempotency();
   const orphaned = store.failOrphanRuns();
   if (orphaned) log.warn({ orphaned }, "marked runs interrupted by the last restart as failed");
 
@@ -61,15 +63,19 @@ export async function createCore(config: CoreConfig, opts: { quiet?: boolean; ll
     { get: store.idemGet, put: store.idemPut },
   );
 
+  const gate: Gate = {
+    allowedOrigins: originsFor(`http://${config.host}:${config.port || 7440}`, process.env.APX_ALLOWED_ORIGINS),
+    token: config.token,
+  };
   const server = http.createServer(
-    httpHandler(dispatch, log, config.token, opts.webDist ?? process.env.APX_WEB_DIST ?? defaultWebDist(), {
+    httpHandler(dispatch, log, gate, opts.webDist ?? process.env.APX_WEB_DIST ?? defaultWebDist(), {
       artifact: (t) => {
         const s = store.surfaceByShareToken(t);
         return s ? { title: s.title, html: s.html } : undefined;
       },
     }),
   );
-  const wss = attachWs(server, { dispatch, identity, log, broker, bus });
+  const wss = attachWs(server, { dispatch, identity, log, broker, bus, gate });
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);

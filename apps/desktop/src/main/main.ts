@@ -3,7 +3,7 @@
 // panel reload never kills tabs.
 import path from "node:path";
 import { app, BaseWindow, ipcMain, Notification, WebContentsView } from "electron";
-import { BrowserHost } from "./browser/host.ts";
+import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { startNodeLink } from "./node-link.ts";
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
@@ -15,6 +15,7 @@ type Bounds = { x: number; y: number; width: number; height: number };
 app.whenReady().then(() => {
   const win = new BaseWindow({ width: 1480, height: 920, minWidth: 980, minHeight: 600, title: "APX" });
   const host = new BrowserHost();
+  blockAppOrigins([CORE_URL, WEB_URL]);
 
   // The panel never shares a partition with web tabs; its preload only exposes the bounds bridge.
   const panel = new WebContentsView({

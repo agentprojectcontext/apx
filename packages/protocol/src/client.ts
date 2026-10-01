@@ -21,6 +21,15 @@ export class ApxError extends Error {
   }
 }
 
+/** Methods whose server deadline exceeds the default: the client must wait longer than the server (rule 9). */
+function clientDeadline(method: string, params: unknown, fallback: number): number {
+  if (method === "browser.handoff")
+    return (((params as { timeout_s?: number }) ?? {}).timeout_s ?? 300) * 1000 + 20_000;
+  if (method === "browser.import_cookies") return 130_000;
+  if (method === "system.import_v1") return 60_000;
+  return fallback;
+}
+
 export type ClientOptions = {
   /** Base URL of the core, e.g. http://127.0.0.1:7440 */
   url: string;
@@ -51,7 +60,7 @@ export class ApxClient {
       method: "POST",
       headers,
       body: JSON.stringify(params ?? {}),
-      signal: AbortSignal.timeout(this.#opts.timeoutMs),
+      signal: AbortSignal.timeout(clientDeadline(method, params, this.#opts.timeoutMs)),
     });
     const body = (await res.json()) as { ok: boolean; result?: unknown; error?: ApxErrorShape };
     if (!body.ok || body.error) {
@@ -62,7 +71,8 @@ export class ApxClient {
 
   /** Opens a live socket (hello → welcome), then req/res + events over one connection. */
   async connect(role: ClientRole = "operator", caps: string[] = []): Promise<ApxSocket> {
-    const wsUrl = `${this.#opts.url.replace(/^http/, "ws")}/ws`;
+    const token = this.#opts.token ? `?token=${encodeURIComponent(this.#opts.token)}` : "";
+    const wsUrl = `${this.#opts.url.replace(/^http/, "ws")}/ws${token}`;
     const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs);
     await socket.open({
       t: "hello",
@@ -132,10 +142,13 @@ export class ApxSocket {
     if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error("socket not open");
     const id = `r${++this.#seq}`;
     const raw = await new Promise<unknown>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.#pending.delete(id);
-        reject(new ApxError({ code: "timeout", message: `${method} timed out` }));
-      }, this.timeoutMs);
+      const timer = setTimeout(
+        () => {
+          this.#pending.delete(id);
+          reject(new ApxError({ code: "timeout", message: `${method} timed out` }));
+        },
+        clientDeadline(method, params, this.timeoutMs),
+      );
       this.#pending.set(id, { resolve, reject, timer });
       const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
       ws.send(JSON.stringify({ t: "req", id, method, params, idem: key }));

@@ -167,3 +167,26 @@ test("a shared surface is served at /a/<token> isolated from the API, and revoki
   assert.equal(revoked.share_path, undefined);
   assert.equal((await fetch(`${core.url}${shared.share_path}`)).status, 404);
 });
+
+test("an interrupted turn keeps the steps that ran and closes calls that did not", async () => {
+  const { completedSteps } = await import("./runner.ts");
+  const steps = completedSteps([
+    { role: "user", content: "x" },
+    {
+      role: "assistant",
+      content: null,
+      tool_calls: [
+        { id: "a", type: "function", function: { name: "t", arguments: "{}" } },
+        { id: "b", type: "function", function: { name: "t", arguments: "{}" } },
+      ],
+    },
+    { role: "tool", tool_call_id: "a", content: "posted" },
+  ]);
+  assert.deepEqual(
+    steps.filter((m) => m.role === "tool").map((m) => (m.role === "tool" ? [m.tool_call_id, m.content] : [])),
+    [
+      ["a", "posted"],
+      ["b", "not run: the turn was interrupted"],
+    ],
+  );
+});

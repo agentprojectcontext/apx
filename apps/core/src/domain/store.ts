@@ -161,6 +161,9 @@ export function createStore(db: Db, bus: Bus) {
         ...args,
       ).map(toThread);
     },
+    childThreads(parentId: string): string[] {
+      return all("SELECT id FROM threads WHERE parent_id = ?", parentId).map((r) => String(r.id));
+    },
     thread(id: string): Thread | undefined {
       const r = one("SELECT * FROM threads WHERE id = ?", id);
       return r ? toThread(r) : undefined;
@@ -431,6 +434,9 @@ export function createStore(db: Db, bus: Bus) {
     idemGet(key: string, method: string): unknown | undefined {
       const r = one("SELECT response FROM idempotency WHERE key = ? AND method = ?", key, method);
       return r ? JSON.parse(String(r.response)) : undefined;
+    },
+    pruneIdempotency(maxAgeMs = 24 * 3600_000): void {
+      run("DELETE FROM idempotency WHERE created_at < ?", new Date(Date.now() - maxAgeMs).toISOString());
     },
     idemPut(key: string, method: string, response: unknown): void {
       run(

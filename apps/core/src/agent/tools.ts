@@ -76,6 +76,23 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
     });
   };
 
+  /** An agent only touches tabs of its own profile, and not while another agent is driving them. */
+  const own = async (ctx: ToolContext, tab: unknown): Promise<string> => {
+    const id = String(tab ?? "");
+    const tabs = (
+      (await call("browser.tabs", {})) as {
+        tabs: Array<{ tab: string; profile: string; control: { kind: string; by?: string } }>;
+      }
+    ).tabs;
+    const t = tabs.find((x) => x.tab === id);
+    if (!t) throw new Error(`unknown tab ${id}; open one with browser_open`);
+    if (t.profile !== profileFor(ctx.agent))
+      throw new Error(`tab ${id} belongs to another browser profile; open your own tab`);
+    if (t.control.kind === "agent" && t.control.by !== ctx.agent.name)
+      throw new Error(`tab ${id} is being used by ${t.control.by}; open your own tab`);
+    return id;
+  };
+
   const host = (url: unknown) => {
     try {
       return new URL(String(url)).host;
@@ -138,6 +155,7 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
       },
       title: (a) => `Navegó a ${host(a.url)}`,
       async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         const r = (await call("browser.navigate", { tab: a.tab, url: a.url, by: ctx.agent.name })) as {
           url: string;
           title: string;
@@ -157,7 +175,8 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
         },
       },
       title: () => "Leyó la página",
-      async run(a) {
+      async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         const r = (await call("browser.snapshot", { tab: a.tab, max_chars: 12_000 })) as { tree: string };
         return cap(r.tree);
       },
@@ -175,7 +194,8 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
         },
       },
       title: () => "Leyó el texto",
-      async run(a) {
+      async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         const r = (await call("browser.text", { tab: a.tab, offset: Number(a.offset ?? 0), max_chars: 8000 })) as {
           text: string;
           url: string;
@@ -196,6 +216,7 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
       },
       title: (a) => `Hizo clic en ${a.ref}`,
       async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         const r = (await call("browser.click", { tab: a.tab, ref: a.ref, by: ctx.agent.name })) as { url: string };
         await browserCard(ctx, String(a.tab), "agent");
         return `ok · now at ${r.url}`;
@@ -221,6 +242,7 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
       },
       title: (a) => `Escribió en ${a.ref}`,
       async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         const r = (await call("browser.type", {
           tab: a.tab,
           ref: a.ref,
@@ -243,6 +265,7 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
       },
       title: (a) => `Te pidió: ${String(a.reason).slice(0, 60)}`,
       async run(a, ctx) {
+        a.tab = await own(ctx, a.tab);
         await browserCard(ctx, String(a.tab), "handoff", String(a.reason));
         const r = (await call(
           "browser.handoff",

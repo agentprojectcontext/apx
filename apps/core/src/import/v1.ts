@@ -8,7 +8,10 @@ type V1Project = { id: number; name: string; path: string; apx_id: string; missi
 type V1Agent = { slug: string; name?: string; role?: string; description?: string; blob?: string };
 
 export async function importFromV1(store: Store, opts: { url?: string; fetchImpl?: typeof fetch } = {}) {
-  const url = opts.url ?? "http://127.0.0.1:7430";
+  const url = opts.url ?? process.env.APX_V1_URL ?? "http://127.0.0.1:7430";
+  // The v1 daemon token must never leave this machine.
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname))
+    throw new Error("v1 import only talks to a local daemon");
   const f = opts.fetchImpl ?? fetch;
   let token = "";
   try {

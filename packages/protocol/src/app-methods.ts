@@ -5,7 +5,7 @@ import { Agent, Id, Message, Project, Run, Surface, SurfaceSummary, Thread } fro
 export const appMethods = {
   /** Read-only import of projects and agents from a running APX v1 daemon. */
   "system.import_v1": {
-    params: z.object({ url: z.string().url().optional() }).strict(),
+    params: z.object({}).strict(),
     result: z.object({ projects: z.number().int(), agents: z.number().int() }),
     effect: true,
   },
