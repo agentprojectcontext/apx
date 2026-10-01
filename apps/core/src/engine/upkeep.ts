@@ -3,6 +3,7 @@
 // the title comes from the first message and a long thread is only trimmed by the history budget.
 // See DECISIONS.md#d-013
 
+import { memorySettings } from "../domain/memory-settings.ts";
 import { harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -274,7 +275,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     afterRun(run: RunRecord): void {
       if (ac.signal.aborted) return;
       if (run.state === "completed") background(`title:${run.thread_id}`, () => title(run));
-      background(`compact:${run.thread_id}`, () => once(run.thread_id, false));
+      if (memorySettings(store).auto_compact) background(`compact:${run.thread_id}`, () => once(run.thread_id, false));
     },
     async stop(): Promise<void> {
       ac.abort(new Error("shutting down"));

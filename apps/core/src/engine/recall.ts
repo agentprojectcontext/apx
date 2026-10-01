@@ -6,6 +6,7 @@ import type { Memory, Thread } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
 import { notesText } from "../tools/memory.ts";
+import type { NoteSearch } from "./memory-index.ts";
 
 const STANDING = 8;
 const MATCHES = 5;
@@ -16,14 +17,15 @@ const SHOWN_CAP = 200;
  * `from`: the oldest model log seq still in the model's view. Returns the block and, when something changed, the
  * bookkeeping to store once the input's seq is known.
  */
-export function recallFor(
+export async function recallFor(
   store: Store,
+  search: (o: NoteSearch) => Promise<Memory[]>,
   agentId: string,
   thread: Pick<Thread, "project_id">,
   text: string,
   ctx: ThreadContext,
   from: number,
-): { text?: string | undefined; shown?: ((at: number) => ThreadContext) | undefined } {
+): Promise<{ text?: string | undefined; shown?: ((at: number) => ThreadContext) | undefined }> {
   const all = ctx.memory_shown ?? {};
   const since = ctx.memory_since ?? {};
   const stale = since[agentId] !== undefined && (since[agentId] as number) < from;
@@ -42,7 +44,7 @@ export function recallFor(
     add(store.memories.list({ view, scope: "global", limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
-  if (text.trim()) add(store.memories.list({ view, query: text.slice(0, 2000), limit: MATCHES }));
+  if (text.trim()) add(await search({ view, query: text.slice(0, 2000), limit: MATCHES }));
   const block = notesText(notes);
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
   if (before && !block.ids.length) return {};

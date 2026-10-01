@@ -78,12 +78,45 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
       needs_key: false,
     },
   ],
+  embedding: [
+    {
+      id: "ollama",
+      label: "Ollama",
+      dialect: "ollama-embed",
+      base_url: "http://127.0.0.1:11434",
+      needs_key: false,
+      model: "bge-m3",
+    },
+    {
+      id: "gemini",
+      label: "Gemini",
+      dialect: "gemini-embed",
+      base_url: "https://generativelanguage.googleapis.com",
+      needs_key: true,
+      model: "gemini-embedding-001",
+    },
+    {
+      id: "openai",
+      label: "OpenAI",
+      dialect: "openai-embed",
+      base_url: "https://api.openai.com/v1",
+      needs_key: true,
+      model: "text-embedding-3-small",
+    },
+    {
+      id: "compatible",
+      label: "OpenAI-compatible",
+      dialect: "openai-embed",
+      base_url: "http://localhost:8000/v1",
+      needs_key: false,
+    },
+  ],
 };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Images or Voices: the owner's services in the order they are tried, a test, and (images) the shared defaults. */
-export function ServicesSection({ kind }: { kind: ServiceKind }) {
+export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind; embedded?: boolean }) {
   const t = useT();
   const [services, setServices] = useState<ServiceInfo[]>();
   const [defaults, setDefaults] = useState<ImageDefaults>();
@@ -126,18 +159,29 @@ export function ServicesSection({ kind }: { kind: ServiceKind }) {
 
   return (
     <>
-      <SectionHead
-        title={t(kind === "image" ? "config.images" : "config.voices")}
-        lead={t(kind === "image" ? "svc.image.lead" : "svc.speech.lead")}
-        actions={
-          <Button size="sm" variant="secondary" leadingIcon={<Icons.RefreshCw size={14} />} onClick={() => void load()}>
-            {t("common.refresh")}
-          </Button>
-        }
-      />
+      {!embedded && (
+        <SectionHead
+          title={t(kind === "image" ? "config.images" : "config.voices")}
+          lead={t(kind === "image" ? "svc.image.lead" : "svc.speech.lead")}
+          actions={
+            <Button
+              size="sm"
+              variant="secondary"
+              leadingIcon={<Icons.RefreshCw size={14} />}
+              onClick={() => void load()}
+            >
+              {t("common.refresh")}
+            </Button>
+          }
+        />
+      )}
       {services && !services.length ? (
-        <EmptyState variant="dashed" size="sm" icon={kind === "image" ? <Icons.Image /> : <Icons.Mic />}>
-          {t(kind === "image" ? "svc.image.empty" : "svc.speech.empty")}
+        <EmptyState
+          variant="dashed"
+          size="sm"
+          icon={kind === "image" ? <Icons.Image /> : kind === "speech" ? <Icons.Mic /> : <Icons.Brain />}
+        >
+          {t(`svc.${kind}.empty`)}
         </EmptyState>
       ) : (
         <ul className="res__list">
@@ -191,8 +235,8 @@ export function ServicesSection({ kind }: { kind: ServiceKind }) {
         </Button>
       </div>
 
-      {kind === "image" ? <ImageTest /> : <SpeechTest />}
-      {kind === "image" && defaults && <Defaults value={defaults} onSaved={setDefaults} />}
+      {!embedded && (kind === "image" ? <ImageTest /> : kind === "speech" ? <SpeechTest /> : null)}
+      {!embedded && kind === "image" && defaults && <Defaults value={defaults} onSaved={setDefaults} />}
 
       {editing && (
         <ServiceDialog

@@ -565,3 +565,59 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+
+/* ── Radio cards (memory mode) ──────────────────────────────────────────── */
+.radiocards {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radiocard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.radiocard.is-on {
+  border-color: var(--apx-fg);
+}
+.radiocard__dot {
+  appearance: none;
+  margin: 2px 0 0;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1.5px solid var(--apx-border-strong);
+  border-radius: 50%;
+}
+.radiocard__dot:checked {
+  border: 4px solid var(--apx-fg);
+}
+.radiocard__title {
+  display: block;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.radiocard__text {
+  display: block;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

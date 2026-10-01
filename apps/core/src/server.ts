@@ -17,6 +17,7 @@ import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
+import { createMemoryIndex } from "./engine/memory-index.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -146,6 +147,7 @@ export async function createCore(
   const mcp = createMcp({ store, secrets, log });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
+  const memory = createMemoryIndex({ store, services, log });
   const channels = createChannels({
     store,
     secrets,
@@ -162,6 +164,7 @@ export async function createCore(
     call,
     home: config.home,
     apxPort: () => listening,
+    memory,
     mcpTools: mcp.toolsFor,
     afterRun: (run) => {
       upkeep.afterRun(run);
@@ -181,7 +184,7 @@ export async function createCore(
       ...browserHandlers(broker),
       ...threadHandlers(store, engine, upkeep),
       ...jobHandlers(store, engine),
-      ...memoryHandlers(store),
+      ...memoryHandlers(store, memory),
       ...channelHandlers(store, channels),
       ...mediaHandlers(services),
       ...mcpHandlers(mcp),

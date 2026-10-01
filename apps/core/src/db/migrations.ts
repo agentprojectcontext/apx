@@ -297,4 +297,9 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX media_thread ON media(thread_id, created_at);
   `,
+  `
+  -- Memory by meaning: each note's embedding (float32 little-endian) and which engine and model made it.
+  ALTER TABLE memories ADD COLUMN embedding BLOB;
+  ALTER TABLE memories ADD COLUMN embedding_model TEXT;
+  `,
 ];

@@ -16,6 +16,7 @@ import type { Display } from "./display.ts";
 import { createInputs } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
+import type { MemoryIndex } from "./memory-index.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
@@ -70,6 +71,7 @@ export function createEngine(deps: {
   home: string;
   /** The port this core listens on (known once the server listens): commands reaching it are APX's own door. */
   apxPort: () => number;
+  memory: MemoryIndex;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */

@@ -150,11 +150,12 @@ test("an agent cannot rewrite a note of another project by id", async () => {
   assert.equal(env.core.store.memories.get(other.id)?.text, "Elsewhere fact.");
 });
 
-test("standing notes are offered again once the turn that showed them left the model's view", () => {
+test("standing notes are offered again once the turn that showed them left the model's view", async () => {
   const store = env.core.store;
+  const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
   const ctx = { memory_shown: { roby: ["mem_x"] }, memory_since: { roby: 3 } };
-  const fresh = recallFor(store, "roby", {}, "", ctx, 2);
+  const fresh = await recallFor(store, byWords, "roby", {}, "", ctx, 2);
   assert.equal(fresh.text, undefined, "still in view: nothing new");
-  const again = recallFor(store, "roby", {}, "", ctx, 10);
+  const again = await recallFor(store, byWords, "roby", {}, "", ctx, 10);
   assert.match(again.text ?? "", /short answers/);
 });

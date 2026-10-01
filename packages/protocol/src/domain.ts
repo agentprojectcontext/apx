@@ -453,9 +453,18 @@ export type PairingRequest = z.infer<typeof PairingRequest>;
  * OpenAI-compatible API) or a voice (QVox and other OpenAI-compatible speech servers, Gemini). Per kind, the first
  * reachable enabled one in the owner's order answers.
  */
-export const ServiceKind = z.enum(["image", "speech"]);
+export const ServiceKind = z.enum(["image", "speech", "embedding"]);
 export type ServiceKind = z.infer<typeof ServiceKind>;
-export const ServiceDialect = z.enum(["a1111", "sdcpp", "openai-images", "openai-speech", "gemini-speech"]);
+export const ServiceDialect = z.enum([
+  "a1111",
+  "sdcpp",
+  "openai-images",
+  "openai-speech",
+  "gemini-speech",
+  "ollama-embed",
+  "gemini-embed",
+  "openai-embed",
+]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
 export const ImageDefaults = z.object({
   width: z.number().int().min(64).max(4096),
@@ -492,6 +501,19 @@ export const ServiceInfo = ServiceSettings.extend({
   status: z.enum(["reachable", "unreachable", "unknown"]),
 });
 export type ServiceInfo = z.infer<typeof ServiceInfo>;
+
+/**
+ * How memory works: notes searched by their words (default), also by meaning (an embedding model indexes them), or
+ * no memory at all. And how long chats are kept small: summaries by an auxiliary model.
+ */
+export const MemorySettings = z.object({
+  mode: z.enum(["notes", "semantic", "off"]),
+  /** Summarize long chats' older turns automatically. */
+  auto_compact: z.boolean(),
+  /** The auxiliary model for titles and summaries: a model ref, "off", or none (the agent's own API models). */
+  aux_model: z.string().max(200).optional(),
+});
+export type MemorySettings = z.infer<typeof MemorySettings>;
 
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({

@@ -28,7 +28,7 @@ const tables = (
 const blocks = tables.map((t) => {
   const cols = db.prepare(`PRAGMA table_info(${t})`).all() as Column[];
   const fields = cols.map((c) => {
-    const base = /INT/i.test(c.type) ? "number" : "string";
+    const base = /INT/i.test(c.type) ? "number" : /BLOB/i.test(c.type) ? "Uint8Array" : "string";
     const type = !c.notnull && !c.pk ? `${base} | null` : base;
     // A column with a default (or an integer primary key) may be left out of an insert.
     const generated = c.dflt_value !== null || (c.pk && /INT/i.test(c.type));

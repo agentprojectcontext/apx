@@ -8,6 +8,7 @@ import { BrowserSection } from "./BrowserSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { McpSection } from "./McpSection.tsx";
+import { MemorySection } from "./MemorySection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
@@ -30,6 +31,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
       { id: "mcp", label: "config.mcp", icon: <Icons.Server /> },
+      { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
     ],
@@ -128,6 +130,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <McpSection />;
     case "router":
       return <RouterSection />;
+    case "memory":
+      return <MemorySection />;
     case "voices":
       return <ServicesSection kind="speech" />;
     case "images":

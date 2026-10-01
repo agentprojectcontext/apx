@@ -101,6 +101,46 @@ function visibleWhere(f: Filters) {
   };
 }
 
+/** Cosine similarity of two vectors of the same length. */
+export function cosine(a: Float32Array, b: Float32Array): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    dot += x * y;
+    na += x * x;
+    nb += y * y;
+  }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
+
+/**
+ * Merges rankings (by words, by meaning) into one: a note high in either list comes first (reciprocal rank fusion,
+ * the usual k = 60).
+ */
+export function fuse(lists: Memory[][], limit: number): Memory[] {
+  const score = new Map<string, { m: Memory; s: number }>();
+  for (const list of lists)
+    list.forEach((m, rank) => {
+      const cur = score.get(m.id) ?? { m, s: 0 };
+      cur.s += 1 / (60 + rank);
+      score.set(m.id, cur);
+    });
+  return [...score.values()]
+    .sort((a, b) => b.s - a.s)
+    .slice(0, limit)
+    .map((x) => x.m);
+}
+
+/** A note's vector is stored as the raw float32 bytes. */
+const toBlob = (v: Float32Array) => new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+const fromBlob = (b: Uint8Array) => new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+
+/** Notes this close to a query (cosine) are related; below it a match is noise. */
+const MIN_SIMILARITY = 0.35;
+
 export function memoriesRepo({ one, all, run }: Sql) {
   const repo = {
     get(id: string): Memory | undefined {
@@ -149,16 +189,64 @@ export function memoriesRepo({ one, all, run }: Sql) {
       return repo.get(id) as Memory;
     },
     edit(id: string, text: string, tainted: boolean): Memory | undefined {
+      // New words, new meaning: the note is indexed again.
       run(
         qb
           .updateTable("memories")
-          .set({ text, tainted: tainted ? 1 : 0, updated_at: now() })
+          .set({ text, tainted: tainted ? 1 : 0, updated_at: now(), embedding: null, embedding_model: null })
           .where("id", "=", id),
       );
       return repo.get(id);
     },
     remove(id: string): boolean {
       return run(qb.deleteFrom("memories").where("id", "=", id)) > 0;
+    },
+    setEmbedding(id: string, vector: Float32Array, model: string): void {
+      run(
+        qb
+          .updateTable("memories")
+          .set({ embedding: toBlob(vector), embedding_model: model })
+          .where("id", "=", id),
+      );
+    },
+    /** Notes not indexed with this engine and model yet (new, edited, or indexed by another engine). */
+    unindexed(model: string, limit: number): Array<{ id: string; text: string }> {
+      return all(
+        qb
+          .selectFrom("memories")
+          .select(["id", "text"])
+          .where((eb) => eb.or([eb("embedding_model", "is", null), eb("embedding_model", "!=", model)]))
+          .limit(limit),
+      );
+    },
+    counts(model: string | undefined): { indexed: number; total: number } {
+      const total = one(qb.selectFrom("memories").select((eb) => eb.fn.countAll<number>().as("n")))?.n ?? 0;
+      const indexed = model
+        ? (one(
+            qb
+              .selectFrom("memories")
+              .select((eb) => eb.fn.countAll<number>().as("n"))
+              .where("embedding_model", "=", model),
+          )?.n ?? 0)
+        : 0;
+      return { indexed: Number(indexed), total: Number(total) };
+    },
+    /** The visible notes closest in meaning to `vector`, among those indexed with `model`. */
+    nearest(o: Filters & { vector: Float32Array; model: string; limit: number }): Memory[] {
+      const rows = all(
+        qb
+          .selectFrom("memories")
+          .selectAll()
+          .where(visibleWhere(o))
+          .where("embedding_model", "=", o.model)
+          .where("embedding", "is not", null),
+      );
+      return rows
+        .map((r) => ({ r, s: cosine(o.vector, fromBlob(r.embedding as Uint8Array)) }))
+        .filter((x) => x.s >= MIN_SIMILARITY)
+        .sort((a, b) => b.s - a.s)
+        .slice(0, o.limit)
+        .map((x) => toMemory(x.r));
     },
     /** Newest first, or with `query` the best full-text matches first. */
     list(o: Filters & { query?: string | undefined; limit: number }): Memory[] {

@@ -10,6 +10,7 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
+import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
 import type { ServiceConfig } from "./types.ts";
@@ -64,7 +65,7 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
   async function check(s: ServiceConfig): Promise<boolean> {
     const cached = status.get(s.id);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached.ok;
-    const path = (s.kind === "image" ? IMAGE_PROBE : SPEECH_PROBE)[s.dialect] ?? "/";
+    const path = { image: IMAGE_PROBE, speech: SPEECH_PROBE, embedding: EMBED_PROBE }[s.kind][s.dialect] ?? "/";
     const ok = await probe(s, path, keyOf(s), f);
     status.set(s.id, { ok, at: Date.now() });
     return ok;
@@ -201,6 +202,21 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
         prompt: c.text,
       });
       return { media, service, skipped };
+    },
+    /**
+     * Texts as vectors with the first embedding engine that answers. `model` names the engine and model, so vectors
+     * from different ones are never compared.
+     */
+    async embed(texts: string[], signal: AbortSignal) {
+      const { out, service } = await firstThatWorks(candidates("embedding"), (s) =>
+        embed(s, texts, keyOf(s), signal, f),
+      );
+      return { vectors: out, model: `${service.id}/${service.model ?? ""}` };
+    },
+    /** The engine and model new vectors would come from, without calling it. */
+    embeddingModel(): string | undefined {
+      const s = ofKind("embedding").find((x) => x.enabled);
+      return s ? `${s.id}/${s.model ?? ""}` : undefined;
     },
     /** A media file's bytes; only files APX itself recorded are ever read. */
     read(id: string): { mime: string; data: Buffer } | undefined {

@@ -99,6 +99,8 @@ export interface MemoriesTable {
   created_at: string;
   updated_at: string;
   tainted: Generated<number>;
+  embedding: Uint8Array | null;
+  embedding_model: string | null;
 }
 
 export interface MessagesTable {

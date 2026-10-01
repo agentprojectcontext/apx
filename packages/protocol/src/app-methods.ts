@@ -11,6 +11,7 @@ import {
   McpServerStatus,
   Memory,
   MemoryScope,
+  MemorySettings,
   Message,
   ModelChoice,
   NoticePrefs,
@@ -407,6 +408,25 @@ export const appMethods = {
       .strict(),
     result: z.object({ memories: z.array(Memory) }),
     effect: false,
+  },
+  "memory.settings": {
+    params: z.object({}).strict(),
+    result: MemorySettings.extend({ indexed: z.number().int(), total: z.number().int() }),
+    effect: false,
+    access: "human",
+  },
+  "memory.set_settings": {
+    params: MemorySettings.strict(),
+    result: MemorySettings,
+    effect: true,
+    access: "human",
+  },
+  /** Indexes, by meaning, the notes not indexed yet with the current embedding engine. */
+  "memory.reindex": {
+    params: z.object({}).strict(),
+    result: z.object({ indexed: z.number().int(), total: z.number().int(), engine: z.string().optional() }),
+    effect: true,
+    access: "human",
   },
   /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
   "memory.add": {

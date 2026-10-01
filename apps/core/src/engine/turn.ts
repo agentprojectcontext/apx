@@ -2,6 +2,7 @@
 import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { memorySettings } from "../domain/memory-settings.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -25,6 +26,7 @@ import { createExecutor, type Executor } from "./executor.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
+import type { MemoryIndex } from "./memory-index.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
@@ -54,6 +56,8 @@ export type TurnDeps = {
   /** APX's home: the owner's skills live under it. */
   home: string;
   apxPort: () => number;
+  /** Notes by words and by meaning. */
+  memory: MemoryIndex;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
@@ -67,6 +71,8 @@ export type ToolCall = <M extends MethodName>(
   params: Params<M>,
   as: { run: RunRecord; callId: string },
 ) => Promise<Result<M>>;
+
+const MEMORY_TOOLS = new Set(["remember", "recall", "forget"]);
 
 type Turn = { agent: AgentRecord; thread: Thread; input: NonNullable<RunRecord["input"]>; audience: Audience };
 type Groups = Array<{ harness: HarnessId; refs: string[] }>;
@@ -87,7 +93,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   );
   run = store.runs.patch(run, { message_id: display.message.id });
 
-  const { history, input, skills } = buildContext(deps, turn, run);
+  const { history, input, skills } = await buildContext(deps, turn, run);
   const { policy, tools } = await turnTools(deps, turn);
   let harness: HarnessId = "native";
   const exec = createExecutor({
@@ -150,16 +156,19 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 }
 
 /** The model's view of the thread and this turn's framed input (with notes and the roster when they apply). */
-function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
+async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const { store } = deps;
   const { agent, thread } = turn;
   // A contact's turn knows nothing of the owner's: no notes, no roster, no skills.
   const sealed = turn.audience.kind === "contact";
+  const remembers = !sealed && memorySettings(store).mode !== "off";
   const ctxState = store.threads.context(thread.id);
   const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
-  const recalled = sealed ? {} : recallFor(store, agent.id, thread, turn.input.text, ctxState, from);
+  const recalled = remembers
+    ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
+    : {};
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
@@ -186,7 +195,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const callers = callersOf(deps.store, turn.thread.id);
   // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
   const mcpTools = !sealed && deps.mcpTools ? await deps.mcpTools(turn.thread).catch(() => []) : [];
-  const policy = inherit(turn.agent, callers, sealed ? [] : [...deps.tools, ...mcpTools]);
+  // With memory off, the tools that read or write it are not offered.
+  const offered =
+    memorySettings(deps.store).mode === "off" ? deps.tools.filter((t) => !MEMORY_TOOLS.has(t.name)) : deps.tools;
+  const policy = inherit(turn.agent, callers, sealed ? [] : [...offered, ...mcpTools]);
   const tools = policy.tools.filter(
     (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
   );

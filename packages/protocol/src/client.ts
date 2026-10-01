@@ -38,6 +38,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // A homelab GPU may queue an image for minutes (the server gives up at 11); speech at 2.
   if (method === "media.image") return 12 * 60_000;
   if (method === "media.speak") return 150_000;
+  // Indexing every note by meaning may take a while on a local model.
+  if (method === "memory.reindex") return 10 * 60_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }
