@@ -19,6 +19,13 @@ export function appHandlers(store: Store, runner: Runner) {
   const h = {
     "system.import_v1": (async () => importFromV1(store)) as Handler<"system.import_v1">,
     "agents.list": (() => ({ agents: store.agents().map(({ prompt: _p, ...a }) => a) })) as Handler<"agents.list">,
+    "agents.update": (({ agent, browser_profile }) => {
+      const cur = store.agent(agent);
+      if (!cur) throw notFound(`agent ${agent}`);
+      store.upsertAgent({ ...cur, ...(browser_profile ? { browser_profile } : {}) });
+      const { prompt: _p, ...next } = store.agent(cur.id) ?? cur;
+      return next;
+    }) as Handler<"agents.update">,
     "projects.list": (() => ({ projects: store.projects() })) as Handler<"projects.list">,
     "threads.list": (({ project_id, include_subthreads }) => ({
       threads: store.threads({ project_id, include_subthreads }),

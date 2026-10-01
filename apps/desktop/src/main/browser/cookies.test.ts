@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createCipheriv, createHash, pbkdf2Sync } from "node:crypto";
 import { test } from "node:test";
-import { decryptChromium, toDetails } from "./cookies.ts";
+import { decryptChromium, registrable, toDetails } from "./cookies.ts";
 
 test("a leading dot makes a domain cookie; without it the cookie stays host-only", () => {
   const domain = toDetails(".example.com", "sid", "v", "/", true, true, "lax", 2_000_000_000);
@@ -34,4 +34,11 @@ test("Chromium v10 values decrypt, with and without the host-hash prefix", () =>
   const prefixed = Buffer.concat([createHash("sha256").update("example.com").digest(), Buffer.from("hello")]);
   assert.equal(decryptChromium(enc(prefixed), key, "example.com", 24), "hello");
   assert.equal(decryptChromium(Buffer.from("v11xxxx"), key, "example.com", 24), undefined);
+});
+
+test("domains group by registrable name, country second-levels included", () => {
+  assert.equal(registrable(".www.example.com"), "example.com");
+  assert.equal(registrable("tienda.acme.com.ar"), "acme.com.ar");
+  assert.equal(registrable("a.b.example.co.uk"), "example.co.uk");
+  assert.equal(registrable("example.io"), "example.io");
 });

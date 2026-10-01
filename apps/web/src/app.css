@@ -940,3 +940,57 @@ body {
   min-height: 0;
   padding: 16px 20px;
 }
+
+/* Config dialog */
+.config__body {
+  margin-top: 12px;
+  min-height: 360px;
+}
+.config__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.config__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.config__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.config__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.config__agent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--apx-border);
+}
+.config__agentname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+}
+.config__agentname span {
+  color: var(--apx-fg-muted);
+  font-size: 12px;
+}
+.config__actions {
+  display: flex;
+  justify-content: flex-end;
+}

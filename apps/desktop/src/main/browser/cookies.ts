@@ -101,7 +101,15 @@ const domainFilter = (col: string, domains: string[]) =>
     .map((d) => `(${col} = ${sqlStr(d)} OR ${col} = ${sqlStr(`.${d}`)} OR ${col} LIKE ${sqlStr(`%.${d}`)})`)
     .join(" OR ");
 
-const registrable = (host: string) => host.replace(/^\./, "").split(".").slice(-2).join(".");
+// Second-level labels under country TLDs (acme.com.ar, acme.co.uk): keep three labels there.
+const SECOND_LEVEL = new Set(["com", "net", "org", "gob", "gov", "edu", "co", "ac", "mil", "int"]);
+export const registrable = (host: string) => {
+  const parts = host.replace(/^\./, "").split(".");
+  const tld = parts.at(-1) ?? "";
+  const sld = parts.at(-2) ?? "";
+  const n = tld.length === 2 && SECOND_LEVEL.has(sld) ? 3 : 2;
+  return parts.slice(-n).join(".");
+};
 
 export async function listDomains(src: CookieSource, filter = ""): Promise<Array<{ domain: string; count: number }>> {
   const col = src.family === "firefox" ? "host" : "host_key";

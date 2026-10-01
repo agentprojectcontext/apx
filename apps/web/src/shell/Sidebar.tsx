@@ -1,5 +1,6 @@
-import { AgentAvatar, Button, Dialog, Icons, NavItem, SectionLabel } from "@apx/ui";
+import { AgentAvatar, Icons, NavItem, SectionLabel } from "@apx/ui";
 import { useMemo, useState } from "react";
+import { ConfigDialog } from "../config/ConfigDialog.tsx";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { go, useNav } from "./nav.ts";
@@ -79,18 +80,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
       )}
       <span className="sidebar__spacer" />
       <NavItem collapsed={rail} icon={<Icons.Settings />} label="Config" onClick={() => setConfigOpen(true)} />
-      <Dialog
-        open={configOpen}
-        onOpenChange={setConfigOpen}
-        title="Configuración"
-        description="Motores, canales, apariencia y memoria llegan en la próxima tanda."
-        size="sm"
-        footer={
-          <Button variant="secondary" onClick={() => setConfigOpen(false)}>
-            Cerrar
-          </Button>
-        }
-      />
+      <ConfigDialog open={configOpen} onOpenChange={setConfigOpen} />
     </aside>
   );
 }

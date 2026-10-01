@@ -14,6 +14,11 @@ export const appMethods = {
     result: z.object({ agents: z.array(Agent) }),
     effect: false,
   },
+  "agents.update": {
+    params: z.object({ agent: Id, browser_profile: z.enum(["shared", "isolated", "incognito"]).optional() }).strict(),
+    result: Agent,
+    effect: true,
+  },
   "projects.list": {
     params: z.object({}).strict(),
     result: z.object({ projects: z.array(Project) }),

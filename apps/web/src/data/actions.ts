@@ -238,3 +238,45 @@ export async function shareSurface(id: string, shared: boolean): Promise<string 
     return undefined;
   }
 }
+
+export async function setAgentBrowserProfile(
+  agent: string,
+  browser_profile: "shared" | "isolated" | "incognito",
+): Promise<void> {
+  try {
+    const next = await client.call("agents.update", { agent, browser_profile });
+    data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
+  } catch (e) {
+    notify(`No se pudo guardar: ${errText(e)}`);
+  }
+}
+
+export async function cookieSources() {
+  try {
+    return (await client.call("browser.cookie_sources", {})).sources;
+  } catch (e) {
+    notify(`Abrí la app de escritorio para importar sesiones (${errText(e)})`);
+    return [];
+  }
+}
+
+export async function cookieDomains(source: string, filter: string) {
+  try {
+    return (await client.call("browser.cookie_domains", { source, filter })).domains;
+  } catch (e) {
+    notify(`No se pudieron leer los dominios: ${errText(e)}`);
+    return [];
+  }
+}
+
+export async function importCookies(source: string, domains: string[]): Promise<void> {
+  try {
+    const r = await client.call("browser.import_cookies", { source, domains, profile: "shared" });
+    notify(
+      `Importé ${r.imported} cookies${r.skipped ? ` (${r.skipped} vencidas)` : ""}${r.failed ? `, ${r.failed} fallaron` : ""}.`,
+      "info",
+    );
+  } catch (e) {
+    notify(`No se pudo importar: ${errText(e)}`);
+  }
+}
