@@ -41,4 +41,12 @@ export const MIGRATIONS: readonly string[] = [
   CREATE UNIQUE INDEX surfaces_share ON surfaces(share_token) WHERE share_token IS NOT NULL;
   `,
   `ALTER TABLE runs ADD COLUMN usage TEXT;`,
+  `
+  ALTER TABLE agents ADD COLUMN harness TEXT;
+  -- An external harness (Claude Code, Codex) keeps its own conversation; we keep its id per thread.
+  CREATE TABLE harness_sessions (
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, harness TEXT NOT NULL, session_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL, PRIMARY KEY (thread_id, harness)
+  );
+  `,
 ];

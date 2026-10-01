@@ -34,3 +34,14 @@ index. The fixes change markup, not visuals or the public API; a Claude Design r
 <a id="d-006"></a>
 ## D-006 — 2026-09-30 — Biome instead of ESLint + Prettier; `node:test` instead of Vitest
 Fewer dependencies and one fast binary. Vitest may be added for `apps/web` component tests if needed.
+
+<a id="d-007"></a>
+## D-007 — 2026-10-01 — Claude and Codex run as harnesses with the user's own login
+An agent's turn can run inside the user's installed `claude` (Claude Agent SDK, `pathToClaudeCodeExecutable`) or
+`codex` (Codex SDK). APX never implements their OAuth nor reads, copies or refreshes their tokens: each CLI uses
+its own login on the user's machine. APX keeps identity, system prompt and tools: Claude gets APX tools as an
+in-process MCP server; Codex gets them through `apx2 mcp --run <token>`, a stdio proxy bound to one run by a random
+token that dies with the run. Claude runs isolated (`settingSources: []`, only WebSearch/WebFetch built-ins,
+`permissionMode: "dontAsk"`); Codex runs read-only with no approvals. Each thread keeps the harness session id so
+the conversation resumes. If a harness fails before any tool ran (quota, logged out), the turn falls back to the
+native model with a visible card; after a tool ran it fails honestly (a retry could repeat an effect).

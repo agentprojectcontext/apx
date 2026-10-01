@@ -1,6 +1,17 @@
 // Methods behind the app screens: agents, projects, threads, surfaces.
 import { z } from "zod";
-import { Agent, Id, Message, Project, Run, Surface, SurfaceSummary, Thread } from "./domain.ts";
+import {
+  Agent,
+  EngineStatus,
+  HarnessId,
+  Id,
+  Message,
+  Project,
+  Run,
+  Surface,
+  SurfaceSummary,
+  Thread,
+} from "./domain.ts";
 
 export const appMethods = {
   /** Read-only import of projects and agents from a running APX v1 daemon. */
@@ -15,8 +26,41 @@ export const appMethods = {
     effect: false,
   },
   "agents.update": {
-    params: z.object({ agent: Id, browser_profile: z.enum(["shared", "isolated", "incognito"]).optional() }).strict(),
+    params: z
+      .object({
+        agent: Id,
+        browser_profile: z.enum(["shared", "isolated", "incognito"]).optional(),
+        /** null = back to the install default. */
+        harness: HarnessId.nullable().optional(),
+      })
+      .strict(),
     result: Agent,
+    effect: true,
+  },
+  "engines.status": {
+    params: z.object({ refresh: z.boolean().default(false) }).strict(),
+    result: z.object({ engines: z.array(EngineStatus) }),
+    effect: false,
+  },
+  "engines.set_default": {
+    params: z.object({ engine: HarnessId }).strict(),
+    result: z.object({ engines: z.array(EngineStatus) }),
+    effect: true,
+  },
+  /** Internal: an external harness (Codex) lists the tools of the run that owns `token`. */
+  "harness.tools": {
+    params: z.object({ token: z.string().min(32).max(128) }).strict(),
+    result: z.object({
+      tools: z.array(z.object({ name: z.string(), description: z.string(), parameters: z.unknown() })),
+    }),
+    effect: false,
+  },
+  /** Internal: an external harness calls one APX tool inside the run that owns `token`. */
+  "harness.call": {
+    params: z
+      .object({ token: z.string().min(32).max(128), tool: z.string(), args: z.record(z.string(), z.unknown()) })
+      .strict(),
+    result: z.object({ ok: z.boolean(), text: z.string() }),
     effect: true,
   },
   "projects.list": {

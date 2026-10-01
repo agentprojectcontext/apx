@@ -38,6 +38,7 @@ const { values, positionals } = parseArgs({
     by: { type: "string" },
     submit: { type: "boolean" },
     thread: { type: "string" },
+    run: { type: "string" },
   },
 });
 const [command, ...rest] = positionals;
@@ -79,6 +80,11 @@ try {
       break;
     }
     case "mcp": {
+      if (values.run) {
+        const { runRunMcp } = await import("./mcp-run.ts");
+        await runRunMcp(client, values.run);
+        break;
+      }
       const { runMcp } = await import("./mcp.ts");
       await runMcp(client, values.by ?? "mcp-client");
       break;

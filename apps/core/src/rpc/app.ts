@@ -19,10 +19,16 @@ export function appHandlers(store: Store, runner: Runner) {
   const h = {
     "system.import_v1": (async () => importFromV1(store)) as Handler<"system.import_v1">,
     "agents.list": (() => ({ agents: store.agents().map(({ prompt: _p, ...a }) => a) })) as Handler<"agents.list">,
-    "agents.update": (({ agent, browser_profile }) => {
+    "agents.update": (({ agent, browser_profile, harness }) => {
       const cur = store.agent(agent);
       if (!cur) throw notFound(`agent ${agent}`);
-      store.upsertAgent({ ...cur, ...(browser_profile ? { browser_profile } : {}) });
+      const { harness: _h, ...rest } = cur;
+      const nextHarness = harness === undefined ? cur.harness : (harness ?? undefined);
+      store.upsertAgent({
+        ...rest,
+        ...(browser_profile ? { browser_profile } : {}),
+        ...(nextHarness ? { harness: nextHarness } : {}),
+      });
       const { prompt: _p, ...next } = store.agent(cur.id) ?? cur;
       return next;
     }) as Handler<"agents.update">,

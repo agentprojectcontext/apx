@@ -22,8 +22,26 @@ export const Agent = z.object({
   /** Browser profile this agent may use: shared jar, an isolated jar, or always incognito. */
   browser_profile: z.enum(["shared", "isolated", "incognito"]).default("shared"),
   model: z.string().optional(),
+  /** Which engine runs this agent's turns; absent = the install default. */
+  harness: z.enum(["native", "claude", "codex"]).optional(),
 });
 export type Agent = z.infer<typeof Agent>;
+
+export const HarnessId = z.enum(["native", "claude", "codex"]);
+export type HarnessId = z.infer<typeof HarnessId>;
+
+/** What the setup and Config → Motores show: installed → logged in → usable. */
+export const EngineStatus = z.object({
+  id: HarnessId,
+  label: z.string(),
+  installed: z.boolean(),
+  logged_in: z.boolean(),
+  version: z.string().optional(),
+  /** Model or account detail, never a secret. */
+  detail: z.string().optional(),
+  default: z.boolean(),
+});
+export type EngineStatus = z.infer<typeof EngineStatus>;
 
 export const RunState = z.enum(["submitted", "working", "input-required", "completed", "failed", "canceled"]);
 export type RunState = z.infer<typeof RunState>;

@@ -72,6 +72,7 @@ function toAgent(r: Row): Agent & { prompt: string } {
     ...(r.project_id ? { project_id: String(r.project_id) } : {}),
     browser_profile: r.browser_profile as Agent["browser_profile"],
     ...(r.model ? { model: String(r.model) } : {}),
+    ...(r.harness ? { harness: r.harness as NonNullable<Agent["harness"]> } : {}),
     prompt: String(r.prompt),
   };
 }
@@ -131,10 +132,11 @@ export function createStore(db: Db, bus: Bus) {
     },
     upsertAgent(a: Agent & { prompt?: string }): void {
       run(
-        `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, model, prompt, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, model, prompt, created_at, harness)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, kind = excluded.kind, blob = excluded.blob,
-           project_id = excluded.project_id, browser_profile = excluded.browser_profile, model = excluded.model, prompt = excluded.prompt`,
+           project_id = excluded.project_id, browser_profile = excluded.browser_profile, model = excluded.model,
+           prompt = excluded.prompt, harness = excluded.harness`,
         a.id,
         a.name,
         a.role,
@@ -145,6 +147,7 @@ export function createStore(db: Db, bus: Bus) {
         a.model ?? null,
         a.prompt ?? "",
         now(),
+        a.harness ?? null,
       );
     },
 
@@ -433,6 +436,32 @@ export function createStore(db: Db, bus: Bus) {
     surfaceByShareToken(token: string): Surface | undefined {
       const r = one("SELECT * FROM surfaces WHERE share_token = ?", token);
       return r ? toSurface(r) : undefined;
+    },
+
+    // ── settings & external harness sessions ────────────────────────────
+    setting(key: string): string | undefined {
+      const r = one("SELECT value FROM meta WHERE key = ?", `setting:${key}`);
+      return r ? String(r.value) : undefined;
+    },
+    setSetting(key: string, value: string): void {
+      run(
+        "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        `setting:${key}`,
+        value,
+      );
+    },
+    harnessSession(threadId: string, harness: string): string | undefined {
+      const r = one("SELECT session_id FROM harness_sessions WHERE thread_id = ? AND harness = ?", threadId, harness);
+      return r ? String(r.session_id) : undefined;
+    },
+    setHarnessSession(threadId: string, harness: string, sessionId: string): void {
+      run(
+        "INSERT INTO harness_sessions (thread_id, harness, session_id, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(thread_id, harness) DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at",
+        threadId,
+        harness,
+        sessionId,
+        now(),
+      );
     },
 
     // ── idempotency ─────────────────────────────────────────────────────

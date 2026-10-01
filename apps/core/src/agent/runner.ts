@@ -1,9 +1,10 @@
 // Runs agent turns: one at a time per thread, bounded steps and deadline, honest terminal states.
-import type { Message, Part, Run } from "@apx/protocol";
+import type { HarnessId, Message, Part, Run } from "@apx/protocol";
 import type { AgentRecord, Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { buildSystemPrompt, turnPreamble } from "./context.ts";
+import type { ExternalResult, ExternalTurn } from "./harness.ts";
 import type { ChatMessage, Llm } from "./provider.ts";
 import { cap, createTools, type Tool, type ToolContext } from "./tools.ts";
 
@@ -15,7 +16,16 @@ const MAX_ACTIVE_DELEGATIONS = 3;
 
 export type Runner = ReturnType<typeof createRunner>;
 
-export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm; log: Log }) {
+export type ExternalRunner = (harness: Exclude<HarnessId, "native">, turn: ExternalTurn) => Promise<ExternalResult>;
+
+export function createRunner(deps: {
+  store: Store;
+  broker: NodeBroker;
+  llm: Llm;
+  log: Log;
+  engines: { defaultId(): HarnessId };
+  external: ExternalRunner;
+}) {
   const { store, llm, log } = deps;
   const tools = createTools(deps);
   const byName = new Map(tools.map((t) => [t.spec.function.name, t]));
@@ -81,16 +91,89 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
     const fresh: ChatMessage[] = [userMsg];
     const tokens = { input: 0, output: 0 };
 
+    let lastFlush = 0;
+    const onText = (soFar: string) => {
+      // Throttled: one display update per ~120 ms is smooth enough and spares the event stream.
+      if (Date.now() - lastFlush < 120) return;
+      lastFlush = Date.now();
+      upsertPart((p) => p.type === "text", { type: "text", text: soFar });
+    };
+    /** One tool call, with its card: the same path for the native loop and for external harnesses. */
+    const execute = async (callId: string, name: string, args: Record<string, unknown>) => {
+      const tool = byName.get(name);
+      const title = tool ? tool.title(args) : name;
+      upsertPart((p) => p.type === "tool" && p.call_id === callId, {
+        type: "tool",
+        call_id: callId,
+        tool: name,
+        title,
+        status: "running",
+      });
+      if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
+      const out = await runTool(tool, args, ctx);
+      if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
+      upsertPart((p) => p.type === "tool" && p.call_id === callId, {
+        type: "tool",
+        call_id: callId,
+        tool: name,
+        title,
+        status: out.ok ? "ok" : "error",
+        detail: out.text.slice(0, 300),
+      });
+      return out;
+    };
+    const finish = (finalText: string) => {
+      if (tokens.input || tokens.output) current = store.setRunUsage(current, tokens);
+      current = store.setRunState(current, "completed");
+      store.patchThread(thread.id, {
+        state: "idle",
+        preview: finalText.slice(0, 160),
+        unread: (store.thread(thread.id)?.unread ?? 0) + 1,
+      });
+      return finalText;
+    };
+    const harnessId = agent.harness ?? deps.engines.defaultId();
+
     try {
+      if (harnessId !== "native") {
+        let seq = 0;
+        try {
+          const r = await deps.external(harnessId, {
+            agent,
+            system: String(system.content),
+            input: String(userMsg.content),
+            tools: available.map((t) => t.spec),
+            sessionId: store.harnessSession(thread.id, harnessId),
+            signal: ac.signal,
+            onText,
+            runTool: (name, args) => execute(`${run.id}-${++seq}`, name, args),
+          });
+          if (r.sessionId) store.setHarnessSession(thread.id, harnessId, r.sessionId);
+          if (r.usage) Object.assign(tokens, r.usage);
+          flush({ model: r.model });
+          const finalText = r.text.trim() || "Listo.";
+          upsertPart((p) => p.type === "text", { type: "text", text: finalText });
+          // The harness keeps its own transcript; ours keeps the exchange so a switch back to native has context.
+          store.appendModelLog(thread.id, [userMsg, { role: "assistant", content: finalText }]);
+          return finish(finalText);
+        } catch (err) {
+          // Out of quota or logged out before doing anything: answer with the native model instead of failing.
+          // Once a tool ran, a retry could repeat its effect, so the failure stands.
+          if (ac.signal.aborted || seq > 0) throw err;
+          const reason = err instanceof Error ? err.message : String(err);
+          log.warn({ thread: thread.id, harness: harnessId, err: reason }, "harness unavailable, using native");
+          upsertPart((p) => p.type === "tool" && p.call_id === `${run.id}-fallback`, {
+            type: "tool",
+            call_id: `${run.id}-fallback`,
+            tool: "harness",
+            title: `${harnessId === "claude" ? "Claude Code" : "Codex"} no disponible: respondo con el modelo propio`,
+            status: "error",
+            detail: reason.slice(0, 300),
+          });
+        }
+      }
       let finalText = "";
       for (let step = 0; step < MAX_STEPS; step++) {
-        let lastFlush = 0;
-        const onText = (soFar: string) => {
-          // Throttled: one display update per ~120 ms is smooth enough and spares the event stream.
-          if (Date.now() - lastFlush < 120) return;
-          lastFlush = Date.now();
-          upsertPart((p) => p.type === "text", { type: "text", text: soFar });
-        };
         const res = await llm.complete(
           [system, ...history, ...fresh],
           available.map((t) => t.spec),
@@ -111,30 +194,11 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
         }
         if (!calls.length) break;
         for (const c of calls) {
-          const tool = byName.get(c.function.name);
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(c.function.arguments || "{}") as Record<string, unknown>;
           } catch {}
-          const title = tool ? tool.title(args) : c.function.name;
-          upsertPart((p) => p.type === "tool" && p.call_id === c.id, {
-            type: "tool",
-            call_id: c.id,
-            tool: c.function.name,
-            title,
-            status: "running",
-          });
-          if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
-          const out = await runTool(tool, args, ctx);
-          if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
-          upsertPart((p) => p.type === "tool" && p.call_id === c.id, {
-            type: "tool",
-            call_id: c.id,
-            tool: c.function.name,
-            title,
-            status: out.ok ? "ok" : "error",
-            detail: out.text.slice(0, 300),
-          });
+          const out = await execute(c.id, c.function.name, args);
           fresh.push({ role: "tool", tool_call_id: c.id, content: cap(out.text) });
         }
         if (step === MAX_STEPS - 1) finalText ||= "(me quedé sin pasos para esta tarea)";
@@ -144,14 +208,7 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
         upsertPart((p) => p.type === "text", { type: "text", text: finalText });
       }
       store.appendModelLog(thread.id, fresh);
-      if (tokens.input || tokens.output) current = store.setRunUsage(current, tokens);
-      current = store.setRunState(current, "completed");
-      store.patchThread(thread.id, {
-        state: "idle",
-        preview: finalText.slice(0, 160),
-        unread: (store.thread(thread.id)?.unread ?? 0) + 1,
-      });
-      return finalText;
+      return finish(finalText);
     } catch (err) {
       const canceled = ac.signal.aborted && String(ac.signal.reason ?? "").includes("cancel");
       if (canceled) log.info({ thread: thread.id }, "run canceled");
@@ -159,7 +216,10 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
       log.warn({ thread: thread.id, agent: agent.id, err: String(err) }, "run failed");
       upsertPart((p) => p.type === "text", { type: "text", text: message });
       // Keep what already happened (a posted form must not be repeated next turn) but never a dangling call.
-      store.appendModelLog(thread.id, completedSteps(fresh));
+      const steps = completedSteps(fresh);
+      // A turn that ended before any step keeps what the owner saw, so the question is not left hanging.
+      if (steps.length === 1) steps.push({ role: "assistant", content: message });
+      store.appendModelLog(thread.id, steps);
       current = store.setRunState(current, canceled ? "canceled" : "failed", message);
       store.patchThread(thread.id, { state: canceled ? "canceled" : "failed", preview: message.slice(0, 160) });
       return message;
