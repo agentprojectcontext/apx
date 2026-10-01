@@ -9,6 +9,7 @@ import {
   type Params,
   type Result,
 } from "@apx/protocol";
+import { CallError } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 
 export type Handler<M extends MethodName> = (params: Params<M>, ctx: CallContext) => Promise<Result<M>> | Result<M>;
@@ -42,6 +43,7 @@ export function createRouter(handlers: Handlers) {
       const result = await handler(parsed.data as never, ctx);
       return { ok: true, result: def.result.parse(result) };
     } catch (err) {
+      if (err instanceof CallError) return { ok: false, error: err.shape };
       ctx.log.error({ method, err: String(err) }, "handler failed");
       return {
         ok: false,

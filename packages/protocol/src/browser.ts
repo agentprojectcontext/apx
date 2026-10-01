@@ -1,0 +1,90 @@
+// Browser commands. Defined once: operators and agent tools call them on the core, the core forwards the same
+// method + params to a node that offers the "browser" capability (the desktop app), which executes them.
+import { z } from "zod";
+
+export const BROWSER_CAP = "browser";
+
+/** shared = one persistent jar every agent reuses · incognito = in-memory, empty each run · agent:<id> = isolated. */
+export const BrowserProfile = z.union([
+  z.literal("shared"),
+  z.literal("incognito"),
+  z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/),
+]);
+export type BrowserProfile = z.infer<typeof BrowserProfile>;
+
+export const TabControl = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("agent"), by: z.string(), since: z.string() }),
+  z.object({ kind: z.literal("user"), since: z.string() }),
+  z.object({ kind: z.literal("idle") }),
+]);
+export type TabControl = z.infer<typeof TabControl>;
+
+export const TabInfo = z.object({
+  tab: z.string(),
+  url: z.string(),
+  title: z.string(),
+  profile: BrowserProfile,
+  control: TabControl,
+});
+export type TabInfo = z.infer<typeof TabInfo>;
+
+const Tab = z.string().min(1);
+const Ref = z.string().regex(/^e\d+$/);
+const Url = z.string().url().max(4096);
+/** Who drives the tab; shown in the pill ("Roby is using this tab"). */
+const By = z.string().min(1).max(64).default("operator");
+
+export const browserMethods = {
+  "browser.tabs": {
+    params: z.object({}).strict(),
+    result: z.object({ tabs: z.array(TabInfo) }),
+    effect: false,
+  },
+  "browser.open": {
+    params: z.object({ url: Url, profile: BrowserProfile.default("shared"), by: By }).strict(),
+    result: TabInfo,
+    effect: true,
+  },
+  "browser.navigate": {
+    params: z.object({ tab: Tab, url: Url, by: By }).strict(),
+    result: z.object({ url: z.string(), title: z.string() }),
+    effect: true,
+  },
+  "browser.snapshot": {
+    params: z.object({ tab: Tab, max_chars: z.number().int().min(500).max(100_000).default(20_000) }).strict(),
+    /** `tree` is untrusted web content, already wrapped as such by the node. */
+    result: z.object({
+      url: z.string(),
+      title: z.string(),
+      tree: z.string(),
+      refs: z.number().int(),
+      truncated: z.boolean(),
+    }),
+    effect: false,
+  },
+  "browser.click": {
+    params: z.object({ tab: Tab, ref: Ref, by: By }).strict(),
+    result: z.object({ ok: z.literal(true), url: z.string() }),
+    effect: true,
+  },
+  "browser.type": {
+    params: z
+      .object({ tab: Tab, ref: Ref, text: z.string().max(10_000), submit: z.boolean().default(false), by: By })
+      .strict(),
+    result: z.object({ ok: z.literal(true), url: z.string() }),
+    effect: true,
+  },
+  "browser.screenshot": {
+    params: z.object({ tab: Tab }).strict(),
+    result: z.object({ mime: z.literal("image/jpeg"), data: z.string(), bytes: z.number().int() }),
+    effect: false,
+  },
+  "browser.close": {
+    params: z.object({ tab: Tab }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+  },
+} as const;
+
+export type BrowserMethod = keyof typeof browserMethods;
+export const BROWSER_METHODS = Object.keys(browserMethods) as BrowserMethod[];

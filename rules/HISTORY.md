@@ -22,3 +22,13 @@ first.
 **Why:** leaks must be caught before the first `git add`; in v1 real names reached the public history through
 fixtures and previews. On its first run in v2 it caught a real name in a design-system preview.
 **Where:** `scripts/check-private-terms.ts`.
+
+## Embedded browser
+
+<a id="cdp-attach-after-load"></a>
+### CDP attaches after the first load, and every capture is bounded
+**Rule:** `cdp.attach()` runs after the tab's first `loadURL`; screenshots time out and fall back to `capturePage`;
+navigation resolves at `dom-ready`.
+**Why:** enabling CDP domains on a tab without a renderer never answers; `Page.captureScreenshot` never answers
+while the window is not painting; waiting for full `load` timed out on ad-heavy sites. Each hung a tool call.
+**Where:** `apps/desktop/src/main/browser/host.ts` (`open`, `#load`), `apps/desktop/src/main/browser/cdp.ts` (`screenshot`).

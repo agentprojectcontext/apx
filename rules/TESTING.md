@@ -38,3 +38,16 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 ```bash
 pnpm preflight
 ```
+
+## 6. Embedded browser (real path)
+```bash
+pnpm dev                                         # core
+pnpm --filter @apx/web dev                       # panel
+pnpm --filter @apx/desktop dev                   # Electron; `apx2 status` must show "browser ok — apx-desktop"
+node apps/terminal/src/main.ts browser open https://example.com --by Roby
+node apps/terminal/src/main.ts browser snapshot t1
+node apps/terminal/src/main.ts browser shot t1 /tmp/t1.jpg
+```
+Profiles: open `https://httpbin.org/cookies/set?probe=1` in `shared`, then `https://httpbin.org/cookies` with another
+`--by` (must show it) and with `--profile incognito` (must be empty). Credential guard: `browser type` into a
+password field must fail with `credential_field`.

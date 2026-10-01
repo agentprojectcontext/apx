@@ -1,0 +1,21 @@
+{
+  "name": "@apx/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "APX desktop: Electron shell around the web panel, plus the embedded browser it lends to the core as a node.",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "dev": "node scripts/build.ts && electron .",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@apx/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*",
+    "electron": "^44.5.1",
+    "esbuild": "^0.25.12"
+  }
+}

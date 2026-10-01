@@ -1,6 +1,7 @@
 // Method registry: the single source of truth for what the core answers.
 // Adding a method = one entry here + one handler in apps/core/src/rpc. Every client gets the types for free.
 import { z } from "zod";
+import { browserMethods } from "./browser.ts";
 
 export const SubsystemStatus = z.object({
   status: z.enum(["ok", "degraded", "down", "off"]),
@@ -38,6 +39,7 @@ export const methods = {
     result: z.object({ pong: z.string(), at: z.string() }),
     effect: false,
   },
+  ...browserMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

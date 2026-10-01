@@ -4,14 +4,26 @@ import { ClientFrame, type HelloFrame, PROTOCOL_VERSION } from "@apx/protocol";
 import { WebSocketServer } from "ws";
 import type { Identity } from "../identity.ts";
 import type { Log } from "../log.ts";
+import type { NodeBroker } from "../nodes/broker.ts";
 import type { Dispatch } from "../rpc/router.ts";
 
-export function attachWs(server: Server, dispatch: Dispatch, identity: Identity, log: Log) {
-  const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 4 * 1024 * 1024 });
+export function attachWs(
+  server: Server,
+  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker },
+) {
+  const { dispatch, identity, log, broker } = deps;
+  const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 8 * 1024 * 1024 });
 
   wss.on("connection", (ws) => {
     let hello: HelloFrame | undefined;
     const session = randomUUID();
+
+    ws.on("close", () => {
+      if (hello?.role === "node") {
+        broker.detach(session);
+        log.info({ session, node: hello.client.name }, "node disconnected");
+      }
+    });
 
     ws.on("message", async (data) => {
       let frame: ClientFrame;
@@ -27,6 +39,14 @@ export function attachWs(server: Server, dispatch: Dispatch, identity: Identity,
           return;
         }
         hello = frame;
+        if (frame.role === "node") {
+          broker.attach({
+            session,
+            name: frame.client.name,
+            caps: frame.caps,
+            send: (f) => ws.send(JSON.stringify(f)),
+          });
+        }
         log.info({ session, role: frame.role, client: frame.client.name, caps: frame.caps }, "client connected");
         ws.send(
           JSON.stringify({
@@ -40,6 +60,13 @@ export function attachWs(server: Server, dispatch: Dispatch, identity: Identity,
       }
       if (!hello) {
         ws.close(1008, "hello first");
+        return;
+      }
+      if (frame.t === "res" || frame.t === "event") {
+        // Only nodes answer core requests or push events; an operator sending these is ignored.
+        if (hello.role !== "node") return;
+        if (frame.t === "res") broker.settle(frame.id, frame);
+        else broker.event(session, frame);
         return;
       }
       const out = await dispatch(

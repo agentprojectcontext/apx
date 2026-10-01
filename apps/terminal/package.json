@@ -12,7 +12,8 @@
     "test": "node --test 'src/**/*.test.ts'"
   },
   "dependencies": {
-    "@apx/protocol": "workspace:*"
+    "@apx/protocol": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.31.0"
   },
   "devDependencies": {
     "@apx/config": "workspace:*"

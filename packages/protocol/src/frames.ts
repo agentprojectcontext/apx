@@ -10,6 +10,10 @@ export const ErrorCode = {
   Unauthorized: "unauthorized",
   Unavailable: "unavailable",
   Timeout: "timeout",
+  /** The user took control of the resource (e.g. a browser tab); retry later or ask. */
+  PausedByUser: "paused_by_user",
+  /** The action would type into a password/OTP/card field: hand off to the human. */
+  CredentialField: "credential_field",
   Internal: "internal",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -69,7 +73,8 @@ export const EventFrame = z.object({
 });
 export type EventFrame = z.infer<typeof EventFrame>;
 
-export const ClientFrame = z.discriminatedUnion("t", [HelloFrame, ReqFrame]);
+// Both directions carry req/res: operators call the core; the core calls nodes (role "node").
+export const ClientFrame = z.union([HelloFrame, ReqFrame, ResFrame, EventFrame]);
 export type ClientFrame = z.infer<typeof ClientFrame>;
-export const ServerFrame = z.discriminatedUnion("t", [WelcomeFrame, ResFrame, EventFrame]);
+export const ServerFrame = z.union([WelcomeFrame, ReqFrame, ResFrame, EventFrame]);
 export type ServerFrame = z.infer<typeof ServerFrame>;

@@ -10,7 +10,7 @@ boundary changes.
 | **core** | `apps/core/src/main.ts` (`pnpm dev`) | The only owner of state. Serves the protocol on `127.0.0.1:7440`. | Long-running (service later, F1/F3). |
 | **terminal** | `apps/terminal/src/main.ts` (`apx2`) | One command → protocol call(s) → exit. | Per command. |
 | **web** | `apps/web` (Vite on `:7441` in dev) | Panel in a browser. Talks to core through the Vite proxy. | Per tab. |
-| **desktop** *(F1)* | `apps/desktop` (Electron) | Loads web as its renderer; connects to core as a **node** offering `browser`. | While the app is open. |
+| **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
 | **mobile** *(F7)* | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
 ## 2. How a call flows
@@ -27,6 +27,11 @@ apps/core/src/rpc/<domain>.ts handler        does the work (later: calls domain/
    ▼
 result validated against the registry → same frame shape on both transports
 ```
+
+Node capabilities (`browser.*`): the handler is `apps/core/src/rpc/browser.ts`, which asks
+`apps/core/src/nodes/broker.ts` to send the same method + params to the connected desktop over its socket; the
+desktop executes it in `apps/desktop/src/main/browser/host.ts` (re-validating params and tab control) and the
+core validates the answer against the registry. No desktop connected → `unavailable` immediately.
 
 The registry is `packages/protocol/src/methods.ts`. Adding a method = registry entry + handler; every client
 gets the types. There is no other way into a handler.
@@ -71,7 +76,9 @@ esbuild script (consumed as `dist/`). Checks: `pnpm preflight`. Details: [`TESTI
 5. `apps/core/src/server.ts` — composition root.
 6. `apps/core/src/config.ts` — env → config, safe-bind rule.
 7. `scripts/check-private-terms.ts` — the public-safe gate.
-8. `plan/01-arquitectura-v2.md` — where this is going.
+8. `apps/desktop/src/main/browser/{host,cdp}.ts` — tabs, profiles, control, CDP actions, credential guard.
+9. `apps/terminal/src/mcp.ts` — browser tools for external agents (Claude Code, Codex).
+10. `plan/01-arquitectura-v2.md` — where this is going.
 
 ## 9. Fragile seams
 
@@ -80,6 +87,9 @@ esbuild script (consumed as `dist/`). Checks: `pnpm preflight`. Details: [`TESTI
 - **`packages/ui` ↔ Claude Design**: `dist/` is what design-sync reads; formatting or API changes need a re-sync.
 - **Protocol version**: a client with another `PROTOCOL_VERSION` is closed at `hello`. Bump only with a migration
   plan for every client.
+
+- **CDP timing**: attach only after the first load; screenshots are bounded with a `capturePage` fallback;
+  navigation waits for `dom-ready`. See `plan/01-arquitectura-v2.md` §9.
 
 ## 10. Enforced vs convention
 

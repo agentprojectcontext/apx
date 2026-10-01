@@ -45,7 +45,8 @@ export class ApxClient {
   async call<M extends MethodName>(method: M, params: Params<M>, idem?: string): Promise<Result<M>> {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (this.#opts.token) headers.authorization = `Bearer ${this.#opts.token}`;
-    if (idem) headers["idempotency-key"] = idem;
+    const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
+    if (key) headers["idempotency-key"] = key;
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
       method: "POST",
       headers,
@@ -74,6 +75,8 @@ export class ApxClient {
   }
 }
 
+export type RequestHandler = (method: string, params: unknown) => Promise<unknown>;
+
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> };
 
 export class ApxSocket {
@@ -81,6 +84,8 @@ export class ApxSocket {
   #seq = 0;
   #pending = new Map<string, Pending>();
   #listeners = new Set<(event: EventFrame) => void>();
+  #handler: RequestHandler | undefined;
+  #eventSeq = 0;
   welcome: WelcomeFrame | undefined;
   readonly url: string;
   readonly timeoutMs: number;
@@ -113,6 +118,8 @@ export class ApxSocket {
           clearTimeout(p.timer);
           if (f.ok) p.resolve(f.result);
           else p.reject(new ApxError(f.error));
+        } else if (f.t === "req") {
+          void this.#serve(f.id, f.method, f.params);
         } else {
           for (const l of this.#listeners) l(f);
         }
@@ -130,9 +137,47 @@ export class ApxSocket {
         reject(new ApxError({ code: "timeout", message: `${method} timed out` }));
       }, this.timeoutMs);
       this.#pending.set(id, { resolve, reject, timer });
-      ws.send(JSON.stringify({ t: "req", id, method, params, idem }));
+      const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
+      ws.send(JSON.stringify({ t: "req", id, method, params, idem: key }));
     });
     return methods[method].result.parse(raw) as Result<M>;
+  }
+
+  /** Node role: answer requests the core sends to this client (e.g. browser.* for a "browser" node). */
+  onRequest(handler: RequestHandler): void {
+    this.#handler = handler;
+  }
+
+  /** Node role: push an event (tab updated, control changed…). */
+  emit(stream: string, type: string, payload: unknown): void {
+    this.#ws?.send(JSON.stringify({ t: "event", stream, seq: ++this.#eventSeq, type, payload }));
+  }
+
+  get closed(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.#ws || this.#ws.readyState === WebSocket.CLOSED) resolve();
+      else this.#ws.addEventListener("close", () => resolve(), { once: true });
+    });
+  }
+
+  async #serve(id: string, method: string, params: unknown): Promise<void> {
+    let body: object;
+    if (!this.#handler) {
+      body = { ok: false, error: { code: "unknown_method", message: `client does not serve ${method}` } };
+    } else {
+      try {
+        body = { ok: true, result: await this.#handler(method, params) };
+      } catch (err) {
+        body = {
+          ok: false,
+          error:
+            err instanceof ApxError
+              ? { code: err.code, message: err.message }
+              : { code: "internal", message: err instanceof Error ? err.message : String(err) },
+        };
+      }
+    }
+    this.#ws?.send(JSON.stringify({ t: "res", id, ...body }));
   }
 
   onEvent(listener: (event: EventFrame) => void): () => void {
