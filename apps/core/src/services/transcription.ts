@@ -1,8 +1,9 @@
-// Transcription dialects: voice notes to text. "whisper-local" is the whisper server that runs on this Mac
-// (faster-whisper or mlx-whisper) and reads the audio from a path; "openai-transcribe" uploads it to any
-// OpenAI-compatible endpoint.
+// Transcription dialects: voice notes to text. "whisper-cpp" is whisper.cpp's server, which APX starts and stops
+// itself; "whisper-local" is a whisper server already running on this Mac (faster-whisper or mlx-whisper) that reads
+// the audio from a path; "openai-transcribe" uploads it to any OpenAI-compatible endpoint.
 import { errorMessage } from "../errors.ts";
 import { joinUrl, type ServiceConfig, ServiceError } from "./types.ts";
+import type { WhisperCpp } from "./whisper-cpp.ts";
 
 type Fetch = typeof fetch;
 
@@ -45,9 +46,14 @@ export async function transcribe(
   key: string | undefined,
   signal: AbortSignal,
   f: Fetch = fetch,
+  whisperCpp?: WhisperCpp,
 ): Promise<string> {
   const sig = AbortSignal.any([signal, AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS)]);
   try {
+    if (s.dialect === "whisper-cpp") {
+      if (!whisperCpp || !s.model) throw new Error("whisper.cpp needs a model file");
+      return await whisperCpp.transcribe({ bytes: a.bytes, mime: a.mime, model: s.model, language: s.language }, sig);
+    }
     if (s.dialect === "whisper-local") return await whisperLocal(s, a, sig, f);
     if (s.dialect === "openai-transcribe") return await openaiTranscribe(s, a, key, sig, f);
     throw new Error(`not a transcription service (${s.dialect})`);

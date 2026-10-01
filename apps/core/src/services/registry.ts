@@ -16,6 +16,7 @@ import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
 import { TRANSCRIBE_PROBE, transcribe } from "./transcription.ts";
 import type { ServiceConfig } from "./types.ts";
+import { createWhisperCpp, type WhisperCpp } from "./whisper-cpp.ts";
 
 /** The bottom layer under every image: a service's own defaults and the call's arguments go on top. */
 const BASE_DEFAULTS: ImageDefaults = {
@@ -46,9 +47,17 @@ export type ImageCall = Partial<ImageDefaults> & {
   thread?: string | undefined;
 };
 
-export function createServices(deps: { store: Store; secrets: Secrets; home: string; log: Log; fetch?: typeof fetch }) {
+export function createServices(deps: {
+  store: Store;
+  secrets: Secrets;
+  home: string;
+  log: Log;
+  fetch?: typeof fetch;
+  whisperCpp?: WhisperCpp;
+}) {
   const { store, secrets, log } = deps;
   const f = deps.fetch ?? fetch;
+  const whisperCpp = deps.whisperCpp ?? createWhisperCpp({ log });
   const status = new Map<string, { ok: boolean; at: number }>();
   const keyName = (id: string) => `service-${id}`;
   const keyOf = (s: ServiceConfig) => (s.needs_key ? secrets.resolve(`secret://${keyName(s.id)}`) : undefined);
@@ -74,7 +83,8 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
       transcription: TRANSCRIBE_PROBE,
     };
     const path = probes[s.kind][s.dialect] ?? "/";
-    const ok = await probe(s, path, keyOf(s), f);
+    // APX's own whisper.cpp is not started just to be checked.
+    const ok = s.dialect === "whisper-cpp" ? whisperCpp.available(s.model) : await probe(s, path, keyOf(s), f);
     status.set(s.id, { ok, at: Date.now() });
     return ok;
   }
@@ -227,7 +237,7 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
     async transcribe(a: { bytes: Buffer; mime: string; thread?: string | undefined }, signal: AbortSignal) {
       const media = saveFile(a.bytes, a.mime, { kind: "audio", thread_id: a.thread });
       const { out } = await firstThatWorks(candidates("transcription"), (s) =>
-        transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f),
+        transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f, whisperCpp),
       );
       return { text: out, media };
     },
@@ -252,6 +262,8 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
       const s = ofKind("embedding").find((x) => x.enabled);
       return s ? `${s.id}/${s.model ?? ""}` : undefined;
     },
+    /** Stops what APX runs itself (its whisper.cpp). */
+    close: () => whisperCpp.close(),
     /** A media file's bytes; only files APX itself recorded are ever read. */
     read(id: string): { mime: string; data: Buffer } | undefined {
       const m = store.media.get(id);

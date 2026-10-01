@@ -80,6 +80,15 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
   ],
   transcription: [
     {
+      id: "whispercpp",
+      label: "whisper.cpp (this Mac)",
+      dialect: "whisper-cpp",
+      base_url: "http://127.0.0.1",
+      needs_key: false,
+      language: "es",
+      model: "~/models/ggml-small.bin",
+    },
+    {
       id: "whisper",
       label: "Whisper (this Mac)",
       dialect: "whisper-local",
@@ -371,14 +380,26 @@ function ServiceDialog(props: {
             onChange={(e) => set({ label: e.currentTarget.value })}
           />
         </Field>
-        <Field label={t("providers.url")}>
-          <Input
-            aria-label={t("providers.url")}
-            value={draft.base_url}
-            onChange={(e) => set({ base_url: e.currentTarget.value })}
-          />
-        </Field>
-        <Field label={t("svc.model")} hint={t(kind === "image" ? "svc.modelImageHint" : "svc.modelSpeechHint")}>
+        {/* APX runs whisper.cpp itself: there is no address to give. */}
+        {draft.dialect !== "whisper-cpp" && (
+          <Field label={t("providers.url")}>
+            <Input
+              aria-label={t("providers.url")}
+              value={draft.base_url}
+              onChange={(e) => set({ base_url: e.currentTarget.value })}
+            />
+          </Field>
+        )}
+        <Field
+          label={t("svc.model")}
+          hint={t(
+            draft.dialect === "whisper-cpp"
+              ? "svc.modelWhisperCppHint"
+              : kind === "image"
+                ? "svc.modelImageHint"
+                : "svc.modelSpeechHint",
+          )}
+        >
           <Input
             aria-label={t("svc.model")}
             value={draft.model ?? ""}

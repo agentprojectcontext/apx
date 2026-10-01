@@ -771,6 +771,8 @@ export const en = {
   "time.tomorrowAt": "Tomorrow · {time}",
   "common.more": "More",
   "config.extensions": "Extensions",
+  "svc.modelWhisperCppHint":
+    "The ggml model file (ggml-small.bin, ggml-medium.bin…). APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused; it needs whisper-cpp and ffmpeg (brew install whisper-cpp ffmpeg).",
 } as const;
 
 export type MessageKey = keyof typeof en;

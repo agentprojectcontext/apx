@@ -465,6 +465,7 @@ export const ServiceDialect = z.enum([
   "gemini-embed",
   "openai-embed",
   "whisper-local",
+  "whisper-cpp",
   "openai-transcribe",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;

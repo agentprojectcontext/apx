@@ -779,4 +779,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "time.tomorrowAt": "Mañana · {time}",
   "common.more": "Más",
   "config.extensions": "Extensiones",
+  "svc.modelWhisperCppHint":
+    "El archivo del modelo ggml (ggml-small.bin, ggml-medium.bin…). APX arranca whisper.cpp cuando llega una nota de voz y lo apaga tras 10 minutos sin uso; necesita whisper-cpp y ffmpeg (brew install whisper-cpp ffmpeg).",
 };

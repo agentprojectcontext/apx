@@ -297,6 +297,7 @@ export async function createCore(
       plugins.close();
       await channels.stop();
       await engine.stop();
+      services.close();
       await upkeep.stop();
       await mcp.close();
       apc.close();
