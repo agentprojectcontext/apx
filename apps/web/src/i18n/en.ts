@@ -339,7 +339,6 @@ export const en = {
   "team.browserProfile": "Browser profile",
   "team.chat": "Chat",
   "resources.lead": "Skills, MCP, integrations and variables your agents use, global or per project.",
-  "resources.body": "You'll be able to enable, assign and review each resource without touching files.",
 
   // Settings
   "config.title": "Settings",
@@ -773,6 +772,8 @@ export const en = {
   "config.extensions": "Extensions",
   "svc.modelWhisperCppHint":
     "The ggml model file (ggml-small.bin, ggml-medium.bin…). APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused; it needs whisper-cpp and ffmpeg (brew install whisper-cpp ffmpeg).",
+  "resources.extensions": "{on} of {all} on",
+  "resources.manage": "Manage",
 } as const;
 
 export type MessageKey = keyof typeof en;

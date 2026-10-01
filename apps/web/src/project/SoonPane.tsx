@@ -17,20 +17,3 @@ export function SoonPane({ icon, title, children }: { icon: ReactNode; title: st
     </div>
   );
 }
-
-/** Resources as a top-level view: page title + the placeholder. */
-export function SoonScreen() {
-  const t = useT();
-  const title = t("nav.resources");
-  return (
-    <section className="page" aria-label={title}>
-      <header className="page__head">
-        <h1 className="page__title">{title}</h1>
-        <p className="page__lead">{t("resources.lead")}</p>
-      </header>
-      <SoonPane icon={<Icons.Layers />} title={t("common.comingSoon", { name: title })}>
-        {t("resources.body")}
-      </SoonPane>
-    </section>
-  );
-}

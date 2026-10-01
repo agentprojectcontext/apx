@@ -233,6 +233,7 @@ async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, histor
   const refs = candidates(turn.agent.model_choice ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,
     context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
+    // No input carries images yet (threads.send and channels take text and voice); set it when attachments land.
     has_image: false,
     channel: turn.thread.channel?.id ?? "app",
     trigger: start.trigger,

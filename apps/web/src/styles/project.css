@@ -637,3 +637,6 @@
 .res__mono {
   font-family: var(--apx-font-mono);
 }
+.resources__ext {
+  margin-bottom: 20px;
+}

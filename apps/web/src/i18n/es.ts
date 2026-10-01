@@ -342,7 +342,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "team.browserProfile": "Perfil del navegador",
   "team.chat": "Chatear",
   "resources.lead": "Skills, MCP, integraciones y variables que usan tus agentes, globales o por proyecto.",
-  "resources.body": "Vas a poder activar, asignar y revisar cada recurso sin tocar archivos.",
 
   // Configuración
   "config.title": "Configuración",
@@ -781,4 +780,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.extensions": "Extensiones",
   "svc.modelWhisperCppHint":
     "El archivo del modelo ggml (ggml-small.bin, ggml-medium.bin…). APX arranca whisper.cpp cuando llega una nota de voz y lo apaga tras 10 minutos sin uso; necesita whisper-cpp y ffmpeg (brew install whisper-cpp ffmpeg).",
+  "resources.extensions": "{on} de {all} encendidas",
+  "resources.manage": "Administrar",
 };

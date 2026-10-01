@@ -6,7 +6,7 @@ import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { ProjectScreen } from "../project/ProjectScreen.tsx";
-import { SoonScreen } from "../project/SoonPane.tsx";
+import { ResourcesScreen } from "../project/ResourcesScreen.tsx";
 import { TasksScreen } from "../tasks/TasksScreen.tsx";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
@@ -45,7 +45,7 @@ export function Shell() {
           ) : view === "tasks" ? (
             <TasksScreen />
           ) : view === "resources" ? (
-            <SoonScreen />
+            <ResourcesScreen />
           ) : (
             <ChatWorkspace layout={layout} />
           )}
