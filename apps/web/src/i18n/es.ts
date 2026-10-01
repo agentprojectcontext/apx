@@ -366,6 +366,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engine.kind.native": "Motor propio de APX",
   "engine.kind.cli": "Sesión externa · CLI",
   "engine.login.native": "Configurá una clave de modelo en el core.",
+  "engine.kind.acp": "CLI con Agent Client Protocol",
+  "engine.login.acp": "Iniciá sesión con el propio CLI y después actualizá la lista de modelos.",
   "engine.login.claude": "Abrí Claude Code en una terminal e iniciá sesión con tu cuenta.",
   "engine.login.codex": "Corré codex login en una terminal.",
   "engines.lead":

@@ -38,9 +38,10 @@ const HARNESS_ENGINES = new Set<string>(["claude", "codex"]);
 /** The engine part of a model ref ("claude/x" → "claude"). */
 export const engineOf = (ref: string): string => ref.split("/")[0] ?? ref;
 
-/** The harness that runs a model ref: Claude Code or Codex for theirs, our own loop for every provider. */
+/** The harness that runs a model ref: Claude Code, Codex or an ACP agent for theirs, our own loop for providers. */
 export const harnessOf = (ref: string): HarnessId => {
   const e = engineOf(ref);
+  if (e.startsWith("acp:")) return "acp";
   return HARNESS_ENGINES.has(e) ? (e as HarnessId) : "native";
 };
 

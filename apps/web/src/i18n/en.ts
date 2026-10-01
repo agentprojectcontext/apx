@@ -363,6 +363,8 @@ export const en = {
   "engine.kind.native": "APX's own engine",
   "engine.kind.cli": "External session · CLI",
   "engine.login.native": "Set a model key in the core.",
+  "engine.kind.acp": "Agent Client Protocol CLI",
+  "engine.login.acp": "Sign in with the CLI itself, then refresh the model list.",
   "engine.login.claude": "Open Claude Code in a terminal and sign in with your account.",
   "engine.login.codex": "Run codex login in a terminal.",
   "engines.lead":

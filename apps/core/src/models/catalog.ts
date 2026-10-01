@@ -1,13 +1,17 @@
 // The model catalog: what each engine can run, asked to the engine itself (never a list in code).
 // - providers (built-in harness): GET <base>/models (OpenAI-compatible) or /v1/models (Anthropic);
 // - Claude Code: the Agent SDK's supportedModels();
-// - Codex: `codex debug models`.
+// - Codex: `codex debug models`;
+// - ACP agents (OpenCode, Qwen Code…): the models a fresh session offers.
 // Results are cached in settings for a day; a refresh asks again.
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
+import { type AcpAgent, acpAgents, acpEngine, openSession } from "../harness/acp/agents.ts";
 import { harnessEnv } from "../harness/claude.ts";
 import { which } from "../harness/detect.ts";
 import type { Secrets } from "../secrets.ts";
@@ -110,15 +114,31 @@ async function codexModels(): Promise<CatalogModel[]> {
     }));
 }
 
+/** Opens a session in an empty folder only to read the models it offers, then closes it. */
+async function acpModels(agent: AcpAgent, home: string): Promise<CatalogModel[]> {
+  const binary = await which(agent.command);
+  if (!binary) throw new Error("not installed");
+  const cwd = path.join(home, "work");
+  fs.mkdirSync(cwd, { recursive: true });
+  const s = await openSession(agent, { binary, cwd });
+  try {
+    return s.models.map((m) => ({ id: m.id, name: m.name, chat: true }));
+  } finally {
+    s.close();
+  }
+}
+
 export type Catalog = ReturnType<typeof createCatalog>;
 
 export function createCatalog(deps: {
   store: Store;
   secrets: Secrets;
   providers: ProviderConfig[];
+  home: string;
   fetchImpl?: typeof fetch;
   /** Tests replace the CLI-backed lists. */
   harnessLists?: Partial<Record<"claude" | "codex", () => Promise<CatalogModel[]>>>;
+  acpList?: (agent: AcpAgent) => Promise<CatalogModel[]>;
 }) {
   const { store, secrets } = deps;
   const inflight = new Map<string, Promise<CatalogEngine>>();
@@ -154,6 +174,10 @@ export function createCatalog(deps: {
         list: deps.harnessLists?.claude ?? claudeModels,
       },
       { base: { id: "codex", kind: "harness", label: "Codex" }, list: deps.harnessLists?.codex ?? codexModels },
+      ...acpAgents(store).map((a) => ({
+        base: { id: acpEngine(a), kind: "harness" as const, label: a.label },
+        list: () => (deps.acpList ? deps.acpList(a) : acpModels(a, deps.home)),
+      })),
     ];
     for (const p of deps.providers) {
       out.push({

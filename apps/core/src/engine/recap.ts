@@ -1,17 +1,24 @@
 // Claude Code and Codex keep their own transcript per thread. Turns answered in the same thread by another engine
 // are not in it, so before handing them a turn we tell them what was said meanwhile (text only, newest last).
 import type { HarnessId, Part } from "@apx/protocol";
+import { engineOf } from "../domain/agents.ts";
+import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";
 
 const MAX_TURNS = 12;
 const MAX_CHARS = 12_000;
 
-export function recapFor(store: Store, threadId: string, harness: HarnessId, currentRunId: string): string {
-  const since = store.harnessSessions.updatedAt(threadId, harness);
+/** Whose transcript a turn lives in: an ACP agent's (by engine) or the harness's own. */
+export const sessionKey = (harness: HarnessId | undefined, ref: string | undefined): string =>
+  harness === "acp" ? engineOf(ref ?? "") : (harness ?? "native");
+
+export function recapFor(store: Store, threadId: string, key: string, currentRunId: string): string {
+  const since = store.harnessSessions.updatedAt(threadId, key);
+  const keyOf = (r: RunRecord) => sessionKey(r.harness, r.model);
   const runs = store.runs
     .list(threadId, 50)
-    .filter((r) => r.id !== currentRunId && r.state === "completed" && r.harness !== harness)
+    .filter((r) => r.id !== currentRunId && r.state === "completed" && keyOf(r) !== key)
     .filter((r) => !since || r.started_at > since)
     .slice(0, MAX_TURNS)
     .reverse();

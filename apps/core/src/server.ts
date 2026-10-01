@@ -16,6 +16,7 @@ import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { CallError } from "./errors.ts";
+import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createLog } from "./log.ts";
@@ -87,9 +88,13 @@ export async function createCore(
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
-  const catalog = createCatalog({ store, secrets, providers: config.providers });
-  const engineIds = { harness: new Set(["claude", "codex"]), providers: new Set(config.providers.map((p) => p.id)) };
-  const apc = createApcSync({ store, log, engines: new Set([...engineIds.harness, ...engineIds.providers]) });
+  const catalog = createCatalog({ store, secrets, providers: config.providers, home: config.home });
+  const harnessEngines = () => ["claude", "codex", ...acpAgents(store).map(acpEngine)];
+  const engineIds = {
+    harness: { has: (id: string) => harnessEngines().includes(id) },
+    providers: new Set(config.providers.map((p) => p.id)),
+  };
+  const apc = createApcSync({ store, log, engines: new Set([...harnessEngines(), ...engineIds.providers]) });
   apc.sync();
   const tools = [
     ...agentTools(store),

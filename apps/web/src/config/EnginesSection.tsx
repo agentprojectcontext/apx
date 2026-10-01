@@ -10,17 +10,16 @@ import { ModelCatalog } from "./models/ModelCatalog.tsx";
 import { RouterEditor } from "./models/RouterEditor.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
-const LOOK: Record<EngineStatus["id"], { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey }> = {
-  native: { icon: <Icons.Sparkles />, tone: "brand", kind: "engine.kind.native" },
-  claude: { icon: <Icons.Code />, tone: "ink", kind: "engine.kind.cli" },
-  codex: { icon: <Icons.Terminal />, tone: "ink", kind: "engine.kind.cli" },
-};
+type Look = { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey; login: MessageKey };
 
-const LOGIN_HINT: Record<EngineStatus["id"], MessageKey> = {
-  native: "engine.login.native",
-  claude: "engine.login.claude",
-  codex: "engine.login.codex",
+const LOOK: Record<string, Look> = {
+  native: { icon: <Icons.Sparkles />, tone: "brand", kind: "engine.kind.native", login: "engine.login.native" },
+  claude: { icon: <Icons.Code />, tone: "ink", kind: "engine.kind.cli", login: "engine.login.claude" },
+  codex: { icon: <Icons.Terminal />, tone: "ink", kind: "engine.kind.cli", login: "engine.login.codex" },
 };
+/** Any Agent Client Protocol CLI (OpenCode, Qwen Code, Cursor…). */
+const ACP_LOOK: Look = { icon: <Icons.Bot />, tone: "ink", kind: "engine.kind.acp", login: "engine.login.acp" };
+const lookOf = (id: string): Look => LOOK[id] ?? ACP_LOOK;
 
 /** Engines (installed → signed in → default), the install default model, the router and the model catalog. */
 export function EnginesSection() {
@@ -91,8 +90,8 @@ export function EnginesSection() {
 
 function EngineCard({ engine: e }: { engine: EngineStatus }) {
   const t = useT();
-  const look = LOOK[e.id];
-  const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(LOGIN_HINT[e.id]) : undefined;
+  const look = lookOf(e.id);
+  const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(look.login) : undefined;
   const kind = t(look.kind);
   return (
     <div className={e.default ? "engine is-default" : "engine"}>

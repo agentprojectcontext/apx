@@ -17,7 +17,8 @@ export const Project = z.object({
 });
 export type Project = z.infer<typeof Project>;
 
-export const HarnessId = z.enum(["native", "claude", "codex"]);
+/** Who runs a turn's loop. `acp` covers every Agent Client Protocol CLI; the engine id says which ("acp:opencode"). */
+export const HarnessId = z.enum(["native", "claude", "codex", "acp"]);
 export type HarnessId = z.infer<typeof HarnessId>;
 
 /**
@@ -26,7 +27,8 @@ export type HarnessId = z.infer<typeof HarnessId>;
  */
 export const ModelRef = z
   .string()
-  .regex(/^[a-z0-9][a-z0-9._-]*(\/.+)?$/i)
+  // An ACP agent's engine id carries its prefix: "acp:opencode/<model>".
+  .regex(/^(acp:)?[a-z0-9][a-z0-9._-]*(\/.+)?$/i)
   .max(200);
 export type ModelRef = z.infer<typeof ModelRef>;
 
@@ -108,7 +110,8 @@ export type Agent = z.infer<typeof Agent>;
 
 /** What the setup and Config → Motores show: installed → logged in → usable. */
 export const EngineStatus = z.object({
-  id: HarnessId,
+  /** "native", "claude", "codex" or an ACP agent ("acp:opencode"). */
+  id: z.string(),
   label: z.string(),
   installed: z.boolean(),
   logged_in: z.boolean(),

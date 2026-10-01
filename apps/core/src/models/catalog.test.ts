@@ -32,6 +32,8 @@ test("the catalog asks each engine for its models, caches them and keeps the las
         if (!up) return new Response("down", { status: 503 });
         return new Response(JSON.stringify({ data: [{ id: "models/g-pro" }, { id: "models/g-embedding-1" }] }));
       }) as unknown as typeof fetch,
+      home: "/nonexistent",
+      acpList: async (a) => (a.id === "opencode" ? [{ id: "zen/pickle", name: "Pickle", chat: true }] : []),
       harnessLists: {
         claude: async () => [{ id: "claude-x", name: "Claude X", chat: true }],
         codex: async () => {

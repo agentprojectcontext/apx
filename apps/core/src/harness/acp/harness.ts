@@ -1,0 +1,151 @@
+// Any CLI that speaks the Agent Client Protocol as a harness: one process per turn in the thread's folder, its own
+// session resumed when the agent can, APX tools through the per-run MCP proxy, its permission requests through our
+// policy, its own tool calls shown as cards.
+import { engineOf } from "../../domain/agents.ts";
+import type { McpCommand } from "../codex.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "../types.ts";
+import { type AcpAgent, acpEngine, openSession } from "./agents.ts";
+import { RpcError } from "./rpc.ts";
+
+const CANCEL_GRACE_MS = 3_000;
+
+type PermissionOption = { optionId: string; kind: string; name?: string };
+type ToolUpdate = {
+  toolCallId?: string;
+  title?: string;
+  kind?: string;
+  status?: string;
+  rawInput?: unknown;
+  content?: Array<{ type?: string; content?: { type?: string; text?: string } }>;
+};
+
+const textOf = (u: ToolUpdate) =>
+  (u.content ?? [])
+    .map((c) => c.content?.text ?? "")
+    .join("\n")
+    .trim()
+    .slice(0, 300) || undefined;
+
+export function acpHarness(opts: {
+  agents: () => AcpAgent[];
+  binary: (agent: AcpAgent) => Promise<string>;
+  cwd: (io: TurnIO) => string;
+  gate(io: TurnIO): { command: McpCommand; close(): void };
+}): Harness {
+  return {
+    id: "acp",
+    async run(io: TurnIO): Promise<TurnOutcome> {
+      const engine = engineOf(io.models[0] ?? "");
+      const agent = opts.agents().find((a) => acpEngine(a) === engine);
+      if (!agent) throw new Error(`no ACP agent "${engine}" is configured`);
+      const binary = await opts.binary(agent);
+      const wanted = modelPart(io.models[0]);
+      const gate = opts.gate(io);
+      let text = "";
+      // A loaded session replays its history as updates: only what comes after our prompt is this turn.
+      let prompting = false;
+      const titles = new Map<string, { title: string; kind: string }>();
+      const apxTools = io.tools.map((t) => t.function.name);
+      const ours = (title: string) =>
+        apxTools.some((n) => title === n || title.endsWith(`_${n}`) || title.includes(`apx.${n}`));
+      const session = await openSession(agent, {
+        binary,
+        cwd: opts.cwd(io),
+        resume: io.sessionId,
+        mcpServers: [
+          {
+            name: "apx",
+            command: gate.command.command,
+            args: gate.command.args,
+            env: Object.entries(gate.command.env).map(([name, value]) => ({ name, value })),
+          },
+        ],
+        onUpdate(u) {
+          if (!prompting) return;
+          const kind = String(u.sessionUpdate ?? "");
+          if (kind === "agent_message_chunk") {
+            const c = u.content as { type?: string; text?: string } | undefined;
+            if (c?.type === "text" && c.text) {
+              text += c.text;
+              io.onText(text);
+            }
+          } else if (kind === "tool_call" || kind === "tool_call_update") {
+            const t = u as ToolUpdate;
+            if (!t.toolCallId) return;
+            const known = titles.get(t.toolCallId);
+            const title = t.title ?? known?.title ?? "tool";
+            const tk = t.kind ?? known?.kind ?? "other";
+            titles.set(t.toolCallId, { title, kind: tk });
+            // APX's own tools come back through the MCP proxy with their own cards.
+            if (ours(title)) return;
+            const status = t.status === "completed" ? "ok" : t.status === "failed" ? "error" : "running";
+            io.observe({ callId: t.toolCallId, title, kind: tk, status, ...(textOf(t) ? { detail: textOf(t) } : {}) });
+          }
+        },
+        async onRequest(method, params) {
+          if (method !== "session/request_permission") throw new RpcError(-32601, `${method} is not offered`);
+          const p = params as { toolCall?: ToolUpdate; options?: PermissionOption[] };
+          const call = p.toolCall ?? {};
+          const known = call.toolCallId ? titles.get(call.toolCallId) : undefined;
+          const ok = await io.approve({
+            callId: call.toolCallId ?? `perm-${Date.now()}`,
+            title: call.title ?? known?.title ?? "an action",
+            kind: call.kind ?? known?.kind ?? "other",
+            detail: call.rawInput === undefined ? undefined : JSON.stringify(call.rawInput).slice(0, 600),
+          });
+          const options = p.options ?? [];
+          const pick =
+            options.find((o) => o.kind === (ok ? "allow_once" : "reject_once")) ??
+            options.find((o) => o.kind.startsWith(ok ? "allow" : "reject"));
+          return pick
+            ? { outcome: { outcome: "selected", optionId: pick.optionId } }
+            : { outcome: { outcome: "cancelled" } };
+        },
+      });
+      try {
+        let model = session.currentModel;
+        if (wanted && wanted !== model) {
+          if (!session.models.some((m) => m.id === wanted))
+            throw new Error(`${agent.label} does not offer the model ${wanted}`);
+          if (await session.setModel(wanted)) model = wanted;
+        }
+        // ACP has no system prompt: a fresh session gets our instructions in its first message.
+        const content = session.loaded
+          ? io.input.content
+          : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
+        const onAbort = () => session.rpc.notify("session/cancel", { sessionId: session.sessionId });
+        io.signal.addEventListener("abort", onAbort, { once: true });
+        prompting = true;
+        try {
+          const r = await Promise.race([
+            session.rpc.request<{ stopReason?: string; usage?: { inputTokens?: number; outputTokens?: number } }>(
+              "session/prompt",
+              { sessionId: session.sessionId, prompt: [{ type: "text", text: content }] },
+              // The engine's run deadline ends the turn; this only guards a silent process.
+              24 * 60 * 60_000,
+            ),
+            new Promise<never>((_, reject) => {
+              const stop = () => setTimeout(() => reject(io.signal.reason ?? new Error("canceled")), CANCEL_GRACE_MS);
+              if (io.signal.aborted) stop();
+              io.signal.addEventListener("abort", stop, { once: true });
+            }),
+          ]);
+          if (io.signal.aborted) throw io.signal.reason ?? new Error("canceled");
+          if (r.stopReason === "refusal") throw new Error(`${agent.label} refused to answer`);
+          return {
+            text,
+            model: `${engine}/${model ?? "default"}`,
+            sessionId: session.sessionId,
+            ...(r.stopReason === "max_tokens" ? { finish: "length" as const } : {}),
+            ...(r.usage ? { usage: { input: r.usage.inputTokens ?? 0, output: r.usage.outputTokens ?? 0 } } : {}),
+          };
+        } finally {
+          io.signal.removeEventListener("abort", onAbort);
+        }
+      } finally {
+        session.close();
+        gate.close();
+      }
+    },
+  };
+}

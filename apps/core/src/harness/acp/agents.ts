@@ -1,0 +1,180 @@
+// Agents that speak the Agent Client Protocol, and how to start a session with one. Which CLIs exist and how they
+// are invoked is data (the owner can add more in settings); nothing here picks a model.
+import { spawn } from "node:child_process";
+import type { Store } from "../../domain/store.ts";
+import { childEnv } from "../env.ts";
+import { connect, type RequestHandler, type Rpc, RpcError } from "./rpc.ts";
+
+export type AcpAgent = {
+  /** The engine id in model refs ("opencode/<model>"). */
+  id: string;
+  label: string;
+  command: string;
+  args: string[];
+  /** Auth method that reuses the CLI's own login (no prompt, no browser), tried once when a session needs auth. */
+  auth?: string;
+};
+
+/** ACP CLIs APX knows how to start. An owner adds others with the `acp_agents` setting. */
+export const KNOWN_ACP_AGENTS: AcpAgent[] = [
+  { id: "opencode", label: "OpenCode", command: "opencode", args: ["acp"] },
+  { id: "qwen", label: "Qwen Code", command: "qwen", args: ["--acp"] },
+  { id: "cursor", label: "Cursor", command: "cursor-agent", args: ["acp"], auth: "cursor_login" },
+  { id: "gemini-cli", label: "Gemini CLI", command: "gemini", args: ["--experimental-acp"] },
+];
+
+/** Known agents plus the owner's own (`acp_agents` setting: [{id, label, command, args, auth?}]). */
+export function acpAgents(store: Store): AcpAgent[] {
+  let extra: AcpAgent[] = [];
+  try {
+    const raw = JSON.parse(store.settings.get("acp_agents") ?? "[]") as unknown;
+    if (Array.isArray(raw))
+      extra = raw.filter(
+        (a): a is AcpAgent =>
+          typeof a?.id === "string" &&
+          /^[a-z0-9][a-z0-9-]*$/.test(a.id) &&
+          typeof a.command === "string" &&
+          Array.isArray(a.args) &&
+          a.args.every((x: unknown) => typeof x === "string"),
+      );
+  } catch {}
+  const byId = new Map(KNOWN_ACP_AGENTS.map((a) => [a.id, a]));
+  for (const a of extra) byId.set(a.id, { ...a, label: a.label || a.id });
+  return [...byId.values()];
+}
+
+/** The engine id of an ACP agent in model refs and settings. */
+export const acpEngine = (a: AcpAgent) => `acp:${a.id}`;
+
+const INIT_MS = 30_000;
+const SESSION_MS = 60_000;
+
+/** A model the agent offers, from either form of session config the protocol has had. */
+export type AcpModel = { id: string; name: string };
+
+export type AcpSession = {
+  rpc: Rpc;
+  sessionId: string;
+  loaded: boolean;
+  models: AcpModel[];
+  currentModel: string | undefined;
+  /** Picks a model by id; true when the agent accepted it. */
+  setModel(id: string): Promise<boolean>;
+  close(): void;
+};
+
+type NewSessionResult = {
+  sessionId?: string;
+  configOptions?: Array<{
+    id: string;
+    category?: string;
+    currentValue?: string;
+    options?: Array<{ value: string; name: string }>;
+  }>;
+  models?: { currentModelId?: string; availableModels?: Array<{ modelId: string; name: string }> };
+};
+
+function modelsOf(r: NewSessionResult): { models: AcpModel[]; current: string | undefined; configId?: string } {
+  const opt = r.configOptions?.find((o) => o.category === "model" || o.id === "model");
+  if (opt?.options)
+    return {
+      models: opt.options.map((o) => ({ id: o.value, name: o.name })),
+      current: opt.currentValue,
+      configId: opt.id,
+    };
+  return {
+    models: (r.models?.availableModels ?? []).map((m) => ({ id: m.modelId, name: m.name })),
+    current: r.models?.currentModelId,
+  };
+}
+
+/**
+ * Starts the agent, says hello and opens (or loads) a session in `cwd`. Updates and the agent's requests go to the
+ * given handlers from the start, so nothing the agent says during setup is lost.
+ */
+export async function openSession(
+  agent: AcpAgent,
+  o: {
+    binary: string;
+    cwd: string;
+    mcpServers?: Array<{ name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }>;
+    resume?: string | undefined;
+    onUpdate?(update: Record<string, unknown>): void;
+    onRequest?: RequestHandler;
+  },
+): Promise<AcpSession> {
+  const child = spawn(o.binary, agent.args, { cwd: o.cwd, env: childEnv(), stdio: ["pipe", "pipe", "pipe"] });
+  child.stderr.resume();
+  const rpc = connect(child, {
+    request: (method, params) =>
+      o.onRequest ? o.onRequest(method, params) : Promise.reject(new RpcError(-32601, `${method} not supported`)),
+    notification: (method, params) => {
+      if (method === "session/update") o.onUpdate?.((params as { update: Record<string, unknown> }).update);
+    },
+  });
+  const close = () => {
+    if (child.exitCode === null) child.kill("SIGTERM");
+  };
+  try {
+    const init = await rpc.request<{ agentCapabilities?: { loadSession?: boolean } }>(
+      "initialize",
+      // The agent works with its own files and terminal; what it wants to change comes to us as permissions.
+      {
+        protocolVersion: 1,
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+      },
+      INIT_MS,
+    );
+    const params = { cwd: o.cwd, mcpServers: o.mcpServers ?? [] };
+    let r: NewSessionResult;
+    let loaded = false;
+    const open = async (): Promise<NewSessionResult> => {
+      if (o.resume && init.agentCapabilities?.loadSession) {
+        try {
+          const res = await rpc.request<NewSessionResult>(
+            "session/load",
+            { ...params, sessionId: o.resume },
+            SESSION_MS,
+          );
+          loaded = true;
+          return { ...res, sessionId: o.resume };
+        } catch {
+          // A session the agent no longer has: a new one, and the recap carries the context.
+        }
+      }
+      return rpc.request<NewSessionResult>("session/new", params, SESSION_MS);
+    };
+    try {
+      r = await open();
+    } catch (err) {
+      const needsAuth = err instanceof RpcError && /auth/i.test(err.message);
+      if (!needsAuth || !agent.auth) throw err;
+      await rpc.request("authenticate", { methodId: agent.auth }, SESSION_MS);
+      r = await open();
+    }
+    if (!r.sessionId) throw new Error(`${agent.label} opened no session`);
+    const sessionId = r.sessionId;
+    const m = modelsOf(r);
+    return {
+      rpc,
+      sessionId,
+      loaded,
+      models: m.models,
+      currentModel: m.current,
+      async setModel(id) {
+        try {
+          if (m.configId)
+            await rpc.request("session/set_config_option", { sessionId, configId: m.configId, value: id }, SESSION_MS);
+          else await rpc.request("session/set_model", { sessionId, modelId: id }, SESSION_MS);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      close,
+    };
+  } catch (err) {
+    close();
+    throw err;
+  }
+}

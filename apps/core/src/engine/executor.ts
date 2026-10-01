@@ -52,7 +52,15 @@ function describe(args: Record<string, unknown>): string {
   return parts.join(" · ").slice(0, 600);
 }
 
-export type Executor = { execute: TurnIO["execute"]; readonly toolsRan: number };
+export type Executor = {
+  execute: TurnIO["execute"];
+  approve: TurnIO["approve"];
+  observe: TurnIO["observe"];
+  readonly toolsRan: number;
+};
+
+/** Tool kinds (Agent Client Protocol's names) that only look: an external agent uses them without asking. */
+const LOOKING = new Set(["read", "search", "think", "fetch"]);
 
 export function createExecutor(o: {
   store: Store;
@@ -192,8 +200,55 @@ export function createExecutor(o: {
     };
   };
 
+  /** An external agent's own tool: reading runs, anything else is the owner's call unless autonomy is total. */
+  const approve: TurnIO["approve"] = async (req) => {
+    if (LOOKING.has(req.kind) || agent.autonomy === "total") return true;
+    const answer = await o.inputs.ask({
+      run: o.run(),
+      agent,
+      display,
+      callId: req.callId,
+      kind: "confirm",
+      prompt: `${agent.name} wants to ${req.kind === "other" ? "use a tool" : req.kind}: ${req.title}.`,
+      tool: req.kind,
+      ...(req.detail ? { detail: req.detail } : {}),
+      waitMs: INPUT_WAIT_MS,
+      signal,
+    });
+    return answer.state === "approved";
+  };
+
+  const seen = new Set<string>();
+  const observe: TurnIO["observe"] = (ev) => {
+    const run = o.run();
+    if (!seen.has(ev.callId)) {
+      seen.add(ev.callId);
+      const looks = LOOKING.has(ev.kind);
+      if (!looks) toolsRan++;
+      store.runs.beginStep(run.id, {
+        call_id: ev.callId,
+        tool: `external:${ev.kind}`,
+        args: { title: ev.title },
+        effect: looks ? "none" : "external",
+      });
+      store.runs.setActivity(run.id, ev.title, true);
+    }
+    if (ev.status !== "running")
+      store.runs.endStep(run.id, ev.callId, ev.status === "ok" ? "ok" : "error", ev.detail ?? ev.status);
+    display.upsert((p) => p.type === "tool" && p.call_id === ev.callId, {
+      type: "tool",
+      call_id: ev.callId,
+      tool: ev.kind,
+      title: ev.title,
+      status: ev.status,
+      ...(ev.detail ? { detail: ev.detail } : {}),
+    });
+  };
+
   return {
     execute,
+    approve,
+    observe,
     get toolsRan() {
       return toolsRan;
     },

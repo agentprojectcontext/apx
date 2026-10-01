@@ -1,7 +1,7 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import type { HarnessId, MethodName, Params, Result } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { harnessOf } from "../domain/agents.ts";
+import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
@@ -17,10 +17,10 @@ import { createExecutor } from "./executor.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
-import { recapFor } from "./recap.ts";
+import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
 
-const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex" };
+const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
 
 /** Consecutive provider refs go together (the native loop walks its list per call); every other ref is one attempt. */
 function byHarness(refs: string[]): Array<{ harness: HarnessId; refs: string[] }> {
@@ -135,6 +135,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     onText: display.text,
     execute,
+    approve: exec.approve,
+    observe: exec.observe,
     takeSteered: deps.takeSteered,
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
@@ -164,8 +166,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         harness = g.harness;
         run = store.runs.patch(run, { harness: g.harness });
         const external = g.harness !== "native";
-        const sessionId = external ? store.harnessSessions.get(thread.id, g.harness) : undefined;
-        const recap = external ? recapFor(store, thread.id, g.harness, run.id) : "";
+        // Each ACP agent keeps its own sessions; Claude Code and Codex one each.
+        const key = sessionKey(g.harness, g.refs[0]);
+        const sessionId = external ? store.harnessSessions.get(thread.id, key) : undefined;
+        const recap = external ? recapFor(store, thread.id, key, run.id) : "";
         outcome = await harnesses.get(g.harness).run({
           ...io(),
           models: g.refs,
@@ -173,7 +177,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           input: recap ? { ...input, content: `${recap}${input.content}` } : input,
         });
         if (g.harness !== "native") {
-          if (outcome.sessionId) store.harnessSessions.set(thread.id, g.harness, outcome.sessionId);
+          if (outcome.sessionId) store.harnessSessions.set(thread.id, key, outcome.sessionId);
           // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.
           store.modelLog.append(thread.id, run.id, [{ role: "assistant", content: outcome.text || null }]);
         }
@@ -188,7 +192,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         display.notice(
           "warn",
           "engine.fallback",
-          `${HARNESS_LABEL[g.harness]} is not available (${reason}); trying ${next.refs[0]}.`,
+          `${g.harness === "acp" ? engineOf(g.refs[0] ?? "") : HARNESS_LABEL[g.harness]} is not available (${reason}); trying ${next.refs[0]}.`,
         );
       }
     }
