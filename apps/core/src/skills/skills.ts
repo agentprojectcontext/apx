@@ -60,9 +60,17 @@ export function skillsFor(store: Store, home: string, projectId: string | undefi
     project?.path && project.present && !isLink(path.join(project.path, ".apc"))
       ? scan(path.join(project.path, ".apc", "skills"), false, { scope: "project", project_id: project.id })
       : [];
+  // Enabled extensions' skills come last: the owner's own, then a project's, win a name.
+  const extensions = store.extensions
+    .enabled()
+    .flatMap((e) =>
+      e.manifest.skills ? scan(path.resolve(e.dir, e.manifest.skills), false, { scope: "global" }) : [],
+    );
   // A project's skill with the same name as one of the owner's takes its place inside that project.
   const names = new Set(theirs.map((s) => s.name));
-  return [...theirs, ...own.filter((s) => !names.has(s.name))].sort((a, b) => a.name.localeCompare(b.name));
+  const picked = [...theirs, ...own.filter((s) => !names.has(s.name))];
+  const taken = new Set(picked.map((s) => s.name));
+  return [...picked, ...extensions.filter((s) => !taken.has(s.name))].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** The agent's `skills:` list narrows the catalog; an empty list (or one naming nothing found) means all. */

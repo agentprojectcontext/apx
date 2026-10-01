@@ -43,6 +43,17 @@ export interface ChannelInboxTable {
   created_at: string;
 }
 
+export interface ExtensionsTable {
+  id: string;
+  manifest: string;
+  hash: string;
+  dir: string;
+  source: string;
+  enabled: Generated<number>;
+  installed_at: string;
+  updated_at: string;
+}
+
 export interface HarnessSessionsTable {
   thread_id: string;
   harness: string;
@@ -338,6 +349,7 @@ export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
   channel_inbox: ChannelInboxTable;
+  extensions: ExtensionsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;
   jobs: JobsTable;

@@ -154,3 +154,12 @@ A commitment (what the owner promised someone, or what someone owes the owner) i
 tools and reminders work for both. A due task is reminded once (`reminded_at`, cleared when the date moves) by the
 scheduler's tick. Everything that wants the owner lands in one `notifications` table with a `ref`, so a notice about
 the same thing replaces the unread one and leaves by itself once answered, done or moved; channels only mirror it.
+
+## D-018 — 2026-10-01 — Extensions: a declarative bundle first; code only out of process
+An extension is a folder with `apx-extension.json` that brings skills, MCP servers, routine templates and the secrets
+it needs; the manifest is validated without running anything. Installing copies the folder into the home (plain files
+only) and fingerprints it, off; turning it on approves exactly those files, and a copy that changed on disk is turned
+off at start. Its MCP servers are the owner's (no extra approval) but can only name the extension's own secrets
+(`ext-<id>-<name>`), never `env:` or another secret, so a bundle cannot carry the owner's credentials elsewhere. Code
+that must run as part of APX (hooks) runs in a separate process with Node's permission model (stage 8b), never inside
+the core.

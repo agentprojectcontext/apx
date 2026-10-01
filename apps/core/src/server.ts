@@ -25,6 +25,7 @@ import { afterTaskTurn } from "./engine/office.ts";
 import { createScheduler } from "./engine/routines.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
+import { createExtensions } from "./extensions/extensions.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
@@ -38,6 +39,7 @@ import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
+import { extensionHandlers } from "./rpc/extensions.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
@@ -157,6 +159,9 @@ export async function createCore(
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
   const mcp = createMcp({ store, secrets, log });
+  const extensions = createExtensions({ store, secrets, home: config.home });
+  const changed = extensions.verify();
+  if (changed.length) log.warn({ extensions: changed }, "extensions changed on disk were turned off");
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
   const memory = createMemoryIndex({ store, services, log });
@@ -234,6 +239,7 @@ export async function createCore(
       ...taskHandlers(store, engine),
       ...routineHandlers(store, scheduler),
       ...notificationHandlers(store),
+      ...extensionHandlers(extensions, mcp),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({

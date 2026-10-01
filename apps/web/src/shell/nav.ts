@@ -25,6 +25,7 @@ export const CONFIG_SECTIONS = [
   "engines",
   "router",
   "mcp",
+  "extensions",
   "agents",
   "memory",
   "voices",

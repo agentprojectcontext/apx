@@ -385,4 +385,17 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tasks ADD COLUMN reminded_at TEXT;
   CREATE INDEX tasks_due ON tasks(state, due_at);
   `,
+  `
+  -- Extensions the owner installed: a copy of the folder lives under the home; the manifest is kept as read then.
+  CREATE TABLE extensions (
+    id TEXT PRIMARY KEY,
+    manifest TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    dir TEXT NOT NULL,
+    source TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    installed_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  `,
 ];

@@ -626,6 +626,67 @@ export const Notification = z.object({
 });
 export type Notification = z.infer<typeof Notification>;
 
+/** Names inside an extension: its id, its MCP servers and its secrets. */
+const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
+
+/**
+ * `apx-extension.json`: what an extension brings, readable without running anything. Paths are relative to its
+ * folder; `secret://name` in an MCP server means the extension's own secret `name`, declared under `secrets`.
+ */
+export const ExtensionManifest = z
+  .object({
+    id: ExtName,
+    name: z.string().trim().min(1).max(80),
+    version: z.string().max(40),
+    description: z.string().max(500).default(""),
+    /** A folder of skill folders (each with a SKILL.md). */
+    skills: z.string().max(200).optional(),
+    mcp: z
+      .record(
+        ExtName,
+        z
+          .object({
+            command: z.string().max(200).optional(),
+            args: z.array(z.string().max(500)).max(40).default([]),
+            env: z.record(z.string(), z.string().max(500)).default({}),
+            url: z.string().max(500).optional(),
+            headers: z.record(z.string(), z.string().max(500)).default({}),
+          })
+          .strict(),
+      )
+      .default({}),
+    /** Routines the owner can add from it (they pick the agent). */
+    routines: z
+      .array(z.object({ name: z.string().max(120), schedule: Schedule, prompt: z.string().max(20_000) }).strict())
+      .max(20)
+      .default([]),
+    secrets: z
+      .array(z.object({ name: ExtName, label: z.string().max(120), url: z.string().max(500).optional() }).strict())
+      .max(10)
+      .default([]),
+  })
+  .strict();
+export type ExtensionManifest = z.infer<typeof ExtensionManifest>;
+
+/** An installed extension as the owner sees it: what it brings and whether it is on. */
+export const ExtensionInfo = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  enabled: z.boolean(),
+  /** Fingerprint of its files: turning it on approves exactly these. */
+  hash: z.string(),
+  /** The folder it was installed from. */
+  source: z.string(),
+  skills: z.array(z.string()),
+  mcp: z.array(z.string()),
+  routines: ExtensionManifest.shape.routines,
+  secrets: z.array(z.object({ name: z.string(), label: z.string(), url: z.string().optional(), set: z.boolean() })),
+  installed_at: z.string(),
+});
+export type ExtensionInfo = z.infer<typeof ExtensionInfo>;
+
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /** The channel to use (its id); none = the first running channel that knows the owner. */

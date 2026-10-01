@@ -5,6 +5,7 @@ import {
   CatalogEngine,
   ChannelInfo,
   EngineStatus,
+  ExtensionInfo,
   Id,
   ImageDefaults,
   Job,
@@ -722,6 +723,47 @@ export const appMethods = {
   "notifications.read": {
     params: z.object({ ids: z.array(Id).max(200).optional() }).strict(),
     result: z.object({ unread: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  "extensions.list": {
+    params: z.object({}).strict(),
+    result: z.object({ extensions: z.array(ExtensionInfo) }),
+    effect: false,
+    access: "human",
+  },
+  /** Reads a folder's apx-extension.json without installing or running anything. */
+  "extensions.inspect": {
+    params: z.object({ path: z.string().min(1).max(1000) }).strict(),
+    result: ExtensionInfo,
+    effect: false,
+    access: "human",
+  },
+  /** Copies the folder into APX's home, off; installing it again replaces it (and turns it off if it changed). */
+  "extensions.install": {
+    params: z.object({ path: z.string().min(1).max(1000) }).strict(),
+    result: ExtensionInfo,
+    effect: true,
+    access: "human",
+  },
+  "extensions.enable": {
+    params: z.object({ id: z.string().max(40), enabled: z.boolean() }).strict(),
+    result: ExtensionInfo,
+    effect: true,
+    access: "human",
+  },
+  "extensions.remove": {
+    params: z.object({ id: z.string().max(40) }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
+  /** Stores (or with null, deletes) one of the secrets an extension declares. */
+  "extensions.set_secret": {
+    params: z
+      .object({ id: z.string().max(40), name: z.string().max(40), value: z.string().max(10_000).nullable() })
+      .strict(),
+    result: ExtensionInfo,
     effect: true,
     access: "human",
   },

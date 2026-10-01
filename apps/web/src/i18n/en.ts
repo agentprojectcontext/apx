@@ -864,6 +864,31 @@ export const en = {
   "commitments.empty":
     "A task with a person is a commitment: what you promised someone, or what they owe you. You are reminded on its day.",
   "attention.kind.due": "Due",
+  "error.extensions": "Extensions: {error}",
+  "config.extensions": "Extensions",
+  "ext.lead":
+    "Folders that bring skills, MCP servers and routines in one piece. They install off: turning one on approves exactly its files.",
+  "ext.add": "Add from a folder",
+  "ext.folder": "Extension folder",
+  "ext.folderHint": "Folder with an apx-extension.json (~/work/northwind-crm)",
+  "ext.inspect": "Inspect",
+  "ext.install": "Install",
+  "ext.installHint": "Nothing runs until you turn it on.",
+  "ext.installed": "Installed",
+  "ext.empty": "No extensions yet.",
+  "ext.skills": "Skills",
+  "ext.mcp": "MCP servers",
+  "ext.routines": "Routines",
+  "ext.source": "From",
+  "ext.on": "On",
+  "ext.off": "Off",
+  "ext.remove": "Remove extension",
+  "ext.secretSet": "{label} (saved)",
+  "ext.saved": "saved",
+  "ext.clear": "Clear",
+  "ext.getIt": "Where to get it",
+  "ext.addRoutine": "Add to Routines",
+  "ext.routineAdded": "{name} added to Routines, off: check it and turn it on.",
 } as const;
 
 export type MessageKey = keyof typeof en;

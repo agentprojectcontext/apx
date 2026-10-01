@@ -1,0 +1,14 @@
+{
+  "id": "daily-brief",
+  "name": "Daily brief",
+  "version": "1.0.0",
+  "description": "A short morning brief: open tasks, what is due, what others owe you.",
+  "skills": "skills",
+  "routines": [
+    {
+      "name": "Morning brief",
+      "schedule": { "kind": "cron", "cron": "30 8 * * 1-5" },
+      "prompt": "Use the daily-brief skill to write my morning brief."
+    }
+  ]
+}

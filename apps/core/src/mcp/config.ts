@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
+import { extSecret } from "../extensions/extensions.ts";
 
 export type McpDef = {
   name: string;
@@ -87,14 +88,38 @@ function readProjectFile(root: string): string | undefined {
   }
 }
 
+/** An enabled extension's servers, as the owner's own: its secrets renamed to its own, relative commands to its folder. */
+function extensionDefs(store: Store): McpDef[] {
+  return store.extensions.enabled().flatMap((e) =>
+    Object.entries(e.manifest.mcp).flatMap(([name, server]) => {
+      const own = (v: string) => v.replace(/^secret:\/\/(.+)$/, (_m, n: string) => `secret://${extSecret(e.id, n)}`);
+      const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
+      const raw: Raw = {
+        ...(server.command
+          ? { command: server.command.startsWith("./") ? path.join(e.dir, server.command) : server.command }
+          : {}),
+        args: server.args.map(own),
+        env: map(server.env),
+        ...(server.url ? { url: server.url } : {}),
+        headers: map(server.headers),
+      };
+      const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
+      return d ? [d] : [];
+    }),
+  );
+}
+
 export function mcpConfig(store: Store) {
   const trustKey = (project: string, name: string) => `mcp_trust:${project}:${name}`;
   return {
     global(): McpDef[] {
-      return Object.entries(parse(store.settings.get("mcp_servers"))).flatMap(([n, r]) => {
-        const d = toDef(n, r, { scope: "global" });
-        return d ? [d] : [];
-      });
+      return [
+        ...Object.entries(parse(store.settings.get("mcp_servers"))).flatMap(([n, r]) => {
+          const d = toDef(n, r, { scope: "global" });
+          return d ? [d] : [];
+        }),
+        ...extensionDefs(store),
+      ];
     },
     project(projectId: string): McpDef[] {
       const p = store.projects.get(projectId);

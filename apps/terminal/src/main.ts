@@ -5,6 +5,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
+import { extensions } from "./commands/extensions.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
@@ -38,6 +39,7 @@ Usage:
   apx2 tasks [add|move|done|say]  The office board (apx2 tasks help)
   apx2 routines [add|run|on|off|rm|log]  Scheduled work (apx2 routines help)
   apx2 notifications [read]       What is waiting for you
+  apx2 extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
   apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
   apx2 memory rm <id…>     Remove notes
@@ -101,6 +103,7 @@ const { values, positionals } = parseArgs({
     refresh: { type: "boolean" },
     project: { type: "string" },
     cron: { type: "string" },
+    clear: { type: "boolean" },
     person: { type: "string" },
     owed: { type: "string" },
     due: { type: "string" },
@@ -182,6 +185,9 @@ try {
         owed: values.owed,
         due: values.due,
       });
+      break;
+    case "extensions":
+      await extensions(client, rest, { clear: values.clear });
       break;
     case "notifications":
       await notifications(client, rest);
