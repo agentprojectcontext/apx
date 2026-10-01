@@ -128,6 +128,18 @@ export const es: Partial<Record<MessageKey, string>> = {
 
   // Inbox
   "inbox.projectChats": "Chats de {project}",
+  "inbox.view": "Cómo listar los chats",
+  "inbox.view.tree": "Árbol",
+  "inbox.view.activity": "Actividad",
+  "inbox.view.chats": "Por chat",
+  "inbox.when.running": "En curso",
+  "inbox.when.today": "Hoy",
+  "inbox.when.yesterday": "Ayer",
+  "inbox.when.week": "Esta semana",
+  "inbox.when.earlier": "Antes",
+  "inbox.showMore": "Ver {n} más",
+  "inbox.showLess": "Ver menos",
+  "thread.code": "Código",
   "inbox.search": "Buscar chats",
   "inbox.offline.title": "Sin conexión",
   "inbox.offline.body": "Los chats aparecen cuando vuelva el core.",

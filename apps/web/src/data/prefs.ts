@@ -16,7 +16,11 @@ export type Prefs = {
   language: Language;
   /** Sidebar: the Projects section is folded. */
   projectsFolded: boolean;
+  /** How the Inbox lists chats: project → agent → chats, by time, or by project. */
+  inboxView: InboxView;
 };
+
+export type InboxView = "tree" | "activity" | "chats";
 
 const KEY = "apx.prefs";
 
@@ -27,6 +31,7 @@ const DEFAULTS: Prefs = {
   transcriptWidth: "medium",
   language: defaultLanguage(),
   projectsFolded: false,
+  inboxView: "tree",
 };
 
 function load(): Prefs {
@@ -40,6 +45,7 @@ function load(): Prefs {
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
       language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
       projectsFolded: raw.projectsFolded === true,
+      inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
     };
   } catch {
     return DEFAULTS;

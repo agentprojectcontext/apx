@@ -1,10 +1,12 @@
-import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
+import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { groupByProject } from "./groupThreads.ts";
+import { groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
+import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 
@@ -23,9 +25,18 @@ export function InboxList() {
   const [creating, setCreating] = useState(false);
   const chatAgents = useChatAgents(projectId);
 
+  const view = usePrefs((s) => s.inboxView);
   const groups = useMemo(
     () => groupByProject(threads, projects, { projectId, query }),
     [threads, projects, projectId, query],
+  );
+  const trees = useMemo(
+    () => (view === "tree" ? groupByAgent(threads, projects, { projectId, query }) : []),
+    [view, threads, projects, projectId, query],
+  );
+  const activity = useMemo(
+    () => (view === "activity" ? groupByTime(threads, { projectId, query }) : []),
+    [view, threads, projectId, query],
   );
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
@@ -49,6 +60,18 @@ export function InboxList() {
             trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
           />
         </div>
+        <SegmentedControl
+          size="sm"
+          className="inbox__views"
+          label={t("inbox.view")}
+          value={view}
+          onValueChange={(v) => setPrefs({ inboxView: v as InboxView })}
+          options={[
+            { value: "tree", label: t("inbox.view.tree") },
+            { value: "activity", label: t("inbox.view.activity") },
+            { value: "chats", label: t("inbox.view.chats") },
+          ]}
+        />
         <SearchField
           size="sm"
           placeholder={t("inbox.search")}
@@ -77,6 +100,10 @@ export function InboxList() {
           >
             {query ? t("inbox.noMatch", { query }) : t("inbox.emptyBody")}
           </EmptyState>
+        ) : view === "tree" ? (
+          <TreeView trees={trees} selected={threadId} />
+        ) : view === "activity" ? (
+          <ActivityView groups={activity} selected={threadId} />
         ) : (
           groups.map((g) => {
             const isCollapsed = collapsed[g.key] ?? false;

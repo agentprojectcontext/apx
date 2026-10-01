@@ -125,6 +125,18 @@ export const en = {
 
   // Inbox and chat list
   "inbox.projectChats": "{project} chats",
+  "inbox.view": "How to list chats",
+  "inbox.view.tree": "Tree",
+  "inbox.view.activity": "Activity",
+  "inbox.view.chats": "By chat",
+  "inbox.when.running": "In progress",
+  "inbox.when.today": "Today",
+  "inbox.when.yesterday": "Yesterday",
+  "inbox.when.week": "This week",
+  "inbox.when.earlier": "Earlier",
+  "inbox.showMore": "Show {n} more",
+  "inbox.showLess": "Show less",
+  "thread.code": "Code",
   "inbox.search": "Search chats",
   "inbox.offline.title": "Offline",
   "inbox.offline.body": "Chats show up when the core is back.",
