@@ -6,6 +6,11 @@ export const Id = z.string().min(1).max(128);
 export const Project = z.object({
   id: Id,
   name: z.string(),
+  description: z.string().optional(),
+  /** "company", "software", "personal"… as the project's .apc/project.json says. */
+  kind: z.string().optional(),
+  /** false when the registered folder is not on disk (moved, unmounted drive). */
+  present: z.boolean().default(true),
   /** Blob name from the design system catalog, used as the project's avatar. */
   blob: z.string().optional(),
   path: z.string().optional(),
@@ -78,6 +83,13 @@ export const Agent = z.object({
   browser_profile: z.enum(["shared", "isolated", "incognito"]).default("shared"),
   /** Absent = the install default. */
   model_choice: ModelChoice.optional(),
+  /** The file name in .apc/agents/ for project agents. */
+  slug: z.string().optional(),
+  /** Slug of the agent it reports to, inside the same project. */
+  parent: z.string().optional(),
+  description: z.string().optional(),
+  /** "apc" = defined by a file in the project; "local" = defined in APX itself. */
+  source: z.enum(["apc", "local"]).default("local"),
   /** The engine of the agent's own model, when it has one (derived from `model_choice`). */
   harness: HarnessId.optional(),
 });
@@ -129,7 +141,7 @@ export const Author = z.discriminatedUnion("kind", [
 export type Author = z.infer<typeof Author>;
 
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
-export const Part = z.discriminatedUnion("type", [
+const KnownPart = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
   z.object({
     type: z.literal("tool"),
@@ -166,7 +178,19 @@ export const Part = z.discriminatedUnion("type", [
     text: z.string(),
   }),
 ]);
-export type Part = z.infer<typeof Part>;
+const KNOWN_PARTS: ReadonlySet<string> = new Set(KnownPart.options.map((o) => o.shape.type.value));
+
+/**
+ * A part this client does not know yet (sent by a newer core) is shown as a notice instead of breaking the whole
+ * message: old apps and cached panels keep working while the protocol grows.
+ */
+export const Part = z.preprocess((v) => {
+  const type = (v as { type?: unknown } | null)?.type;
+  return typeof type === "string" && !KNOWN_PARTS.has(type)
+    ? { type: "notice", level: "info", code: "part.unknown", text: `This part (${type}) needs a newer version of APX.` }
+    : v;
+}, KnownPart);
+export type Part = z.infer<typeof KnownPart>;
 
 export const Message = z.object({
   id: Id,

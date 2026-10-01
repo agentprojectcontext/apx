@@ -1,12 +1,12 @@
-// Read-only import from a local APX v1: projects and agents from its daemon, and (only when asked) its model API
-// keys copied once into v2's own secret store. Never writes to v1; never sends the v1 token off this machine.
+// Read-only import from a local APX v1: registers the project folders it knows (each one's AGENTS.md and .apc/ are
+// then read from disk, like any project) and, only when asked, copies its model API keys once into v2's secret
+// store. Never writes to v1; never sends the v1 token off this machine.
 import fs from "node:fs";
 import path from "node:path";
-import type { Store } from "../domain/store.ts";
+import type { ApcSync } from "../apc/sync.ts";
 import type { Secrets } from "../secrets.ts";
 
-type V1Project = { id: number; name: string; path: string; apx_id: string; missing: boolean };
-type V1Agent = { slug: string; name?: string; role?: string; description?: string; blob?: string };
+type V1Project = { id: number; name: string; path: string; missing: boolean };
 
 /** v1 config path → v2 secret name. */
 const V1_KEYS: Record<string, string> = {
@@ -22,7 +22,7 @@ function v1Value(config: unknown, dotted: string): string | undefined {
 }
 
 export async function importFromV1(
-  store: Store,
+  apc: ApcSync,
   secrets: Secrets,
   opts: { url: string; home: string; keys: boolean; fetchImpl?: typeof fetch },
 ) {
@@ -41,40 +41,26 @@ export async function importFromV1(
       }
     } catch {}
   }
-  const f = opts.fetchImpl ?? fetch;
   let token = "";
   try {
     token = fs.readFileSync(path.join(opts.home, "daemon.token"), "utf8").trim();
   } catch {}
-  const get = async <T>(p: string): Promise<T> => {
-    const res = await f(`${opts.url}/api${p}`, {
-      headers: token ? { authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`v1 ${p}: HTTP ${res.status}`);
-    return (await res.json()) as T;
-  };
-  const projects = (await get<V1Project[]>("/projects")).filter((p) => !p.missing && p.name !== "default");
+  const res = await (opts.fetchImpl ?? fetch)(`${opts.url}/api/projects`, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`v1 /projects: HTTP ${res.status}`);
+  const list = ((await res.json()) as V1Project[]).filter((p) => !p.missing && p.name !== "default");
+  let projects = 0;
   let agents = 0;
-  for (const p of projects) {
-    const id = `p_${p.apx_id}`;
-    store.projects.upsert({ id, name: p.name, path: p.path });
-    const list = await get<V1Agent[]>(`/projects/${p.id}/agents`).catch(() => [] as V1Agent[]);
-    for (const a of list) {
-      const agentId = `${p.apx_id}-${a.slug}`.toLowerCase();
-      if (store.agents.get(agentId)) continue;
-      store.agents.upsert({
-        id: agentId,
-        name: a.name ?? a.slug,
-        role: a.role ?? "",
-        kind: "agent",
-        ...(a.blob ? { blob: a.blob } : {}),
-        project_id: id,
-        browser_profile: "isolated",
-        prompt: a.description ?? "",
-      });
-      agents++;
+  for (const p of list) {
+    try {
+      const r = apc.register(p.path);
+      projects++;
+      agents += r.agents;
+    } catch {
+      // A folder v1 lists but that is not an APC project (or not on disk now) is skipped.
     }
   }
-  return { projects: projects.length, agents, keys };
+  return { projects, agents, keys };
 }

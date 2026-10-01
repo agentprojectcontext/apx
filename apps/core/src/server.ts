@@ -5,6 +5,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { BROWSER_CAP, type HarnessId } from "@apx/protocol";
+import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
@@ -72,6 +73,8 @@ export async function createCore(
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
   const catalog = createCatalog({ store, secrets, providers: config.providers });
+  const apc = createApcSync({ store, log });
+  apc.sync();
   const tools = [...agentTools(store), ...browserTools(broker), ...surfaceTools(store)];
   const engine = createEngine({ store, harnesses, tools, log });
 
@@ -86,7 +89,7 @@ export async function createCore(
       })),
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
-      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog }),
+      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc }),
     },
     store.idempotency,
   );
@@ -127,6 +130,7 @@ export async function createCore(
     secrets,
     async close() {
       await engine.stop();
+      apc.close();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       server.closeAllConnections();

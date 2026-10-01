@@ -18,8 +18,8 @@ import {
 
 export const appMethods = {
   /**
-   * Read-only import from a local APX v1: projects and agents from its daemon and, when `keys` is set, its model
-   * API keys copied once into v2's own secret store.
+   * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
+   * and, when `keys` is set, copies its model API keys once into v2's own secret store.
    */
   "system.import_v1": {
     params: z.object({ keys: z.boolean().default(false) }).strict(),
@@ -115,6 +115,19 @@ export const appMethods = {
     params: z.object({}).strict(),
     result: z.object({ projects: z.array(Project) }),
     effect: false,
+  },
+  /** Registers a folder as a project and reads its AGENTS.md and .apc/ (never writes them). */
+  "projects.register": {
+    params: z.object({ path: z.string().min(1).max(1024) }).strict(),
+    result: z.object({ project: Project, agents: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  /** Reads the project's files again (all projects when `project` is absent). */
+  "projects.sync": {
+    params: z.object({ project: Id.optional() }).strict(),
+    result: z.object({ projects: z.number().int(), agents: z.number().int(), archived: z.number().int() }),
+    effect: true,
   },
   "threads.list": {
     params: z.object({ project_id: Id.optional(), include_subthreads: z.boolean().default(false) }).strict(),

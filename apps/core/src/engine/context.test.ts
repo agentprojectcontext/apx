@@ -19,6 +19,7 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
     role: "secretary",
     kind: "secretary" as const,
     browser_profile: "shared" as const,
+    source: "local" as const,
     prompt: "",
   };
   const a = systemPrompt(agent, { kind: "home" }, "es");

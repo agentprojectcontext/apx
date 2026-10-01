@@ -14,6 +14,10 @@ const toAgent = (r: Row): AgentRecord => ({
   ...opt("project_id", r.project_id),
   browser_profile: r.browser_profile as Agent["browser_profile"],
   ...withChoice(r.model_choice ? (JSON.parse(String(r.model_choice)) as ModelChoice) : undefined),
+  ...opt("slug", r.slug),
+  ...opt("parent", r.parent),
+  ...opt("description", r.description),
+  source: r.source === "apc" ? "apc" : "local",
   prompt: String(r.prompt),
 });
 
@@ -35,8 +39,9 @@ export type Resolved = { agent: AgentRecord } | { error: string };
 
 export function agentsRepo({ one, all, run }: Sql) {
   const repo = {
+    /** Active agents (an agent whose file was removed from its project is archived and not listed). */
     list(): AgentRecord[] {
-      return all("SELECT * FROM agents ORDER BY kind DESC, name").map(toAgent);
+      return all("SELECT * FROM agents WHERE archived = 0 ORDER BY kind DESC, name").map(toAgent);
     },
     get(id: string): AgentRecord | undefined {
       const r = one("SELECT * FROM agents WHERE id = ?", id);
@@ -50,7 +55,8 @@ export function agentsRepo({ one, all, run }: Sql) {
       const byId = repo.get(ref);
       if (byId) return { agent: byId };
       const matches = all(
-        "SELECT * FROM agents WHERE lower(name) = lower(?) AND (project_id IS NULL OR project_id = ?)",
+        "SELECT * FROM agents WHERE archived = 0 AND (lower(name) = lower(?) OR slug = lower(?)) AND (project_id IS NULL OR project_id = ?)",
+        ref,
         ref,
         projectId ?? "",
       ).map(toAgent);
@@ -58,7 +64,52 @@ export function agentsRepo({ one, all, run }: Sql) {
       if (matches.length > 1) return { error: `"${ref}" matches ${matches.map((a) => a.id).join(", ")}; use the id` };
       return { error: `unknown agent "${ref}"; use list_agents to find its id` };
     },
-    upsert(a: Agent & { prompt?: string }): void {
+    /**
+     * Mirrors an agent defined in a project file. The file owns name, role, prompt and hierarchy; what the owner set in
+     * APX (model choice, browser profile) is kept.
+     */
+    upsertApc(a: {
+      id: string;
+      project_id: string;
+      slug: string;
+      name: string;
+      role: string;
+      prompt: string;
+      description?: string | undefined;
+      parent?: string | undefined;
+      blob?: string | undefined;
+      model_choice?: ModelChoice | undefined;
+      extra: unknown;
+    }): void {
+      run(
+        `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, prompt, created_at, model_choice, slug, source, parent, description, extra, archived)
+         VALUES (?, ?, ?, 'agent', ?, ?, 'isolated', ?, ?, ?, ?, 'apc', ?, ?, ?, 0)
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, blob = COALESCE(excluded.blob, agents.blob),
+           project_id = excluded.project_id, prompt = excluded.prompt, slug = excluded.slug, source = 'apc',
+           parent = excluded.parent, description = excluded.description, extra = excluded.extra, archived = 0`,
+        a.id,
+        a.name,
+        a.role,
+        a.blob ?? null,
+        a.project_id,
+        a.prompt,
+        now(),
+        a.model_choice ? JSON.stringify(a.model_choice) : null,
+        a.slug,
+        a.parent ?? null,
+        a.description ?? null,
+        JSON.stringify(a.extra ?? {}),
+      );
+    },
+    /** Archives the project's file-defined agents that are not in `keep` (their files are gone). */
+    archiveMissing(projectId: string, keep: string[]): number {
+      const ids = all("SELECT id FROM agents WHERE project_id = ? AND source = 'apc' AND archived = 0", projectId)
+        .map((r) => String(r.id))
+        .filter((id) => !keep.includes(id));
+      for (const id of ids) run("UPDATE agents SET archived = 1 WHERE id = ?", id);
+      return ids.length;
+    },
+    upsert(a: Omit<Agent, "source"> & { source?: Agent["source"]; prompt?: string }): void {
       run(
         `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, prompt, created_at, model_choice)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

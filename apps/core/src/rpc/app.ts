@@ -1,7 +1,10 @@
 // Projects, agents, surfaces, engines, secrets and the v1 import.
 import { randomUUID } from "node:crypto";
+import type { ApcSync } from "../apc/sync.ts";
 import { publicAgent } from "../domain/agents.ts";
+import { publicProject } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
+import { CallError } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
@@ -16,12 +19,13 @@ export function appHandlers(deps: {
   secrets: Secrets;
   v1: { url: string; home: string };
   catalog: Catalog;
+  apc: ApcSync;
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
   return {
     "system.import_v1": (async ({ keys }) =>
-      importFromV1(store, secrets, { ...deps.v1, keys })) as Handler<"system.import_v1">,
+      importFromV1(deps.apc, secrets, { ...deps.v1, keys })) as Handler<"system.import_v1">,
     "secrets.list": (() => ({ secrets: secrets.list() })) as Handler<"secrets.list">,
     "secrets.set": (({ name, value }) => {
       secrets.set(name, value);
@@ -53,7 +57,19 @@ export function appHandlers(deps: {
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
     }) as Handler<"models.set_config">,
-    "projects.list": (() => ({ projects: store.projects.list() })) as Handler<"projects.list">,
+    "projects.list": (() => ({ projects: store.projects.list().map(publicProject) })) as Handler<"projects.list">,
+    "projects.register": (({ path }) => {
+      let r: ReturnType<typeof deps.apc.register>;
+      try {
+        r = deps.apc.register(path);
+      } catch (err) {
+        throw new CallError({ code: "bad_request", message: err instanceof Error ? err.message : String(err) });
+      }
+      const project = store.projects.get(r.project);
+      if (!project) throw notFound(`project ${r.project}`);
+      return { project: publicProject(project), agents: r.agents };
+    }) as Handler<"projects.register">,
+    "projects.sync": (({ project }) => deps.apc.sync(project)) as Handler<"projects.sync">,
     "surfaces.list": (({ project_id }) => ({ surfaces: store.surfaces.list(project_id) })) as Handler<"surfaces.list">,
     "surfaces.get": (({ surface }) => {
       const s = store.surfaces.get(surface);

@@ -73,3 +73,25 @@ function choiceLabel(c: { model?: string | undefined; router: boolean } | undefi
   if (!c.model) return "router";
   return c.router ? `${c.model} → router` : c.model;
 }
+
+export async function projects(client: ApxClient, [sub, arg]: string[]): Promise<void> {
+  if (!sub || sub === "list") {
+    const { projects } = await client.call("projects.list", {});
+    for (const p of projects)
+      console.log(`${p.id.padEnd(16)} ${p.present ? " " : "!"} ${p.name.padEnd(24)} ${p.kind ?? ""}`);
+    return;
+  }
+  if (sub === "register") {
+    if (!arg) throw new Error("usage: apx2 projects register <folder>");
+    const { resolve } = await import("node:path");
+    const r = await client.call("projects.register", { path: resolve(arg) });
+    console.log(`${r.project.name} (${r.project.id}): ${r.agents} agents`);
+    return;
+  }
+  if (sub === "sync") {
+    const r = await client.call("projects.sync", arg ? { project: arg } : {});
+    console.log(`read ${r.projects} projects · ${r.agents} agents · ${r.archived} archived`);
+    return;
+  }
+  throw new Error(`unknown projects command: ${sub}`);
+}

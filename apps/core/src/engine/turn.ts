@@ -142,7 +142,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: systemPrompt(agent, thread, store.settings.get("owner_language") ?? "es"),
+    system: systemPrompt(
+      agent,
+      thread,
+      store.settings.get("owner_language") ?? "es",
+      agent.project_id ? store.projects.get(agent.project_id) : undefined,
+    ),
     history,
     input,
     tools: available.map(toSpec),

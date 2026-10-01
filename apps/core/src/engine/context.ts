@@ -23,6 +23,7 @@ export function systemPrompt(
   agent: AgentRecord,
   thread: Pick<Thread, "kind" | "parent_id">,
   ownerLanguage: string,
+  project?: { name: string; context?: string | undefined } | undefined,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -31,6 +32,7 @@ export function systemPrompt(
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
+    project ? `\n## Project: ${project.name}${project.context ? `\nIts AGENTS.md:\n\n${project.context}` : ""}` : "",
     "",
     "## Rules",
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,

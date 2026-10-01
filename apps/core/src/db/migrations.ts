@@ -89,4 +89,19 @@ export const MIGRATIONS: readonly string[] = [
     'router', json('false')
   ) WHERE harness IS NOT NULL;
   `,
+  `
+  -- Projects are folders registered by path; their AGENTS.md and .apc/ are the source of truth for definitions.
+  ALTER TABLE projects ADD COLUMN description TEXT;
+  ALTER TABLE projects ADD COLUMN kind TEXT;
+  ALTER TABLE projects ADD COLUMN context TEXT;
+  ALTER TABLE projects ADD COLUMN present INTEGER NOT NULL DEFAULT 1;
+  -- Agents mirrored from .apc/agents/<slug>.md carry source 'apc'; one whose file is gone is archived, not deleted
+  -- (threads and runs still point at it).
+  ALTER TABLE agents ADD COLUMN slug TEXT;
+  ALTER TABLE agents ADD COLUMN source TEXT NOT NULL DEFAULT 'local';
+  ALTER TABLE agents ADD COLUMN parent TEXT;
+  ALTER TABLE agents ADD COLUMN description TEXT;
+  ALTER TABLE agents ADD COLUMN extra TEXT;
+  ALTER TABLE agents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
