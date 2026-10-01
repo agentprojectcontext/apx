@@ -67,6 +67,10 @@ model) → the answer's parts stream as `message.part` events → the run ends c
 notice when there is no text. Tools that touch core state call protocol methods through the router as the agent
 (`ctx.call`), so owner-only methods refuse them.
 
+- **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
+  (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
+  titles new chats and, when the history gets long, summarizes older turns into a new epoch that
+  `projectHistory` puts before the newest turns.
 - **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
   rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
   wakes the agent with a new run.

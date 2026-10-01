@@ -98,3 +98,18 @@ intersection of its callers' tools and the strictest autonomy. Confirmations, qu
 share one durable machine (`pending_inputs` + `runs.respond`): a wait survives restarts, a timeout counts as a no,
 and an approval that arrives after its turn ended allows exactly one identical call. Agents' own commands
 (`shell`) are not a protocol method: a method would be a door around the policy.
+
+<a id="d-013"></a>
+## D-013 — 2026-10-01 — Memory is scoped notes in the preamble; long threads get a summarized epoch
+Memory is one table of short notes with a scope: `global` (about the owner, every agent), `project` (agents in a
+thread of that project) or `agent` (one agent's notebook), searched with SQLite FTS5 (accents ignored). Notes never go
+in the system prompt: the first turn of an agent in a thread gets its standing notes (global and its own) plus what
+matches the message, later turns only new matches, in a `[memory]` block of the turn input; the ids shown are kept per
+agent in the thread's context, so the prompt prefix never changes. Agents write through `memory.*` like any client,
+only for their thread's project or themselves, and may not edit or remove the owner's notes; `remember`/`forget` wait
+for the owner while untrusted content is in the turn. `.apc/memory.md` stays a file the owner writes, read as project
+context like `AGENTS.md`. Titles and summaries use an auxiliary model: the `model_aux` setting (`off` for none), else
+the API models the owner already chose; never a CLI and never a model name in code. A long thread is compacted after a
+run into a fixed five-section summary (rejected when the shape is wrong) that replaces the older turns as a new epoch;
+the newest turns stay verbatim, and a summary of outside content stays marked untrusted so the policy does not relax.
+Claude Code and Codex keep and compact their own transcripts.

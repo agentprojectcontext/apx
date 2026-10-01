@@ -103,3 +103,15 @@ Reads were allowed anywhere (Claude's Read/Glob/Grep, ACP "read" kinds) and coul
 outside the folder asks, fetching asks in code threads, auto never edits `.git/`, `.apc/` or `AGENTS.md`, and APX
 runs git with fsmonitor, hooks and external diff off. Where: `apps/core/src/engine/paths.ts`, `executor.ts`,
 `changes.ts`, `harness/claude.ts`.
+
+<a id="context-merge"></a>
+### Thread context is merged, never rewritten from a copy
+A turn read the thread's bookkeeping at its start and wrote it back whole at the end; a summary or a title written
+in between by the background upkeep would have been lost. Writers now change only their keys over what is stored
+(`threads.mergeContext`), and compaction runs once per thread at a time (two requests at once had summarized twice).
+Where: `apps/core/src/domain/threads.ts`, `engine/upkeep.ts`.
+
+<a id="system-notices"></a>
+### A system message with only a notice rendered as an empty line
+The chat drew system messages from their text parts only, so notices APX posts on its own ("paused", "summarized")
+never showed. System messages now render their notice parts. Where: `apps/web/src/chat/Transcript.tsx`.
