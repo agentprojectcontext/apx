@@ -27,4 +27,7 @@ await build({
   outfile: path.join(out, "panel-preload.cjs"),
   format: "cjs",
 });
+// The menu-bar icon (a macOS template image: black on transparent, tinted by the system).
+for (const f of ["trayTemplate.png", "trayTemplate@2x.png"])
+  fs.copyFileSync(path.join(root, "assets", f), path.join(out, f));
 console.log("built apps/desktop/dist");

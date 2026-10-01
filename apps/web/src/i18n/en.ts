@@ -672,6 +672,23 @@ export const en = {
   "tg.quietHint": "Notices still arrive, without sound.",
   "tg.quietFrom": "From",
   "tg.quietTo": "To",
+  "quick.title": "Quick chat",
+  "quick.home": "Home",
+  "quick.new": "New chat",
+  "quick.backHome": "Back to Home",
+  "quick.openApp": "Open in the app",
+  "config.desktop": "Desktop",
+  "desktop.lead": "The menu-bar icon opens a quick chat with your super-agent, from anywhere.",
+  "desktop.onlyApp": "These settings apply in the APX desktop app.",
+  "desktop.quick": "Quick chat",
+  "desktop.shortcut": "Shortcut",
+  "desktop.shortcutHint": "Opens and closes the quick chat from any app. Click, then press the keys.",
+  "desktop.press": "Press the keys…",
+  "desktop.none": "None",
+  "desktop.clear": "Remove",
+  "desktop.login": "Start with the computer",
+  "desktop.loginHint": "APX opens when you log in, ready in the menu bar.",
+  "error.desktop": "Desktop: {error}",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -5,6 +5,7 @@ import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
+import { DesktopSection } from "./DesktopSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { McpSection } from "./McpSection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
@@ -42,6 +43,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.computer",
     items: [
       { id: "browser", label: "config.browser", icon: <Icons.Globe /> },
+      { id: "desktop", label: "config.desktop", icon: <Icons.Monitor /> },
       { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
     ],
   },
@@ -130,6 +132,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <ChannelSection channel={section} />;
     case "browser":
       return <BrowserSection />;
+    case "desktop":
+      return <DesktopSection />;
     case "advanced":
       return <AdvancedSection />;
   }

@@ -511,3 +511,22 @@
   font-size: var(--apx-text-sm);
   letter-spacing: 0.08em;
 }
+
+.shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 140px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+  cursor: pointer;
+}
+.shortcut.is-recording {
+  border-color: var(--apx-brand, var(--apx-border-strong));
+  color: var(--apx-fg-muted);
+}

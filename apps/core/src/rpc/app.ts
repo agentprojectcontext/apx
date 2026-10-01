@@ -31,6 +31,11 @@ export function appHandlers(deps: {
     "system.import_v1": (async ({ keys, skills }) =>
       importFromV1(deps.apc, secrets, { ...deps.v1, v2Home: deps.home, keys, skills })) as Handler<"system.import_v1">,
     "secrets.list": (() => ({ secrets: secrets.list() })) as Handler<"secrets.list">,
+    "desktop.get": (() => desktopPrefs(store)) as Handler<"desktop.get">,
+    "desktop.set": ((p) => {
+      store.settings.set("desktop", JSON.stringify(p));
+      return desktopPrefs(store);
+    }) as Handler<"desktop.set">,
     "secrets.set": (({ name, value }) => {
       secrets.set(name, value);
       return { ok: true as const };
@@ -117,4 +122,17 @@ export function appHandlers(deps: {
       return g.execute(`${g.run.id}-x${randomUUID().slice(0, 8)}`, tool, args);
     }) as Handler<"harness.call">,
   };
+}
+
+/** The quick chat opens with Option+Space unless the owner picked another shortcut. */
+function desktopPrefs(store: Store): { shortcut: string; launch_at_login: boolean } {
+  try {
+    const p = JSON.parse(store.settings.get("desktop") ?? "{}") as { shortcut?: unknown; launch_at_login?: unknown };
+    return {
+      shortcut: typeof p.shortcut === "string" ? p.shortcut : "Alt+Space",
+      launch_at_login: p.launch_at_login === true,
+    };
+  } catch {
+    return { shortcut: "Alt+Space", launch_at_login: false };
+  }
 }

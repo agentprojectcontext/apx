@@ -5,6 +5,7 @@ import path from "node:path";
 import { app, BaseWindow, ipcMain, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { startNodeLink } from "./node-link.ts";
+import { createQuick, type DesktopPrefs } from "./quick.ts";
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
@@ -78,10 +79,35 @@ app.whenReady().then(() => {
     }
   });
 
+  // The quick chat loads from wherever the panel did (the dev server or the core).
+  let base = CORE_URL;
+  const quick = createQuick({
+    url: () => base,
+    preload: path.join(DIST, "panel-preload.cjs"),
+    partition: "persist:apx-ui",
+    assets: DIST,
+  });
+
+  ipcMain.on("quick:open-main", (e, threadId: unknown) => {
+    if (!quick.isQuick(e.sender)) return;
+    quick.hide();
+    win.show();
+    win.focus();
+    if (typeof threadId === "string") panel.webContents.send("nav:thread", threadId);
+  });
+  ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs) => {
+    if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
+    const error = quick.apply({ shortcut: prefs.shortcut, launchAtLogin: prefs.launchAtLogin === true });
+    if (error && Notification.isSupported()) new Notification({ title: "APX", body: error }).show();
+  });
+  app.on("will-quit", () => quick.stop());
+
   const loadPanel = async () => {
     for (const url of [WEB_URL, CORE_URL]) {
       try {
         await panel.webContents.loadURL(url);
+        base = url;
+        quick.start();
         return;
       } catch {}
     }

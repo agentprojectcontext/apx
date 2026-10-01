@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { AppScreen } from "../apps/AppScreen.tsx";
 import { ConfigModal } from "../config/ConfigModal.tsx";
+import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { ProjectScreen } from "../project/ProjectScreen.tsx";
@@ -27,6 +28,7 @@ export function Shell() {
   const panelOpen = chat && panel != null;
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript);
   useShortcuts();
+  useDesktopBridge();
 
   return (
     <div className="shell" style={layoutVars(layout) as CSSProperties}>
@@ -70,5 +72,13 @@ function useShortcuts() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
+
+/** In the desktop app: apply its settings once, and open the chat the quick window hands over. */
+function useDesktopBridge() {
+  useEffect(() => {
+    void applyDesktopPrefs();
+    window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
 }
