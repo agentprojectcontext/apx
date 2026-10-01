@@ -59,11 +59,13 @@ function zodShape(params: object): Record<string, z.ZodType> {
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 
 export async function runClaude(t: ExternalTurn, opts: { claudePath: string; cwd: string }): Promise<ExternalResult> {
+  let toolCalls = 0;
   const server = createSdkMcpServer({
     name: "apx",
     version: "0.1.0",
     tools: t.tools.map((spec) =>
       tool(spec.function.name, spec.function.description, zodShape(spec.function.parameters), async (args) => {
+        toolCalls++;
         const r = await t.runTool(spec.function.name, args as Record<string, unknown>);
         return { content: [{ type: "text" as const, text: r.text }], isError: !r.ok };
       }),
@@ -130,8 +132,9 @@ export async function runClaude(t: ExternalTurn, opts: { claudePath: string; cwd
   try {
     return await attempt(t.sessionId);
   } catch (err) {
-    // A stored session can disappear (cleared by the user): start a fresh one instead of failing the turn.
-    if (t.sessionId && !t.signal.aborted) return attempt(undefined);
+    // A stored session can disappear (cleared by the user): start a fresh one instead of failing the turn,
+    // but never after a tool ran, since a rerun would repeat its effect. See DECISIONS.md#d-007
+    if (t.sessionId && !t.signal.aborted && toolCalls === 0) return attempt(undefined);
     throw err;
   }
 }
