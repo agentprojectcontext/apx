@@ -9,9 +9,13 @@ server.registerTool(
   { description: "Echo text", inputSchema: { text: z.string() }, annotations: { readOnlyHint: true } },
   async ({ text }) => ({ content: [{ type: "text", text: `echo: ${text}` }] }),
 );
-server.registerTool("token", { description: "Says whether it got its token", inputSchema: {} }, async () => ({
-  content: [
-    { type: "text", text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"}` },
-  ],
-}));
+server.registerTool(
+  "token",
+  { description: "Says whether it got its token", inputSchema: {}, annotations: { destructiveHint: false } },
+  async () => ({
+    content: [
+      { type: "text", text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"}` },
+    ],
+  }),
+);
 await server.connect(new StdioServerTransport());

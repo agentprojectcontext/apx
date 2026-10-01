@@ -78,3 +78,12 @@ test("after an approved change, the turn ends with what git sees as uncommitted"
   assert.ok(changes?.type === "changes");
   assert.deepEqual(changes.files, [{ path: "made.txt", status: "??" }]);
 });
+
+test("reading the folder's git state runs nothing the repo's config names", async () => {
+  const marker = path.join(repo, "..", `fsmonitor-ran-${path.basename(repo)}`);
+  execFileSync("git", ["config", "core.fsmonitor", `touch ${marker}`], { cwd: repo });
+  const { gitChanges } = await import("./changes.ts");
+  await gitChanges(repo);
+  assert.ok(!fs.existsSync(marker));
+  execFileSync("git", ["config", "--unset", "core.fsmonitor"], { cwd: repo });
+});

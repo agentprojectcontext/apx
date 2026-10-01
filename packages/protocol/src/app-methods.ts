@@ -265,6 +265,7 @@ export const appMethods = {
     params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ servers: z.array(McpServerStatus) }),
     effect: false,
+    access: "human",
   },
   /** Approves (or withdraws) a project's server as its file defines it now; a changed file needs approving again. */
   "mcp.trust": {

@@ -1,4 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
+import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Thread } from "@apx/protocol";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -119,6 +120,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     call: deps.call,
     jobs: deps.jobs,
     apxPort: deps.apxPort,
+    workDir: path.join(deps.home, "work"),
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
   });
   const execute = exec.execute;

@@ -43,6 +43,10 @@ rl.on("line", async (line) => {
   if (m.method === "session/prompt") {
     const sid = m.params.sessionId;
     const text = m.params.prompt[0].text;
+    // Garbage an agent might print: none of it may take the core down.
+    process.stdout.write('null\n[1,2]\n"text"\n');
+    out({ method: "session/update" });
+    out({ method: "session/update", params: { update: null } });
     // A reading command: allowed by the same classifier as APX's shell tool, without asking.
     const ls = await ask("session/request_permission", {
       sessionId: sid,

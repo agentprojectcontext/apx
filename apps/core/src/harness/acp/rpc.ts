@@ -1,6 +1,9 @@
 // JSON-RPC 2.0 over a child's stdio, one message per line: the wire under the Agent Client Protocol.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 
+/** Longest single message accepted from an agent. */
+const MAX_LINE = 16 * 1024 * 1024;
+
 type Pending = { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout> };
 
 export class RpcError extends Error {
@@ -38,9 +41,17 @@ export function connect(
     pending.clear();
   };
 
+  // Nothing the agent writes may take the core down: a bad line, a closed pipe or a handler error is the agent's.
+  child.stdin.on("error", (err) => fail(err));
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", (chunk: string) => {
     buf += chunk;
+    if (buf.length > MAX_LINE && buf.indexOf("\n") < 0) {
+      buf = "";
+      fail(new Error("the agent sent a line longer than APX accepts"));
+      child.kill("SIGKILL");
+      return;
+    }
     for (let n = buf.indexOf("\n"); n >= 0; n = buf.indexOf("\n")) {
       const line = buf.slice(0, n).trim();
       buf = buf.slice(n + 1);
@@ -58,25 +69,35 @@ export function connect(
         // Some agents log to stdout; anything that is not a message is not ours to read.
         continue;
       }
+      if (!msg || typeof msg !== "object" || Array.isArray(msg)) continue;
       if (msg.method !== undefined && msg.id !== undefined) {
         const id = msg.id;
-        on.request(msg.method, msg.params).then(
-          (result) => write({ jsonrpc: "2.0", id, result: result ?? null }),
-          (err: unknown) =>
-            write({
-              jsonrpc: "2.0",
-              id,
-              error:
-                err instanceof RpcError
-                  ? { code: err.code, message: err.message }
-                  : { code: -32603, message: err instanceof Error ? err.message : String(err) },
-            }),
-        );
-      } else if (msg.method !== undefined) on.notification(msg.method, msg.params);
-      else if (typeof msg.id === "number") {
-        const p = pending.get(msg.id);
+        Promise.resolve()
+          .then(() => on.request(msg.method as string, msg.params))
+          .then(
+            (result) => write({ jsonrpc: "2.0", id, result: result ?? null }),
+            (err: unknown) =>
+              write({
+                jsonrpc: "2.0",
+                id,
+                error:
+                  err instanceof RpcError
+                    ? { code: err.code, message: err.message }
+                    : { code: -32603, message: err instanceof Error ? err.message : String(err) },
+              }),
+          );
+      } else if (msg.method !== undefined) {
+        try {
+          on.notification(msg.method, msg.params);
+        } catch {
+          // A malformed notification is dropped; the turn goes on.
+        }
+      } else if (msg.id !== undefined) {
+        // Some agents echo our numeric ids as strings.
+        const id = Number(msg.id);
+        const p = pending.get(id);
         if (!p) continue;
-        pending.delete(msg.id);
+        pending.delete(id);
         clearTimeout(p.timer);
         if (msg.error) p.reject(new RpcError(msg.error.code, msg.error.message, msg.error.data));
         else p.resolve(msg.result);

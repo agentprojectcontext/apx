@@ -22,6 +22,12 @@ const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
 /** Claude Code's tool names as the protocol's tool kinds, for our policy. */
 const KIND: Record<string, string> = {
+  Read: "read",
+  Glob: "search",
+  Grep: "search",
+  LS: "read",
+  WebSearch: "fetch",
+  WebFetch: "fetch",
   Edit: "edit",
   MultiEdit: "edit",
   Write: "edit",
@@ -37,6 +43,7 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
       const chosen = modelPart(io.models[0]);
       const code = io.thread.kind === "code";
       let toolCalls = 0;
+      let builtins = 0;
       let permissions = 0;
       const server = createSdkMcpServer({
         name: "apx",
@@ -69,20 +76,17 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
               cwd: io.thread.cwd ?? opts.cwd,
               systemPrompt: { type: "custom", prompt: io.system },
               tools: code ? [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE] : CLAUDE_BUILTINS,
-              allowedTools: [
-                ...CLAUDE_BUILTINS,
-                ...(code ? CODE_READ : []),
-                ...io.tools.map((s) => `mcp__apx__${s.function.name}`),
-              ],
-              // Outside code threads nothing beyond the allowed list runs. In a code thread, edits and commands
-              // come to our policy (which may ask the owner) through canUseTool.
+              // Outside code threads only the web tools and ours run. In a code thread every built-in tool (reads
+              // included: they may reach outside the folder) comes to our policy through canUseTool.
+              allowedTools: [...(code ? [] : CLAUDE_BUILTINS), ...io.tools.map((s) => `mcp__apx__${s.function.name}`)],
               permissionMode: code ? "default" : "dontAsk",
               ...(code
                 ? {
                     canUseTool: async (name: string, input: Record<string, unknown>) => {
                       const ok = await io.approve({
                         callId: `${io.run.id}-p${++permissions}`,
-                        title: `${name} ${String(input.file_path ?? input.command ?? "").slice(0, 200)}`.trim(),
+                        title:
+                          `${name} ${String(input.file_path ?? input.path ?? input.command ?? input.url ?? input.query ?? "").slice(0, 200)}`.trim(),
                         kind: KIND[name] ?? "other",
                         detail: JSON.stringify(input, null, 1),
                         input: { ...input, ...(input.file_path ? { path: input.file_path } : {}) },
@@ -116,14 +120,17 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
             } else if (m.type === "assistant" && !m.parent_tool_use_id) {
               model = m.message.model || model;
               sessionId = m.session_id;
-              // Its own web tools bring outside text into the turn: shown as cards, and the policy knows.
+              // Its own tools are shown as cards and recorded as steps; web tools also tell the policy that outside
+              // text is now in the turn.
               for (const b of m.message.content)
-                if (b.type === "tool_use" && CLAUDE_BUILTINS.includes(b.name)) {
-                  const input = b.input as { query?: string; url?: string };
+                if (b.type === "tool_use" && !b.name.startsWith("mcp__apx__")) {
+                  builtins++;
+                  const input = b.input as Record<string, unknown>;
+                  const what = input.query ?? input.url ?? input.file_path ?? input.path ?? input.command ?? "";
                   io.observe({
                     callId: b.id,
-                    title: `${b.name}: ${input.query ?? input.url ?? ""}`,
-                    kind: "fetch",
+                    title: `${b.name}: ${String(what).slice(0, 160)}`,
+                    kind: KIND[b.name] ?? "other",
                     status: "ok",
                   });
                 }
@@ -147,8 +154,10 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
         return await attempt(io.sessionId);
       } catch (err) {
         // A stored session can disappear (cleared by the owner): start a fresh one instead of failing the turn,
-        // but never after a tool ran, since a rerun would repeat its effect. See DECISIONS.md#d-007
-        if (io.sessionId && !io.signal.aborted && toolCalls === 0) return attempt(undefined);
+        // but only for that, and never after any tool ran (ours or Claude's), since a rerun would repeat its effect.
+        // See DECISIONS.md#d-007
+        const gone = /session|conversation/i.test(err instanceof Error ? err.message : String(err));
+        if (io.sessionId && gone && !io.signal.aborted && toolCalls === 0 && builtins === 0) return attempt(undefined);
         throw err;
       }
     },

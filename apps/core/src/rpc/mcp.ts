@@ -15,12 +15,14 @@ export function mcpHandlers(mcp: Mcp) {
           message: `no server ${server} in that project's .apc/mcps.json`,
         });
       mcp.config.setTrust(d, trusted);
+      if (!trusted) mcp.drop(d);
       const s = mcp.status(project).find((x) => x.scope === "project" && x.name === server);
       if (!s) throw new CallError({ code: ErrorCode.Internal, message: "server vanished" });
       return { server: s };
     }) as Handler<"mcp.trust">,
     "mcp.set": (({ name, server }) => {
       mcp.config.setGlobal(name, server);
+      mcp.drop({ scope: "global", name });
       return { servers: mcp.status() };
     }) as Handler<"mcp.set">,
   };

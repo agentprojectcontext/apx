@@ -8,14 +8,19 @@ const MAX_FILES = 50;
 
 /** Undefined when the folder is not in a git work tree, or nothing is uncommitted. */
 export async function gitChanges(cwd: string): Promise<Extract<Part, { type: "changes" }> | undefined> {
+  // The repo's own config must not make this run anything: no fsmonitor, hooks, external diff or text conversion.
   const git = (args: string[]) =>
-    run("git", ["-C", cwd, ...args], { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 }).then((r) => r.stdout);
+    run(
+      "git",
+      ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
+      { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 },
+    ).then((r) => r.stdout);
   let status: string;
   let numstat: string;
   try {
     [status, numstat] = await Promise.all([
       git(["status", "--porcelain=v1", "--untracked-files=all", "--", "."]),
-      git(["diff", "HEAD", "--numstat", "--", "."]).catch(() => ""),
+      git(["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--numstat", "--", "."]).catch(() => ""),
     ]);
   } catch {
     return undefined;

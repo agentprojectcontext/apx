@@ -88,3 +88,18 @@ OpenCode's default configuration lets it edit files without a permission request
 file the owner never approved. Each known ACP agent now says what puts it in ask mode (`OPENCODE_PERMISSION`,
 `qwen --approval-mode default`); its requests then go through the same `decide()` rule as APX's tools, commands
 classified like the `shell` tool's. Where: `apps/core/src/harness/acp/agents.ts`, `engine/executor.ts`.
+
+<a id="acp-garbage"></a>
+### What an agent process prints must never reach the core's own exceptions
+A `null` line on an ACP agent's stdout made the reader throw inside the stream listener, which ended the whole
+core; a closed stdin did the same through EPIPE. The reader now drops anything that is not a message object, guards
+notification handlers and stdin, and caps line length. Where: `apps/core/src/harness/acp/rpc.ts`.
+
+<a id="code-thread-paths"></a>
+### In a code thread, where a tool points matters as much as what it does
+Reads were allowed anywhere (Claude's Read/Glob/Grep, ACP "read" kinds) and could be fetched out without asking;
+"auto" edits compared path strings, so a symlink or an edit to `.git/config` (`core.fsmonitor` runs at the next
+`git status`) or to the agent's own `.apc` file escaped the policy. Paths are now resolved through links, reading
+outside the folder asks, fetching asks in code threads, auto never edits `.git/`, `.apc/` or `AGENTS.md`, and APX
+runs git with fsmonitor, hooks and external diff off. Where: `apps/core/src/engine/paths.ts`, `executor.ts`,
+`changes.ts`, `harness/claude.ts`.

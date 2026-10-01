@@ -112,6 +112,8 @@ export async function openSession(
     cwd: string;
     mcpServers?: Array<{ name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }>;
     resume?: string | undefined;
+    /** Stops the setup too: a canceled turn does not wait for the agent to start. */
+    signal?: AbortSignal | undefined;
     onUpdate?(update: Record<string, unknown>): void;
     onRequest?: RequestHandler;
   },
@@ -120,6 +122,8 @@ export async function openSession(
     cwd: o.cwd,
     env: { ...childEnv(), ...agent.env },
     stdio: ["pipe", "pipe", "pipe"],
+    // Its own process group: closing it also stops what it started (the MCP proxy, its shells).
+    detached: true,
   });
   child.stderr.resume();
   const rpc = connect(child, {
@@ -129,9 +133,22 @@ export async function openSession(
       if (method === "session/update") o.onUpdate?.((params as { update: Record<string, unknown> }).update);
     },
   });
+  const alive = () => child.exitCode === null && child.signalCode === null;
   const close = () => {
-    if (child.exitCode === null) child.kill("SIGTERM");
+    if (!alive() || !child.pid) return;
+    const pid = child.pid;
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {}
+    setTimeout(() => {
+      try {
+        if (alive()) process.kill(-pid, "SIGKILL");
+      } catch {}
+    }, 3000).unref();
   };
+  const stop = () => close();
+  o.signal?.addEventListener("abort", stop, { once: true });
+  if (o.signal?.aborted) close();
   try {
     const init = await rpc.request<{ agentCapabilities?: { loadSession?: boolean } }>(
       "initialize",
@@ -170,6 +187,7 @@ export async function openSession(
       r = await open();
     }
     if (!r.sessionId) throw new Error(`${agent.label} opened no session`);
+    if (o.signal?.aborted) throw o.signal.reason ?? new Error("canceled");
     const sessionId = r.sessionId;
     const m = modelsOf(r);
     return {
@@ -188,9 +206,13 @@ export async function openSession(
           return false;
         }
       },
-      close,
+      close() {
+        o.signal?.removeEventListener("abort", stop);
+        close();
+      },
     };
   } catch (err) {
+    o.signal?.removeEventListener("abort", stop);
     close();
     throw err;
   }

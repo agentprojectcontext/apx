@@ -1,7 +1,6 @@
 // The one executor every tool call goes through, whatever harness made it: check the arguments, ask the policy,
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
-import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { JobRecord } from "../domain/jobs.ts";
@@ -15,6 +14,7 @@ import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
+import { guarded, insideReal, pathsOf } from "./paths.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
 async function runTool(
@@ -81,6 +81,8 @@ export function createExecutor(o: {
   jobs: Jobs;
   /** APX's own port: a command that reaches it always asks. */
   apxPort?: number | undefined;
+  /** Where an external agent works outside code threads. */
+  workDir: string;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
@@ -209,27 +211,35 @@ export function createExecutor(o: {
     };
   };
 
-  /** An external agent's own tool: reading runs, anything else is the owner's call unless autonomy is total. */
   /**
-   * An external agent's own tool, judged by the same rule as ours: looking runs, a command is classified like the
-   * shell tool's, anything else that changes something asks (unless autonomy allows it).
+   * An external agent's own tool, judged by the same rule as ours: reading inside its folder runs, a command is
+   * classified like the shell tool's, fetching and anything that changes something ask (unless autonomy allows it).
    */
   const approve: TurnIO["approve"] = async (req) => {
-    const input = req.input as { command?: unknown; path?: unknown; filepath?: unknown } | undefined;
-    const command = input?.command;
-    const level: Confirm = LOOKING.has(req.kind)
-      ? "never"
-      : req.kind === "execute" && typeof command === "string"
-        ? commandRisk(command, o.apxPort)
-        : "ask";
-    // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder.
+    const base = thread.cwd ?? o.workDir;
+    const paths = pathsOf(req.input);
+    const command = (req.input as { command?: unknown } | undefined)?.command;
+    const inside = paths.every((p) => insideReal(base, p));
+    const reading = req.kind === "read" || req.kind === "search" || req.kind === "think";
+    const level: Confirm = reading
+      ? inside
+        ? "never"
+        : "ask"
+      : req.kind === "fetch"
+        ? thread.kind === "code"
+          ? "ask"
+          : "untrusted"
+        : req.kind === "execute" && typeof command === "string"
+          ? commandRisk(command, o.apxPort)
+          : "ask";
+    // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
+    // never to git's config, APC files or AGENTS.md.
     if (thread.kind === "code" && level !== "never") {
       if (thread.write === "read-only") return false;
-      const file = String(input?.path ?? input?.filepath ?? "");
-      const inside = !!thread.cwd && !!file && path.resolve(thread.cwd, file).startsWith(`${thread.cwd}${path.sep}`);
-      if (thread.write === "auto" && req.kind === "edit" && inside) return true;
+      const editable = paths.length > 0 && inside && !paths.some((p) => guarded(base, p));
+      if (thread.write === "auto" && req.kind === "edit" && editable) return true;
     }
-    const decision = decide(level, LOOKING.has(req.kind) ? "none" : "external", agent, untrusted);
+    const decision = decide(level, reading ? "none" : "external", agent, untrusted);
     if (decision.kind === "allow") return true;
     const answer = await o.inputs.ask({
       run: o.run(),

@@ -45,13 +45,11 @@ export function acpHarness(opts: {
       // A loaded session replays its history as updates: only what comes after our prompt is this turn.
       let prompting = false;
       const titles = new Map<string, { title: string; kind: string }>();
-      const apxTools = io.tools.map((t) => t.function.name);
-      const ours = (title: string) =>
-        apxTools.some((n) => title === n || title.endsWith(`_${n}`) || title.includes(`apx.${n}`));
       const session = await openSession(agent, {
         binary,
         cwd: opts.cwd(io),
         resume: io.sessionId,
+        signal: io.signal,
         mcpServers: [
           {
             name: "apx",
@@ -76,8 +74,6 @@ export function acpHarness(opts: {
             const title = t.title ?? known?.title ?? "tool";
             const tk = t.kind ?? known?.kind ?? "other";
             titles.set(t.toolCallId, { title, kind: tk });
-            // APX's own tools come back through the MCP proxy with their own cards.
-            if (ours(title)) return;
             const status = t.status === "completed" ? "ok" : t.status === "failed" ? "error" : "running";
             io.observe({ callId: t.toolCallId, title, kind: tk, status, ...(textOf(t) ? { detail: textOf(t) } : {}) });
           }
@@ -95,9 +91,10 @@ export function acpHarness(opts: {
             input: call.rawInput,
           });
           const options = p.options ?? [];
+          // Once, never "always": an approval is for this call, not one the agent may store.
           const pick =
             options.find((o) => o.kind === (ok ? "allow_once" : "reject_once")) ??
-            options.find((o) => o.kind.startsWith(ok ? "allow" : "reject"));
+            (ok ? undefined : options.find((o) => o.kind.startsWith("reject")));
           return pick
             ? { outcome: { outcome: "selected", optionId: pick.optionId } }
             : { outcome: { outcome: "cancelled" } };
@@ -115,6 +112,7 @@ export function acpHarness(opts: {
           ? io.input.content
           : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
         const onAbort = () => session.rpc.notify("session/cancel", { sessionId: session.sessionId });
+        if (io.signal.aborted) throw io.signal.reason ?? new Error("canceled");
         io.signal.addEventListener("abort", onAbort, { once: true });
         prompting = true;
         try {

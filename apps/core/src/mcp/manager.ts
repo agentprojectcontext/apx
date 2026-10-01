@@ -1,6 +1,7 @@
 // Connections to MCP servers, opened when an agent's turn needs them and closed when idle, and their tools as APX
 // tools: same argument check, same policy, results marked as outside data.
 
+import { createHash } from "node:crypto";
 import type { Thread } from "@apx/protocol";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -34,8 +35,12 @@ type Conn = {
   status: "starting" | "ready" | "error";
   error?: string;
   used: number;
+  failedAt?: number;
   ready?: Promise<void>;
 };
+
+/** A server that failed is tried again only after this, not on every turn. */
+const RETRY_MS = 5 * 60_000;
 
 export type McpStatus = {
   name: string;
@@ -83,11 +88,17 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         }),
       ]);
       const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
+      // Replaced or dropped while starting: this process is nobody's now.
+      if (conns.get(c.key) !== c) {
+        await client.close().catch(() => {});
+        return;
+      }
       c.client = client;
       c.tools = tools as McpTool[];
       c.status = "ready";
     } catch (err) {
       c.status = "error";
+      c.failedAt = Date.now();
       c.error = err instanceof Error ? err.message : String(err);
       await client.close().catch(() => {});
       deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
@@ -104,7 +115,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       void c.client?.close().catch(() => {});
       c = undefined;
     }
-    if (!c || c.status === "error") {
+    if (!c || (c.status === "error" && Date.now() - (c.failedAt ?? 0) > RETRY_MS)) {
       c = { key, hash: d.hash, tools: [], status: "starting", used: Date.now() };
       conns.set(key, c);
       c.ready = open(d, c);
@@ -113,11 +124,18 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     return c;
   }
 
-  function adapt(d: McpDef, c: Conn, t: McpTool): Tool {
+  function adapt(d: McpDef, t: McpTool, name: string): Tool {
+    // MCP's defaults: a tool may change things and may be destructive unless it says otherwise. A project's server
+    // describes itself, so its "read-only" claim does not skip the policy.
     const ro = t.annotations?.readOnlyHint === true;
     const effect: Effect = ro ? "none" : "external";
-    // Reading tools run; tools that change things wait while outside content is in the turn; destructive ones ask.
-    const confirm: Confirm = ro ? "never" : t.annotations?.destructiveHint ? "ask" : "untrusted";
+    const confirm: Confirm = ro
+      ? d.scope === "global"
+        ? "never"
+        : "untrusted"
+      : t.annotations?.destructiveHint === false
+        ? "untrusted"
+        : "ask";
     let check: z.ZodType | undefined;
     try {
       check = z.fromJSONSchema(t.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
@@ -126,7 +144,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     }
     const label = t.annotations?.title ?? t.title ?? t.name;
     return {
-      name: toolName(d.name, t.name),
+      name,
       description: `[${d.name}] ${t.description ?? label}`.slice(0, 1024),
       parameters: t.inputSchema,
       effect,
@@ -144,8 +162,10 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       },
       title: () => `${d.name}: ${label}`,
       async run(args, ctx) {
-        c.used = Date.now();
-        if (!c.client) throw new Error(`${d.name} is not connected`);
+        // The connection may have been closed while the turn waited (an owner's long confirmation): reopen it.
+        const c = ensure(d);
+        await c.ready;
+        if (!c.client) throw new Error(`${d.name} is not connected${c.error ? `: ${c.error}` : ""}`);
         const r = (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
           timeout: CALL_MS,
           signal: ctx.signal,
@@ -183,7 +203,21 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       const defs = defsFor(thread.project_id).filter((d) => d.enabled && config.trusted(d));
       const live = defs.map((d) => ({ d, c: ensure(d) }));
       await Promise.allSettled(live.map(({ c }) => c.ready));
-      return live.flatMap(({ d, c }) => (c.status === "ready" ? c.tools.map((t) => adapt(d, c, t)) : []));
+      // Names are unique per turn: a clash after sanitizing gets a short suffix; the owner's servers come first.
+      const taken = new Set<string>();
+      const out: Tool[] = [];
+      for (const { d, c } of live) {
+        if (c.status !== "ready") continue;
+        for (const t of c.tools) {
+          let name = toolName(d.name, t.name);
+          if (taken.has(name))
+            name = `${name.slice(0, 57)}_${createHash("sha256").update(`${d.scope}:${d.name}:${t.name}`).digest("hex").slice(0, 6)}`;
+          if (taken.has(name)) continue;
+          taken.add(name);
+          out.push(adapt(d, t, name));
+        }
+      }
+      return out;
     },
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
@@ -205,6 +239,15 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
           ...(live?.error ? { error: live.error } : {}),
         };
       });
+    },
+    /** Closes a server's connection now (approval withdrawn, definition removed). */
+    drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {
+      const key = keyOf(d as McpDef);
+      void conns
+        .get(key)
+        ?.client?.close()
+        .catch(() => {});
+      conns.delete(key);
     },
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
       return (scope === "global" ? config.global() : projectId ? config.project(projectId) : []).find(

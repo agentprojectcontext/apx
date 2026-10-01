@@ -50,6 +50,9 @@ function parse(text: string | undefined): Record<string, Raw> {
 
 function toDef(name: string, r: Raw, base: Pick<McpDef, "scope" | "project_id" | "cwd">): McpDef | undefined {
   if (!NAME.test(name)) return undefined;
+  // A repo's file must not be able to send the owner's stored secrets anywhere: only the owner's servers use them.
+  if (base.scope === "project" && JSON.stringify([r.env, r.headers, r.args, r.url]).includes("secret://"))
+    return undefined;
   const command = typeof r.command === "string" ? r.command : undefined;
   const url = typeof r.url === "string" ? r.url : undefined;
   if (!command && !url) return undefined;
