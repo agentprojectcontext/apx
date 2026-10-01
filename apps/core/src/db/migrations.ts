@@ -36,4 +36,8 @@ export const MIGRATIONS: readonly string[] = [
   CREATE UNIQUE INDEX surfaces_name ON surfaces(COALESCE(project_id, ''), name);
   CREATE TABLE idempotency (key TEXT PRIMARY KEY, method TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL);
   `,
+  `
+  ALTER TABLE surfaces ADD COLUMN share_token TEXT;
+  CREATE UNIQUE INDEX surfaces_share ON surfaces(share_token) WHERE share_token IS NOT NULL;
+  `,
 ];

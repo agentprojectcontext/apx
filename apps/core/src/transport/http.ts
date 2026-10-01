@@ -32,7 +32,27 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   return true;
 }
 
-export function httpHandler(dispatch: Dispatch, log: Log, token: string | undefined, webDist?: string) {
+export type PublicPages = { artifact(token: string): { title: string; html: string } | undefined };
+
+// Artifacts run with an opaque origin (CSP sandbox without allow-same-origin): no cookies, no API access.
+const ARTIFACT_CSP =
+  "sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src 'none'; frame-ancestors *";
+
+function artifactPage(title: string, html: string): string {
+  const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
+  const doc = /<html[\s>]/i.test(html)
+    ? html
+    : `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title><style>:root{--apx-bg:#faf9f7;--apx-surface:#fff;--apx-fg:#1c1b19;--apx-fg-muted:#6f6b63;--apx-border:#e6e3dc;--apx-brand:#1f9d63}@media (prefers-color-scheme:dark){:root{--apx-bg:#1b1a18;--apx-surface:#252421;--apx-fg:#ecebe7;--apx-fg-muted:#9b978d;--apx-border:#34322e;--apx-brand:#3fbf84}}body{margin:0;padding:16px;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.45 system-ui,sans-serif}</style></head><body>${html}</body></html>`;
+  return doc;
+}
+
+export function httpHandler(
+  dispatch: Dispatch,
+  log: Log,
+  token: string | undefined,
+  webDist?: string,
+  pages?: PublicPages,
+) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://core");
     if (req.method === "GET" && url.pathname === "/health") {
@@ -60,6 +80,18 @@ export function httpHandler(dispatch: Dispatch, log: Log, token: string | undefi
         idem,
       );
       return send(res, out.ok ? 200 : statusFor(out.error.code), out);
+    }
+    const share = /^\/a\/([a-f0-9]{32})$/.exec(url.pathname);
+    if (req.method === "GET" && share && pages) {
+      const page = pages.artifact(share[1] ?? "");
+      if (!page) return send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": ARTIFACT_CSP,
+        "cache-control": "no-store",
+      });
+      res.end(artifactPage(page.title, page.html));
+      return;
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;
     send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });

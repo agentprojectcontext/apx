@@ -88,6 +88,7 @@ function toSurface(r: Row): Surface {
     ...(r.thread_id ? { thread_id: String(r.thread_id) } : {}),
     created_by: String(r.created_by),
     updated_at: String(r.updated_at),
+    ...(r.share_token ? { share_path: `/a/${String(r.share_token)}` } : {}),
   };
 }
 
@@ -410,6 +411,20 @@ export function createStore(db: Db, bus: Bus) {
       );
       bus.emit({ type: "surface.updated", surface: summary(next) });
       return summary(next);
+    },
+
+    shareSurface(id: string, shared: boolean): SurfaceSummary {
+      const cur = store.surface(id);
+      if (!cur) throw new Error(`unknown surface ${id}`);
+      const token = shared ? (cur.share_path?.slice(3) ?? randomUUID().replaceAll("-", "")) : null;
+      run("UPDATE surfaces SET share_token = ? WHERE id = ?", token, cur.id);
+      const next = store.surface(cur.id) as Surface;
+      bus.emit({ type: "surface.updated", surface: summary(next) });
+      return summary(next);
+    },
+    surfaceByShareToken(token: string): Surface | undefined {
+      const r = one("SELECT * FROM surfaces WHERE share_token = ?", token);
+      return r ? toSurface(r) : undefined;
     },
 
     // ── idempotency ─────────────────────────────────────────────────────

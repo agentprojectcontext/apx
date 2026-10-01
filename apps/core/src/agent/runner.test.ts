@@ -152,3 +152,18 @@ test("cancel ends a running turn in the canceled state", async () => {
   const got = await client.call("threads.get", { thread: t.id });
   assert.equal(got.runs[0]?.state, "canceled");
 });
+
+test("a shared surface is served at /a/<token> isolated from the API, and revoking removes it", async () => {
+  const { surfaces } = await client.call("surfaces.list", {});
+  const first = surfaces[0];
+  assert.ok(first);
+  const shared = await client.call("surfaces.share", { surface: first.id, shared: true });
+  assert.match(shared.share_path ?? "", /^\/a\/[a-f0-9]{32}$/);
+  const res = await fetch(`${core.url}${shared.share_path}`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-security-policy") ?? "", /^sandbox allow-scripts/);
+  assert.match(await res.text(), /<b>42<\/b>/);
+  const revoked = await client.call("surfaces.share", { surface: first.id, shared: false });
+  assert.equal(revoked.share_path, undefined);
+  assert.equal((await fetch(`${core.url}${shared.share_path}`)).status, 404);
+});

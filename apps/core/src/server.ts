@@ -1,7 +1,9 @@
 // Composition root: config → identity → db/store → agent runner → router → transports.
 // Tests call createCore directly (with a temp home and a fake LLM).
+import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
 import { createLlm, type Llm, llmConfigFromEnv } from "./agent/provider.ts";
 import { createRunner } from "./agent/runner.ts";
@@ -19,6 +21,12 @@ import { createRouter } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
+
+/** The panel built by `pnpm --filter @apx/web build`, when present next to the core in the workspace. */
+function defaultWebDist(): string | undefined {
+  const dist = path.resolve(import.meta.dirname, "../../web/dist");
+  return fs.existsSync(path.join(dist, "index.html")) ? dist : undefined;
+}
 
 export async function createCore(config: CoreConfig, opts: { quiet?: boolean; llm?: Llm; webDist?: string } = {}) {
   const log = createLog("core", opts.quiet);
@@ -53,7 +61,14 @@ export async function createCore(config: CoreConfig, opts: { quiet?: boolean; ll
     { get: store.idemGet, put: store.idemPut },
   );
 
-  const server = http.createServer(httpHandler(dispatch, log, config.token, opts.webDist ?? process.env.APX_WEB_DIST));
+  const server = http.createServer(
+    httpHandler(dispatch, log, config.token, opts.webDist ?? process.env.APX_WEB_DIST ?? defaultWebDist(), {
+      artifact: (t) => {
+        const s = store.surfaceByShareToken(t);
+        return s ? { title: s.title, html: s.html } : undefined;
+      },
+    }),
+  );
   const wss = attachWs(server, { dispatch, identity, log, broker, bus });
 
   await new Promise<void>((resolve, reject) => {

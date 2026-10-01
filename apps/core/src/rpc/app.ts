@@ -63,6 +63,7 @@ export function appHandlers(store: Store, runner: Runner) {
     }) as Handler<"surfaces.get">,
     "surfaces.update": (({ surface, pinned, app }) =>
       store.patchSurface(surface, { pinned, app })) as Handler<"surfaces.update">,
+    "surfaces.share": (({ surface, shared }) => store.shareSurface(surface, shared)) as Handler<"surfaces.share">,
     "surfaces.prompt": (({ surface, text }) => {
       const s = store.surface(surface);
       if (!s) throw notFound(`surface ${surface}`);

@@ -72,6 +72,12 @@ export const appMethods = {
     result: SurfaceSummary,
     effect: true,
   },
+  /** Publishes (or revokes) a surface as an artifact: a standalone page at /a/<token>, isolated from the API. */
+  "surfaces.share": {
+    params: z.object({ surface: Id, shared: z.boolean() }).strict(),
+    result: SurfaceSummary,
+    effect: true,
+  },
   /** A widget's sendPrompt(): the text goes to the thread that owns the surface, as the user. */
   "surfaces.prompt": {
     params: z.object({ surface: Id, text: z.string().min(1).max(4000) }).strict(),

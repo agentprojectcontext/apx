@@ -14,7 +14,8 @@
     "lint:fix": "biome check --write .",
     "test": "pnpm -r --if-present test",
     "check:private": "node scripts/check-private-terms.ts",
-    "preflight": "pnpm check:private && pnpm lint && pnpm typecheck && pnpm test"
+    "preflight": "pnpm check:private && pnpm lint && pnpm typecheck && pnpm test",
+    "app": "node scripts/app.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

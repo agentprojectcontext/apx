@@ -124,6 +124,8 @@ export const Surface = z.object({
   thread_id: Id.optional(),
   created_by: Id,
   updated_at: z.string(),
+  /** Path of the public link (/a/<token>) when published; absent when private. */
+  share_path: z.string().optional(),
 });
 export type Surface = z.infer<typeof Surface>;
 export const SurfaceSummary = Surface.omit({ html: true });
