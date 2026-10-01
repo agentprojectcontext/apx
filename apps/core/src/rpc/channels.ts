@@ -1,8 +1,8 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 import { ErrorCode } from "@apx/protocol";
 import type { Channels } from "../channels/manager.ts";
-import { noticePrefs, saveNoticePrefs } from "../channels/notices.ts";
 import { publicOutbox } from "../domain/channels.ts";
+import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
@@ -57,19 +57,20 @@ export function channelHandlers(store: Store, channels: Channels) {
         store.channels.pairing.close(code, "denied");
         return {};
       }
-      const who =
-        decision === "owner"
-          ? store.persons.owner()
-          : person
-            ? store.persons.get(person)
-            : store.persons.create({ name: name ?? req.name, role: "contact" });
-      if (!who) throw notFound(`person ${person}`);
-      if (decision === "contact" && who.role === "owner") throw bad("use decision owner to link your own address");
-      store.tx(() => {
+      if (person && !store.persons.get(person)) throw notFound(`person ${person}`);
+      if (decision === "contact" && person === OWNER_ID) throw bad("use decision owner to link your own address");
+      const id = store.tx(() => {
+        const who =
+          decision === "owner"
+            ? store.persons.owner()
+            : person
+              ? (store.persons.get(person) as NonNullable<ReturnType<typeof store.persons.get>>)
+              : store.persons.create({ name: (name ?? req.name).slice(0, 80), role: "contact" });
         store.persons.link(who.id, { channel: req.channel, external_id: req.external_id, label: req.name });
         store.channels.pairing.close(code, "approved");
+        return who.id;
       });
-      return { person: store.persons.get(who.id) };
+      return { person: store.persons.get(id) };
     }) as Handler<"pairing.respond">,
   };
 }

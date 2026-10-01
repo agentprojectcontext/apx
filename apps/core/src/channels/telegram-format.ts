@@ -45,7 +45,10 @@ export function toTelegramHtml(md: string): string {
     .join("");
 }
 
-/** Splits a long Markdown text at paragraph, then line, then hard boundaries, under Telegram's limit. */
+/**
+ * Splits a long Markdown text at paragraph, then line, then hard boundaries, under Telegram's limit. A code block cut
+ * in two is closed at the end of one part and reopened at the start of the next.
+ */
 export function chunks(text: string, max = 3800): string[] {
   const out: string[] = [];
   let rest = text.trim();
@@ -54,9 +57,17 @@ export function chunks(text: string, max = 3800): string[] {
       (i) => i > max * 0.5,
     );
     const at = cut ?? max;
-    out.push(rest.slice(0, at).trim());
+    let part = rest.slice(0, at).trim();
     rest = rest.slice(at).trim();
+    if ((part.match(FENCE_RE)?.length ?? 0) % 2 === 1) {
+      part = `${part}\n${FENCE}`;
+      rest = `${FENCE}\n${rest}`;
+    }
+    out.push(part);
   }
   if (rest) out.push(rest);
   return out;
 }
+
+const FENCE = "```";
+const FENCE_RE = /```/g;

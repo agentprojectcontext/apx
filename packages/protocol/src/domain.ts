@@ -408,7 +408,7 @@ export type Person = z.infer<typeof Person>;
 /** A channel instance as the owner configured it, and how it is doing. */
 export const ChannelInfo = z.object({
   id: z.string(),
-  type: z.enum(["telegram", "fake"]),
+  type: z.enum(["telegram"]),
   label: z.string(),
   enabled: z.boolean(),
   /** The agent that answers on it. */

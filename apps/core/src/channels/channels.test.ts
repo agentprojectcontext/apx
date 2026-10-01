@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -7,7 +9,7 @@ import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { guardReply } from "./guard.ts";
 import { inQuietHours } from "./notices.ts";
 import { telegramAdapter } from "./telegram.ts";
-import { toTelegramHtml } from "./telegram-format.ts";
+import { chunks, toTelegramHtml } from "./telegram-format.ts";
 
 const TOKEN = "123456:TEST-token";
 const OWNER = { id: 1001, name: "Owner" };
@@ -17,6 +19,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 80)}`);
   if (said.includes("launch the probe")) return callTool("p1", "probe", {});
   if (said.includes("where do you live")) return say("My files are in /Users/someone/secret/notes.md, **sorry**.");
+  if (said.includes("break please")) throw new Error("quota exceeded for this billing account");
+  if (said.includes("long answer")) return say(`${"word ".repeat(900)}\n\n${"tail ".repeat(400)}END`);
   return say(`Hello **there**, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
 });
 
@@ -67,6 +71,10 @@ test("formatting: Markdown becomes Telegram HTML; contacts never get paths or ke
   assert.equal(toTelegramHtml("**hi** <b> `a<b`"), "<b>hi</b> &lt;b&gt; <code>a&lt;b</code>");
   assert.equal(toTelegramHtml("# Title\n- one"), "<b>Title</b>\n• one");
   assert.equal(guardReply("see /Users/x/a.txt and sk-abcdefghijklmnopqrstuv"), "see [hidden] and [hidden]");
+  const fence = "`".repeat(3);
+  const parts = chunks(`${fence}\n${"line of code\n".repeat(600)}${fence}`);
+  assert.ok(parts.length > 1);
+  for (const p of parts) assert.equal((p.match(/`{3}/g)?.length ?? 0) % 2, 0, "every part has whole code blocks");
 });
 
 test("a stranger gets a code; the owner approves it as themselves; then their words reach Home and the answer returns", async () => {
@@ -193,4 +201,64 @@ test("a confirmation left unanswered in the app follows the owner to Telegram, s
   tg.press(OWNER, markup.inline_keyboard[1]?.[0]?.callback_data ?? "");
   await env.settle(t.id);
   await env.client.call("notices.set", { inputs_after_s: 120 });
+});
+
+test("a contact never sees what went wrong inside APX; the owner does", async () => {
+  tg.message(ANA, "break please");
+  await until(
+    () => tg.messagesTo(ANA.id).some((m) => /can't answer right now|no puedo responder/.test(String(m.body.text))),
+    "generic apology",
+  );
+  assert.ok(!tg.messagesTo(ANA.id).some((m) => /quota|billing/.test(String(m.body.text))));
+  await until(() => tg.messagesTo(OWNER.id).some((m) => /quota exceeded/.test(String(m.body.text))), "owner hears why");
+});
+
+test("a long reply interrupted after its first part resumes from the next part, without repeating", async () => {
+  tg.failures.set("sendMessage", [
+    null,
+    {
+      status: 429,
+      body: { ok: false, error_code: 429, description: "Too Many Requests", parameters: { retry_after: 0 } },
+    },
+  ]);
+  const before = tg.messagesTo(OWNER.id).length;
+  tg.message(OWNER, "long answer");
+  await until(() => tg.messagesTo(OWNER.id).some((m) => /END/.test(String(m.body.text))), "the last part");
+  const parts = tg
+    .messagesTo(OWNER.id)
+    .slice(before)
+    .filter((m) => /word|tail/.test(String(m.body.text)));
+  assert.equal(parts.length, 2, "two parts in all: the first one was not sent again");
+});
+
+test("a refused connection is retried (nothing went out); two quick saves leave one poller", async () => {
+  // A port that was just closed: the connection is refused before anything is sent.
+  const probe = http.createServer();
+  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+  const port = (probe.address() as AddressInfo).port;
+  await new Promise<void>((r) => probe.close(() => r()));
+  const offline = telegramAdapter(
+    {
+      id: "x",
+      type: "telegram",
+      label: "x",
+      enabled: true,
+      agent_id: "roby",
+      strangers: "pair",
+      concurrency: "queue",
+      owner_thread: "home",
+    },
+    TOKEN,
+    `http://127.0.0.1:${port}`,
+  );
+  const err = await offline.send("1", { text: "hi" }).catch((e: unknown) => e);
+  assert.equal((err as { kind?: string }).kind, "retry");
+
+  const save = () => env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
+  await Promise.all([save(), save()]);
+  await new Promise((r) => setTimeout(r, 200));
+  const a = tg.polls();
+  await new Promise((r) => setTimeout(r, 500));
+  // One poller with nothing to read makes about one poll per 50 ms here; two would make twice as many.
+  assert.ok(tg.polls() - a < 16, `polls in 500 ms: ${tg.polls() - a}`);
 });

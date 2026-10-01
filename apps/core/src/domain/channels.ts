@@ -27,6 +27,8 @@ export type Presentation = {
   buttons?: Array<{ id: string; label: string }>;
   /** Delivered without sound (quiet hours). */
   silent?: boolean;
+  /** Parts of a long text already delivered by an earlier attempt. */
+  skip?: number;
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
@@ -148,11 +150,13 @@ export function channelsRepo({ one, all, run }: Sql) {
           id,
         );
       },
-      retry(id: string, at: Date, error: string): void {
+      /** Back to the queue for later; `body` replaces what is left to send (a long text sent in part). */
+      retry(id: string, at: Date, error: string, body?: Presentation): void {
         run(
-          "UPDATE outbox SET state = 'queued', next_at = ?, error = ?, updated_at = ? WHERE id = ?",
+          "UPDATE outbox SET state = 'queued', next_at = ?, error = ?, body = COALESCE(?, body), updated_at = ? WHERE id = ?",
           at.toISOString(),
           error,
+          body ? JSON.stringify(body) : null,
           now(),
           id,
         );

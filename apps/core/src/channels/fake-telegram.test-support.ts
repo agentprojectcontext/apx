@@ -7,10 +7,11 @@ type Sent = { method: string; body: Record<string, unknown> };
 export async function fakeTelegram(token: string) {
   const updates: Array<{ update_id: number } & Record<string, unknown>> = [];
   const sent: Sent[] = [];
-  /** Answers to force on the next calls of a method (an error first, then normal). */
-  const failures = new Map<string, Array<{ status: number; body: object }>>();
+  /** Answers to force on the next calls of a method, in order; null lets that call through normally. */
+  const failures = new Map<string, Array<{ status: number; body: object } | null>>();
   let nextUpdate = 1;
   let nextMessage = 100;
+  let getUpdatesCalls = 0;
 
   const server = http.createServer((req, res) => {
     let raw = "";
@@ -29,6 +30,7 @@ export async function fakeTelegram(token: string) {
       if (forced) return reply(forced.status, forced.body);
       if (method === "getMe") return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot" } });
       if (method === "getUpdates") {
+        getUpdatesCalls++;
         const offset = Number(body.offset ?? 0);
         // Confirmed updates are dropped, like Telegram does.
         while (updates.length && (updates[0]?.update_id ?? 0) < offset) updates.shift();
@@ -84,6 +86,8 @@ export async function fakeTelegram(token: string) {
         },
       });
     },
+    /** How many polls have been made (two pollers make twice as many). */
+    polls: () => getUpdatesCalls,
     /** Update ids not confirmed yet by the bot. */
     queued: () => updates.map((u) => u.update_id),
     messagesTo(chat: number) {

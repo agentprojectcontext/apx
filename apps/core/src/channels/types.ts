@@ -16,11 +16,14 @@ export type AdapterCaps = {
 export class SendError extends Error {
   readonly kind: "retry" | "uncertain" | "fatal";
   readonly retryAfterMs: number | undefined;
-  constructor(kind: "retry" | "uncertain" | "fatal", message: string, retryAfterMs?: number) {
+  /** Parts of a long message already delivered before this failure (a retry continues after them). */
+  readonly sentParts: number;
+  constructor(kind: "retry" | "uncertain" | "fatal", message: string, retryAfterMs?: number, sentParts = 0) {
     super(message);
     this.name = "SendError";
     this.kind = kind;
     this.retryAfterMs = retryAfterMs;
+    this.sentParts = sentParts;
   }
 }
 

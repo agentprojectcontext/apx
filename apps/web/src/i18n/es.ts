@@ -615,7 +615,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Hablá con tus agentes desde Telegram. Sólo les llegan los chats que aprobás; el resto recibe un código que aprobás acá.",
   "tg.step1": "En Telegram abrí @BotFather, mandá /newbot y seguí los pasos.",
   "tg.step2": "Pegá abajo el token que te da y elegí quién responde.",
-  "tg.step3": "Escribile a tu bot: te contesta con un código. Aprobalo acá como “Soy yo”.",
+  "tg.step3": "Escribile a tu bot: te contesta con un código. Ponelo abajo en “Este es mi Telegram”.",
   "tg.token": "Token del bot",
   "tg.tokenHint": "Se guarda en el Llavero de macOS; no vuelve a esta pantalla.",
   "tg.tokenChange": "Pegá un token nuevo para reemplazar el guardado.",
@@ -643,9 +643,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.strangers.ignore": "Ignorar",
   "tg.remove": "Quitar este bot",
   "tg.pairing": "Esperando tu aprobación",
-  "tg.pairingFirst": "Primero escribile a tu bot desde tu Telegram y aprobá ese código como “Soy yo”.",
   "tg.pairingEmpty": "No hay nadie esperando.",
-  "tg.itsMe": "Soy yo",
+  "tg.itsMe": "Este es mi Telegram",
   "tg.asContact": "Contacto",
   "tg.ignore": "Ignorar",
   "tg.people": "Personas en este bot",
@@ -693,4 +692,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktop.login": "Abrir al iniciar la compu",
   "desktop.loginHint": "APX se abre al iniciar sesión, listo en la barra de menú.",
   "error.desktop": "Escritorio: {error}",
+  "tg.itsMeHint":
+    "Escribile a tu bot desde tu propio Telegram y poné acá el código que te mandó. Nunca un código que te pase otra persona.",
+  "tg.code": "Código",
+  "tg.link": "Vincular",
 };

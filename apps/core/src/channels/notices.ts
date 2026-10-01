@@ -1,21 +1,6 @@
-// The owner's notices: which channel reaches them, quiet hours (notices arrive without sound) and how a confirmation
-// left unanswered in the app follows them to their phone.
-import { type NoticePrefs, NoticePrefs as NoticePrefsSchema, type Part } from "@apx/protocol";
+// Quiet hours and how a confirmation or question is shown on a channel.
+import type { NoticePrefs, Part } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
-import type { Store } from "../domain/store.ts";
-
-export function noticePrefs(store: Store): NoticePrefs {
-  try {
-    return NoticePrefsSchema.parse(JSON.parse(store.settings.get("notices") ?? "{}"));
-  } catch {
-    return NoticePrefsSchema.parse({});
-  }
-}
-
-export function saveNoticePrefs(store: Store, prefs: NoticePrefs): NoticePrefs {
-  store.settings.set("notices", JSON.stringify(prefs));
-  return noticePrefs(store);
-}
 
 const minutes = (hhmm: string) => {
   const [h = 0, m = 0] = hhmm.split(":").map(Number);

@@ -47,8 +47,17 @@ class TgError extends Error {
   }
 }
 
-const nameOf = (u: TgUser | undefined) =>
-  [u?.first_name, u?.last_name].filter(Boolean).join(" ") || (u?.username ? `@${u.username}` : "someone");
+/** A sender's name as the owner sees it: what they call themselves plus their @username, short and on one line. */
+function nameOf(u: TgUser | undefined): string {
+  const name = [u?.first_name, u?.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/[\p{Cc}\p{Cf}]/gu, "")
+    .trim()
+    .slice(0, 60);
+  const handle = u?.username ? `@${u.username}` : u ? `id ${u.id}` : "";
+  return name ? `${name} (${handle})` : handle || "someone";
+}
 
 /** What a message without text was, so the agent can say it cannot read it yet. */
 function mediaNote(m: TgMessage): string | undefined {
@@ -152,7 +161,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
             : `cannot reach Telegram: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200),
         );
         const wait = code === 409 ? 30_000 : err instanceof TgError && err.retryAfter ? err.retryAfter * 1000 : backoff;
-        await new Promise((r) => setTimeout(r, wait).unref?.());
+        await sleep(wait, AbortSignal.any([ac.signal, io.signal]));
         backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       }
     }
@@ -210,11 +219,11 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     async send(conversation, p) {
       const parts = chunks(p.text);
       let last: number | undefined;
-      for (const [i, part] of parts.entries()) {
+      for (let i = p.skip ?? 0; i < parts.length; i++) {
         try {
-          last = await sendOne(conversation, part, i === parts.length - 1 ? p.buttons : undefined, p.silent);
+          last = await sendOne(conversation, parts[i] ?? "", i === parts.length - 1 ? p.buttons : undefined, p.silent);
         } catch (err) {
-          throw toSendError(err, i > 0);
+          throw toSendError(err, i - (p.skip ?? 0));
         }
       }
       return last === undefined ? {} : { external_id: String(last) };
@@ -225,17 +234,35 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   };
 }) satisfies (...args: [...Parameters<AdapterFactory>, string?]) => ChannelAdapter;
 
-/** Maps a failure to what the outbox should do. Once part of a long reply went out, the rest is never resent blind. */
-function toSendError(err: unknown, partlySent: boolean): SendError {
+/** Connection failures that happen before a request leaves this machine: the message surely did not go out. */
+const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"]);
+
+/**
+ * Maps a failure to what the outbox should do. `sent` parts of a long reply already went out: a retry continues after
+ * them. Anything that may have reached Telegram is uncertain, never resent.
+ */
+function toSendError(err: unknown, sent: number): SendError {
   const msg = err instanceof Error ? err.message : String(err);
-  if (partlySent) return new SendError("uncertain", `part of the reply was sent: ${msg}`);
   if (err instanceof TgError) {
-    if (err.code === 429) return new SendError("retry", msg, (err.retryAfter ?? 5) * 1000);
+    if (err.code === 429) return new SendError("retry", msg, (err.retryAfter ?? 5) * 1000, sent);
     if (err.code >= 500) return new SendError("uncertain", msg);
-    return new SendError("fatal", msg);
+    return new SendError(sent ? "uncertain" : "fatal", msg);
   }
-  // A timeout may fire after Telegram took the message; a refused connection never reached it.
-  if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError"))
-    return new SendError("uncertain", msg);
-  return new SendError("retry", msg);
+  const code = (err as { cause?: { code?: string } } | undefined)?.cause?.code;
+  if (code && NEVER_SENT.has(code)) return new SendError("retry", msg, undefined, sent);
+  return new SendError("uncertain", msg);
+}
+
+/** Waits, unless the adapter is stopped first. */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve();
+    const t = setTimeout(done, ms);
+    function done() {
+      clearTimeout(t);
+      signal.removeEventListener("abort", done);
+      resolve();
+    }
+    signal.addEventListener("abort", done, { once: true });
+  });
 }

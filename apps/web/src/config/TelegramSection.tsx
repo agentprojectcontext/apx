@@ -240,11 +240,28 @@ function Connected({ channel }: { channel: ChannelInfo }) {
 function Pairing() {
   const t = useT();
   const requests = useChannels((s) => s.pairing);
-  const hasOwner = useChannels((s) => s.persons.some((p) => p.role === "owner" && p.addresses.length > 0));
+  const [code, setCode] = useState("");
   return (
     <>
       <SubHead>{t("tg.pairing")}</SubHead>
-      {!hasOwner && <p className="config__lead">{t("tg.pairingFirst")}</p>}
+      <SettingRow title={t("tg.itsMe")} description={t("tg.itsMeHint")}>
+        <div className="tgtoken">
+          <Input
+            aria-label={t("tg.code")}
+            inputMode="numeric"
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.currentTarget.value.replace(/\D/g, "").slice(0, 6))}
+          />
+          <Button
+            size="sm"
+            disabled={code.length !== 6}
+            onClick={() => void respondPairing(code, "owner").then(() => setCode(""))}
+          >
+            {t("tg.link")}
+          </Button>
+        </div>
+      </SettingRow>
       {requests.length === 0 ? (
         <EmptyState variant="dashed" size="sm" icon={<Icons.Users />}>
           {t("tg.pairingEmpty")}
@@ -253,14 +270,10 @@ function Pairing() {
         <ul className="res__list">
           {requests.map((r) => (
             <li key={r.code} className="res__row">
-              <code className="tgcode">{r.code}</code>
               <div className="res__main">
                 <div className="res__name">{r.name}</div>
                 {r.text && <div className="res__desc">“{r.text}”</div>}
               </div>
-              <Button size="sm" onClick={() => void respondPairing(r.code, "owner")}>
-                {t("tg.itsMe")}
-              </Button>
               <Button size="sm" variant="secondary" onClick={() => void respondPairing(r.code, "contact")}>
                 {t("tg.asContact")}
               </Button>

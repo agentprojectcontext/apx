@@ -612,7 +612,7 @@ export const en = {
     "Talk with your agents from Telegram. Only chats you approve reach them; everyone else gets a code you approve here.",
   "tg.step1": "In Telegram, open @BotFather, send /newbot and follow the steps.",
   "tg.step2": "Paste the token it gives you below and pick who answers.",
-  "tg.step3": "Write to your bot: it replies with a code. Approve it here as “It's me”.",
+  "tg.step3": "Write to your bot: it replies with a code. Type it below in “This is my Telegram”.",
   "tg.token": "Bot token",
   "tg.tokenHint": "Stored in the macOS Keychain; it never comes back to this screen.",
   "tg.tokenChange": "Paste a new token to replace the stored one.",
@@ -639,9 +639,8 @@ export const en = {
   "tg.strangers.ignore": "Ignore",
   "tg.remove": "Remove this bot",
   "tg.pairing": "Waiting for your approval",
-  "tg.pairingFirst": "First, write to your bot from your own Telegram and approve that code as “It's me”.",
   "tg.pairingEmpty": "Nobody is waiting.",
-  "tg.itsMe": "It's me",
+  "tg.itsMe": "This is my Telegram",
   "tg.asContact": "Contact",
   "tg.ignore": "Ignore",
   "tg.people": "People on this bot",
@@ -689,6 +688,10 @@ export const en = {
   "desktop.login": "Start with the computer",
   "desktop.loginHint": "APX opens when you log in, ready in the menu bar.",
   "error.desktop": "Desktop: {error}",
+  "tg.itsMeHint":
+    "Write to your bot from your own Telegram and type here the code it sent you. Never a code someone else gives you.",
+  "tg.code": "Code",
+  "tg.link": "Link",
 } as const;
 
 export type MessageKey = keyof typeof en;

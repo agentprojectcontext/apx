@@ -136,3 +136,16 @@ summarized (their engine keeps its own transcript). Where: `apps/core/src/engine
 `useChannels((s) => s.persons.filter(…))` returned a new array on every read, which the store took as a change:
 React re-rendered until it gave up (error #185) and the panel went black. Select the stored value and derive in the
 component. Where: `apps/web/src/config/TelegramSection.tsx`.
+
+<a id="pairing-owner-by-code"></a>
+### Linking the owner's own address takes the code their phone received
+"It's me" was a button on every pending request, which showed only the name the sender chose: a stranger who copied
+the owner's name could be approved as the owner by mistake and then approve confirmations. The owner now types the
+code the bot sent to their own Telegram; requests show the @username. Where: `apps/web/src/config/TelegramSection.tsx`.
+
+<a id="channel-send-certainty"></a>
+### Only a send that surely did not leave is retried
+"fetch failed" also covers a connection reset after the request went out, so retrying it duplicated messages. Only
+refused or unresolved connections are retried; everything else is "uncertain". A long reply rate-limited halfway
+continues from the part that failed (`Presentation.skip`) instead of being dropped. Where:
+`apps/core/src/channels/telegram.ts`, `delivery.ts`.
