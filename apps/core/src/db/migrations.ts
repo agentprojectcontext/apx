@@ -398,4 +398,16 @@ export const MIGRATIONS: readonly string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  `
+  -- Outside apps the owner connected (Claude Code, Codex…): the token's sha256 only, never the token.
+  CREATE TABLE api_clients (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    scopes TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    revoked_at TEXT
+  );
+  `,
 ];

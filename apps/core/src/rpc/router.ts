@@ -9,6 +9,7 @@ import {
   methods,
   type ParsedParams,
   type Result,
+  SCOPE_METHODS,
 } from "@apx/protocol";
 import { CallError, errorMessage } from "../errors.ts";
 import type { CallContext } from "./context.ts";
@@ -83,6 +84,12 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
     }
     if (ctx.role === "node" && !NODE_METHODS.has(method)) {
       return { ok: false, error: { code: ErrorCode.Unauthorized, message: `${method} is not available to nodes` } };
+    }
+    if (ctx.client && !ctx.client.scopes.some((sc) => SCOPE_METHODS[sc].includes(method))) {
+      return {
+        ok: false,
+        error: { code: ErrorCode.Unauthorized, message: `${method} is outside what ${ctx.client.name} may do` },
+      };
     }
     if (methodAccess(method) === "human" && ctx.actor !== "human") {
       return { ok: false, error: { code: ErrorCode.Unauthorized, message: `${method} is reserved to the owner` } };

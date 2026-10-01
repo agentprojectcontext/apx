@@ -39,6 +39,7 @@ import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
+import { clientHandlers } from "./rpc/clients.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
@@ -223,6 +224,7 @@ export async function createCore(
       ...taskHandlers(store, engine),
       ...routineHandlers(store, scheduler),
       ...notificationHandlers(store),
+      ...clientHandlers(store),
       ...extensionHandlers(extensions, mcp),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
@@ -248,12 +250,19 @@ export async function createCore(
     token: config.token,
   };
   const server = http.createServer(
-    httpHandler(dispatch, log, gate, config.webDist ?? workspaceWebDist(), {
-      artifact: (t) => {
-        const s = store.surfaces.byShareToken(t);
-        return s ? { title: s.title, html: s.html } : undefined;
+    httpHandler(
+      dispatch,
+      log,
+      gate,
+      config.webDist ?? workspaceWebDist(),
+      {
+        artifact: (t) => {
+          const s = store.surfaces.byShareToken(t);
+          return s ? { title: s.title, html: s.html } : undefined;
+        },
       },
-    }),
+      (token) => store.clients.byToken(token),
+    ),
   );
   const wss = attachWs(server, { dispatch, identity, log, broker, bus, gate });
 

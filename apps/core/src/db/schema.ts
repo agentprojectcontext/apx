@@ -31,6 +31,16 @@ export interface AgentsTable {
   archived: Generated<number>;
 }
 
+export interface ApiClientsTable {
+  id: string;
+  name: string;
+  scopes: string;
+  token_hash: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
 export interface ChannelInboxTable {
   id: string;
   channel: string;
@@ -348,6 +358,7 @@ export interface ThreadsTable {
 export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
+  api_clients: ApiClientsTable;
   channel_inbox: ChannelInboxTable;
   extensions: ExtensionsTable;
   harness_sessions: HarnessSessionsTable;

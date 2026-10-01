@@ -206,3 +206,17 @@ export const ExtensionInfo = z.object({
   installed_at: z.string(),
 });
 export type ExtensionInfo = z.infer<typeof ExtensionInfo>;
+
+/** What an outside app (Claude Code, Codex…) holding a client token may do. */
+export const ClientScope = z.enum(["chat", "browser"]);
+export type ClientScope = z.infer<typeof ClientScope>;
+
+/** An outside app the owner connected: it acts as a model, never as the owner, and only within its scopes. */
+export const ApiClient = z.object({
+  id: Id,
+  name: z.string(),
+  scopes: z.array(ClientScope),
+  created_at: z.string(),
+  last_used_at: z.string().optional(),
+});
+export type ApiClient = z.infer<typeof ApiClient>;

@@ -129,4 +129,19 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "ext.plugin.network": "usa internet",
   "ext.plugin.error": "El plugin se detuvo: {error}",
   "ext.runsCode": "Trae código que corre en esta computadora. Encendela sólo si confiás en quien la hizo.",
+  "error.clients": "Apps externas: {error}",
+  "clients.title": "Apps externas",
+  "clients.lead":
+    "Dale a Claude Code, Codex u otra app su propio token: puede preguntarle a tus agentes (chat) o usar el navegador de APX (navegador). Siempre actúa como un modelo, nunca como vos, y lo que escribe les llega a los agentes como dato externo.",
+  "clients.name": "Nombre de la app",
+  "clients.namePlaceholder": "Claude Code",
+  "clients.scope.chat": "Chatear con agentes",
+  "clients.scope.browser": "Navegador",
+  "clients.create": "Crear token",
+  "clients.tokenFor": "Token para {name}",
+  "clients.tokenOnce":
+    "Se muestra sólo ahora. Pegalo en la configuración MCP de la app; podés revocarlo acá cuando quieras.",
+  "clients.used": "usado {when}",
+  "clients.never": "nunca usado",
+  "clients.revoke": "Revocar",
 };

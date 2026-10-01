@@ -1,10 +1,12 @@
 // `apx2 mcp`: stdio MCP server that exposes the core's browser.* methods as tools, so any MCP client
-// (Claude Code, Codex, …) can drive the APX embedded browser. It forwards through the protocol; no logic here.
+// (Claude Code, Codex, …) can drive the APX embedded browser; with a client token, also chat with APX's agents.
+// It forwards through the protocol; no logic here.
 import { type BrowserMethod, browserMethods, methodAccess } from "@apx/protocol";
 import { type ApxClient, ApxError } from "@apx/protocol/client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { registerChatTools } from "./mcp-chat.ts";
 
 // Schemas come from the protocol registry at runtime, so the SDK's per-schema generics cannot follow them.
 type Register = (
@@ -34,8 +36,9 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.import_cookies": "",
 };
 
-export async function runMcp(client: ApxClient, agent: string): Promise<void> {
-  const server = new McpServer({ name: "apx-browser", version: "0.0.0" });
+export async function runMcp(client: ApxClient, agent: string, chat = false): Promise<void> {
+  const server = new McpServer({ name: chat ? "apx" : "apx-browser", version: "0.0.0" });
+  if (chat) registerChatTools(server, client);
   const register = server.registerTool.bind(server) as unknown as Register;
 
   // The owner's controls are not tools: the core refuses them to agent clients; listing them would only mislead.

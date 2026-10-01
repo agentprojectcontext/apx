@@ -46,6 +46,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   };
 
   /** Words into a thread: the message, the preview, then the running turn (steer) or a new run. */
+  /** An outside app reads and writes only in the chats it started. */
+  function ownClientThread(threadId: string, ctx: CallContext): void {
+    if (ctx.client && store.threads.context(threadId).client !== ctx.client.id)
+      throw unauthorized(`${ctx.client.name} can only use the chats it started`);
+  }
+
   function post(
     threadId: string,
     text: string,
@@ -92,15 +98,30 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     "threads.list": ({ project_id, include_subthreads }) => ({
       threads: store.threads.list({ project_id, include_subthreads }),
     }),
-    "threads.get": ({ thread }) => {
+    "threads.get": ({ thread }, ctx) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
+      ownClientThread(thread, ctx);
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
-    "threads.create": ({ kind, agent_id, title, project_id, cwd, write }) => {
+    "threads.create": ({ kind, agent_id, title, project_id, cwd, write }, ctx) => {
       const agent = store.agents.get(agent_id);
       if (!agent) throw notFound(`agent ${agent_id}`);
       const pid = project_id ?? agent.project_id;
+      // An outside app gets a plain chat, named after it, that only it can use.
+      if (ctx.client) {
+        const own = ctx.client.id;
+        return store.tx(() => {
+          const t = store.threads.create({
+            kind: "loose",
+            title: `${ctx.client?.name}: ${title ?? agent.name}`.slice(0, 120),
+            agent_ids: [agent.id],
+            project_id: pid,
+          });
+          store.threads.mergeContext(t.id, { client: own });
+          return t;
+        });
+      }
       const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
       return store.threads.create({
         kind,
@@ -111,6 +132,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       });
     },
     "threads.send": ({ thread, text, mode }, ctx) => {
+      ownClientThread(thread, ctx);
       const { agent } = threadAgent(thread);
       if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
       if (mode === "interrupt") engine.interrupt(thread);
@@ -120,7 +142,13 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         return post(thread, text, { kind: "system" }, false, {
           agent_id: agent.id,
           trigger: "channel",
-          origin: { kind: "agent", id: "external", name: "an external agent client", thread_id: thread, run_id: "" },
+          origin: {
+            kind: "agent",
+            id: ctx.client ? `client:${ctx.client.id}` : "external",
+            name: ctx.client ? `${ctx.client.name} (an outside app)` : "an external agent client",
+            thread_id: thread,
+            run_id: "",
+          },
         });
       // The owner writing in the app: answers stay in the app (not on the channel the last message came from).
       store.threads.mergeContext(thread, { reply_to: undefined });

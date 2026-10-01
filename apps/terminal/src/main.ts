@@ -5,6 +5,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
+import { clients } from "./commands/clients.ts";
 import { extensions } from "./commands/extensions.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
@@ -39,6 +40,7 @@ Usage:
   apx2 tasks [add|move|done|say]  The office board (apx2 tasks help)
   apx2 routines [add|run|on|off|rm|log]  Scheduled work (apx2 routines help)
   apx2 notifications [read]       What is waiting for you
+  apx2 clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
   apx2 extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
   apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
@@ -75,7 +77,8 @@ Usage:
                            its model API keys into v2's secret store, --skills its skills, --services its
                            image engines and voices, once
 
-  apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…)
+  apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…); with
+                           APX_CLIENT_TOKEN also apx_agents / apx_ask / apx_read (apx2 clients add <name>)
   apx2 mcp --run           The tools of one agent run (APX_RUN_TOKEN), for an external harness
 
 Env: APX_URL (default http://127.0.0.1:7440), APX_TOKEN`;
@@ -104,6 +107,7 @@ const { values, positionals } = parseArgs({
     project: { type: "string" },
     cron: { type: "string" },
     clear: { type: "boolean" },
+    scopes: { type: "string" },
     person: { type: "string" },
     owed: { type: "string" },
     due: { type: "string" },
@@ -186,6 +190,9 @@ try {
         due: values.due,
       });
       break;
+    case "clients":
+      await clients(client, rest, { scopes: values.scopes });
+      break;
     case "extensions":
       await extensions(client, rest, { clear: values.clear });
       break;
@@ -245,7 +252,12 @@ try {
         break;
       }
       const { runMcp } = await import("./mcp.ts");
-      await runMcp(agentClient, values.by ?? "mcp-client");
+      // An outside app's token (Settings › MCP › Outside apps) comes in the environment, never on the command line.
+      const clientToken = process.env.APX_CLIENT_TOKEN;
+      const mcpClient = clientToken
+        ? new ApxClient({ ...connection, client: { name: "apx2-mcp", version: "0.0.0" }, clientToken })
+        : agentClient;
+      await runMcp(mcpClient, values.by ?? "mcp-client", Boolean(clientToken));
       break;
     }
     default:

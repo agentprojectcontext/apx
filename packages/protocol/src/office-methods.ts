@@ -2,6 +2,8 @@
 import { z } from "zod";
 import { Id, Message, Run } from "./domain.ts";
 import {
+  ApiClient,
+  ClientScope,
   ExtensionInfo,
   Notification,
   Routine,
@@ -183,6 +185,25 @@ export const officeMethods = {
       .object({ id: z.string().max(40), name: z.string().max(40), value: z.string().max(10_000).nullable() })
       .strict(),
     result: ExtensionInfo,
+    effect: true,
+    access: "human",
+  },
+  "clients.list": {
+    params: z.object({}).strict(),
+    result: z.object({ clients: z.array(ApiClient) }),
+    effect: false,
+    access: "human",
+  },
+  /** A token for an outside app; it is shown once and only its fingerprint is kept. */
+  "clients.create": {
+    params: z.object({ name: z.string().trim().min(1).max(60), scopes: z.array(ClientScope).min(1).max(2) }).strict(),
+    result: z.object({ client: ApiClient, token: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  "clients.revoke": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ revoked: z.boolean() }),
     effect: true,
     access: "human",
   },

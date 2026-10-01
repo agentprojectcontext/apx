@@ -169,3 +169,11 @@ writes only its data folder and starts no processes (Node's permission model); N
 the runner also refuses raw socket modules and makes `fetch` refuse this machine and metadata addresses — a best-effort
 guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
 owner turns (outside data, capped, 2 s); they never call APX.
+
+## D-019 — 2026-10-01 — Outside apps get a scoped client token and always act as a model
+An app such as Claude Code connects with its own token (`x-apx-client`, apart from `APX_TOKEN`'s Authorization
+header): the core keeps only its sha256, the token makes the caller an agent-actor whatever it declares, and the router
+lets it call only its scopes' methods (`SCOPE_METHODS`). With `chat` it starts plain chats that only it can read or
+write, and its text reaches the agent as another app's message (untrusted). This limits what a model-driven app may do
+even when its own prompt is hijacked; it is not a defence against a hostile local process, which can skip the token on
+loopback (see D-016's known limit).

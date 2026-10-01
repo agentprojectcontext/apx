@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
+import type { ClientScope } from "@apx/protocol";
 import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
@@ -54,7 +55,17 @@ function artifactPage(title: string, html: string): string {
   return doc;
 }
 
-export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: string, pages?: PublicPages) {
+/** Who an outside app's client token belongs to (undefined: unknown or revoked). */
+export type ClientLookup = (token: string) => { id: string; name: string; scopes: ClientScope[] } | undefined;
+
+export function httpHandler(
+  dispatch: Dispatch,
+  log: Log,
+  gate: Gate,
+  webDist?: string,
+  pages?: PublicPages,
+  clientOf?: ClientLookup,
+) {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://core");
     if (req.method === "GET" && url.pathname === "/health") {
@@ -85,13 +96,22 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
         return send(res, 400, { ok: false, error: { code: "bad_request", message: String(err) } });
       }
       const idem = header(req, "idempotency-key");
+      const clientToken = header(req, "x-apx-client");
+      const client = clientToken ? clientOf?.(clientToken) : undefined;
+      if (clientToken && !client)
+        return send(res, 401, {
+          ok: false,
+          error: { code: "unauthorized", message: "unknown or revoked client token" },
+        });
       const out = await dispatch(
         url.pathname.slice(5),
         body,
         {
           transport: "http",
           role: "operator",
-          actor: header(req, "x-apx-actor") === "agent" ? "agent" : "human",
+          // An outside app is a model, whatever it says it is.
+          actor: client || header(req, "x-apx-actor") === "agent" ? "agent" : "human",
+          ...(client ? { client } : {}),
           session: undefined,
           log,
         },

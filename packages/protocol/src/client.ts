@@ -52,10 +52,12 @@ export type ClientOptions = {
   timeoutMs?: number;
   /** "agent" for clients driven by a model (e.g. `apx2 mcp`): they never get the human's controls. */
   actor?: Actor;
+  /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
+  clientToken?: string;
 };
 
 export class ApxClient {
-  readonly #opts: Required<Omit<ClientOptions, "token">> & { token?: string };
+  readonly #opts: Required<Omit<ClientOptions, "token" | "clientToken">> & { token?: string; clientToken?: string };
 
   constructor(opts: ClientOptions) {
     this.#opts = {
@@ -72,6 +74,7 @@ export class ApxClient {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (this.#opts.token) headers.authorization = `Bearer ${this.#opts.token}`;
     if (this.#opts.actor === "agent") headers["x-apx-actor"] = "agent";
+    if (this.#opts.clientToken) headers["x-apx-client"] = this.#opts.clientToken;
     const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
     if (key) headers["idempotency-key"] = key;
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {

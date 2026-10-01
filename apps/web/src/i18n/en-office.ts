@@ -127,4 +127,18 @@ export const enOffice = {
   "ext.plugin.network": "uses the internet",
   "ext.plugin.error": "Plugin stopped: {error}",
   "ext.runsCode": "It brings code that runs on this computer. Turn it on only if you trust its author.",
+  "error.clients": "Outside apps: {error}",
+  "clients.title": "Outside apps",
+  "clients.lead":
+    "Give Claude Code, Codex or another app its own token: it can ask your agents (chat) or use the APX browser (browser). It always acts as a model, never as you, and its text reaches agents as outside data.",
+  "clients.name": "App name",
+  "clients.namePlaceholder": "Claude Code",
+  "clients.scope.chat": "Chat with agents",
+  "clients.scope.browser": "Browser",
+  "clients.create": "Create token",
+  "clients.tokenFor": "Token for {name}",
+  "clients.tokenOnce": "Shown only now. Paste it into the app's MCP settings; revoke it here any time.",
+  "clients.used": "used {when}",
+  "clients.never": "never used",
+  "clients.revoke": "Revoke",
 } as const;

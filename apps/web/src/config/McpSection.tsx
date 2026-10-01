@@ -5,6 +5,7 @@ import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { ClientsBlock } from "./ClientsBlock.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 const STATUS: Record<McpServerStatus["status"], { key: MessageKey; tone: "brand" | "neutral" | "warning" | "danger" }> =
@@ -95,6 +96,7 @@ export function McpSection() {
           ))}
         </div>
       ))}
+      <ClientsBlock />
     </>
   );
 }

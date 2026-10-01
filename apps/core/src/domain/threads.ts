@@ -61,6 +61,8 @@ export type ThreadContext = {
   /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */
   memory_shown?: Record<string, string[]>;
   memory_since?: Record<string, number>;
+  /** Started by an outside app (its client id): only that app may read it or write in it. */
+  client?: string;
 };
 
 /** What a thread list shows of the last thing said. */

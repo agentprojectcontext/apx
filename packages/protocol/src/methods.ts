@@ -56,6 +56,12 @@ export function isMethodName(name: string): name is MethodName {
   return Object.hasOwn(methods, name);
 }
 
+/** The methods an outside app may call, by scope; anything else is refused to it. */
+export const SCOPE_METHODS: Record<"chat" | "browser", readonly MethodName[]> = {
+  chat: ["agents.list", "threads.create", "threads.get", "threads.send"],
+  browser: (Object.keys(browserMethods) as MethodName[]).filter((m) => methodAccess(m) !== "human"),
+};
+
 export function methodAccess(name: MethodName): "any" | "human" {
   return (methods[name] as MethodDef).access ?? "any";
 }

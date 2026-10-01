@@ -1,4 +1,4 @@
-import type { Actor, ClientRole } from "@apx/protocol";
+import type { Actor, ClientRole, ClientScope } from "@apx/protocol";
 import type { Log } from "../log.ts";
 
 /** Who is calling. Every handler gets it explicitly — no ambient/implicit identity. */
@@ -9,6 +9,8 @@ export type CallContext = {
   actor: Actor;
   session: string | undefined;
   log: Log;
+  /** Set when an outside app calls with its client token: it acts as a model, only within its scopes. */
+  client?: { id: string; name: string; scopes: ClientScope[] } | undefined;
   /** Set when an agent's tool calls a method in-process: which agent, in which run and thread. */
   agent?: { id: string; run_id: string; thread_id: string } | undefined;
   /** Set by the channel manager only (never from a request): who wrote on which channel conversation. */
