@@ -2,10 +2,9 @@
 // global notes (read), its thread's project and its own notebook.
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
+import { badRequest, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
-import { badRequest, notFound, unauthorized } from "../errors.ts";
-
 
 export function memoryHandlers(store: Store) {
   /** The agent's view, or undefined for the owner (who sees everything). */
@@ -21,7 +20,8 @@ export function memoryHandlers(store: Store) {
     })) as Handler<"memory.list">,
 
     "memory.add": (({ text, scope, project, agent, id, tainted }, ctx) => {
-      if (looksSecret(text)) throw badRequest("that looks like a password, key or token: memory never keeps credentials");
+      if (looksSecret(text))
+        throw badRequest("that looks like a password, key or token: memory never keeps credentials");
       const view = viewOf(ctx);
       if (id) {
         const m = store.memories.get(id);
@@ -44,7 +44,8 @@ export function memoryHandlers(store: Store) {
         });
       }
       // An agent writes only where it works: never for another project or another agent.
-      if (scope === "project" && !view.project_id) throw badRequest("this thread has no project; use scope agent or global");
+      if (scope === "project" && !view.project_id)
+        throw badRequest("this thread has no project; use scope agent or global");
       if ((project && project !== view.project_id) || (agent && agent !== view.agent_id))
         throw unauthorized("an agent writes notes only for its own thread's project or for itself");
       return store.memories.add({

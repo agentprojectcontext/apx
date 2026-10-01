@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { isInside } from "../paths.ts";
 import type { Log } from "../log.ts";
+import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
 import { type Gate, refuse } from "./guard.ts";
 

@@ -4,6 +4,7 @@ import type { ApcSync } from "../apc/sync.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
+import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
@@ -13,7 +14,6 @@ import type { Services } from "../services/registry.ts";
 import { skillsFor } from "../skills/skills.ts";
 import type { EngineIds } from "./agents.ts";
 import type { Handler } from "./router.ts";
-import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
 
 export function appHandlers(deps: {
   store: Store;

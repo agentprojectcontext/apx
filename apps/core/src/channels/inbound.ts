@@ -4,6 +4,7 @@ import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { Inbound, InboundAction, Presentation } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { CallContext } from "../rpc/context.ts";
 import type { Delivery } from "./delivery.ts";
@@ -45,7 +46,7 @@ export function createInbound(deps: {
     try {
       store.channels.inbox.done(row.id, await route(row.channel, row.id, row.payload));
     } catch (err) {
-      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 300);
+      const msg = errorMessage(err, 300);
       log.warn({ channel: row.channel, inbox: row.id, err: msg }, "channel message not handled");
       store.channels.inbox.done(row.id, "failed", msg);
       deps.notifyOwner({ text: channelTexts(store).notHandled(row.payload.sender.name, msg) });
@@ -195,7 +196,7 @@ export function createInbound(deps: {
         reply(what === "contact" ? t.approved : t.denied);
       }
     } catch (err) {
-      const msg = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+      const msg = errorMessage(err, 200);
       log.warn({ channel, err: msg }, "channel button not handled");
       reply(t.buttonFailed(msg));
     }

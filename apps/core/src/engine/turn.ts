@@ -5,6 +5,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { Canceled, errorMessage } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
@@ -269,12 +270,12 @@ async function runEngines(
         // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.
         store.modelLog.append(t.thread.id, t.run().id, [{ role: "assistant", content: outcome.text || null }]);
       }
-      if (t.signal.aborted) throw t.signal.reason ?? new Error("canceled");
+      t.signal.throwIfAborted();
       return outcome;
     } catch (err) {
       const next = groups[i + 1];
       if (t.signal.aborted || t.exec.toolsRan > 0 || !next) throw err;
-      const reason = (err instanceof Error ? err.message : String(err)).split("\n")[0]?.slice(0, 160);
+      const reason = errorMessage(err).split("\n")[0]?.slice(0, 160);
       deps.log.warn(
         { thread: t.thread.id, harness: g.harness, err: reason },
         "engine unavailable, trying the next one",
@@ -322,7 +323,7 @@ function failRun(
 ): RunRecord {
   const { store } = deps;
   t.display.close();
-  const canceled = t.signal.aborted && String(t.signal.reason ?? "").includes("cancel");
+  const canceled = t.signal.reason instanceof Canceled;
   const reason = t.err instanceof Error ? t.err.message : String(t.err);
   const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;
   const message = canceled ? "Canceled." : `Could not finish: ${short}`;

@@ -1,5 +1,6 @@
 // JSON-RPC 2.0 over a child's stdio, one message per line: the wire under the Agent Client Protocol.
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { errorMessage } from "../../errors.ts";
 
 /** Longest single message accepted from an agent. */
 const MAX_LINE = 16 * 1024 * 1024;
@@ -83,7 +84,7 @@ export function connect(
                 error:
                   err instanceof RpcError
                     ? { code: err.code, message: err.message }
-                    : { code: -32603, message: err instanceof Error ? err.message : String(err) },
+                    : { code: -32603, message: errorMessage(err) },
               }),
           );
       } else if (msg.method !== undefined) {

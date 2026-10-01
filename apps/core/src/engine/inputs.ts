@@ -1,21 +1,13 @@
 // One machine for everything an agent waits on from the owner: confirmations before a tool runs and questions.
 // The row is written before the wait starts; an answer that arrives after its run is gone (a restart, a deadline)
 // wakes the agent with a new run instead of being lost.
-import { type InputKind, type Part } from "@apx/protocol";
+import type { InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, conflict, notFound } from "../errors.ts";
+import { badRequest, conflict, notFound, Shutdown } from "../errors.ts";
 import type { Display } from "./display.ts";
-
-/** Why a turn stops when APX shuts down: what it was waiting on stays open for the owner to answer later. */
-export class Shutdown extends Error {
-  constructor() {
-    super("APX is shutting down");
-    this.name = "Shutdown";
-  }
-}
 
 /** How long a question or confirmation stays open while the agent waits in its turn. */
 export const INPUT_WAIT_MS = 15 * 60_000;
@@ -152,13 +144,11 @@ export function createInputs(deps: {
       if (!rec) throw notFound(`input ${id}`);
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
-      if (cur.state !== "pending")
-        throw conflict(`input ${id} is already ${cur.state}`);
+      if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);
       const text = a.text?.trim() || undefined;
       let state: "approved" | "denied" | "answered";
       if (rec.kind === "confirm") {
-        if (!a.decision)
-          throw badRequest("a confirmation needs a decision");
+        if (!a.decision) throw badRequest("a confirmation needs a decision");
         state = a.decision === "approve" ? "approved" : "denied";
       } else {
         if (!text) throw badRequest("a question needs an answer text");

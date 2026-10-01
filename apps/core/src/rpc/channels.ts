@@ -4,9 +4,8 @@ import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
-import type { Handler } from "./router.ts";
 import { badRequest, notFound } from "../errors.ts";
-
+import type { Handler } from "./router.ts";
 
 export function channelHandlers(store: Store, channels: Channels) {
   return {
@@ -55,7 +54,8 @@ export function channelHandlers(store: Store, channels: Channels) {
         return {};
       }
       if (person && !store.persons.get(person)) throw notFound(`person ${person}`);
-      if (decision === "contact" && person === OWNER_ID) throw badRequest("use decision owner to link your own address");
+      if (decision === "contact" && person === OWNER_ID)
+        throw badRequest("use decision owner to link your own address");
       const id = store.tx(() => {
         const who =
           decision === "owner"

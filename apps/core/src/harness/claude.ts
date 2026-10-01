@@ -3,6 +3,7 @@
 // `io.execute`. See DECISIONS.md#d-007
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { errorMessage } from "../errors.ts";
 import { childEnv } from "./env.ts";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
@@ -158,7 +159,7 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
         // A stored session can disappear (cleared by the owner): start a fresh one instead of failing the turn,
         // but only for that, and never after any tool ran (ours or Claude's), since a rerun would repeat its effect.
         // See DECISIONS.md#d-007
-        const gone = /session|conversation/i.test(err instanceof Error ? err.message : String(err));
+        const gone = /session|conversation/i.test(errorMessage(err));
         if (io.sessionId && gone && !io.signal.aborted && toolCalls === 0 && builtins === 0) return attempt(undefined);
         throw err;
       }

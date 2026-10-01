@@ -7,6 +7,7 @@ import path from "node:path";
 import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceSettings } from "@apx/protocol";
 import type { MediaRecord } from "../domain/media.ts";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
 import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
@@ -125,7 +126,7 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
         status.set(s.id, { ok: true, at: Date.now() });
         return { out, service: s, skipped };
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = errorMessage(err);
         status.set(s.id, { ok: false, at: Date.now() });
         log.warn({ service: s.id, err: msg.slice(0, 200) }, "media service failed, trying the next one");
         skipped.push(msg.slice(0, 200));

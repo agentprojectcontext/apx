@@ -112,7 +112,7 @@ export function acpHarness(opts: {
           ? io.input.content
           : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
         const onAbort = () => session.rpc.notify("session/cancel", { sessionId: session.sessionId });
-        if (io.signal.aborted) throw io.signal.reason ?? new Error("canceled");
+        io.signal.throwIfAborted();
         io.signal.addEventListener("abort", onAbort, { once: true });
         prompting = true;
         try {
@@ -129,7 +129,7 @@ export function acpHarness(opts: {
               io.signal.addEventListener("abort", stop, { once: true });
             }),
           ]);
-          if (io.signal.aborted) throw io.signal.reason ?? new Error("canceled");
+          io.signal.throwIfAborted();
           if (r.stopReason === "refusal") throw new Error(`${agent.label} refused to answer`);
           return {
             text,

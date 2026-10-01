@@ -8,8 +8,7 @@ export function mcpHandlers(mcp: Mcp) {
     "mcp.list": (({ project }) => ({ servers: mcp.status(project) })) as Handler<"mcp.list">,
     "mcp.trust": (({ project, server, trusted }) => {
       const d = mcp.find("project", server, project);
-      if (!d)
-        throw badRequest(`no server ${server} in that project's .apc/mcps.json`);
+      if (!d) throw badRequest(`no server ${server} in that project's .apc/mcps.json`);
       mcp.config.setTrust(d, trusted);
       if (!trusted) mcp.drop(d);
       const s = mcp.status(project).find((x) => x.scope === "project" && x.name === server);

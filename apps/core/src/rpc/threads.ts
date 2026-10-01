@@ -5,11 +5,10 @@ import { publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
-import type { CallContext } from "./context.ts";
-import type { Handler } from "./router.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { isInside } from "../paths.ts";
-
+import type { CallContext } from "./context.ts";
+import type { Handler } from "./router.ts";
 
 /**
  * A code thread's folder: inside its project's folder on disk, symlinks resolved, so the agent cannot be pointed
@@ -17,8 +16,7 @@ import { isInside } from "../paths.ts";
  */
 function codeFolder(store: Store, projectId: string | undefined, cwd: string | undefined): string {
   const project = projectId ? store.projects.get(projectId) : undefined;
-  if (!project?.path || !project.present)
-    throw badRequest("a code thread needs a project whose folder is on disk");
+  if (!project?.path || !project.present) throw badRequest("a code thread needs a project whose folder is on disk");
   let root: string;
   let dir: string;
   try {

@@ -1,11 +1,11 @@
 // Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). The owner's live in
 // APX's home (`skills/`), a project's in `.apc/skills/`. Agents see a one-line catalog; the body loads on demand.
 import fs from "node:fs";
-import { isInside } from "../paths.ts";
 import path from "node:path";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { isInside } from "../paths.ts";
 
 export type Skill = {
   name: string;

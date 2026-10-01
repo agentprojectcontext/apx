@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import { type AcpAgent, acpAgents, acpEngine, openSession } from "../harness/acp/agents.ts";
 import { harnessEnv } from "../harness/claude.ts";
 import { which } from "../harness/detect.ts";
@@ -157,7 +158,7 @@ export function createCatalog(deps: {
       return entry;
     } catch (err) {
       const prev = cached(base.id);
-      const why = err instanceof Error ? err.message : String(err);
+      const why = errorMessage(err);
       // A failed refresh keeps the last good list, marked stale.
       return prev?.models.length
         ? { ...prev, detail: `could not refresh (${why}); showing the list from ${prev.fetched_at}` }

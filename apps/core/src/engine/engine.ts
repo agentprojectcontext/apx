@@ -4,6 +4,7 @@
 import type { RunTrigger, Thread } from "@apx/protocol";
 import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { Canceled, DeadlineExceeded, Shutdown } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
@@ -12,7 +13,7 @@ import type { Tool } from "../tools/types.ts";
 import { tripped } from "./breaker.ts";
 import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
-import { createInputs, Shutdown } from "./inputs.ts";
+import { createInputs } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
 import { recoverInterrupted } from "./recovery.ts";
@@ -176,7 +177,7 @@ export function createEngine(deps: {
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
     const clock = pausableClock(run.trigger === "a2a" ? A2A_DEADLINE_MS : RUN_DEADLINE_MS, () =>
-      ac.abort(new Error("deadline")),
+      ac.abort(new DeadlineExceeded()),
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
     try {
@@ -215,7 +216,7 @@ export function createEngine(deps: {
     let n = 0;
     for (const [runId, a] of active) {
       if (a.thread !== threadId || a.ac.signal.aborted) continue;
-      a.ac.abort(new Error("canceled by the owner"));
+      a.ac.abort(new Canceled());
       n++;
       for (const child of store.runs.children(runId)) n += cancel(child.thread_id);
     }

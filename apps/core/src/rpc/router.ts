@@ -10,7 +10,7 @@ import {
   type ParsedParams,
   type Result,
 } from "@apx/protocol";
-import { CallError } from "../errors.ts";
+import { CallError, errorMessage } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 
 export type Handler<M extends MethodName> = (
@@ -65,7 +65,7 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
         ok: false,
         error: {
           code: ErrorCode.Internal,
-          message: err instanceof Error ? err.message : String(err),
+          message: errorMessage(err),
           retryable: false,
         },
       };

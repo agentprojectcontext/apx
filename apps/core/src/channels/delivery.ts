@@ -3,6 +3,7 @@
 // never repeated.
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { type ChannelAdapter, SendError } from "./types.ts";
 
@@ -67,7 +68,7 @@ export function createDelivery(deps: {
   }
 
   function settleFailure(o: OutboxRow, err: unknown): void {
-    const msg = (err instanceof Error ? err.message : String(err)).slice(0, 300);
+    const msg = errorMessage(err, 300);
     if (err instanceof SendError && err.kind === "retry" && o.attempts + 1 < MAX_ATTEMPTS) {
       const wait = err.retryAfterMs ?? 2000 * 2 ** o.attempts;
       // Parts already delivered are skipped next time.

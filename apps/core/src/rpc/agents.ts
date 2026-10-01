@@ -6,10 +6,9 @@ import type { ApcSync } from "../apc/sync.ts";
 import { archiveAgentFile, renameAgentFile, updateAgentFile, writeNewAgent } from "../apc/write.ts";
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import type { Handler } from "./router.ts";
-import { badRequest, notFound } from "../errors.ts";
-
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
 export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };
@@ -32,7 +31,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
     try {
       return fn();
     } catch (err) {
-      throw badRequest(err instanceof Error ? err.message : String(err));
+      throw badRequest(errorMessage(err));
     }
   };
   /** Sets what only APX knows about an agent (kept across reindexes). */

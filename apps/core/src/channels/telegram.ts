@@ -2,6 +2,7 @@
 // stores them) before the next poll confirms them to Telegram, so a crash never loses a message; a redelivery is
 // dropped by the inbox's unique key.
 import type { Presentation } from "../domain/channels.ts";
+import { errorMessage } from "../errors.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 import { type AdapterFactory, type AdapterIO, type ChannelAdapter, SendError } from "./types.ts";
 
@@ -158,7 +159,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
           "error",
           code === 409
             ? "another program is reading this bot's messages (only one can)"
-            : `cannot reach Telegram: ${err instanceof Error ? err.message : String(err)}`.slice(0, 200),
+            : `cannot reach Telegram: ${errorMessage(err)}`.slice(0, 200),
         );
         const wait = code === 409 ? 30_000 : err instanceof TgError && err.retryAfter ? err.retryAfter * 1000 : backoff;
         await sleep(wait, AbortSignal.any([ac.signal, io.signal]));
@@ -242,7 +243,7 @@ const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREA
  * them. Anything that may have reached Telegram is uncertain, never resent.
  */
 function toSendError(err: unknown, sent: number): SendError {
-  const msg = err instanceof Error ? err.message : String(err);
+  const msg = errorMessage(err);
   if (err instanceof TgError) {
     if (err.code === 429) return new SendError("retry", msg, (err.retryAfter ?? 5) * 1000, sent);
     if (err.code >= 500) return new SendError("uncertain", msg);

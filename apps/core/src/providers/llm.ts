@@ -80,7 +80,7 @@ export function createLlm(opts: {
           continue;
         }
         for (let attempt = 0; attempt < 2; attempt++) {
-          if (req.signal.aborted) throw req.signal.reason ?? new Error("canceled");
+          req.signal.throwIfAborted();
           try {
             const out = await TRANSPORTS[t.provider.transport]({
               baseUrl: t.provider.base_url,

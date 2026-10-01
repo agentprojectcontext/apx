@@ -6,7 +6,9 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
+import { insideReal } from "../paths.ts";
 import { authorize, decide, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { cap } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
@@ -14,7 +16,6 @@ import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { insideReal } from "../paths.ts";
 import { guarded, pathsOf } from "./paths.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
@@ -39,7 +40,7 @@ async function runTool(
     const shape = (err as { shape?: { code: string; message: string } }).shape;
     return {
       ok: false,
-      text: shape ? `${shape.code}: ${shape.message}` : err instanceof Error ? err.message : String(err),
+      text: shape ? `${shape.code}: ${shape.message}` : errorMessage(err),
     };
   } finally {
     clearTimeout(timer);
@@ -130,7 +131,7 @@ export function createExecutor(o: {
         ...(detail ? { detail } : {}),
       });
     card("running");
-    if (signal.aborted) throw signal.reason ?? new Error("canceled");
+    signal.throwIfAborted();
     if (!tool) {
       card("error", "unknown tool");
       return { ok: false, text: `unknown tool ${name}` };
@@ -163,7 +164,7 @@ export function createExecutor(o: {
         waitMs: o.external() ? EXTERNAL_INPUT_WAIT_MS : INPUT_WAIT_MS,
         signal,
       });
-      if (signal.aborted) throw signal.reason ?? new Error("canceled");
+      signal.throwIfAborted();
       if (answer.state !== "approved") {
         const why = answer.state === "denied" ? "the owner declined" : "the owner did not answer in time";
         card("error", why);
@@ -203,7 +204,7 @@ export function createExecutor(o: {
     if (out.text.includes(UNTRUSTED_MARK)) untrusted = true;
     const full = out.text.slice(0, 2_000_000);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, 4000), full);
-    if (signal.aborted) throw signal.reason ?? new Error("canceled");
+    signal.throwIfAborted();
     card(out.ok ? "ok" : "error", out.text.slice(0, 300));
     // The model gets a capped copy; the whole text stays in the step for read_output.
     const shown = cap(out.text);

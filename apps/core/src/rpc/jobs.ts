@@ -1,12 +1,12 @@
 // Accounting of work: the background view (agents' runs on their own and terminal commands, as one list) and
 // usage by model.
-import { type Job } from "@apx/protocol";
+import type { Job } from "@apx/protocol";
 import { publicJob } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
-import type { Handler } from "./router.ts";
 import { notFound, unauthorized } from "../errors.ts";
+import type { Handler } from "./router.ts";
 
 const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
 

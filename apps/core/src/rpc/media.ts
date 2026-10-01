@@ -1,9 +1,10 @@
 // Image and voice services (owner-only settings) and what they make. An agent draws or speaks only into its own
 // thread, through the same methods.
+
+import { errorMessage, notFound, unavailable } from "../errors.ts";
 import type { Services } from "../services/registry.ts";
 import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
-import { errorMessage, notFound, unavailable } from "../errors.ts";
 
 const failed = (err: unknown) => unavailable(errorMessage(err, 2000));
 

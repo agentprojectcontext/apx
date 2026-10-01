@@ -1,5 +1,6 @@
 // The canonical conversation format inside APX is OpenAI chat completions: every transport converts from it.
 // Items carry provider extras (e.g. Gemini thought signatures) that must be echoed back verbatim.
+import { errorMessage } from "../errors.ts";
 
 export type ToolCall = {
   id: string;
@@ -110,9 +111,9 @@ export async function post(
     return { res, touch, done };
   } catch (err) {
     done();
-    if (req.signal.aborted) throw req.signal.reason ?? new Error("canceled");
+    req.signal.throwIfAborted();
     if (err instanceof ProviderError) throw err;
-    throw new ProviderError("network", err instanceof Error ? err.message : String(err));
+    throw new ProviderError("network", errorMessage(err));
   }
 }
 

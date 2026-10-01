@@ -1,5 +1,7 @@
 // Image dialects: what each kind of server expects and returns. A1111 (and Forge, SD.Next…) answers in one call;
 // stable-diffusion.cpp's server queues the job and is polled; OpenAI-compatible APIs answer with base64 or a URL.
+
+import { errorMessage } from "../errors.ts";
 import {
   IMAGE_TIMEOUT_MS,
   type ImageOptions,
@@ -171,7 +173,7 @@ export async function generateImage(
     if (!r2.images.length) throw new Error("no image came back");
     return r2;
   } catch (err) {
-    throw new ServiceError(s.label, err instanceof Error ? err.message : String(err));
+    throw new ServiceError(s.label, errorMessage(err));
   }
 }
 

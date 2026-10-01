@@ -43,7 +43,7 @@ export function nativeHarness(llm: Llm): Harness {
           signal: io.signal,
           onText: (s) => io.onText(prefix + s),
         });
-        if (io.signal.aborted) throw io.signal.reason ?? new Error("canceled");
+        io.signal.throwIfAborted();
         model = c.model;
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;

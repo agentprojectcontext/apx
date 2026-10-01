@@ -10,7 +10,7 @@ import { noticePrefs } from "../domain/notices.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
-import { CallError } from "../errors.ts";
+import { CallError, errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { CallContext } from "../rpc/context.ts";
 import type { Dispatch } from "../rpc/router.ts";
@@ -246,7 +246,7 @@ export function createChannels(deps: {
       delivery.kick();
     } catch (err) {
       l.status = "error";
-      l.error = (err instanceof Error ? err.message : String(err)).slice(0, 300);
+      l.error = errorMessage(err, 300);
       log.warn({ channel: config.id, err: l.error }, "channel did not start");
     }
   }

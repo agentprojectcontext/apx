@@ -1,6 +1,8 @@
 // Speech dialects. "openai-speech" covers OpenAI and every compatible server (QVox runs Qwen3-TTS on the Mac's GPU at
 // http://127.0.0.1:5111/v1; Pocket TTS…): QVox also takes a style instruction and a language. Gemini returns raw
 // 16-bit PCM, which is wrapped in a WAV header here.
+
+import { errorMessage } from "../errors.ts";
 import {
   joinUrl,
   PROBE_TIMEOUT_MS,
@@ -114,7 +116,7 @@ export async function speak(
   try {
     return await dialect(s, r, key, AbortSignal.any([signal, AbortSignal.timeout(SPEECH_TIMEOUT_MS)]), f);
   } catch (err) {
-    throw new ServiceError(s.label, err instanceof Error ? err.message : String(err));
+    throw new ServiceError(s.label, errorMessage(err));
   }
 }
 

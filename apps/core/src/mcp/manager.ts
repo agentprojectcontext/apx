@@ -8,6 +8,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { errorMessage } from "../errors.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
@@ -99,7 +100,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     } catch (err) {
       c.status = "error";
       c.failedAt = Date.now();
-      c.error = err instanceof Error ? err.message : String(err);
+      c.error = errorMessage(err);
       await client.close().catch(() => {});
       deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
     } finally {
