@@ -77,10 +77,18 @@ export function createRunner(deps: { store: Store; broker: NodeBroker; llm: Llm;
     try {
       let finalText = "";
       for (let step = 0; step < MAX_STEPS; step++) {
+        let lastFlush = 0;
+        const onText = (soFar: string) => {
+          // Throttled: one display update per ~120 ms is smooth enough and spares the event stream.
+          if (Date.now() - lastFlush < 120) return;
+          lastFlush = Date.now();
+          upsertPart((p) => p.type === "text", { type: "text", text: soFar });
+        };
         const res = await llm.complete(
           [system, ...history, ...fresh],
           available.map((t) => t.spec),
           ac.signal,
+          onText,
         );
         if (ac.signal.aborted) throw ac.signal.reason ?? new Error("canceled");
         fresh.push(res.message);

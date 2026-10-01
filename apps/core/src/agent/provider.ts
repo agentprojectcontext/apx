@@ -64,14 +64,84 @@ export function resolveKey(ref: string, env: NodeJS.ProcessEnv = process.env): s
 }
 
 export type Llm = {
-  complete(messages: ChatMessage[], tools: ToolSpec[], signal: AbortSignal): Promise<Completion>;
+  /** `onText` switches to streaming and receives the text accumulated so far. */
+  complete(
+    messages: ChatMessage[],
+    tools: ToolSpec[],
+    signal: AbortSignal,
+    onText?: (soFar: string) => void,
+  ): Promise<Completion>;
   label: string;
 };
+
+type Delta = {
+  content?: string | null;
+  tool_calls?: Array<{
+    index?: number;
+    id?: string;
+    type?: string;
+    function?: { name?: string; arguments?: string };
+    [k: string]: unknown;
+  }>;
+  [k: string]: unknown;
+};
+
+/** Reads an OpenAI-style SSE stream into one assistant message, merging tool-call fragments by index. */
+async function readStream(res: Response, onText: (soFar: string) => void): Promise<Completion["message"]> {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("no response body");
+  const decoder = new TextDecoder();
+  let buf = "";
+  let text = "";
+  const calls: ToolCall[] = [];
+  const extra: Record<string, unknown> = {};
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl = buf.indexOf("\n");
+    while (nl >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      nl = buf.indexOf("\n");
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (data === "[DONE]") continue;
+      let delta: Delta | undefined;
+      try {
+        delta = (JSON.parse(data) as { choices?: Array<{ delta?: Delta }> }).choices?.[0]?.delta;
+      } catch {
+        continue;
+      }
+      if (!delta) continue;
+      if (delta.content) {
+        text += delta.content;
+        onText(text);
+      }
+      for (const tc of delta.tool_calls ?? []) {
+        const i = tc.index ?? calls.length;
+        const { index: _i, function: fn, ...rest } = tc;
+        const cur = calls[i] ?? ({ id: "", type: "function", function: { name: "", arguments: "" } } as ToolCall);
+        Object.assign(cur, rest);
+        if (fn?.name) cur.function.name = cur.function.name || fn.name;
+        if (fn?.arguments) cur.function.arguments += fn.arguments;
+        calls[i] = cur;
+      }
+      for (const [k, v] of Object.entries(delta)) if (!["content", "tool_calls", "role"].includes(k)) extra[k] = v;
+    }
+  }
+  return {
+    role: "assistant",
+    content: text || null,
+    ...extra,
+    ...(calls.length ? { tool_calls: calls.map((c, i) => ({ ...c, id: c.id || `call_${i}` })) } : {}),
+  };
+}
 
 export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm {
   return {
     label: cfg.models[0] ?? "none",
-    async complete(messages, tools, signal) {
+    async complete(messages, tools, signal, onText) {
       const key = resolveKey(cfg.keyRef);
       if (!key) throw new Error(`no LLM key (ref ${cfg.keyRef.split(":")[0]}); set APX_LLM_KEY`);
       let lastErr = "no models configured";
@@ -81,12 +151,26 @@ export function createLlm(cfg: LlmConfig, fetchImpl: typeof fetch = fetch): Llm 
           const res = await fetchImpl(`${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`, {
             method: "POST",
             headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-            body: JSON.stringify({ model, messages, ...(tools.length ? { tools, tool_choice: "auto" } : {}) }),
+            body: JSON.stringify({
+              model,
+              messages,
+              ...(tools.length ? { tools, tool_choice: "auto" } : {}),
+              ...(onText ? { stream: true } : {}),
+            }),
             signal: AbortSignal.any([signal, AbortSignal.timeout(cfg.timeoutMs)]),
           }).catch((e: unknown) => {
             if (signal.aborted) throw new Error("canceled");
             return { ok: false, status: 0, text: async () => String(e) } as unknown as Response;
           });
+          if (res.ok && onText) {
+            try {
+              return { message: await readStream(res, onText), model };
+            } catch (err) {
+              if (signal.aborted) throw new Error("canceled");
+              lastErr = `${model}: stream failed: ${String(err)}`;
+              continue;
+            }
+          }
           const raw = await res.text();
           if (res.ok) {
             const body = JSON.parse(raw) as {
