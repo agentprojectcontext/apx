@@ -105,6 +105,8 @@ export const Agent = z.object({
   tools: z.array(z.string()).optional(),
   /** How often it stops for the owner's yes. From `autonomy:`; absent = standard. */
   autonomy: Autonomy.optional(),
+  /** Skills it works with (its catalog is narrowed to these). From `skills:`; absent = every skill it can see. */
+  skills: z.array(z.string()).optional(),
 });
 export type Agent = z.infer<typeof Agent>;
 

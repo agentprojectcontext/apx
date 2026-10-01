@@ -37,6 +37,7 @@ import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { shellTools } from "./tools/shell.ts";
+import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import type { Tool } from "./tools/types.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
@@ -104,6 +105,7 @@ export async function createCore(
     ...surfaceTools(),
     ...ownerTools(store),
     ...shellTools(store, config.home, config.port || 7440),
+    ...skillTools(store, config.home),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -153,7 +155,7 @@ export async function createCore(
       ...threadHandlers(store, engine),
       ...jobHandlers(store, engine),
       ...mcpHandlers(mcp),
-      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds }),
+      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds, home: config.home }),
       ...agentHandlers(store, apc, engineIds),
     },
     store.idempotency,

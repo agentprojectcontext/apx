@@ -7,6 +7,7 @@ import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
+import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
@@ -43,6 +44,8 @@ export type TurnDeps = {
   log: Log;
   inputs: Inputs;
   jobs: Jobs;
+  /** APX's home: the owner's skills live under it. */
+  home: string;
   apxPort?: number | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
@@ -91,6 +94,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (rosterChanged)
     store.threads.setContext(thread.id, { ...ctxState, roster_hash: roster.hash, roster_agent: agent.id });
 
+  const skills = skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));
+
   // ── tools ───────────────────────────────────────────────────────────
   const callers = callersOf(store, thread.id);
   // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
@@ -127,6 +132,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       thread,
       store.settings.get("owner_language") ?? "es",
       agent.project_id ? store.projects.get(agent.project_id) : undefined,
+      skills,
     ),
     history,
     input,

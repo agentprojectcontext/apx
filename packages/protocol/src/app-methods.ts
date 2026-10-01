@@ -316,6 +316,21 @@ export const appMethods = {
     }),
     effect: false,
   },
+  /** Skills agents can load: the owner's (APX home `skills/`) and, with `project`, that project's `.apc/skills/`. */
+  "skills.list": {
+    params: z.object({ project: Id.optional() }).strict(),
+    result: z.object({
+      skills: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string(),
+          scope: z.enum(["global", "project"]),
+          project_id: Id.optional(),
+        }),
+      ),
+    }),
+    effect: false,
+  },
   "runs.get": {
     params: z.object({ run: Id }).strict(),
     result: Run,

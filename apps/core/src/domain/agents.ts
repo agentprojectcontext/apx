@@ -23,14 +23,19 @@ const toAgent = (r: Row): AgentRecord => ({
 });
 
 /** `tools:` and `autonomy:` as the agent's file wrote them; unknown autonomy values mean the default. */
-function policyOf(extra: unknown): Pick<Agent, "tools" | "autonomy"> {
-  let e: { tools?: unknown; autonomy?: unknown } = {};
+function policyOf(extra: unknown): Pick<Agent, "tools" | "autonomy" | "skills"> {
+  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown } = {};
   try {
     e = extra ? JSON.parse(String(extra)) : {};
   } catch {}
   const tools = Array.isArray(e.tools) ? e.tools.map(String).filter(Boolean) : [];
   const autonomy = Autonomy.safeParse(String(e.autonomy ?? "").toLowerCase());
-  return { ...(tools.length ? { tools } : {}), ...(autonomy.success ? { autonomy: autonomy.data } : {}) };
+  const skills = Array.isArray(e.skills) ? e.skills.map(String).filter(Boolean) : [];
+  return {
+    ...(tools.length ? { tools } : {}),
+    ...(autonomy.success ? { autonomy: autonomy.data } : {}),
+    ...(skills.length ? { skills } : {}),
+  };
 }
 
 const HARNESS_ENGINES = new Set<string>(["claude", "codex"]);

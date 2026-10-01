@@ -185,3 +185,9 @@ export async function usage(client: ApxClient, [days]: string[]): Promise<void> 
       `${m.model.padEnd(44)} ${m.billing.padEnd(9)} ${String(m.runs).padStart(5)} runs  ${String(m.input).padStart(10)} in  ${String(m.output).padStart(9)} out`,
     );
 }
+
+export async function skills(client: ApxClient, [project]: string[]): Promise<void> {
+  const r = await client.call("skills.list", project ? { project } : {});
+  for (const s of r.skills) console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.description.slice(0, 90)}`);
+  if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx2/skills or .apc/skills)");
+}

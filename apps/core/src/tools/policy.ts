@@ -14,7 +14,7 @@ const GROUPS: Record<string, (name: string) => boolean> = {
 };
 
 /** Tools every agent keeps whatever its list says: they only read what the turn already produced or ask the owner. */
-const ALWAYS = new Set(["read_output", "ask_owner"]);
+const ALWAYS = new Set(["read_output", "ask_owner", "load_skill"]);
 
 /** Marker every untrusted envelope carries (tools/result.ts `untrusted`). */
 export const UNTRUSTED_MARK = 'trust="untrusted"';

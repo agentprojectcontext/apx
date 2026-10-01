@@ -10,6 +10,7 @@ import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import type { Secrets } from "../secrets.ts";
+import { skillsFor } from "../skills/skills.ts";
 import type { EngineIds } from "./agents.ts";
 import type { Handler } from "./router.ts";
 import { notFound } from "./threads.ts";
@@ -22,6 +23,7 @@ export function appHandlers(deps: {
   catalog: Catalog;
   apc: ApcSync;
   engines: EngineIds;
+  home: string;
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
@@ -44,6 +46,9 @@ export function appHandlers(deps: {
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
     }) as Handler<"models.set_config">,
+    "skills.list": (({ project }) => ({
+      skills: skillsFor(store, deps.home, project).map(({ dir: _d, ...s }) => s),
+    })) as Handler<"skills.list">,
     "projects.list": (() => ({ projects: store.projects.list().map(publicProject) })) as Handler<"projects.list">,
     "projects.register": (({ path }) => {
       let r: ReturnType<typeof deps.apc.register>;
