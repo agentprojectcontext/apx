@@ -326,3 +326,23 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-sm);
 }
+
+/* ── MCP servers ───────────────────────────────────────────────────────────── */
+.mcp__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mcp__tools {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.mcp__target {
+  display: block;
+  max-width: 460px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+}

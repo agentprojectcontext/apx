@@ -1,7 +1,7 @@
 // The engine: every agent turn enters through `admit` (threads.send is its public door), runs one at a time per
 // thread from the durable queue (the runs table), and reports its end to whoever waits for it.
 // See DECISIONS.md#d-009
-import type { RunTrigger } from "@apx/protocol";
+import type { RunTrigger, Thread } from "@apx/protocol";
 import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Harnesses } from "../harness/index.ts";
@@ -64,6 +64,8 @@ export function createEngine(deps: {
   call: ToolCall;
   home: string;
   apxPort?: number;
+  /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
+  mcpTools?: (thread: Thread) => Promise<Tool[]>;
 }) {
   const { store, log } = deps;
   const busy = new Set<string>();

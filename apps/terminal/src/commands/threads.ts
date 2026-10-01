@@ -141,3 +141,37 @@ export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void
   }
   throw new Error(`unknown jobs command: ${sub}`);
 }
+
+/** apx2 mcps: MCP servers agents may use (list, approve a project's, add or remove the owner's own). */
+export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): Promise<void> {
+  if (!sub || sub === "list") {
+    const { servers } = await client.call("mcp.list", a ? { project: a } : {});
+    for (const s of servers)
+      console.log(
+        `${(s.project_id ?? "global").padEnd(16)} ${s.name.padEnd(18)} ${s.status.padEnd(15)} ${String(s.tools).padStart(3)} tools  ${s.error ?? s.target}`,
+      );
+    if (!servers.length) console.log("(no MCP servers)");
+    return;
+  }
+  if (sub === "trust" || sub === "untrust") {
+    if (!a || !b) throw new Error(`usage: apx2 mcps ${sub} <project> <server>`);
+    const r = await client.call("mcp.trust", { project: a, server: b, trusted: sub === "trust" });
+    console.log(`${r.server.name}: ${r.server.status}`);
+    return;
+  }
+  if (sub === "add") {
+    // apx2 mcps add <name> <command> [args…]   or   apx2 mcps add <name> https://…
+    if (!a || !b) throw new Error("usage: apx2 mcps add <name> <command> [args…] | <url>");
+    const server = /^https?:\/\//.test(b) ? { url: b } : { command: b, args: rest };
+    await client.call("mcp.set", { name: a, server });
+    console.log(`added ${a}`);
+    return;
+  }
+  if (sub === "rm") {
+    if (!a) throw new Error("usage: apx2 mcps rm <name>");
+    await client.call("mcp.set", { name: a, server: null });
+    console.log(`removed ${a}`);
+    return;
+  }
+  throw new Error(`unknown mcps command: ${sub}`);
+}

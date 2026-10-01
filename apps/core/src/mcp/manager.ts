@@ -1,0 +1,222 @@
+// Connections to MCP servers, opened when an agent's turn needs them and closed when idle, and their tools as APX
+// tools: same argument check, same policy, results marked as outside data.
+
+import type { Thread } from "@apx/protocol";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { z } from "zod";
+import type { Store } from "../domain/store.ts";
+import { commandEnv } from "../harness/env.ts";
+import type { Log } from "../log.ts";
+import type { Secrets } from "../secrets.ts";
+import { cap, untrusted } from "../tools/result.ts";
+import type { Confirm, Effect, Tool } from "../tools/types.ts";
+import { type McpDef, mcpConfig } from "./config.ts";
+
+const CONNECT_MS = 20_000;
+const CALL_MS = 120_000;
+const IDLE_MS = 10 * 60_000;
+
+type McpTool = {
+  name: string;
+  title?: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; title?: string };
+};
+
+type Conn = {
+  key: string;
+  hash: string;
+  client?: Client;
+  tools: McpTool[];
+  status: "starting" | "ready" | "error";
+  error?: string;
+  used: number;
+  ready?: Promise<void>;
+};
+
+export type McpStatus = {
+  name: string;
+  scope: "global" | "project";
+  project_id?: string;
+  transport: "stdio" | "http";
+  target: string;
+  enabled: boolean;
+  trusted: boolean;
+  status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error";
+  tools: number;
+  error?: string;
+};
+
+/** MCP tool names become `mcp_<server>_<tool>`, within what every model accepts. */
+const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+
+export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
+  const config = mcpConfig(deps.store);
+  const conns = new Map<string, Conn>();
+  const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.name}`;
+
+  /** `secret://` values are resolved here, at start, and never written anywhere else. */
+  const resolve = (values: Record<string, string>) =>
+    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, deps.secrets.resolve(v) ?? v]));
+
+  async function open(d: McpDef, c: Conn): Promise<void> {
+    const client = new Client({ name: "apx", version: "2" });
+    const transport = d.url
+      ? new StreamableHTTPClientTransport(new URL(d.url), { requestInit: { headers: resolve(d.headers) } })
+      : new StdioClientTransport({
+          command: d.command ?? "",
+          args: d.args,
+          // Only what the definition gives it, on top of an environment without credentials.
+          env: { ...commandEnv(), ...resolve(d.env) },
+          ...(d.cwd ? { cwd: d.cwd } : {}),
+          stderr: "ignore",
+        });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        client.connect(transport),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`no answer in ${CONNECT_MS / 1000}s`)), CONNECT_MS);
+        }),
+      ]);
+      const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
+      c.client = client;
+      c.tools = tools as McpTool[];
+      c.status = "ready";
+    } catch (err) {
+      c.status = "error";
+      c.error = err instanceof Error ? err.message : String(err);
+      await client.close().catch(() => {});
+      deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** The live connection for a definition, (re)opened when missing, failed or its definition changed. */
+  function ensure(d: McpDef): Conn {
+    const key = keyOf(d);
+    let c = conns.get(key);
+    if (c && c.hash !== d.hash) {
+      void c.client?.close().catch(() => {});
+      c = undefined;
+    }
+    if (!c || c.status === "error") {
+      c = { key, hash: d.hash, tools: [], status: "starting", used: Date.now() };
+      conns.set(key, c);
+      c.ready = open(d, c);
+    }
+    c.used = Date.now();
+    return c;
+  }
+
+  function adapt(d: McpDef, c: Conn, t: McpTool): Tool {
+    const ro = t.annotations?.readOnlyHint === true;
+    const effect: Effect = ro ? "none" : "external";
+    // Reading tools run; tools that change things wait while outside content is in the turn; destructive ones ask.
+    const confirm: Confirm = ro ? "never" : t.annotations?.destructiveHint ? "ask" : "untrusted";
+    let check: z.ZodType | undefined;
+    try {
+      check = z.fromJSONSchema(t.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
+    } catch {
+      check = undefined;
+    }
+    const label = t.annotations?.title ?? t.title ?? t.name;
+    return {
+      name: toolName(d.name, t.name),
+      description: `[${d.name}] ${t.description ?? label}`.slice(0, 1024),
+      parameters: t.inputSchema,
+      effect,
+      confirm: () => confirm,
+      deadlineMs: CALL_MS + 5_000,
+      parse(raw) {
+        if (!check) return { ok: true, args: raw };
+        const r = check.safeParse(raw);
+        return r.success
+          ? { ok: true, args: r.data as Record<string, unknown> }
+          : {
+              ok: false,
+              error: `invalid arguments for ${t.name}: ${r.error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ")}`,
+            };
+      },
+      title: () => `${d.name}: ${label}`,
+      async run(args, ctx) {
+        c.used = Date.now();
+        if (!c.client) throw new Error(`${d.name} is not connected`);
+        const r = (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
+          timeout: CALL_MS,
+          signal: ctx.signal,
+        })) as { content?: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: unknown };
+        const text =
+          (r.content ?? [])
+            .map((p) => (p.type === "text" ? (p.text ?? "") : `[${p.type}]`))
+            .join("\n")
+            .trim() || (r.structuredContent ? JSON.stringify(r.structuredContent) : "(no output)");
+        const body = untrusted("mcp_result", { server: d.name, tool: t.name }, cap(text));
+        if (r.isError) throw new Error(body);
+        return body;
+      },
+    };
+  }
+
+  const idle = setInterval(() => {
+    for (const [key, c] of conns)
+      if (Date.now() - c.used > IDLE_MS) {
+        void c.client?.close().catch(() => {});
+        conns.delete(key);
+      }
+  }, 60_000);
+  idle.unref();
+
+  const defsFor = (projectId: string | undefined) => [
+    ...config.global(),
+    ...(projectId ? config.project(projectId) : []),
+  ];
+
+  return {
+    config,
+    /** The MCP tools a turn in this thread may use: enabled, approved servers of its project and the owner's. */
+    async toolsFor(thread: Thread): Promise<Tool[]> {
+      const defs = defsFor(thread.project_id).filter((d) => d.enabled && config.trusted(d));
+      const live = defs.map((d) => ({ d, c: ensure(d) }));
+      await Promise.allSettled(live.map(({ c }) => c.ready));
+      return live.flatMap(({ d, c }) => (c.status === "ready" ? c.tools.map((t) => adapt(d, c, t)) : []));
+    },
+    status(projectId?: string): McpStatus[] {
+      const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
+      const defs = [...config.global(), ...projects.flatMap((p) => config.project(p))];
+      return defs.map((d) => {
+        const c = conns.get(keyOf(d));
+        const trusted = config.trusted(d);
+        const live = c && c.hash === d.hash ? c : undefined;
+        return {
+          name: d.name,
+          scope: d.scope,
+          ...(d.project_id ? { project_id: d.project_id } : {}),
+          transport: d.url ? "http" : "stdio",
+          target: d.url ?? [d.command, ...d.args].join(" "),
+          enabled: d.enabled,
+          trusted,
+          status: !d.enabled ? "disabled" : !trusted ? "needs-approval" : (live?.status ?? "off"),
+          tools: live?.tools.length ?? 0,
+          ...(live?.error ? { error: live.error } : {}),
+        };
+      });
+    },
+    find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
+      return (scope === "global" ? config.global() : projectId ? config.project(projectId) : []).find(
+        (d) => d.name === name,
+      );
+    },
+    async close(): Promise<void> {
+      clearInterval(idle);
+      await Promise.allSettled([...conns.values()].map((c) => c.client?.close()));
+      conns.clear();
+    },
+  };
+}
+
+export type Mcp = ReturnType<typeof createMcp>;

@@ -10,6 +10,7 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   widgets: (n) => n === "show_widget",
   agents: (n) => n === "list_agents" || n === "delegate",
   shell: (n) => n.startsWith("shell"),
+  mcp: (n) => n.startsWith("mcp_"),
 };
 
 /** Tools every agent keeps whatever its list says: they only read what the turn already produced or ask the owner. */

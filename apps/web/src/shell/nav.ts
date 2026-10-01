@@ -23,6 +23,7 @@ export const CONFIG_SECTIONS = [
   "account",
   "appearance",
   "engines",
+  "mcp",
   "agents",
   "whatsapp",
   "telegram",

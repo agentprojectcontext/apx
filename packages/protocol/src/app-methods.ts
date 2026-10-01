@@ -6,6 +6,7 @@ import {
   EngineStatus,
   Id,
   Job,
+  McpServerStatus,
   Message,
   ModelChoice,
   PendingInput,
@@ -258,6 +259,42 @@ export const appMethods = {
     params: z.object({ job: Id }).strict(),
     result: z.object({ canceled: z.boolean() }),
     effect: true,
+  },
+  /** MCP servers: the owner's and each project's, with whether they are approved and running. */
+  "mcp.list": {
+    params: z.object({ project: Id.optional() }).strict(),
+    result: z.object({ servers: z.array(McpServerStatus) }),
+    effect: false,
+  },
+  /** Approves (or withdraws) a project's server as its file defines it now; a changed file needs approving again. */
+  "mcp.trust": {
+    params: z.object({ project: Id, server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
+    result: z.object({ server: McpServerStatus }),
+    effect: true,
+    access: "human",
+  },
+  /** Adds, replaces or (null) removes one of the owner's own servers. Env and header values may be secret://. */
+  "mcp.set": {
+    params: z
+      .object({
+        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/),
+        server: z
+          .object({
+            command: z.string().optional(),
+            args: z.array(z.string()).optional(),
+            env: z.record(z.string(), z.string()).optional(),
+            url: z.string().url().optional(),
+            headers: z.record(z.string(), z.string()).optional(),
+            enabled: z.boolean().optional(),
+          })
+          .strict()
+          .refine((s) => !!s.command !== !!s.url, "give either command or url")
+          .nullable(),
+      })
+      .strict(),
+    result: z.object({ servers: z.array(McpServerStatus) }),
+    effect: true,
+    access: "human",
   },
   "runs.get": {
     params: z.object({ run: Id }).strict(),

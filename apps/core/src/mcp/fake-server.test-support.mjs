@@ -1,0 +1,17 @@
+// A tiny MCP server for tests: a reading tool that echoes, and one that reports an env value it was given.
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+
+const server = new McpServer({ name: "notes", version: "1.0.0" });
+server.registerTool(
+  "echo",
+  { description: "Echo text", inputSchema: { text: z.string() }, annotations: { readOnlyHint: true } },
+  async ({ text }) => ({ content: [{ type: "text", text: `echo: ${text}` }] }),
+);
+server.registerTool("token", { description: "Says whether it got its token", inputSchema: {} }, async () => ({
+  content: [
+    { type: "text", text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"}` },
+  ],
+}));
+await server.connect(new StdioServerTransport());

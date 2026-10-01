@@ -5,7 +5,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { chat } from "./commands/chat.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
-import { agents, jobs, projects, runs, secrets, threads } from "./commands/threads.ts";
+import { agents, jobs, mcps, projects, runs, secrets, threads } from "./commands/threads.ts";
 
 const HELP = `apx2 — APX v2 terminal
 
@@ -29,6 +29,7 @@ Usage:
   apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach] [--interrupt | --steer]
   apx2 chat "<text>" --code [--cwd <folder>] [--write ask|auto|read-only] [--agent <id>]   Code thread
   apx2 jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
+  apx2 mcps [list [project]] | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
                            The one way to talk to an agent. Default: Home (the secretary)
   apx2 threads [list] | get <thread> | cancel <thread>
   apx2 runs get <run> | wait <run> [--timeout 60]
@@ -127,6 +128,9 @@ try {
       break;
     case "jobs":
       await jobs(client, rest);
+      break;
+    case "mcps":
+      await mcps(client, rest);
       break;
     case "agents":
       if (rest[0] === "model") await agentModel(client, rest.slice(1), values);

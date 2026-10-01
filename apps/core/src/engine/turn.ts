@@ -1,5 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
-import type { HarnessId, MethodName, Params, Result } from "@apx/protocol";
+import type { HarnessId, MethodName, Params, Result, Thread } from "@apx/protocol";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -44,6 +44,7 @@ export type TurnDeps = {
   inputs: Inputs;
   jobs: Jobs;
   apxPort?: number | undefined;
+  mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
   /** A protocol method through the router, as the agent of `as.run`. */
@@ -92,7 +93,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   // ── tools ───────────────────────────────────────────────────────────
   const callers = callersOf(store, thread.id);
-  const policy = inherit(agent, callers, deps.tools);
+  // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
+  const mcpTools = deps.mcpTools ? await deps.mcpTools(thread).catch(() => []) : [];
+  const policy = inherit(agent, callers, [...deps.tools, ...mcpTools]);
   const available = policy.tools.filter(
     (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
   );

@@ -333,6 +333,23 @@ export const Job = z.object({
 });
 export type Job = z.infer<typeof Job>;
 
+/** An MCP server an agent may use: the owner's own, or one a project's `.apc/mcps.json` names. */
+export const McpServerStatus = z.object({
+  name: z.string(),
+  scope: z.enum(["global", "project"]),
+  project_id: Id.optional(),
+  transport: z.enum(["stdio", "http"]),
+  /** The command line or URL (no secret values: those are references). */
+  target: z.string(),
+  enabled: z.boolean(),
+  /** A project's server runs only after the owner approved this exact definition. */
+  trusted: z.boolean(),
+  status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error"]),
+  tools: z.number().int(),
+  error: z.string().optional(),
+});
+export type McpServerStatus = z.infer<typeof McpServerStatus>;
+
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
 export const Surface = z.object({
   id: Id,

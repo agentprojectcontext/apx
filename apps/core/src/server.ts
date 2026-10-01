@@ -20,6 +20,7 @@ import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createLog } from "./log.ts";
+import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
@@ -27,6 +28,7 @@ import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
+import { mcpHandlers } from "./rpc/mcp.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { threadHandlers } from "./rpc/threads.ts";
@@ -126,7 +128,17 @@ export async function createCore(
     if (!r.ok) throw new CallError(r.error);
     return r.result as Result<typeof method>;
   };
-  const engine = createEngine({ store, harnesses, tools, log, call, home: config.home, apxPort: config.port || 7440 });
+  const mcp = createMcp({ store, secrets, log });
+  const engine = createEngine({
+    store,
+    harnesses,
+    tools,
+    log,
+    call,
+    home: config.home,
+    apxPort: config.port || 7440,
+    mcpTools: mcp.toolsFor,
+  });
 
   const dispatch = createRouter(
     {
@@ -140,6 +152,7 @@ export async function createCore(
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
       ...jobHandlers(store, engine),
+      ...mcpHandlers(mcp),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds }),
       ...agentHandlers(store, apc, engineIds),
     },
@@ -183,6 +196,7 @@ export async function createCore(
     secrets,
     async close() {
       await engine.stop();
+      await mcp.close();
       apc.close();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
