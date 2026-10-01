@@ -1,8 +1,8 @@
 // Codex as a harness: the owner's own `codex` (their ChatGPT login). APX tools reach it through a per-run MCP
 // proxy (`apx2 mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
 import { Codex } from "@openai/codex-sdk";
-import { harnessEnv } from "./claude.ts";
-import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
+import { harnessEnv } from "./env.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "./types.ts";
 
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
 
@@ -37,10 +37,7 @@ export function codexHarness(opts: {
         const thread = io.sessionId
           ? codex.resumeThread(io.sessionId, threadOptions)
           : codex.startThread(threadOptions);
-        // The Codex SDK has no system-prompt option: a new thread gets our instructions in its first message.
-        const input = io.sessionId
-          ? io.input.content
-          : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
+        const input = withInstructions(io, Boolean(io.sessionId));
         const { events } = await thread.runStreamed(input, { signal: io.signal });
         let text = "";
         let sessionId = io.sessionId;

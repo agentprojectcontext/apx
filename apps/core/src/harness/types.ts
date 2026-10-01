@@ -69,3 +69,11 @@ export const modelPart = (ref: string | undefined): string | undefined => {
   const i = ref?.indexOf("/") ?? -1;
   return ref && i > 0 ? ref.slice(i + 1) : undefined;
 };
+
+/**
+ * For an engine with no system-prompt option (Codex, ACP agents): a fresh session gets APX's instructions at the
+ * top of its first message; a resumed one already has them.
+ */
+export function withInstructions(io: Pick<TurnIO, "system" | "input">, resumed: boolean): string {
+  return resumed ? io.input.content : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
+}

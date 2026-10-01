@@ -85,12 +85,16 @@ export function defineTool<S extends Args>(def: {
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };
-      const issues = r.error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ");
-      return { ok: false, error: `invalid arguments for ${def.name}: ${issues}` };
+      return { ok: false, error: invalidArguments(def.name, r.error) };
     },
     title: (a) => def.title(a as Partial<z.input<S>>),
     run: (a, ctx) => def.run(a as z.output<S>, ctx),
   };
+}
+
+/** What the model reads back when its arguments do not fit the tool's schema. */
+export function invalidArguments(tool: string, error: z.ZodError): string {
+  return `invalid arguments for ${tool}: ${error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ")}`;
 }
 
 export const toSpec = (t: Tool): ToolSpec => ({

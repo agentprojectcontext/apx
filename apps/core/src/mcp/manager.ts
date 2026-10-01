@@ -13,7 +13,7 @@ import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
-import type { Confirm, Effect, Tool } from "../tools/types.ts";
+import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
 import { type McpDef, mcpConfig } from "./config.ts";
 
 const CONNECT_MS = 20_000;
@@ -55,6 +55,15 @@ export type McpStatus = {
   tools: number;
   error?: string;
 };
+
+/**
+ * When an MCP tool waits for the owner. MCP's defaults: a tool may change things and may be destructive unless it
+ * says otherwise; a project's server describes itself, so its "read-only" claim does not skip the policy.
+ */
+function mcpConfirm(readOnly: boolean, destructive: boolean | undefined, scope: McpDef["scope"]): Confirm {
+  if (readOnly) return scope === "global" ? "never" : "untrusted";
+  return destructive === false ? "untrusted" : "ask";
+}
 
 /** MCP tool names become `mcp_<server>_<tool>`, within what every model accepts. */
 const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
@@ -126,17 +135,9 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   }
 
   function adapt(d: McpDef, t: McpTool, name: string): Tool {
-    // MCP's defaults: a tool may change things and may be destructive unless it says otherwise. A project's server
-    // describes itself, so its "read-only" claim does not skip the policy.
     const ro = t.annotations?.readOnlyHint === true;
     const effect: Effect = ro ? "none" : "external";
-    const confirm: Confirm = ro
-      ? d.scope === "global"
-        ? "never"
-        : "untrusted"
-      : t.annotations?.destructiveHint === false
-        ? "untrusted"
-        : "ask";
+    const confirm = mcpConfirm(ro, t.annotations?.destructiveHint, d.scope);
     let check: z.ZodType | undefined;
     try {
       check = z.fromJSONSchema(t.inputSchema as Parameters<typeof z.fromJSONSchema>[0]);
@@ -156,10 +157,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         const r = check.safeParse(raw);
         return r.success
           ? { ok: true, args: r.data as Record<string, unknown> }
-          : {
-              ok: false,
-              error: `invalid arguments for ${t.name}: ${r.error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ")}`,
-            };
+          : { ok: false, error: invalidArguments(t.name, r.error) };
       },
       title: () => `${d.name}: ${label}`,
       async run(args, ctx) {

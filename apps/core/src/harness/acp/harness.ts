@@ -3,7 +3,7 @@
 // policy, its own tool calls shown as cards.
 import { engineOf } from "../../domain/agents.ts";
 import type { McpCommand } from "../codex.ts";
-import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "../types.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "../types.ts";
 import { type AcpAgent, acpEngine, openSession } from "./agents.ts";
 import { RpcError } from "./rpc.ts";
 
@@ -107,10 +107,7 @@ export function acpHarness(opts: {
             throw new Error(`${agent.label} does not offer the model ${wanted}`);
           if (await session.setModel(wanted)) model = wanted;
         }
-        // ACP has no system prompt: a fresh session gets our instructions in its first message.
-        const content = session.loaded
-          ? io.input.content
-          : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
+        const content = withInstructions(io, session.loaded);
         const onAbort = () => session.rpc.notify("session/cancel", { sessionId: session.sessionId });
         io.signal.throwIfAborted();
         io.signal.addEventListener("abort", onAbort, { once: true });

@@ -13,8 +13,8 @@ import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import { type AcpAgent, acpAgents, acpEngine, openSession } from "../harness/acp/agents.ts";
-import { harnessEnv } from "../harness/claude.ts";
 import { which } from "../harness/detect.ts";
+import { harnessEnv } from "../harness/env.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
 

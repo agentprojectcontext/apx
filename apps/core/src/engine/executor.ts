@@ -62,8 +62,10 @@ export type Executor = {
   readonly toolsRan: number;
 };
 
-/** Tool kinds (Agent Client Protocol's names) that only look: an external agent uses them without asking. */
-const LOOKING = new Set(["read", "search", "think", "fetch"]);
+/** Tool kinds (Agent Client Protocol's names) that only read: inside the agent's folder they run without asking. */
+const READING = new Set(["read", "search", "think"]);
+/** Kinds that only look (reading, or fetching a page): shown as cards, recorded as steps without effects. */
+const LOOKING = new Set([...READING, "fetch"]);
 
 export function createExecutor(o: {
   store: Store;
@@ -218,23 +220,22 @@ export function createExecutor(o: {
    * An external agent's own tool, judged by the same rule as ours: reading inside its folder runs, a command is
    * classified like the shell tool's, fetching and anything that changes something ask (unless autonomy allows it).
    */
+  /** How much an external agent's own tool kind needs the owner, before the thread's write policy and autonomy. */
+  function externalLevel(kind: string, inside: boolean, command: unknown): Confirm {
+    if (READING.has(kind)) return inside ? "never" : "ask";
+    // Fetching sends something out; in a code thread it could carry the code with it.
+    if (kind === "fetch") return thread.kind === "code" ? "ask" : "untrusted";
+    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort);
+    return "ask";
+  }
+
   const approve: TurnIO["approve"] = async (req) => {
     const base = thread.cwd ?? o.workDir;
     const paths = pathsOf(req.input);
     const command = (req.input as { command?: unknown } | undefined)?.command;
     const inside = paths.every((p) => insideReal(base, p));
-    const reading = req.kind === "read" || req.kind === "search" || req.kind === "think";
-    const level: Confirm = reading
-      ? inside
-        ? "never"
-        : "ask"
-      : req.kind === "fetch"
-        ? thread.kind === "code"
-          ? "ask"
-          : "untrusted"
-        : req.kind === "execute" && typeof command === "string"
-          ? commandRisk(command, o.apxPort)
-          : "ask";
+    const reading = READING.has(req.kind);
+    const level = externalLevel(req.kind, inside, command);
     // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
     // never to git's config, APC files or AGENTS.md.
     if (thread.kind === "code" && level !== "never") {

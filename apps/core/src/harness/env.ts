@@ -17,3 +17,8 @@ export function commandEnv(): Record<string, string> {
   for (const k of Object.keys(env)) if (SECRET_NAME.test(k)) delete env[k];
   return env;
 }
+
+/** An agent harness process (Claude Code, Codex): the environment minus APX's own secrets, and who is calling. */
+export function harnessEnv(): Record<string, string> {
+  return { ...childEnv(), CLAUDE_AGENT_SDK_CLIENT_APP: "apx/2" };
+}
