@@ -5,7 +5,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { chat } from "./commands/chat.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
-import { agents, projects, runs, secrets, threads } from "./commands/threads.ts";
+import { agents, jobs, projects, runs, secrets, threads } from "./commands/threads.ts";
 
 const HELP = `apx2 — APX v2 terminal
 
@@ -26,7 +26,8 @@ Usage:
   apx2 browser cookies <source> [filter]        Domains with cookies (counts only)
   apx2 browser import <source> <domain,…> [--profile shared|agent:<id>]
 
-  apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach] [--interrupt]
+  apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach] [--interrupt | --steer]
+  apx2 jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
                            The one way to talk to an agent. Default: Home (the secretary)
   apx2 threads [list] | get <thread> | cancel <thread>
   apx2 runs get <run> | wait <run> [--timeout 60]
@@ -69,6 +70,7 @@ const { values, positionals } = parseArgs({
     new: { type: "boolean" },
     detach: { type: "boolean" },
     interrupt: { type: "boolean" },
+    steer: { type: "boolean" },
     keys: { type: "boolean" },
     refresh: { type: "boolean" },
     project: { type: "string" },
@@ -118,6 +120,9 @@ try {
       break;
     case "runs":
       await runs(client, rest, Number(values.timeout ?? 60));
+      break;
+    case "jobs":
+      await jobs(client, rest);
       break;
     case "agents":
       if (rest[0] === "model") await agentModel(client, rest.slice(1), values);

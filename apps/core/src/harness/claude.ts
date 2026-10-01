@@ -3,6 +3,7 @@
 // `io.execute`. See DECISIONS.md#d-007
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { childEnv } from "./env.ts";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
 /**
@@ -112,8 +113,5 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
 
 /** The harness process gets the environment minus APX's own secrets. */
 export function harnessEnv(): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("APX_")) env[k] = v;
-  env.CLAUDE_AGENT_SDK_CLIENT_APP = "apx/2";
-  return env;
+  return { ...childEnv(), CLAUDE_AGENT_SDK_CLIENT_APP: "apx/2" };
 }

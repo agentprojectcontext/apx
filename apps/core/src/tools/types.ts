@@ -2,6 +2,7 @@ import type { MethodName, Params, Part, Result, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { InputRecord } from "../domain/inputs.ts";
+import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { ToolSpec } from "../providers/types.ts";
 
@@ -13,9 +14,9 @@ export type Effect = "none" | "local" | "external" | "message";
 
 /**
  * When a call waits for the owner's yes: `never`; `untrusted` = only while untrusted content (web, other agents,
- * channel messages) is in the turn's context; `always`. The agent's `autonomy` can tighten or relax it.
+ * channel messages) is in the turn's context; `ask` = unless the agent's autonomy is total; `always` = even then.
  */
-export type Confirm = "never" | "untrusted" | "always";
+export type Confirm = "never" | "untrusted" | "ask" | "always";
 
 export type ToolContext = {
   agent: AgentRecord;
@@ -34,6 +35,11 @@ export type ToolContext = {
   ): Promise<string>;
   /** Asks the owner and waits (durably) for the answer; the same machine confirmations use. */
   askOwner(prompt: string, options?: string[]): Promise<InputRecord>;
+  /** Runs a shell command as a terminal job of this run: waits for it (up to timeoutMs) unless `background`. */
+  runCommand(o: { command: string; cwd: string; background: boolean; timeoutMs: number }): Promise<{
+    job: JobRecord;
+    output: string;
+  }>;
 };
 
 export type Tool = {
@@ -42,7 +48,8 @@ export type Tool = {
   /** JSON Schema of the arguments, derived from the zod schema. */
   parameters: object;
   effect: Effect;
-  confirm: Confirm;
+  /** Fixed, or decided per call from the arguments (a shell command that only reads vs one that deletes). */
+  confirm(args: Record<string, unknown>): Confirm;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
@@ -60,7 +67,7 @@ export function defineTool<S extends Args>(def: {
   description: string;
   args: S;
   effect: Effect;
-  confirm?: Confirm;
+  confirm?: Confirm | ((args: z.output<S>) => Confirm);
   deadlineMs: number;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
@@ -71,7 +78,7 @@ export function defineTool<S extends Args>(def: {
     description: def.description,
     parameters,
     effect: def.effect,
-    confirm: def.confirm ?? "never",
+    confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
     parse(raw) {
       const r = def.args.safeParse(raw);

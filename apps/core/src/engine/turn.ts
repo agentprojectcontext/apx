@@ -15,6 +15,7 @@ import type { Caller, DelegateTo } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
 import { createExecutor } from "./executor.ts";
 import type { Inputs } from "./inputs.ts";
+import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import { recapFor } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
@@ -40,6 +41,9 @@ export type TurnDeps = {
   tools: Tool[];
   log: Log;
   inputs: Inputs;
+  jobs: Jobs;
+  /** Owner text steered into this turn since the last call. */
+  takeSteered(): string[];
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
@@ -108,6 +112,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     untrusted: [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK)),
     external: () => harness !== "native",
     call: deps.call,
+    jobs: deps.jobs,
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
   });
   const execute = exec.execute;
@@ -130,6 +135,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     onText: display.text,
     execute,
+    takeSteered: deps.takeSteered,
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
   const settings = modelSettings(store);

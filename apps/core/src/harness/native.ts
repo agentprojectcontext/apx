@@ -53,6 +53,9 @@ export function nativeHarness(llm: Llm): Harness {
       };
 
       for (let i = 0; i < MAX_STEPS; i++) {
+        // The owner's words added while we work go in after the last tool results, before the next model call.
+        for (const t of io.takeSteered?.() ?? [])
+          push({ role: "user", content: `[The owner adds, while you work]\n${t}` });
         const c = await step(true);
         const calls = c.message.tool_calls ?? [];
         if (!calls.length) {

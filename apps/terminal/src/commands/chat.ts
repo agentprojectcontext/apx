@@ -9,6 +9,7 @@ export type ChatOptions = {
   new?: boolean | undefined;
   detach?: boolean | undefined;
   interrupt?: boolean | undefined;
+  steer?: boolean | undefined;
 };
 
 /** The thread to write in: explicit, the agent's latest (or a new one), or Home. */
@@ -86,7 +87,13 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
       console.log(out);
     }
   });
-  const sent = await socket.call("threads.send", { thread, text, mode: o.interrupt ? "interrupt" : "queue" });
+  const mode = o.interrupt ? "interrupt" : o.steer ? "steer" : "queue";
+  const sent = await socket.call("threads.send", { thread, text, mode });
+  if (sent.steered) {
+    console.log(`steered into the running turn ${sent.run.id} · thread ${thread}`);
+    socket.close();
+    return;
+  }
   runId = sent.run.id;
   if (o.detach) {
     console.log(`sent · run ${runId} · thread ${thread}`);

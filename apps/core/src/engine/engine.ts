@@ -12,6 +12,7 @@ import { tripped } from "./breaker.ts";
 import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import { createInputs, Shutdown } from "./inputs.ts";
+import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
@@ -55,13 +56,22 @@ export type Admit = {
   depth?: number;
 };
 
-export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: Tool[]; log: Log; call: ToolCall }) {
+export function createEngine(deps: {
+  store: Store;
+  harnesses: Harnesses;
+  tools: Tool[];
+  log: Log;
+  call: ToolCall;
+  home: string;
+}) {
   const { store, log } = deps;
   const busy = new Set<string>();
   const running = new Set<Promise<void>>();
   /** Running turns: run id → its abort controller, thread and deadline. */
   const active = new Map<string, { ac: AbortController; thread: string; clock: Clock }>();
   const live = new Map<string, Display>();
+  /** Owner text steered into a running turn, not yet taken by its loop. */
+  const steered = new Map<string, string[]>();
   const waiters = new Map<string, Set<(run: RunRecord) => void>>();
   let stopping = false;
 
@@ -111,6 +121,8 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
       });
     },
   });
+
+  const jobs = createJobs({ store, home: deps.home, log, admit: (a) => admit(a) });
 
   // The turn's clock stops while it waits for the owner: their time to answer is not the agent's time to work.
   const inputs = createInputs({
@@ -162,10 +174,19 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
     try {
-      ended(await runTurn({ ...deps, inputs, delegate: delegations.delegate }, run, ac.signal));
+      const takeSteered = () => {
+        const texts = steered.get(run.id) ?? [];
+        steered.set(run.id, []);
+        return texts;
+      };
+      ended(await runTurn({ ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate }, run, ac.signal));
     } finally {
       clock.stop();
       active.delete(run.id);
+      // Steered text the turn ended before taking is not lost: it runs next, as a normal message.
+      for (const text of steered.get(run.id) ?? [])
+        admit({ thread_id: run.thread_id, agent_id: run.agent_id, trigger: "user", origin: { kind: "user" }, text });
+      steered.delete(run.id);
       live.delete(run.id);
       delegations.callerEnded(run.id);
     }
@@ -208,9 +229,21 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
   return {
     admit,
     cancel,
+    /** Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. */
+    steer(threadId: string, text: string): RunRecord | undefined {
+      for (const [runId, a] of active) {
+        if (a.thread !== threadId || a.ac.signal.aborted) continue;
+        const run = store.runs.get(runId);
+        if (run?.harness !== "native") return undefined;
+        steered.set(runId, [...(steered.get(runId) ?? []), text]);
+        return run;
+      }
+      return undefined;
+    },
     /** The owner's answer to something an agent asked (runs.respond). */
     respond: inputs.respond,
     pending: inputs.pending,
+    jobs,
     /** Stops only the turn in progress (and what it delegated); queued inputs still run. */
     interrupt: stopRunning,
     /** Resolves when the run ends, or after `timeoutMs` with the run as it is then. */
@@ -234,6 +267,7 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     /** Boot: close what a restart interrupted, then pick the durable queue back up. */
     start(): void {
       inputs.expireOverdue();
+      jobs.reconcile();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");
       for (const r of interrupted) ended(r);
@@ -243,7 +277,7 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     async stop(): Promise<void> {
       stopping = true;
       for (const a of active.values()) a.ac.abort(new Shutdown());
-      await Promise.allSettled([...running]);
+      await Promise.allSettled([...running, jobs.stopAll()]);
     },
   };
 }

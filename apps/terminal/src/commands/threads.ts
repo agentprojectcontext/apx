@@ -117,3 +117,27 @@ export async function projects(client: ApxClient, [sub, arg]: string[]): Promise
   }
   throw new Error(`unknown projects command: ${sub}`);
 }
+
+export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void> {
+  if (!sub || sub === "list") {
+    const { running, finished } = await client.call("jobs.list", { finished: 10 });
+    const row = (j: (typeof running)[number]) =>
+      `${j.id.padEnd(24)} ${j.kind.padEnd(8)} ${j.state.padEnd(10)} ${j.title.slice(0, 70)}${j.exit_code === undefined ? "" : ` (exit ${j.exit_code})`}`;
+    console.log(running.length ? running.map(row).join("\n") : "(nothing running)");
+    if (finished.length) console.log(`\nfinished:\n${finished.map(row).join("\n")}`);
+    return;
+  }
+  if (!id) throw new Error(`usage: apx2 jobs ${sub} <job>`);
+  if (sub === "get") {
+    const r = await client.call("jobs.get", { job: id });
+    console.log(`${r.job.title} · ${r.job.state}${r.job.cwd ? ` · ${r.job.cwd}` : ""}`);
+    if (r.output) console.log(r.output);
+    return;
+  }
+  if (sub === "cancel") {
+    const r = await client.call("jobs.cancel", { job: id });
+    console.log(r.canceled ? `stopped ${id}` : `${id} was not running`);
+    return;
+  }
+  throw new Error(`unknown jobs command: ${sub}`);
+}

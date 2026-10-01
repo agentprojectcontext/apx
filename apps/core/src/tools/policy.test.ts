@@ -63,15 +63,21 @@ test("autonomy: ask confirms every call that changes something; total confirms o
   const open = tool("x", "external", "untrusted");
   const read = tool("y");
   const always = tool("z", "local", "always");
-  assert.equal(authorize(open, agent({ autonomy: "ask" }), false).kind, "confirm");
-  assert.equal(authorize(read, agent({ autonomy: "ask" }), true).kind, "allow");
-  assert.equal(authorize(open, agent({ autonomy: "total" }), true).kind, "allow");
-  assert.equal(authorize(always, agent({ autonomy: "total" }), false).kind, "confirm");
+  assert.equal(authorize(open, {}, agent({ autonomy: "ask" }), false).kind, "confirm");
+  assert.equal(authorize(read, {}, agent({ autonomy: "ask" }), true).kind, "allow");
+  assert.equal(authorize(open, {}, agent({ autonomy: "total" }), true).kind, "allow");
+  assert.equal(authorize(always, {}, agent({ autonomy: "total" }), false).kind, "confirm");
+});
+
+test("ask-level calls wait unless the agent's autonomy is total", () => {
+  const cmd = tool("cmd", "external", "ask");
+  assert.equal(authorize(cmd, {}, agent(), false).kind, "confirm");
+  assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), false).kind, "allow");
 });
 
 test("standard autonomy: high-impact calls wait only while untrusted content is in context", () => {
   const send = tool("send", "message", "untrusted");
-  assert.equal(authorize(send, agent(), false).kind, "allow");
-  assert.equal(authorize(send, agent(), true).kind, "confirm");
-  assert.equal(authorize(tool("open", "external"), agent(), true).kind, "allow");
+  assert.equal(authorize(send, {}, agent(), false).kind, "allow");
+  assert.equal(authorize(send, {}, agent(), true).kind, "confirm");
+  assert.equal(authorize(tool("open", "external"), {}, agent(), true).kind, "allow");
 });

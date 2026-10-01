@@ -1,8 +1,9 @@
 import type { Job } from "@apx/protocol";
 import { Icons, Spinner } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { elapsed, formatNumber } from "../common/format.ts";
-import { cancel } from "../data/actions.ts";
+import { cancelJob } from "../data/actions.ts";
+import { client } from "../data/client.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 
 const STATE_KEY: Record<Job["state"], MessageKey> = {
@@ -55,45 +56,96 @@ export function JobList({
 
 function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job: Job) => void }) {
   const t = useT();
+  const [showOutput, setShowOutput] = useState(false);
   const live = !j.ended_at;
+  const terminal = j.kind === "terminal";
   const took = j.ended_at ? elapsed(j.started_at, new Date(j.ended_at).getTime()) : elapsed(j.started_at, now);
   const meta = [
-    j.model,
+    terminal ? j.cwd : j.model,
+    terminal && j.exit_code !== undefined ? t("job.exit", { code: j.exit_code }) : undefined,
     j.tool_calls ? t("job.tools", { n: j.tool_calls }) : undefined,
     j.usage ? t("job.tokens", { n: formatNumber(j.usage.input + j.usage.output, { notation: "compact" }) }) : undefined,
   ].filter(Boolean);
   return (
-    <div className={`job is-${j.state}`}>
-      <button type="button" className="job__main" onClick={() => onOpen(j)} title={t("job.open")}>
-        <span className="job__icon" aria-hidden="true">
-          {live ? (
-            <Spinner size={12} />
-          ) : j.kind === "terminal" ? (
-            <Icons.Terminal size={14} />
-          ) : (
-            <Icons.Bot size={14} />
-          )}
-        </span>
-        <span className="job__body">
-          <span className="job__top">
-            <span className="job__title">{j.title}</span>
-            <span className="job__time">{took}</span>
-          </span>
-          <span className="job__activity">{live && j.activity ? j.activity : t(STATE_KEY[j.state])}</span>
-          {meta.length > 0 && <span className="job__meta">{meta.join(" · ")}</span>}
-        </span>
-      </button>
-      {live && (
+    <div className={`job is-${j.state}${terminal ? " is-terminal" : ""}`}>
+      <div className="job__row">
         <button
           type="button"
-          className="job__stop"
-          aria-label={t("job.stop")}
-          title={t("job.stop")}
-          onClick={() => void cancel(j.thread_id)}
+          className="job__main"
+          onClick={() => (terminal ? setShowOutput(!showOutput) : onOpen(j))}
+          title={terminal ? t("job.output") : t("job.open")}
+          aria-expanded={terminal ? showOutput : undefined}
         >
-          <Icons.Square size={12} />
+          <span className="job__icon" aria-hidden="true">
+            {live ? <Spinner size={12} /> : terminal ? <Icons.Terminal size={14} /> : <Icons.Bot size={14} />}
+          </span>
+          <span className="job__body">
+            <span className="job__top">
+              <span className={terminal ? "job__title is-mono" : "job__title"}>{j.title}</span>
+              <span className="job__time">{took}</span>
+            </span>
+            <span className="job__activity">{live && j.activity ? j.activity : t(STATE_KEY[j.state])}</span>
+            {meta.length > 0 && <span className="job__meta">{meta.join(" · ")}</span>}
+          </span>
         </button>
-      )}
+        {terminal && (
+          <button
+            type="button"
+            className="job__stop"
+            aria-label={t("job.openChat")}
+            title={t("job.openChat")}
+            onClick={() => onOpen(j)}
+          >
+            <Icons.MessageCircle size={12} />
+          </button>
+        )}
+        {live && (
+          <button
+            type="button"
+            className="job__stop"
+            aria-label={t("job.stop")}
+            title={t("job.stop")}
+            onClick={() => void cancelJob(j.id)}
+          >
+            <Icons.Square size={12} />
+          </button>
+        )}
+      </div>
+      {showOutput && <JobOutput job={j.id} live={live} />}
     </div>
+  );
+}
+
+/** The end of a terminal job's output, refreshed every second while it runs. */
+function JobOutput({ job, live }: { job: string; live: boolean }) {
+  const t = useT();
+  const [text, setText] = useState<string | undefined>();
+  const box = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    let stop = false;
+    const pull = async () => {
+      try {
+        const r = await client.call("jobs.get", { job, max_chars: 6000 });
+        if (stop) return;
+        setText(r.output);
+        // Follow the end of the output, like a terminal.
+        requestAnimationFrame(() => {
+          if (box.current) box.current.scrollTop = box.current.scrollHeight;
+        });
+      } catch {
+        if (!stop) setText("");
+      }
+    };
+    void pull();
+    const id = live ? setInterval(pull, 1000) : undefined;
+    return () => {
+      stop = true;
+      if (id) clearInterval(id);
+    };
+  }, [job, live]);
+  return (
+    <pre ref={box} className="job__output">
+      {text === undefined ? "…" : text || t("job.noOutput")}
+    </pre>
   );
 }

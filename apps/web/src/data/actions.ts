@@ -76,8 +76,10 @@ export async function refetchLoaded(): Promise<void> {
   await Promise.all(ids.map((id) => loadThread(id)));
 }
 
+/** Sends the owner's text. While the agent works, it goes into the running turn (steer) when that turn can take it. */
 export async function send(threadId: string, text: string): Promise<void> {
   const list = data.get().messages[threadId] ?? [];
+  const busy = data.get().threads[threadId]?.state === "working";
   const local: Message = {
     id: `local_${crypto.randomUUID()}`,
     thread_id: threadId,
@@ -88,10 +90,10 @@ export async function send(threadId: string, text: string): Promise<void> {
   };
   data.set((s) => ({
     messages: { ...s.messages, [threadId]: upsertMessage(s.messages[threadId], local) },
-    threads: patchThread(s.threads, threadId, { state: "submitted" }),
+    threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
   }));
   try {
-    const r = await client.call("threads.send", { thread: threadId, text });
+    const r = await client.call("threads.send", { thread: threadId, text, mode: busy ? "steer" : "queue" });
     data.set((s) => {
       const without = (s.messages[threadId] ?? []).filter((m) => m.id !== local.id);
       return {
@@ -122,6 +124,15 @@ export async function createThread(input: { agentId: string; projectId?: string;
     threadLoad: { ...s.threadLoad, [thread.id]: "ready" },
   }));
   return thread;
+}
+
+/** Stops a background job: a terminal command is killed, an agent's run is canceled. */
+export async function cancelJob(job: string): Promise<void> {
+  try {
+    await client.call("jobs.cancel", { job });
+  } catch (e) {
+    notify(t("error.stop", { error: errText(e) }));
+  }
 }
 
 export async function cancel(threadId: string): Promise<void> {

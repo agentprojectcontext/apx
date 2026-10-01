@@ -133,6 +133,9 @@ function apply(ev: CoreEvent): void {
       data.set((s) => ({ runs: { ...s.runs, [ev.run.id]: ev.run } }));
       jobsChanged();
       return;
+    case "job.updated":
+      jobsChanged();
+      return;
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));
       return;

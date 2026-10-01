@@ -198,10 +198,15 @@ export const appMethods = {
       .object({
         thread: Id,
         text: z.string().min(1).max(50_000),
-        mode: z.enum(["queue", "interrupt"]).default("queue"),
+        /**
+         * queue: after what is running. interrupt: stop the running turn, then this. steer: into the running turn
+         * at its next step (APX's own loop); when nothing can take it, it queues.
+         */
+        mode: z.enum(["queue", "interrupt", "steer"]).default("queue"),
       })
       .strict(),
-    result: z.object({ message: Message, run: Run }),
+    /** `steered`: the text went into the running turn `run` instead of starting a new one. */
+    result: z.object({ message: Message, run: Run, steered: z.boolean().optional() }),
     effect: true,
   },
   /** Running work plus the most recently finished, newest first (the background view). */
@@ -231,6 +236,24 @@ export const appMethods = {
     result: PendingInput,
     effect: true,
     access: "human",
+  },
+  /** One job; for a terminal job, the end of its output (or a page of it from `offset`). */
+  "jobs.get": {
+    params: z
+      .object({
+        job: Id,
+        offset: z.number().int().min(0).optional(),
+        max_chars: z.number().int().min(100).max(100_000).default(8000),
+      })
+      .strict(),
+    result: z.object({ job: Job, output: z.string(), size: z.number().int(), offset: z.number().int() }),
+    effect: false,
+  },
+  /** Stops a job: a terminal command is killed; an agent's run is canceled with what it delegated. */
+  "jobs.cancel": {
+    params: z.object({ job: Id }).strict(),
+    result: z.object({ canceled: z.boolean() }),
+    effect: true,
   },
   "runs.get": {
     params: z.object({ run: Id }).strict(),

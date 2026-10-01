@@ -25,6 +25,7 @@ import { createLlm, type Llm } from "./providers/llm.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
+import { jobHandlers } from "./rpc/jobs.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { threadHandlers } from "./rpc/threads.ts";
@@ -32,6 +33,7 @@ import { createSecrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { ownerTools } from "./tools/owner.ts";
+import { shellTools } from "./tools/shell.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import type { Tool } from "./tools/types.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
@@ -94,6 +96,7 @@ export async function createCore(
     ...browserTools(),
     ...surfaceTools(),
     ...ownerTools(store),
+    ...shellTools(store, config.home),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -118,7 +121,7 @@ export async function createCore(
     if (!r.ok) throw new CallError(r.error);
     return r.result as Result<typeof method>;
   };
-  const engine = createEngine({ store, harnesses, tools, log, call });
+  const engine = createEngine({ store, harnesses, tools, log, call, home: config.home });
 
   const dispatch = createRouter(
     {
@@ -131,6 +134,7 @@ export async function createCore(
       })),
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
+      ...jobHandlers(store, engine),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds }),
       ...agentHandlers(store, apc, engineIds),
     },

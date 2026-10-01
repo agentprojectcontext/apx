@@ -1,0 +1,63 @@
+// The background view: agents' runs working on their own and terminal commands agents started, as one list.
+import { ErrorCode, type Job } from "@apx/protocol";
+import { publicJob } from "../domain/jobs.ts";
+import type { RunRecord } from "../domain/runs.ts";
+import type { Store } from "../domain/store.ts";
+import type { Engine } from "../engine/engine.ts";
+import { CallError } from "../errors.ts";
+import type { Handler } from "./router.ts";
+import { notFound } from "./threads.ts";
+
+const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
+
+export function jobHandlers(store: Store, engine: Engine) {
+  const view = (r: RunRecord): Job => {
+    const t = store.threads.get(r.thread_id);
+    const agent = store.agents.get(r.agent_id);
+    return {
+      id: r.id,
+      kind: "agent",
+      title: t?.parent_id ? t.title : `${agent?.name ?? r.agent_id} · ${t?.title ?? r.thread_id}`,
+      state: r.state,
+      thread_id: r.thread_id,
+      ...(t?.parent_id ? { parent_thread_id: t.parent_id } : {}),
+      agent_id: r.agent_id,
+      trigger: r.trigger,
+      ...(r.model ? { model: r.model } : {}),
+      ...(r.usage ? { usage: r.usage } : {}),
+      tool_calls: r.tool_calls,
+      ...(r.activity ? { activity: r.activity } : {}),
+      started_at: r.started_at,
+      ...(r.ended_at ? { ended_at: r.ended_at } : {}),
+    };
+  };
+
+  return {
+    "jobs.list": (({ finished }) => {
+      const runs = store.runs.jobs(finished);
+      return {
+        running: [...runs.running.map(view), ...store.jobs.running().map(publicJob)].sort(newest),
+        finished: [...runs.finished.map(view), ...store.jobs.finished(finished).map(publicJob)]
+          .sort(newest)
+          .slice(0, finished),
+      };
+    }) as Handler<"jobs.list">,
+    "jobs.get": (({ job, offset, max_chars }) => {
+      const j = store.jobs.get(job);
+      if (j) return { job: publicJob(j), ...engine.jobs.read(j.id, offset, max_chars) };
+      const r = store.runs.get(job);
+      if (!r) throw notFound(`job ${job}`);
+      return { job: view(r), output: "", size: 0, offset: 0 };
+    }) as Handler<"jobs.get">,
+    /** An agent may stop only the terminal jobs of its own thread; the owner stops anything. */
+    "jobs.cancel": (({ job }, ctx) => {
+      const j = store.jobs.get(job);
+      const r = j ? undefined : store.runs.get(job);
+      const thread = j?.thread_id ?? r?.thread_id;
+      if (!thread) throw notFound(`job ${job}`);
+      if (ctx.actor !== "human" && (!j || ctx.agent?.thread_id !== thread))
+        throw new CallError({ code: ErrorCode.Unauthorized, message: "an agent can only stop its own thread's jobs" });
+      return { canceled: j ? engine.jobs.cancel(j.id) : engine.cancel(thread) > 0 };
+    }) as Handler<"jobs.cancel">,
+  };
+}

@@ -2,7 +2,7 @@
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Tool } from "./types.ts";
 
-export type Decision = { kind: "allow" } | { kind: "deny"; reason: string } | { kind: "confirm"; reason: string };
+export type Decision = { kind: "allow" } | { kind: "confirm"; reason: string };
 
 /** Names an agent's `tools:` list may use instead of single tools. */
 const GROUPS: Record<string, (name: string) => boolean> = {
@@ -34,12 +34,15 @@ export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:
  * then a model may be acting on someone else's instructions, so high-impact calls wait for the owner.
  */
-export function authorize(tool: Tool, agent: AgentRecord, untrusted: boolean): Decision {
+export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
   const autonomy = agent.autonomy ?? "standard";
-  if (tool.confirm === "always") return { kind: "confirm", reason: "this action always needs your OK" };
+  const level = tool.confirm(args);
+  if (level === "always") return { kind: "confirm", reason: "this action always needs your OK" };
+  if (level === "ask" && autonomy !== "total")
+    return { kind: "confirm", reason: `${agent.name} needs your OK for this kind of action` };
   if (autonomy === "ask" && tool.effect !== "none")
     return { kind: "confirm", reason: `${agent.name} asks before every action that changes something` };
-  if (autonomy !== "total" && tool.confirm === "untrusted" && untrusted)
+  if (autonomy !== "total" && level === "untrusted" && untrusted)
     return { kind: "confirm", reason: "content from outside (web, another agent or a message) is in this turn" };
   return { kind: "allow" };
 }

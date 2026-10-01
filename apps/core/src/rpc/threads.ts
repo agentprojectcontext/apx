@@ -1,7 +1,6 @@
-import type { Job } from "@apx/protocol";
 import { ErrorCode } from "@apx/protocol";
 import { publicInput } from "../domain/inputs.ts";
-import { publicRun, type RunRecord } from "../domain/runs.ts";
+import { publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import { CallError } from "../errors.ts";
@@ -49,6 +48,9 @@ export function threadHandlers(store: Store, engine: Engine) {
           parts: [{ type: "text", text }],
         });
         store.threads.patch(thread, { preview: text.slice(0, 160) });
+        // Only the owner steers a running turn; anyone else's text waits its turn as untrusted input.
+        const into = mode === "steer" && !fromAgent ? engine.steer(thread, text) : undefined;
+        if (into) return { message, run: publicRun(into), steered: true };
         const run = engine.admit({
           thread_id: thread,
           agent_id: agent.id,
@@ -67,30 +69,6 @@ export function threadHandlers(store: Store, engine: Engine) {
       store.threads.patch(thread, { unread: 0 }, false);
       return { ok: true as const };
     }) as Handler<"threads.read">,
-    "jobs.list": (({ finished }) => {
-      const view = (r: RunRecord): Job => {
-        const t = store.threads.get(r.thread_id);
-        const agent = store.agents.get(r.agent_id);
-        return {
-          id: r.id,
-          kind: "agent",
-          title: t?.parent_id ? t.title : `${agent?.name ?? r.agent_id} · ${t?.title ?? r.thread_id}`,
-          state: r.state,
-          thread_id: r.thread_id,
-          ...(t?.parent_id ? { parent_thread_id: t.parent_id } : {}),
-          agent_id: r.agent_id,
-          trigger: r.trigger,
-          ...(r.model ? { model: r.model } : {}),
-          ...(r.usage ? { usage: r.usage } : {}),
-          tool_calls: r.tool_calls,
-          ...(r.activity ? { activity: r.activity } : {}),
-          started_at: r.started_at,
-          ...(r.ended_at ? { ended_at: r.ended_at } : {}),
-        };
-      };
-      const j = store.runs.jobs(finished);
-      return { running: j.running.map(view), finished: j.finished.map(view) };
-    }) as Handler<"jobs.list">,
     "runs.pending": (({ thread }) => ({ inputs: engine.pending(thread) })) as Handler<"runs.pending">,
     "runs.respond": (({ input, decision, text }) =>
       publicInput(engine.respond(input, { decision, text }))) as Handler<"runs.respond">,

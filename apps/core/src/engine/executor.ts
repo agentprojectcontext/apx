@@ -3,6 +3,7 @@
 // model a capped copy.
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { TurnIO } from "../harness/index.ts";
@@ -11,6 +12,7 @@ import { cap } from "../tools/result.ts";
 import type { Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
+import type { Jobs } from "./jobs.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
 async function runTool(
@@ -67,11 +69,38 @@ export function createExecutor(o: {
   external: () => boolean;
   call<M extends MethodName>(method: M, params: Params<M>, as: { run: RunRecord; callId: string }): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
+  jobs: Jobs;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
   let untrusted = o.untrusted;
   let toolsRan = 0;
+
+  /** A command as a terminal job of this run. Foreground: waits, stops it at the timeout or when the turn stops. */
+  const runCommand = async (
+    c: { command: string; cwd: string; background: boolean; timeoutMs: number },
+    run: RunRecord,
+  ): Promise<{ job: JobRecord; output: string }> => {
+    const { job, done } = o.jobs.start({
+      command: c.command,
+      cwd: c.cwd,
+      thread_id: thread.id,
+      run_id: run.id,
+      agent_id: agent.id,
+      background: c.background,
+    });
+    if (c.background) return { job, output: "" };
+    const stop = () => o.jobs.cancel(job.id);
+    const timer = setTimeout(stop, c.timeoutMs);
+    signal.addEventListener("abort", stop, { once: true });
+    try {
+      const ended = await done;
+      return { job: ended, output: o.jobs.read(job.id, undefined, 60_000).output };
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", stop);
+    }
+  };
 
   const execute: TurnIO["execute"] = async (callId, name, raw) => {
     const run = o.run();
@@ -99,7 +128,7 @@ export function createExecutor(o: {
     }
     const args = parsed.args;
 
-    const decision = authorize(tool, agent, untrusted);
+    const decision = authorize(tool, args, agent, untrusted);
     if (decision.kind === "confirm" && !o.inputs.takeGrant(thread.id, name, raw)) {
       const answer = await o.inputs.ask({
         run,
@@ -128,7 +157,7 @@ export function createExecutor(o: {
     toolsRan++;
     const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
     store.runs.setActivity(run.id, title, true);
-    const ctx: ToolContext = {
+    const ctx: Omit<ToolContext, "runCommand"> = {
       agent,
       thread,
       run,
@@ -149,7 +178,7 @@ export function createExecutor(o: {
           signal,
         }),
     };
-    const out = await runTool(tool, args, ctx);
+    const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
     if (out.text.includes(UNTRUSTED_MARK)) untrusted = true;
     const full = out.text.slice(0, 2_000_000);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, 4000), full);

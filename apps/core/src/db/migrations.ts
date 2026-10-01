@@ -148,4 +148,23 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE threads ADD COLUMN session TEXT;
   CREATE UNIQUE INDEX threads_session ON threads(parent_id, session) WHERE session IS NOT NULL;
   `,
+  `
+  -- Terminal jobs: a shell command an agent started, its output in a file under the home. Reconciled at boot.
+  CREATE TABLE jobs (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    run_id TEXT,
+    agent_id TEXT,
+    title TEXT NOT NULL,
+    cwd TEXT NOT NULL,
+    pid INTEGER,
+    state TEXT NOT NULL,
+    exit_code INTEGER,
+    background INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT NOT NULL,
+    ended_at TEXT
+  );
+  CREATE INDEX jobs_state ON jobs(state, started_at);
+  `,
 ];

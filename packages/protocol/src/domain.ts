@@ -285,7 +285,7 @@ export type Run = z.infer<typeof Run>;
 
 /**
  * Work running on its own, for the background view: an agent's turn outside the thread the owner is in (a
- * delegation, a woken agent) or, later, a terminal command. Built from runs; `thread_id` opens its transcript.
+ * delegation, a woken agent) or a terminal command an agent started. `thread_id` opens the chat it belongs to.
  */
 export const Job = z.object({
   id: Id,
@@ -301,6 +301,10 @@ export const Job = z.object({
   usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
   tool_calls: z.number().int().nonnegative(),
   activity: z.string().optional(),
+  /** Terminal jobs: where the command runs, how it exited, and whether it was started in the background. */
+  cwd: z.string().optional(),
+  exit_code: z.number().int().optional(),
+  background: z.boolean().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
 });
@@ -341,6 +345,7 @@ export const CoreEvent = z.discriminatedUnion("type", [
     part: Part,
   }),
   z.object({ type: z.literal("run.updated"), run: Run }),
+  z.object({ type: z.literal("job.updated"), job: Job }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(z.unknown()) }),
 ]);

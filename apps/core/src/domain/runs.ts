@@ -11,6 +11,8 @@ export type Origin =
   | { kind: "surface"; id: string; title: string }
   /** The owner answered something the agent asked, after the turn that asked had ended. */
   | { kind: "input_answer"; input_id: string }
+  /** A background command the agent started has ended. */
+  | { kind: "job"; job_id: string; command: string; state: RunState; exit_code: number | null }
   | {
       kind: "delegation_result";
       agent_id: string;
@@ -129,7 +131,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       const r = one(
         `SELECT COUNT(*) AS n, COALESCE(SUM(COALESCE(json_extract(usage, '$.input'), 0) + COALESCE(json_extract(usage, '$.output'), 0)), 0) AS t
-         FROM runs WHERE thread_id IN (${ids}) AND trigger IN ('a2a', 'a2a_result') AND created_at > ?`,
+         FROM runs WHERE thread_id IN (${ids}) AND trigger IN ('a2a', 'a2a_result', 'system') AND created_at > ?`,
         ...threadIds,
         String(last?.at ?? ""),
       );
