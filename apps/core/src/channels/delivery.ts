@@ -19,6 +19,8 @@ export function createDelivery(deps: {
   target(channel: string): Target;
   /** Whether a channel is still configured (an item for a removed one fails). */
   configured(channel: string): boolean;
+  /** A media file's bytes, by id. */
+  media(id: string): { mime: string; data: Buffer } | undefined;
 }) {
   const { store, log } = deps;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,7 +62,11 @@ export function createDelivery(deps: {
     }
     if (!store.channels.outbox.claim(o.id)) return;
     try {
-      const r = await target.adapter.send(o.conversation, o.body);
+      const files = (o.body.media ?? []).flatMap((m) => {
+        const f = deps.media(m.id);
+        return f ? [{ kind: m.kind, mime: f.mime, data: f.data }] : [];
+      });
+      const r = await target.adapter.send(o.conversation, o.body, files);
       store.channels.outbox.sent(o.id, r.external_id);
     } catch (err) {
       settleFailure(o, err);

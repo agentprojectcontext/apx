@@ -10,9 +10,11 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
+import { toOggOpus } from "./audio.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
+import { TRANSCRIBE_PROBE, transcribe } from "./transcription.ts";
 import type { ServiceConfig } from "./types.ts";
 
 /** The bottom layer under every image: a service's own defaults and the call's arguments go on top. */
@@ -65,7 +67,13 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
   async function check(s: ServiceConfig): Promise<boolean> {
     const cached = status.get(s.id);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached.ok;
-    const path = { image: IMAGE_PROBE, speech: SPEECH_PROBE, embedding: EMBED_PROBE }[s.kind][s.dialect] ?? "/";
+    const probes = {
+      image: IMAGE_PROBE,
+      speech: SPEECH_PROBE,
+      embedding: EMBED_PROBE,
+      transcription: TRANSCRIBE_PROBE,
+    };
+    const path = probes[s.kind][s.dialect] ?? "/";
     const ok = await probe(s, path, keyOf(s), f);
     status.set(s.id, { ok, at: Date.now() });
     return ok;
@@ -212,6 +220,32 @@ export function createServices(deps: { store: Store; secrets: Secrets; home: str
         embed(s, texts, keyOf(s), signal, f),
       );
       return { vectors: out, model: `${service.id}/${service.model ?? ""}` };
+    },
+    /** Whether a kind of service is set up (enabled), without calling it. */
+    hasKind: (kind: ServiceKind) => ofKind(kind).some((s) => s.enabled),
+    /** A voice note to text with the first transcription engine that answers; the audio is kept as media. */
+    async transcribe(a: { bytes: Buffer; mime: string; thread?: string | undefined }, signal: AbortSignal) {
+      const media = saveFile(a.bytes, a.mime, { kind: "audio", thread_id: a.thread });
+      const { out } = await firstThatWorks(candidates("transcription"), (s) =>
+        transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f),
+      );
+      return { text: out, media };
+    },
+    /**
+     * Speech for a channel: synthesized, then as OGG/Opus (what Telegram plays as a voice note) when ffmpeg is here;
+     * otherwise the original audio.
+     */
+    async voiceNote(text: string, thread: string | undefined, signal: AbortSignal) {
+      const { out, service } = await firstThatWorks(candidates("speech"), (s) =>
+        speak(s, { text }, keyOf(s), signal, f),
+      );
+      try {
+        const ogg = await toOggOpus(out.bytes);
+        return saveFile(ogg, "audio/ogg", { kind: "audio", thread_id: thread, service: service.id, prompt: text });
+      } catch (err) {
+        log.warn({ err: errorMessage(err, 200) }, "no ffmpeg conversion; the voice goes as a plain audio file");
+        return saveFile(out.bytes, out.mime, { kind: "audio", thread_id: thread, service: service.id, prompt: text });
+      }
     },
     /** The engine and model new vectors would come from, without calling it. */
     embeddingModel(): string | undefined {

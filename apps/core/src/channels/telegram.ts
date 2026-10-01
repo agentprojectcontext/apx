@@ -4,11 +4,14 @@
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
-import { type AdapterFactory, type AdapterIO, type ChannelAdapter, SendError } from "./types.ts";
+import { type AdapterFactory, type AdapterIO, type ChannelAdapter, type OutFile, SendError } from "./types.ts";
 
 const POLL_S = 25;
 const CALL_MS = 20_000;
 const MAX_BACKOFF_MS = 60_000;
+/** Voice notes up to this size are fetched for transcription (the Bot API serves files up to 20 MB). */
+const MAX_VOICE_BYTES = 10 * 1024 * 1024;
+const UPLOAD_MS = 60_000;
 
 type TgUser = { id: number; first_name?: string; last_name?: string; username?: string };
 type TgChat = { id: number; type: string };
@@ -19,12 +22,13 @@ type TgMessage = {
   text?: string;
   caption?: string;
   photo?: unknown;
-  voice?: unknown;
-  audio?: unknown;
+  voice?: TgFile;
+  audio?: TgFile;
   document?: unknown;
   video?: unknown;
   sticker?: unknown;
 };
+type TgFile = { file_id: string; mime_type?: string; file_size?: number };
 type TgUpdate = {
   update_id: number;
   message?: TgMessage;
@@ -96,17 +100,34 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     return j.result as T;
   }
 
-  function handle(u: TgUpdate, io: AdapterIO): void {
+  /** A voice note or audio file's bytes, for transcription; none when it is too big to fetch. */
+  async function voiceOf(m: TgMessage): Promise<{ mime: string; data: string } | undefined> {
+    const v = m.voice ?? m.audio;
+    if (!v?.file_id || (v.file_size ?? 0) > MAX_VOICE_BYTES) return undefined;
+    const f = await api<{ file_path?: string }>("getFile", { file_id: v.file_id });
+    if (!f.file_path) return undefined;
+    const res = await fetch(`${apiBase}/file/bot${token}/${f.file_path}`, {
+      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(CALL_MS)]),
+    });
+    if (!res.ok) return undefined;
+    return { mime: v.mime_type ?? "audio/ogg", data: Buffer.from(await res.arrayBuffer()).toString("base64") };
+  }
+
+  async function handle(u: TgUpdate, io: AdapterIO): Promise<void> {
     const m = u.message;
     if (m?.from) {
-      const text = m.text ?? m.caption ?? mediaNote(m);
-      if (!text) return;
+      const private_ = m.chat.type === "private";
+      // Only one-to-one chats are read; a voice note is fetched now, before Telegram is told it arrived.
+      const voice = private_ ? await voiceOf(m).catch(() => undefined) : undefined;
+      const text = m.text ?? m.caption ?? (voice ? "" : mediaNote(m));
+      if (text === undefined) return;
       io.receive({
         external_id: String(u.update_id),
         conversation: String(m.chat.id),
         sender: { id: String(m.from.id), name: nameOf(m.from) },
         text,
-        private: m.chat.type === "private",
+        private: private_,
+        ...(voice ? { voice } : {}),
       });
       return;
     }
@@ -144,7 +165,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         io.status("running");
         backoff = 1000;
         for (const u of updates) {
-          handle(u, io);
+          await handle(u, io);
           // The next poll confirms only what was handed over (and stored).
           offset = u.update_id + 1;
         }
@@ -166,6 +187,32 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       }
     }
+  }
+
+  /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file. */
+  async function sendFile(chat: string, f: OutFile, silent?: boolean): Promise<number> {
+    const [method, field, name] =
+      f.kind === "image"
+        ? ["sendPhoto", "photo", "image"]
+        : f.mime === "audio/ogg"
+          ? ["sendVoice", "voice", "voice.ogg"]
+          : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
+    const form = new FormData();
+    form.set("chat_id", chat);
+    if (silent) form.set("disable_notification", "true");
+    form.set(field, new Blob([new Uint8Array(f.data)], { type: f.mime }), name);
+    if (!token) throw new TgError(401, "no bot token");
+    const res = await fetch(`${apiBase}/bot${token}/${method}`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(UPLOAD_MS)]),
+    });
+    const j = (await res.json().catch(() => ({ ok: false, description: `HTTP ${res.status}` }))) as TgReply<{
+      message_id: number;
+    }>;
+    if (!j.ok)
+      throw new TgError(j.error_code ?? res.status, j.description ?? `HTTP ${res.status}`, j.parameters?.retry_after);
+    return (j.result as { message_id: number }).message_id;
   }
 
   async function sendOne(
@@ -217,12 +264,19 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       ac.abort();
       await loop?.catch(() => {});
     },
-    async send(conversation, p) {
-      const parts = chunks(p.text);
+    async send(conversation, p, files = []) {
+      const texts = p.text.trim() ? chunks(p.text) : [];
+      // Text parts first, then each file; `skip` counts across both.
+      const steps: Array<() => Promise<number>> = [
+        ...texts.map(
+          (t, i) => () => sendOne(conversation, t, i === texts.length - 1 ? p.buttons : undefined, p.silent),
+        ),
+        ...files.map((f) => () => sendFile(conversation, f, p.silent)),
+      ];
       let last: number | undefined;
-      for (let i = p.skip ?? 0; i < parts.length; i++) {
+      for (let i = p.skip ?? 0; i < steps.length; i++) {
         try {
-          last = await sendOne(conversation, parts[i] ?? "", i === parts.length - 1 ? p.buttons : undefined, p.silent);
+          last = await (steps[i] as () => Promise<number>)();
         } catch (err) {
           throw toSendError(err, i - (p.skip ?? 0));
         }

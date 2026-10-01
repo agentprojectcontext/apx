@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import type { Services } from "../services/registry.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
@@ -21,6 +22,7 @@ export function createInbound(deps: {
   store: Store;
   log: Log;
   call: InternalCall;
+  services: Services;
   delivery: Delivery;
   configs(): ChannelConfig[];
   notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
@@ -60,10 +62,11 @@ export function createInbound(deps: {
     const owner = person.role === "owner";
     if (!owner && overLimit(person.id, person.name)) return "ignored";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
-    if (owner && (await answerPending(thread.id, m.text, rowId))) return "done";
+    const text = m.voice ? await heard(m, thread.id) : m.text;
+    if (owner && (await answerPending(thread.id, text, rowId))) return "done";
     await call(
       "threads.send",
-      { thread: thread.id, text: m.text, mode: owner ? cfg.concurrency : "queue" },
+      { thread: thread.id, text, mode: owner ? cfg.concurrency : "queue" },
       {
         actor: owner ? "human" : "agent",
         channel: {
@@ -77,6 +80,24 @@ export function createInbound(deps: {
       `channel:${rowId}`,
     );
     return "done";
+  }
+
+  /** A voice note as words the agent can read (with its caption, if any); says so when it could not be heard. */
+  async function heard(m: Inbound, threadId: string): Promise<string> {
+    const voice = m.voice;
+    if (!voice) return m.text;
+    const caption = m.text ? `${m.text}\n` : "";
+    if (!deps.services.hasKind("transcription")) return `${caption}[voice note: no transcription engine is set up]`;
+    try {
+      const { text } = await deps.services.transcribe(
+        { bytes: Buffer.from(voice.data, "base64"), mime: voice.mime, thread: threadId },
+        AbortSignal.timeout(3 * 60_000),
+      );
+      return `${caption}[voice note] ${text || "(silence)"}`;
+    } catch (err) {
+      log.warn({ err: errorMessage(err, 200) }, "voice note not transcribed");
+      return `${caption}[voice note: it could not be transcribed]`;
+    }
   }
 
   /** Each automatic answer to a contact costs a model call: past the hourly limit they wait and the owner hears it. */

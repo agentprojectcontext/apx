@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { badRequest, notFound, unauthorized } from "../errors.ts";
 import { isInside } from "../paths.ts";
 import type { CallContext } from "./context.ts";
 
@@ -131,6 +131,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       });
     },
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),
+    "threads.voice": ({ thread, on }, ctx) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      if (ctx.agent && ctx.agent.thread_id !== thread) throw unauthorized("an agent changes only its own chat");
+      store.threads.mergeContext(thread, { voice_replies: on });
+      return { on };
+    },
     "threads.compact": async ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return upkeep.compact(thread);

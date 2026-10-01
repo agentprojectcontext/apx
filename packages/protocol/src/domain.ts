@@ -453,7 +453,7 @@ export type PairingRequest = z.infer<typeof PairingRequest>;
  * OpenAI-compatible API) or a voice (QVox and other OpenAI-compatible speech servers, Gemini). Per kind, the first
  * reachable enabled one in the owner's order answers.
  */
-export const ServiceKind = z.enum(["image", "speech", "embedding"]);
+export const ServiceKind = z.enum(["image", "speech", "embedding", "transcription"]);
 export type ServiceKind = z.infer<typeof ServiceKind>;
 export const ServiceDialect = z.enum([
   "a1111",
@@ -464,6 +464,8 @@ export const ServiceDialect = z.enum([
   "ollama-embed",
   "gemini-embed",
   "openai-embed",
+  "whisper-local",
+  "openai-transcribe",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
 export const ImageDefaults = z.object({

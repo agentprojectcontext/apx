@@ -78,6 +78,31 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
       needs_key: false,
     },
   ],
+  transcription: [
+    {
+      id: "whisper",
+      label: "Whisper (this Mac)",
+      dialect: "whisper-local",
+      base_url: "http://127.0.0.1:18765",
+      needs_key: false,
+      language: "es",
+    },
+    {
+      id: "openai",
+      label: "OpenAI",
+      dialect: "openai-transcribe",
+      base_url: "https://api.openai.com/v1",
+      needs_key: true,
+      model: "whisper-1",
+    },
+    {
+      id: "compatible",
+      label: "OpenAI-compatible",
+      dialect: "openai-transcribe",
+      base_url: "http://localhost:8000/v1",
+      needs_key: false,
+    },
+  ],
   embedding: [
     {
       id: "ollama",
@@ -236,6 +261,13 @@ export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind;
       </div>
 
       {!embedded && (kind === "image" ? <ImageTest /> : kind === "speech" ? <SpeechTest /> : null)}
+      {!embedded && kind === "speech" && (
+        <>
+          <SubHead>{t("svc.transcription")}</SubHead>
+          <p className="config__lead">{t("svc.transcription.lead")}</p>
+          <ServicesSection kind="transcription" embedded />
+        </>
+      )}
       {!embedded && kind === "image" && defaults && <Defaults value={defaults} onSaved={setDefaults} />}
 
       {editing && (

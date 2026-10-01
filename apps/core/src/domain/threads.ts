@@ -54,6 +54,8 @@ export type ThreadContext = {
   /** The roster last shown to this agent, to show it again only when it changes. */
   roster_hash?: string;
   roster_agent?: string;
+  /** Answers on a channel also go as voice notes (the agent's voice_replies tool). */
+  voice_replies?: boolean;
   /** A title was given (or tried) once. */
   titled?: boolean;
   /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */

@@ -774,4 +774,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mem.aux.off": "Ninguno",
   "mem.aux.pickOne": "Elegí un modelo",
   "svc.embedding.empty": "Todavía no hay motores. Ollama con bge-m3 corre en esta Mac.",
+  "svc.transcription": "Transcripción",
+  "svc.transcription.lead":
+    "Las notas de voz que mandás (Telegram) pasan a texto con el primer motor que responde. Whisper en esta Mac deja el audio acá.",
+  "svc.transcription.empty":
+    "Todavía no hay motor de transcripción: las notas de voz llegan como “no se pudo escuchar”.",
 };

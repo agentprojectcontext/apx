@@ -1,9 +1,23 @@
-// make_image: an agent draws with the owner's image services (a homelab GPU, an API) and the image appears in the chat.
+// make_image: an agent draws with the owner's image services and the image appears in the chat. voice_replies: its
+// answers on a channel also go as voice notes.
 import { z } from "zod";
 import { defineTool, type Tool } from "./types.ts";
 
 export function mediaTools(): Tool[] {
   return [
+    defineTool({
+      name: "voice_replies",
+      description:
+        "Turn spoken answers on or off for this chat: on a channel like Telegram your answers then also arrive as voice notes. Use it when the owner asks to hear you (or to stop).",
+      args: z.object({ on: z.boolean() }),
+      effect: "local",
+      deadlineMs: 5_000,
+      title: (a) => (a.on ? "Turned on spoken answers" : "Turned off spoken answers"),
+      async run(a, ctx) {
+        await ctx.call("threads.voice", { thread: ctx.thread.id, on: a.on });
+        return a.on ? "spoken answers on for this chat." : "spoken answers off for this chat.";
+      },
+    }),
     defineTool({
       name: "make_image",
       description:

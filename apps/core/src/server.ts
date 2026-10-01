@@ -155,6 +155,7 @@ export async function createCore(
     log,
     factories: opts.channelAdapters ?? { telegram: telegramAdapter },
     call: internal,
+    services,
   });
   const engine = createEngine({
     store,

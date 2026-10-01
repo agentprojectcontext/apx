@@ -20,7 +20,13 @@ export async function fakeTelegram(token: string) {
     });
     req.on("end", () => {
       const [, bot, method = ""] = (req.url ?? "").split("/");
-      const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
+      // A file download: /file/bot<token>/<path>.
+      if (bot === "file") {
+        res.writeHead(200, { "content-type": "audio/ogg" });
+        return res.end(Buffer.from("OggS-fake-voice"));
+      }
+      const multipart = (req.headers["content-type"] ?? "").startsWith("multipart/");
+      const body = (raw && !multipart ? JSON.parse(raw) : {}) as Record<string, unknown>;
       const reply = (status: number, j: object) => {
         res.writeHead(status, { "content-type": "application/json" });
         res.end(JSON.stringify(j));
@@ -29,6 +35,11 @@ export async function fakeTelegram(token: string) {
       const forced = failures.get(method)?.shift();
       if (forced) return reply(forced.status, forced.body);
       if (method === "getMe") return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot" } });
+      if (method === "getFile") return reply(200, { ok: true, result: { file_path: "voice/1.oga" } });
+      if (multipart) {
+        sent.push({ method, body: { bytes: raw.length } });
+        return reply(200, { ok: true, result: { message_id: nextMessage++ } });
+      }
       if (method === "getUpdates") {
         getUpdatesCalls++;
         const offset = Number(body.offset ?? 0);
@@ -62,6 +73,18 @@ export async function fakeTelegram(token: string) {
         },
       });
       return update_id;
+    },
+    voice(from: { id: number; name: string }) {
+      const update_id = nextUpdate++;
+      updates.push({
+        update_id,
+        message: {
+          message_id: update_id,
+          chat: { id: from.id, type: "private" },
+          from: user(from.id, from.name),
+          voice: { file_id: "v1", mime_type: "audio/ogg", file_size: 15 },
+        },
+      });
     },
     /** Redelivers an update as if the confirmation had been lost. */
     redeliver(update_id: number, from: { id: number; name: string }, text: string) {

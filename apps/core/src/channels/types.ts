@@ -42,8 +42,12 @@ export interface ChannelAdapter {
   /** Starts receiving; resolves with the account it runs as (a bot's @name) once connected. */
   start(io: AdapterIO): Promise<{ account?: string }>;
   stop(): Promise<void>;
-  send(conversation: string, p: Presentation): Promise<{ external_id?: string }>;
+  /** Text, then `files` (the presentation's media, already read). */
+  send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;
 }
+
+/** A media file to send: an image goes as a photo, OGG audio as a voice note, other audio as an audio file. */
+export type OutFile = { kind: "image" | "audio"; mime: string; data: Buffer };
 
 export type AdapterFactory = (config: ChannelConfig, token: string | undefined) => ChannelAdapter;

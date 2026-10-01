@@ -18,6 +18,8 @@ export type Inbound = {
   text: string;
   /** Only one-to-one conversations reach the agent; groups are ignored. */
   private: boolean;
+  /** A voice note or audio, to be transcribed before an agent reads it. */
+  voice?: { mime: string; data: string } | undefined;
 };
 
 /** A button press: the platform's id for it, the conversation, who pressed and the button's data. */
@@ -29,8 +31,10 @@ export type Presentation = {
   buttons?: Array<{ id: string; label: string }>;
   /** Delivered without sound (quiet hours). */
   silent?: boolean;
-  /** Parts of a long text already delivered by an earlier attempt. */
+  /** Parts already delivered by an earlier attempt (text chunks first, then media). */
   skip?: number;
+  /** Images and voice notes APX made, sent after the text. */
+  media?: Array<{ id: string; kind: "image" | "audio"; mime: string }>;
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };

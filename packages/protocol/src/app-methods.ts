@@ -659,6 +659,12 @@ export const appMethods = {
     result: Run,
     effect: false,
   },
+  /** Whether this chat's answers on a channel also go as voice notes. An agent changes only its own thread. */
+  "threads.voice": {
+    params: z.object({ thread: Id, on: z.boolean() }).strict(),
+    result: z.object({ on: z.boolean() }),
+    effect: true,
+  },
   "threads.cancel": {
     params: z.object({ thread: Id }).strict(),
     result: z.object({ canceled: z.number().int() }),

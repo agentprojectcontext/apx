@@ -767,6 +767,10 @@ export const en = {
   "mem.aux.off": "None",
   "mem.aux.pickOne": "Pick a model",
   "svc.embedding.empty": "No engine yet. Ollama with bge-m3 runs on this Mac.",
+  "svc.transcription": "Transcription",
+  "svc.transcription.lead":
+    "Voice notes you send (Telegram) become text with the first engine that answers. Whisper on this Mac keeps the audio here.",
+  "svc.transcription.empty": "No transcription engine yet: voice notes arrive as “could not be heard”.",
 } as const;
 
 export type MessageKey = keyof typeof en;

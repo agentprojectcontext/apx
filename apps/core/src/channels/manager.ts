@@ -14,6 +14,8 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
+import { spokenPart } from "../services/audio.ts";
+import type { Services } from "../services/registry.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
@@ -42,6 +44,8 @@ export function createChannels(deps: {
   factories: Record<string, AdapterFactory>;
   /** The router, as a client: channel messages enter through the same door as everyone's. */
   call: InternalCall;
+  /** Transcription of voice notes, voice notes for answers, and the bytes of what is sent. */
+  services: Services;
 }) {
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
@@ -68,6 +72,7 @@ export function createChannels(deps: {
       return l ? { adapter: l.adapter, running: l.status === "running" } : undefined;
     },
     configured: (id) => configs().some((c) => c.id === id),
+    media: (id) => deps.services.read(id),
   });
 
   /**
@@ -106,7 +111,16 @@ export function createChannels(deps: {
     });
   }
 
-  const inbound = createInbound({ store, log, call: deps.call, delivery, configs, notifyOwner, noticeInApp });
+  const inbound = createInbound({
+    store,
+    log,
+    call: deps.call,
+    services: deps.services,
+    delivery,
+    configs,
+    notifyOwner,
+    noticeInApp,
+  });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
@@ -130,6 +144,10 @@ export function createChannels(deps: {
    */
   function afterRun(run: RunRecord): void {
     stopTyping(run.id);
+    void reply(run).catch((err) => log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reply not sent"));
+  }
+
+  async function reply(run: RunRecord): Promise<void> {
     const to = replyTo(run.thread_id);
     if (!to || run.trigger === "surface") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
@@ -147,15 +165,31 @@ export function createChannels(deps: {
         notifyOwner({ text: channelTexts(store).contactFailedOwner(audience.name, why) }, "notice", run.thread_id);
       } else out = channelTexts(store).failed(why);
     }
-    if (!out) return;
+    const images = (msg?.parts ?? []).flatMap((p) =>
+      p.type === "image" && p.media_id ? [{ id: p.media_id, kind: "image" as const, mime: p.mime ?? "image/png" }] : [],
+    );
+    if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
+    const voice = out && run.state === "completed" ? await voiceFor(run.thread_id, out) : undefined;
     delivery.enqueue({
       channel: to.channel,
       conversation: to.conversation,
       thread_id: run.thread_id,
       kind: "reply",
-      body: { text: out },
+      body: { text: out, media: [...images, ...(voice ? [voice] : [])] },
     });
+  }
+
+  /** When the chat asked for spoken answers: the first paragraph as a voice note, shown in the app too. */
+  async function voiceFor(threadId: string, text: string) {
+    if (!store.threads.context(threadId).voice_replies || !deps.services.hasKind("speech")) return undefined;
+    try {
+      const m = await deps.services.voiceNote(spokenPart(text), threadId, AbortSignal.timeout(90_000));
+      return { id: m.id, kind: "audio" as const, mime: m.mime };
+    } catch (err) {
+      log.warn({ thread: threadId, err: errorMessage(err, 200) }, "no voice note; the answer goes as text");
+      return undefined;
+    }
   }
 
   function stopTyping(runId: string): void {
