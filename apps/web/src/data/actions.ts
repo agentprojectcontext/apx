@@ -3,6 +3,7 @@ import type { Message, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { loadEngines } from "./engines.ts";
+import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { notify } from "./notices.ts";
 import { data, upsertMessage } from "./state.ts";
@@ -32,6 +33,7 @@ export async function bootstrap(): Promise<void> {
     ready: true,
   });
   void loadTabs();
+  void loadJobs();
   void loadEngines();
   void loadCatalog();
   void loadModelsConfig();

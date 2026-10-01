@@ -225,17 +225,24 @@
   border-right: 1px solid var(--apx-border);
   overflow: hidden;
 }
-/* Long project lists scroll; Resources, Settings and the account row stay pinned at the bottom. */
+/* Inbox and Tasks stay pinned on top, Resources/Settings/account at the bottom; the middle scrolls. */
+.sidebar__top {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px 4px;
+}
 .sidebar__scroll {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 8px 12px;
+  padding: 0 4px 12px 8px;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 .sidebar__foot {
   flex: none;
@@ -374,4 +381,172 @@
   text-align: center;
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
+}
+
+/* ── Projects (collapsible, long lists fold into "N more") ─────────────────── */
+.sidebar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.sidebar__chev {
+  transition: transform 0.15s ease;
+}
+.sidebar__toggle.is-closed .sidebar__chev {
+  transform: rotate(-90deg);
+}
+.sidebar__more {
+  color: var(--apx-fg-muted);
+}
+.sidebar__moretile {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.morelist__head {
+  padding: 4px 10px 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.morelist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* ── Background jobs (compact cards) ───────────────────────────────────────── */
+.job {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  border-radius: var(--apx-row-radius);
+}
+.job:hover {
+  background: var(--apx-fill-hover);
+}
+.job__main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 10px;
+  padding: 8px 4px 8px 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.job__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 6px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.job.is-working .job__icon,
+.job.is-submitted .job__icon {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.job.is-failed .job__icon {
+  color: var(--apx-danger-soft-fg);
+}
+.job__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+.job__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.job__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.job__time {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--apx-fg-subtle);
+}
+.job.is-working .job__time {
+  color: var(--apx-brand-soft-fg);
+}
+.job__activity,
+.job__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.job__meta {
+  color: var(--apx-fg-subtle);
+}
+.job.is-failed .job__activity {
+  color: var(--apx-danger-soft-fg);
+}
+.job__stop {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: 6px 6px 0 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+}
+.job__stop:hover {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.jobs__fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  cursor: pointer;
+}
+.jobs__chev {
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+.jobs__fold.is-open .jobs__chev {
+  transform: none;
 }

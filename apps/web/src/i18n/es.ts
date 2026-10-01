@@ -95,8 +95,22 @@ export const es: Partial<Record<MessageKey, string>> = {
   "running.tab.agents": "Agentes",
   "running.tab.background": "Segundo plano",
   "running.waitingForYou": "te espera",
+  "nav.moreProjects": "{n} más",
+  "running.nothingNow": "Nada corriendo en segundo plano.",
+  "running.finished": "Terminadas ({n})",
+  "job.open": "Ver transcripción",
+  "job.stop": "Detener",
+  "job.tools": "{n} tools",
+  "job.tokens": "{n} tokens",
+  "job.state.queued": "En cola",
+  "job.state.working": "Trabajando…",
+  "job.state.waiting": "Te espera",
+  "job.state.completed": "Listo",
+  "job.state.failed": "Falló",
+  "job.state.canceled": "Detenido",
   "running.empty": "Nada corriendo ahora.",
-  "running.backgroundEmpty": "Rutinas, indexado y reintentos van a aparecer acá. Pronto.",
+  "running.backgroundEmpty":
+    "Acá aparecen delegaciones, despertares y rutinas; las terminales llegan con la tool de shell.",
 
   // Inbox
   "inbox.projectChats": "Chats de {project}",

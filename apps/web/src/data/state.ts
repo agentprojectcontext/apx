@@ -2,6 +2,7 @@ import type {
   Agent,
   EngineStatus,
   Health,
+  Job,
   Message,
   Project,
   Run,
@@ -39,6 +40,8 @@ export type DataState = {
   enginesLoad: EnginesLoad;
   /** Last system.health answer (Settings › Advanced). */
   health: Health | undefined;
+  /** Background view: running work and the latest finished background runs (jobs.list). */
+  jobs: { running: Job[]; finished: Job[] };
 };
 
 export const data = createStore<DataState>({
@@ -57,6 +60,7 @@ export const data = createStore<DataState>({
   engines: [],
   enginesLoad: "idle",
   health: undefined,
+  jobs: { running: [], finished: [] },
 });
 
 export function useData<T>(select: (s: DataState) => T): T {

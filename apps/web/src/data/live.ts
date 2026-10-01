@@ -4,6 +4,7 @@ import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
+import { jobsChanged } from "./jobs.ts";
 import { data, upsertMessage } from "./state.ts";
 
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
@@ -130,6 +131,7 @@ function apply(ev: CoreEvent): void {
       return;
     case "run.updated":
       data.set((s) => ({ runs: { ...s.runs, [ev.run.id]: ev.run } }));
+      jobsChanged();
       return;
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));

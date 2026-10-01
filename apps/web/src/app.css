@@ -16,15 +16,23 @@ body {
 :where(.apx) ::placeholder {
   color: var(--apx-fg-subtle);
 }
+/* Thin thumbs with air around them: the transparent border is the padding (background-clip keeps it clear). */
 .apx ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 .apx ::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 10px;
   background: var(--apx-fill-strong);
-  border-radius: 8px;
+  background-clip: padding-box;
 }
-.apx ::-webkit-scrollbar-track {
+.apx ::-webkit-scrollbar-thumb:hover {
+  border-width: 2px;
+  background-color: var(--apx-fg-subtle);
+}
+.apx ::-webkit-scrollbar-track,
+.apx ::-webkit-scrollbar-corner {
   background: transparent;
 }
 

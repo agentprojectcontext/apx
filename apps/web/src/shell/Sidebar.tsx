@@ -1,11 +1,11 @@
 import type { EngineStatus } from "@apx/protocol";
 import { Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useMemo } from "react";
-import { inProject, isWorking, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { go, useNav } from "./nav.ts";
+import { ProjectsNav } from "./ProjectsNav.tsx";
 
 const CHANNELS = [
   { id: "whatsapp", name: "WhatsApp", tone: "brand", icon: <Icons.MessageCircle /> },
@@ -17,38 +17,31 @@ const RUNTIMES = [
   { id: "codex", name: "Codex", icon: <Icons.Terminal /> },
 ] as const;
 
-/** Inbox · Tasks · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
+/** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
 export function Sidebar({ rail }: { rail: boolean }) {
   const t = useT();
   const view = useNav((s) => s.view);
-  const projectId = useNav((s) => s.projectId);
   const appId = useNav((s) => s.appId);
   const configOpen = useNav((s) => s.config != null);
-  const projects = useData((s) => s.projects);
   const threads = useData((s) => s.threads);
   const surfaces = useData((s) => s.surfaces);
   const engines = useData((s) => s.engines);
 
-  const entries = useMemo(() => projectEntries(projects), [projects]);
-  const stats = useMemo(() => {
-    let unread = 0;
-    const live = Object.values(threads).filter((t) => !t.parent_id && t.kind !== "a2a");
-    for (const t of live) unread += t.unread;
-    const running = new Set(
-      entries.filter((p) => live.some((t) => inProject(t, p.id) && isWorking(t.state))).map((p) => p.id),
-    );
-    return { unread, running };
-  }, [threads, entries]);
+  const unread = useMemo(() => {
+    let n = 0;
+    for (const t of Object.values(threads)) if (!t.parent_id && t.kind !== "a2a") n += t.unread;
+    return n;
+  }, [threads]);
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
 
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
-      <div className="sidebar__scroll">
+      <div className="sidebar__top">
         <NavItem
           collapsed={rail}
           icon={<Icons.Inbox />}
           label={t("nav.inbox")}
-          count={stats.unread}
+          count={unread}
           active={view === "inbox"}
           onClick={() => go.inbox()}
         />
@@ -59,7 +52,8 @@ export function Sidebar({ rail }: { rail: boolean }) {
           active={view === "tasks"}
           onClick={() => go.view("tasks")}
         />
-
+      </div>
+      <div className="sidebar__scroll">
         <Section rail={rail} title={t("nav.channels")} />
         {CHANNELS.map((c) => (
           <NavItem
@@ -72,37 +66,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
           />
         ))}
 
-        <Section
-          rail={rail}
-          title={t("nav.projects")}
-          action={
-            <button
-              type="button"
-              className="sidebar__add"
-              aria-label={t("nav.newProjectSoon")}
-              title={t("common.soon")}
-              disabled
-            >
-              <Icons.Plus size={14} />
-            </button>
-          }
-        />
-        {entries.map((p) => (
-          <NavItem
-            key={p.id}
-            collapsed={rail}
-            icon={<ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} />}
-            label={p.name}
-            trailing={
-              <>
-                {p.isDefault && <Icons.Lock size={12} aria-label={t("nav.baseProject")} />}
-                {stats.running.has(p.id) && <span className="sidebar__running" title={t("common.running")} />}
-              </>
-            }
-            active={view === "project" && projectId === p.id}
-            onClick={() => go.project(p.id)}
-          />
-        ))}
+        <ProjectsNav rail={rail} />
 
         <Section rail={rail} title={t("nav.externalSessions")} />
         {RUNTIMES.map((r) => {

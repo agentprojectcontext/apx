@@ -1,18 +1,22 @@
 import { AgentAvatar, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
+import { useNow } from "../common/useNow.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
+import { isBackground } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { JobList } from "./JobList.tsx";
 import { go } from "./nav.ts";
 
-/** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat. */
+/** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat or transcript. */
 export function RunningIndicator() {
   const t = useT();
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
   const runs = useData((s) => s.runs);
+  const jobs = useData((s) => s.jobs);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("agents");
   const active = useMemo(
@@ -33,8 +37,9 @@ export function RunningIndicator() {
   }, [runs]);
   const working = active.filter((t) => isWorking(t.state)).length;
   const waiting = active.length - working;
-  // No background jobs API yet: the tab is there, honestly empty.
-  const background = 0;
+  const bgRunning = useMemo(() => jobs.running.filter(isBackground), [jobs.running]);
+  const background = bgRunning.length;
+  const now = useNow(open);
 
   return (
     <Popover
@@ -46,7 +51,7 @@ export function RunningIndicator() {
       trigger={
         <button
           type="button"
-          className={active.length ? "running is-active" : "running"}
+          className={active.length || background ? "running is-active" : "running"}
           aria-label={t("running.aria", { working, waiting, background })}
         >
           {working > 0 && <Spinner size={12} />}
@@ -106,7 +111,7 @@ export function RunningIndicator() {
                   {th.state === "input-required" ? (
                     <span className="running__waiting">{t("running.waitingForYou")}</span>
                   ) : (
-                    since && <span className="running__elapsed">{elapsed(since)}</span>
+                    since && <span className="running__elapsed">{elapsed(since, now)}</span>
                   )}
                 </button>
               );
@@ -116,7 +121,15 @@ export function RunningIndicator() {
           <p className="running__empty">{t("running.empty")}</p>
         )
       ) : (
-        <p className="running__empty">{t("running.backgroundEmpty")}</p>
+        <JobList
+          running={bgRunning}
+          finished={jobs.finished}
+          now={now}
+          onOpen={(j) => {
+            setOpen(false);
+            go.thread(j.thread_id);
+          }}
+        />
       )}
     </Popover>
   );

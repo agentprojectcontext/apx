@@ -14,6 +14,8 @@ export type Prefs = {
   transcriptWidth: TranscriptWidth;
   /** UI language; English is the base, Spanish a translation. */
   language: Language;
+  /** Sidebar: the Projects section is folded. */
+  projectsFolded: boolean;
 };
 
 const KEY = "apx.prefs";
@@ -24,6 +26,7 @@ const DEFAULTS: Prefs = {
   font: "system",
   transcriptWidth: "medium",
   language: defaultLanguage(),
+  projectsFolded: false,
 };
 
 function load(): Prefs {
@@ -36,6 +39,7 @@ function load(): Prefs {
       transcriptWidth:
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
       language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
+      projectsFolded: raw.projectsFolded === true,
     };
   } catch {
     return DEFAULTS;
