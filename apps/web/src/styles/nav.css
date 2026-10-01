@@ -1,0 +1,377 @@
+/* Topbar, sidebar, account row, running popover, phone dialog. Tokens only; sizes from --shell-* (shell/layout.ts). */
+
+/* ── Topbar ────────────────────────────────────────────────────────────────── */
+.topbar {
+  flex: none;
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--shell-topbar-h);
+  padding: 0 12px 0 14px;
+  background: var(--apx-sidebar);
+  border-bottom: 1px solid var(--apx-border);
+}
+.topbar__logo {
+  display: block;
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.topbar__crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.topbar__crumb {
+  color: var(--apx-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar__crumb.is-last {
+  color: var(--apx-fg);
+}
+.topbar__sep {
+  color: var(--apx-fg-subtle);
+}
+.topbar__spacer {
+  flex: 1;
+}
+.topbar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  width: min(340px, 30vw);
+  height: 30px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+  cursor: default;
+}
+.topbar__search-label {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.topbar .topbar__icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--apx-radius-sm);
+  color: var(--apx-fg-muted);
+}
+.topbar__lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.topbar__lang:hover,
+.topbar__agent:hover:not(:disabled) {
+  background: var(--apx-fill-hover);
+}
+.topbar__agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 32px;
+  padding: 0 12px 0 4px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: transparent;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.topbar__agentkbd {
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+
+/* ── Running pill + popover ────────────────────────────────────────────────── */
+.running {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+  white-space: nowrap;
+}
+.running.is-active {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.running__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.running__count.is-light {
+  font-weight: var(--apx-weight-regular);
+}
+.running__count.is-waiting {
+  color: var(--apx-warning-soft-fg);
+}
+.running__div {
+  width: 1px;
+  height: 14px;
+  background: currentColor;
+  opacity: 0.25;
+}
+.running__tabs {
+  display: flex;
+  width: 100%;
+  margin-bottom: 6px;
+}
+.running__tabs .apx-segmented__item {
+  flex: 1;
+  justify-content: center;
+}
+.running__tabn {
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.running__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.running__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  text-align: left;
+}
+.running__row:hover {
+  background: var(--apx-fill-hover);
+}
+.running__item {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.running__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.running__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.running__elapsed {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-brand-soft-fg);
+}
+.running__waiting {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-warning-soft-fg);
+}
+.running__empty {
+  margin: 0;
+  padding: 14px 10px;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+  text-align: center;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────────── */
+.sidebar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--shell-sidebar-w);
+  background: var(--apx-sidebar);
+  border-right: 1px solid var(--apx-border);
+  overflow: hidden;
+}
+/* Long project lists scroll; Recursos, Config and the account row stay pinned at the bottom. */
+.sidebar__scroll {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.sidebar__foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 8px 10px;
+  border-top: 1px solid var(--apx-border);
+}
+.sidebar .apx-nav--collapsed {
+  justify-content: flex-start;
+  padding: 0 10px;
+}
+/* Lucide icons sit at 16px and tiles at 20px, so labels line up like the design (44 / 48px). */
+.sidebar .apx-nav__icon {
+  width: auto;
+  min-width: 16px;
+}
+.sidebar__divider {
+  flex: none;
+  width: calc(100% - 20px);
+  margin: 12px 10px 6px;
+  border: 0;
+  border-top: 1px solid var(--apx-border);
+}
+.sidebar__railaction {
+  display: flex;
+  padding: 0 0 6px 10px;
+}
+.sidebar__add {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: -4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--apx-fg-subtle);
+}
+.sidebar__add:hover:not(:disabled) {
+  background: var(--apx-fill-hover);
+}
+.sidebar__add:disabled {
+  cursor: default;
+}
+.sidebar__running {
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+.sidebar__soon {
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+
+/* ── Account row ───────────────────────────────────────────────────────────── */
+.account {
+  flex: none;
+  margin-top: 6px;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--apx-border);
+}
+.sidebar.is-rail .sidebar__scroll {
+  scrollbar-width: none;
+}
+.account__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 6px 0 10px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  text-align: left;
+}
+.account__btn:hover,
+.account__btn[data-popup-open] {
+  background: var(--apx-fill-hover);
+}
+.account__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.account__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--apx-text-sm);
+}
+.account__more {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.account.is-rail .account__btn {
+  padding: 0 0 0 9px;
+}
+
+/* ── Phone dialog ──────────────────────────────────────────────────────────── */
+.phone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0;
+}
+.phone__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 210px;
+  height: 210px;
+  border: 1px dashed var(--apx-border-strong);
+  border-radius: 16px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+.phone__hint {
+  margin: 0;
+  max-width: 360px;
+  text-align: center;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

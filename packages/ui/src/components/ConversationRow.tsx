@@ -13,6 +13,8 @@ export interface ConversationRowProps {
   preview?: ReactNode;
   /** Context Tags under the title (project, channel, "Agente ↔ agente"). Classic shows them; minimal keeps rows two-line. */
   tags?: ReactNode;
+  /** Third line, 11px subtle: sessions, channels, kind ("Grupo · 3 agentes"). */
+  meta?: ReactNode;
   /** Unread count; shows a dot/number and bolds the title. */
   unread?: number;
   /** Replace the preview with a typing line. */
@@ -30,6 +32,7 @@ export function ConversationRow({
   time,
   preview,
   tags,
+  meta,
   unread = 0,
   typing,
   selected = false,
@@ -55,6 +58,7 @@ export function ConversationRow({
           <span className={cx("apx-convrow__preview", typing && "is-typing")}>{typing ?? preview}</span>
           {unread > 0 && <span className="apx-convrow__unread">{unread}</span>}
         </span>
+        {meta && <span className="apx-convrow__meta">{meta}</span>}
       </span>
     </button>
   );

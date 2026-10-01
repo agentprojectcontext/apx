@@ -23,6 +23,7 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
       titleTag={agent?.kind === "secretary" ? <Tag kind="role">Super-agente</Tag> : undefined}
       time={shortWhen(thread.updated_at)}
       unread={thread.unread}
+      meta={metaLine(thread, agent)}
       preview={
         <span className="threadrow__preview">
           {working && <Spinner size={12} className="threadrow__spin" />}
@@ -32,6 +33,14 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
       }
     />
   );
+}
+
+/** Third line: what kind of chat this is, and the agent's role when it has one. */
+function metaLine(thread: Thread, agent: Agent | undefined): string {
+  if (thread.kind === "a2a") return "Agente ↔ agente";
+  if (thread.kind === "group") return `Grupo · ${thread.agent_ids.length} agentes`;
+  const kind = thread.kind === "home" ? "Chat principal" : "Chat";
+  return agent?.role ? `${kind} · ${agent.role}` : kind;
 }
 
 function firstLine(s: string): string {

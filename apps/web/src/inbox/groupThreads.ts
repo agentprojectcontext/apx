@@ -1,5 +1,5 @@
 import type { Project, Thread } from "@apx/protocol";
-import { DEFAULT_PROJECT, isWorking } from "../data/identity.ts";
+import { DEFAULT_PROJECT, inProject, isWorking } from "../data/identity.ts";
 
 export type ThreadGroup = {
   key: string;
@@ -22,7 +22,7 @@ export function groupByProject(
   const groups = new Map<string, ThreadGroup>();
   for (const t of Object.values(threads)) {
     if (t.parent_id || t.kind === "a2a") continue;
-    if (opts.projectId && t.project_id !== opts.projectId) continue;
+    if (opts.projectId && !inProject(t, opts.projectId)) continue;
     if (q && !`${t.title} ${t.preview}`.toLowerCase().includes(q)) continue;
     const key = t.project_id ?? NO_PROJECT;
     let g = groups.get(key);

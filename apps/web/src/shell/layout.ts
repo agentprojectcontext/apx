@@ -11,8 +11,15 @@ export const LAYOUT = {
   panelW: 420,
   panelWNarrow: 360,
   chatMinW: 360,
-  /** Transcript + composer max width ("medio"). */
-  transcriptW: 760,
+  /** Transcript + composer max width per Config › Apariencia (estrecho · medio · ancho). */
+  transcriptW: { narrow: 640, medium: 760, wide: 980 },
+  /** Config modal (overlay padding 32). */
+  configW: 1080,
+  configH: 760,
+  configNavW: 240,
+  /** Project screens: content max widths. */
+  projectMaxW: 1080,
+  teamMaxW: 1180,
   /** Inline widget iframe max height before it scrolls. */
   surfaceMaxH: 900,
 } as const;
@@ -30,6 +37,7 @@ export const BREAKPOINTS = {
 
 export type Layout = {
   sidebarW: number;
+  transcriptW: number;
   rail: boolean;
   listW: number;
   panelW: number;
@@ -38,7 +46,12 @@ export type Layout = {
 };
 
 /** Column widths for a viewport width, following the design's breakpoints. */
-export function computeLayout(width: number, panelOpen: boolean, chatShown: boolean): Layout {
+export function computeLayout(
+  width: number,
+  panelOpen: boolean,
+  chatShown: boolean,
+  transcript: keyof typeof LAYOUT.transcriptW = "medium",
+): Layout {
   const rail = width < BREAKPOINTS.sidebarFull;
   const narrow = width < BREAKPOINTS.panelWide;
   const hideList = narrow && panelOpen && chatShown;
@@ -46,7 +59,14 @@ export function computeLayout(width: number, panelOpen: boolean, chatShown: bool
   const listW = hideList ? 0 : width >= BREAKPOINTS.listWide ? LAYOUT.listW : LAYOUT.listWNarrow;
   const panelW = narrow ? LAYOUT.panelWNarrow : LAYOUT.panelW;
   const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
-  return { rail, sidebarW, listW, panelW, wideHeader: chatW >= BREAKPOINTS.chatHeaderWide };
+  return {
+    rail,
+    sidebarW,
+    transcriptW: LAYOUT.transcriptW[transcript],
+    listW,
+    panelW,
+    wideHeader: chatW >= BREAKPOINTS.chatHeaderWide,
+  };
 }
 
 /** Exposes the numbers as CSS custom properties on the shell root (app.css reads them). */
@@ -58,6 +78,8 @@ export function layoutVars(l: Layout): Record<string, string> {
     "--shell-list-w": `${l.listW}px`,
     "--shell-panel-w": `${l.panelW}px`,
     "--shell-chat-min-w": `${LAYOUT.chatMinW}px`,
-    "--shell-transcript-w": `${LAYOUT.transcriptW}px`,
+    "--shell-transcript-w": `${l.transcriptW}px`,
+    "--shell-project-max-w": `${LAYOUT.projectMaxW}px`,
+    "--shell-team-max-w": `${LAYOUT.teamMaxW}px`,
   };
 }

@@ -1,0 +1,328 @@
+/* Config modal: left nav + content (SPEC §2.12 Config). Tokens only; sizes from LAYOUT via ConfigModal. */
+
+.apx-dialog.config {
+  max-width: none;
+}
+.config__nav {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: var(--config-nav-w);
+  padding: 14px 10px;
+  background: var(--apx-sidebar);
+  border-right: 1px solid var(--apx-border);
+  overflow-y: auto;
+}
+.config__nav > .apx-search {
+  margin-bottom: 6px;
+}
+.config__group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.config__grouplabel {
+  padding: 12px 10px 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.config__nav .config__navitem {
+  height: 32px;
+}
+.config__nav .config__navitem.is-active {
+  font-weight: var(--apx-weight-medium);
+}
+.config__content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+.config__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  padding: 32px 40px 40px;
+  box-sizing: border-box;
+}
+.config__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding-right: 32px;
+}
+.config__headtext {
+  flex: 1;
+  min-width: 0;
+}
+.config__title {
+  margin: 0;
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+}
+.config__lead {
+  margin: 2px 0 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+  text-wrap: pretty;
+}
+.config__headactions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+.config__sub {
+  margin: 8px 0 0;
+  padding-bottom: 4px;
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.config__inner > .apx-setting:first-of-type,
+.config__head + .apx-setting {
+  margin-top: -8px;
+}
+.config__inner .apx-setting + .apx-setting {
+  margin-top: -20px;
+}
+.config__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.config__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.config__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.config__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.config__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.config__input {
+  width: 220px;
+}
+
+/* Cuenta */
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.account-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+}
+.account-card__name {
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+}
+.account-card__sub {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+
+/* Motores */
+.engines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.engine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.engine.is-default {
+  border-color: var(--apx-brand);
+}
+.engine__top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.engine__titles {
+  flex: 1;
+  min-width: 0;
+}
+.engine__name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.engine__version {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.engine__kind {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.engine__steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0 0 0 48px;
+  list-style: none;
+}
+.engine__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.engine__step.is-done {
+  color: var(--apx-brand-soft-fg);
+}
+.engine__hint {
+  margin: 0 0 0 48px;
+  padding: 8px 10px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+
+/* Agentes */
+.agentcfg {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agentcfg__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.agentcfg__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--apx-text-sm);
+}
+.agentcfg__name b {
+  font-weight: var(--apx-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agentcfg__where {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.selectbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 190px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+  font-size: var(--apx-text-xs);
+}
+.selectbtn:hover,
+.selectbtn[data-popup-open] {
+  background: var(--apx-fill-hover);
+}
+.selectbtn__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Canales */
+.channelcfg {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 32px;
+}
+.channelcfg__text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Avanzado */
+.kv {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.kv__row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.kv__row dt {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.kv__row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.kv__mono {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.subsys {
+  display: flex;
+  flex-direction: column;
+}
+.subsys .apx-setting__title {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+}

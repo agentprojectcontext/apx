@@ -16,6 +16,8 @@ export interface NavItemProps {
   collapsed?: boolean;
   /** Indent level for nested items (a project's sub-sections). */
   depth?: 0 | 1;
+  /** Shown but not clickable (a feature that is coming). */
+  disabled?: boolean;
   href?: string;
   onClick?: () => void;
   className?: string;
@@ -31,6 +33,7 @@ export function NavItem({
   active = false,
   collapsed = false,
   depth = 0,
+  disabled = false,
   href,
   onClick,
   className,
@@ -40,6 +43,7 @@ export function NavItem({
     depth === 1 && "apx-nav--nested",
     collapsed && "apx-nav--collapsed",
     active && "is-active",
+    disabled && "is-disabled",
     className,
   );
   const name = collapsed && typeof label === "string" ? label : undefined;
@@ -73,6 +77,7 @@ export function NavItem({
       aria-current={active ? "page" : undefined}
       aria-label={name}
       title={name}
+      disabled={disabled}
       onClick={onClick}
     >
       {inner}

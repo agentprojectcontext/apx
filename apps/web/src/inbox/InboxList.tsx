@@ -1,15 +1,15 @@
-import { AgentAvatar, Button, EmptyState, IconButton, Icons, SearchField, Skeleton } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, Skeleton } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { createThread } from "../data/actions.ts";
-import { blobOf, projectName, secretary, threadAgent } from "../data/identity.ts";
-import { notify } from "../data/notices.ts";
+import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { groupByProject } from "./groupThreads.ts";
+import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 
+/** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
 export function InboxList() {
-  const projectId = useNav((s) => s.projectId);
+  const projectId = useNav((s) => (s.view === "project" ? s.projectId : undefined));
   const threadId = useNav((s) => s.threadId);
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
@@ -19,25 +19,20 @@ export function InboxList() {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [creating, setCreating] = useState(false);
+  const chatAgents = useChatAgents(projectId);
 
   const groups = useMemo(
     () => groupByProject(threads, projects, { projectId, query }),
     [threads, projects, projectId, query],
   );
-  const title = projectId ? `Chats de ${projectName(projects, projectId)}` : "Inbox";
+  const title = projectId ? `Chats de ${findProject(projects, projectId)?.name ?? "proyecto"}` : "Inbox";
 
   const newChat = async () => {
-    const sec = secretary(agents);
-    if (!sec) return notify("No hay un super-agente configurado.");
+    const first = chatAgents[0];
+    if (!first) return;
     setCreating(true);
-    try {
-      const t = await createThread({ agentId: sec.id, projectId, title: "Nuevo chat" });
-      go.thread(t.id);
-    } catch (e) {
-      notify(`No se pudo crear el chat: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setCreating(false);
-    }
+    await startChat(first, projectId);
+    setCreating(false);
   };
 
   return (
@@ -45,11 +40,9 @@ export function InboxList() {
       <div className="inbox__head">
         <div className="inbox__titlerow">
           <h1 className="inbox__title">{title}</h1>
-          <IconButton
-            label="Nuevo chat"
-            icon={<Icons.SquarePen size={16} />}
-            onClick={newChat}
-            disabled={creating || !ready}
+          <NewChatMenu
+            projectId={projectId}
+            trigger={<IconButton label="Nuevo chat" icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
           />
         </div>
         <SearchField
@@ -78,7 +71,7 @@ export function InboxList() {
               )
             }
           >
-            {query ? `Nada coincide con “${query}”.` : "Escribile a tu super-agente para empezar."}
+            {query ? `Nada coincide con “${query}”.` : "Escribile a un agente para empezar."}
           </EmptyState>
         ) : (
           groups.map((g) => {
@@ -91,11 +84,10 @@ export function InboxList() {
                   aria-expanded={!isCollapsed}
                   onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !isCollapsed }))}
                 >
-                  <AgentAvatar
-                    name={g.name}
-                    blob={g.project ? blobOf(g.project) : "menta"}
+                  <ProjectTile
+                    tone={projectTone(g.project?.id ?? DEFAULT_PID)}
+                    initial={projectInitial(g.name)}
                     size={16}
-                    animated={false}
                   />
                   <span className="inbox__groupname">{g.name}</span>
                   <span className="inbox__groupcount">{g.threads.length}</span>

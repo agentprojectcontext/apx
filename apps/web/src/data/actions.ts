@@ -1,6 +1,7 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { Message, Thread } from "@apx/protocol";
 import { client } from "./client.ts";
+import { loadEngines } from "./engines.ts";
 import { notify } from "./notices.ts";
 import { data, upsertMessage } from "./state.ts";
 
@@ -29,6 +30,7 @@ export async function bootstrap(): Promise<void> {
     ready: true,
   });
   void loadTabs();
+  void loadEngines();
 }
 
 export async function loadTabs(): Promise<void> {

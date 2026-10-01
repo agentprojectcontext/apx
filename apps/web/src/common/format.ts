@@ -39,3 +39,14 @@ export function hostPath(url: string): string {
     return url;
   }
 }
+
+/** Time since `iso`: "12 s", "13 min", "1 h 17". */
+export function elapsed(iso: string, now = Date.now()): string {
+  const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (!Number.isFinite(s)) return "";
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return `${h} h ${String(m % 60).padStart(2, "0")}`;
+}

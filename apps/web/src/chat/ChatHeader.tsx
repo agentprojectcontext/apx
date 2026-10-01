@@ -1,6 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, IconButton, Icons, Tag } from "@apx/ui";
-import { blobOf, projectName } from "../data/identity.ts";
+import { AgentAvatar, IconButton, Icons, ProjectTile, Tag } from "@apx/ui";
+import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
@@ -29,12 +29,7 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
           {!sub && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
         </div>
         <div className="chat__crumb">
-          <AgentAvatar
-            name={projectName(projects, thread.project_id)}
-            blob={blobOf(project) ?? "menta"}
-            size={12}
-            animated={false}
-          />
+          <ProjectTile tone={projectTone(project?.id ?? DEFAULT_PID)} size={12} />
           <span>{projectName(projects, thread.project_id)}</span>
           {!sub && (
             <>

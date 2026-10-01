@@ -1,8 +1,21 @@
-import type { Agent, Message, Project, Run, Surface, SurfaceSummary, TabInfo, Thread } from "@apx/protocol";
+import type {
+  Agent,
+  EngineStatus,
+  Health,
+  Message,
+  Project,
+  Run,
+  Surface,
+  SurfaceSummary,
+  TabInfo,
+  Thread,
+} from "@apx/protocol";
 import { createStore, useSlice } from "./createStore.ts";
 
 export type Connection = "connecting" | "online" | "offline";
 export type LoadState = "loading" | "ready" | "error";
+/** `unavailable` = this core does not answer engines.* yet (older build): the UI explains instead of failing. */
+export type EnginesLoad = "idle" | "loading" | "ready" | "unavailable";
 
 export type DataState = {
   connection: Connection;
@@ -21,6 +34,11 @@ export type DataState = {
   /** Full surface documents (html), fetched on demand. */
   surfaceDocs: Record<string, Surface>;
   tabs: TabInfo[];
+  /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
+  engines: EngineStatus[];
+  enginesLoad: EnginesLoad;
+  /** Last system.health answer (Config › Avanzado). */
+  health: Health | undefined;
 };
 
 export const data = createStore<DataState>({
@@ -36,6 +54,9 @@ export const data = createStore<DataState>({
   surfaces: {},
   surfaceDocs: {},
   tabs: [],
+  engines: [],
+  enginesLoad: "idle",
+  health: undefined,
 });
 
 export function useData<T>(select: (s: DataState) => T): T {
