@@ -5,6 +5,7 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { guardReply } from "./guard.ts";
+import { inQuietHours } from "./notices.ts";
 import { telegramAdapter } from "./telegram.ts";
 import { toTelegramHtml } from "./telegram-format.ts";
 
@@ -165,4 +166,31 @@ test("a rate-limited send is retried; an ambiguous failure is marked uncertain, 
     const { items } = await env.client.call("channels.outbox", {});
     return items.some((i) => i.state === "uncertain" && /gateway trouble/.test(i.text));
   }, "uncertain");
+});
+
+test("quiet hours cross midnight; inside them notices arrive without sound", () => {
+  const prefs = { quiet_from: "23:00", quiet_to: "08:00", inputs_after_s: 120 };
+  const at = (h: number, m = 0) => new Date(2026, 0, 1, h, m);
+  assert.equal(inQuietHours(prefs, at(23, 30)), true);
+  assert.equal(inQuietHours(prefs, at(7, 59)), true);
+  assert.equal(inQuietHours(prefs, at(8, 0)), false);
+  assert.equal(inQuietHours(prefs, at(15)), false);
+  assert.equal(inQuietHours({ inputs_after_s: 0 }, at(23, 30)), false);
+});
+
+test("a confirmation left unanswered in the app follows the owner to Telegram, silently in quiet hours", async () => {
+  await env.client.call("notices.set", { inputs_after_s: 1, quiet_from: "00:00", quiet_to: "23:59" });
+  const before = tg.messagesTo(OWNER.id).length;
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(tg.messagesTo(OWNER.id).length, before, "it waits in the app first");
+  await until(() => tg.messagesTo(OWNER.id).length > before, "follow-up on Telegram", 4000);
+  const ask = tg.messagesTo(OWNER.id).at(-1)?.body;
+  assert.ok(ask?.reply_markup);
+  assert.equal(ask?.disable_notification, true);
+  const markup = ask?.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
+  tg.press(OWNER, markup.inline_keyboard[1]?.[0]?.callback_data ?? "");
+  await env.settle(t.id);
+  await env.client.call("notices.set", { inputs_after_s: 120 });
 });

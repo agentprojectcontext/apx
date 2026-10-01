@@ -1,5 +1,5 @@
 // Channels the owner runs (channels.*), the people on them (contacts.*) and who waits for approval (pairing.*).
-import type { ChannelInfo, OutboxItem, PairingRequest, Person } from "@apx/protocol";
+import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -10,9 +10,17 @@ type State = {
   persons: Person[];
   pairing: PairingRequest[];
   outbox: OutboxItem[];
+  notices: NoticePrefs | undefined;
   ready: boolean;
 };
-const store = createStore<State>({ channels: [], persons: [], pairing: [], outbox: [], ready: false });
+const store = createStore<State>({
+  channels: [],
+  persons: [],
+  pairing: [],
+  outbox: [],
+  notices: undefined,
+  ready: false,
+});
 
 export const useChannels = <T>(select: (s: State) => T): T => useSlice(store, select);
 
@@ -20,13 +28,21 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function loadChannels(): Promise<void> {
   try {
-    const [c, p, r, o] = await Promise.all([
+    const [c, p, r, o, n] = await Promise.all([
       client.call("channels.list", {}),
       client.call("contacts.list", {}),
       client.call("pairing.list", {}),
       client.call("channels.outbox", { limit: 20 }),
+      client.call("notices.get", {}),
     ]);
-    store.set({ channels: c.channels, persons: p.persons, pairing: r.requests, outbox: o.items, ready: true });
+    store.set({
+      channels: c.channels,
+      persons: p.persons,
+      pairing: r.requests,
+      outbox: o.items,
+      notices: n,
+      ready: true,
+    });
   } catch (e) {
     store.set({ ready: true });
     notify(t("error.channels", { error: errText(e) }));
@@ -91,4 +107,12 @@ export async function unlinkAddress(address: string): Promise<void> {
     notify(t("error.channels", { error: errText(e) }));
   }
   await loadChannels();
+}
+
+export async function saveNotices(prefs: NoticePrefs): Promise<void> {
+  try {
+    store.set({ notices: await client.call("notices.set", prefs) });
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+  }
 }

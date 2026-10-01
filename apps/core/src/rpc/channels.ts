@@ -1,6 +1,7 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 import { ErrorCode } from "@apx/protocol";
 import type { Channels } from "../channels/manager.ts";
+import { noticePrefs, saveNoticePrefs } from "../channels/notices.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
@@ -24,6 +25,8 @@ export function channelHandlers(store: Store, channels: Channels) {
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     })) as Handler<"channels.outbox">,
 
+    "notices.get": (() => noticePrefs(store)) as Handler<"notices.get">,
+    "notices.set": ((prefs) => saveNoticePrefs(store, prefs)) as Handler<"notices.set">,
     "contacts.list": (() => {
       store.persons.owner();
       return { persons: store.persons.list() };

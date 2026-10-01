@@ -12,6 +12,7 @@ import {
   MemoryScope,
   Message,
   ModelChoice,
+  NoticePrefs,
   OutboxItem,
   PairingRequest,
   PendingInput,
@@ -455,6 +456,18 @@ export const appMethods = {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
+    access: "human",
+  },
+  "notices.get": {
+    params: z.object({}).strict(),
+    result: NoticePrefs,
+    effect: false,
+    access: "human",
+  },
+  "notices.set": {
+    params: NoticePrefs.strict(),
+    result: NoticePrefs,
+    effect: true,
     access: "human",
   },
   "contacts.list": {

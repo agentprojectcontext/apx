@@ -3,7 +3,7 @@
 // code. Outbound: the answer of a run that came from a channel, confirmations with buttons, and notices to the owner,
 // all through the durable outbox.
 // See DECISIONS.md#d-014
-import type { ChannelInfo, CoreEvent, MethodName, Params, Result, Thread } from "@apx/protocol";
+import type { ChannelInfo, CoreEvent, MethodName, Params, Part, Result, Thread } from "@apx/protocol";
 import { methods } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { Inbound, InboundAction, OutboxRow, Presentation } from "../domain/channels.ts";
@@ -17,6 +17,7 @@ import type { CallContext } from "../rpc/context.ts";
 import type { Dispatch } from "../rpc/router.ts";
 import type { Secrets } from "../secrets.ts";
 import { guardReply } from "./guard.ts";
+import { inputPresentation, inQuietHours, noticePrefs } from "./notices.ts";
 import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, SendError } from "./types.ts";
 
 const MAX_ATTEMPTS = 6;
@@ -78,6 +79,7 @@ export function createChannels(deps: {
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
   const announced = new Set<string>();
+  const escalations = new Map<string, ReturnType<typeof setTimeout>>();
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let draining = false;
@@ -172,20 +174,43 @@ export function createChannels(deps: {
     }
   }
 
-  /** Something for the owner, on the first running channel where APX knows their address. */
-  function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice"): boolean {
-    const preferred = store.settings.get("notices_channel");
+  /**
+   * Something for the owner, on their preferred channel or the first running one that knows them; in quiet hours it
+   * arrives without sound.
+   */
+  function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
+    const prefs = noticePrefs(store);
     const order = [...live.values()].sort(
-      (a, b) => Number(b.config.id === preferred) - Number(a.config.id === preferred),
+      (a, b) => Number(b.config.id === prefs.channel) - Number(a.config.id === prefs.channel),
     );
     for (const l of order) {
       const addr = store.persons.ownerAddress(l.config.id);
       if (addr && l.status === "running") {
-        enqueue({ channel: l.config.id, conversation: addr.external_id, kind, body });
+        enqueue({
+          channel: l.config.id,
+          conversation: addr.external_id,
+          thread_id: threadId,
+          kind,
+          body: inQuietHours(prefs) ? { ...body, silent: true } : body,
+        });
         return true;
       }
     }
     return false;
+  }
+
+  /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
+  function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
+    const after = noticePrefs(store).inputs_after_s;
+    if (!after || escalations.has(part.input_id)) return;
+    const timer = setTimeout(() => {
+      escalations.delete(part.input_id);
+      if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
+      announced.add(part.input_id);
+      notifyOwner(inputPresentation(part, text()), "input", threadId);
+    }, after * 1000);
+    timer.unref?.();
+    escalations.set(part.input_id, timer);
   }
 
   /** In the app: a notice in the Home chat. */
@@ -396,28 +421,28 @@ export function createChannels(deps: {
     if (e.type === "message.part" && e.part.type === "input" && e.part.state === "pending") {
       const part = e.part;
       if (announced.has(part.input_id)) return;
-      const to = replyTo(e.thread_id);
       const thread = store.threads.get(e.thread_id);
-      if (!to || !thread || audienceOf(store, thread).kind !== "owner") return;
+      if (!thread || audienceOf(store, thread).kind !== "owner") return;
+      const to = replyTo(e.thread_id);
+      // Asked from the app: it waits there first, then follows the owner.
+      if (!to) {
+        followUp(part, e.thread_id);
+        return;
+      }
       announced.add(part.input_id);
-      const t = text();
-      const buttons =
-        part.kind === "confirm"
-          ? [
-              { id: `i:${part.input_id}:a`, label: t.approve },
-              { id: `i:${part.input_id}:d`, label: t.deny },
-            ]
-          : (part.options ?? []).slice(0, 8).map((o, i) => ({ id: `i:${part.input_id}:o${i}`, label: o.slice(0, 60) }));
-      const body = [part.prompt, part.tool ? `${part.tool}${part.detail ? `: ${part.detail}` : ""}` : ""]
-        .filter(Boolean)
-        .join("\n");
       enqueue({
         channel: to.channel,
         conversation: to.conversation,
         thread_id: e.thread_id,
         kind: "input",
-        body: { text: body.slice(0, 3500), ...(buttons.length ? { buttons } : {}) },
+        body: inputPresentation(part, text()),
       });
+      return;
+    }
+    // Agents stopped by the breaker: the owner hears it wherever they are.
+    if (e.type === "message.created" && e.message.author.kind === "system") {
+      const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
+      if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
     }
   }
 
@@ -500,6 +525,7 @@ export function createChannels(deps: {
       stopped = true;
       clearTimeout(timer);
       for (const iv of typing.values()) clearInterval(iv);
+      for (const t of escalations.values()) clearTimeout(t);
       typing.clear();
       await Promise.allSettled([...live.keys()].map(stopOne));
     },

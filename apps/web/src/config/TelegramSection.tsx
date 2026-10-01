@@ -19,6 +19,7 @@ import {
   removePerson,
   respondPairing,
   saveChannel,
+  saveNotices,
   setPersonRole,
   unlinkAddress,
   useChannels,
@@ -46,6 +47,7 @@ export function TelegramSection() {
       <SectionHead title={t("channel.telegram.name")} lead={t("tg.lead")} />
       {ready && (channel ? <Connected channel={channel} /> : <Setup />)}
       {channel && <Pairing />}
+      {channel && <Notices />}
       {channel && <People channelId={channel.id} />}
       {channel && <Deliveries channelId={channel.id} />}
     </>
@@ -357,6 +359,62 @@ function Deliveries({ channelId }: { channelId: string }) {
           </li>
         ))}
       </ul>
+    </>
+  );
+}
+
+const FOLLOW_UP = ["0", "60", "120", "600"] as const;
+
+/** How notices reach the owner: when a pending confirmation follows them here, and quiet hours. */
+function Notices() {
+  const t = useT();
+  const prefs = useChannels((s) => s.notices);
+  if (!prefs) return null;
+  const quiet = Boolean(prefs.quiet_from && prefs.quiet_to);
+  return (
+    <>
+      <SubHead>{t("tg.notices")}</SubHead>
+      <SettingRow title={t("tg.followUp")} description={t("tg.followUpHint")}>
+        <SegmentedControl
+          size="sm"
+          label={t("tg.followUp")}
+          value={String(prefs.inputs_after_s)}
+          onValueChange={(v) => void saveNotices({ ...prefs, inputs_after_s: Number(v) })}
+          options={FOLLOW_UP.map((v) => ({ value: v, label: t(`tg.followUp.${v}`) }))}
+        />
+      </SettingRow>
+      <SettingRow title={t("tg.quiet")} description={t("tg.quietHint")}>
+        <div className="tgtoken">
+          <Switch
+            size="sm"
+            checked={quiet}
+            onCheckedChange={(on) =>
+              void saveNotices(
+                on
+                  ? { ...prefs, quiet_from: "23:00", quiet_to: "08:00" }
+                  : { inputs_after_s: prefs.inputs_after_s, ...(prefs.channel ? { channel: prefs.channel } : {}) },
+              )
+            }
+            label={t("tg.quiet")}
+          />
+          {quiet && (
+            <>
+              <Input
+                aria-label={t("tg.quietFrom")}
+                type="time"
+                value={prefs.quiet_from ?? ""}
+                onChange={(e) => void saveNotices({ ...prefs, quiet_from: e.currentTarget.value })}
+              />
+              <Input
+                aria-label={t("tg.quietTo")}
+                type="time"
+                value={prefs.quiet_to ?? ""}
+                onChange={(e) => void saveNotices({ ...prefs, quiet_to: e.currentTarget.value })}
+              />
+            </>
+          )}
+        </div>
+      </SettingRow>
     </>
   );
 }

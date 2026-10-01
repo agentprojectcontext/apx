@@ -439,6 +439,24 @@ export const PairingRequest = z.object({
 });
 export type PairingRequest = z.infer<typeof PairingRequest>;
 
+/** How APX reaches the owner when they are not looking at the app. */
+export const NoticePrefs = z.object({
+  /** The channel to use (its id); none = the first running channel that knows the owner. */
+  channel: z.string().optional(),
+  /** Quiet hours (local time, "HH:MM"): notices still arrive, without sound. */
+  quiet_from: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  quiet_to: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  /** A confirmation or question unanswered in the app this long also goes to the channel (0 = never). */
+  inputs_after_s: z.number().int().min(0).max(86_400).default(120),
+});
+export type NoticePrefs = z.infer<typeof NoticePrefs>;
+
 export const OutboxState = z.enum(["queued", "sending", "sent", "uncertain", "failed"]);
 export const OutboxItem = z.object({
   id: Id,

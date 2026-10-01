@@ -661,6 +661,17 @@ export const en = {
   "error.channels": "Channels: {error}",
   "notice.pairing.request": "Someone new wants to talk on a channel: approve them in Settings → Channels.",
   "chat.viaChannel": "on Telegram",
+  "tg.notices": "Notices for you",
+  "tg.followUp": "Confirmations follow you",
+  "tg.followUpHint": "Something an agent asked in the app and nobody answered also comes here, with buttons.",
+  "tg.followUp.0": "Never",
+  "tg.followUp.60": "After 1 min",
+  "tg.followUp.120": "After 2 min",
+  "tg.followUp.600": "After 10 min",
+  "tg.quiet": "Quiet hours",
+  "tg.quietHint": "Notices still arrive, without sound.",
+  "tg.quietFrom": "From",
+  "tg.quietTo": "To",
 } as const;
 
 export type MessageKey = keyof typeof en;

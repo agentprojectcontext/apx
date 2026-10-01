@@ -22,7 +22,12 @@ export type Inbound = {
 export type InboundAction = { conversation: string; sender: { id: string; name: string }; data: string };
 
 /** What goes out: text, and buttons when the owner is asked something. */
-export type Presentation = { text: string; buttons?: Array<{ id: string; label: string }> };
+export type Presentation = {
+  text: string;
+  buttons?: Array<{ id: string; label: string }>;
+  /** Delivered without sound (quiet hours). */
+  silent?: boolean;
+};
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
 export type OutboxRow = OutboxItem & { body: Presentation; next_at: string; external_id?: string };

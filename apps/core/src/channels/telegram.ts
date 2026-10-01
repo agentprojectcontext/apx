@@ -158,7 +158,12 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     }
   }
 
-  async function sendOne(chat: string, text: string, buttons: Presentation["buttons"]): Promise<number> {
+  async function sendOne(
+    chat: string,
+    text: string,
+    buttons: Presentation["buttons"],
+    silent?: boolean,
+  ): Promise<number> {
     const markup = buttons?.length
       ? { reply_markup: { inline_keyboard: buttons.map((b) => [{ text: b.label, callback_data: b.id.slice(0, 64) }]) } }
       : {};
@@ -168,13 +173,19 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         text: toTelegramHtml(text),
         parse_mode: "HTML",
         link_preview_options: { is_disabled: true },
+        ...(silent ? { disable_notification: true } : {}),
         ...markup,
       });
       return r.message_id;
     } catch (err) {
       // Markup Telegram cannot parse: the same words as plain text.
       if (err instanceof TgError && err.code === 400 && /parse entities/i.test(err.message)) {
-        const r = await api<{ message_id: number }>("sendMessage", { chat_id: chat, text, ...markup });
+        const r = await api<{ message_id: number }>("sendMessage", {
+          chat_id: chat,
+          text,
+          ...(silent ? { disable_notification: true } : {}),
+          ...markup,
+        });
         return r.message_id;
       }
       throw err;
@@ -201,7 +212,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       let last: number | undefined;
       for (const [i, part] of parts.entries()) {
         try {
-          last = await sendOne(conversation, part, i === parts.length - 1 ? p.buttons : undefined);
+          last = await sendOne(conversation, part, i === parts.length - 1 ? p.buttons : undefined, p.silent);
         } catch (err) {
           throw toSendError(err, i > 0);
         }
