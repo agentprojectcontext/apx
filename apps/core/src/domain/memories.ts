@@ -1,20 +1,22 @@
 // Memory: short notes agents keep between threads, scoped to the owner (global), a project or one agent, searched
 // with SQLite's full-text index.
 import type { Memory, MemoryScope } from "@apx/protocol";
-import { newId, now, opt, type Row, type Sql } from "./sql.ts";
+import { type ExpressionBuilder, sql as raw, type Selectable } from "kysely";
+import type { Database, MemoriesTable } from "../db/schema.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
-const toMemory = (r: Row): Memory => ({
-  id: String(r.id),
+const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
+  id: r.id,
   scope: r.scope as MemoryScope,
   ...opt("project_id", r.project_id),
   ...opt("agent_id", r.agent_id),
-  text: String(r.text),
+  text: r.text,
   source: r.source === "owner" ? "owner" : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
   tainted: Boolean(r.tainted),
-  created_at: String(r.created_at),
-  updated_at: String(r.updated_at),
+  created_at: r.created_at,
+  updated_at: r.updated_at,
 });
 
 /** What one agent in one thread may see: the owner's notes, the thread's project's and its own. */
@@ -70,18 +72,39 @@ const SECRET_SHAPES = [
 /** A note must never hold a credential: memory goes into prompts. */
 export const looksSecret = (text: string) => SECRET_SHAPES.some((re) => re.test(text));
 
-export function memoriesRepo({ one, all, run }: Sql) {
-  const visible = (v: MemoryView | undefined): { where: string; args: unknown[] } =>
-    v
-      ? {
-          where: "(scope = 'global' OR (scope = 'project' AND project_id = ?) OR (scope = 'agent' AND agent_id = ?))",
-          args: [v.project_id ?? "", v.agent_id],
-        }
-      : { where: "1 = 1", args: [] };
+type Filters = {
+  view?: MemoryView | undefined;
+  scope?: MemoryScope | undefined;
+  project_id?: string | undefined;
+  agent_id?: string | undefined;
+  exclude?: string[] | undefined;
+};
 
+/** The notes a view may see, narrowed by the given filters. */
+function visibleWhere(f: Filters) {
+  return (eb: ExpressionBuilder<Database, "memories">) => {
+    const v = f.view;
+    const conds = v
+      ? [
+          eb.or([
+            eb("memories.scope", "=", "global"),
+            eb.and([eb("memories.scope", "=", "project"), eb("memories.project_id", "=", v.project_id ?? "")]),
+            eb.and([eb("memories.scope", "=", "agent"), eb("memories.agent_id", "=", v.agent_id)]),
+          ]),
+        ]
+      : [];
+    if (f.scope) conds.push(eb("memories.scope", "=", f.scope));
+    if (f.project_id) conds.push(eb("memories.project_id", "=", f.project_id));
+    if (f.agent_id) conds.push(eb("memories.agent_id", "=", f.agent_id));
+    if (f.exclude?.length) conds.push(eb("memories.id", "not in", f.exclude));
+    return eb.and(conds);
+  };
+}
+
+export function memoriesRepo({ one, all, run }: Sql) {
   const repo = {
     get(id: string): Memory | undefined {
-      const r = one("SELECT * FROM memories WHERE id = ?", id);
+      const r = one(qb.selectFrom("memories").selectAll().where("id", "=", id));
       return r ? toMemory(r) : undefined;
     },
     /** Adds a note; the same text already in the same place is returned instead of a copy. */
@@ -96,77 +119,64 @@ export function memoriesRepo({ one, all, run }: Sql) {
       tainted?: boolean | undefined;
     }): Memory {
       const same = one(
-        "SELECT id FROM memories WHERE scope = ? AND IFNULL(project_id, '') = ? AND IFNULL(agent_id, '') = ? AND lower(trim(text)) = lower(trim(?))",
-        m.scope,
-        m.project_id ?? "",
-        m.agent_id ?? "",
-        m.text,
+        qb
+          .selectFrom("memories")
+          .select("id")
+          .where("scope", "=", m.scope)
+          .where(raw<string>`ifnull(project_id, '')`, "=", m.project_id ?? "")
+          .where(raw<string>`ifnull(agent_id, '')`, "=", m.agent_id ?? "")
+          // Both sides through SQLite's own lower(): the same text matches whatever its accents.
+          .where(raw<string>`lower(trim(text))`, "=", raw<string>`lower(trim(${m.text}))`),
       );
-      if (same) return repo.get(String(same.id)) as Memory;
+      if (same) return repo.get(same.id) as Memory;
       const id = newId("mem");
       const at = now();
       run(
-        "INSERT INTO memories (id, scope, project_id, agent_id, text, source, author_agent, thread_id, tainted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        id,
-        m.scope,
-        m.project_id ?? null,
-        m.agent_id ?? null,
-        m.text,
-        m.source,
-        m.author_agent ?? null,
-        m.thread_id ?? null,
-        m.tainted ? 1 : 0,
-        at,
-        at,
+        qb.insertInto("memories").values({
+          id,
+          scope: m.scope,
+          project_id: m.project_id ?? null,
+          agent_id: m.agent_id ?? null,
+          text: m.text,
+          source: m.source,
+          author_agent: m.author_agent ?? null,
+          thread_id: m.thread_id ?? null,
+          tainted: m.tainted ? 1 : 0,
+          created_at: at,
+          updated_at: at,
+        }),
       );
       return repo.get(id) as Memory;
     },
     edit(id: string, text: string, tainted: boolean): Memory | undefined {
-      run("UPDATE memories SET text = ?, tainted = ?, updated_at = ? WHERE id = ?", text, tainted ? 1 : 0, now(), id);
+      run(
+        qb
+          .updateTable("memories")
+          .set({ text, tainted: tainted ? 1 : 0, updated_at: now() })
+          .where("id", "=", id),
+      );
       return repo.get(id);
     },
     remove(id: string): boolean {
-      return Number(run("DELETE FROM memories WHERE id = ?", id).changes) > 0;
+      return run(qb.deleteFrom("memories").where("id", "=", id)) > 0;
     },
     /** Newest first, or with `query` the best full-text matches first. */
-    list(o: {
-      view?: MemoryView | undefined;
-      scope?: MemoryScope | undefined;
-      project_id?: string | undefined;
-      agent_id?: string | undefined;
-      query?: string | undefined;
-      exclude?: string[] | undefined;
-      limit: number;
-    }): Memory[] {
-      const v = visible(o.view);
-      const where = [v.where];
-      const args: unknown[] = [...v.args];
-      for (const [col, value] of [
-        ["scope", o.scope],
-        ["project_id", o.project_id],
-        ["agent_id", o.agent_id],
-      ] as const)
-        if (value) {
-          where.push(`m.${col} = ?`);
-          args.push(value);
-        }
-      if (o.exclude?.length) {
-        where.push(`m.id NOT IN (${o.exclude.map(() => "?").join(", ")})`);
-        args.push(...o.exclude);
-      }
+    list(o: Filters & { query?: string | undefined; limit: number }): Memory[] {
       const match = o.query ? ftsQuery(o.query) : undefined;
       if (o.query && !match) return [];
       const rows = match
         ? all(
-            `SELECT m.* FROM memories_fts f JOIN memories m ON m.n = f.rowid WHERE memories_fts MATCH ? AND ${where.join(" AND ")} ORDER BY bm25(memories_fts) LIMIT ?`,
-            match,
-            ...args,
-            o.limit,
+            qb
+              .selectFrom("memories_fts")
+              .innerJoin("memories", "memories.n", "memories_fts.rowid")
+              .selectAll("memories")
+              .where(raw<boolean>`memories_fts MATCH ${match}`)
+              .where(visibleWhere(o))
+              .orderBy(raw`bm25(memories_fts)`)
+              .limit(o.limit),
           )
         : all(
-            `SELECT m.* FROM memories m WHERE ${where.join(" AND ")} ORDER BY m.updated_at DESC LIMIT ?`,
-            ...args,
-            o.limit,
+            qb.selectFrom("memories").selectAll().where(visibleWhere(o)).orderBy("updated_at", "desc").limit(o.limit),
           );
       return rows.map(toMemory);
     },

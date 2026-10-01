@@ -127,3 +127,13 @@ first-writer-is-owner. Everything a channel sends goes through a durable outbox 
 only when nothing went out, `uncertain` when it may have, never resent blind). Answers return to the channel the
 thread's last message came from until the owner writes in the app; confirmations and options reach the owner as
 buttons only the owner's address can press.
+
+<a id="d-015"></a>
+## D-015 — 2026-10-01 — Typed queries with Kysely, compiled and run synchronously
+Repositories build their queries with Kysely (stable, no runtime dependencies) typed against `db/schema.ts`, which a
+script generates from a freshly migrated database (`pnpm check:schema` fails when it is stale). Kysely runs only as a
+compiler: `sql(db)` takes the compiled SQL and parameters and executes them on `node:sqlite` synchronously, so the
+store stays synchronous and a transaction is plain code. Migrations stay plain SQL in `db/migrations.ts` (append-only);
+FTS5 tables are declared by hand next to the generated types and queried with `sql` fragments. Drizzle was not chosen
+because its `node:sqlite` driver exists only in its 1.0 release candidate; making the whole store async to use
+Kysely's executor would have touched every caller for no gain.

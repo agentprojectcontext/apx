@@ -4,7 +4,9 @@
 
 import { randomInt } from "node:crypto";
 import type { OutboxItem, PairingRequest } from "@apx/protocol";
-import { newId, now, opt, type Row, type Sql } from "./sql.ts";
+import type { Selectable } from "kysely";
+import type { OutboxTable, PairingTable } from "../db/schema.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 /** What an adapter hands over for one platform message. */
 export type Inbound = {
@@ -34,23 +36,23 @@ export type Presentation = {
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
 export type OutboxRow = OutboxItem & { body: Presentation; next_at: string; external_id?: string };
 
-const toOut = (r: Row): OutboxRow => {
-  const body = JSON.parse(String(r.body)) as Presentation;
+const toOut = (r: Selectable<OutboxTable>): OutboxRow => {
+  const body = JSON.parse(r.body) as Presentation;
   return {
-    id: String(r.id),
-    channel: String(r.channel),
-    conversation: String(r.conversation),
+    id: r.id,
+    channel: r.channel,
+    conversation: r.conversation,
     ...opt("thread_id", r.thread_id),
     kind: r.kind as OutboxItem["kind"],
     text: body.text,
     body,
     state: r.state as OutboxItem["state"],
-    attempts: Number(r.attempts),
+    attempts: r.attempts,
     ...opt("error", r.error),
     ...opt("external_id", r.external_id),
-    next_at: String(r.next_at),
-    created_at: String(r.created_at),
-    updated_at: String(r.updated_at),
+    next_at: r.next_at,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
   };
 };
 
@@ -59,33 +61,47 @@ export const publicOutbox = ({ body: _b, next_at: _n, external_id: _e, ...o }: O
 const PAIRING_TTL_MS = 24 * 3600_000;
 
 export function channelsRepo({ one, all, run }: Sql) {
+  const outRow = (id: string) => one(qb.selectFrom("outbox").selectAll().where("id", "=", id));
+  const pairingRow = (code: string) => one(qb.selectFrom("pairing").selectAll().where("code", "=", code));
   return {
     inbox: {
       /** Stores a message; false when this platform message was already stored (a redelivery). */
       add(channel: string, m: Inbound): string | undefined {
         const id = newId("in");
-        const r = run(
-          "INSERT OR IGNORE INTO channel_inbox (id, channel, external_id, conversation, sender, payload, state, created_at) VALUES (?, ?, ?, ?, ?, ?, 'received', ?)",
-          id,
-          channel,
-          m.external_id,
-          m.conversation,
-          m.sender.id,
-          JSON.stringify(m),
-          now(),
+        const changes = run(
+          qb
+            .insertInto("channel_inbox")
+            .values({
+              id,
+              channel,
+              external_id: m.external_id,
+              conversation: m.conversation,
+              sender: m.sender.id,
+              payload: JSON.stringify(m),
+              state: "received",
+              created_at: now(),
+            })
+            .onConflict((c) => c.doNothing()),
         );
-        return Number(r.changes) > 0 ? id : undefined;
+        return changes > 0 ? id : undefined;
       },
       pending(): InboxRow[] {
-        return all("SELECT * FROM channel_inbox WHERE state = 'received' ORDER BY created_at").map((r) => ({
-          id: String(r.id),
-          channel: String(r.channel),
-          payload: JSON.parse(String(r.payload)) as Inbound,
-          state: String(r.state),
+        return all(
+          qb.selectFrom("channel_inbox").selectAll().where("state", "=", "received").orderBy("created_at"),
+        ).map((r) => ({
+          id: r.id,
+          channel: r.channel,
+          payload: JSON.parse(r.payload) as Inbound,
+          state: r.state,
         }));
       },
       done(id: string, state: "done" | "ignored" | "failed", error?: string): void {
-        run("UPDATE channel_inbox SET state = ?, error = ? WHERE id = ?", state, error ?? null, id);
+        run(
+          qb
+            .updateTable("channel_inbox")
+            .set({ state, error: error ?? null })
+            .where("id", "=", id),
+        );
       },
     },
     outbox: {
@@ -100,81 +116,96 @@ export function channelsRepo({ one, all, run }: Sql) {
         const id = newId("out");
         const ts = now();
         run(
-          "INSERT INTO outbox (id, channel, conversation, thread_id, kind, body, state, next_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)",
-          id,
-          o.channel,
-          o.conversation,
-          o.thread_id ?? null,
-          o.kind,
-          JSON.stringify(o.body),
-          (o.at ?? new Date()).toISOString(),
-          ts,
-          ts,
+          qb.insertInto("outbox").values({
+            id,
+            channel: o.channel,
+            conversation: o.conversation,
+            thread_id: o.thread_id ?? null,
+            kind: o.kind,
+            body: JSON.stringify(o.body),
+            state: "queued",
+            next_at: (o.at ?? new Date()).toISOString(),
+            created_at: ts,
+            updated_at: ts,
+          }),
         );
-        return toOut(one("SELECT * FROM outbox WHERE id = ?", id) as Row);
+        return toOut(outRow(id) as Selectable<OutboxTable>);
       },
       get(id: string): OutboxRow | undefined {
-        const r = one("SELECT * FROM outbox WHERE id = ?", id);
+        const r = outRow(id);
         return r ? toOut(r) : undefined;
       },
       /** Queued items whose time came, oldest first. */
       due(limit = 20): OutboxRow[] {
         return all(
-          "SELECT * FROM outbox WHERE state = 'queued' AND next_at <= ? ORDER BY next_at LIMIT ?",
-          now(),
-          limit,
+          qb
+            .selectFrom("outbox")
+            .selectAll()
+            .where("state", "=", "queued")
+            .where("next_at", "<=", now())
+            .orderBy("next_at")
+            .limit(limit),
         ).map(toOut);
       },
       /** The next time something queued is due, if anything is. */
       nextDue(): string | undefined {
-        const r = one("SELECT MIN(next_at) AS at FROM outbox WHERE state = 'queued'");
+        const r = one(
+          qb
+            .selectFrom("outbox")
+            .select((eb) => eb.fn.min("next_at").as("at"))
+            .where("state", "=", "queued"),
+        );
         return r?.at ? String(r.at) : undefined;
       },
       /** Takes an item to send: only one sender wins it. */
       claim(id: string): boolean {
         return (
-          Number(
-            run(
-              "UPDATE outbox SET state = 'sending', attempts = attempts + 1, updated_at = ? WHERE id = ? AND state = 'queued'",
-              now(),
-              id,
-            ).changes,
+          run(
+            qb
+              .updateTable("outbox")
+              .set((eb) => ({ state: "sending", attempts: eb("attempts", "+", 1), updated_at: now() }))
+              .where("id", "=", id)
+              .where("state", "=", "queued"),
           ) > 0
         );
       },
       sent(id: string, externalId: string | undefined): void {
         run(
-          "UPDATE outbox SET state = 'sent', external_id = ?, error = NULL, updated_at = ? WHERE id = ?",
-          externalId ?? null,
-          now(),
-          id,
+          qb
+            .updateTable("outbox")
+            .set({ state: "sent", external_id: externalId ?? null, error: null, updated_at: now() })
+            .where("id", "=", id),
         );
       },
       /** Back to the queue for later; `body` replaces what is left to send (a long text sent in part). */
       retry(id: string, at: Date, error: string, body?: Presentation): void {
         run(
-          "UPDATE outbox SET state = 'queued', next_at = ?, error = ?, body = COALESCE(?, body), updated_at = ? WHERE id = ?",
-          at.toISOString(),
-          error,
-          body ? JSON.stringify(body) : null,
-          now(),
-          id,
+          qb
+            .updateTable("outbox")
+            .set({
+              state: "queued",
+              next_at: at.toISOString(),
+              error,
+              ...(body ? { body: JSON.stringify(body) } : {}),
+              updated_at: now(),
+            })
+            .where("id", "=", id),
         );
       },
       fail(id: string, state: "failed" | "uncertain", error: string): void {
-        run("UPDATE outbox SET state = ?, error = ?, updated_at = ? WHERE id = ?", state, error, now(), id);
+        run(qb.updateTable("outbox").set({ state, error, updated_at: now() }).where("id", "=", id));
       },
       /** Boot: a send cut by a restart may or may not have reached the platform. */
       reconcile(): number {
-        return Number(
-          run(
-            "UPDATE outbox SET state = 'uncertain', error = 'cut by a restart while sending', updated_at = ? WHERE state = 'sending'",
-            now(),
-          ).changes,
+        return run(
+          qb
+            .updateTable("outbox")
+            .set({ state: "uncertain", error: "cut by a restart while sending", updated_at: now() })
+            .where("state", "=", "sending"),
         );
       },
       recent(limit: number): OutboxRow[] {
-        return all("SELECT * FROM outbox ORDER BY created_at DESC LIMIT ?", limit).map(toOut);
+        return all(qb.selectFrom("outbox").selectAll().orderBy("created_at", "desc").limit(limit)).map(toOut);
       },
     },
     pairing: {
@@ -184,51 +215,68 @@ export function channelsRepo({ one, all, run }: Sql) {
         fresh: boolean;
       } {
         const open = one(
-          "SELECT * FROM pairing WHERE channel = ? AND external_id = ? AND state = 'pending' AND expires_at > ?",
-          r.channel,
-          r.external_id,
-          now(),
+          qb
+            .selectFrom("pairing")
+            .selectAll()
+            .where("channel", "=", r.channel)
+            .where("external_id", "=", r.external_id)
+            .where("state", "=", "pending")
+            .where("expires_at", ">", now()),
         );
         if (open) return { request: toPairing(open), fresh: false };
         let code = "";
         do code = String(randomInt(100_000, 1_000_000));
-        while (one("SELECT code FROM pairing WHERE code = ?", code));
+        while (one(qb.selectFrom("pairing").select("code").where("code", "=", code)));
         const at = new Date();
         run(
-          "INSERT INTO pairing (code, channel, external_id, conversation, name, text, state, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)",
-          code,
-          r.channel,
-          r.external_id,
-          r.conversation,
-          r.name,
-          r.text?.slice(0, 500) ?? null,
-          at.toISOString(),
-          new Date(at.getTime() + PAIRING_TTL_MS).toISOString(),
+          qb.insertInto("pairing").values({
+            code,
+            channel: r.channel,
+            external_id: r.external_id,
+            conversation: r.conversation,
+            name: r.name,
+            text: r.text?.slice(0, 500) ?? null,
+            state: "pending",
+            created_at: at.toISOString(),
+            expires_at: new Date(at.getTime() + PAIRING_TTL_MS).toISOString(),
+          }),
         );
-        return { request: toPairing(one("SELECT * FROM pairing WHERE code = ?", code) as Row), fresh: true };
+        return { request: toPairing(pairingRow(code) as Selectable<PairingTable>), fresh: true };
       },
       open(): Array<PairingRequest & { conversation: string }> {
-        return all("SELECT * FROM pairing WHERE state = 'pending' AND expires_at > ? ORDER BY created_at", now()).map(
-          (r) => ({ ...toPairing(r), conversation: String(r.conversation) }),
-        );
+        return all(
+          qb
+            .selectFrom("pairing")
+            .selectAll()
+            .where("state", "=", "pending")
+            .where("expires_at", ">", now())
+            .orderBy("created_at"),
+        ).map((r) => ({ ...toPairing(r), conversation: r.conversation }));
       },
       get(code: string): (PairingRequest & { conversation: string }) | undefined {
-        const r = one("SELECT * FROM pairing WHERE code = ? AND state = 'pending' AND expires_at > ?", code, now());
-        return r ? { ...toPairing(r), conversation: String(r.conversation) } : undefined;
+        const r = one(
+          qb
+            .selectFrom("pairing")
+            .selectAll()
+            .where("code", "=", code)
+            .where("state", "=", "pending")
+            .where("expires_at", ">", now()),
+        );
+        return r ? { ...toPairing(r), conversation: r.conversation } : undefined;
       },
       close(code: string, state: "approved" | "denied"): void {
-        run("UPDATE pairing SET state = ? WHERE code = ?", state, code);
+        run(qb.updateTable("pairing").set({ state }).where("code", "=", code));
       },
     },
   };
 }
 
-const toPairing = (r: Row): PairingRequest => ({
-  code: String(r.code),
-  channel: String(r.channel),
-  external_id: String(r.external_id),
-  name: String(r.name),
+const toPairing = (r: Selectable<PairingTable>): PairingRequest => ({
+  code: r.code,
+  channel: r.channel,
+  external_id: r.external_id,
+  name: r.name,
   ...opt("text", r.text),
-  created_at: String(r.created_at),
-  expires_at: String(r.expires_at),
+  created_at: r.created_at,
+  expires_at: r.expires_at,
 });

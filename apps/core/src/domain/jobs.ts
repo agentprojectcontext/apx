@@ -1,27 +1,29 @@
 // Terminal jobs: shell commands agents started. The row is written before the process starts; the process's
 // output lives in a file next to the database.
 import type { Job, RunState } from "@apx/protocol";
+import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
-import { newId, now, opt, type Row, type Sql } from "./sql.ts";
+import type { JobsTable } from "../db/schema.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export type JobRecord = Job & { pid?: number; run_id?: string; proc_start?: string };
 
-const toJob = (r: Row): JobRecord => ({
-  id: String(r.id),
+const toJob = (r: Selectable<JobsTable>): JobRecord => ({
+  id: r.id,
   kind: "terminal",
-  title: String(r.title),
+  title: r.title,
   state: r.state as RunState,
-  thread_id: String(r.thread_id),
+  thread_id: r.thread_id,
   ...opt("agent_id", r.agent_id),
   ...opt("run_id", r.run_id),
   trigger: "system",
   tool_calls: 0,
-  cwd: String(r.cwd),
+  cwd: r.cwd,
   ...(r.pid == null ? {} : { pid: Number(r.pid) }),
   ...opt("proc_start", r.proc_start),
   ...(r.exit_code == null ? {} : { exit_code: Number(r.exit_code) }),
   background: Boolean(r.background),
-  started_at: String(r.started_at),
+  started_at: r.started_at,
   ...opt("ended_at", r.ended_at),
 });
 
@@ -40,29 +42,32 @@ export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
     }): JobRecord {
       const id = newId("job");
       run(
-        "INSERT INTO jobs (id, kind, thread_id, run_id, agent_id, title, cwd, state, background, started_at) VALUES (?, 'terminal', ?, ?, ?, ?, ?, 'working', ?, ?)",
-        id,
-        j.thread_id,
-        j.run_id ?? null,
-        j.agent_id ?? null,
-        j.title,
-        j.cwd,
-        j.background ? 1 : 0,
-        now(),
+        qb.insertInto("jobs").values({
+          id,
+          kind: "terminal",
+          thread_id: j.thread_id,
+          run_id: j.run_id ?? null,
+          agent_id: j.agent_id ?? null,
+          title: j.title,
+          cwd: j.cwd,
+          state: "working",
+          background: j.background ? 1 : 0,
+          started_at: now(),
+        }),
       );
       const job = repo.get(id) as JobRecord;
       emit(job);
       return job;
     },
     get(id: string): JobRecord | undefined {
-      const r = one("SELECT * FROM jobs WHERE id = ?", id);
+      const r = one(qb.selectFrom("jobs").selectAll().where("id", "=", id));
       return r ? toJob(r) : undefined;
     },
     setPid(id: string, pid: number): void {
-      run("UPDATE jobs SET pid = ? WHERE id = ?", pid, id);
+      run(qb.updateTable("jobs").set({ pid }).where("id", "=", id));
     },
     setProcStart(id: string, start: string): void {
-      run("UPDATE jobs SET proc_start = ? WHERE id = ?", start, id);
+      run(qb.updateTable("jobs").set({ proc_start: start }).where("id", "=", id));
     },
     /** Final state, once: a job that already ended keeps its first ending. */
     finish(
@@ -70,22 +75,26 @@ export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
       state: "completed" | "failed" | "canceled",
       exitCode?: number | undefined,
     ): JobRecord | undefined {
-      const r = run(
-        "UPDATE jobs SET state = ?, exit_code = ?, ended_at = ? WHERE id = ? AND state = 'working'",
-        state,
-        exitCode ?? null,
-        now(),
-        id,
+      const changes = run(
+        qb
+          .updateTable("jobs")
+          .set({ state, exit_code: exitCode ?? null, ended_at: now() })
+          .where("id", "=", id)
+          .where("state", "=", "working"),
       );
       const job = repo.get(id);
-      if (Number(r.changes) && job) emit(job);
-      return Number(r.changes) ? job : undefined;
+      if (changes && job) emit(job);
+      return changes ? job : undefined;
     },
     running(): JobRecord[] {
-      return all("SELECT * FROM jobs WHERE state = 'working' ORDER BY started_at DESC").map(toJob);
+      return all(qb.selectFrom("jobs").selectAll().where("state", "=", "working").orderBy("started_at", "desc")).map(
+        toJob,
+      );
     },
     finished(limit: number): JobRecord[] {
-      return all("SELECT * FROM jobs WHERE state != 'working' ORDER BY ended_at DESC LIMIT ?", limit).map(toJob);
+      return all(
+        qb.selectFrom("jobs").selectAll().where("state", "!=", "working").orderBy("ended_at", "desc").limit(limit),
+      ).map(toJob);
     },
   };
   return repo;

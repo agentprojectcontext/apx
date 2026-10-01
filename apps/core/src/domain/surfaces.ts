@@ -2,23 +2,29 @@
 // stable name within a project (`upsert`).
 import { randomUUID } from "node:crypto";
 import type { Surface, SurfaceSummary } from "@apx/protocol";
+import type { ExpressionBuilder, Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
-import { newId, now, opt, type Row, type Sql } from "./sql.ts";
+import type { Database, SurfacesTable } from "../db/schema.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
-const toSurface = (r: Row): Surface => ({
-  id: String(r.id),
-  name: String(r.name),
-  title: String(r.title),
-  html: String(r.html),
-  version: Number(r.version),
+const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
+  id: r.id,
+  name: r.name,
+  title: r.title,
+  html: r.html,
+  version: r.version,
   pinned: Boolean(r.pinned),
   app: Boolean(r.app),
   ...opt("project_id", r.project_id),
   ...opt("thread_id", r.thread_id),
-  created_by: String(r.created_by),
-  updated_at: String(r.updated_at),
-  ...(r.share_token ? { share_path: `/a/${String(r.share_token)}` } : {}),
+  created_by: r.created_by,
+  updated_at: r.updated_at,
+  ...(r.share_token ? { share_path: `/a/${r.share_token}` } : {}),
 });
+
+/** The surface named `name` in a project, or among global ones when there is no project. */
+const named = (projectId: string | undefined, name: string) => (eb: ExpressionBuilder<Database, "surfaces">) =>
+  eb.and([eb(eb.fn.coalesce("project_id", eb.val("")), "=", projectId ?? ""), eb("name", "=", name)]);
 
 export const summary = ({ html: _html, ...rest }: Surface): SurfaceSummary => rest;
 
@@ -26,22 +32,23 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (s: Surface) => bus.emit({ type: "surface.updated", surface: summary(s) });
   const repo = {
     list(projectId?: string): SurfaceSummary[] {
-      const rows = projectId
-        ? all("SELECT * FROM surfaces WHERE project_id = ? OR project_id IS NULL ORDER BY updated_at DESC", projectId)
-        : all("SELECT * FROM surfaces ORDER BY updated_at DESC");
+      const q = qb.selectFrom("surfaces").selectAll().orderBy("updated_at", "desc");
+      const rows = all(
+        projectId ? q.where((eb) => eb.or([eb("project_id", "=", projectId), eb("project_id", "is", null)])) : q,
+      );
       return rows.map((r) => summary(toSurface(r)));
     },
     get(id: string): Surface | undefined {
-      const r = one("SELECT * FROM surfaces WHERE id = ?", id);
+      const r = one(qb.selectFrom("surfaces").selectAll().where("id", "=", id));
       return r ? toSurface(r) : undefined;
     },
     /** A surface by its stable name within a project (or among global ones). */
     byName(projectId: string | undefined, name: string): Surface | undefined {
-      const r = one("SELECT * FROM surfaces WHERE COALESCE(project_id, '') = ? AND name = ?", projectId ?? "", name);
+      const r = one(qb.selectFrom("surfaces").selectAll().where(named(projectId, name)));
       return r ? toSurface(r) : undefined;
     },
     byShareToken(token: string): Surface | undefined {
-      const r = one("SELECT * FROM surfaces WHERE share_token = ?", token);
+      const r = one(qb.selectFrom("surfaces").selectAll().where("share_token", "=", token));
       return r ? toSurface(r) : undefined;
     },
     upsert(s: {
@@ -54,11 +61,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       pinned?: boolean | undefined;
       app?: boolean | undefined;
     }): Surface {
-      const existing = one(
-        "SELECT * FROM surfaces WHERE COALESCE(project_id, '') = ? AND name = ?",
-        s.project_id ?? "",
-        s.name,
-      );
+      const existing = one(qb.selectFrom("surfaces").selectAll().where(named(s.project_id, s.name)));
       const ts = now();
       if (existing) {
         const cur = toSurface(existing);
@@ -72,14 +75,17 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           updated_at: ts,
         };
         run(
-          "UPDATE surfaces SET title = ?, html = ?, version = ?, pinned = ?, app = ?, updated_at = ? WHERE id = ?",
-          next.title,
-          next.html,
-          next.version,
-          Number(next.pinned),
-          Number(next.app),
-          ts,
-          cur.id,
+          qb
+            .updateTable("surfaces")
+            .set({
+              title: next.title,
+              html: next.html,
+              version: next.version,
+              pinned: Number(next.pinned),
+              app: Number(next.app),
+              updated_at: ts,
+            })
+            .where("id", "=", cur.id),
         );
         emit(next);
         return next;
@@ -98,18 +104,19 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
         updated_at: ts,
       };
       run(
-        "INSERT INTO surfaces (id, name, title, html, version, pinned, app, project_id, thread_id, created_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        created.id,
-        created.name,
-        created.title,
-        created.html,
-        1,
-        Number(created.pinned),
-        Number(created.app),
-        created.project_id ?? null,
-        created.thread_id ?? null,
-        created.created_by,
-        ts,
+        qb.insertInto("surfaces").values({
+          id: created.id,
+          name: created.name,
+          title: created.title,
+          html: created.html,
+          version: 1,
+          pinned: Number(created.pinned),
+          app: Number(created.app),
+          project_id: created.project_id ?? null,
+          thread_id: created.thread_id ?? null,
+          created_by: created.created_by,
+          updated_at: ts,
+        }),
       );
       emit(created);
       return created;
@@ -119,11 +126,10 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       if (!cur) return undefined;
       const next = { ...cur, pinned: p.pinned ?? cur.pinned, app: p.app ?? cur.app, updated_at: now() };
       run(
-        "UPDATE surfaces SET pinned = ?, app = ?, updated_at = ? WHERE id = ?",
-        Number(next.pinned),
-        Number(next.app),
-        next.updated_at,
-        cur.id,
+        qb
+          .updateTable("surfaces")
+          .set({ pinned: Number(next.pinned), app: Number(next.app), updated_at: next.updated_at })
+          .where("id", "=", cur.id),
       );
       emit(next);
       return summary(next);
@@ -132,7 +138,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       const cur = repo.get(id);
       if (!cur) return undefined;
       const token = shared ? (cur.share_path?.slice(3) ?? randomUUID().replaceAll("-", "")) : null;
-      run("UPDATE surfaces SET share_token = ? WHERE id = ?", token, cur.id);
+      run(qb.updateTable("surfaces").set({ share_token: token }).where("id", "=", cur.id));
       const next = repo.get(cur.id) as Surface;
       emit(next);
       return summary(next);

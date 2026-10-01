@@ -1,32 +1,34 @@
 // Agents are always addressed by id. Names are for people and models; turning a name into an id is an explicit,
 // scoped lookup (`resolve`) that refuses ambiguity instead of picking one.
 import { type Agent, Autonomy, type HarnessId, type ModelChoice } from "@apx/protocol";
-import { now, opt, type Row, type Sql } from "./sql.ts";
+import type { Selectable } from "kysely";
+import type { AgentsTable } from "../db/schema.ts";
+import { now, opt, qb, type Sql } from "./sql.ts";
 
 export type AgentRecord = Agent & { prompt: string };
 
-const toAgent = (r: Row): AgentRecord => ({
-  id: String(r.id),
-  name: String(r.name),
-  role: String(r.role),
+const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
+  id: r.id,
+  name: r.name,
+  role: r.role,
   kind: r.kind as Agent["kind"],
   ...opt("blob", r.blob),
   ...opt("project_id", r.project_id),
   browser_profile: r.browser_profile as Agent["browser_profile"],
-  ...withChoice(r.model_choice ? (JSON.parse(String(r.model_choice)) as ModelChoice) : undefined),
+  ...withChoice(r.model_choice ? (JSON.parse(r.model_choice) as ModelChoice) : undefined),
   ...opt("slug", r.slug),
   ...opt("parent", r.parent),
   ...opt("description", r.description),
   source: r.source === "apc" ? "apc" : "local",
   ...policyOf(r.extra),
-  prompt: String(r.prompt),
+  prompt: r.prompt,
 });
 
 /** `tools:` and `autonomy:` as the agent's file wrote them; unknown autonomy values mean the default. */
-function policyOf(extra: unknown): Pick<Agent, "tools" | "autonomy" | "skills"> {
+function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills"> {
   let e: { tools?: unknown; autonomy?: unknown; skills?: unknown } = {};
   try {
-    e = extra ? JSON.parse(String(extra)) : {};
+    e = extra ? JSON.parse(extra) : {};
   } catch {}
   const tools = Array.isArray(e.tools) ? e.tools.map(String).filter(Boolean) : [];
   const autonomy = Autonomy.safeParse(String(e.autonomy ?? "").toLowerCase());
@@ -59,10 +61,12 @@ export function agentsRepo({ one, all, run }: Sql) {
   const repo = {
     /** Active agents (an agent whose file was removed from its project is archived and not listed). */
     list(): AgentRecord[] {
-      return all("SELECT * FROM agents WHERE archived = 0 ORDER BY kind DESC, name").map(toAgent);
+      return all(
+        qb.selectFrom("agents").selectAll().where("archived", "=", 0).orderBy("kind", "desc").orderBy("name"),
+      ).map(toAgent);
     },
     get(id: string): AgentRecord | undefined {
-      const r = one("SELECT * FROM agents WHERE id = ?", id);
+      const r = one(qb.selectFrom("agents").selectAll().where("id", "=", id));
       return r ? toAgent(r) : undefined;
     },
     /**
@@ -73,10 +77,15 @@ export function agentsRepo({ one, all, run }: Sql) {
       const byId = repo.get(ref);
       if (byId) return { agent: byId };
       const matches = all(
-        "SELECT * FROM agents WHERE archived = 0 AND (lower(name) = lower(?) OR slug = lower(?)) AND (project_id IS NULL OR project_id = ?)",
-        ref,
-        ref,
-        projectId ?? "",
+        qb
+          .selectFrom("agents")
+          .selectAll()
+          .where("archived", "=", 0)
+          .where((eb) => {
+            const lowerRef = eb.fn<string>("lower", [eb.val(ref)]);
+            return eb.or([eb(eb.fn<string>("lower", ["name"]), "=", lowerRef), eb("slug", "=", lowerRef)]);
+          })
+          .where((eb) => eb.or([eb("project_id", "is", null), eb("project_id", "=", projectId ?? "")])),
       ).map(toAgent);
       if (matches.length === 1 && matches[0]) return { agent: matches[0] };
       if (matches.length > 1) return { error: `"${ref}" matches ${matches.map((a) => a.id).join(", ")}; use the id` };
@@ -100,23 +109,41 @@ export function agentsRepo({ one, all, run }: Sql) {
       extra: unknown;
     }): void {
       run(
-        `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, prompt, created_at, model_choice, slug, source, parent, description, extra, archived)
-         VALUES (?, ?, ?, 'agent', ?, ?, 'isolated', ?, ?, ?, ?, 'apc', ?, ?, ?, 0)
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, blob = COALESCE(excluded.blob, agents.blob),
-           project_id = excluded.project_id, prompt = excluded.prompt, slug = excluded.slug, source = 'apc',
-           parent = excluded.parent, description = excluded.description, extra = excluded.extra, archived = 0`,
-        a.id,
-        a.name,
-        a.role,
-        a.blob ?? null,
-        a.project_id,
-        a.prompt,
-        now(),
-        a.model_choice ? JSON.stringify(a.model_choice) : null,
-        a.slug,
-        a.parent ?? null,
-        a.description ?? null,
-        JSON.stringify(a.extra ?? {}),
+        qb
+          .insertInto("agents")
+          .values({
+            id: a.id,
+            name: a.name,
+            role: a.role,
+            kind: "agent",
+            blob: a.blob ?? null,
+            project_id: a.project_id,
+            browser_profile: "isolated",
+            prompt: a.prompt,
+            created_at: now(),
+            model_choice: a.model_choice ? JSON.stringify(a.model_choice) : null,
+            slug: a.slug,
+            source: "apc",
+            parent: a.parent ?? null,
+            description: a.description ?? null,
+            extra: JSON.stringify(a.extra ?? {}),
+            archived: 0,
+          })
+          .onConflict((c) =>
+            c.column("id").doUpdateSet((eb) => ({
+              name: eb.ref("excluded.name"),
+              role: eb.ref("excluded.role"),
+              blob: eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("agents.blob")),
+              project_id: eb.ref("excluded.project_id"),
+              prompt: eb.ref("excluded.prompt"),
+              slug: eb.ref("excluded.slug"),
+              source: "apc",
+              parent: eb.ref("excluded.parent"),
+              description: eb.ref("excluded.description"),
+              extra: eb.ref("excluded.extra"),
+              archived: 0,
+            })),
+          ),
       );
     },
     /**
@@ -130,44 +157,62 @@ export function agentsRepo({ one, all, run }: Sql) {
       /** Slugs whose files exist now: an agent whose own file is still there was not renamed. */
       present: ReadonlySet<string> = new Set([slug]),
     ): AgentRecord | undefined {
-      const rows = all("SELECT * FROM agents WHERE project_id = ? AND source = 'apc'", projectId);
+      const rows = all(
+        qb.selectFrom("agents").selectAll().where("project_id", "=", projectId).where("source", "=", "apc"),
+      );
       const moved = rows.filter((r) => !present.has(String(r.slug)));
       const hit =
         rows.find((r) => r.slug === slug) ??
         moved.find((r) => aliases.includes(String(r.slug))) ??
-        moved.find((r) =>
-          ((JSON.parse(String(r.extra ?? "{}")) as { aliases?: string[] }).aliases ?? []).includes(slug),
-        );
+        moved.find((r) => ((JSON.parse(r.extra ?? "{}") as { aliases?: string[] }).aliases ?? []).includes(slug));
       return hit ? toAgent(hit) : undefined;
     },
     archive(id: string): void {
-      run("UPDATE agents SET archived = 1 WHERE id = ?", id);
+      run(qb.updateTable("agents").set({ archived: 1 }).where("id", "=", id));
     },
     /** Archives the project's file-defined agents that are not in `keep` (their files are gone). */
     archiveMissing(projectId: string, keep: string[]): number {
-      const ids = all("SELECT id FROM agents WHERE project_id = ? AND source = 'apc' AND archived = 0", projectId)
-        .map((r) => String(r.id))
+      const ids = all(
+        qb
+          .selectFrom("agents")
+          .select("id")
+          .where("project_id", "=", projectId)
+          .where("source", "=", "apc")
+          .where("archived", "=", 0),
+      )
+        .map((r) => r.id)
         .filter((id) => !keep.includes(id));
-      for (const id of ids) run("UPDATE agents SET archived = 1 WHERE id = ?", id);
+      for (const id of ids) repo.archive(id);
       return ids.length;
     },
     upsert(a: Omit<Agent, "source"> & { source?: Agent["source"]; prompt?: string }): void {
       run(
-        `INSERT INTO agents (id, name, role, kind, blob, project_id, browser_profile, prompt, created_at, model_choice)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, kind = excluded.kind, blob = excluded.blob,
-           project_id = excluded.project_id, browser_profile = excluded.browser_profile, prompt = excluded.prompt,
-           model_choice = excluded.model_choice`,
-        a.id,
-        a.name,
-        a.role,
-        a.kind,
-        a.blob ?? null,
-        a.project_id ?? null,
-        a.browser_profile,
-        a.prompt ?? "",
-        now(),
-        a.model_choice ? JSON.stringify(a.model_choice) : null,
+        qb
+          .insertInto("agents")
+          .values({
+            id: a.id,
+            name: a.name,
+            role: a.role,
+            kind: a.kind,
+            blob: a.blob ?? null,
+            project_id: a.project_id ?? null,
+            browser_profile: a.browser_profile,
+            prompt: a.prompt ?? "",
+            created_at: now(),
+            model_choice: a.model_choice ? JSON.stringify(a.model_choice) : null,
+          })
+          .onConflict((c) =>
+            c.column("id").doUpdateSet((eb) => ({
+              name: eb.ref("excluded.name"),
+              role: eb.ref("excluded.role"),
+              kind: eb.ref("excluded.kind"),
+              blob: eb.ref("excluded.blob"),
+              project_id: eb.ref("excluded.project_id"),
+              browser_profile: eb.ref("excluded.browser_profile"),
+              prompt: eb.ref("excluded.prompt"),
+              model_choice: eb.ref("excluded.model_choice"),
+            })),
+          ),
       );
     },
   };

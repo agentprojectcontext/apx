@@ -1,39 +1,44 @@
 // Small key/value settings, external harness session ids per thread, and stored idempotent responses.
-import { now, type Sql } from "./sql.ts";
+import { now, qb, type Sql } from "./sql.ts";
 
 export function settingsRepo({ one, run }: Sql) {
+  const key = (k: string) => `setting:${k}`;
   return {
-    get(key: string): string | undefined {
-      const r = one("SELECT value FROM meta WHERE key = ?", `setting:${key}`);
-      return r ? String(r.value) : undefined;
+    get(k: string): string | undefined {
+      return one(qb.selectFrom("meta").select("value").where("key", "=", key(k)))?.value;
     },
-    set(key: string, value: string): void {
+    set(k: string, value: string): void {
       run(
-        "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        `setting:${key}`,
-        value,
+        qb
+          .insertInto("meta")
+          .values({ key: key(k), value })
+          .onConflict((c) => c.column("key").doUpdateSet({ value })),
       );
     },
   };
 }
 
 export function harnessSessionsRepo({ one, run }: Sql) {
+  const row = (threadId: string, harness: string) =>
+    one(
+      qb
+        .selectFrom("harness_sessions")
+        .select(["session_id", "updated_at"])
+        .where("thread_id", "=", threadId)
+        .where("harness", "=", harness),
+    );
   return {
-    get(threadId: string, harness: string): string | undefined {
-      const r = one("SELECT session_id FROM harness_sessions WHERE thread_id = ? AND harness = ?", threadId, harness);
-      return r ? String(r.session_id) : undefined;
-    },
-    updatedAt(threadId: string, harness: string): string | undefined {
-      const r = one("SELECT updated_at FROM harness_sessions WHERE thread_id = ? AND harness = ?", threadId, harness);
-      return r ? String(r.updated_at) : undefined;
-    },
+    get: (threadId: string, harness: string): string | undefined => row(threadId, harness)?.session_id,
+    updatedAt: (threadId: string, harness: string): string | undefined => row(threadId, harness)?.updated_at,
     set(threadId: string, harness: string, sessionId: string): void {
+      const at = now();
       run(
-        "INSERT INTO harness_sessions (thread_id, harness, session_id, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(thread_id, harness) DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at",
-        threadId,
-        harness,
-        sessionId,
-        now(),
+        qb
+          .insertInto("harness_sessions")
+          .values({ thread_id: threadId, harness, session_id: sessionId, updated_at: at })
+          .onConflict((c) =>
+            c.columns(["thread_id", "harness"]).doUpdateSet({ session_id: sessionId, updated_at: at }),
+          ),
       );
     },
   };
@@ -42,20 +47,16 @@ export function harnessSessionsRepo({ one, run }: Sql) {
 export function idempotencyRepo({ one, run }: Sql) {
   return {
     get(key: string, method: string): unknown | undefined {
-      const r = one("SELECT response FROM idempotency WHERE key = ? AND method = ?", key, method);
-      return r ? JSON.parse(String(r.response)) : undefined;
+      const r = one(
+        qb.selectFrom("idempotency").select("response").where("key", "=", key).where("method", "=", method),
+      );
+      return r ? JSON.parse(r.response) : undefined;
     },
     put(key: string, method: string, response: unknown): void {
-      run(
-        "INSERT OR REPLACE INTO idempotency (key, method, response, created_at) VALUES (?, ?, ?, ?)",
-        key,
-        method,
-        JSON.stringify(response),
-        now(),
-      );
+      run(qb.replaceInto("idempotency").values({ key, method, response: JSON.stringify(response), created_at: now() }));
     },
     prune(maxAgeMs = 24 * 3600_000): void {
-      run("DELETE FROM idempotency WHERE created_at < ?", new Date(Date.now() - maxAgeMs).toISOString());
+      run(qb.deleteFrom("idempotency").where("created_at", "<", new Date(Date.now() - maxAgeMs).toISOString()));
     },
   };
 }

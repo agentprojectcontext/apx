@@ -1,7 +1,9 @@
 // What agents wait on from the owner. A row is written before the agent starts waiting, so a restart never loses
 // the question; answering is a compare-and-set on `pending`, so two answers cannot both win.
 import type { InputKind, InputState, PendingInput } from "@apx/protocol";
-import { newId, now, opt, type Row, type Sql } from "./sql.ts";
+import type { Selectable } from "kysely";
+import type { PendingInputsTable } from "../db/schema.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export type InputRecord = PendingInput & {
   call_id: string;
@@ -9,23 +11,23 @@ export type InputRecord = PendingInput & {
   args?: Record<string, unknown>;
 };
 
-const toInput = (r: Row): InputRecord => ({
-  id: String(r.id),
-  run_id: String(r.run_id),
-  thread_id: String(r.thread_id),
-  agent_id: String(r.agent_id),
-  call_id: String(r.call_id),
+const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
+  id: r.id,
+  run_id: r.run_id,
+  thread_id: r.thread_id,
+  agent_id: r.agent_id,
+  call_id: r.call_id,
   ...opt("message_id", r.message_id),
   kind: r.kind as InputKind,
-  prompt: String(r.prompt),
+  prompt: r.prompt,
   ...opt("tool", r.tool),
-  ...(r.args ? { args: JSON.parse(String(r.args)) as Record<string, unknown> } : {}),
+  ...(r.args ? { args: JSON.parse(r.args) as Record<string, unknown> } : {}),
   ...opt("detail", r.detail),
-  ...(r.options ? { options: JSON.parse(String(r.options)) as string[] } : {}),
+  ...(r.options ? { options: JSON.parse(r.options) as string[] } : {}),
   state: r.state as InputState,
   ...opt("answer", r.answer),
-  created_at: String(r.created_at),
-  expires_at: String(r.expires_at),
+  created_at: r.created_at,
+  expires_at: r.expires_at,
   ...opt("answered_at", r.answered_at),
 });
 
@@ -49,56 +51,56 @@ export function inputsRepo({ one, all, run }: Sql) {
     }): InputRecord {
       const id = newId("inp");
       run(
-        `INSERT INTO pending_inputs (id, run_id, thread_id, agent_id, message_id, call_id, kind, prompt, tool, args, detail, options, state, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-        id,
-        i.run_id,
-        i.thread_id,
-        i.agent_id,
-        i.message_id ?? null,
-        i.call_id,
-        i.kind,
-        i.prompt,
-        i.tool ?? null,
-        i.args ? JSON.stringify(i.args) : null,
-        i.detail ?? null,
-        i.options?.length ? JSON.stringify(i.options) : null,
-        now(),
-        new Date(Date.now() + i.waitMs).toISOString(),
+        qb.insertInto("pending_inputs").values({
+          id,
+          run_id: i.run_id,
+          thread_id: i.thread_id,
+          agent_id: i.agent_id,
+          message_id: i.message_id ?? null,
+          call_id: i.call_id,
+          kind: i.kind,
+          prompt: i.prompt,
+          tool: i.tool ?? null,
+          args: i.args ? JSON.stringify(i.args) : null,
+          detail: i.detail ?? null,
+          options: i.options?.length ? JSON.stringify(i.options) : null,
+          state: "pending",
+          created_at: now(),
+          expires_at: new Date(Date.now() + i.waitMs).toISOString(),
+        }),
       );
       return repo.get(id) as InputRecord;
     },
     get(id: string): InputRecord | undefined {
-      const r = one("SELECT * FROM pending_inputs WHERE id = ?", id);
+      const r = one(qb.selectFrom("pending_inputs").selectAll().where("id", "=", id));
       return r ? toInput(r) : undefined;
     },
     /** Still answerable: pending and not past its deadline. */
     pending(threadId?: string): InputRecord[] {
-      const at = now();
-      return (
-        threadId
-          ? all(
-              "SELECT * FROM pending_inputs WHERE state = 'pending' AND expires_at > ? AND thread_id = ? ORDER BY created_at",
-              at,
-              threadId,
-            )
-          : all("SELECT * FROM pending_inputs WHERE state = 'pending' AND expires_at > ? ORDER BY created_at", at)
-      ).map(toInput);
+      let q = qb
+        .selectFrom("pending_inputs")
+        .selectAll()
+        .where("state", "=", "pending")
+        .where("expires_at", ">", now());
+      if (threadId) q = q.where("thread_id", "=", threadId);
+      return all(q.orderBy("created_at")).map(toInput);
     },
     /** Moves a pending input to its final state; undefined when it was no longer pending (someone else won). */
     settle(id: string, state: Exclude<InputState, "pending">, answer?: string): InputRecord | undefined {
-      const r = run(
-        "UPDATE pending_inputs SET state = ?, answer = ?, answered_at = ? WHERE id = ? AND state = 'pending'",
-        state,
-        answer ?? null,
-        now(),
-        id,
+      const changes = run(
+        qb
+          .updateTable("pending_inputs")
+          .set({ state, answer: answer ?? null, answered_at: now() })
+          .where("id", "=", id)
+          .where("state", "=", "pending"),
       );
-      return Number(r.changes) ? repo.get(id) : undefined;
+      return changes ? repo.get(id) : undefined;
     },
     /** Pending inputs past their deadline. */
     overdue(at = now()): InputRecord[] {
-      return all("SELECT * FROM pending_inputs WHERE state = 'pending' AND expires_at <= ?", at).map(toInput);
+      return all(
+        qb.selectFrom("pending_inputs").selectAll().where("state", "=", "pending").where("expires_at", "<=", at),
+      ).map(toInput);
     },
   };
   return repo;
