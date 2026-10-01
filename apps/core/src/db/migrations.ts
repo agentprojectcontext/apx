@@ -80,4 +80,13 @@ export const MIGRATIONS: readonly string[] = [
   DROP TABLE idempotency;
   ALTER TABLE idempotency_v2 RENAME TO idempotency;
   `,
+  `
+  -- An agent's model choice: { model?: "<engine>/<model>", router: boolean }. Replaces the harness and model columns,
+  -- which stay unused (append-only schema).
+  ALTER TABLE agents ADD COLUMN model_choice TEXT;
+  UPDATE agents SET model_choice = json_object(
+    'model', harness || CASE WHEN model IS NOT NULL AND model != '' THEN '/' || model ELSE '' END,
+    'router', json('false')
+  ) WHERE harness IS NOT NULL;
+  `,
 ];

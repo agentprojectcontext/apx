@@ -41,7 +41,7 @@ export async function agents(client: ApxClient): Promise<void> {
   const { agents } = await client.call("agents.list", {});
   for (const a of agents)
     console.log(
-      `${a.id.padEnd(28)} ${a.kind === "secretary" ? "★" : " "} ${a.name.padEnd(16)} ${a.harness ?? "default"}  ${a.role}`,
+      `${a.id.padEnd(28)} ${a.kind === "secretary" ? "★" : " "} ${a.name.padEnd(16)} ${choiceLabel(a.model_choice).padEnd(28)} ${a.role}`,
     );
 }
 
@@ -66,4 +66,10 @@ export async function secrets(client: ApxClient, [sub, name]: string[]): Promise
   if (!value) throw new Error("pipe the value in: … | apx2 secrets set <name>");
   await client.call("secrets.set", { name, value });
   console.log(`stored ${name}`);
+}
+
+function choiceLabel(c: { model?: string | undefined; router: boolean } | undefined): string {
+  if (!c) return "default";
+  if (!c.model) return "router";
+  return c.router ? `${c.model} → router` : c.model;
 }

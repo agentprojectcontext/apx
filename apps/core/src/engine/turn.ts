@@ -1,10 +1,12 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import type { HarnessId } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
+import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { MAX_DEPTH } from "../tools/agents.ts";
 import { type Tool, type ToolContext, toSpec } from "../tools/types.ts";
@@ -14,6 +16,18 @@ import { openDisplay } from "./display.ts";
 import { closeTurnLog } from "./recovery.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex" };
+
+/** Consecutive refs run by the same harness go together (the native loop walks its list per call). */
+function byHarness(refs: string[]): Array<{ harness: HarnessId; refs: string[] }> {
+  const out: Array<{ harness: HarnessId; refs: string[] }> = [];
+  for (const ref of refs) {
+    const harness = harnessOf(ref);
+    const last = out.at(-1);
+    if (last && last.harness === harness) last.refs.push(ref);
+    else out.push({ harness, refs: [ref] });
+  }
+  return out;
+}
 
 export type TurnDeps = {
   store: Store;
@@ -124,8 +138,6 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     return out;
   };
 
-  const harnessId: HarnessId = agent.harness ?? harnesses.defaultId();
-  run = store.runs.patch(run, { harness: harnessId });
   const io = (): TurnIO => ({
     agent,
     thread,
@@ -134,37 +146,54 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     history,
     input,
     tools: available.map(toSpec),
+    models: [],
     signal,
-    sessionId: harnessId === "native" ? undefined : store.harnessSessions.get(thread.id, harnessId),
+    sessionId: undefined,
     onText: display.text,
     execute,
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
+  const settings = modelSettings(store);
+  const refs = candidates(agent.model_choice ?? settings.defaultChoice(), settings.router(), {
+    text: start.input.text,
+    context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
+    has_image: false,
+    channel: "app",
+    trigger: start.trigger,
+    agent_kind: agent.kind,
+  });
 
   try {
-    let outcome: TurnOutcome;
-    if (harnessId === "native") outcome = await harnesses.get("native").run(io());
-    else {
+    let outcome: TurnOutcome | undefined;
+    const groups = byHarness(refs);
+    if (!groups.length)
+      throw new Error("no model chosen for this agent and the router has none; pick one in Config → Models");
+    for (const [i, g] of groups.entries()) {
       try {
-        outcome = await harnesses.get(harnessId).run(io());
-        if (outcome.sessionId) store.harnessSessions.set(thread.id, harnessId, outcome.sessionId);
-        // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.
-        store.modelLog.append(thread.id, run.id, [{ role: "assistant", content: outcome.text || null }]);
+        run = store.runs.patch(run, { harness: g.harness });
+        const sessionId = g.harness === "native" ? undefined : store.harnessSessions.get(thread.id, g.harness);
+        outcome = await harnesses.get(g.harness).run({ ...io(), models: g.refs, sessionId });
+        if (g.harness !== "native") {
+          if (outcome.sessionId) store.harnessSessions.set(thread.id, g.harness, outcome.sessionId);
+          // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.
+          store.modelLog.append(thread.id, run.id, [{ role: "assistant", content: outcome.text || null }]);
+        }
+        break;
       } catch (err) {
-        // Out of quota or logged out before doing anything: answer with the built-in model instead of failing.
+        // Out of quota or logged out before doing anything: the next engine the router lists answers instead.
         // Once a tool ran, a retry could repeat its effect, so the failure stands.
-        if (signal.aborted || toolsRan > 0) throw err;
-        const reason = err instanceof Error ? err.message : String(err);
-        log.warn({ thread: thread.id, harness: harnessId, err: reason }, "harness unavailable, using native");
+        const next = groups[i + 1];
+        if (signal.aborted || toolsRan > 0 || !next) throw err;
+        const reason = (err instanceof Error ? err.message : String(err)).split("\n")[0]?.slice(0, 160);
+        log.warn({ thread: thread.id, harness: g.harness, err: reason }, "engine unavailable, trying the next one");
         display.notice(
           "warn",
-          "harness.fallback",
-          `${HARNESS_LABEL[harnessId]} is not available (${reason.slice(0, 160)}); answered with the built-in model.`,
+          "engine.fallback",
+          `${HARNESS_LABEL[g.harness]} is not available (${reason}); trying ${next.refs[0]}.`,
         );
-        run = store.runs.patch(run, { harness: "native" });
-        outcome = await harnesses.get("native").run({ ...io(), sessionId: undefined });
       }
     }
+    if (!outcome) throw new Error("no engine answered");
     if (signal.aborted) throw signal.reason ?? new Error("canceled");
     display.close();
     display.setModel(outcome.model);

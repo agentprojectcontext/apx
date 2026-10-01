@@ -15,6 +15,58 @@ export type Project = z.infer<typeof Project>;
 export const HarnessId = z.enum(["native", "claude", "codex"]);
 export type HarnessId = z.infer<typeof HarnessId>;
 
+/**
+ * A model, named by the engine that runs it: "claude/claude-opus-5-5", "codex/gpt-6-sol", "gemini/gemini-3.8-flash".
+ * An engine alone ("claude", "codex") means that engine's own default model.
+ */
+export const ModelRef = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9._-]*(\/.+)?$/i)
+  .max(200);
+export type ModelRef = z.infer<typeof ModelRef>;
+
+/**
+ * How an agent picks its model for a turn: a fixed model; a model with the router as fallback; or the router alone
+ * (`model` absent). An agent without a choice uses the install default.
+ */
+export const ModelChoice = z.object({ model: ModelRef.optional(), router: z.boolean() });
+export type ModelChoice = z.infer<typeof ModelChoice>;
+
+/** The model router: per-turn rules (first match wins) and the fallback chain after them. */
+export const RouterRule = z.object({
+  /** Every condition present must hold; an empty `when` matches every turn. */
+  when: z.object({
+    has_image: z.boolean().optional(),
+    min_chars: z.number().int().nonnegative().optional(),
+    max_chars: z.number().int().nonnegative().optional(),
+    min_context_chars: z.number().int().nonnegative().optional(),
+    channels: z.array(z.string()).optional(),
+    triggers: z.array(z.string()).optional(),
+    agent_kinds: z.array(z.enum(["secretary", "agent"])).optional(),
+    keywords: z.array(z.string().min(2)).optional(),
+  }),
+  model: ModelRef,
+  note: z.string().max(200).optional(),
+});
+export type RouterRule = z.infer<typeof RouterRule>;
+export const RouterConfig = z.object({ rules: z.array(RouterRule), chain: z.array(ModelRef) });
+export type RouterConfig = z.infer<typeof RouterConfig>;
+
+/** What an engine can run, asked to the engine itself. */
+export const CatalogEngine = z.object({
+  /** "claude", "codex", or a provider id ("gemini", "anthropic", …). */
+  id: z.string(),
+  kind: z.enum(["harness", "provider"]),
+  label: z.string(),
+  available: z.boolean(),
+  detail: z.string().optional(),
+  models: z.array(
+    z.object({ id: z.string(), name: z.string(), description: z.string().optional(), chat: z.boolean() }),
+  ),
+  fetched_at: z.string().optional(),
+});
+export type CatalogEngine = z.infer<typeof CatalogEngine>;
+
 export const Agent = z.object({
   id: Id,
   name: z.string(),
@@ -24,8 +76,9 @@ export const Agent = z.object({
   project_id: Id.optional(),
   /** Browser profile this agent may use: shared jar, an isolated jar, or always incognito. */
   browser_profile: z.enum(["shared", "isolated", "incognito"]).default("shared"),
-  model: z.string().optional(),
-  /** Which engine runs this agent's turns; absent = the install default. */
+  /** Absent = the install default. */
+  model_choice: ModelChoice.optional(),
+  /** The engine of the agent's own model, when it has one (derived from `model_choice`). */
   harness: HarnessId.optional(),
 });
 export type Agent = z.infer<typeof Agent>;

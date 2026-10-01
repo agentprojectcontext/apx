@@ -3,7 +3,7 @@
 // `io.execute`. See DECISIONS.md#d-007
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import type { Harness, TurnIO, TurnOutcome } from "./types.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
 type JsonProp = { type?: string; description?: string };
 
@@ -35,6 +35,7 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
     id: "claude",
     async run(io: TurnIO): Promise<TurnOutcome> {
       const claudePath = await opts.claudePath();
+      const chosen = modelPart(io.models[0]);
       let toolCalls = 0;
       const server = createSdkMcpServer({
         name: "apx",
@@ -56,7 +57,7 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
         const onAbort = () => ac.abort();
         io.signal.addEventListener("abort", onAbort, { once: true });
         let text = "";
-        let model = io.agent.model ?? "claude";
+        let model = chosen ?? "default";
         let sessionId = resume;
         try {
           const q = query({
@@ -78,7 +79,7 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
               mcpServers: { apx: server },
               includePartialMessages: true,
               ...(resume ? { resume } : {}),
-              ...(io.agent.model ? { model: io.agent.model } : {}),
+              ...(chosen ? { model: chosen } : {}),
               env: harnessEnv(),
             },
           });

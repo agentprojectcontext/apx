@@ -11,7 +11,10 @@ export type ProviderConfig = {
   transport: ProviderTransport;
   base_url: string;
   key: string;
-  /** Tried in order when the agent does not name a model. */
+  /**
+   * Fixed list for gateways that cannot list their models (local servers, APX_LLM_MODELS); empty = ask the provider.
+   * Which model runs is never decided here: see models/choice.ts.
+   */
   models: string[];
 };
 
@@ -42,14 +45,14 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
     transport: "openai-chat",
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
     key: "secret://gemini",
-    models: ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"],
+    models: [],
   },
   {
     id: "anthropic",
     transport: "anthropic-messages",
     base_url: "https://api.anthropic.com",
     key: "secret://anthropic",
-    models: ["claude-sonnet-5-5"],
+    models: [],
   },
   {
     id: "openai",

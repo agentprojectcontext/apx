@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { chat } from "./commands/chat.ts";
+import { agentModel, models } from "./commands/models.ts";
 import { agents, runs, secrets, threads } from "./commands/threads.ts";
 
 const HELP = `apx2 — APX v2 terminal
@@ -29,7 +30,15 @@ Usage:
                            The one way to talk to an agent. Default: Home (the secretary)
   apx2 threads [list] | get <thread> | cancel <thread>
   apx2 runs get <run> | wait <run> [--timeout 60]
-  apx2 agents              Agents and the engine each one runs on
+  apx2 agents              Agents and the model each one runs on
+  apx2 agents model <agent> <engine/model | engine | router | default> [--router]
+                           An agent's model; --router keeps the router as its fallback
+
+  apx2 models [--refresh]  Every engine and the models it offers (asked to the engine)
+  apx2 models config       The install default and the router
+  apx2 models default <engine/model | engine | router> [--router]
+  apx2 models chain <ref> [<ref>…]      The router's fallback chain, in order
+  apx2 models rules < rules.json        The router's rules (JSON on stdin)
 
   apx2 secrets [list] | set <name> (value on stdin) | rm <name>
   apx2 import-v1 [--keys]  Import projects and agents from a local APX v1 (read-only);
@@ -54,6 +63,8 @@ const { values, positionals } = parseArgs({
     detach: { type: "boolean" },
     interrupt: { type: "boolean" },
     keys: { type: "boolean" },
+    refresh: { type: "boolean" },
+    router: { type: "boolean" },
     timeout: { type: "string" },
     run: { type: "boolean" },
   },
@@ -100,7 +111,11 @@ try {
       await runs(client, rest, Number(values.timeout ?? 60));
       break;
     case "agents":
-      await agents(client);
+      if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
+      else await agents(client);
+      break;
+    case "models":
+      await models(client, rest, values);
       break;
     case "secrets":
       await secrets(client, rest);

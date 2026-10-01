@@ -2,11 +2,14 @@
 import { z } from "zod";
 import {
   Agent,
+  CatalogEngine,
   EngineStatus,
   HarnessId,
   Id,
   Message,
+  ModelChoice,
   Project,
+  RouterConfig,
   Run,
   Surface,
   SurfaceSummary,
@@ -54,10 +57,30 @@ export const appMethods = {
         agent: Id,
         browser_profile: z.enum(["shared", "isolated", "incognito"]).optional(),
         /** null = back to the install default. */
+        model_choice: ModelChoice.nullable().optional(),
+        /** Shorthand for `model_choice: { model: <engine>, router: false }` (null = install default). */
         harness: HarnessId.nullable().optional(),
       })
       .strict(),
     result: Agent,
+    effect: true,
+    access: "human",
+  },
+  /** Every engine with the models it offers, asked to the engine (cached for a day; `refresh` asks again). */
+  "models.list": {
+    params: z.object({ refresh: z.boolean().default(false) }).strict(),
+    result: z.object({ engines: z.array(CatalogEngine) }),
+    effect: false,
+  },
+  /** The install default for agents without their own choice, and the router. */
+  "models.config": {
+    params: z.object({}).strict(),
+    result: z.object({ default: ModelChoice, router: RouterConfig }),
+    effect: false,
+  },
+  "models.set_config": {
+    params: z.object({ default: ModelChoice.optional(), router: RouterConfig.optional() }).strict(),
+    result: z.object({ default: ModelChoice, router: RouterConfig }),
     effect: true,
     access: "human",
   },

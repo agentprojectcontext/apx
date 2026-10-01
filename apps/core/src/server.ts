@@ -14,6 +14,7 @@ import { createEngine } from "./engine/engine.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createLog } from "./log.ts";
+import { createCatalog } from "./models/catalog.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { appHandlers } from "./rpc/app.ts";
@@ -70,6 +71,7 @@ export async function createCore(
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
+  const catalog = createCatalog({ store, secrets, providers: config.providers });
   const tools = [...agentTools(store), ...browserTools(broker), ...surfaceTools(store)];
   const engine = createEngine({ store, harnesses, tools, log });
 
@@ -84,7 +86,7 @@ export async function createCore(
       })),
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
-      ...appHandlers({ store, harnesses, secrets, v1: config.v1 }),
+      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog }),
     },
     store.idempotency,
   );

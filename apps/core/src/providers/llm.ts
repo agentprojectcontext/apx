@@ -1,5 +1,5 @@
-// The one way the core calls a model. Picks provider and model, retries what is worth retrying and falls back
-// down the chain for this call only (the next call starts from the top again).
+// The one way the core calls a model API. Walks the models it is given (the router's order), retries what is worth
+// retrying and moves down the list for this call only (the next call starts from the top again).
 import type { ProviderConfig } from "../config.ts";
 import type { Secrets } from "../secrets.ts";
 import { anthropicMessages } from "./anthropic-messages.ts";
@@ -7,8 +7,11 @@ import { openaiChat } from "./openai-chat.ts";
 import { type ChatItem, type Completion, ProviderError, type ToolSpec, type Transport } from "./types.ts";
 
 export type LlmRequest = {
-  /** "provider/model", a bare model name, or undefined for the default chain. */
-  model?: string | undefined;
+  /**
+   * Models to try in order, as "provider/model" (or a provider alone: its configured models). The router decides
+   * the order; this gateway only walks it, per call.
+   */
+  models: string[];
   messages: ChatItem[];
   tools: ToolSpec[];
   signal: AbortSignal;
@@ -16,7 +19,7 @@ export type LlmRequest = {
 };
 
 export type Llm = {
-  /** What answers by default ("gemini/gemini-3.8-flash"), for health and the UI. */
+  /** Providers that have a key, for health and the UI ("gemini, anthropic"). */
   label(): string;
   complete(req: LlmRequest): Promise<Completion>;
 };
@@ -36,36 +39,32 @@ export function createLlm(opts: {
   retryDelayMs?: number;
 }): Llm {
   const { providers, secrets } = opts;
-  const usable = () => providers.filter((p) => secrets.has(p.key));
 
-  /** The models to try, in order. A named model goes first; the default chain follows as fallback. */
-  function chain(model: string | undefined): Target[] {
-    const defaults = usable().flatMap((p) => p.models.map((m) => ({ provider: p, model: m })));
-    if (!model) return defaults;
-    const slash = model.indexOf("/");
-    const named = slash > 0 ? providers.find((p) => p.id === model.slice(0, slash)) : undefined;
-    const first: Target | undefined = named
-      ? { provider: named, model: model.slice(slash + 1) }
-      : (() => {
-          const owner = usable().find((p) => p.models.includes(model)) ?? usable()[0];
-          return owner ? { provider: owner, model } : undefined;
-        })();
-    if (!first) return defaults;
-    return [first, ...defaults.filter((t) => !(t.provider.id === first.provider.id && t.model === first.model))];
+  function targets(refs: string[]): Target[] {
+    return refs.flatMap((ref) => {
+      const [id, ...rest] = ref.split("/");
+      const provider = providers.find((p) => p.id === id);
+      if (!provider) return [];
+      const model = rest.join("/");
+      return model ? [{ provider, model }] : provider.models.map((m) => ({ provider, model: m }));
+    });
   }
 
   return {
     label() {
-      const t = chain(undefined)[0];
-      return t ? `${t.provider.id}/${t.model}` : "none";
+      const ids = providers.filter((p) => secrets.has(p.key)).map((p) => p.id);
+      return ids.length ? ids.join(", ") : "none";
     },
     async complete(req) {
-      const targets = chain(req.model);
-      if (!targets.length)
-        throw new ProviderError("auth", "no model provider has a key; add one with `apx2 secrets set gemini`");
+      const list = targets(req.models);
+      if (!list.length)
+        throw new ProviderError(
+          "model_gone",
+          `no model to run (${req.models.join(", ") || "none chosen"}); pick one in Config → Models`,
+        );
       let last: ProviderError | undefined;
       const skipped = new Set<string>();
-      for (const t of targets) {
+      for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         const key = secrets.resolve(t.provider.key);
         if (!key) {

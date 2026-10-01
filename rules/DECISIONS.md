@@ -74,3 +74,14 @@ Other platforms and tests use `~/.apx2/secrets.json` (0600). Harness processes (
 environment without `APX_*` variables, and the per-run tool token travels in `APX_RUN_TOKEN`, never on argv.
 Residual risk, accepted for now: a harness with web tools can still be talked into sending what it reads in a
 page or a tool result; high-impact confirmation (rule 10) is the next layer.
+
+<a id="d-011"></a>
+## D-011 — 2026-10-01 — Models are named by their engine; a router picks per turn; no model names in code
+A model is a ref `<engine>/<model>` (`claude/…`, `codex/…`, `gemini/…`); an engine alone means its default model.
+The engine decides the harness (Claude Code, Codex, or our loop for every provider), so "engine" and "model" are
+one choice. Each agent has a `model_choice` — a fixed model, a model with the router as its fallback, or the router
+alone — and agents without one use the install default. The router (settings) has per-turn rules (first match:
+image, size, context, channel, trigger, agent kind, keywords) and a fallback chain; a turn walks the resulting list
+and moves to the next engine only if one fails before running a tool. The model lists come from the engines
+themselves (`/models`, the Agent SDK's `supportedModels()`, `codex debug models`) and are cached a day. Code holds
+no model names: defaults, chains and rules are data an owner sets from the app or `apx2 models`.

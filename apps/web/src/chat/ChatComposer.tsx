@@ -12,7 +12,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
-  const model = [...messages].reverse().find((m) => m.model)?.model ?? agent?.model;
+  const model = [...messages].reverse().find((m) => m.model)?.model ?? agent?.model_choice?.model;
   const busy = isWorking(thread.state);
   return (
     <div className="chat__composer">

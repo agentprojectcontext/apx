@@ -38,7 +38,7 @@ export function nativeHarness(llm: Llm): Harness {
 
       const step = async (tools: boolean) => {
         const c = await llm.complete({
-          model: io.agent.model,
+          models: io.models,
           messages,
           tools: tools && !toolsOff ? io.tools : [],
           signal: io.signal,

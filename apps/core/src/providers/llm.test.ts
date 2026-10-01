@@ -46,6 +46,7 @@ test("falls back down the chain on overload and reports which model answered", a
   });
   let streamed = "";
   const out = await llm.complete({
+    models: ["pa"],
     messages: [{ role: "user", content: "hi" }],
     tools: [],
     signal: new AbortController().signal,
@@ -61,7 +62,7 @@ test("falls back down the chain on overload and reports which model answered", a
   assert.deepEqual(seen, ["a.test/m1", "a.test/m1", "a.test/m2"]);
 });
 
-test("a named model goes first; quota moves on to the next model; providers without a key are never called", async () => {
+test("models are tried in the given order; quota moves on; providers without a key are never called", async () => {
   const seen: string[] = [];
   const llm = createLlm({
     providers,
@@ -75,11 +76,16 @@ test("a named model goes first; quota moves on to the next model; providers with
       return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "length" }] }));
     }) as typeof fetch,
   });
-  const out = await llm.complete({ model: "pb/m3", messages: [], tools: [], signal: new AbortController().signal });
+  const out = await llm.complete({
+    models: ["pb/m3", "pa", "pc"],
+    messages: [],
+    tools: [],
+    signal: new AbortController().signal,
+  });
   assert.deepEqual(seen, ["m3", "m1"]);
   assert.equal(out.model, "pa/m1");
   assert.equal(out.finish, "length");
-  assert.equal(llm.label(), "pa/m1");
+  assert.equal(llm.label(), "pa, pb");
 });
 
 test("tool calls stream in fragments and keep provider extras", async () => {
@@ -98,7 +104,13 @@ test("tool calls stream in fragments and keep provider extras", async () => {
         },
       ])) as unknown as typeof fetch,
   });
-  const out = await llm.complete({ messages: [], tools: [], signal: new AbortController().signal, onText: () => {} });
+  const out = await llm.complete({
+    models: ["pa"],
+    messages: [],
+    tools: [],
+    signal: new AbortController().signal,
+    onText: () => {},
+  });
   assert.equal(out.message.tool_calls?.[0]?.function.arguments, '{"a":1}');
   assert.equal(out.finish, "tool_calls");
 });
@@ -149,7 +161,7 @@ test("a per-model quota (Gemini's 429) moves on to the same provider's next mode
       return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
     }) as typeof fetch,
   });
-  const out = await llm.complete({ messages: [], tools: [], signal: new AbortController().signal });
+  const out = await llm.complete({ models: ["pa"], messages: [], tools: [], signal: new AbortController().signal });
   assert.deepEqual(seen, ["m1", "m2"]);
   assert.equal(out.model, "pa/m2");
 });

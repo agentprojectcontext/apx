@@ -4,8 +4,10 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { EngineStatus, HarnessId } from "@apx/protocol";
+import { harnessOf } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
+import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import { claudeHarness } from "./claude.ts";
 import { codexHarness, type McpCommand } from "./codex.ts";
@@ -59,13 +61,20 @@ export function createHarnesses(deps: {
   }
 
   let cache: { at: number; claude: CliStatus; codex: CliStatus } | undefined;
-  const defaultId = (): HarnessId => (store.settings.get("default_harness") as HarnessId | undefined) ?? "native";
+  const models = modelSettings(store);
+  /** The engine of the install default's model ("native" when the default is the router alone). */
+  const defaultId = (): HarnessId => {
+    const m = models.defaultChoice().model;
+    return m ? harnessOf(m) : "native";
+  };
 
   return {
     get: (id: HarnessId): Harness => registry[id],
     defaultId,
+    /** Makes an engine (its default model) the install default, keeping the router setting. */
     setDefault(id: HarnessId): void {
-      store.settings.set("default_harness", id);
+      const cur = models.defaultChoice();
+      models.save({ default: id === "native" ? { router: true } : { model: id, router: cur.router } });
     },
     async status(refresh = false): Promise<EngineStatus[]> {
       if (refresh || !cache || Date.now() - cache.at > STATUS_CACHE_MS) {

@@ -15,6 +15,11 @@ export type TurnIO = {
   /** This turn's user item, already framed (preamble + origin envelope) and logged. */
   input: ChatItem & { role: "user" };
   tools: ToolSpec[];
+  /**
+   * The models to try, in order, all run by this harness ("claude/claude-opus-5-5", "gemini/gemini-3.8-flash"; an
+   * engine alone means its default model). The router made the list.
+   */
+  models: string[];
   signal: AbortSignal;
   /** The external harness's own conversation id for this thread, when there is one. */
   sessionId: string | undefined;
@@ -34,3 +39,9 @@ export type TurnOutcome = {
 };
 
 export type Harness = { id: HarnessId; run(io: TurnIO): Promise<TurnOutcome> };
+
+/** The model part of a ref for a harness that takes one ("claude/claude-opus-5-5" → "claude-opus-5-5"). */
+export const modelPart = (ref: string | undefined): string | undefined => {
+  const i = ref?.indexOf("/") ?? -1;
+  return ref && i > 0 ? ref.slice(i + 1) : undefined;
+};

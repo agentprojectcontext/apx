@@ -59,12 +59,13 @@ test("an agent on an external harness runs there, with APX tools, cards, usage a
   assert.equal(env.core.store.runs.steps(t.runs[0]?.id ?? "")[0]?.tool, "show_widget");
 });
 
-test("a harness that fails before any tool falls back to the built-in model, with a visible notice", async () => {
-  await env.client.call("agents.update", { agent: "roby", harness: "codex" });
+test("a harness that fails before any tool hands the turn to the router's next engine, with a visible notice", async () => {
+  await env.client.call("models.set_config", { router: { rules: [], chain: ["fake/fake-1"] } });
+  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "codex", router: true } });
   await env.client.call("threads.send", { thread: "home", text: "and now" });
   const t = await env.settle("home");
   const parts = t.messages.at(-1)?.parts ?? [];
-  assert.ok(parts.some((p) => p.type === "notice" && p.code === "harness.fallback" && /usage limit/.test(p.text)));
+  assert.ok(parts.some((p) => p.type === "notice" && p.code === "engine.fallback" && /usage limit/.test(p.text)));
   assert.deepEqual(texts(t.messages).at(-1), "native answer");
   assert.equal(t.runs[0]?.harness, "native");
 });

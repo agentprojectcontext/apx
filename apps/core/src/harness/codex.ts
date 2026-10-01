@@ -2,7 +2,7 @@
 // proxy (`apx2 mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
 import { Codex } from "@openai/codex-sdk";
 import { harnessEnv } from "./claude.ts";
-import type { Harness, TurnIO, TurnOutcome } from "./types.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
 
@@ -16,6 +16,7 @@ export function codexHarness(opts: {
     id: "codex",
     async run(io: TurnIO): Promise<TurnOutcome> {
       const codexPath = await opts.codexPath();
+      const chosen = modelPart(io.models[0]);
       const gate = opts.gate(io);
       try {
         const codex = new Codex({
@@ -28,7 +29,7 @@ export function codexHarness(opts: {
           skipGitRepoCheck: true,
           sandboxMode: "read-only" as const,
           approvalPolicy: "never" as const,
-          ...(io.agent.model ? { model: io.agent.model } : {}),
+          ...(chosen ? { model: chosen } : {}),
         };
         const thread = io.sessionId
           ? codex.resumeThread(io.sessionId, threadOptions)
@@ -51,7 +52,7 @@ export function codexHarness(opts: {
           else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
           else if (ev.type === "error") throw new Error(`codex: ${ev.message}`);
         }
-        return { text, model: `codex/${io.agent.model ?? "default"}`, sessionId, usage };
+        return { text, model: `codex/${chosen ?? "default"}`, sessionId, usage };
       } finally {
         gate.close();
       }
