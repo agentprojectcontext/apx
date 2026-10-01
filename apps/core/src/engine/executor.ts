@@ -43,13 +43,12 @@ async function runTool(
   }
 }
 
-/** A readable one-line summary of a call's arguments for the confirmation card. */
+/** The call's arguments for the confirmation card, whole: the owner must see everything they approve. */
 function describe(args: Record<string, unknown>): string {
-  const parts = Object.entries(args).map(([k, v]) => {
-    const s = typeof v === "string" ? v : JSON.stringify(v);
-    return `${k}: ${s.length > 160 ? `${s.slice(0, 160)}…` : s}`;
-  });
-  return parts.join(" · ").slice(0, 600);
+  return Object.entries(args)
+    .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
+    .join("\n")
+    .slice(0, 20_000);
 }
 
 export type Executor = {
@@ -137,7 +136,7 @@ export function createExecutor(o: {
     const args = parsed.args;
 
     const decision = authorize(tool, args, agent, untrusted);
-    if (decision.kind === "confirm" && !o.inputs.takeGrant(thread.id, name, raw)) {
+    if (decision.kind === "confirm" && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
       const answer = await o.inputs.ask({
         run,
         agent,
@@ -221,6 +220,8 @@ export function createExecutor(o: {
   const seen = new Set<string>();
   const observe: TurnIO["observe"] = (ev) => {
     const run = o.run();
+    // What an external agent fetched from the web is now in its context.
+    if (ev.kind === "fetch") untrusted = true;
     if (!seen.has(ev.callId)) {
       seen.add(ev.callId);
       const looks = LOOKING.has(ev.kind);

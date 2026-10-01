@@ -6,6 +6,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { agentReply } from "../tools/agents.ts";
+import { ancestors } from "./ancestry.ts";
 import { tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
 import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
@@ -75,21 +76,21 @@ export function createDelegations(deps: {
 
   /** Agents already involved from the top thread down to `threadId`, to refuse A→B→A cycles. */
   function chainAgents(threadId: string): string[] {
-    const ids: string[] = [];
-    let t = store.threads.get(threadId);
-    for (let hops = 0; t && hops < 10; hops++) {
-      ids.push(...t.agent_ids);
-      t = t.parent_id ? store.threads.get(t.parent_id) : undefined;
-    }
-    return ids;
+    const here = store.threads.get(threadId);
+    return [...(here?.agent_ids ?? []), ...ancestors(store, threadId).flatMap((t) => t.agent_ids)];
   }
 
   return {
     async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
       if (!parentThread) return "refused: the thread is gone";
-      if (from.run.depth >= MAX_DEPTH) return "refused: delegation depth limit reached; do it yourself.";
-      const existing = req.session ? store.threads.session(parentThread.id, req.session) : undefined;
+      if (ancestors(store, parentThread.id).length >= MAX_DEPTH)
+        return "refused: delegation depth limit reached; do it yourself.";
+      // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
+      const existing = req.session
+        ? (store.threads.session(parentThread.id, slug(req.session)) ??
+          store.threads.session(parentThread.id, req.session))
+        : undefined;
       const toId = existing?.agent_ids[0] ?? req.agent?.id;
       if (existing && req.agent && req.agent.id !== toId)
         return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;

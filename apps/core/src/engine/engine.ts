@@ -266,7 +266,7 @@ export function createEngine(deps: {
     },
     /** Boot: close what a restart interrupted, then pick the durable queue back up. */
     start(): void {
-      inputs.expireOverdue();
+      inputs.restore();
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");

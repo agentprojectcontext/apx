@@ -72,11 +72,17 @@ export function inputsRepo({ one, all, run }: Sql) {
       const r = one("SELECT * FROM pending_inputs WHERE id = ?", id);
       return r ? toInput(r) : undefined;
     },
+    /** Still answerable: pending and not past its deadline. */
     pending(threadId?: string): InputRecord[] {
+      const at = now();
       return (
         threadId
-          ? all("SELECT * FROM pending_inputs WHERE state = 'pending' AND thread_id = ? ORDER BY created_at", threadId)
-          : all("SELECT * FROM pending_inputs WHERE state = 'pending' ORDER BY created_at")
+          ? all(
+              "SELECT * FROM pending_inputs WHERE state = 'pending' AND expires_at > ? AND thread_id = ? ORDER BY created_at",
+              at,
+              threadId,
+            )
+          : all("SELECT * FROM pending_inputs WHERE state = 'pending' AND expires_at > ? ORDER BY created_at", at)
       ).map(toInput);
     },
     /** Moves a pending input to its final state; undefined when it was no longer pending (someone else won). */

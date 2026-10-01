@@ -101,7 +101,7 @@ export async function createCore(
     ...browserTools(),
     ...surfaceTools(),
     ...ownerTools(store),
-    ...shellTools(store, config.home),
+    ...shellTools(store, config.home, config.port || 7440),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).

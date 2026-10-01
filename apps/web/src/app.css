@@ -851,6 +851,8 @@ body {
 }
 .inputcard__detail {
   display: block;
+  max-height: 220px;
+  overflow: auto;
   padding: 6px 8px;
   border-radius: var(--apx-radius-md);
   background: var(--apx-fill);

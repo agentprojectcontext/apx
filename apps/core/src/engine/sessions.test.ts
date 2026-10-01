@@ -21,6 +21,9 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return callTool("d1", "delegate", { agent: "scout", session: "market", task: "look at the market" });
   if (said.includes("continue research"))
     return callTool("d2", "delegate", { session: "market", task: "now the competitors" });
+  if (said.includes("start named"))
+    return callTool("n1", "delegate", { agent: "scout", session: "Market Q3", task: "look" });
+  if (said.includes("continue named")) return callTool("n2", "delegate", { session: "Market Q3", task: "more" });
   if (said.includes("ghost session")) return callTool("d3", "delegate", { session: "ghost", task: "anything" });
   return say("ok");
 });
@@ -108,4 +111,27 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
   assert.match(tripped(store, sub.id) ?? "", /turns on their own/);
   await add(root.id, "user");
   assert.equal(tripped(store, sub.id), undefined);
+});
+
+test("policy follows the thread: every turn in a sub-thread works under the agents above it", async () => {
+  const { callersOf } = await import("./ancestry.ts");
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "root", agent_ids: ["roby"] });
+  const sub = store.threads.create({ kind: "a2a", title: "s", agent_ids: ["scout", "roby"], parent_id: root.id });
+  const subsub = store.threads.create({ kind: "a2a", title: "ss", agent_ids: ["vera", "scout"], parent_id: sub.id });
+  assert.deepEqual(
+    callersOf(store, subsub.id).map((a) => a.id),
+    ["scout", "roby"],
+  );
+  assert.deepEqual(callersOf(store, root.id), []);
+});
+
+test("a session named with spaces and capitals is found again by the same name", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "names" });
+  await env.client.call("threads.send", { thread: t.id, text: "start named" });
+  await env.settle(t.id);
+  await env.client.call("threads.send", { thread: t.id, text: "continue named" });
+  await env.settle(t.id);
+  assert.match(lastToolResult(), /earlier turns in this session: 1/);
+  assert.equal(env.core.store.threads.sessions(t.id).length, 1);
 });

@@ -65,3 +65,19 @@ The Claude harness rebuilt each tool's zod shape from JSON Schema by hand and tu
 Agent SDK then made Claude send `options: "red, blue"`, our own check refused it twice, and the agent gave up on the
 option buttons. The shape now comes from `z.fromJSONSchema` of the same schema the tool defines.
 Where: `apps/core/src/harness/claude.ts`.
+
+<a id="shell-classifier"></a>
+### A "reading" shell command is judged only when it is a simple one
+The first classifier split commands on `&& || ; |` and trusted a list of programs: a newline, a single `&`,
+`find -execdir`, `sort -o`, `git branch -D` or a path like `~/.ssh` slipped through as read-only. Now only simple
+commands of reading programs with plain, project-local arguments run without asking; any other shell syntax,
+quoting, variable assignment or outside path asks; destructive checks also run on a quote- and escape-free copy.
+Commands get an environment without credential-looking variables, cannot name APX's home, and any command that
+reaches APX's own API always asks. Where: `apps/core/src/tools/shell.ts`, `harness/env.ts`.
+
+<a id="policy-follows-thread"></a>
+### Inherited permissions follow the thread, not the run
+Permissions inherited by a delegated agent were read from the run's `parent_run_id`. Turns that start later in the
+same sub-thread (a finished background job, an answer after a restart, a delegation result) have no parent run, so
+they ran with the agent's own, looser policy and a reset depth. Callers and depth now come from the thread's
+ancestors. Where: `apps/core/src/engine/ancestry.ts`.

@@ -6,7 +6,7 @@ import path from "node:path";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { childEnv } from "../harness/env.ts";
+import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { tripped } from "./breaker.ts";
 
@@ -14,6 +14,29 @@ import { tripped } from "./breaker.ts";
 const OUTPUT_CAP = 20 * 1024 * 1024;
 /** The end of the output a woken agent gets. */
 const WAKE_TAIL = 3000;
+/** A background command runs at most this long (servers and watchers included); then it is stopped. */
+const MAX_BACKGROUND_MS = 6 * 3600_000;
+
+/** When the process started, as ps prints it: with the pid, it says the process is still the one we started. */
+function procStart(pid: number): string | undefined {
+  try {
+    return execFileSync("ps", ["-p", String(pid), "-o", "lstart="], { encoding: "utf8" }).trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Stops a process group: TERM now, KILL shortly after for whatever ignores it. */
+function stopGroup(pid: number, alive: () => boolean): void {
+  try {
+    process.kill(-pid, "SIGTERM");
+  } catch {}
+  setTimeout(() => {
+    try {
+      if (alive()) process.kill(-pid, "SIGKILL");
+    } catch {}
+  }, 3000).unref();
+}
 
 export type JobAdmit = (a: {
   thread_id: string;
@@ -53,7 +76,19 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
     if (!job.background || !job.agent_id || job.state === "canceled") return;
     const paused = tripped(store, job.thread_id);
     if (paused) {
-      log.warn({ job: job.id, thread: job.thread_id }, `background job ended while agents are paused: ${paused}`);
+      log.warn({ job: job.id, thread: job.thread_id }, "background job ended while agents are paused");
+      store.messages.add({
+        thread_id: job.thread_id,
+        author: { kind: "system" },
+        parts: [
+          {
+            type: "notice",
+            level: "warn",
+            code: "breaker.paused",
+            text: `Paused: ${paused}. The command "${job.title.slice(0, 80)}" ended (${job.state}); write to continue.`,
+          },
+        ],
+      });
       return;
     }
     deps.admit({
@@ -100,16 +135,26 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       // Its own process group, so stopping it also stops what it spawned.
       const child = spawn("/bin/sh", ["-c", o.command], {
         cwd: o.cwd,
-        env: childEnv(),
+        env: commandEnv(),
         stdio: ["ignore", "pipe", "pipe"],
         detached: true,
       });
-      if (child.pid) store.jobs.setPid(job.id, child.pid);
+      if (child.pid) {
+        store.jobs.setPid(job.id, child.pid);
+        const started = procStart(child.pid);
+        if (started) store.jobs.setProcStart(job.id, started);
+      }
       child.stdout.on("data", write);
       child.stderr.on("data", write);
       let killed = false;
+      let lifetime: ReturnType<typeof setTimeout> | undefined;
       const done = new Promise<JobRecord>((resolve) => {
+        let ending = false;
+        // `error` and `close` can both fire for one process: it ends (and wakes the agent) once.
         const end = (state: "completed" | "failed" | "canceled", code?: number) => {
+          if (ending) return;
+          ending = true;
+          clearTimeout(lifetime);
           out.end(() => {
             const final = store.jobs.finish(job.id, state, code) ?? (store.jobs.get(job.id) as JobRecord);
             procs.delete(job.id);
@@ -123,21 +168,18 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
         });
         child.on("close", (code) => end(killed ? "canceled" : code === 0 ? "completed" : "failed", code ?? undefined));
       });
-      procs.set(job.id, {
-        kill: () => {
-          killed = true;
-          try {
-            if (child.pid) process.kill(-child.pid, "SIGTERM");
-          } catch {}
-          // Whatever ignores SIGTERM is stopped for good a moment later.
-          setTimeout(() => {
-            try {
-              if (child.pid && child.exitCode === null) process.kill(-child.pid, "SIGKILL");
-            } catch {}
-          }, 3000).unref();
-        },
-        done,
-      });
+      const kill = () => {
+        killed = true;
+        if (child.pid) stopGroup(child.pid, () => child.exitCode === null);
+      };
+      procs.set(job.id, { kill, done });
+      if (o.background) {
+        lifetime = setTimeout(() => {
+          write(Buffer.from(`\n[stopped by APX after ${MAX_BACKGROUND_MS / 3600_000} h]\n`));
+          kill();
+        }, MAX_BACKGROUND_MS);
+        lifetime.unref();
+      }
       return { job: store.jobs.get(job.id) as JobRecord, done };
     },
 
@@ -151,21 +193,14 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
     read,
 
     /**
-     * Boot: jobs a restart cut are closed. Their processes died with the pipe to the old core; one still alive
-     * (same pid, same command) is stopped so nothing keeps running unseen.
+     * Boot: jobs a restart cut are closed. Their processes usually died with the pipe to the old core; one still
+     * alive (same pid, same start time) is stopped so nothing keeps running unseen.
      */
     reconcile(): void {
       for (const j of store.jobs.running()) {
-        if (j.pid) {
-          let cmd = "";
-          try {
-            cmd = execFileSync("ps", ["-p", String(j.pid), "-o", "command="], { encoding: "utf8" }).trim();
-          } catch {}
-          if (cmd.endsWith(j.title.slice(0, 200)))
-            try {
-              process.kill(-j.pid, "SIGTERM");
-            } catch {}
-        }
+        const pid = j.pid;
+        if (pid && j.proc_start && procStart(pid) === j.proc_start)
+          stopGroup(pid, () => procStart(pid) === j.proc_start);
         fs.appendFileSync(fileOf(j.id), "\n[stopped by a restart of APX]\n");
         store.jobs.finish(j.id, "failed");
       }

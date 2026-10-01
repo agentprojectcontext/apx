@@ -67,6 +67,13 @@ export function appHandlers(deps: {
       const threadId = p.thread ?? ctx.agent?.thread_id;
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
+      // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
+      const current = store.surfaces.byName(thread?.project_id, p.name);
+      if (current?.share_path && ctx.actor !== "human")
+        throw new CallError({
+          code: "conflict",
+          message: `widget "${p.name}" is published; use another name (the owner can unpublish it)`,
+        });
       return summary(
         store.surfaces.upsert({
           name: p.name,

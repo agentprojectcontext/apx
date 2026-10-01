@@ -1,6 +1,6 @@
 // shell: an agent runs a command on the owner's machine, in its project's folder. Commands that only read run like
 // any tool; anything else waits for the owner (unless the agent's autonomy is total); destructive ones always do.
-// The environment never carries APX's secrets (harness/env.ts).
+// Commands get an environment without secret-looking variables (harness/env.ts) and cannot name APX's home.
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -8,7 +8,10 @@ import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
-/** Programs that only read (with no output redirection anywhere in the command). */
+/**
+ * Programs that only read when given plain arguments. Anything with options that write (sort -o, tree -o, rg --pre,
+ * file -C, git --output) is left out or checked below.
+ */
 const READ_ONLY = new Set([
   "sleep",
   "true",
@@ -19,7 +22,6 @@ const READ_ONLY = new Set([
   "tail",
   "wc",
   "grep",
-  "rg",
   "echo",
   "which",
   "date",
@@ -27,37 +29,50 @@ const READ_ONLY = new Set([
   "du",
   "df",
   "stat",
-  "file",
-  "tree",
   "uname",
-  "sort",
-  "uniq",
   "cut",
-  "jq",
 ]);
-const READ_ONLY_GIT = /^git\s+(status|log|diff|show|branch|remote\s+-v|rev-parse|ls-files|blame)\b/;
+const READ_ONLY_GIT = new Set(["status", "log", "diff", "show", "rev-parse", "ls-files", "blame"]);
+/** Shell syntax that can hide a second command, a redirection, an expansion or a subshell. */
+const SHELL_SYNTAX = /[\n\r&;|<>`$(){}\\[\]!#~]/;
 const DESTRUCTIVE =
-  /\b(sudo|su|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab)\b|\brm\s+(-\w*[rf]\w*\s+)*-\w*[rf]|\bgit\s+(push|reset\s+--hard|clean\s+-\w*f)|\b(curl|wget)\b[^|]*\|\s*(ba|z)?sh\b|\bchmod\s+-R|\bchown\s+-R|:\(\)\s*\{|>\s*\/dev\/(sd|disk)/;
+  /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(push|reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
-/** How much the owner must be asked for this command. */
-export function commandRisk(command: string): Confirm {
+/** The command as the shell will mostly see it: quotes and escapes dropped, paths to programs reduced to names. */
+const normalize = (c: string) =>
+  c
+    .replace(/\\\n/g, " ")
+    .replace(/["'\\]/g, "")
+    .replace(/(^|[\s;&|(])\/(?:[\w.-]+\/)*([\w.-]+)/g, "$1$2");
+
+/** A plain, project-local argument: not a path that leaves the folder, not the home, no `..`. */
+const localArg = (a: string) => !a.startsWith("/") && !a.includes("..") && !/^(~|\.apx)/.test(a);
+
+/**
+ * How much the owner must be asked for this command. Only simple commands of known reading programs, with plain
+ * arguments inside the project, run without asking; anything the classifier cannot be sure of asks.
+ */
+export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
-  if (DESTRUCTIVE.test(c)) return "always";
-  if (/[>`$]|\$\(/.test(c)) return "ask";
-  const segments = c
-    .split(/&&|\|\||[;|]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const reads = segments.every((s) => {
-    if (READ_ONLY_GIT.test(s)) return true;
-    const word = s.split(/\s+/)[0] ?? "";
-    if (word === "find") return !/-(delete|exec|ok)\b/.test(s);
+  if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
+  // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
+  if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
+    return "always";
+  // Pipes and && between simple commands are fine; any other shell syntax is not judged, it is asked.
+  const segments = c.split(/&&|\|\||\|/).map((x) => x.trim());
+  const simple = (seg: string): boolean => {
+    if (!seg || SHELL_SYNTAX.test(seg) || /["']/.test(seg)) return false;
+    const [word = "", ...args] = seg.split(/\s+/);
+    if (/=/.test(word)) return false;
+    if (!args.every(localArg)) return false;
+    if (word === "git") return READ_ONLY_GIT.has(args[0] ?? "") && !args.some((x) => x.startsWith("--output"));
+    if (word === "find") return !args.some((x) => /^-(exec|ok|delete|fprint|fls|fprintf)/.test(x));
     return READ_ONLY.has(word);
-  });
-  return reads ? "never" : "ask";
+  };
+  return segments.every(simple) ? "never" : "ask";
 }
 
-export function shellTools(store: Store, home: string): Tool[] {
+export function shellTools(store: Store, home: string, apxPort?: number): Tool[] {
   /** The project's folder when the thread belongs to one that is on disk, else APX's own work folder. */
   const baseDir = (projectId: string | undefined) => {
     const p = projectId ? store.projects.get(projectId) : undefined;
@@ -75,7 +90,7 @@ export function shellTools(store: Store, home: string): Tool[] {
         cwd: z.string().max(500).optional().describe("folder inside the project, relative"),
       }),
       effect: "external",
-      confirm: (a) => commandRisk(a.command),
+      confirm: (a) => commandRisk(a.command, apxPort),
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
@@ -84,6 +99,8 @@ export function shellTools(store: Store, home: string): Tool[] {
         const cwd = path.resolve(base, a.cwd ?? ".");
         if (cwd !== base && !cwd.startsWith(`${base}${path.sep}`))
           return `refused: ${a.cwd} is outside the project folder`;
+        // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
+        if (a.command.includes(home) || /\.apx2\b/.test(a.command)) return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
         else if (!fs.existsSync(cwd)) return `no folder ${a.cwd} in the project`;
         const r = await ctx.runCommand({

@@ -137,6 +137,8 @@ export function browserTools(): Tool[] {
         submit: z.boolean().optional().describe("press Enter after"),
       }),
       effect: "external",
+      // Typing hands data to a site: after reading a page that may be steering the agent, the owner decides.
+      confirm: "untrusted",
       deadlineMs: 30_000,
       title: (a) => `Typed into ${a.ref}`,
       async run(a, ctx) {

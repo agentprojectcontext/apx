@@ -83,6 +83,17 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
             } else if (m.type === "assistant" && !m.parent_tool_use_id) {
               model = m.message.model || model;
               sessionId = m.session_id;
+              // Its own web tools bring outside text into the turn: shown as cards, and the policy knows.
+              for (const b of m.message.content)
+                if (b.type === "tool_use" && CLAUDE_BUILTINS.includes(b.name)) {
+                  const input = b.input as { query?: string; url?: string };
+                  io.observe({
+                    callId: b.id,
+                    title: `${b.name}: ${input.query ?? input.url ?? ""}`,
+                    kind: "fetch",
+                    status: "ok",
+                  });
+                }
             } else if (m.type === "result") {
               sessionId = m.session_id;
               if (m.subtype !== "success") throw new Error(`claude: ${m.subtype}`);

@@ -4,7 +4,7 @@ import type { Job, RunState } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import { newId, now, opt, type Row, type Sql } from "./sql.ts";
 
-export type JobRecord = Job & { pid?: number; run_id?: string };
+export type JobRecord = Job & { pid?: number; run_id?: string; proc_start?: string };
 
 const toJob = (r: Row): JobRecord => ({
   id: String(r.id),
@@ -18,13 +18,14 @@ const toJob = (r: Row): JobRecord => ({
   tool_calls: 0,
   cwd: String(r.cwd),
   ...(r.pid == null ? {} : { pid: Number(r.pid) }),
+  ...opt("proc_start", r.proc_start),
   ...(r.exit_code == null ? {} : { exit_code: Number(r.exit_code) }),
   background: Boolean(r.background),
   started_at: String(r.started_at),
   ...opt("ended_at", r.ended_at),
 });
 
-export const publicJob = ({ pid: _p, run_id: _r, ...rest }: JobRecord): Job => rest;
+export const publicJob = ({ pid: _p, run_id: _r, proc_start: _s, ...rest }: JobRecord): Job => rest;
 
 export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (j: JobRecord) => bus.emit({ type: "job.updated", job: publicJob(j) });
@@ -59,6 +60,9 @@ export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
     },
     setPid(id: string, pid: number): void {
       run("UPDATE jobs SET pid = ? WHERE id = ?", pid, id);
+    },
+    setProcStart(id: string, start: string): void {
+      run("UPDATE jobs SET proc_start = ? WHERE id = ?", start, id);
     },
     /** Final state, once: a job that already ended keeps its first ending. */
     finish(

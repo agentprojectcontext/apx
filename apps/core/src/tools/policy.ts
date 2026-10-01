@@ -38,8 +38,14 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   const autonomy = agent.autonomy ?? "standard";
   const level = tool.confirm(args);
   if (level === "always") return { kind: "confirm", reason: "this action always needs your OK" };
-  if (level === "ask" && autonomy !== "total")
-    return { kind: "confirm", reason: `${agent.name} needs your OK for this kind of action` };
+  // Total autonomy skips the question only while the turn holds nothing from outside that could be steering it.
+  if (level === "ask" && (autonomy !== "total" || untrusted))
+    return {
+      kind: "confirm",
+      reason: untrusted
+        ? "content from outside (web, another agent or a message) is in this turn"
+        : `${agent.name} needs your OK for this kind of action`,
+    };
   if (autonomy === "ask" && tool.effect !== "none")
     return { kind: "confirm", reason: `${agent.name} asks before every action that changes something` };
   if (autonomy !== "total" && level === "untrusted" && untrusted)

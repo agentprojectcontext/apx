@@ -34,7 +34,10 @@ const partOf = (r: InputRecord): Part => ({
   ...(r.answer ? { answer: r.answer } : {}),
 });
 
-const grantKey = (thread: string, tool: string, args: unknown) => `${thread}\u0000${tool}\u0000${JSON.stringify(args)}`;
+const grantKey = (thread: string, agent: string, tool: string, args: unknown) =>
+  `${thread}\u0000${agent}\u0000${tool}\u0000${JSON.stringify(args)}`;
+/** An approval that outlived its turn is good for one identical call, soon: not days later in another context. */
+const GRANT_MS = 30 * 60_000;
 
 export type Admit = (a: {
   thread_id: string;
@@ -53,7 +56,7 @@ export function createInputs(deps: {
   const { store } = deps;
   const waiting = new Map<string, (r: InputRecord) => void>();
   /** Calls the owner approved after their run was gone: the agent's next identical call runs without asking again. */
-  const grants = new Set<string>();
+  const grants = new Map<string, number>();
 
   /** Rewrites the input's card in the message that asked, for answers that arrive with no turn listening. */
   function settleCard(r: InputRecord): void {
@@ -71,7 +74,7 @@ export function createInputs(deps: {
     let text: string;
     if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
     else if (r.state === "approved") {
-      if (r.tool) grants.add(grantKey(r.thread_id, r.tool, r.args ?? {}));
+      if (r.tool) grants.set(grantKey(r.thread_id, r.agent_id, r.tool, r.args ?? {}), Date.now() + GRANT_MS);
       text = `The owner approved ${r.tool} (${r.detail ?? r.prompt}), but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
       text = `The owner declined ${r.tool} (${r.detail ?? r.prompt}). Do not try it again.${r.answer ? ` Their note: ${r.answer}` : ""}`;
@@ -170,16 +173,25 @@ export function createInputs(deps: {
     },
 
     /** True once for a call the owner approved after its turn had ended. */
-    takeGrant(thread: string, tool: string, args: Record<string, unknown>): boolean {
-      return grants.delete(grantKey(thread, tool, args));
+    takeGrant(thread: string, agent: string, tool: string, args: Record<string, unknown>): boolean {
+      const key = grantKey(thread, agent, tool, args);
+      const until = grants.get(key);
+      grants.delete(key);
+      return until !== undefined && until > Date.now();
     },
 
-    /** Boot: inputs whose deadline passed while APX was down are closed, and their cards say so. */
-    expireOverdue(): void {
-      for (const r of store.inputs.overdue()) {
-        const settled = store.inputs.settle(r.id, "expired");
+    /**
+     * Boot: inputs whose deadline passed while APX was down are closed; the rest stay answerable (the answer wakes
+     * the agent) and close on their own deadline, with their cards saying so.
+     */
+    restore(): void {
+      const expire = (id: string) => {
+        const settled = store.inputs.settle(id, "expired");
         if (settled) settleCard(settled);
-      }
+      };
+      for (const r of store.inputs.overdue()) expire(r.id);
+      for (const r of store.inputs.pending())
+        setTimeout(() => expire(r.id), Math.max(0, Date.parse(r.expires_at) - Date.now())).unref();
     },
 
     pending: (thread?: string) => store.inputs.pending(thread).map(publicInput),

@@ -1,6 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import type { HarnessId, MethodName, Params, Result } from "@apx/protocol";
-import type { AgentRecord } from "../domain/agents.ts";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -10,6 +9,7 @@ import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
+import { callersOf } from "./ancestry.ts";
 import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
@@ -89,15 +89,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.threads.setContext(thread.id, { ...ctxState, roster_hash: roster.hash, roster_agent: agent.id });
 
   // ── tools ───────────────────────────────────────────────────────────
-  const callers: AgentRecord[] = [];
-  for (let r = run.parent_run_id ? store.runs.get(run.parent_run_id) : undefined; r && callers.length < 5; ) {
-    const a = store.agents.get(r.agent_id);
-    if (a) callers.push(a);
-    r = r.parent_run_id ? store.runs.get(r.parent_run_id) : undefined;
-  }
+  const callers = callersOf(store, thread.id);
   const policy = inherit(agent, callers, deps.tools);
   const available = policy.tools.filter(
-    (t) => run.depth < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
+    (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
   );
   let harness: HarnessId = "native";
   const exec = createExecutor({

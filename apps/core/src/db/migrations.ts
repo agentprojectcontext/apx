@@ -167,4 +167,8 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX jobs_state ON jobs(state, started_at);
   `,
+  `
+  -- A job's process start time (as ps prints it): after a restart, a live pid is stopped only if it is still ours.
+  ALTER TABLE jobs ADD COLUMN proc_start TEXT;
+  `,
 ];

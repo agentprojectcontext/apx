@@ -42,8 +42,10 @@ export function jobHandlers(store: Store, engine: Engine) {
           .slice(0, finished),
       };
     }) as Handler<"jobs.list">,
-    "jobs.get": (({ job, offset, max_chars }) => {
+    "jobs.get": (({ job, offset, max_chars }, ctx) => {
       const j = store.jobs.get(job);
+      if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id)
+        throw new CallError({ code: ErrorCode.Unauthorized, message: "an agent can only read its own thread's jobs" });
       if (j) return { job: publicJob(j), ...engine.jobs.read(j.id, offset, max_chars) };
       const r = store.runs.get(job);
       if (!r) throw notFound(`job ${job}`);

@@ -35,6 +35,11 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one("SELECT * FROM surfaces WHERE id = ?", id);
       return r ? toSurface(r) : undefined;
     },
+    /** A surface by its stable name within a project (or among global ones). */
+    byName(projectId: string | undefined, name: string): Surface | undefined {
+      const r = one("SELECT * FROM surfaces WHERE COALESCE(project_id, '') = ? AND name = ?", projectId ?? "", name);
+      return r ? toSurface(r) : undefined;
+    },
     byShareToken(token: string): Surface | undefined {
       const r = one("SELECT * FROM surfaces WHERE share_token = ?", token);
       return r ? toSurface(r) : undefined;
