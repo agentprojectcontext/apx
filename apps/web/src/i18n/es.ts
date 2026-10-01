@@ -849,4 +849,13 @@ export const es: Partial<Record<MessageKey, string>> = {
   "routines.quiet": "sin novedades",
   "routines.told": "te avisó",
   "routines.noRuns": "Todavía no corrió.",
+  "error.attention": "Avisos: {error}",
+  "attention.label": "Para vos",
+  "attention.aria": "{n} avisos para vos",
+  "attention.readAll": "Marcar todo leído",
+  "attention.empty": "Nada te está esperando.",
+  "attention.kind.input": "Necesita tu OK",
+  "attention.kind.task": "Tarea que te espera",
+  "attention.kind.routine": "Rutina",
+  "attention.kind.channel": "Canal",
 };

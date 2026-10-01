@@ -100,6 +100,10 @@ app.whenReady().then(() => {
     const error = quick.apply({ shortcut: prefs.shortcut, launchAtLogin: prefs.launchAtLogin === true });
     if (error && Notification.isSupported()) new Notification({ title: "APX", body: error }).show();
   });
+  ipcMain.on("desktop:attention", (e, unread: unknown) => {
+    if (e.sender !== panel.webContents || typeof unread !== "number") return;
+    quick.badge(unread);
+  });
   app.on("will-quit", () => quick.stop());
 
   const loadPanel = async () => {

@@ -1,4 +1,5 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
+import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
@@ -49,6 +50,7 @@ export function channelHandlers(store: Store, channels: Channels) {
     "pairing.respond": ({ code, decision, person, name }) => {
       const req = store.channels.pairing.get(code);
       if (!req) throw notFound(`pairing code ${code} (wrong or expired)`);
+      store.notifications.resolve("channel", pairingRef(code));
       if (decision === "deny") {
         store.channels.pairing.close(code, "denied");
         return {};

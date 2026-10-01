@@ -6,6 +6,8 @@ const es = {
     `Hola ${name}. Soy ${agent}, un asistente. Para seguir, mi dueño tiene que aprobar este chat con el código ${code}.`,
   pairingOwner: (name: string, label: string, code: string) =>
     `${name} quiere hablar por ${label}. Código ${code}. Aprobalo acá o en APX › Canales.`,
+  pairingApp: (name: string, label: string, code: string) =>
+    `${name} quiere hablar por ${label}. Código ${code}: aprobalo en Config › Canales.`,
   approved: "Aprobado.",
   denied: "Rechazado.",
   answered: (a: string) => `Respondido: ${a}`,
@@ -28,6 +30,8 @@ const en: typeof es = {
     `Hi ${name}. I'm ${agent}, an assistant. To go on, my owner needs to approve this chat with the code ${code}.`,
   pairingOwner: (name, label, code) =>
     `${name} wants to talk on ${label}. Code ${code}. Approve it here or in APX › Channels.`,
+  pairingApp: (name, label, code) =>
+    `${name} wants to talk on ${label}. Code ${code}: approve it in Settings › Channels.`,
   approved: "Approved.",
   denied: "Denied.",
   answered: (a) => `Answered: ${a}`,

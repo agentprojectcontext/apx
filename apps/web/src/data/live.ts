@@ -5,6 +5,7 @@ import { t } from "../i18n/index.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { jobsChanged } from "./jobs.ts";
+import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { taskChanged } from "./tasks.ts";
@@ -52,6 +53,7 @@ async function connect(): Promise<void> {
     // Subscribe first, then read: nothing that happens in between is lost.
     await bootstrap();
     await refetchLoaded();
+    void loadNotifications();
     data.set({ connection: "online", error: undefined });
     attempt = 0;
     await s.closed;
@@ -141,6 +143,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "task.updated":
       taskChanged(ev.task);
+      return;
+    case "notification.updated":
+      notificationChanged(ev.notification);
       return;
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));

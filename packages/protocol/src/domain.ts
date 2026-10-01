@@ -600,6 +600,28 @@ export const Routine = z.object({
 });
 export type Routine = z.infer<typeof Routine>;
 
+/** What a notice in the attention tray is about. */
+export const NotificationKind = z.enum(["input", "task", "routine", "channel"]);
+export type NotificationKind = z.infer<typeof NotificationKind>;
+
+/**
+ * Something that wants the owner: an agent waiting for their OK, a task waiting for them, a routine's news, a channel
+ * matter. `title` names the subject (an agent, a task, a routine); the screen says what kind of thing it is.
+ */
+export const Notification = z.object({
+  id: Id,
+  kind: NotificationKind,
+  level: z.enum(["info", "warn", "error"]),
+  title: z.string(),
+  body: z.string(),
+  thread_id: Id.optional(),
+  /** The input, task, run or request it is about. */
+  ref: z.string().optional(),
+  created_at: z.string(),
+  read_at: z.string().optional(),
+});
+export type Notification = z.infer<typeof Notification>;
+
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /** The channel to use (its id); none = the first running channel that knows the owner. */
@@ -688,6 +710,7 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("run.updated"), run: Run }),
   z.object({ type: z.literal("job.updated"), job: Job }),
   z.object({ type: z.literal("task.updated"), task: Task }),
+  z.object({ type: z.literal("notification.updated"), notification: Notification }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(z.unknown()) }),
 ]);

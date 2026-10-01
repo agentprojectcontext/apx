@@ -15,6 +15,7 @@ import {
   Message,
   ModelChoice,
   NoticePrefs,
+  Notification,
   OutboxItem,
   PairingRequest,
   PendingInput,
@@ -697,6 +698,25 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /** The attention tray, newest first, with how many are unread. */
+  "notifications.list": {
+    params: z
+      .object({
+        unread_only: z.boolean().default(false),
+        limit: z.number().int().min(1).max(200).default(50),
+      })
+      .strict(),
+    result: z.object({ notifications: z.array(Notification), unread: z.number().int() }),
+    effect: false,
+    access: "human",
+  },
+  /** Marks notices read: the given ones, or every one. */
+  "notifications.read": {
+    params: z.object({ ids: z.array(Id).max(200).optional() }).strict(),
+    result: z.object({ unread: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
   "notices.get": {
     params: z.object({}).strict(),
     result: NoticePrefs,
@@ -791,10 +811,12 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** The owner saw the thread: its unread count and its notices (not pending questions) are cleared. */
   "threads.read": {
     params: z.object({ thread: Id }).strict(),
     result: z.object({ ok: z.literal(true) }),
     effect: true,
+    access: "human",
   },
   "surfaces.list": {
     params: z.object({ project_id: Id.optional() }).strict(),

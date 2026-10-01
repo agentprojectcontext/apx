@@ -8,6 +8,7 @@ import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
 import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
+import { notificationsRepo } from "./notifications.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
 import { routinesRepo } from "./routines.ts";
@@ -37,6 +38,7 @@ export function createStore(db: Db, bus: Bus) {
     surfaces: surfacesRepo(q, bus),
     tasks: tasksRepo(q, bus),
     routines: routinesRepo(q),
+    notifications: notificationsRepo(q, bus),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),
     idempotency: idempotencyRepo(q),

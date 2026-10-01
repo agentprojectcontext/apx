@@ -126,6 +126,18 @@ export interface ModelLogTable {
   run_id: string | null;
 }
 
+export interface NotificationsTable {
+  id: string;
+  kind: string;
+  level: Generated<string>;
+  title: string;
+  body: Generated<string>;
+  thread_id: string | null;
+  ref: string | null;
+  created_at: string;
+  read_at: string | null;
+}
+
 export interface OutboxTable {
   id: string;
   channel: string;
@@ -331,6 +343,7 @@ export interface Database {
   messages: MessagesTable;
   meta: MetaTable;
   model_log: ModelLogTable;
+  notifications: NotificationsTable;
   outbox: OutboxTable;
   pairing: PairingTable;
   pending_inputs: PendingInputsTable;

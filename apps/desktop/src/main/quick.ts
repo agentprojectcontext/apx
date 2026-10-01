@@ -88,6 +88,12 @@ export function createQuick(opts: { url: () => string; preload: string; partitio
     hide(): void {
       win?.hide();
     },
+    /** How many things wait for the owner, next to the menu-bar icon and on the Dock. */
+    badge(unread: number): void {
+      const text = unread > 0 ? String(Math.min(unread, 99)) : "";
+      tray?.setTitle(text);
+      app.dock?.setBadge(text);
+    },
     isQuick(sender: Electron.WebContents): boolean {
       return Boolean(win && !win.isDestroyed() && sender === win.webContents);
     },

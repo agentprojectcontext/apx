@@ -5,6 +5,7 @@ import { blobOf, findProject, projectName, secretary } from "../data/identity.ts
 import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { LANGUAGE_NAMES, LANGUAGES, type Language, useLanguage, useT } from "../i18n/index.ts";
+import { AttentionTray } from "./AttentionTray.tsx";
 import { go, PROJECT_TABS, useNav } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 
@@ -60,6 +61,7 @@ export function Topbar() {
       </button>
       <span className="topbar__spacer" />
       <RunningIndicator />
+      <AttentionTray />
       <IconButton
         label={t("phone.open")}
         icon={<Icons.Smartphone size={16} />}

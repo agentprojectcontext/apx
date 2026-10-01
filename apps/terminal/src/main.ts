@@ -7,6 +7,7 @@ import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
+import { notifications } from "./commands/notifications.ts";
 import { routines } from "./commands/routines.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
@@ -36,6 +37,7 @@ Usage:
   apx2 skills [project]    Skills agents can load
   apx2 tasks [add|move|done|say]  The office board (apx2 tasks help)
   apx2 routines [add|run|on|off|rm|log]  Scheduled work (apx2 routines help)
+  apx2 notifications [read]       What is waiting for you
   apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
   apx2 memory rm <id…>     Remove notes
@@ -171,6 +173,9 @@ try {
     }
     case "tasks":
       await tasks(client, rest, { project: values.project, agent: values.agent });
+      break;
+    case "notifications":
+      await notifications(client, rest);
       break;
     case "routines":
       await routines(client, rest, {

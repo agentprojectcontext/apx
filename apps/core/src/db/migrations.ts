@@ -360,4 +360,21 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX routine_runs_routine ON routine_runs(routine_id, started_at);
   `,
+  `
+  -- The attention tray: what wants the owner (a confirmation, a task waiting, a routine's news). ref points at the
+  -- thing it is about, so a second notice for the same thing replaces the first while unread.
+  CREATE TABLE notifications (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'info',
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    thread_id TEXT,
+    ref TEXT,
+    created_at TEXT NOT NULL,
+    read_at TEXT
+  );
+  CREATE INDEX notifications_unread ON notifications(read_at, created_at);
+  CREATE INDEX notifications_ref ON notifications(kind, ref);
+  `,
 ];

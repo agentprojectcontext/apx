@@ -143,7 +143,10 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     },
     "threads.read": ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
-      store.threads.patch(thread, { unread: 0 }, false);
+      store.tx(() => {
+        store.threads.patch(thread, { unread: 0 }, false);
+        store.notifications.readThread(thread);
+      });
       return { ok: true as const };
     },
     "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),

@@ -841,6 +841,15 @@ export const en = {
   "routines.quiet": "nothing new",
   "routines.told": "told you",
   "routines.noRuns": "It has not run yet.",
+  "error.attention": "Notices: {error}",
+  "attention.label": "For you",
+  "attention.aria": "{n} notices for you",
+  "attention.readAll": "Mark all read",
+  "attention.empty": "Nothing waiting for you.",
+  "attention.kind.input": "Needs your OK",
+  "attention.kind.task": "Task waiting for you",
+  "attention.kind.routine": "Routine",
+  "attention.kind.channel": "Channel",
 } as const;
 
 export type MessageKey = keyof typeof en;

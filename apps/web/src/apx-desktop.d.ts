@@ -14,6 +14,8 @@ declare global {
       onOpenThread?(listener: (threadId: string) => void): void;
       /** Applies the desktop settings (shortcut, start at login) in the shell. */
       applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean }): void;
+      /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */
+      setAttention?(unread: number): void;
     };
   }
 }

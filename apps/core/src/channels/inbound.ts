@@ -1,7 +1,9 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
+
 import type { Thread } from "@apx/protocol";
 import type { Inbound, InboundAction, OutboxRow, Presentation } from "../domain/channels.ts";
+import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -26,7 +28,8 @@ export function createInbound(deps: {
   delivery: Delivery;
   configs(): ChannelConfig[];
   notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
-  noticeInApp(code: string, textEn: string): void;
+  /** A notice in the app's attention tray. */
+  attention(n: NewNotification): void;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -46,7 +49,9 @@ export function createInbound(deps: {
       const msg = errorMessage(err, 300);
       log.warn({ channel: row.channel, inbox: row.id, err: msg }, "channel message not handled");
       store.channels.inbox.done(row.id, "failed", msg);
-      deps.notifyOwner({ text: channelTexts(store).notHandled(row.payload.sender.name, msg) });
+      const text = channelTexts(store).notHandled(row.payload.sender.name, msg);
+      deps.notifyOwner({ text });
+      deps.attention({ kind: "channel", level: "error", title: row.payload.sender.name, body: text });
     }
   }
 
@@ -112,7 +117,9 @@ export function createInbound(deps: {
     }
     if (!paused.has(personId)) {
       paused.add(personId);
-      deps.notifyOwner({ text: channelTexts(store).tooMany(name) });
+      const text = channelTexts(store).tooMany(name);
+      deps.notifyOwner({ text });
+      deps.attention({ kind: "channel", level: "warn", title: name, body: text });
     }
     return true;
   }
@@ -146,10 +153,12 @@ export function createInbound(deps: {
       },
       "pairing",
     );
-    deps.noticeInApp(
-      "pairing.request",
-      `${request.name} wants to talk on ${cfg.label}. Code ${request.code}: approve it in Settings → Channels.`,
-    );
+    deps.attention({
+      kind: "channel",
+      title: request.name,
+      body: t.pairingApp(request.name, cfg.label, request.code),
+      ref: pairingRef(request.code),
+    });
   }
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
@@ -228,3 +237,6 @@ export function createInbound(deps: {
     },
   };
 }
+
+/** The tray notice of a pairing request, closed when the owner answers it. */
+export const pairingRef = (code: string) => `pairing:${code}`;

@@ -17,6 +17,8 @@ import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
+import { previewOf } from "./domain/threads.ts";
+import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
@@ -41,6 +43,7 @@ import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
+import { notificationHandlers } from "./rpc/notifications.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { routineHandlers } from "./rpc/routines.ts";
@@ -157,6 +160,7 @@ export async function createCore(
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
   const memory = createMemoryIndex({ store, services, log });
+  const attention = createAttention({ store, bus });
   const channels = createChannels({
     store,
     secrets,
@@ -165,6 +169,7 @@ export async function createCore(
     factories: opts.channelAdapters ?? { telegram: telegramAdapter },
     call: internal,
     services,
+    attention: attention.add,
   });
   const engine = createEngine({
     store,
@@ -192,6 +197,14 @@ export async function createCore(
       const texts = channelTexts(store);
       const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);
       channels.notifyOwner({ text: body }, "notice", run.thread_id);
+      attention.add({
+        kind: "routine",
+        level: failed ? "error" : "info",
+        title: routine.name,
+        body: previewOf(failed ? body : text),
+        thread_id: run.thread_id,
+        ref: run.id,
+      });
     },
   });
 
@@ -212,6 +225,7 @@ export async function createCore(
       ...mediaHandlers(services),
       ...taskHandlers(store, engine),
       ...routineHandlers(store, scheduler),
+      ...notificationHandlers(store),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({
@@ -272,6 +286,7 @@ export async function createCore(
     scheduler,
     async close() {
       scheduler.stop();
+      attention.stop();
       await channels.stop();
       await engine.stop();
       await upkeep.stop();

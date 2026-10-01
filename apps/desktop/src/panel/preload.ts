@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld("apxDesktop", {
       if (typeof id === "string") listener(id);
     }),
   applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean }) => ipcRenderer.send("desktop:prefs", prefs),
+  setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
 });

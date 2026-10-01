@@ -2,12 +2,13 @@
 // the answer of a turn whose last words came from a channel, confirmations with buttons, and notices to the owner.
 // What comes in is handled by inbound.ts; sending goes through the durable outbox (delivery.ts).
 // See DECISIONS.md#d-014
+
 import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import { noticePrefs } from "../domain/notices.ts";
+import type { NewNotification } from "../domain/notifications.ts";
 import type { RunRecord } from "../domain/runs.ts";
-import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { errorMessage } from "../errors.ts";
@@ -46,6 +47,8 @@ export function createChannels(deps: {
   call: InternalCall;
   /** Transcription of voice notes, voice notes for answers, and the bytes of what is sent. */
   services: Services;
+  /** Notices for the app's attention tray. */
+  attention: (n: NewNotification) => void;
 }) {
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
@@ -101,16 +104,6 @@ export function createChannels(deps: {
     return false;
   }
 
-  /** In the app: a notice in the Home chat. */
-  function noticeInApp(code: string, textEn: string): void {
-    if (!store.threads.get(HOME_THREAD_ID)) return;
-    store.messages.add({
-      thread_id: HOME_THREAD_ID,
-      author: { kind: "system" },
-      parts: [{ type: "notice", level: "info", code, text: textEn }],
-    });
-  }
-
   const inbound = createInbound({
     store,
     log,
@@ -119,7 +112,7 @@ export function createChannels(deps: {
     delivery,
     configs,
     notifyOwner,
-    noticeInApp,
+    attention: deps.attention,
   });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
@@ -162,7 +155,9 @@ export function createChannels(deps: {
       if (audience?.kind === "contact") {
         // A contact never sees what went wrong inside APX; the owner does.
         out = channelTexts(store).contactFailed;
-        notifyOwner({ text: channelTexts(store).contactFailedOwner(audience.name, why) }, "notice", run.thread_id);
+        const text = channelTexts(store).contactFailedOwner(audience.name, why);
+        notifyOwner({ text }, "notice", run.thread_id);
+        deps.attention({ kind: "channel", level: "error", title: audience.name, body: text, thread_id: run.thread_id });
       } else out = channelTexts(store).failed(why);
     }
     const images = (msg?.parts ?? []).flatMap((p) =>
