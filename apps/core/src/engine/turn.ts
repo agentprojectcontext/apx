@@ -10,6 +10,7 @@ import type { ChatItem } from "../providers/types.ts";
 import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
+import { gitChanges } from "./changes.ts";
 import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
@@ -197,6 +198,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     if (signal.aborted) throw signal.reason ?? new Error("canceled");
     display.close();
     display.setModel(outcome.model);
+    if (thread.kind === "code" && thread.cwd) {
+      const changes = await gitChanges(thread.cwd);
+      if (changes) display.upsert((p) => p.type === "changes", changes);
+    }
     const text = outcome.text.trim();
     if (text) display.finalText(text);
     else

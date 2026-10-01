@@ -95,7 +95,8 @@ export function shellTools(store: Store, home: string, apxPort?: number): Tool[]
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const base = baseDir(ctx.thread.project_id);
+        // A code thread works in its own folder; any other thread in its project's root.
+        const base = ctx.thread.cwd ?? baseDir(ctx.thread.project_id);
         const cwd = path.resolve(base, a.cwd ?? ".");
         if (cwd !== base && !cwd.startsWith(`${base}${path.sep}`))
           return `refused: ${a.cwd} is outside the project folder`;

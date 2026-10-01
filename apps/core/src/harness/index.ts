@@ -61,7 +61,7 @@ export function createHarnesses(deps: {
       acpHarness({
         agents: () => acpAgents(store),
         binary: (a) => bin(a.command)(),
-        cwd: () => cwd,
+        cwd: (io) => io.thread.cwd ?? cwd,
         gate: proxyFor,
       }),
   };

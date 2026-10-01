@@ -145,6 +145,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "thread.chat": "Chat",
 
   // Chat
+  "chat.newCodeWith": "Nueva sesión de código con",
+  "write.ask": "pregunta antes de cambiar",
+  "write.auto": "edita libremente",
+  "write.read-only": "sólo lectura",
+  "changes.title": "{n} sin commitear",
+  "changes.more": "y {n} más",
   "chat.new": "Nuevo chat",
   "chat.newWith": "Nuevo chat con…",
   "chat.noAgents": "No hay agentes para este proyecto.",

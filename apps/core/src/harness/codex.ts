@@ -24,10 +24,12 @@ export function codexHarness(opts: {
           config: { mcp_servers: { apx: gate.command } },
           env: harnessEnv(),
         });
+        // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto".
+        const writes = io.thread.kind === "code" && io.thread.write === "auto";
         const threadOptions = {
-          workingDirectory: opts.cwd,
+          workingDirectory: io.thread.cwd ?? opts.cwd,
           skipGitRepoCheck: true,
-          sandboxMode: "read-only" as const,
+          sandboxMode: writes ? ("workspace-write" as const) : ("read-only" as const),
           approvalPolicy: "never" as const,
           ...(chosen ? { model: chosen } : {}),
         };

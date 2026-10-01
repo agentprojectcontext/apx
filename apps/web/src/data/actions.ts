@@ -111,12 +111,19 @@ export async function send(threadId: string, text: string): Promise<void> {
   }
 }
 
-export async function createThread(input: { agentId: string; projectId?: string; title?: string }): Promise<Thread> {
+export async function createThread(input: {
+  agentId: string;
+  projectId?: string;
+  title?: string;
+  /** A code thread in the project's folder, with its write policy. */
+  code?: { write: "ask" | "auto" | "read-only" };
+}): Promise<Thread> {
   const thread = await client.call("threads.create", {
-    kind: "loose",
+    kind: input.code ? "code" : "loose",
     agent_id: input.agentId,
     project_id: input.projectId,
     title: input.title,
+    ...(input.code ? { write: input.code.write } : {}),
   });
   data.set((s) => ({
     threads: { ...s.threads, [thread.id]: thread },

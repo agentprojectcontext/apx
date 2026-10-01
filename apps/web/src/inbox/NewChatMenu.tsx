@@ -1,5 +1,5 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Menu, type MenuEntry } from "@apx/ui";
+import { AgentAvatar, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { type ReactElement, useMemo, useState } from "react";
 import { createThread } from "../data/actions.ts";
 import { blobOf, inProject, realProjectId } from "../data/identity.ts";
@@ -22,9 +22,14 @@ export function useChatAgents(projectId: string | undefined): Agent[] {
 }
 
 /** Create a chat with `agent` in a nav project (undefined / the base space = no project) and open it. */
-export async function startChat(agent: Agent, projectId: string | undefined): Promise<void> {
+export async function startChat(agent: Agent, projectId: string | undefined, code = false): Promise<void> {
   try {
-    const t = await createThread({ agentId: agent.id, projectId: realProjectId(projectId), title: tr("chat.new") });
+    const t = await createThread({
+      agentId: agent.id,
+      projectId: realProjectId(projectId),
+      // A code session is named after its folder by the core.
+      ...(code ? { code: { write: "ask" as const } } : { title: tr("chat.new") }),
+    });
     if (projectId) go.project(projectId, "chats", t.id);
     else go.thread(t.id);
   } catch (e) {
@@ -36,6 +41,10 @@ export async function startChat(agent: Agent, projectId: string | undefined): Pr
 export function NewChatMenu({ projectId, trigger }: { projectId: string | undefined; trigger: ReactElement }) {
   const t = useT();
   const list = useChatAgents(projectId);
+  const projects = useData((s) => s.projects);
+  const pid = realProjectId(projectId);
+  // A code session needs the project's folder on disk.
+  const onDisk = projects.some((p) => p.id === pid && p.path && p.present);
   const [busy, setBusy] = useState(false);
   const items: MenuEntry[] = list.length
     ? [
@@ -53,6 +62,23 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
             },
           }),
         ),
+        ...(onDisk
+          ? [
+              { type: "label", label: t("chat.newCodeWith") } as MenuEntry,
+              ...list.slice(0, 8).map(
+                (a): MenuEntry => ({
+                  label: a.name,
+                  icon: <Icons.Code size={16} />,
+                  disabled: busy,
+                  onSelect: async () => {
+                    setBusy(true);
+                    await startChat(a, projectId, true);
+                    setBusy(false);
+                  },
+                }),
+              ),
+            ]
+          : []),
       ]
     : [{ type: "label", label: t("chat.noAgents") }];
   return <Menu align="end" items={items} trigger={trigger} />;

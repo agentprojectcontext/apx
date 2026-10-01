@@ -880,3 +880,85 @@ body {
   border-radius: var(--apx-radius-md);
   background: var(--apx-bg);
 }
+
+/* ── Code threads: folder in the header, uncommitted changes card ─────────── */
+.chat__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: 6px;
+  color: var(--apx-fg-muted);
+}
+.chat__cwd {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+}
+.changes {
+  max-width: 560px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+}
+.changes__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.changes__cwd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.changes__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.changes__file {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+.changes__status {
+  width: 18px;
+  color: var(--apx-fg-subtle);
+}
+.changes__status.is-new {
+  color: var(--apx-brand-soft-fg);
+}
+.changes__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.changes__stat .is-add {
+  color: var(--apx-brand-soft-fg);
+}
+.changes__stat .is-del {
+  color: var(--apx-danger-soft-fg);
+}
+.changes__more {
+  color: var(--apx-fg-subtle);
+}

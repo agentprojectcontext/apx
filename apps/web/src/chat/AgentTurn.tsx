@@ -3,6 +3,7 @@ import { AgentAvatar, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
+import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { InputPart } from "./parts/InputPart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
@@ -81,6 +82,8 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       return <NoticePart part={p} />;
     case "input":
       return <InputPart part={p} />;
+    case "changes":
+      return <ChangesPart part={p} />;
     default:
       return null;
   }

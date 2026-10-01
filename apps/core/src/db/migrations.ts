@@ -171,4 +171,9 @@ export const MIGRATIONS: readonly string[] = [
   -- A job's process start time (as ps prints it): after a restart, a live pid is stopped only if it is still ours.
   ALTER TABLE jobs ADD COLUMN proc_start TEXT;
   `,
+  `
+  -- Code threads: the folder the agent works in and what it may change there.
+  ALTER TABLE threads ADD COLUMN cwd TEXT;
+  ALTER TABLE threads ADD COLUMN write_policy TEXT;
+  `,
 ];

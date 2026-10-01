@@ -27,6 +27,7 @@ Usage:
   apx2 browser import <source> <domain,…> [--profile shared|agent:<id>]
 
   apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach] [--interrupt | --steer]
+  apx2 chat "<text>" --code [--cwd <folder>] [--write ask|auto|read-only] [--agent <id>]   Code thread
   apx2 jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
                            The one way to talk to an agent. Default: Home (the secretary)
   apx2 threads [list] | get <thread> | cancel <thread>
@@ -71,6 +72,9 @@ const { values, positionals } = parseArgs({
     detach: { type: "boolean" },
     interrupt: { type: "boolean" },
     steer: { type: "boolean" },
+    code: { type: "boolean" },
+    cwd: { type: "string" },
+    write: { type: "string" },
     keys: { type: "boolean" },
     refresh: { type: "boolean" },
     project: { type: "string" },

@@ -46,6 +46,13 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
             </>
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
+          {thread.kind === "code" && thread.cwd && (
+            <span className="chat__code" title={thread.cwd}>
+              <Icons.Code size={12} />
+              <span className="chat__cwd">{thread.cwd}</span>
+              <Tag>{t(`write.${thread.write ?? "ask"}`)}</Tag>
+            </span>
+          )}
         </div>
       </div>
       <div className="chat__tools">

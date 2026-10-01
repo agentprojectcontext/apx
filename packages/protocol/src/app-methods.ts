@@ -15,6 +15,7 @@ import {
   Surface,
   SurfaceSummary,
   Thread,
+  WritePolicy,
 } from "./domain.ts";
 
 export const appMethods = {
@@ -180,10 +181,13 @@ export const appMethods = {
   "threads.create": {
     params: z
       .object({
-        kind: z.enum(["agent", "loose"]),
+        kind: z.enum(["agent", "loose", "code"]),
         agent_id: Id,
         title: z.string().max(200).optional(),
         project_id: Id.optional(),
+        /** Code threads: a folder inside the project (relative, or absolute under it); default the project's root. */
+        cwd: z.string().max(1024).optional(),
+        write: WritePolicy.optional(),
       })
       .strict(),
     result: Thread,

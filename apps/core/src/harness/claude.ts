@@ -16,8 +16,18 @@ export function zodShape(params: object): z.ZodRawShape {
   return s instanceof z.ZodObject ? s.shape : {};
 }
 
-// Claude Code's own web tools are useful to a secretary; its file and shell tools are not offered.
+// Claude Code's own web tools are useful to a secretary; its file and shell tools only in code threads.
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
+const CODE_READ = ["Read", "Glob", "Grep", "LS"];
+const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
+/** Claude Code's tool names as the protocol's tool kinds, for our policy. */
+const KIND: Record<string, string> = {
+  Edit: "edit",
+  MultiEdit: "edit",
+  Write: "edit",
+  NotebookEdit: "edit",
+  Bash: "execute",
+};
 
 export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: string }): Harness {
   return {
@@ -25,7 +35,9 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
     async run(io: TurnIO): Promise<TurnOutcome> {
       const claudePath = await opts.claudePath();
       const chosen = modelPart(io.models[0]);
+      const code = io.thread.kind === "code";
       let toolCalls = 0;
+      let permissions = 0;
       const server = createSdkMcpServer({
         name: "apx",
         version: "0.1.0",
@@ -54,12 +66,33 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
             options: {
               abortController: ac,
               pathToClaudeCodeExecutable: claudePath,
-              cwd: opts.cwd,
+              cwd: io.thread.cwd ?? opts.cwd,
               systemPrompt: { type: "custom", prompt: io.system },
-              tools: CLAUDE_BUILTINS,
-              allowedTools: [...CLAUDE_BUILTINS, ...io.tools.map((s) => `mcp__apx__${s.function.name}`)],
-              // Nothing outside the allowed list may run, and nothing waits for an approval prompt.
-              permissionMode: "dontAsk",
+              tools: code ? [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE] : CLAUDE_BUILTINS,
+              allowedTools: [
+                ...CLAUDE_BUILTINS,
+                ...(code ? CODE_READ : []),
+                ...io.tools.map((s) => `mcp__apx__${s.function.name}`),
+              ],
+              // Outside code threads nothing beyond the allowed list runs. In a code thread, edits and commands
+              // come to our policy (which may ask the owner) through canUseTool.
+              permissionMode: code ? "default" : "dontAsk",
+              ...(code
+                ? {
+                    canUseTool: async (name: string, input: Record<string, unknown>) => {
+                      const ok = await io.approve({
+                        callId: `${io.run.id}-p${++permissions}`,
+                        title: `${name} ${String(input.file_path ?? input.command ?? "").slice(0, 200)}`.trim(),
+                        kind: KIND[name] ?? "other",
+                        detail: JSON.stringify(input, null, 1),
+                        input: { ...input, ...(input.file_path ? { path: input.file_path } : {}) },
+                      });
+                      return ok
+                        ? { behavior: "allow" as const, updatedInput: input }
+                        : { behavior: "deny" as const, message: "The owner's policy does not allow this here." };
+                    },
+                  }
+                : {}),
               // Isolation: the owner's CLAUDE.md, hooks, plugins, MCP servers and claude.ai connectors/skills are not
               // part of an APX agent. These settings apply to this invocation only; the owner's config is untouched.
               settingSources: [],

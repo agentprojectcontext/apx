@@ -12,6 +12,8 @@ const toThread = (r: Row): Thread => ({
   ...opt("project_id", r.project_id),
   ...opt("parent_id", r.parent_id),
   ...opt("session", r.session),
+  ...opt("cwd", r.cwd),
+  ...(r.write_policy ? { write: r.write_policy as NonNullable<Thread["write"]> } : {}),
   state: r.state as Thread["state"],
   preview: String(r.preview),
   unread: Number(r.unread),
@@ -68,13 +70,15 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         project_id?: string | undefined;
         parent_id?: string | undefined;
         session?: string | undefined;
+        cwd?: string | undefined;
+        write?: Thread["write"];
         id?: string;
       },
     ): Thread {
       const ts = now();
       const id = t.id ?? newId("th");
       run(
-        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, session, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
+        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, session, cwd, write_policy, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
         id,
         t.kind,
         t.title,
@@ -82,6 +86,8 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         t.project_id ?? null,
         t.parent_id ?? null,
         t.session ?? null,
+        t.cwd ?? null,
+        t.write ?? null,
         ts,
         ts,
       );

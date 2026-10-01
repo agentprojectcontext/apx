@@ -126,7 +126,10 @@ export const RunState = z.enum(["submitted", "working", "input-required", "compl
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group"]);
+export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code"]);
+/** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
+export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
+export type WritePolicy = z.infer<typeof WritePolicy>;
 export type ThreadKind = z.infer<typeof ThreadKind>;
 
 export const Thread = z.object({
@@ -139,6 +142,9 @@ export const Thread = z.object({
   parent_id: Id.optional(),
   /** An a2a sub-thread's name: its caller continues the same session (same agent, same context) by it. */
   session: z.string().optional(),
+  /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
+  cwd: z.string().optional(),
+  write: WritePolicy.optional(),
   state: RunState.or(z.literal("idle")),
   preview: z.string().default(""),
   unread: z.number().int().nonnegative().default(0),
@@ -210,6 +216,20 @@ const KnownPart = z.discriminatedUnion("type", [
     reason: z.string().optional(),
   }),
   z.object({ type: z.literal("image"), url: z.string(), alt: z.string().default("") }),
+  /** What changed in a code thread's folder (uncommitted, per git) when the turn ended. */
+  z.object({
+    type: z.literal("changes"),
+    cwd: z.string(),
+    files: z.array(
+      z.object({
+        path: z.string(),
+        status: z.string(),
+        added: z.number().int().optional(),
+        removed: z.number().int().optional(),
+      }),
+    ),
+    more: z.number().int().optional(),
+  }),
   /** The agent waits for the owner: a yes/no on an action, or an answer to a question. Answered with runs.respond. */
   z.object({
     type: z.literal("input"),

@@ -10,11 +10,16 @@ export type ChatOptions = {
   detach?: boolean | undefined;
   interrupt?: boolean | undefined;
   steer?: boolean | undefined;
+  /** A code thread in the project that holds `cwd` (default: this folder). */
+  code?: boolean | undefined;
+  cwd?: string | undefined;
+  write?: string | undefined;
 };
 
 /** The thread to write in: explicit, the agent's latest (or a new one), or Home. */
 async function pickThread(client: ApxClient, o: ChatOptions): Promise<string> {
   if (o.thread) return o.thread;
+  if (o.code) return codeThread(client, o);
   if (!o.agent) return "home";
   const { agents } = await client.call("agents.list", {});
   const agent =
@@ -29,6 +34,34 @@ async function pickThread(client: ApxClient, o: ChatOptions): Promise<string> {
   return (await client.call("threads.create", { kind: "agent", agent_id: agent.id })).id;
 }
 
+/** A new code thread for the agent (default: the secretary) in the registered project that holds the folder. */
+async function codeThread(client: ApxClient, o: ChatOptions): Promise<string> {
+  const { resolve, relative, sep } = await import("node:path");
+  const { realpathSync } = await import("node:fs");
+  const dir = realpathSync(resolve(o.cwd ?? "."));
+  const { projects } = await client.call("projects.list", {});
+  const inside = (p: string) => dir === p || dir.startsWith(`${p}${sep}`);
+  const project = projects
+    .filter((p) => p.path && inside(realpathSync(p.path)))
+    .sort((a, b) => (b.path?.length ?? 0) - (a.path?.length ?? 0))[0];
+  if (!project?.path) throw new Error(`${dir} is not inside a registered project (apx2 projects register <folder>)`);
+  const { agents } = await client.call("agents.list", {});
+  const agent = o.agent
+    ? agents.find((a) => a.id === o.agent || a.name.toLowerCase() === o.agent?.toLowerCase())
+    : agents.find((a) => a.kind === "secretary");
+  if (!agent) throw new Error(`unknown agent ${o.agent ?? "(secretary)"}`);
+  const write = o.write === "auto" || o.write === "read-only" ? o.write : "ask";
+  const t = await client.call("threads.create", {
+    kind: "code",
+    agent_id: agent.id,
+    project_id: project.id,
+    cwd: relative(realpathSync(project.path), dir) || ".",
+    write,
+  });
+  console.log(`code thread ${t.id} · ${t.cwd} · write: ${t.write}`);
+  return t.id;
+}
+
 function line(p: Part): string | undefined {
   switch (p.type) {
     case "tool":
@@ -41,6 +74,11 @@ function line(p: Part): string | undefined {
       return `  ◎ browser ${p.state}: ${p.url}`;
     case "notice":
       return `  ! ${p.text}`;
+    case "changes":
+      return `  ± ${p.files.length}${p.more ? `+${p.more}` : ""} uncommitted in ${p.cwd}: ${p.files
+        .slice(0, 8)
+        .map((f) => `${f.status} ${f.path}${f.added !== undefined ? ` +${f.added}/-${f.removed}` : ""}`)
+        .join(", ")}`;
     case "input":
       return p.state === "pending"
         ? `  ? ${p.prompt}${p.detail ? `\n    ${p.detail}` : ""}${p.options?.length ? `\n    options: ${p.options.join(" / ")}` : ""}\n    answer: apx2 runs respond ${p.input_id} ${p.kind === "confirm" ? "approve|deny" : '"<text>"'}`

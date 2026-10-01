@@ -1,6 +1,7 @@
 // The one executor every tool call goes through, whatever harness made it: check the arguments, ask the policy,
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
+import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { JobRecord } from "../domain/jobs.ts";
@@ -138,6 +139,12 @@ export function createExecutor(o: {
     }
     const args = parsed.args;
 
+    // A read-only code thread refuses anything that would need an OK, before anyone is asked.
+    const level = tool.confirm(args);
+    if (thread.kind === "code" && thread.write === "read-only" && (level === "ask" || level === "always")) {
+      card("error", "read-only thread");
+      return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
+    }
     const decision = authorize(tool, args, agent, untrusted);
     if (decision.kind === "confirm" && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
       const answer = await o.inputs.ask({
@@ -208,12 +215,20 @@ export function createExecutor(o: {
    * shell tool's, anything else that changes something asks (unless autonomy allows it).
    */
   const approve: TurnIO["approve"] = async (req) => {
-    const command = (req.input as { command?: unknown } | undefined)?.command;
+    const input = req.input as { command?: unknown; path?: unknown; filepath?: unknown } | undefined;
+    const command = input?.command;
     const level: Confirm = LOOKING.has(req.kind)
       ? "never"
       : req.kind === "execute" && typeof command === "string"
         ? commandRisk(command, o.apxPort)
         : "ask";
+    // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder.
+    if (thread.kind === "code" && level !== "never") {
+      if (thread.write === "read-only") return false;
+      const file = String(input?.path ?? input?.filepath ?? "");
+      const inside = !!thread.cwd && !!file && path.resolve(thread.cwd, file).startsWith(`${thread.cwd}${path.sep}`);
+      if (thread.write === "auto" && req.kind === "edit" && inside) return true;
+    }
     const decision = decide(level, LOOKING.has(req.kind) ? "none" : "external", agent, untrusted);
     if (decision.kind === "allow") return true;
     const answer = await o.inputs.ask({

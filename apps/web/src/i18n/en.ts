@@ -142,6 +142,12 @@ export const en = {
   "thread.chat": "Chat",
 
   // Chat
+  "chat.newCodeWith": "New code session with",
+  "write.ask": "asks before changes",
+  "write.auto": "edits freely",
+  "write.read-only": "read-only",
+  "changes.title": "{n} uncommitted",
+  "changes.more": "and {n} more",
   "chat.new": "New chat",
   "chat.newWith": "New chat with…",
   "chat.noAgents": "No agents for this project.",
