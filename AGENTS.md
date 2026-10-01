@@ -24,7 +24,8 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 
 ```bash
 pnpm install
-pnpm dev                                   # core on 127.0.0.1:7440, home ~/.apx2 (override APX_HOME/APX_PORT)
+pnpm app                                   # build panel + desktop, start the core (serves the panel) and open the app
+pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
 pnpm preflight                             # check:private + lint + typecheck + test — must be green before push
@@ -37,14 +38,14 @@ pnpm preflight                             # check:private + lint + typecheck + 
 ## Repo map
 
 ```
-apps/core        daemon — transport/ (http, ws) → rpc/ (single router) → domain/ …   (see rules/HUMAN_MODEL.md)
+apps/core        daemon — transport/ → rpc/ (single router) → domain/ (store) · agent/ (loop, tools) · nodes/ · db/
 apps/terminal    apx2 CLI — protocol calls only
 apps/web         React panel — served by core, renderer of desktop
-apps/desktop     Electron shell + embedded browser node            (F1)
+apps/desktop     Electron shell + embedded browser node (tabs, CDP, profiles, cookie import)
 apps/mobile      Expo                                               (F7)
 packages/protocol  zod frames + method registry + isomorphic client
 packages/ui        design system, synced with Claude Design (see packages/ui/.design-sync/NOTES.md)
-packages/surfaces  widgets/apps/artifacts runtime                   (F3)
+packages/surfaces  widgets/apps/artifacts runtime (placeholder; the MVP host lives in apps/web/src/surfaces)
 packages/config    shared tsconfig
 plan/            plan + research (Spanish). rules/  engineering docs. scripts/  repo gates.
 ```

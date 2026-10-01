@@ -47,8 +47,18 @@ gets the types. There is no other way into a handler.
 
 ## 4. State and persistence
 
-Today: only `~/.apx2/home-id` (stable install id). SQLite (`node:sqlite`, WAL) lands with F2; human-edited
-files (`AGENTS.md`, `.apc/**`, memories) stay as files with the DB as index.
+`~/.apx2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
+`model_log` (what the model saw — never rendered), runs (A2A-shaped states + token usage), surfaces (+ share
+tokens), idempotency. `~/.apx2/home-id` is the install id. Browser sessions live in Electron partitions on the
+desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
+
+## 4b. The agent loop
+
+`threads.send` → `rpc/app.ts` stores the human message → `agent/runner.ts` queues one run per thread →
+`agent/context.ts` builds a stable system prompt + per-turn preamble → `agent/provider.ts` streams from an
+OpenAI-compatible model → tool calls run through `agent/tools.ts` (browser tools go to the desktop node via the
+broker; `show_widget` writes a surface; `delegate` opens an a2a sub-thread and may wake the caller later) →
+display parts are updated live and broadcast as events.
 
 ## 5. Auth and trust
 
@@ -59,8 +69,10 @@ files (`AGENTS.md`, `.apc/**`, memories) stay as files with the DB as index.
 
 ## 6. External integrations
 
-None yet. Planned: Claude Agent SDK / `codex app-server` / ACP harnesses (F2), Electron + CDP (F1), Telegram and
-WhatsApp (F5).
+- LLM: any OpenAI-compatible endpoint; default Gemini with the key read by reference from APX v1's config.
+- APX v1 daemon: read-only import of projects/agents (`import/v1.ts`, loopback only).
+- Electron + in-process CDP for the embedded browser; macOS Keychain + `sqlite3` for cookie import.
+Planned: Claude Agent SDK / `codex app-server` harnesses, Telegram and WhatsApp.
 
 ## 7. Build / test / run lifecycle
 

@@ -10,9 +10,9 @@ messages or spends money on the owner's behalf).
 | Package manager | pnpm 11 workspaces (`apps/*`, `packages/*`), one lockfile |
 | Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron, F1), mobile (Expo, F7) |
 | Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames |
-| Persistence | none yet; SQLite via `node:sqlite` planned (F2) |
-| Auth | loopback-only by default; `APX_TOKEN` required off-loopback; device pairing planned (F7) |
-| Agentic surfaces | harnesses + tools (F2), embedded browser node (F1), surfaces/widgets (F3) |
+| Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
+| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); device pairing planned |
+| Agentic surfaces | own tool loop (OpenAI-compatible, Gemini by default), browser tools via the desktop node, widgets (sandboxed iframes), delegation between agents (a2a sub-threads) |
 | Tests | `node:test` (core, protocol, terminal) |
 | Lint / format | Biome 2 |
 | CI / deploy | none yet (planned: GitHub Actions running `pnpm preflight`) |
@@ -24,7 +24,7 @@ messages or spends money on the owner's behalf).
 |---|---|---|
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
 | Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions |
-| Tests | `pnpm test` | Router: unknown method / bad params / idempotency; safe bind (rule 7); HTTP ≡ WS |
+| Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths) |
 | All | `pnpm preflight` | The four above; run before every push |
 
