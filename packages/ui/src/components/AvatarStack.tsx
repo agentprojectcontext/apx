@@ -1,5 +1,6 @@
 import { Children, type ReactNode } from "react";
 import { cx } from "../cx";
+import { keyed } from "../keys";
 
 export interface AvatarStackProps {
   /** Avatar / AgentAvatar elements, all the same size. */
@@ -18,8 +19,8 @@ export function AvatarStack({ children, max = 4, size = 24, className }: AvatarS
   const rest = all.length - shown.length;
   return (
     <span className={cx("apx-avatar-stack", className)} style={{ ["--apx-stack-size" as string]: `${size}px` }}>
-      {shown.map((c, i) => (
-        <span key={i} className="apx-avatar-stack__item">
+      {keyed(shown, (c) => c).map(({ item: c, key }) => (
+        <span key={key} className="apx-avatar-stack__item">
           {c}
         </span>
       ))}

@@ -32,7 +32,7 @@ for (const line of presets.split("\n")) {
     "-o",
     out,
   ]);
-  const uri = "data:image/webp;base64," + readFileSync(out).toString("base64");
+  const uri = `data:image/webp;base64,${readFileSync(out).toString("base64")}`;
   rows.push(
     `  ${key}: { label: ${JSON.stringify(label)}, eyeColor: ${JSON.stringify(eyeColor)}, eyes: ${eyes}, src: ${JSON.stringify(uri)} },`,
   );

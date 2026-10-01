@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { keyed } from "../keys";
 import { StatusIcon, type StepStatus } from "./StatusIcon";
 
 export interface Step {
@@ -21,8 +22,8 @@ export interface StepListProps {
 export function StepList({ steps, arrow = "→", className }: StepListProps) {
   return (
     <ul className={cx("apx-steps", className)}>
-      {steps.map((s, i) => (
-        <li key={i} className={cx("apx-steps__row", `is-${s.status ?? "done"}`)}>
+      {keyed(steps, (s) => s.label).map(({ item: s, key }) => (
+        <li key={key} className={cx("apx-steps__row", `is-${s.status ?? "done"}`)}>
           <StatusIcon status={s.status ?? "done"} />
           <span>
             <strong className="apx-steps__label">{s.label}</strong>

@@ -32,21 +32,21 @@ export function AgentAvatar({ name, blob, size = 32, animated = true, status, cl
       className={cx("apx-blob", animated && "apx-blob--anim", className)}
       style={{ width: size, height: size, ["--apx-blob-delay" as string]: delay, ...style }}
       role="img"
-      aria-label={name}
+      aria-label={status ? `${name} (${status})` : name}
     >
       <span className="apx-blob__bob">
         <img className="apx-blob__body" src={p.src} alt="" draggable={false} />
         <svg className="apx-blob__eyes" viewBox={`0 0 ${BLOB_VIEWBOX} ${BLOB_VIEWBOX}`} aria-hidden="true">
           <g className="apx-blob__look">
             <g className="apx-blob__blink">
-              {p.eyes.map((e, i) => (
-                <rect key={i} x={e.x} y={e.y} width={e.w} height={e.h} rx={e.rx} fill={p.eyeColor} />
+              {p.eyes.map((e) => (
+                <rect key={`${e.x},${e.y}`} x={e.x} y={e.y} width={e.w} height={e.h} rx={e.rx} fill={p.eyeColor} />
               ))}
             </g>
           </g>
         </svg>
       </span>
-      {status && <span className={cx("apx-avatar__status", `is-${status}`)} aria-label={status} />}
+      {status && <span className={cx("apx-avatar__status", `is-${status}`)} />}
     </span>
   );
 }

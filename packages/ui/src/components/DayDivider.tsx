@@ -10,7 +10,7 @@ export interface DayDividerProps {
 /** Date separator between messages. */
 export function DayDivider({ label, className }: DayDividerProps) {
   return (
-    <div className={cx("apx-daydiv", className)} role="separator">
+    <div className={cx("apx-daydiv", className)}>
       <span>{label}</span>
     </div>
   );

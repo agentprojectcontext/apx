@@ -889,6 +889,12 @@
   line-height: 1;
   user-select: none;
 }
+.apx-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .apx-avatar--circle,
 .apx-avatar--circle .apx-avatar__img {
   border-radius: 50%;
@@ -908,12 +914,6 @@
 .apx-avatar--square.apx-avatar--initials {
   background: hsl(var(--apx-avatar-hue) 55% 42%);
   color: #fff;
-}
-.apx-avatar__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 .apx-avatar:has(> .apx-avatar__emoji) {
   background: var(--apx-fill);
@@ -1640,10 +1640,10 @@ button.apx-agentchip:hover {
 .apx-entity__body {
   margin-top: 10px;
 }
-.apx-entity__body > p {
+.apx-entity .apx-entity__body > p {
   margin: 0 0 8px;
 }
-.apx-entity__body > p:last-child {
+.apx-entity .apx-entity__body > p:last-child {
   margin-bottom: 0;
 }
 .apx-entity__actions {
@@ -1879,6 +1879,6 @@ button.apx-agentchip:hover {
   .apx-blob--anim .apx-blob__blink,
   .apx-activity__dots i,
   .apx-skeleton {
-    animation: none !important;
+    animation: none;
   }
 }

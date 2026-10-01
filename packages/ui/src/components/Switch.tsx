@@ -1,5 +1,5 @@
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { cx } from "../cx";
 
 export interface SwitchProps {
@@ -26,8 +26,10 @@ export function Switch({
   size = "md",
   className,
 }: SwitchProps) {
+  const id = useId();
   const control = (
     <BaseSwitch.Root
+      id={id}
       className={cx("apx-switch", `apx-switch--${size}`)}
       checked={checked}
       defaultChecked={defaultChecked}
@@ -39,7 +41,7 @@ export function Switch({
   );
   if (!label) return <span className={className}>{control}</span>;
   return (
-    <label className={cx("apx-choice", disabled && "is-disabled", className)}>
+    <label htmlFor={id} className={cx("apx-choice", disabled && "is-disabled", className)}>
       <span className="apx-choice__text">
         <span className="apx-choice__label">{label}</span>
         {description && <span className="apx-choice__desc">{description}</span>}

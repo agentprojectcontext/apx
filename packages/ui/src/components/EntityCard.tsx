@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { keyed } from "../keys";
 
 export interface EntityCardProps {
   /** Small line above the title: kind of thing ("Email draft", "Task", "Routine"). */
@@ -37,8 +38,8 @@ export function EntityCard({ eyebrow, icon, title, status, fields, children, act
         {title && <div className="apx-entity__title">{title}</div>}
         {fields && fields.length > 0 && (
           <dl className="apx-entity__fields">
-            {fields.map((f, i) => (
-              <div key={i} className="apx-entity__field">
+            {keyed(fields, (f) => f.label).map(({ item: f, key }) => (
+              <div key={key} className="apx-entity__field">
                 <dt>{f.label}</dt>
                 <dd>{f.value}</dd>
               </div>

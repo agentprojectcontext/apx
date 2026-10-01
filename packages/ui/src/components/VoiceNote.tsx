@@ -23,16 +23,22 @@ export function VoiceNote({ src, duration, label = "Voice note", detail, progres
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(progress * duration);
+  // Detached Audio, not an <audio> element: the card draws its own controls, so nothing media-related is in the DOM.
   useEffect(() => {
-    const a = audio.current;
-    if (!a) return;
+    if (!src) return;
+    const a = new Audio(src);
+    a.preload = "metadata";
+    audio.current = a;
     const onTime = () => setT(a.currentTime);
     const onEnd = () => setPlaying(false);
     a.addEventListener("timeupdate", onTime);
     a.addEventListener("ended", onEnd);
     return () => {
+      a.pause();
       a.removeEventListener("timeupdate", onTime);
       a.removeEventListener("ended", onEnd);
+      audio.current = null;
+      setPlaying(false);
     };
   }, [src]);
   const toggle = () => {
@@ -69,7 +75,6 @@ export function VoiceNote({ src, duration, label = "Voice note", detail, progres
           {fmt(t)} / {fmt(duration)}
         </span>
       </div>
-      {src && <audio ref={audio} src={src} preload="metadata" />}
     </div>
   );
 }

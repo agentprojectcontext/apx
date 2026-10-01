@@ -15,15 +15,11 @@ export interface MessageMetaProps {
 
 /** The line under an agent turn: who answered, with which model and effort. Mono in classic. */
 export function MessageMeta({ agent, model, effort, children, className }: MessageMetaProps) {
-  const parts = [model, effort].filter(Boolean);
   return (
     <div className={cx("apx-msgmeta", className)}>
       {agent && <span className="apx-msgmeta__agent">{agent}</span>}
-      {parts.map((p, i) => (
-        <span key={i} className="apx-msgmeta__part">
-          {p}
-        </span>
-      ))}
+      {model ? <span className="apx-msgmeta__part">{model}</span> : null}
+      {effort ? <span className="apx-msgmeta__part">{effort}</span> : null}
       {children}
     </div>
   );

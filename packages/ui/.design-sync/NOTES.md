@@ -13,6 +13,13 @@
 - `Icons` is exported as an object of lucide components; the converter treats it as a compound namespace (`Icons.Search`). That's expected.
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
+## Pending re-sync
+- Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
+  Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/
+  AvatarStack/MessageMeta. Pixel-identical in all four looks, same public API; the remote bundle is just stale.
+- The EntityCard preview's sample name was replaced with "Northwind"; the Claude Design copy keeps the old text until
+  re-synced. Delete this section after the next re-sync.
+
 ## Known render warns
 - none outstanding (Dialog handled by `cardMode: single`).
 

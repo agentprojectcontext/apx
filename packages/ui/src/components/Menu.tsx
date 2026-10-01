@@ -1,6 +1,7 @@
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ReactElement, ReactNode } from "react";
 import { cx } from "../cx";
+import { keyed } from "../keys";
 import { useApx } from "./ApxProvider";
 
 export type MenuEntry =
@@ -36,17 +37,17 @@ export function Menu({ trigger, items, side = "bottom", align = "start", default
       <BaseMenu.Portal container={portalRef}>
         <BaseMenu.Positioner side={side} align={align} sideOffset={6}>
           <BaseMenu.Popup className={cx("apx-menu", className)}>
-            {items.map((it, i) => {
-              if (it.type === "separator") return <BaseMenu.Separator key={i} className="apx-menu__sep" />;
+            {keyed(items, (it) => (it.type === "separator" ? "" : it.label)).map(({ item: it, key }) => {
+              if (it.type === "separator") return <BaseMenu.Separator key={key} className="apx-menu__sep" />;
               if (it.type === "label")
                 return (
-                  <div key={i} className="apx-menu__label">
+                  <div key={key} className="apx-menu__label">
                     {it.label}
                   </div>
                 );
               return (
                 <BaseMenu.Item
-                  key={i}
+                  key={key}
                   className={cx("apx-menu__item", it.danger && "is-danger")}
                   disabled={it.disabled}
                   onClick={it.onSelect}

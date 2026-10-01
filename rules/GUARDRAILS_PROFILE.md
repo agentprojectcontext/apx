@@ -33,8 +33,8 @@ Convention-only today (review must catch them): dependency direction inside core
 **Planned gate:** a Biome `noRestrictedImports` / dependency-cruiser rule for rule 4 once `domain/` exists, and a
 CI workflow running `preflight`.
 
-Known ratchet: `packages/ui` has a11y and array-key rules downgraded to warnings — see
-[`DECISIONS.md#d-005`](DECISIONS.md#d-005).
+No lint ratchets outstanding: every package, `packages/ui` included, gets the full rule set (the former `packages/ui`
+override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).
 
 ## High-risk changes (always independent review + runtime proof)
 

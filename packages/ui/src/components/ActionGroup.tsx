@@ -2,6 +2,7 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import { ChevronRight, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { keyed } from "../keys";
 import { StatusIcon, type StepStatus } from "./StatusIcon";
 
 export interface ActionItem {
@@ -57,8 +58,8 @@ export function ActionGroup({
       <Collapsible.Panel className="apx-actions__panel">
         {children ?? (
           <ul className="apx-actions__list">
-            {items?.map((it, i) => (
-              <li key={i} className={cx("apx-actions__item", it.status === "failed" && "is-failed")}>
+            {keyed(items ?? [], (it) => it.name).map(({ item: it, key }) => (
+              <li key={key} className={cx("apx-actions__item", it.status === "failed" && "is-failed")}>
                 <StatusIcon status={it.status ?? "done"} />
                 <span className="apx-actions__name">{it.name}</span>
                 {it.detail && <span className="apx-actions__detail">{it.detail}</span>}

@@ -1,6 +1,6 @@
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import { Check, Minus } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { cx } from "../cx";
 
 export interface CheckboxProps {
@@ -26,9 +26,11 @@ export function Checkbox({
   description,
   className,
 }: CheckboxProps) {
+  const id = useId();
   return (
-    <label className={cx("apx-choice", "apx-choice--start", disabled && "is-disabled", className)}>
+    <label htmlFor={id} className={cx("apx-choice", "apx-choice--start", disabled && "is-disabled", className)}>
       <BaseCheckbox.Root
+        id={id}
         className="apx-checkbox"
         checked={checked}
         defaultChecked={defaultChecked}

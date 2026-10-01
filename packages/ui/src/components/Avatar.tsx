@@ -31,14 +31,9 @@ function initials(name: string) {
 export function Avatar({ name, src, emoji, size = 32, shape = "circle", status, className, style }: AvatarProps) {
   const hue = HUES[hashSeed(name) % HUES.length];
   let content: ReactNode;
-  if (src) content = <img src={src} alt={name} className="apx-avatar__img" />;
-  else if (emoji)
-    content = (
-      <span className="apx-avatar__emoji" aria-label={name}>
-        {emoji}
-      </span>
-    );
-  else content = <span aria-label={name}>{initials(name)}</span>;
+  if (src) content = <img src={src} alt="" className="apx-avatar__img" />;
+  else if (emoji) content = <span className="apx-avatar__emoji">{emoji}</span>;
+  else content = <span>{initials(name)}</span>;
   return (
     <span
       className={cx("apx-avatar", `apx-avatar--${shape}`, !src && !emoji && "apx-avatar--initials", className)}
@@ -49,9 +44,11 @@ export function Avatar({ name, src, emoji, size = 32, shape = "circle", status, 
         ["--apx-avatar-hue" as string]: hue,
         ...style,
       }}
+      role="img"
+      aria-label={status ? `${name} (${status})` : name}
     >
       {content}
-      {status && <span className={cx("apx-avatar__status", `is-${status}`)} aria-label={status} />}
+      {status && <span className={cx("apx-avatar__status", `is-${status}`)} />}
     </span>
   );
 }

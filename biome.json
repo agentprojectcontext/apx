@@ -51,31 +51,6 @@
           }
         }
       }
-    },
-    {
-      "includes": ["packages/ui/**"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useAriaPropsSupportedByRole": "warn",
-            "noLabelWithoutControl": "warn",
-            "useSemanticElements": "warn",
-            "useMediaCaption": "warn"
-          },
-          "suspicious": {
-            "noArrayIndexKey": "warn"
-          },
-          "correctness": {
-            "useExhaustiveDependencies": "warn"
-          },
-          "style": {
-            "noDescendingSpecificity": "warn"
-          },
-          "complexity": {
-            "noImportantStyles": "warn"
-          }
-        }
-      }
     }
   ],
   "assist": {

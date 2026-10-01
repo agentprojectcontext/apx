@@ -25,10 +25,11 @@ The embedded browser needs Chromium with CDP and isolated session partitions; th
 (WKWebView on macOS) offers neither. Evidence in `plan/research/06-navegador.md`.
 
 <a id="d-005"></a>
-## D-005 — 2026-09-30 — `packages/ui` lint findings as warnings (ratchet)
-The design system predates the lint gate and has a11y/array-key findings. They are warnings so the gate can land;
-fixing them requires a Claude Design re-sync. New code in other packages gets the full rule set. Remove the
-override once the count reaches zero.
+## D-005 — 2026-09-30 — `packages/ui` lint findings as warnings (ratchet) — closed 2026-09-30
+The design system predated the lint gate and had a11y/array-key findings, so a `biome.json` override downgraded
+them to warnings while the gate landed. All findings are fixed and the override is removed: `packages/ui` now gets
+the full rule set like every other package. Lists whose items carry no id key by content (`src/keys.ts`), not by
+index. The fixes change markup, not visuals or the public API; a Claude Design re-sync is due.
 
 <a id="d-006"></a>
 ## D-006 — 2026-09-30 — Biome instead of ESLint + Prettier; `node:test` instead of Vitest

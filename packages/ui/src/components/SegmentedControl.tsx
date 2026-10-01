@@ -1,3 +1,5 @@
+import { Radio } from "@base-ui/react/radio";
+import { RadioGroup } from "@base-ui/react/radio-group";
 import { type ReactNode, useState } from "react";
 import { cx } from "../cx";
 
@@ -31,23 +33,27 @@ export function SegmentedControl({
   const [inner, setInner] = useState(defaultValue ?? options[0]?.value);
   const current = value ?? inner;
   return (
-    <div role="radiogroup" aria-label={label} className={cx("apx-segmented", `apx-segmented--${size}`, className)}>
+    <RadioGroup
+      value={current}
+      onValueChange={(v: string) => {
+        setInner(v);
+        onValueChange?.(v);
+      }}
+      aria-label={label}
+      className={cx("apx-segmented", `apx-segmented--${size}`, className)}
+    >
       {options.map((o) => (
-        <button
+        <Radio.Root
           key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={current === o.value}
+          value={o.value}
+          nativeButton
+          render={<button type="button" />}
           className={cx("apx-segmented__item", current === o.value && "is-selected")}
-          onClick={() => {
-            setInner(o.value);
-            onValueChange?.(o.value);
-          }}
         >
           {o.icon}
           {o.label}
-        </button>
+        </Radio.Root>
       ))}
-    </div>
+    </RadioGroup>
   );
 }
