@@ -111,6 +111,34 @@ export const browserMethods = {
     result: z.object({ url: z.string(), text: z.string(), total: z.number().int(), truncated: z.boolean() }),
     effect: false,
   },
+  /** Browsers whose sessions can be imported (detected on the desktop). Human-only. */
+  "browser.cookie_sources": {
+    params: z.object({}).strict(),
+    result: z.object({
+      sources: z.array(
+        z.object({ id: z.string(), browser: z.string(), profile: z.string(), family: z.enum(["firefox", "chromium"]) }),
+      ),
+    }),
+    effect: false,
+  },
+  /** Domains with cookies in a source, with counts only — never values. */
+  "browser.cookie_domains": {
+    params: z.object({ source: z.string(), filter: z.string().max(100).default("") }).strict(),
+    result: z.object({ domains: z.array(z.object({ domain: z.string(), count: z.number().int() })) }),
+    effect: false,
+  },
+  /** Copies the chosen domains' cookies into an APX profile. Values stay on the desktop. Human-only. */
+  "browser.import_cookies": {
+    params: z
+      .object({
+        source: z.string(),
+        domains: z.array(z.string().max(253)).min(1).max(50),
+        profile: z.union([z.literal("shared"), z.string().regex(/^agent:[a-z0-9][a-z0-9-]{0,63}$/)]).default("shared"),
+      })
+      .strict(),
+    result: z.object({ imported: z.number().int(), skipped: z.number().int(), failed: z.number().int() }),
+    effect: true,
+  },
   "browser.close": {
     params: z.object({ tab: Tab }).strict(),
     result: z.object({ ok: z.literal(true) }),

@@ -5,6 +5,7 @@ import { type BrowserProfile, browserMethods, type TabControl, type TabInfo } fr
 import { ApxError } from "@apx/protocol/client";
 import { app, type Session, session, WebContentsView } from "electron";
 import { CdpTab } from "./cdp.ts";
+import { discoverSources, importCookies, listDomains } from "./cookies.ts";
 
 type Tab = { id: string; profile: BrowserProfile; view: WebContentsView; cdp: CdpTab; control: TabControl };
 
@@ -144,6 +145,20 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         this.emit("changed");
         return { resolved, url: tab.view.webContents.getURL(), title: tab.view.webContents.getTitle() };
       }
+      case "browser.cookie_sources":
+        return {
+          sources: discoverSources().map(({ id, browser, profile, family }) => ({ id, browser, profile, family })),
+        };
+      case "browser.cookie_domains": {
+        const p = browserMethods["browser.cookie_domains"].params.parse(raw);
+        return { domains: (await listDomains(this.#source(p.source), p.filter)).slice(0, 200) };
+      }
+      case "browser.import_cookies": {
+        const p = browserMethods["browser.import_cookies"].params.parse(raw);
+        const ses = session.fromPartition(partitionFor(p.profile, 0));
+        this.#configure(ses);
+        return importCookies(this.#source(p.source), p.domains, ses);
+      }
       case "browser.close": {
         const p = browserMethods["browser.close"].params.parse(raw);
         await this.close(p.tab);
@@ -242,6 +257,12 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   async userNavigate(id: string, url: string): Promise<void> {
     const tab = this.#get(id);
     await this.#load(tab, /^https?:\/\//.test(url) ? url : `https://${url}`);
+  }
+
+  #source(id: string) {
+    const src = discoverSources().find((s) => s.id === id);
+    if (!src) throw new ApxError({ code: "bad_request", message: `unknown cookie source ${id}` });
+    return src;
   }
 
   #get(id: string): Tab {

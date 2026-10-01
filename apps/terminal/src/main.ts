@@ -18,6 +18,9 @@ Usage:
   apx2 browser shot <tab> <file.jpg>
   apx2 browser close <tab>
   apx2 browser control <tab> user|idle|done
+  apx2 browser cookies                          List browsers whose sessions can be imported
+  apx2 browser cookies <source> [filter]        Domains with cookies (counts only)
+  apx2 browser import <source> <domain,…> [--profile shared|agent:<id>]
 
   apx2 chat "<text>" [--thread home]   Talk to an agent; prints tool steps and the answer
   apx2 import-v1                       Import projects and agents from a running APX v1 (read-only)
@@ -147,6 +150,25 @@ async function browser([sub, a, b, c]: string[]): Promise<void> {
       const { writeFileSync } = await import("node:fs");
       writeFileSync(need(b, "file"), Buffer.from(r.data, "base64"));
       console.log(`wrote ${b} (${r.bytes} bytes)`);
+      return;
+    }
+    case "cookies": {
+      if (!a) {
+        const { sources } = await client.call("browser.cookie_sources", {});
+        for (const x of sources) console.log(`${x.id}\t${x.family}`);
+        return;
+      }
+      const { domains } = await client.call("browser.cookie_domains", { source: a, filter: b ?? "" });
+      for (const d of domains.slice(0, 30)) console.log(`${String(d.count).padStart(5)}  ${d.domain}`);
+      return;
+    }
+    case "import": {
+      const r = await client.call("browser.import_cookies", {
+        source: need(a, "source"),
+        domains: need(b, "domains").split(","),
+        ...(values.profile ? { profile: values.profile } : {}),
+      });
+      console.log(`imported ${r.imported} · skipped ${r.skipped} (expired) · failed ${r.failed}`);
       return;
     }
     case "control": {

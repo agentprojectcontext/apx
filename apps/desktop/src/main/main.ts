@@ -28,17 +28,21 @@ app.whenReady().then(() => {
     const { width, height } = win.getContentBounds();
     panel.setBounds({ x: 0, y: 0, width, height });
     if (!shown) return;
-    if (slot && slot.width > 0 && slot.height > 0) {
-      shown.setVisible(true);
+    const visible = Boolean(slot && slot.width > 0 && slot.height > 0);
+    // Hidden tabs sit behind the panel at a real size instead of setVisible(false): an invisible view stops
+    // painting, and the agent still needs screenshots and layout of the page it is driving.
+    win.contentView.removeChildView(shown);
+    if (visible && slot) {
+      win.contentView.addChildView(shown);
       shown.setBounds(slot);
     } else {
-      shown.setVisible(false);
+      win.contentView.addChildView(shown, 0);
+      shown.setBounds({ x: 0, y: 0, width: Math.min(width, 1280), height });
     }
   };
   host.onShow = (view) => {
     if (shown && shown !== view) win.contentView.removeChildView(shown);
     shown = view;
-    if (view) win.contentView.addChildView(view); // added last → drawn above the panel
     layout();
   };
   host.onAttention = (message) => {

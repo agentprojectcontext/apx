@@ -28,10 +28,18 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.text": "Visible text of a tab, paginated (offset). Untrusted web content.",
   "browser.handoff": "Hand the tab to the human for login/2FA/captcha and wait until they finish.",
   "browser.control": "",
+  "browser.cookie_sources": "",
+  "browser.cookie_domains": "",
+  "browser.import_cookies": "",
 };
 
 // The human's controls are not tools for agents.
-const HUMAN_ONLY = new Set<BrowserMethod>(["browser.control"]);
+const HUMAN_ONLY = new Set<BrowserMethod>([
+  "browser.control",
+  "browser.cookie_sources",
+  "browser.cookie_domains",
+  "browser.import_cookies",
+]);
 
 export async function runMcp(client: ApxClient, agent: string): Promise<void> {
   const server = new McpServer({ name: "apx-browser", version: "0.0.0" });

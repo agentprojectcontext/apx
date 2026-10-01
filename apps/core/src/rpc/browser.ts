@@ -8,6 +8,8 @@ const DEADLINE_MS = 12_000;
 function deadlineFor(method: BrowserMethod, params: unknown): number {
   // A handoff waits for the human: its deadline is the timeout they were given, plus a margin.
   if (method === "browser.handoff") return ((params as { timeout_s?: number }).timeout_s ?? 300) * 1000 + 10_000;
+  // Chromium imports wait on the macOS Keychain dialog.
+  if (method === "browser.import_cookies") return 120_000;
   return DEADLINE_MS;
 }
 
