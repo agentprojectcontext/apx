@@ -41,3 +41,10 @@ test("with nothing running, steer simply queues a normal turn", async () => {
   const { messages } = await env.settle(t);
   assert.ok(texts(messages).includes("Plain: hello"));
 });
+
+test("usage by model: turns and tokens, and our own loop's turns counted as paid per token", async () => {
+  const { models } = await env.client.call("usage.summary", {});
+  const fake = models.find((m) => m.model === "fake/fake-1");
+  assert.ok(fake && fake.runs >= 2);
+  assert.equal(fake.billing, "metered");
+});

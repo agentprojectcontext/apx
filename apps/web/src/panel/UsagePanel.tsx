@@ -54,8 +54,12 @@ export function UsagePanel() {
   );
   const failed = runs.filter((r) => r.state === "failed").length;
   const model = [...messages].reverse().find((m) => m.model)?.model ?? "—";
+  // Claude Code, Codex and ACP agents run on the owner's subscription; our own loop pays a provider per token.
+  const engine = model.split("/")[0] ?? "";
+  const included = engine === "claude" || engine === "codex" || engine.startsWith("acp:");
   const rows: [string, string][] = [
     [t("usage.model"), model],
+    [t("usage.billing"), model === "—" ? "—" : t(included ? "usage.billing.included" : "usage.billing.metered")],
     [t("usage.runs"), `${formatNumber(runs.length)}${failed ? t("usage.runsFailed", { n: failed }) : ""}`],
     [t("usage.agentTime"), formatSeconds(total)],
     [

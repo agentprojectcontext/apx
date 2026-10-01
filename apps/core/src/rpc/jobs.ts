@@ -1,4 +1,5 @@
-// The background view: agents' runs working on their own and terminal commands agents started, as one list.
+// Accounting of work: the background view (agents' runs on their own and terminal commands, as one list) and
+// usage by model.
 import { ErrorCode, type Job } from "@apx/protocol";
 import { publicJob } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -33,6 +34,20 @@ export function jobHandlers(store: Store, engine: Engine) {
   };
 
   return {
+    "usage.summary": (({ since, project }) => {
+      const from = since ?? new Date(Date.now() - 30 * 86_400_000).toISOString();
+      return {
+        since: from,
+        models: store.runs.usage(from, project).map((u) => ({
+          model: u.model,
+          // Turns run by a CLI on the owner's subscription cost nothing extra; our own loop pays a provider per token.
+          billing: u.harness === "native" ? ("metered" as const) : ("included" as const),
+          runs: u.runs,
+          input: u.input,
+          output: u.output,
+        })),
+      };
+    }) as Handler<"usage.summary">,
     "jobs.list": (({ finished }) => {
       const runs = store.runs.jobs(finished);
       return {

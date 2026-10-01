@@ -175,3 +175,13 @@ export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): P
   }
   throw new Error(`unknown mcps command: ${sub}`);
 }
+
+export async function usage(client: ApxClient, [days]: string[]): Promise<void> {
+  const since = new Date(Date.now() - Number(days ?? 30) * 86_400_000).toISOString();
+  const r = await client.call("usage.summary", { since });
+  console.log(`since ${r.since.slice(0, 10)}`);
+  for (const m of r.models)
+    console.log(
+      `${m.model.padEnd(44)} ${m.billing.padEnd(9)} ${String(m.runs).padStart(5)} runs  ${String(m.input).padStart(10)} in  ${String(m.output).padStart(9)} out`,
+    );
+}

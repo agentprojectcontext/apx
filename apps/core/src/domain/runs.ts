@@ -137,6 +137,28 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0) };
     },
+    /** Turns and tokens by model since `since` (optionally in one project's threads). */
+    usage(
+      since: string,
+      projectId?: string,
+    ): Array<{ model: string; harness: string; runs: number; input: number; output: number }> {
+      const rows = all(
+        `SELECT r.model AS model, r.harness AS harness, COUNT(*) AS n,
+           COALESCE(SUM(json_extract(r.usage, '$.input')), 0) AS i, COALESCE(SUM(json_extract(r.usage, '$.output')), 0) AS o
+         FROM runs r JOIN threads t ON t.id = r.thread_id
+         WHERE r.model IS NOT NULL AND r.started_at >= ? ${projectId ? "AND t.project_id = ?" : ""}
+         GROUP BY r.model, r.harness ORDER BY n DESC`,
+        since,
+        ...(projectId ? [projectId] : []),
+      );
+      return rows.map((r) => ({
+        model: String(r.model),
+        harness: String(r.harness ?? "native"),
+        runs: Number(r.n),
+        input: Number(r.i),
+        output: Number(r.o),
+      }));
+    },
     /** Delegations from this thread still queued or running. */
     activeDelegations(parentThreadId: string): number {
       const r = one(

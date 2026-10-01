@@ -296,6 +296,26 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * Tokens and turns by model since a date. `billing`: included = the owner's subscription (Claude Code, Codex, an
+   * ACP agent); metered = a provider's API, paid per token.
+   */
+  "usage.summary": {
+    params: z.object({ since: z.string().optional(), project: Id.optional() }).strict(),
+    result: z.object({
+      since: z.string(),
+      models: z.array(
+        z.object({
+          model: z.string(),
+          billing: z.enum(["included", "metered"]),
+          runs: z.number().int(),
+          input: z.number().int(),
+          output: z.number().int(),
+        }),
+      ),
+    }),
+    effect: false,
+  },
   "runs.get": {
     params: z.object({ run: Id }).strict(),
     result: Run,

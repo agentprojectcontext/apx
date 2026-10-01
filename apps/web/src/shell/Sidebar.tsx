@@ -12,11 +12,6 @@ const CHANNELS = [
   { id: "telegram", name: "Telegram", tone: "info", icon: <Icons.Send /> },
 ] as const;
 
-const RUNTIMES = [
-  { id: "claude", name: "Claude Code", icon: <Icons.Code /> },
-  { id: "codex", name: "Codex", icon: <Icons.Terminal /> },
-] as const;
-
 /** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
 export function Sidebar({ rail }: { rail: boolean }) {
   const t = useT();
@@ -69,20 +64,26 @@ export function Sidebar({ rail }: { rail: boolean }) {
         <ProjectsNav rail={rail} />
 
         <Section rail={rail} title={t("nav.externalSessions")} />
-        {RUNTIMES.map((r) => {
-          const e = engines.find((x) => x.id === r.id);
-          return (
+        {/* Every engine the core found on this machine besides our own loop: Claude Code, Codex, ACP agents. */}
+        {engines
+          .filter((e) => e.id !== "native" && e.installed)
+          .map((e) => (
             <NavItem
-              key={r.id}
+              key={e.id}
               collapsed={rail}
-              icon={<ProjectTile tone="ink" shape="circle" icon={r.icon} />}
-              label={e?.label ?? r.name}
+              icon={
+                <ProjectTile
+                  tone="ink"
+                  shape="circle"
+                  icon={e.id === "codex" ? <Icons.Terminal /> : e.id === "claude" ? <Icons.Code /> : <Icons.Bot />}
+                />
+              }
+              label={e.label}
               trailing={<EngineState engine={e} />}
               active={false}
               onClick={() => go.config("engines")}
             />
-          );
-        })}
+          ))}
 
         {apps.length > 0 && (
           <>
