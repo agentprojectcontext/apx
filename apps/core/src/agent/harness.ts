@@ -88,8 +88,11 @@ export async function runClaude(t: ExternalTurn, opts: { claudePath: string; cwd
           allowedTools: [...CLAUDE_BUILTINS, ...t.tools.map((s) => `mcp__apx__${s.function.name}`)],
           // Nothing outside the allowed list may run, and nothing waits for an approval prompt.
           permissionMode: "dontAsk",
-          // Isolation: the user's CLAUDE.md, hooks and plugins are not part of an APX agent.
+          // Isolation: the user's CLAUDE.md, hooks, plugins, MCP servers and claude.ai connectors/skills are not
+          // part of an APX agent. These settings apply to this invocation only; the user's config is untouched.
           settingSources: [],
+          strictMcpConfig: true,
+          settings: { disableClaudeAiConnectors: true, syncClaudeAiSkills: false, syncClaudeAiPlugins: false },
           mcpServers: { apx: server },
           includePartialMessages: true,
           ...(resume ? { resume } : {}),
