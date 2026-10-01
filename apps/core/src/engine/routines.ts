@@ -19,11 +19,11 @@ export const SKIP_ANSWER = "SKIP";
 export type RoutineDelivery = (r: { routine: Routine; run: RecordedRun; text: string; failed: boolean }) => void;
 type RecordedRun = Pick<RunRecord, "id" | "thread_id" | "state">;
 
-/** When a schedule runs next, never sooner than the minimum gap from `from`. */
+/** When a schedule runs next after `from`: after a run, never sooner than the minimum gap from it. */
 export function nextTime(r: Pick<Routine, "schedule">, from: Date, lastRun?: Date): string | undefined {
-  const earliest = new Date(from.getTime() + (MIN_GAP_MIN - 1) * 60_000);
-  const next = nextRun(r.schedule, r.schedule.kind === "cron" ? earliest : from, lastRun);
-  return next?.toISOString();
+  const floor = lastRun ? Math.max(from.getTime(), lastRun.getTime() + (MIN_GAP_MIN - 1) * 60_000) : from.getTime();
+  const next = nextRun(r.schedule, r.schedule.kind === "cron" ? new Date(floor) : from, lastRun);
+  return next && next.getTime() > from.getTime() ? next.toISOString() : undefined;
 }
 
 export function createScheduler(deps: {
@@ -78,6 +78,9 @@ export function createScheduler(deps: {
       log.warn({ err: errorMessage(err, 200) }, "tick work failed");
     }
     for (const r of store.routines.due(at.toISOString())) {
+      // A run that outlived its lease (it waited long for the owner) still holds the routine.
+      const last = store.routines.get(r.id)?.last;
+      if (last && !TERMINAL.has(last.state)) continue;
       const next = nextTime(r, at, at);
       try {
         start(r, at, next);
@@ -122,8 +125,9 @@ export function createScheduler(deps: {
         .join("\n")
         .trim();
       const failed = run.state === "failed";
-      const quiet =
-        run.state === "canceled" || (!failed && (!text || text.replace(/[.\s]/g, "").toUpperCase() === SKIP_ANSWER));
+      // "SKIP", "**SKIP**", "`skip`." all mean nothing to say.
+      const bare = text.replace(/[.\s*_`~"'!]/g, "").toUpperCase();
+      const quiet = run.state === "canceled" || (!failed && (!bare || bare === SKIP_ANSWER));
       store.routines.delivered(run.id, !quiet);
       if (quiet) return;
       deps.deliver({ routine, run, text: failed ? (run.error ?? "") : text, failed });

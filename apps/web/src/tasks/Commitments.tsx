@@ -1,6 +1,6 @@
 import type { Task } from "@apx/protocol";
 import { Badge, Button, EmptyState, Icons, Input, Menu, SegmentedControl } from "@apx/ui";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { aheadLabel, shortWhen } from "../common/format.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useT } from "../i18n/index.ts";
@@ -86,13 +86,30 @@ export function CommitmentFields({
           ]}
         />
       )}
-      <Input
-        type="date"
-        aria-label={t("commitments.due")}
-        value={value.due ?? ""}
-        onChange={(e) => onChange({ ...value, due: e.currentTarget.value || undefined })}
-      />
+      <DueInput value={value.due} onCommit={(due) => onChange({ ...value, due })} />
     </div>
+  );
+}
+
+/** A day picker that commits once the owner leaves it (or presses Enter), never on every typed digit. */
+function DueInput({ value, onCommit }: { value: string | undefined; onCommit: (day: string | undefined) => void }) {
+  const t = useT();
+  const [draft, setDraft] = useState(value ?? "");
+  useEffect(() => setDraft(value ?? ""), [value]);
+  const commit = () => {
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(draft) && draft >= "2000" ? draft : undefined;
+    if (day !== value && (day || !draft)) onCommit(day);
+    else setDraft(value ?? "");
+  };
+  return (
+    <Input
+      type="date"
+      aria-label={t("commitments.due")}
+      value={draft}
+      onChange={(e) => setDraft(e.currentTarget.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && commit()}
+    />
   );
 }
 

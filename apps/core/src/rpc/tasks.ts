@@ -22,12 +22,23 @@ export function columnsOf(store: Store): TaskColumn[] {
   }
 }
 
-/** A due date as a moment: a bare day ("2026-10-05") means 09:00 that day, local time. */
+/**
+ * A due date as a moment: a bare day ("2026-10-05") means 09:00 that day, local time; otherwise an ISO date-time.
+ * Nothing ambiguous ("05/10/2026") or impossible ("2026-02-31") is accepted.
+ */
 export function dueOf(text: string | null | undefined): string | null {
   if (!text) return null;
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
-  const d = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]), 9) : new Date(text);
-  if (Number.isNaN(d.getTime())) throw badRequest(`"${text}" is not a date`);
+  const v = text.trim();
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  let d: Date;
+  if (day) {
+    const [y, m, dd] = [Number(day[1]), Number(day[2]), Number(day[3])];
+    d = new Date(y, m - 1, dd, 9);
+    if (d.getMonth() !== m - 1 || d.getDate() !== dd) throw badRequest(`"${text}" is not a date`);
+  } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) d = new Date(v);
+  else throw badRequest(`"${text}" is not a date (use 2026-10-05 or an ISO date-time)`);
+  const year = d.getFullYear();
+  if (Number.isNaN(d.getTime()) || year < 2000 || year > 2200) throw badRequest(`"${text}" is not a date`);
   return d.toISOString();
 }
 
@@ -55,15 +66,23 @@ export function taskHandlers(store: Store, engine: Engine) {
           .join(", ")})`,
       );
   };
-  const checkAgent = (id: string | null | undefined) => {
-    if (id && !store.agents.get(id)) throw notFound(`agent ${id}`);
+  /** An assignee must exist and belong to the task's project (or to none). */
+  const checkAgent = (id: string | null | undefined, project: string | undefined) => {
+    if (!id) return;
+    const a = store.agents.get(id);
+    if (!a) throw notFound(`agent ${id}`);
+    if (a.project_id && a.project_id !== project) throw badRequest(`${a.name} works in another project`);
   };
-  /** A person by id or exact name (any case); the owner is never a commitment's counterpart. */
+  /** A person by id or exact name (any case); never the owner or a blocked person, never a guess between two. */
   const personOf = (ref: string): string => {
     const key = ref.trim().toLowerCase();
-    const p = store.persons.get(ref) ?? store.persons.list().find((x) => x.name.toLowerCase() === key);
+    const byId = store.persons.get(ref);
+    const named = byId ? [byId] : store.persons.list().filter((x) => x.name.toLowerCase() === key);
+    if (named.length > 1) throw badRequest(`${named.length} contacts are called ${ref}; use the id`);
+    const p = named[0];
     if (!p) throw notFound(`person ${ref} (add them to your contacts first)`);
     if (p.role === "owner") throw badRequest("a commitment is with someone else, not with the owner");
+    if (p.role === "blocked") throw badRequest(`${p.name} is blocked`);
     return p.id;
   };
 
@@ -82,9 +101,9 @@ export function taskHandlers(store: Store, engine: Engine) {
     },
     "tasks.create": (p, ctx) => {
       checkStatus(p.status);
-      checkAgent(p.assignee);
       const scope = agentScope(ctx);
       const project = scope ? scope.project : p.project;
+      checkAgent(p.assignee, project);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
       const person = p.person ? personOf(p.person) : undefined;
@@ -110,9 +129,12 @@ export function taskHandlers(store: Store, engine: Engine) {
       });
     },
     "tasks.update": ({ task, person, due_at, ...c }, ctx) => {
-      visible(task, ctx);
+      const cur = visible(task, ctx);
       checkStatus(c.status);
-      checkAgent(c.assignee);
+      checkAgent(c.assignee, cur.project_id);
+      // The tray hears of a task when it starts waiting for the owner, not on every later change.
+      if (c.awaits_owner && !cur.awaits_owner && cur.state === "open")
+        store.notifications.add({ kind: "task", title: cur.title, thread_id: cur.thread_id, ref: cur.id });
       return store.tasks.change(
         task,
         {

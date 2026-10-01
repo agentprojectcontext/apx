@@ -3,6 +3,7 @@
 import type { AgentRecord } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { untrusted } from "../tools/result.ts";
 import type { AdmitFn } from "./engine.ts";
 
 /** A mention starts a turn; a turn's mention another, but only this deep, so agents cannot ping-pong forever. */
@@ -20,14 +21,19 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
   return out;
 }
 
-/** The task a thread is the conversation of, as the turn reads it. */
+/**
+ * The task a thread is the conversation of, as the turn reads it. Its title and description may come from an agent
+ * (who may have read a web page), so unless the owner wrote the task they arrive as outside data.
+ */
 export function taskBlock(store: Store, threadId: string): string | undefined {
   const t = store.tasks.byThread(threadId);
   if (!t) return undefined;
   const who = t.assignee ? (store.agents.get(t.assignee)?.name ?? t.assignee) : "nobody";
+  const state = `${t.state === "open" ? t.status : t.state} · assigned to ${who}${t.awaits_owner ? " · waiting for the owner" : ""}${t.due_at ? ` · due ${t.due_at}` : ""}${t.person_name ? ` · ${t.owed_by === "person" ? `${t.person_name} owes it` : `owed to ${t.person_name}`}` : ""}`;
+  const words = [t.title, t.description.slice(0, 2000)].filter(Boolean).join("\n");
   return [
-    `${t.title} · ${t.state === "open" ? t.status : t.state} · assigned to ${who}${t.awaits_owner ? " · waiting for the owner" : ""}${t.due_at ? ` · due ${t.due_at}` : ""}`,
-    t.description ? t.description.slice(0, 2000) : "",
+    t.created_by === "owner" ? words : untrusted("task", { created_by: t.created_by }, words),
+    state,
     "This is the task's conversation: your answer is posted here. Use task_update / task_close to move or close it; task_comment only for another task.",
   ]
     .filter(Boolean)

@@ -13,15 +13,18 @@ export const useTasks = <T>(select: (s: State) => T): T => useSlice(store, selec
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const fail = (e: unknown) => notify(t("error.tasks", { error: errText(e) }));
 
-/** Open tasks plus the closed ones of the last days, so a just-finished card does not vanish. */
+export const tasksLoaded = () => store.get().ready;
+
+/** Open tasks plus the latest closed ones (done or dropped), so a just-finished card does not vanish. */
 export async function loadTasks(): Promise<void> {
   try {
-    const [open, done] = await Promise.all([
+    const [open, done, dropped] = await Promise.all([
       client.call("tasks.list", { state: "open" }),
       client.call("tasks.list", { state: "done", limit: 30 }),
+      client.call("tasks.list", { state: "dropped", limit: 20 }),
     ]);
     store.set({
-      tasks: Object.fromEntries([...open.tasks, ...done.tasks].map((x) => [x.id, x])),
+      tasks: Object.fromEntries([...open.tasks, ...done.tasks, ...dropped.tasks].map((x) => [x.id, x])),
       columns: open.columns,
       ready: true,
     });

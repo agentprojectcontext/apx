@@ -8,7 +8,7 @@ import { jobsChanged } from "./jobs.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
-import { taskChanged } from "./tasks.ts";
+import { loadTasks, taskChanged, tasksLoaded } from "./tasks.ts";
 
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
 
@@ -54,6 +54,8 @@ async function connect(): Promise<void> {
     await bootstrap();
     await refetchLoaded();
     void loadNotifications();
+    if (tasksLoaded()) void loadTasks();
+    routineRunChanged();
     data.set({ connection: "online", error: undefined });
     attempt = 0;
     await s.closed;

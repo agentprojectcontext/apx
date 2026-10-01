@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { ApxError } from "@apx/protocol/client";
+import { ApxClient, ApxError } from "@apx/protocol/client";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -10,7 +10,7 @@ const OWNER_CHAT = 1001;
 
 const llm = scriptedLlm((_req, { said }) => {
   if (said.includes("check the invoices")) return say("Two new invoices from Northwind.");
-  if (said.includes("anything new?")) return say("SKIP");
+  if (said.includes("anything new?")) return say("**SKIP**");
   if (said.includes("break now")) throw new Error("quota exceeded");
   return say("ok");
 });
@@ -128,4 +128,37 @@ test("run now, a failed run is reported, and bad schedules are refused", async (
     }),
     (e: unknown) => e instanceof ApxError && /passed/.test(e.message),
   );
+});
+
+test("a new routine keeps an imminent slot; a running one is not started again; run now conflicts", async () => {
+  clock = new Date(2026, 9, 7, 8, 57);
+  const r = await env.client.call("routines.set", {
+    name: "Soon",
+    agent: "roby",
+    schedule: { kind: "cron", cron: "0 9 * * *" },
+    prompt: "anything new?",
+  });
+  assert.equal(r.next_run_at, new Date(2026, 9, 7, 9, 0).toISOString(), "today at 09:00, not tomorrow");
+  // A run still going (it waits for the owner) keeps the routine even when its lease is over.
+  const run = await env.client.call("routines.run", { routine: r.id });
+  await ended(r.id, 1);
+  const rec = env.core.store.runs.get(run.run_id);
+  if (rec) env.core.store.runs.setState(rec, "input-required");
+  await assert.rejects(
+    env.client.call("routines.run", { routine: r.id }),
+    (e: unknown) => e instanceof ApxError && /running already/.test(e.message),
+  );
+  clock = new Date(2026, 9, 7, 11, 0);
+  env.core.scheduler.tick();
+  assert.equal((await runsOf(r.id)).length, 1);
+});
+
+test("an agent cannot touch routines, notices or read marks", async () => {
+  const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+  for (const call of [
+    () => agent.call("routines.list", {}),
+    () => agent.call("notifications.read", {}),
+    () => agent.call("threads.read", { thread: "home" }),
+  ])
+    await assert.rejects(call(), (e: unknown) => e instanceof ApxError && /reserved to the owner/.test(e.message));
 });

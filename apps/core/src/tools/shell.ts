@@ -59,6 +59,8 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
   if (apxPort && new RegExp(`(127\\.0\\.0\\.1|localhost|\\[::1\\]|0\\.0\\.0\\.0):${apxPort}\\b`).test(c))
     return "always";
+  // So does APX's own CLI, which finds the port by itself.
+  if (/(^|[\s;&|(`])(apx2|[\w./-]*apps\/terminal\/src\/main\.ts)(\s|$)/.test(c)) return "always";
   // Pipes and && between simple commands are fine; any other shell syntax is not judged, it is asked.
   const segments = c.split(/&&|\|\||\|/).map((x) => x.trim());
   const simple = (seg: string): boolean => {

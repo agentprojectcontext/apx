@@ -156,3 +156,29 @@ continues from the part that failed (`Presentation.skip`) instead of being dropp
 another folder passed the check and ran the command outside the project. Folder checks now go through one module:
 `isInside` for paths already resolved, `insideReal` (links resolved) wherever a path comes from an agent. Where:
 `apps/core/src/paths.ts`, `tools/shell.ts`.
+
+<a id="cron-clock-change"></a>
+### The next cron time is found on real time, never by setting local fields
+Setting hours and minutes on a time inside the hour repeated when clocks go back picks the earlier instant, so the
+"next" run came out before the current one and a routine ran back to back for an hour. `nextCron` now steps forward on
+epoch minutes and only reads local fields; `nextTime` refuses anything not after `from`. Where:
+`apps/core/src/domain/schedule.ts`, `engine/routines.ts`.
+
+<a id="task-notice-transition"></a>
+### A task notice is raised when the task starts waiting, not on every update
+Every comment and turn re-sent `task.updated`; once the owner had read the notice, the next one created a fresh unread
+notice and the Dock badge came back. The notice is now added only on the false → true change of `awaits_owner`
+(`rpc/tasks.ts`); the bus listener only clears it. Where: `apps/core/src/engine/attention.ts`, `rpc/tasks.ts`.
+
+<a id="date-field-commit"></a>
+### Date fields commit on blur
+A `date` input fires on each typed digit of the year (`0002-…`, `0202-…`); saving each one moved the task to 1902
+and could send a real "Due" reminder. The field keeps a draft and commits on blur or Enter; the core also refuses
+years before 2000 and anything but `YYYY-MM-DD` or an ISO date-time. Where: `apps/web/src/tasks/Commitments.tsx`,
+`apps/core/src/rpc/tasks.ts`.
+
+<a id="apx-cli-from-shell"></a>
+### An agent's shell command that runs APX's CLI is always asked
+Owner-only methods trust the client's `x-apx-actor`; `apx2 …` from the shell tool reaches the API without naming the
+port, so the port check missed it. Running the CLI is now always the owner's call. Where:
+`apps/core/src/tools/shell.ts`.

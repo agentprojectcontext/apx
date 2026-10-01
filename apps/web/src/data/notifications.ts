@@ -34,6 +34,16 @@ export function notificationChanged(n: Notification): void {
 }
 
 export async function readNotifications(ids?: string[]): Promise<void> {
+  // Marked here first: the events for these may arrive before or after the answer, and must not count twice.
+  const at = new Date().toISOString();
+  store.set((s) => ({
+    items: Object.fromEntries(
+      Object.entries(s.items).map(([id, n]) => [
+        id,
+        !n.read_at && (!ids || ids.includes(id)) ? { ...n, read_at: at } : n,
+      ]),
+    ),
+  }));
   try {
     const r = await client.call("notifications.read", ids ? { ids } : {});
     store.set({ unread: r.unread });
@@ -42,4 +52,6 @@ export async function readNotifications(ids?: string[]): Promise<void> {
   }
 }
 
-export const attentionReady = () => store.get().ready;
+/** Whether a thread has unread notices (opening it should clear them). */
+export const hasNoticesFor = (threadId: string) =>
+  Object.values(store.get().items).some((n) => n.thread_id === threadId && !n.read_at && n.kind !== "input");

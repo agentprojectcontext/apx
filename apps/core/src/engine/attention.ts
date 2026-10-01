@@ -1,5 +1,5 @@
-// What reaches the attention tray. Questions an agent asks the owner and tasks waiting for them are noticed from the
-// bus, and leave the tray once answered or moved on; routines and channels add their own notices.
+// What reaches the attention tray. Questions an agent asks the owner are noticed from the bus; they and tasks waiting
+// for the owner leave the tray once answered or moved on. Routines, channels and tasks add their own notices.
 import type { CoreEvent } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
@@ -29,10 +29,9 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
         ref: e.part.input_id,
       });
     } else if (e.type === "task.updated") {
+      // Raised when a task starts waiting (rpc/tasks.ts); every later update only clears it once it stops.
       const t = e.task;
-      if (t.awaits_owner && t.state === "open")
-        store.notifications.add({ kind: "task", title: t.title, thread_id: t.thread_id, ref: t.id });
-      else store.notifications.resolve("task", t.id);
+      if (!t.awaits_owner || t.state !== "open") store.notifications.resolve("task", t.id);
       // Done, dropped or moved to a later date: the reminder is moot.
       if (t.state !== "open" || !t.due_at || t.due_at > clock().toISOString()) store.notifications.resolve("due", t.id);
     }

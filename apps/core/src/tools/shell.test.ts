@@ -47,6 +47,11 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   // Reaching APX's own API from a command is always the owner's call.
   assert.equal(commandRisk("curl -s 127.0.0.1:7440/rpc/runs.respond", 7440), "always");
   assert.equal(commandRisk("curl -s localhost:3000/health", 7440), "ask");
+  // So does APX's own CLI, which reaches the API without naming the port.
+  assert.equal(commandRisk("apx2 routines add x y --agent roby"), "always");
+  assert.equal(commandRisk("ls && apx2 notifications read"), "always");
+  assert.equal(commandRisk("node apps/terminal/src/main.ts routines"), "always");
+  assert.equal(commandRisk("cat apx2-notes.md"), "never");
 });
 
 const llm = scriptedLlm((req, { said, afterTool }) => {

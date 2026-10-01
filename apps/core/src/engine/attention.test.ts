@@ -63,6 +63,14 @@ test("a task waiting for the owner, and a routine's news, until seen", async () 
   assert.ok((await tray()).notifications.some((n) => n.kind === "task" && n.ref === task.id && !n.read_at));
   await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
   assert.equal((await tray()).notifications.filter((n) => n.kind === "task").length, 1, "one notice per waiting task");
+  // Seen, it stays seen while the task keeps moving; it comes back only if the task starts waiting again.
+  await env.client.call("notifications.read", {});
+  await env.client.call("tasks.comment", { task: task.id, text: "looking at it" });
+  await env.client.call("tasks.update", { task: task.id, title: "Pick the launch date (Q4)" });
+  assert.equal((await tray()).unread, 0);
+  await env.client.call("tasks.update", { task: task.id, awaits_owner: false });
+  await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
+  assert.equal((await tray()).unread, 1);
   await env.client.call("tasks.close", { task: task.id, state: "done" });
   assert.equal((await tray()).unread, 0);
 

@@ -146,7 +146,9 @@ routine twice, and a time missed while the core was off runs once. Schedules are
 fields, local time) plus "every N minutes" (5 at least), "once" and "by hand"; no cron dependency for ~100 lines.
 The prompt is the owner's own words (trusted); the agent answers `SKIP` when there is nothing to say, and only other
 answers reach the owner. Routines are owner-only methods for now: an agent creating standing work for itself is a
-persistent rule and needs its own confirmation design.
+persistent rule and needs its own confirmation design. Known limit: on loopback without `APX_TOKEN`, "owner-only"
+rests on the client declaring itself (`x-apx-actor`); a shell command an agent runs could call the API as the owner,
+which is why the shell tool asks before any command that reaches APX's port. Per-client tokens (mobile stage) close it.
 
 ## D-017 — 2026-10-01 — Commitments are tasks with a person; one tray for what wants the owner
 A commitment (what the owner promised someone, or what someone owes the owner) is a task with `person_id` and

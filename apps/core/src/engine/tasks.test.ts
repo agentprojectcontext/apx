@@ -61,7 +61,7 @@ test("a comment that @mentions an agent runs it in the task's conversation, and 
   assert.equal(runs.length, 3);
   assert.deepEqual(runs.map((x) => x.agent_id).reverse(), ["vera", "roby", "vera"]);
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera can you start this?"));
-  assert.match(String(input?.messages.at(-1)?.content), /\[task\]\nPlan the launch · backlog · assigned to nobody/);
+  assert.match(String(input?.messages.at(-1)?.content), /\[task\]\nPlan the launch\nbacklog · assigned to nobody/);
 });
 
 test("an agent's tasks go to its thread's project and it sees no other project's", async () => {
@@ -80,5 +80,34 @@ test("an agent's tasks go to its thread's project and it sees no other project's
   await env.client.call("threads.send", { thread: t.id, text: "peek at the other projects" });
   await env.settle(t.id);
   assert.doesNotMatch(String(llm.calls.at(-1)?.messages.at(-1)?.content), /Globex only/);
+  fs.rmSync(p2, { recursive: true, force: true });
+});
+
+test("what an agent wrote in a task reaches other turns as outside data", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  await env.client.call("threads.send", { thread: t.id, text: "make a task" });
+  await env.settle(t.id);
+  const made = (await env.client.call("tasks.list", { project })).tasks.find(
+    (x) => x.title === "Draft the launch post",
+  );
+  if (!made) throw new Error("no task");
+  await env.client.call("tasks.comment", { task: made.id, text: "@vera please look" });
+  await env.settle(made.thread_id, 8000);
+  const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera please look"));
+  assert.match(
+    String(input?.messages.at(-1)?.content),
+    /<task created_by="roby" trust="untrusted">\nDraft the launch post/,
+  );
+});
+
+test("an agent of one project is not assigned another project's task", async () => {
+  const p2 = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-tasks3-")));
+  fs.writeFileSync(path.join(p2, "AGENTS.md"), "# Initech\n");
+  const other = (await env.client.call("projects.register", { path: p2 })).project.id;
+  const milton = await env.client.call("agents.create", { project_id: other, slug: "milton", name: "Milton" });
+  await assert.rejects(
+    env.client.call("tasks.create", { title: "Elsewhere", project, assignee: milton.id }),
+    (e: unknown) => e instanceof ApxError && /another project/.test(e.message),
+  );
   fs.rmSync(p2, { recursive: true, force: true });
 });

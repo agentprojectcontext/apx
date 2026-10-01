@@ -95,7 +95,7 @@ export function TasksBoard({ projectId }: { projectId?: string | undefined }) {
           {columns.map((c) => {
             const cards = tasks.filter((x) => x.state === "open" && x.status === c.id);
             return (
-              <section key={c.id} className="board__column" aria-label={c.label}>
+              <section key={c.id} className="board__column" aria-label={columnLabel(c, t)}>
                 <header className="board__colhead">
                   {columnLabel(c, t)}
                   <span className="team__count">{cards.length}</span>
@@ -230,7 +230,11 @@ function TaskDetail({ task, onClose }: { task: Task; onClose: () => void }) {
   // The history is read again whenever the task moves (activity_at changes with every event).
   const movedAt = task.activity_at;
   useEffect(() => {
-    void taskEvents(task.id).then((list) => movedAt && setEvents(list));
+    let current = true;
+    void taskEvents(task.id).then((list) => current && movedAt && setEvents(list));
+    return () => {
+      current = false;
+    };
   }, [task.id, movedAt]);
   const send = async () => {
     if (await commentTask(task.id, text.trim())) setText("");

@@ -36,3 +36,31 @@ test("every, once and manual", () => {
   assert.equal(nextRun({ kind: "once", at: at(2026, 10, 1, 12).toISOString() }, now, now), undefined);
   assert.equal(nextRun({ kind: "manual" }, now), undefined);
 });
+
+test("weekday 7 is Sunday inside ranges too; empty items and */N day fields follow cron", () => {
+  // Friday 2026-10-02 10:00: 5-7 is Fri-Sun, so the next is Saturday.
+  assert.deepEqual(next("0 9 * * 5-7", at(2026, 10, 2, 10)), at(2026, 10, 3, 9));
+  assert.deepEqual(next("0 9 * * 0-7", at(2026, 10, 2, 10)), at(2026, 10, 3, 9));
+  assert.throws(() => parseCron("1, * * * *"), /empty item/);
+  // */2 in the day field restricts with AND: odd days that are also Mondays.
+  assert.deepEqual(next("0 9 */2 * 1", at(2026, 10, 1)), at(2026, 10, 5, 9));
+  assert.deepEqual(next("0 9 */2 * 1", at(2026, 10, 6)), at(2026, 10, 19, 9));
+});
+
+test("a clock change never sends the next run back in time", () => {
+  const tz = process.env.TZ;
+  process.env.TZ = "America/New_York";
+  try {
+    // 2026-11-01 01:35 EST (the repeated hour): the next five-minute slot is 10 minutes later in real time... or 5.
+    const from = new Date("2026-11-01T06:35:00Z");
+    const n = nextRun({ kind: "cron", cron: "*/5 * * * *" }, from);
+    assert.ok(n && n.getTime() > from.getTime(), "after `from`");
+    assert.equal(n?.getTime(), from.getTime() + 5 * 60_000);
+    // Spring forward (2026-03-08 02:00 does not exist): a 02:30 daily runs on the next day that has it.
+    const spring = nextRun({ kind: "cron", cron: "30 2 * * *" }, new Date("2026-03-08T06:00:00Z"));
+    assert.ok(spring && spring.getTime() > new Date("2026-03-08T06:00:00Z").getTime());
+  } finally {
+    if (tz === undefined) delete process.env.TZ;
+    else process.env.TZ = tz;
+  }
+});

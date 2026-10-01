@@ -11,19 +11,16 @@ import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { createChannels } from "./channels/manager.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
-import { channelTexts } from "./channels/texts.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
-import { previewOf } from "./domain/threads.ts";
 import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
-import { createScheduler } from "./engine/routines.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { createExtensions } from "./extensions/extensions.ts";
@@ -35,6 +32,7 @@ import { createLog } from "./log.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
+import { officeScheduler } from "./office-wiring.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { agentHandlers } from "./rpc/agents.ts";
@@ -198,32 +196,13 @@ export async function createCore(
       afterTaskTurn(store, engine.admit, run);
     },
   });
-  const scheduler = createScheduler({
+  const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),
+    attention,
+    notifyOwner: (text, threadId) => channels.notifyOwner({ text }, "notice", threadId),
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
-    eachTick: (at) => {
-      for (const t of store.tasks.remindDue(at.toISOString())) {
-        const person = t.person_id ? store.persons.get(t.person_id)?.name : undefined;
-        const text = channelTexts(store).due(t.title, person, t.owed_by);
-        attention.add({ kind: "due", level: "warn", title: t.title, body: text, thread_id: t.thread_id, ref: t.id });
-        channels.notifyOwner({ text }, "notice", t.thread_id);
-      }
-    },
-    deliver: ({ routine, run, text, failed }) => {
-      const texts = channelTexts(store);
-      const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);
-      channels.notifyOwner({ text: body }, "notice", run.thread_id);
-      attention.add({
-        kind: "routine",
-        level: failed ? "error" : "info",
-        title: routine.name,
-        body: previewOf(failed ? body : text),
-        thread_id: run.thread_id,
-        ref: run.id,
-      });
-    },
   });
 
   const dispatch = createRouter(

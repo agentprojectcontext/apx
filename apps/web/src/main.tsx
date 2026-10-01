@@ -2,6 +2,7 @@ import "@apx/ui/styles.css";
 import "./app.css";
 import "./styles/nav.css";
 import "./styles/project.css";
+import "./styles/office.css";
 import "./styles/config.css";
 import "./styles/models.css";
 import { StrictMode } from "react";

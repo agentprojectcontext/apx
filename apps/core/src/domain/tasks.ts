@@ -153,7 +153,9 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.state !== undefined ? { state: c.state } : {}),
             ...(c.assignee !== undefined ? { assignee: c.assignee } : {}),
             // A new date is reminded again.
-            ...(c.due_at !== undefined ? { due_at: c.due_at, reminded_at: null } : {}),
+            ...(c.due_at !== undefined && c.due_at !== (cur.due_at ?? null)
+              ? { due_at: c.due_at, reminded_at: null }
+              : {}),
             ...(c.person_id !== undefined
               ? { person_id: c.person_id, owed_by: c.person_id ? (c.owed_by ?? cur.owed_by ?? "owner") : null }
               : {}),

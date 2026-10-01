@@ -6,6 +6,7 @@ import { loadEngines } from "./engines.ts";
 import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { notify } from "./notices.ts";
+import { hasNoticesFor } from "./notifications.ts";
 import { data, upsertMessage } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -162,7 +163,7 @@ export async function cancel(threadId: string): Promise<void> {
 
 export async function markRead(threadId: string): Promise<void> {
   const t = data.get().threads[threadId];
-  if (!t || t.unread === 0) return;
+  if (!t || (t.unread === 0 && !hasNoticesFor(threadId))) return;
   data.set((s) => ({ threads: patchThread(s.threads, threadId, { unread: 0 }) }));
   try {
     await client.call("threads.read", { thread: threadId });

@@ -60,6 +60,11 @@ test("a commitment names the person and who owes it, and is reminded once on its
   clock = new Date(2026, 9, 6, 9, 30);
   env.core.scheduler.tick();
   assert.equal((await tray()).unread, 1);
+  // Sending the same date again does not remind twice.
+  await env.client.call("notifications.read", {});
+  await env.client.call("tasks.update", { task: t.id, due_at: "2026-10-06" });
+  env.core.scheduler.tick();
+  assert.equal((await tray()).unread, 0);
   await env.client.call("tasks.close", { task: t.id, state: "done" });
   assert.equal((await tray()).unread, 0, "done closes the reminder");
 });
@@ -82,4 +87,9 @@ test("unknown people, the owner and bad dates are refused", async () => {
   const owner = env.core.store.persons.owner();
   await refused(env.client.call("tasks.create", { title: "x", person: owner.id }), /not with the owner/);
   await refused(env.client.call("tasks.create", { title: "x", due_at: "someday" }), /not a date/);
+  await refused(env.client.call("tasks.create", { title: "x", due_at: "2026-02-31" }), /not a date/);
+  await refused(env.client.call("tasks.create", { title: "x", due_at: "05/10/2026" }), /not a date/);
+  await refused(env.client.call("tasks.create", { title: "x", due_at: "0202-10-05" }), /not a date/);
+  await env.client.call("contacts.set", { name: "Ana", role: "contact" });
+  await refused(env.client.call("tasks.create", { title: "x", person: "ana" }), /2 contacts are called/);
 });
