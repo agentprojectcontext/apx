@@ -6,7 +6,7 @@ import path from "node:path";
 import type { EngineStatus, HarnessId } from "@apx/protocol";
 import { engineOf, harnessOf } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import { CallError } from "../errors.ts";
+import { unauthorized } from "../errors.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
@@ -135,7 +135,7 @@ export function createHarnesses(deps: {
     /** For the MCP proxy of an external harness. */
     gate(token: string): Gate {
       const g = gates.get(token);
-      if (!g) throw new CallError({ code: "unauthorized", message: "unknown or finished run" });
+      if (!g) throw unauthorized("unknown or finished run");
       return g;
     },
     openGate,

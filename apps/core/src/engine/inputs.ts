@@ -1,12 +1,12 @@
 // One machine for everything an agent waits on from the owner: confirmations before a tool runs and questions.
 // The row is written before the wait starts; an answer that arrives after its run is gone (a restart, a deadline)
 // wakes the agent with a new run instead of being lost.
-import { ErrorCode, type InputKind, type Part } from "@apx/protocol";
+import { type InputKind, type Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { CallError } from "../errors.ts";
+import { badRequest, conflict, notFound } from "../errors.ts";
 import type { Display } from "./display.ts";
 
 /** Why a turn stops when APX shuts down: what it was waiting on stays open for the owner to answer later. */
@@ -149,23 +149,23 @@ export function createInputs(deps: {
 
     respond(id: string, a: { decision?: "approve" | "deny" | undefined; text?: string | undefined }): InputRecord {
       const rec = store.inputs.get(id);
-      if (!rec) throw new CallError({ code: ErrorCode.BadRequest, message: `input ${id} not found` });
+      if (!rec) throw notFound(`input ${id}`);
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending")
-        throw new CallError({ code: ErrorCode.Conflict, message: `input ${id} is already ${cur.state}` });
+        throw conflict(`input ${id} is already ${cur.state}`);
       const text = a.text?.trim() || undefined;
       let state: "approved" | "denied" | "answered";
       if (rec.kind === "confirm") {
         if (!a.decision)
-          throw new CallError({ code: ErrorCode.BadRequest, message: "a confirmation needs a decision" });
+          throw badRequest("a confirmation needs a decision");
         state = a.decision === "approve" ? "approved" : "denied";
       } else {
-        if (!text) throw new CallError({ code: ErrorCode.BadRequest, message: "a question needs an answer text" });
+        if (!text) throw badRequest("a question needs an answer text");
         state = "answered";
       }
       const settled = store.inputs.settle(id, state, text);
-      if (!settled) throw new CallError({ code: ErrorCode.Conflict, message: `input ${id} was answered already` });
+      if (!settled) throw conflict(`input ${id} was answered already`);
       const listener = waiting.get(id);
       if (listener) listener(settled);
       else wake(settled);

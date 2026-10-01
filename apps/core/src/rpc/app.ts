@@ -4,7 +4,6 @@ import type { ApcSync } from "../apc/sync.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
-import { CallError } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
@@ -14,7 +13,7 @@ import type { Services } from "../services/registry.ts";
 import { skillsFor } from "../skills/skills.ts";
 import type { EngineIds } from "./agents.ts";
 import type { Handler } from "./router.ts";
-import { notFound } from "./threads.ts";
+import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
 
 export function appHandlers(deps: {
   store: Store;
@@ -62,7 +61,7 @@ export function appHandlers(deps: {
       const refs = [p.default?.model, ...(p.router?.chain ?? []), ...(p.router?.rules.map((r) => r.model) ?? [])];
       for (const ref of refs) {
         const why = ref ? refProblem(ref, deps.engines) : undefined;
-        if (why) throw new CallError({ code: "bad_request", message: why });
+        if (why) throw badRequest(why);
       }
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
@@ -76,7 +75,7 @@ export function appHandlers(deps: {
       try {
         r = deps.apc.register(path);
       } catch (err) {
-        throw new CallError({ code: "bad_request", message: err instanceof Error ? err.message : String(err) });
+        throw badRequest(errorMessage(err));
       }
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
@@ -96,10 +95,7 @@ export function appHandlers(deps: {
       // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
       const current = store.surfaces.byName(thread?.project_id, p.name);
       if (current?.share_path && ctx.actor !== "human")
-        throw new CallError({
-          code: "conflict",
-          message: `widget "${p.name}" is published; use another name (the owner can unpublish it)`,
-        });
+        throw conflict(`widget "${p.name}" is published; use another name (the owner can unpublish it)`);
       return summary(
         store.surfaces.upsert({
           name: p.name,

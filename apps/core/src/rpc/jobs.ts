@@ -1,13 +1,12 @@
 // Accounting of work: the background view (agents' runs on their own and terminal commands, as one list) and
 // usage by model.
-import { ErrorCode, type Job } from "@apx/protocol";
+import { type Job } from "@apx/protocol";
 import { publicJob } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
-import { CallError } from "../errors.ts";
 import type { Handler } from "./router.ts";
-import { notFound } from "./threads.ts";
+import { notFound, unauthorized } from "../errors.ts";
 
 const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
 
@@ -60,7 +59,7 @@ export function jobHandlers(store: Store, engine: Engine) {
     "jobs.get": (({ job, offset, max_chars }, ctx) => {
       const j = store.jobs.get(job);
       if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id)
-        throw new CallError({ code: ErrorCode.Unauthorized, message: "an agent can only read its own thread's jobs" });
+        throw unauthorized("an agent can only read its own thread's jobs");
       if (j) return { job: publicJob(j), ...engine.jobs.read(j.id, offset, max_chars) };
       const r = store.runs.get(job);
       if (!r) throw notFound(`job ${job}`);
@@ -73,7 +72,7 @@ export function jobHandlers(store: Store, engine: Engine) {
       const thread = j?.thread_id ?? r?.thread_id;
       if (!thread) throw notFound(`job ${job}`);
       if (ctx.actor !== "human" && (!j || ctx.agent?.thread_id !== thread))
-        throw new CallError({ code: ErrorCode.Unauthorized, message: "an agent can only stop its own thread's jobs" });
+        throw unauthorized("an agent can only stop its own thread's jobs");
       return { canceled: j ? engine.jobs.cancel(j.id) : engine.cancel(thread) > 0 };
     }) as Handler<"jobs.cancel">,
   };

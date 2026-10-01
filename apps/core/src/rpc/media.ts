@@ -1,14 +1,11 @@
 // Image and voice services (owner-only settings) and what they make. An agent draws or speaks only into its own
 // thread, through the same methods.
-import { ErrorCode } from "@apx/protocol";
-import { CallError } from "../errors.ts";
 import type { Services } from "../services/registry.ts";
 import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
-import { notFound } from "./threads.ts";
+import { errorMessage, notFound, unavailable } from "../errors.ts";
 
-const failed = (err: unknown) =>
-  new CallError({ code: ErrorCode.Unavailable, message: err instanceof Error ? err.message : String(err) });
+const failed = (err: unknown) => unavailable(errorMessage(err, 2000));
 
 /** The thread a result belongs to: an agent's own, whatever it asked for. */
 const threadOf = (ctx: CallContext, asked: string | undefined) => (ctx.agent ? ctx.agent.thread_id : asked);

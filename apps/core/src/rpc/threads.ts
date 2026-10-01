@@ -1,16 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ErrorCode } from "@apx/protocol";
 import { publicInput } from "../domain/inputs.ts";
 import { publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
-import { CallError } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
+import { badRequest, notFound } from "../errors.ts";
 
-export const notFound = (what: string) => new CallError({ code: ErrorCode.BadRequest, message: `${what} not found` });
 
 /**
  * A code thread's folder: inside its project's folder on disk, symlinks resolved, so the agent cannot be pointed
@@ -19,20 +17,17 @@ export const notFound = (what: string) => new CallError({ code: ErrorCode.BadReq
 function codeFolder(store: Store, projectId: string | undefined, cwd: string | undefined): string {
   const project = projectId ? store.projects.get(projectId) : undefined;
   if (!project?.path || !project.present)
-    throw new CallError({
-      code: ErrorCode.BadRequest,
-      message: "a code thread needs a project whose folder is on disk",
-    });
+    throw badRequest("a code thread needs a project whose folder is on disk");
   let root: string;
   let dir: string;
   try {
     root = fs.realpathSync(project.path);
     dir = fs.realpathSync(path.resolve(root, cwd ?? "."));
   } catch {
-    throw new CallError({ code: ErrorCode.BadRequest, message: `no folder ${cwd ?? project.path}` });
+    throw badRequest(`no folder ${cwd ?? project.path}`);
   }
   if (dir !== root && !dir.startsWith(`${root}${path.sep}`))
-    throw new CallError({ code: ErrorCode.BadRequest, message: `${cwd} is outside the project's folder` });
+    throw badRequest(`${cwd} is outside the project's folder`);
   return dir;
 }
 

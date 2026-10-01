@@ -6,6 +6,7 @@ export const PROTOCOL_VERSION = 1;
 
 export const ErrorCode = {
   BadRequest: "bad_request",
+  NotFound: "not_found",
   UnknownMethod: "unknown_method",
   Unauthorized: "unauthorized",
   Unavailable: "unavailable",

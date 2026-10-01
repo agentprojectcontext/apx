@@ -6,12 +6,10 @@ import type { ApcSync } from "../apc/sync.ts";
 import { archiveAgentFile, renameAgentFile, updateAgentFile, writeNewAgent } from "../apc/write.ts";
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import { CallError } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import type { Handler } from "./router.ts";
-import { notFound } from "./threads.ts";
+import { badRequest, notFound } from "../errors.ts";
 
-const refuse = (message: string) => new CallError({ code: "bad_request", message });
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
 export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };
@@ -20,13 +18,13 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
   /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */
   const checkChoice = (c: ModelChoice | null | undefined) => {
     const why = c?.model ? refProblem(c.model, engines) : undefined;
-    if (why) throw refuse(why);
+    if (why) throw badRequest(why);
   };
   /** The folder of a project agent's project, or a clear refusal. */
   const rootOf = (projectId: string): string => {
     const p = store.projects.get(projectId);
     if (!p?.path) throw notFound(`project ${projectId}`);
-    if (!p.present) throw refuse(`the folder of project ${p.name} is not on disk right now`);
+    if (!p.present) throw badRequest(`the folder of project ${p.name} is not on disk right now`);
     return p.path;
   };
   /** Runs a file operation, turning file errors into a typed refusal. */
@@ -34,7 +32,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
     try {
       return fn();
     } catch (err) {
-      throw refuse(err instanceof Error ? err.message : String(err));
+      throw badRequest(err instanceof Error ? err.message : String(err));
     }
   };
   /** Sets what only APX knows about an agent (kept across reindexes). */
@@ -62,7 +60,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
     "agents.create": ((p) => {
       checkChoice(p.model_choice);
       if (!p.project_id) {
-        if (store.agents.get(p.slug)) throw refuse(`an agent with id ${p.slug} exists`);
+        if (store.agents.get(p.slug)) throw badRequest(`an agent with id ${p.slug} exists`);
         store.agents.upsert({
           id: p.slug,
           name: p.name,
@@ -86,7 +84,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       );
       apc.sync(p.project_id);
       const created = store.agents.forFile(p.project_id, p.slug, []);
-      if (!created) throw refuse("the agent file was written but could not be read back");
+      if (!created) throw badRequest("the agent file was written but could not be read back");
       if (p.model_choice) setLocal(created, { model_choice: p.model_choice });
       return fresh(created.id);
     }) as Handler<"agents.create">,
@@ -108,7 +106,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
         });
         apc.sync(cur.project_id);
       } else if (edits) {
-        if (p.slug !== undefined) throw refuse("only project agents have a file to rename");
+        if (p.slug !== undefined) throw badRequest("only project agents have a file to rename");
         const { harness: _h, ...rest } = cur;
         store.agents.upsert({
           ...rest,
@@ -127,7 +125,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
     "agents.archive": (({ agent }) => {
       const cur = store.agents.get(agent);
       if (!cur) throw notFound(`agent ${agent}`);
-      if (cur.kind === "secretary") throw refuse("the secretary cannot be archived");
+      if (cur.kind === "secretary") throw badRequest("the secretary cannot be archived");
       let moved: string | undefined;
       if (cur.source === "apc" && cur.project_id && cur.slug) {
         const root = rootOf(cur.project_id);

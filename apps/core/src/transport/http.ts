@@ -101,7 +101,7 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
     const share = /^\/a\/([a-f0-9]{32})$/.exec(url.pathname);
     if (req.method === "GET" && share && pages) {
       const page = pages.artifact(share[1] ?? "");
-      if (!page) return send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });
+      if (!page) return send(res, 404, { ok: false, error: { code: "not_found", message: "not found" } });
       res.writeHead(200, {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": ARTIFACT_CSP,
@@ -111,7 +111,7 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
       return;
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;
-    send(res, 404, { ok: false, error: { code: "bad_request", message: "not found" } });
+    send(res, 404, { ok: false, error: { code: "not_found", message: "not found" } });
   };
   return (req: IncomingMessage, res: ServerResponse): void => {
     handle(req, res).catch((err: unknown) => {
@@ -123,13 +123,24 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
 }
 
 function statusFor(code: string): number {
-  return code === "unknown_method" ? 404 : code === "bad_request" ? 400 : code === "unauthorized" ? 401 : 500;
+  return STATUS[code] ?? 500;
 }
 
 function header(req: IncomingMessage, name: string): string | undefined {
   const v = req.headers[name];
   return Array.isArray(v) ? v[0] : v;
 }
+
+/** The HTTP status each error code answers with. */
+const STATUS: Record<string, number> = {
+  unknown_method: 404,
+  not_found: 404,
+  bad_request: 400,
+  unauthorized: 401,
+  conflict: 409,
+  unavailable: 503,
+  timeout: 504,
+};
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json" });
