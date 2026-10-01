@@ -223,10 +223,37 @@ export const Run = z.object({
   error: z.string().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
+  /** Tools called so far. */
+  tool_calls: z.number().int().nonnegative().default(0),
+  /** What it is doing right now ("Opened github.com"); absent when idle or finished. */
+  activity: z.string().optional(),
   /** Tokens reported by the provider for the whole run, when it reports them. */
   usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
 });
 export type Run = z.infer<typeof Run>;
+
+/**
+ * Work running on its own, for the background view: an agent's turn outside the thread the owner is in (a
+ * delegation, a woken agent) or, later, a terminal command. Built from runs; `thread_id` opens its transcript.
+ */
+export const Job = z.object({
+  id: Id,
+  kind: z.enum(["agent", "terminal"]),
+  title: z.string(),
+  state: RunState,
+  thread_id: Id,
+  /** The thread that started it (a delegation's caller). */
+  parent_thread_id: Id.optional(),
+  agent_id: Id.optional(),
+  trigger: RunTrigger,
+  model: z.string().optional(),
+  usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
+  tool_calls: z.number().int().nonnegative(),
+  activity: z.string().optional(),
+  started_at: z.string(),
+  ended_at: z.string().optional(),
+});
+export type Job = z.infer<typeof Job>;
 
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
 export const Surface = z.object({

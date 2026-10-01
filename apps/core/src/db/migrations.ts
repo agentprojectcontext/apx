@@ -112,4 +112,9 @@ export const MIGRATIONS: readonly string[] = [
     WHERE key = 'setting:model_default' AND json_extract(value, '$.model') LIKE 'native%';
   DELETE FROM meta WHERE key = 'setting:default_harness' AND value = 'native';
   `,
+  `
+  -- What a run is doing, for the background view: how many tools it called and the one running now.
+  ALTER TABLE runs ADD COLUMN tool_calls INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE runs ADD COLUMN activity TEXT;
+  `,
 ];

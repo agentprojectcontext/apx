@@ -38,6 +38,8 @@ const toRun = (r: Row): RunRecord => ({
   started_at: String(r.started_at),
   ...opt("ended_at", r.ended_at),
   ...(r.usage ? { usage: JSON.parse(String(r.usage)) as NonNullable<Run["usage"]> } : {}),
+  tool_calls: Number(r.tool_calls ?? 0),
+  ...opt("activity", r.activity),
   ...(r.input ? { input: JSON.parse(String(r.input)) as RunInput } : {}),
   ...opt("message_id", r.message_id),
 });
@@ -125,19 +127,23 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     },
     setState(cur: RunRecord, state: RunState, error?: string): RunRecord {
       const terminal = TERMINAL.has(state);
+      const base = repo.get(cur.id) ?? cur;
       const next: RunRecord = {
-        ...cur,
+        ...base,
+        // Ended runs are doing nothing.
+        ...(terminal ? { activity: undefined } : {}),
         state,
         ...(error ? { error } : {}),
-        ...(state === "working" && cur.state === "submitted" ? { started_at: now() } : {}),
+        ...(state === "working" && base.state === "submitted" ? { started_at: now() } : {}),
         ...(terminal ? { ended_at: now() } : {}),
       };
       run(
-        "UPDATE runs SET state = ?, error = ?, started_at = ?, ended_at = ? WHERE id = ?",
+        "UPDATE runs SET state = ?, error = ?, started_at = ?, ended_at = ?, activity = ? WHERE id = ?",
         state,
         next.error ?? null,
         next.started_at,
         next.ended_at ?? null,
+        next.activity ?? null,
         cur.id,
       );
       emit(next);
@@ -147,7 +153,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       cur: RunRecord,
       p: { harness?: HarnessId; model?: string; message_id?: string; usage?: NonNullable<Run["usage"]> },
     ): RunRecord {
-      const next: RunRecord = { ...cur, ...p };
+      // From the stored row: activity counters change underneath the turn's own copy.
+      const next: RunRecord = { ...(repo.get(cur.id) ?? cur), ...p };
       run(
         "UPDATE runs SET harness = ?, model = ?, message_id = ?, usage = ? WHERE id = ?",
         next.harness ?? null,
@@ -158,6 +165,31 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       emit(next);
       return next;
+    },
+
+    /** What the run is doing now; `tool` counts one more tool call. Cleared when the run ends. */
+    setActivity(runId: string, activity: string | undefined, tool = false): void {
+      run(
+        "UPDATE runs SET activity = ?, tool_calls = tool_calls + ? WHERE id = ?",
+        activity ?? null,
+        tool ? 1 : 0,
+        runId,
+      );
+      const cur = repo.get(runId);
+      if (cur) emit(cur);
+    },
+    /** Running work and the latest finished background work (delegations, wakes, routines; not plain chat turns). */
+    jobs(finished: number): { running: RunRecord[]; finished: RunRecord[] } {
+      const bg = "(r.trigger != 'user' OR t.parent_id IS NOT NULL)";
+      return {
+        running: all(
+          "SELECT r.* FROM runs r WHERE r.state IN ('submitted', 'working', 'input-required') ORDER BY r.created_at DESC",
+        ).map(toRun),
+        finished: all(
+          `SELECT r.* FROM runs r JOIN threads t ON t.id = r.thread_id WHERE r.state IN ('completed', 'failed', 'canceled') AND ${bg} ORDER BY r.ended_at DESC LIMIT ?`,
+          finished,
+        ).map(toRun),
+      };
     },
 
     // ── steps ──────────────────────────────────────────────────────────

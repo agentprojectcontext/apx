@@ -133,6 +133,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     }
     toolsRan++;
     store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
+    store.runs.setActivity(run.id, title, true);
     const out = await runTool(tool, args, ctx);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, 4000));
     if (signal.aborted) throw signal.reason ?? new Error("canceled");

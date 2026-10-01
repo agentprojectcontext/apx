@@ -5,6 +5,7 @@ import {
   CatalogEngine,
   EngineStatus,
   Id,
+  Job,
   Message,
   ModelChoice,
   Project,
@@ -201,6 +202,12 @@ export const appMethods = {
       .strict(),
     result: z.object({ message: Message, run: Run }),
     effect: true,
+  },
+  /** Running work plus the most recently finished, newest first (the background view). */
+  "jobs.list": {
+    params: z.object({ finished: z.number().int().min(0).max(100).default(30) }).strict(),
+    result: z.object({ running: z.array(Job), finished: z.array(Job) }),
+    effect: false,
   },
   "runs.get": {
     params: z.object({ run: Id }).strict(),
