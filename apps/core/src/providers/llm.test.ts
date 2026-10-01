@@ -61,7 +61,7 @@ test("falls back down the chain on overload and reports which model answered", a
   assert.deepEqual(seen, ["a.test/m1", "a.test/m1", "a.test/m2"]);
 });
 
-test("a named model goes first; quota skips the whole provider; providers without a key are never called", async () => {
+test("a named model goes first; quota moves on to the next model; providers without a key are never called", async () => {
   const seen: string[] = [];
   const llm = createLlm({
     providers,
@@ -133,4 +133,23 @@ test("anthropic conversion: leading system, later notes as user text, tool calls
       ],
     },
   ]);
+});
+
+test("a per-model quota (Gemini's 429) moves on to the same provider's next model", async () => {
+  const seen: string[] = [];
+  const llm = createLlm({
+    providers: providers.slice(0, 1),
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      seen.push(model);
+      if (model === "m1") return new Response("You exceeded your current quota", { status: 429 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const out = await llm.complete({ messages: [], tools: [], signal: new AbortController().signal });
+  assert.deepEqual(seen, ["m1", "m2"]);
+  assert.equal(out.model, "pa/m2");
 });

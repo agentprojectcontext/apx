@@ -91,9 +91,9 @@ export function createLlm(opts: {
             if (req.signal.aborted) throw req.signal.reason ?? err;
             last = err instanceof ProviderError ? err : new ProviderError("network", String(err));
             last.message = `${t.provider.id}/${t.model}: ${last.message}`;
-            // Auth, quota and a rejected request rule out the whole provider for this call; another may still work.
-            if (last.kind === "auth" || last.kind === "quota" || last.kind === "bad_request")
-              skipped.add(t.provider.id);
+            // Auth and a rejected request rule out the whole provider for this call; quota is often per model
+            // (Gemini), so the provider's next model still gets a try.
+            if (last.kind === "auth" || last.kind === "bad_request") skipped.add(t.provider.id);
             if (!last.retryable || attempt === 1) break;
             await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 800));
           }

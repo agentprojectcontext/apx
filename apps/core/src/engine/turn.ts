@@ -188,7 +188,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     display.close();
     const canceled = signal.aborted && String(signal.reason ?? "").includes("cancel");
     const reason = err instanceof Error ? err.message : String(err);
-    const message = canceled ? "Canceled." : `Could not finish: ${reason}`;
+    const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;
+    const message = canceled ? "Canceled." : `Could not finish: ${short}`;
     if (!canceled) log.warn({ thread: thread.id, agent: agent.id, err: reason }, "run failed");
     display.notice(canceled ? "info" : "error", canceled ? "run.canceled" : "run.failed", message);
     closeTurnLog(store, run, canceled ? "The owner canceled this turn." : `This turn failed: ${reason}`);

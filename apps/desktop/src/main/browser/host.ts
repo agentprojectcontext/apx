@@ -137,9 +137,10 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         const p = browserMethods["browser.text"].params.parse(raw);
         const wc = this.#readable(p.tab).view.webContents;
         // Isolated world: the page's scripts cannot see or patch this read.
-        const [full] = (await wc.executeJavaScriptInIsolatedWorld(999, [
+        // Resolves to the script's value (a string), not to an array of results.
+        const full = (await wc.executeJavaScriptInIsolatedWorld(999, [
           { code: "document.body ? document.body.innerText : ''" },
-        ])) as [string];
+        ])) as unknown;
         const text = String(full ?? "").replace(/\n{3,}/g, "\n\n");
         const slice = text.slice(p.offset, p.offset + p.max_chars);
         return { url: wc.getURL(), text: slice, total: text.length, truncated: p.offset + p.max_chars < text.length };

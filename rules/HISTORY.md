@@ -47,3 +47,14 @@ its results breaks the pairing every provider requires. Where: `apps/core/src/ha
 A delegation's card lives in the caller's answer while the caller's turn may still be writing that message. Writing
 the card straight to the store was overwritten by the next display update (the card stayed "working"). The engine
 keeps the live `Display` of a run that delegated and updates the card through it. Where: `engine/engine.ts`.
+
+<a id="isolated-world-result"></a>
+### `executeJavaScriptInIsolatedWorld` resolves to the value, not to an array
+`browser.text` destructured the result as `[full]`, so it returned the first character of the page ("T"). Electron
+resolves to the script's value. Where: `apps/desktop/src/main/browser/host.ts`.
+
+<a id="gemini-quota-per-model"></a>
+### Gemini's 429 "quota" is per model
+Google answers 429 "You exceeded your current quota" when one model's limit is hit; the next model of the same
+key still works. The gateway skips only that model on `quota` (auth and bad requests skip the provider).
+Where: `apps/core/src/providers/llm.ts`.
