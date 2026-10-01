@@ -35,7 +35,7 @@ export function createHooks() {
       });
       try {
         const text = await Promise.race([p.fn(input).catch(() => undefined), late]);
-        return text ? { from: p.name, text: text.slice(0, CONTEXT_MAX) } : undefined;
+        return typeof text === "string" && text ? { from: p.name, text: text.slice(0, CONTEXT_MAX) } : undefined;
       } finally {
         clearTimeout(timer);
       }

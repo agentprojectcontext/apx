@@ -4,6 +4,7 @@ import {
   type ApxErrorShape,
   ErrorCode,
   isMethodName,
+  type MethodDef,
   type MethodName,
   methodAccess,
   methods,
@@ -54,7 +55,7 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
     try {
       const handler = handlers[method] as Handler<typeof method>;
       const out = def.result.parse(await handler(parsed.data as never, ctx));
-      if (def.effect && idem && idemStore) idemStore.put(idem, method, out);
+      if (def.effect && idem && idemStore && (def as MethodDef).replay !== false) idemStore.put(idem, method, out);
       return { ok: true, result: out };
     } catch (err) {
       if (err instanceof CallError) {
@@ -99,6 +100,8 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
     if (!idem) {
       return { ok: false, error: { code: ErrorCode.BadRequest, message: `${method} requires an idempotency key` } };
     }
+    // A key replays only for the caller that used it: another caller's answer is never handed out.
+    idem = `${ctx.client?.id ?? ctx.agent?.run_id ?? ctx.actor}:${idem}`;
     const seen = idemStore?.get(idem, method);
     if (seen !== undefined) return { ok: true, result: seen };
     const key = `${method}\u0000${idem}`;

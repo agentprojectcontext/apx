@@ -121,8 +121,10 @@ export const PluginEvent = z.enum([
 ]);
 export type PluginEvent = z.infer<typeof PluginEvent>;
 
-/** Names inside an extension: its id, its MCP servers and its secrets. */
-const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
+/** An extension's id. */
+const ExtId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
+/** Names inside an extension (MCP servers, secrets): no "-", so `<id>-<name>` always splits one way. */
+const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_]{0,19}$/);
 
 /**
  * `apx-extension.json`: what an extension brings, readable without running anything. Paths are relative to its
@@ -130,7 +132,7 @@ const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
  */
 export const ExtensionManifest = z
   .object({
-    id: ExtName,
+    id: ExtId,
     name: z.string().trim().min(1).max(80),
     version: z.string().max(40),
     description: z.string().max(500).default(""),

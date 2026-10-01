@@ -4,7 +4,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { createInterface } from "node:readline";
 import type { CoreEvent } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { ExtensionRecord } from "../domain/extensions.ts";
@@ -18,6 +17,9 @@ const RUNNER = path.join(import.meta.dirname, "plugin-runner.mjs");
 /** Events larger than this are not sent (a plugin gets summaries of huge messages from elsewhere). */
 const MAX_EVENT_BYTES = 256 * 1024;
 const MAX_RESTARTS = 3;
+const MAX_LINE = 64 * 1024;
+/** A context answer later than this is dropped (the turn has gone on without it). */
+const CONTEXT_WAIT_MS = 2500;
 const RESTART_WINDOW_MS = 5 * 60_000;
 
 type Live = {
@@ -32,7 +34,17 @@ type Live = {
 
 export type PluginStatus = { status: "off" | "running" | "error"; error?: string | undefined };
 
-export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; hooks: Hooks; log: Log }) {
+export function createPlugins(deps: {
+  home: string;
+  secrets: Secrets;
+  bus: Bus;
+  hooks: Hooks;
+  log: Log;
+  /** The extension as approved now (enabled, files unchanged), or undefined: checked again before every restart. */
+  approved: (id: string) => ExtensionRecord | undefined;
+  /** Whether a thread is a contact's sealed chat: plugins never see those. */
+  sealed: (threadId: string) => boolean;
+}) {
   const { log } = deps;
   const live = new Map<string, Live>();
   const errors = new Map<string, string>();
@@ -72,17 +84,33 @@ export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; 
     const l: Live = { ext, child, status: "running", pending: new Map(), restarts, stopping: false };
     live.set(ext.id, l);
     errors.delete(ext.id);
-    createInterface({ input: child.stdout as NodeJS.ReadableStream }).on("line", (line) => {
-      let msg: { t?: string; id?: number; text?: string | null };
+    const onLine = (line: string) => {
+      let msg: { t?: string; id?: number; text?: unknown };
       try {
         msg = JSON.parse(line);
       } catch {
         return;
       }
       if (msg.t === "context" && typeof msg.id === "number") {
-        l.pending.get(msg.id)?.(msg.text ?? undefined);
+        l.pending.get(msg.id)?.(typeof msg.text === "string" ? msg.text : undefined);
         l.pending.delete(msg.id);
       } else if (msg.t === "log") log.info({ extension: ext.id, text: String(msg.text).slice(0, 500) }, "plugin");
+    };
+    // Lines are capped: a plugin that floods its output without newlines is stopped, never buffered without end.
+    let partial = "";
+    child.stdout?.on("data", (d: Buffer) => {
+      partial += String(d);
+      let nl = partial.indexOf("\n");
+      while (nl >= 0) {
+        onLine(partial.slice(0, nl));
+        partial = partial.slice(nl + 1);
+        nl = partial.indexOf("\n");
+      }
+      if (partial.length > MAX_LINE) {
+        partial = "";
+        stderr = "it wrote a line too long";
+        child.kill();
+      }
     });
     let stderr = "";
     child.stderr?.on("data", (d) => {
@@ -102,7 +130,15 @@ export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; 
         return;
       }
       setTimeout(() => {
-        if (!live.has(ext.id) && !errors.has(ext.id) && wanted.has(ext.id)) launch(ext, recent);
+        if (live.has(ext.id) || errors.has(ext.id) || !wanted.has(ext.id)) return;
+        // Restarted only as approved: still on, and with the files that were turned on.
+        const now = deps.approved(ext.id);
+        if (!now) {
+          wanted.delete(ext.id);
+          deps.hooks.release(ext.id);
+          return;
+        }
+        launch(now, recent);
       }, 1000).unref();
     });
     child.stdin?.on("error", () => {});
@@ -115,7 +151,17 @@ export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; 
   /** Extensions that should be running (enabled with a plugin). */
   const wanted = new Map<string, ExtensionRecord>();
 
+  const threadOf = (e: CoreEvent): string | undefined =>
+    e.type === "message.created"
+      ? e.message.thread_id
+      : e.type === "thread.updated"
+        ? e.thread.id
+        : e.type === "run.updated"
+          ? e.run.thread_id
+          : undefined;
   const off = deps.bus.on((e: CoreEvent) => {
+    const thread = threadOf(e);
+    if (thread && deps.sealed(thread)) return;
     for (const l of live.values()) {
       if (!(l.ext.manifest.plugin?.observe as string[] | undefined)?.includes(e.type)) continue;
       const line = JSON.stringify({ t: "event", event: e });
@@ -139,6 +185,9 @@ export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; 
               const id = nextId++;
               l.pending.set(id, resolve);
               write(l, { t: "context", id, input });
+              setTimeout(() => {
+                if (l.pending.delete(id)) resolve(undefined);
+              }, CONTEXT_WAIT_MS).unref();
             }),
         });
       wanted.set(ext.id, ext);
@@ -159,6 +208,11 @@ export function createPlugins(deps: { home: string; secrets: Secrets; bus: Bus; 
       live.delete(id);
     },
     contextOwner: () => deps.hooks.contextOwner(),
+    /** Marks a plugin as failed (it could not start); APX goes on without it. */
+    fail(id: string, error: string): void {
+      errors.set(id, error);
+      deps.hooks.release(id);
+    },
     status(id: string): PluginStatus {
       const err = errors.get(id);
       if (err) return { status: "error", error: err };

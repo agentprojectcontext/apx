@@ -7,7 +7,7 @@ import path from "node:path";
 import { type ExtensionInfo, ExtensionManifest } from "@apx/protocol";
 import type { ExtensionRecord } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { isInside } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Plugins } from "./plugins.ts";
@@ -16,16 +16,19 @@ export const MANIFEST = "apx-extension.json";
 const MAX_FILES = 2000;
 const MAX_BYTES = 50 * 1024 * 1024;
 
-/** The name an extension's own secret is stored under: it can never name another one. */
+/** The name an extension's own secret is stored under. Names have no "-", so `ext-<id>-<name>` cannot be read two ways. */
 export const extSecret = (id: string, name: string) => `ext-${id}-${name}`;
 
-/** Every regular file under `root`, relative and sorted; links and oversized trees are refused. */
-function filesOf(root: string): string[] {
+/**
+ * Every regular file under `root`, relative and sorted; links and oversized trees are refused. Copying from a source
+ * leaves out `.git` and `node_modules`; an installed copy is read whole, so nothing added there goes unnoticed.
+ */
+function filesOf(root: string, source = false): string[] {
   const out: string[] = [];
   let bytes = 0;
   const walk = (dir: string) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (e.name === ".git" || e.name === "node_modules") continue;
+      if (source && (e.name === ".git" || e.name === "node_modules")) continue;
       const abs = path.join(dir, e.name);
       if (e.isSymbolicLink()) throw badRequest(`${path.relative(root, abs)} is a link; extensions hold plain files`);
       if (e.isDirectory()) walk(abs);
@@ -135,6 +138,14 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     if (isInside(root, dir)) throw badRequest("that folder is an installed copy already");
     return fs.realpathSync(dir);
   };
+  /** Starts its plugin without ever failing APX: a problem is shown as the plugin's error. */
+  const startPlugin = (e: ExtensionRecord) => {
+    try {
+      plugins.start(e);
+    } catch (err) {
+      plugins.fail(e.id, errorMessage(err, 300));
+    }
+  };
   const get = (id: string) => {
     const e = store.extensions.get(id);
     if (!e) throw notFound(`extension ${id}`);
@@ -142,6 +153,16 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
   };
 
   return {
+    /** The extension as approved now: enabled and with the files that were turned on. */
+    approved(id: string): ExtensionRecord | undefined {
+      const e = store.extensions.get(id);
+      if (!e?.enabled) return undefined;
+      try {
+        return fingerprint(e.dir, filesOf(e.dir)) === e.hash ? e : undefined;
+      } catch {
+        return undefined;
+      }
+    },
     /** At start: an enabled extension whose files changed on disk is turned off. */
     verify(): string[] {
       const off: string[] = [];
@@ -153,7 +174,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
         if (!same) {
           store.extensions.setEnabled(e.id, false);
           off.push(e.manifest.name);
-        } else plugins.start(e);
+        } else startPlugin(e);
       }
       return off;
     },
@@ -161,7 +182,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     inspect(p: string): ExtensionInfo {
       const dir = source(p);
       const manifest = readManifest(dir);
-      const hash = fingerprint(dir, filesOf(dir));
+      const hash = fingerprint(dir, filesOf(dir, true));
       const cur = store.extensions.get(manifest.id);
       return info({
         id: manifest.id,
@@ -176,19 +197,27 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     install(p: string): ExtensionInfo {
       const from = source(p);
       const manifest = readManifest(from);
-      const files = filesOf(from);
+      const files = filesOf(from, true);
       const dir = path.join(root, manifest.id);
       const staging = `${dir}.new`;
       fs.rmSync(staging, { recursive: true, force: true });
       for (const f of files) {
         fs.mkdirSync(path.dirname(path.join(staging, f)), { recursive: true });
-        fs.copyFileSync(path.join(from, f), path.join(staging, f));
+        // Opened without following links: a file swapped for a link after the listing is refused.
+        const fd = fs.openSync(path.join(from, f), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+        try {
+          fs.writeFileSync(path.join(staging, f), fs.readFileSync(fd));
+        } finally {
+          fs.closeSync(fd);
+        }
       }
+      // The running plugin (if any) is of the files being replaced; it starts again only if they are unchanged.
+      plugins.stop(manifest.id);
       fs.rmSync(dir, { recursive: true, force: true });
       fs.renameSync(staging, dir);
-      return info(
-        store.extensions.put({ id: manifest.id, manifest, hash: fingerprint(dir, files), dir, source: from }),
-      );
+      const e = store.extensions.put({ id: manifest.id, manifest, hash: fingerprint(dir, files), dir, source: from });
+      if (e.enabled) startPlugin(e);
+      return info(e);
     },
     enable(id: string, enabled: boolean): ExtensionInfo {
       const e = get(id);
@@ -196,14 +225,12 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       if (enabled && fingerprint(e.dir, filesOf(e.dir)) !== e.hash)
         throw badRequest(`${e.manifest.name} changed on disk since it was installed; install it again`);
       if (enabled && e.manifest.plugin?.context) {
-        const holder = plugins.contextOwner();
-        if (holder && holder !== id)
-          throw badRequest(
-            `${store.extensions.get(holder)?.manifest.name ?? holder} already adds context to turns; turn it off first`,
-          );
+        // Any other enabled one counts, running or not: at the next start only one could take the turn context.
+        const other = store.extensions.enabled().find((x) => x.id !== id && x.manifest.plugin?.context);
+        if (other) throw badRequest(`${other.manifest.name} already adds context to turns; turn it off first`);
       }
       store.extensions.setEnabled(id, enabled);
-      if (enabled) plugins.start(get(id));
+      if (enabled) startPlugin(get(id));
       else plugins.stop(id);
       return info(get(id));
     },
@@ -214,6 +241,8 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       for (const s of e.manifest.secrets) secrets.set(extSecret(id, s.name), null);
       store.extensions.remove(id);
       fs.rmSync(e.dir, { recursive: true, force: true });
+      // A later extension with the same id starts clean.
+      fs.rmSync(path.join(deps.home, "extension-data", id), { recursive: true, force: true });
       return true;
     },
     setSecret(id: string, name: string, value: string | null): ExtensionInfo {
@@ -223,7 +252,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       // A running plugin got its secrets at start.
       if (e.enabled && e.manifest.plugin) {
         plugins.stop(id);
-        plugins.start(e);
+        startPlugin(e);
       }
       return info(e);
     },

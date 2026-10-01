@@ -17,6 +17,7 @@ import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createAttention } from "./engine/attention.ts";
+import { audienceOf } from "./engine/audience.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
@@ -161,7 +162,18 @@ export async function createCore(
     );
   const mcp = createMcp({ store, secrets, log });
   const hooks = createHooks();
-  const plugins = createPlugins({ home: config.home, secrets, bus, hooks, log });
+  const plugins = createPlugins({
+    home: config.home,
+    secrets,
+    bus,
+    hooks,
+    log,
+    approved: (id) => extensions.approved(id),
+    sealed: (threadId) => {
+      const t = store.threads.get(threadId);
+      return Boolean(t && audienceOf(store, t).kind === "contact");
+    },
+  });
   const extensions = createExtensions({ store, secrets, home: config.home, plugins });
   const changed = extensions.verify();
   if (changed.length) log.warn({ extensions: changed }, "extensions changed on disk were turned off");

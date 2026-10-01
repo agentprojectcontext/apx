@@ -96,8 +96,14 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   );
   run = store.runs.patch(run, { message_id: display.message.id });
 
-  const { history, input, skills } = await buildContext(deps, turn, run);
-  const { policy, tools } = await turnTools(deps, turn);
+  // Anything failing while the turn is prepared (a plugin, an MCP server) still ends the run with a state.
+  let prepared: Awaited<ReturnType<typeof buildContext>> & Awaited<ReturnType<typeof turnTools>>;
+  try {
+    prepared = { ...(await buildContext(deps, turn, run)), ...(await turnTools(deps, turn)) };
+  } catch (err) {
+    return failRun(deps, { run, turn, display, signal, err });
+  }
+  const { history, input, skills, policy, tools } = prepared;
   let harness: HarnessId = "native";
   const exec = createExecutor({
     store,
@@ -172,9 +178,15 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const recalled = remembers
     ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
     : {};
-  // A plugin's context is for the owner's own turns only, and arrives as outside data.
+  // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.
+  const o = turn.input.origin;
+  const ownerTurn =
+    o.kind === "user" ||
+    o.kind === "input_answer" ||
+    o.kind === "routine" ||
+    (o.kind === "channel" && o.role === "owner");
   const extra =
-    !sealed && deps.hooks
+    !sealed && ownerTurn && deps.hooks
       ? await deps.hooks.context({
           thread: { id: thread.id, kind: thread.kind, title: thread.title, project_id: thread.project_id },
           agent: { id: agent.id, name: agent.name },

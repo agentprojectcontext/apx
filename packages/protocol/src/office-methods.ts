@@ -200,6 +200,7 @@ export const officeMethods = {
     result: z.object({ client: ApiClient, token: z.string() }),
     effect: true,
     access: "human",
+    replay: false,
   },
   "clients.revoke": {
     params: z.object({ id: Id }).strict(),

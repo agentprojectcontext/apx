@@ -182,3 +182,26 @@ years before 2000 and anything but `YYYY-MM-DD` or an ISO date-time. Where: `app
 Owner-only methods trust the client's `x-apx-actor`; `apx2 …` from the shell tool reaches the API without naming the
 port, so the port check missed it. Running the CLI is now always the owner's call. Where:
 `apps/core/src/tools/shell.ts`.
+
+<a id="plugin-sandbox-escapes"></a>
+### Plugins get an allow-list of modules and a fetch that checks the connected address
+The first runner denied a list of network modules, but Node exposes others (`_http_client`, `_http_agent`,
+`_tls_wrap`) and the global `fetch` could be fooled (a URL object that changes on its second read, a `Request`
+subclass, `::ffff:7f00:1`), so a plugin without network reached APX's loopback API as the owner. The runner now allows
+a short list of built-ins and replaces `fetch` with one built on `http.request` whose lookup checks the address it
+actually connects to. Where: `apps/core/src/extensions/plugin-runner.mjs`.
+
+<a id="plugin-host-limits"></a>
+### A plugin cannot stall turns, crash APX or outlive its approval
+A non-text context answer threw before the turn's `try` and left runs `working`; a flood without newlines grew a
+buffer until APX crashed; a crash-looping context plugin let a second one be enabled and APX then failed to boot; a
+reinstall while on kept the old process and its restart ran the new, unapproved files. Turn setup now fails the run,
+lines are capped (the plugin is stopped), plugin start never throws, the one-context rule is checked against every
+enabled extension, and every restart re-checks approval and fingerprint. Where: `apps/core/src/extensions/plugins.ts`,
+`extensions.ts`, `engine/turn.ts`.
+
+<a id="idempotency-per-caller"></a>
+### A replayed key belongs to its caller, and shown-once results are never cached
+The idempotency cache stored `clients.create`'s token in plain text and replayed a key to any caller. Keys are now
+scoped to the caller (client, run or actor) and methods marked `replay: false` are not cached. Where:
+`apps/core/src/rpc/router.ts`, `packages/protocol/src/methods.ts`.

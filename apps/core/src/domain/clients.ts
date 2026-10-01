@@ -47,7 +47,9 @@ export function clientsRepo({ one, all, run }: Sql) {
           .where("revoked_at", "is", null),
       );
       if (!r) return undefined;
-      run(qb.updateTable("api_clients").set({ last_used_at: now() }).where("id", "=", r.id));
+      // Noted at most once a minute, not on every call.
+      if (!r.last_used_at || Date.now() - Date.parse(r.last_used_at) > 60_000)
+        run(qb.updateTable("api_clients").set({ last_used_at: now() }).where("id", "=", r.id));
       return toClient(r);
     },
     revoke(id: string): boolean {

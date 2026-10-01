@@ -47,6 +47,18 @@ test("it reaches nothing else: other chats, other methods, the owner's controls"
   await refused(app.call("clients.create", { name: "x", scopes: ["chat"] }), /outside what Claude Code may do/);
 });
 
+test("a token is never kept for replays, and a reused key never hands out another caller's answer", async () => {
+  const made = await env.client.call("clients.create", { name: "Codex", scopes: ["chat"] }, "fixed-key-1");
+  assert.equal(env.core.store.idempotency.get("human:fixed-key-1", "clients.create"), undefined);
+  await env.client.call("clients.revoke", { id: made.client.id });
+  const home = await env.client.call("threads.send", { thread: "home", text: "owner only" }, "shared-key-2");
+  assert.ok(home.message.id);
+  await refused(
+    app.call("threads.send", { thread: "home", text: "x" }, "shared-key-2"),
+    /only use the chats it started/,
+  );
+});
+
 test("a revoked or made-up token gets nothing", async () => {
   const fake = new ApxClient({ url: env.core.url, clientToken: "apxc_0000" });
   await refused(fake.call("agents.list", {}), /unknown or revoked/);

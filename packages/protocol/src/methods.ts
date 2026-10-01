@@ -29,6 +29,8 @@ export type MethodDef = {
   effect: boolean;
   /** "human" → only a human operator may call it (never an agent, a tool or an agent client). Default: anyone. */
   access?: "human";
+  /** false → its result is never kept for a retried request (it holds something shown once, like a token). */
+  replay?: false;
 };
 
 export const methods = {

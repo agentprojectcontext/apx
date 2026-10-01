@@ -17,12 +17,17 @@ export default function activate(api) {
   api.context(async (input) => {
     const outside = await tryIt(() => fs.readFileSync(process.env.HOME_FILE ?? "/etc/hosts"));
     const exec = await tryIt(() => import("node:child_process"));
-    const url = input.text.split(" ")[1];
+    const url = input.text.split(" ").find((w) => w.startsWith("http"));
     const core = url ? await tryIt(async () => { await fetch(url); }) : "none";
     const why = url ? await fetch(url).then(() => "", (e) => e.message) : "";
     const data = await tryIt(() => fs.writeFileSync(path.join(api.dataDir, "seen.txt"), String(seen)));
+    const raw = await tryIt(() => process.getBuiltinModule("_http_client"));
+    const port = url ? new URL(url).port : "1";
+    const mapped = await tryIt(async () => { await fetch("http://[::ffff:127.0.0.1]:" + port + "/health"); });
+    if (input.text.includes("garbage")) process.stdout.write(JSON.stringify({ t: "context", id: 1, text: { x: 1 } }) + "\\n");
+    if (input.text.includes("flood")) process.stdout.write("x".repeat(200000));
     return "seen=" + seen + " secret=" + (api.secrets.token ?? "none") + " outside=" + outside + " exec=" + exec +
-      " core=" + core + " (" + why + ") data=" + data + " asked=" + input.text;
+      " core=" + core + " (" + why + ") data=" + data + " raw=" + raw + " mapped=" + mapped + " asked=" + input.text;
   });
 }
 `;
@@ -119,4 +124,34 @@ test("one context provider at a time; off, it stops and turns get nothing from i
   const input = await turnInput(`now ${env.core.url}/health`);
   assert.match(input, /from="Plugin second"/);
   assert.match(input, /core=denied \(127\.0\.0\.1 is not reachable from a plugin\)/);
+  assert.match(input, /raw=denied/, "no private http modules");
+  assert.match(input, /mapped=denied/, "no IPv4-mapped loopback");
+});
+
+test("a misbehaving plugin cannot stall turns or APX: odd answers are ignored, a flood stops it", async () => {
+  const before = await turnInput("garbage please");
+  assert.match(before, /from="Plugin second"/);
+  // The flood kills the plugin; the turn goes on without its context, and APX keeps answering.
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "flood please" });
+  const { runs } = await env.settle(t.id, 10_000);
+  assert.equal(runs.at(-1)?.state, "completed");
+  assert.equal((await env.client.call("system.ping", { echo: "still here" })).pong, "still here");
+});
+
+test("reinstalling changed files while on stops the plugin until approved again", async () => {
+  const dir = dirs.find((d) => d.includes("apx2-plugin-second-")) ?? "";
+  fs.appendFileSync(path.join(dir, "plugin.mjs"), "\n// changed\n");
+  const again = await env.client.call("extensions.install", { path: dir });
+  assert.equal(again.enabled, false);
+  assert.equal(again.plugin?.status, "off");
+  assert.doesNotMatch(await turnInput("after reinstall"), /extension context/);
+});
+
+test("names inside an extension cannot be read two ways", async () => {
+  const dir = extension("clash", {});
+  const m = JSON.parse(fs.readFileSync(path.join(dir, "apx-extension.json"), "utf8"));
+  m.secrets = [{ name: "b-c", label: "x" }];
+  fs.writeFileSync(path.join(dir, "apx-extension.json"), JSON.stringify(m));
+  await assert.rejects(env.client.call("extensions.install", { path: dir }), (e: unknown) => e instanceof ApxError);
 });
