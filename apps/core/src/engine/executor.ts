@@ -136,7 +136,7 @@ export function createExecutor(o: {
         display,
         callId,
         kind: "confirm",
-        prompt: `${agent.name} wants to: ${title}. ${decision.reason}.`,
+        prompt: `${agent.name} wants to use ${name}: ${decision.reason}.`,
         tool: name,
         args: raw,
         detail: describe(args),
