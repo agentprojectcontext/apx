@@ -40,7 +40,10 @@ export function createDelegations(deps: {
         p.type === "subthread" ? { ...p, state, summary: answer.slice(0, 240) } : p;
     const display = deps.live.get(parent.id);
     const shown = display?.message.parts.find(match);
-    if (display && shown) return display.upsert(match, card(child.state)(shown));
+    if (display && shown) {
+      display.upsert(match, card(child.state)(shown));
+      return;
+    }
     const msg = parent.message_id ? store.messages.get(parent.message_id) : undefined;
     const index = msg?.parts.findIndex(match) ?? -1;
     const part = msg?.parts[index];
