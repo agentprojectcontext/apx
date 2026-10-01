@@ -4,7 +4,6 @@ import {
   Agent,
   CatalogEngine,
   EngineStatus,
-  HarnessId,
   Id,
   Message,
   ModelChoice,
@@ -103,8 +102,6 @@ export const appMethods = {
           .regex(/^[a-z][a-z0-9_-]*$/)
           .max(64)
           .optional(),
-        /** Shorthand for `model_choice: { model: <engine>, router: false }` (null = install default). */
-        harness: HarnessId.nullable().optional(),
       })
       .strict(),
     result: Agent,
@@ -133,12 +130,6 @@ export const appMethods = {
     params: z.object({ refresh: z.boolean().default(false) }).strict(),
     result: z.object({ engines: z.array(EngineStatus) }),
     effect: false,
-  },
-  "engines.set_default": {
-    params: z.object({ engine: HarnessId }).strict(),
-    result: z.object({ engines: z.array(EngineStatus) }),
-    effect: true,
-    access: "human",
   },
   /** Internal: an external harness (Codex) lists the tools of the run that owns `token`. */
   "harness.tools": {

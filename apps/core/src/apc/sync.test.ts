@@ -15,7 +15,7 @@ function makeProject(root: string) {
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\nUse metric units.\n");
   fs.writeFileSync(
     path.join(root, ".apc", "agents", "arch.md"),
-    "---\nname: Arch\nrole: Software Architect\nmodel: gemini:gemini-pro\nparent: ceo\nicon: saturno\n---\n\nKeep it simple.\n",
+    "---\nname: Arch\nrole: Software Architect\nmodel: fake:fake-pro\nparent: ceo\nicon: saturno\n---\n\nKeep it simple.\n",
   );
   fs.writeFileSync(
     path.join(root, ".apc", "agents", "ceo.md"),
@@ -40,7 +40,7 @@ test("a registered project's agents come from its files; edits and removals foll
     assert.equal(arch?.source, "apc");
     assert.equal(arch?.parent, "ceo");
     assert.equal(arch?.blob, "saturno");
-    assert.deepEqual(arch?.model_choice, { model: "gemini/gemini-pro", router: true }, "v1's provider:model, routed");
+    assert.deepEqual(arch?.model_choice, { model: "fake/fake-pro", router: true }, "v1's provider:model, routed");
 
     // The owner picks another model in APX; the file is edited; the owner's pick survives the reindex.
     await env.client.call("agents.update", {
@@ -134,5 +134,46 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
     await env.core.close();
     env.cleanup();
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("review fixes: an old slug can be reused after a rename; a clone with the same apx_id is its own project; symlinks are refused", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcr-"));
+  const clone = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcc-"));
+  try {
+    makeProject(root);
+    await env.client.call("projects.register", { path: root });
+    await env.client.call("agents.update", { agent: "abc123def456-arch", slug: "architect" });
+    const again = await env.client.call("agents.create", {
+      project_id: "p_abc123def456",
+      slug: "arch",
+      name: "New Arch",
+    });
+    assert.notEqual(again.id, "abc123def456-arch", "a new agent, not the renamed one");
+    const { agents } = await env.client.call("agents.list", {});
+    assert.equal(agents.find((a) => a.id === "abc123def456-arch")?.slug, "architect");
+    assert.equal(agents.find((a) => a.id === again.id)?.name, "New Arch");
+
+    makeProject(clone);
+    const second = await env.client.call("projects.register", { path: clone });
+    assert.notEqual(second.project.id, "p_abc123def456");
+    const first = (await env.client.call("projects.list", {})).projects.find((p) => p.id === "p_abc123def456");
+    assert.equal(first?.path, root, "the first folder keeps its project");
+
+    const outside = path.join(os.tmpdir(), `apx2-secret-${process.pid}.md`);
+    fs.writeFileSync(outside, "---\nname: Leak\n---\n\nsecret\n");
+    fs.symlinkSync(outside, path.join(root, ".apc", "agents", "leak.md"));
+    await env.client.call("projects.sync", { project: "p_abc123def456" });
+    assert.ok(
+      !(await env.client.call("agents.list", {})).agents.some((a) => a.name === "Leak"),
+      "a symlinked file is not read",
+    );
+    fs.rmSync(outside);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(clone, { recursive: true, force: true });
   }
 });

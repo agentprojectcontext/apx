@@ -7,12 +7,20 @@ import { archiveAgentFile, renameAgentFile, updateAgentFile, writeNewAgent } fro
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
+import { refProblem } from "../models/choice.ts";
 import type { Handler } from "./router.ts";
 import { notFound } from "./threads.ts";
 
 const refuse = (message: string) => new CallError({ code: "bad_request", message });
 
-export function agentHandlers(store: Store, apc: ApcSync) {
+export type EngineIds = { harness: ReadonlySet<string>; providers: ReadonlySet<string> };
+
+export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
+  /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */
+  const checkChoice = (c: ModelChoice | null | undefined) => {
+    const why = c?.model ? refProblem(c.model, engines) : undefined;
+    if (why) throw refuse(why);
+  };
   /** The folder of a project agent's project, or a clear refusal. */
   const rootOf = (projectId: string): string => {
     const p = store.projects.get(projectId);
@@ -51,6 +59,7 @@ export function agentHandlers(store: Store, apc: ApcSync) {
     "agents.list": (() => ({ agents: store.agents.list().map(publicAgent) })) as Handler<"agents.list">,
 
     "agents.create": ((p) => {
+      checkChoice(p.model_choice);
       if (!p.project_id) {
         if (store.agents.get(p.slug)) throw refuse(`an agent with id ${p.slug} exists`);
         store.agents.upsert({
@@ -84,13 +93,8 @@ export function agentHandlers(store: Store, apc: ApcSync) {
     "agents.update": ((p) => {
       const cur = store.agents.get(p.agent);
       if (!cur) throw notFound(`agent ${p.agent}`);
-      // `harness` is the engine-only shorthand of a model choice.
-      const model_choice =
-        p.model_choice !== undefined
-          ? p.model_choice
-          : p.harness === undefined
-            ? undefined
-            : p.harness && { model: p.harness, router: false };
+      const model_choice = p.model_choice;
+      checkChoice(model_choice);
       const definition = { name: p.name, role: p.role, description: p.description, parent: p.parent, icon: p.blob };
       const edits =
         Object.values(definition).some((v) => v !== undefined) || p.prompt !== undefined || p.slug !== undefined;
@@ -98,7 +102,7 @@ export function agentHandlers(store: Store, apc: ApcSync) {
         const root = rootOf(cur.project_id);
         const slug = p.slug ?? cur.slug;
         onDisk(() => {
-          if (slug !== cur.slug) renameAgentFile(root, cur.slug as string, slug, []);
+          if (slug !== cur.slug) renameAgentFile(root, cur.slug as string, slug);
           updateAgentFile(root, slug, definition, p.prompt);
         });
         apc.sync(cur.project_id);

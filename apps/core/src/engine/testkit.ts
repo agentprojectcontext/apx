@@ -49,7 +49,11 @@ export async function startCore(opts: {
   harnesses?: Partial<Record<"native" | "claude" | "codex", Harness>>;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
-  const core = await createCore(testConfig({ home }), {
+  // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
+  const providers = [
+    { id: "fake", transport: "openai-chat" as const, base_url: "http://fake.test", key: "env:NONE", models: [] },
+  ];
+  const core = await createCore(testConfig({ home, providers }), {
     quiet: true,
     llm: opts.llm,
     ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),

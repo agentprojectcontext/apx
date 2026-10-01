@@ -71,11 +71,6 @@ export function createHarnesses(deps: {
   return {
     get: (id: HarnessId): Harness => registry[id],
     defaultId,
-    /** Makes an engine (its default model) the install default, keeping the router setting. */
-    setDefault(id: HarnessId): void {
-      const cur = models.defaultChoice();
-      models.save({ default: id === "native" ? { router: true } : { model: id, router: cur.router } });
-    },
     async status(refresh = false): Promise<EngineStatus[]> {
       if (refresh || !cache || Date.now() - cache.at > STATUS_CACHE_MS) {
         const [claude, codex] = await Promise.all([detectClaude(), detectCodex()]);

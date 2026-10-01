@@ -23,6 +23,10 @@ export function harnessSessionsRepo({ one, run }: Sql) {
       const r = one("SELECT session_id FROM harness_sessions WHERE thread_id = ? AND harness = ?", threadId, harness);
       return r ? String(r.session_id) : undefined;
     },
+    updatedAt(threadId: string, harness: string): string | undefined {
+      const r = one("SELECT updated_at FROM harness_sessions WHERE thread_id = ? AND harness = ?", threadId, harness);
+      return r ? String(r.updated_at) : undefined;
+    },
     set(threadId: string, harness: string, sessionId: string): void {
       run(
         "INSERT INTO harness_sessions (thread_id, harness, session_id, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(thread_id, harness) DO UPDATE SET session_id = excluded.session_id, updated_at = excluded.updated_at",

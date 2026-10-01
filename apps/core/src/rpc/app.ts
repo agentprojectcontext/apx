@@ -7,8 +7,9 @@ import { CallError } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
-import { modelSettings } from "../models/choice.ts";
+import { modelSettings, refProblem } from "../models/choice.ts";
 import type { Secrets } from "../secrets.ts";
+import type { EngineIds } from "./agents.ts";
 import type { Handler } from "./router.ts";
 import { notFound } from "./threads.ts";
 
@@ -19,6 +20,7 @@ export function appHandlers(deps: {
   v1: { url: string; home: string };
   catalog: Catalog;
   apc: ApcSync;
+  engines: EngineIds;
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
@@ -33,6 +35,11 @@ export function appHandlers(deps: {
     "models.list": (async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) })) as Handler<"models.list">,
     "models.config": (() => ({ default: models.defaultChoice(), router: models.router() })) as Handler<"models.config">,
     "models.set_config": ((p) => {
+      const refs = [p.default?.model, ...(p.router?.chain ?? []), ...(p.router?.rules.map((r) => r.model) ?? [])];
+      for (const ref of refs) {
+        const why = ref ? refProblem(ref, deps.engines) : undefined;
+        if (why) throw new CallError({ code: "bad_request", message: why });
+      }
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
     }) as Handler<"models.set_config">,
@@ -68,10 +75,6 @@ export function appHandlers(deps: {
     "engines.status": (async ({ refresh }) => ({
       engines: await harnesses.status(refresh),
     })) as Handler<"engines.status">,
-    "engines.set_default": (async ({ engine }) => {
-      harnesses.setDefault(engine);
-      return { engines: await harnesses.status() };
-    }) as Handler<"engines.set_default">,
     "harness.tools": (({ token }) => ({
       tools: harnesses.gate(token).tools.map((t) => ({
         name: t.function.name,

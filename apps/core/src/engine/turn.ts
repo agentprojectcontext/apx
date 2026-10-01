@@ -13,17 +13,19 @@ import { type Tool, type ToolContext, toSpec } from "../tools/types.ts";
 import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
+import { recapFor } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex" };
 
-/** Consecutive refs run by the same harness go together (the native loop walks its list per call). */
+/** Consecutive provider refs go together (the native loop walks its list per call); every other ref is one attempt. */
 function byHarness(refs: string[]): Array<{ harness: HarnessId; refs: string[] }> {
   const out: Array<{ harness: HarnessId; refs: string[] }> = [];
   for (const ref of refs) {
     const harness = harnessOf(ref);
     const last = out.at(-1);
-    if (last && last.harness === harness) last.refs.push(ref);
+    // Our loop walks its list per call; Claude Code and Codex get one model per attempt.
+    if (last && harness === "native" && last.harness === "native") last.refs.push(ref);
     else out.push({ harness, refs: [ref] });
   }
   return out;
@@ -170,14 +172,27 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   try {
     let outcome: TurnOutcome | undefined;
-    const groups = byHarness(refs);
+    // Nothing chosen anywhere yet (a fresh install): the engines signed in on this machine, in their own order.
+    const ready = refs.length
+      ? refs
+      : (await harnesses.status()).filter((e) => e.id !== "native" && e.installed && e.logged_in).map((e) => e.id);
+    const groups = byHarness(ready);
     if (!groups.length)
-      throw new Error("no model chosen for this agent and the router has none; pick one in Config → Models");
+      throw new Error(
+        "no model chosen for this agent, the router has none and no engine is signed in; pick one in Settings → Engines and models",
+      );
     for (const [i, g] of groups.entries()) {
       try {
         run = store.runs.patch(run, { harness: g.harness });
-        const sessionId = g.harness === "native" ? undefined : store.harnessSessions.get(thread.id, g.harness);
-        outcome = await harnesses.get(g.harness).run({ ...io(), models: g.refs, sessionId });
+        const external = g.harness !== "native";
+        const sessionId = external ? store.harnessSessions.get(thread.id, g.harness) : undefined;
+        const recap = external ? recapFor(store, thread.id, g.harness, run.id) : "";
+        outcome = await harnesses.get(g.harness).run({
+          ...io(),
+          models: g.refs,
+          sessionId,
+          input: recap ? { ...input, content: `${recap}${input.content}` } : input,
+        });
         if (g.harness !== "native") {
           if (outcome.sessionId) store.harnessSessions.set(thread.id, g.harness, outcome.sessionId);
           // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.

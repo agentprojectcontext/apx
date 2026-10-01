@@ -346,10 +346,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engines.unavailable.title": "El core todavía no informa los motores",
   "engines.unavailable.body": "Actualizá y reiniciá el core para ver qué está instalado y con sesión.",
   "engines.notInstalled": "No está instalado en esta computadora. Instalalo y tocá Revisar de nuevo.",
-  "engines.useDefault": "Usar por defecto",
   "engines.status": "Estado",
   "engines.installed": "Instalado",
-  "engines.defaultUnsupported": "El core todavía no permite elegir el motor por defecto.",
   "agents.lead":
     "Modelo: con qué corre cada agente (por defecto, el que se elige en Motores y modelos). Navegador: Compartido usa tus sesiones, Aislado tiene su propio perfil, Incógnito arranca vacío cada vez.",
   "agents.search": "Buscar agente",

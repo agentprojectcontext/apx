@@ -39,3 +39,11 @@ test("frontmatter: flat fields, quotes, block scalars, lists and nested maps", (
 test("a file without frontmatter is all body", () => {
   assert.deepEqual(parseFrontmatter("just text\n"), { fields: {}, body: "just text" });
 });
+
+test("frontmatter edge cases: empty frontmatter, a ---- line in the body, CRLF and PyYAML lists", () => {
+  assert.deepEqual(parseFrontmatter("---\n---\nBody here.\n"), { fields: {}, body: "Body here." });
+  const p = parseFrontmatter("---\r\nname: A\r\ntools:\r\n- browser\r\n- shell\r\n---\r\nText\r\n----\r\nMore\r\n");
+  assert.equal(p.fields.name, "A");
+  assert.deepEqual(p.fields.tools, ["browser", "shell"]);
+  assert.equal(p.body, "Text\n----\nMore");
+});

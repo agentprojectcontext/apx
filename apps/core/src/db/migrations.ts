@@ -104,4 +104,12 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE agents ADD COLUMN extra TEXT;
   ALTER TABLE agents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- "native" was a harness, never a model: choices that named it fall back to the router.
+  UPDATE agents SET model_choice = json_object('router', json('true'))
+    WHERE json_extract(model_choice, '$.model') LIKE 'native%';
+  UPDATE meta SET value = json_object('router', json('true'))
+    WHERE key = 'setting:model_default' AND json_extract(value, '$.model') LIKE 'native%';
+  DELETE FROM meta WHERE key = 'setting:default_harness' AND value = 'native';
+  `,
 ];

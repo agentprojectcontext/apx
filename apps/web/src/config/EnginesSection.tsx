@@ -1,7 +1,7 @@
 import type { EngineStatus } from "@apx/protocol";
 import { Badge, Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
-import { loadEngines, setDefaultEngine } from "../data/engines.ts";
+import { loadEngines } from "../data/engines.ts";
 import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -92,8 +92,6 @@ export function EnginesSection() {
 function EngineCard({ engine: e }: { engine: EngineStatus }) {
   const t = useT();
   const look = LOOK[e.id];
-  const usable = e.installed && e.logged_in;
-  const [busy, setBusy] = useState(false);
   const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(LOGIN_HINT[e.id]) : undefined;
   const kind = t(look.kind);
   return (
@@ -107,24 +105,11 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
           </div>
           <div className="engine__kind">{e.detail ? `${kind} · ${e.detail}` : kind}</div>
         </div>
-        {e.default ? (
+        {/* The default is chosen in "Default for agents" below: one place, not one button per engine. */}
+        {e.default && (
           <Badge tone="brand" dot>
             {t("engine.default")}
           </Badge>
-        ) : (
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={!usable}
-            loading={busy}
-            onClick={async () => {
-              setBusy(true);
-              await setDefaultEngine(e.id);
-              setBusy(false);
-            }}
-          >
-            {t("engines.useDefault")}
-          </Button>
         )}
       </div>
       <ol className="engine__steps" aria-label={t("engines.status")}>

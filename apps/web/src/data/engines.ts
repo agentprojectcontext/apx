@@ -1,9 +1,7 @@
 // Engines (who runs an agent's turns): installed, signed in, default. The core may predate engines.*: degrade quietly.
-import type { HarnessId } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { type MessageKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
-import { loadModelsConfig } from "./models.ts";
 import { notify } from "./notices.ts";
 import { data } from "./state.ts";
 
@@ -20,17 +18,6 @@ export async function loadEngines(refresh = false): Promise<void> {
   } catch (e) {
     data.set({ enginesLoad: missing(e) ? "unavailable" : data.get().engines.length ? "ready" : "unavailable" });
     if (refresh && !missing(e)) notify(t("error.checkEngines", { error: errText(e) }));
-  }
-}
-
-export async function setDefaultEngine(engine: HarnessId): Promise<void> {
-  try {
-    const r = await client.call("engines.set_default", { engine });
-    data.set({ engines: r.engines, enginesLoad: "ready" });
-    // The default engine is the install default model now: show the new choice.
-    void loadModelsConfig();
-  } catch (e) {
-    notify(missing(e) ? t("engines.defaultUnsupported") : t("error.change", { error: errText(e) }));
   }
 }
 

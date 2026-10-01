@@ -3,6 +3,7 @@
 // removing an agent moves its file to .apc/agents/.archived/.
 import fs from "node:fs";
 import path from "node:path";
+import { listField, parseFrontmatter } from "./frontmatter.ts";
 import { SLUG_RE } from "./read.ts";
 
 export type AgentFileFields = {
@@ -16,6 +17,20 @@ export type AgentFileFields = {
 
 const agentsDir = (root: string) => path.join(root, ".apc", "agents");
 export const agentFile = (root: string, slug: string) => path.join(agentsDir(root), `${slug}.md`);
+
+const isLink = (p: string) => {
+  try {
+    return fs.lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+/** Refuses to write through a symlink: a repo must not be able to redirect APX's writes outside .apc/agents. */
+function guard(root: string, ...files: string[]): void {
+  for (const p of [path.join(root, ".apc"), agentsDir(root), ...files])
+    if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
+}
 
 function formatValue(key: string, value: string | string[]): string {
   if (Array.isArray(value)) return `${key}: ${value.join(", ")}`;
@@ -69,6 +84,7 @@ function atomicWrite(file: string, text: string): void {
 export function writeNewAgent(root: string, slug: string, fields: AgentFileFields, prompt: string): void {
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}" (lowercase letters, digits, - and _)`);
   const file = agentFile(root, slug);
+  guard(root, file);
   if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
   atomicWrite(
     file,
@@ -87,6 +103,7 @@ export function writeNewAgent(root: string, slug: string, fields: AgentFileField
 
 export function updateAgentFile(root: string, slug: string, fields: AgentFileFields, prompt?: string): void {
   const file = agentFile(root, slug);
+  guard(root, file);
   const { front, body } = split(fs.readFileSync(file, "utf8"));
   const next = setFields(front, {
     name: fields.name,
@@ -99,16 +116,19 @@ export function updateAgentFile(root: string, slug: string, fields: AgentFileFie
   atomicWrite(file, join(next, prompt ?? body));
 }
 
-/** Renames the file and remembers the old slug in `aliases`, so references written elsewhere still resolve. */
-export function renameAgentFile(root: string, from: string, to: string, aliases: string[]): void {
+/** Renames the file and adds the old slug to its `aliases`, so references written elsewhere still resolve. */
+export function renameAgentFile(root: string, from: string, to: string): void {
   if (!SLUG_RE.test(to)) throw new Error(`invalid slug "${to}"`);
+  guard(root, agentFile(root, from), agentFile(root, to));
   if (fs.existsSync(agentFile(root, to))) throw new Error(`an agent file already exists: .apc/agents/${to}.md`);
-  updateAgentFile(root, from, { aliases: [...new Set([...aliases, from])] });
+  const known = listField(parseFrontmatter(fs.readFileSync(agentFile(root, from), "utf8")).fields.aliases);
+  updateAgentFile(root, from, { aliases: [...new Set([...known, from])] });
   fs.renameSync(agentFile(root, from), agentFile(root, to));
 }
 
 /** Moves the file out of the agents folder; nothing is deleted. */
 export function archiveAgentFile(root: string, slug: string): string {
+  guard(root, agentFile(root, slug));
   const dest = path.join(agentsDir(root), ".archived", `${slug}-${new Date().toISOString().replace(/[:.]/g, "-")}.md`);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.renameSync(agentFile(root, slug), dest);

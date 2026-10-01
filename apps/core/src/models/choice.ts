@@ -63,3 +63,19 @@ export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFea
   }
   return [...new Set(out)];
 }
+
+/**
+ * Why a ref cannot run, or undefined when it can: the engine must exist, and a provider needs the model named
+ * (only Claude Code and Codex have a default model of their own).
+ */
+export function refProblem(
+  ref: string,
+  engines: { harness: ReadonlySet<string>; providers: ReadonlySet<string> },
+): string | undefined {
+  const [engine = "", ...rest] = ref.split("/");
+  const model = rest.join("/");
+  if (engines.harness.has(engine)) return undefined;
+  if (!engines.providers.has(engine)) return `unknown engine "${engine}" in ${ref}`;
+  if (!model) return `say which ${engine} model (${engine}/<model>)`;
+  return undefined;
+}

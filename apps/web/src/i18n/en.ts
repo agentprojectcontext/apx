@@ -344,10 +344,8 @@ export const en = {
   "engines.unavailable.title": "The core does not report engines yet",
   "engines.unavailable.body": "Update and restart the core to see what is installed and signed in.",
   "engines.notInstalled": "Not installed on this computer. Install it and click Check again.",
-  "engines.useDefault": "Use as default",
   "engines.status": "Status",
   "engines.installed": "Installed",
-  "engines.defaultUnsupported": "This core cannot set the default engine yet.",
   "agents.lead":
     "Model: what each agent runs on (by default, the one set in Engines and models). Browser: Shared uses your sessions, Isolated has its own profile, Incognito starts empty every time.",
   "agents.search": "Search agents",

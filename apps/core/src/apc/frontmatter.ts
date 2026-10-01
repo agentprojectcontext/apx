@@ -17,13 +17,18 @@ const indent = (l: string) => l.match(/^[ \t]*/)?.[0].length ?? 0;
 
 /** Splits a file into its frontmatter fields and its body. A file without frontmatter is all body. */
 export function parseFrontmatter(text: string): { fields: Fields; body: string } {
-  const src = text.replace(/\r\n/g, "\n");
-  if (!src.startsWith("---\n")) return { fields: {}, body: src.trim() };
-  const end = src.indexOf("\n---", 4);
-  if (end < 0) return { fields: {}, body: src.trim() };
-  const lines = src.slice(4, end).split("\n");
-  const body = src.slice(src.indexOf("\n", end + 1) + 1).trim();
-  return { fields: parseLines(lines, ""), body };
+  const all = text.replace(/\r\n/g, "\n").split("\n");
+  if (all[0]?.trim() !== "---") return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
+  // The closing fence is a line that is exactly "---" (not "----", not "--- text").
+  const end = all.findIndex((l, i) => i > 0 && l.trim() === "---");
+  if (end < 0) return { fields: {}, body: text.replace(/\r\n/g, "\n").trim() };
+  return {
+    fields: parseLines(all.slice(1, end), ""),
+    body: all
+      .slice(end + 1)
+      .join("\n")
+      .trim(),
+  };
 }
 
 function parseLines(lines: string[], prefix: string): Fields {
@@ -36,9 +41,10 @@ function parseLines(lines: string[], prefix: string): Fields {
     const value = m[2] ?? "";
     // The lines that belong to this key: everything indented deeper (and blank lines inside).
     const child: string[] = [];
-    while (i + 1 < lines.length && (indent(lines[i + 1] ?? "") > 0 || (lines[i + 1] ?? "").trim() === "")) {
-      child.push(lines[++i] ?? "");
-    }
+    // PyYAML writes list items at the key's own indent: "skills:\n- a\n- b".
+    const belongs = (l: string) =>
+      indent(l) > 0 || l.trim() === "" || (value.trim() === "" && l.trimStart().startsWith("- "));
+    while (i + 1 < lines.length && belongs(lines[i + 1] ?? "")) child.push(lines[++i] ?? "");
     while (child.length && (child.at(-1) ?? "").trim() === "") child.pop();
     if (BLOCK.test(value.trim())) {
       const base = Math.min(...child.filter((l) => l.trim()).map(indent));

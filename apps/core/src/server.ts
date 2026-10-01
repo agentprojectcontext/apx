@@ -74,7 +74,8 @@ export async function createCore(
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
   const catalog = createCatalog({ store, secrets, providers: config.providers });
-  const apc = createApcSync({ store, log });
+  const engineIds = { harness: new Set(["claude", "codex"]), providers: new Set(config.providers.map((p) => p.id)) };
+  const apc = createApcSync({ store, log, engines: new Set([...engineIds.harness, ...engineIds.providers]) });
   apc.sync();
   const tools = [...agentTools(store), ...browserTools(broker), ...surfaceTools(store)];
   const engine = createEngine({ store, harnesses, tools, log });
@@ -90,8 +91,8 @@ export async function createCore(
       })),
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
-      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc }),
-      ...agentHandlers(store, apc),
+      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds }),
+      ...agentHandlers(store, apc, engineIds),
     },
     store.idempotency,
   );

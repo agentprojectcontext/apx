@@ -105,12 +105,19 @@ export function agentsRepo({ one, all, run }: Sql) {
      * The agent a project file stands for: same slug, or the file's slug was this agent's before a rename (its
      * aliases list it), or the file lists this agent's current slug among its own aliases.
      */
-    forFile(projectId: string, slug: string, aliases: string[]): AgentRecord | undefined {
+    forFile(
+      projectId: string,
+      slug: string,
+      aliases: string[],
+      /** Slugs whose files exist now: an agent whose own file is still there was not renamed. */
+      present: ReadonlySet<string> = new Set([slug]),
+    ): AgentRecord | undefined {
       const rows = all("SELECT * FROM agents WHERE project_id = ? AND source = 'apc'", projectId);
+      const moved = rows.filter((r) => !present.has(String(r.slug)));
       const hit =
         rows.find((r) => r.slug === slug) ??
-        rows.find((r) => aliases.includes(String(r.slug))) ??
-        rows.find((r) =>
+        moved.find((r) => aliases.includes(String(r.slug))) ??
+        moved.find((r) =>
           ((JSON.parse(String(r.extra ?? "{}")) as { aliases?: string[] }).aliases ?? []).includes(slug),
         );
       return hit ? toAgent(hit) : undefined;

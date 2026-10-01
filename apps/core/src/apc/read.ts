@@ -12,6 +12,8 @@ const AGENTS_MD_CAP = 12_000;
 export type ApcProject = {
   /** Stable id: the committed apx_id when there is one, else derived from the path. */
   id: string;
+  /** Derived from the folder's path: used when another folder already holds the same apx_id (clone, worktree). */
+  pathId: string;
   root: string;
   name: string;
   description?: string | undefined;
@@ -38,8 +40,13 @@ export type ApcAgent = {
   fields: Fields;
 };
 
+/**
+ * Reads a project file, refusing symlinks: a repo must not be able to pull any other file of the machine into an
+ * agent's prompt.
+ */
 const readText = (file: string): string | undefined => {
   try {
+    if (fs.lstatSync(file).isSymbolicLink()) return undefined;
     return fs.readFileSync(file, "utf8");
   } catch {
     return undefined;
@@ -63,13 +70,12 @@ export function readProject(root: string): ApcProject {
   try {
     meta = JSON.parse(readText(path.join(abs, ".apc", "project.json")) ?? "{}");
   } catch {}
-  const id =
-    meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id)
-      ? meta.apx_id
-      : createHash("sha256").update(abs).digest("hex").slice(0, 12);
+  const pathId = createHash("sha256").update(abs).digest("hex").slice(0, 12);
+  const id = meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id) ? meta.apx_id : pathId;
   const agentsMd = readText(path.join(abs, "AGENTS.md"));
   return {
     id,
+    pathId,
     root: abs,
     name: meta.name || path.basename(abs),
     description: meta.description,
@@ -82,6 +88,7 @@ export function readAgents(root: string): ApcAgent[] {
   const dir = path.join(path.resolve(root), ".apc", "agents");
   let files: string[] = [];
   try {
+    if (fs.lstatSync(dir).isSymbolicLink()) return [];
     files = fs
       .readdirSync(dir)
       .filter((f) => f.endsWith(".md") && SLUG_RE.test(f.slice(0, -3)))

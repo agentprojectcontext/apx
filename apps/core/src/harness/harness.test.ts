@@ -42,7 +42,7 @@ after(async () => {
 });
 
 test("an agent on an external harness runs there, with APX tools, cards, usage and its own session kept", async () => {
-  await env.client.call("agents.update", { agent: "roby", harness: "claude" });
+  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "claude", router: false } });
   await env.client.call("threads.send", { thread: "home", text: "hello" });
   const t = await env.settle("home");
   const answer = t.messages.at(-1);
@@ -71,13 +71,41 @@ test("a harness that fails before any tool hands the turn to the router's next e
 });
 
 test("the install default decides for agents without their own harness", async () => {
-  await env.client.call("agents.update", { agent: "roby", harness: null });
-  const { engines } = await env.client.call("engines.set_default", { engine: "claude" });
+  await env.client.call("agents.update", { agent: "roby", model_choice: null });
+  await env.client.call("models.set_config", { default: { model: "claude", router: false } });
+  const { engines } = await env.client.call("engines.status", {});
   assert.equal(engines.find((e) => e.default)?.id, "claude");
   const before_ = seen.length;
   await env.client.call("threads.send", { thread: "home", text: "who answers?" });
   await env.settle("home");
   assert.equal(seen.length, before_ + 1);
+});
+
+test("switching to Claude Code hands it what another engine answered in the thread meanwhile", async () => {
+  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "fake/fake-1", router: false } });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "switch" });
+  await env.client.call("threads.send", { thread: t.id, text: "first question" });
+  await env.settle(t.id);
+  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "claude", router: false } });
+  await env.client.call("threads.send", { thread: t.id, text: "second question" });
+  await env.settle(t.id);
+  const input = seen.at(-1)?.io.input.content ?? "";
+  assert.match(input, /<earlier_turns[^>]*trust="untrusted">/);
+  assert.match(input, /Owner: first question\nYou \(answered with native\): native answer/);
+  await env.client.call("agents.update", { agent: "roby", model_choice: null });
+});
+
+test("a model ref nothing can run is refused when it is set", async () => {
+  for (const bad of ["fake", "nope/x"]) {
+    const err = await env.client
+      .call("models.set_config", { router: { rules: [], chain: [bad] } })
+      .catch((e: unknown) => e);
+    assert.ok(err instanceof ApxError && err.code === "bad_request", bad);
+  }
+  const err = await env.client
+    .call("agents.update", { agent: "roby", model_choice: { model: "nope/x", router: false } })
+    .catch((e: unknown) => e);
+  assert.ok(err instanceof ApxError && err.code === "bad_request");
 });
 
 test("harness tool gates refuse unknown tokens", async () => {
