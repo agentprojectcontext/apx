@@ -161,6 +161,15 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
   }
 }
 
+/** The owner's answer to something an agent is waiting on (a confirmation or a question). */
+export async function respond(input: string, a: { decision?: "approve" | "deny"; text?: string }): Promise<void> {
+  try {
+    await client.call("runs.respond", { input, ...a });
+  } catch (e) {
+    notify(t("error.respond", { error: errText(e) }));
+  }
+}
+
 /** A widget's sendPrompt(): the text goes to the thread that owns the surface. */
 export async function surfacePrompt(id: string, text: string): Promise<void> {
   try {

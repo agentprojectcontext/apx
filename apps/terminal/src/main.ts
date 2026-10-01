@@ -30,6 +30,8 @@ Usage:
                            The one way to talk to an agent. Default: Home (the secretary)
   apx2 threads [list] | get <thread> | cancel <thread>
   apx2 runs get <run> | wait <run> [--timeout 60]
+  apx2 runs pending [thread]   What agents are waiting on from you
+  apx2 runs respond <input> approve|deny ["note"] | "<answer>"
   apx2 projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx2 agents              Agents and the model each one runs on

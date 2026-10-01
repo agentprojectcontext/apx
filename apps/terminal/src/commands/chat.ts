@@ -40,6 +40,10 @@ function line(p: Part): string | undefined {
       return `  ◎ browser ${p.state}: ${p.url}`;
     case "notice":
       return `  ! ${p.text}`;
+    case "input":
+      return p.state === "pending"
+        ? `  ? ${p.prompt}${p.detail ? `\n    ${p.detail}` : ""}${p.options?.length ? `\n    options: ${p.options.join(" / ")}` : ""}\n    answer: apx2 runs respond ${p.input_id} ${p.kind === "confirm" ? "approve|deny" : '"<text>"'}`
+        : `  ? ${p.kind === "confirm" ? "confirmation" : "question"} ${p.state}${p.answer ? `: ${p.answer}` : ""}`;
     default:
       return undefined;
   }

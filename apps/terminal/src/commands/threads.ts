@@ -28,8 +28,30 @@ export async function threads(client: ApxClient, [sub, id]: string[]): Promise<v
   throw new Error(`unknown threads command: ${sub}`);
 }
 
-export async function runs(client: ApxClient, [sub, id]: string[], timeoutS = 60): Promise<void> {
-  if (!id || (sub !== "get" && sub !== "wait")) throw new Error("usage: apx2 runs get|wait <run>");
+export async function runs(client: ApxClient, [sub, id, ...rest]: string[], timeoutS = 60): Promise<void> {
+  if (sub === "pending") {
+    const { inputs } = await client.call("runs.pending", id ? { thread: id } : {});
+    for (const i of inputs)
+      console.log(
+        `${i.id}  ${i.kind.padEnd(8)} ${i.thread_id}\n  ${i.prompt}${i.detail ? `\n  ${i.detail}` : ""}${i.options?.length ? `\n  options: ${i.options.join(" / ")}` : ""}`,
+      );
+    if (!inputs.length) console.log("(nothing is waiting for you)");
+    return;
+  }
+  if (sub === "respond") {
+    const [answer, ...note] = rest;
+    if (!id || !answer) throw new Error('usage: apx2 runs respond <input> approve|deny ["note"] | "<answer text>"');
+    const decision = answer === "approve" || answer === "deny" ? answer : undefined;
+    const text = decision ? note.join(" ") || undefined : [answer, ...note].join(" ");
+    const r = await client.call("runs.respond", {
+      input: id,
+      ...(decision ? { decision } : {}),
+      ...(text ? { text } : {}),
+    });
+    console.log(`${r.id} ${r.state}`);
+    return;
+  }
+  if (!id || (sub !== "get" && sub !== "wait")) throw new Error("usage: apx2 runs get|wait|pending|respond …");
   const r =
     sub === "get"
       ? await client.call("runs.get", { run: id })

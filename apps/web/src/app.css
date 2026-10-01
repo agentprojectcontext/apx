@@ -807,3 +807,74 @@ body {
   color: var(--apx-danger-soft-fg);
   background: var(--apx-danger-soft);
 }
+
+/* ── Input card: an agent waiting for the owner's OK or answer ─────────────── */
+.inputcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+}
+.inputcard.is-pending {
+  border-color: var(--apx-warning-soft-fg);
+  box-shadow: 0 0 0 3px var(--apx-warning-soft);
+}
+.inputcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-warning-soft-fg);
+}
+.inputcard__title {
+  flex: 1;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.inputcard__state {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.inputcard__prompt,
+.inputcard__answer {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+}
+.inputcard__answer {
+  color: var(--apx-fg-muted);
+}
+.inputcard__detail {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.inputcard__actions,
+.inputcard__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inputcard__reply {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.inputcard__input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}

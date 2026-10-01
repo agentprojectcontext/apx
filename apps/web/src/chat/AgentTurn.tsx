@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
+import { InputPart } from "./parts/InputPart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { SurfacePart } from "./parts/SurfacePart.tsx";
@@ -62,6 +63,7 @@ function cardKey(p: Part, i: number): string {
   if (p.type === "surface") return `s:${p.surface_id}`;
   if (p.type === "subthread") return `t:${p.thread_id}`;
   if (p.type === "browser") return `b:${p.tab}`;
+  if (p.type === "input") return `i:${p.input_id}`;
   return `${p.type}:${i}`;
 }
 
@@ -77,6 +79,8 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       return <ImagePart part={p} />;
     case "notice":
       return <NoticePart part={p} />;
+    case "input":
+      return <InputPart part={p} />;
     default:
       return null;
   }
