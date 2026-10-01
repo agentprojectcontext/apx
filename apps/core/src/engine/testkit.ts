@@ -1,9 +1,11 @@
 // Shared test helpers: a temp home, a scripted model and a way to wait for a thread to settle.
+
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Message } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
+import type { AdapterFactory } from "../channels/types.ts";
 import { testConfig } from "../config.ts";
 import type { Harness } from "../harness/index.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
@@ -51,6 +53,7 @@ export async function startCore(opts: {
   extraTools?: Tool[];
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;
+  channelAdapters?: Record<string, AdapterFactory>;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -62,6 +65,7 @@ export async function startCore(opts: {
     llm: opts.llm,
     ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
     ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
+    ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
   });
   // Tests choose their model like an owner would: through the settings, never through code defaults.
   if (!core.store.settings.get("model_default"))

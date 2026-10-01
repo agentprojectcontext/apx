@@ -86,6 +86,15 @@ export function Transcript({ thread }: { thread: Thread }) {
               </Message>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
+            ) : msg.author.kind === "person" ? (
+              <Message
+                from="agent"
+                variant="bubble"
+                avatar={<AgentAvatar name={msg.author.name} size={24} />}
+                meta={<span className="transcript__person">{msg.author.name}</span>}
+              >
+                <p className="transcript__usertext">{textOf(msg)}</p>
+              </Message>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
                 {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}

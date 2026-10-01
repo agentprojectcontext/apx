@@ -7,6 +7,7 @@ import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { CallError } from "../errors.ts";
+import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
 
 export const notFound = (what: string) => new CallError({ code: ErrorCode.BadRequest, message: `${what} not found` });
@@ -44,6 +45,45 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     return { thread, agent };
   };
 
+  /** A message that arrived on a channel: the owner's own words, or a contact's (a third party's). */
+  function channelSend(
+    thread: string,
+    agentId: string,
+    text: string,
+    mode: "queue" | "interrupt" | "steer",
+    ch: NonNullable<CallContext["channel"]>,
+  ) {
+    const owner = ch.role === "owner";
+    if (owner && mode === "interrupt") engine.interrupt(thread);
+    // Answers go back where this message came from, until the owner writes somewhere else.
+    store.threads.mergeContext(thread, { reply_to: { channel: ch.id, conversation: ch.conversation } });
+    return store.tx(() => {
+      const message = store.messages.add({
+        thread_id: thread,
+        author: owner ? { kind: "user" } : { kind: "person", id: ch.person_id, name: ch.name, channel: ch.id },
+        parts: [{ type: "text", text }],
+      });
+      store.threads.patch(thread, { preview: text.slice(0, 160) });
+      const into = owner && mode === "steer" ? engine.steer(thread, text) : undefined;
+      if (into) return { message, run: publicRun(into), steered: true };
+      const run = engine.admit({
+        thread_id: thread,
+        agent_id: agentId,
+        trigger: "channel",
+        origin: {
+          kind: "channel",
+          channel: ch.id,
+          conversation: ch.conversation,
+          person_id: ch.person_id,
+          name: ch.name,
+          role: ch.role,
+        },
+        text,
+      });
+      return { message, run: publicRun(run) };
+    });
+  }
+
   return {
     "threads.list": (({ project_id, include_subthreads }) => ({
       threads: store.threads.list({ project_id, include_subthreads }),
@@ -68,9 +108,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     }) as Handler<"threads.create">,
     "threads.send": (({ thread, text, mode }, ctx) => {
       const { agent } = threadAgent(thread);
+      if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
       if (mode === "interrupt") engine.interrupt(thread);
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data.
       const fromAgent = ctx.actor === "agent";
+      // The owner writing in the app: answers stay in the app (not on the channel the last message came from).
+      if (!fromAgent) store.threads.mergeContext(thread, { reply_to: undefined });
       return store.tx(() => {
         const message = store.messages.add({
           thread_id: thread,

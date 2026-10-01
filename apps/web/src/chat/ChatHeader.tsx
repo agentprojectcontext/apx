@@ -47,6 +47,11 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
             </>
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
+          {thread.channel && (
+            <Tag>
+              <Icons.Send size={11} /> {t("chat.viaChannel")}
+            </Tag>
+          )}
           {thread.kind === "code" && thread.cwd && (
             <span className="chat__code" title={thread.cwd}>
               <Icons.Code size={12} />

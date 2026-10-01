@@ -213,4 +213,73 @@ export const MIGRATIONS: readonly string[] = [
   -- A note an agent saved while outside content (web, another agent, a message) was in its turn: shown as data.
   ALTER TABLE memories ADD COLUMN tainted INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- Channels. People and their addresses on each channel (the owner is a person too).
+  CREATE TABLE persons (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE addresses (
+    id TEXT PRIMARY KEY,
+    person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    label TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (channel, external_id)
+  );
+  -- A channel conversation's thread.
+  ALTER TABLE threads ADD COLUMN channel TEXT;
+  ALTER TABLE threads ADD COLUMN conversation TEXT;
+  ALTER TABLE threads ADD COLUMN person_id TEXT;
+  CREATE UNIQUE INDEX threads_channel ON threads(channel, conversation) WHERE channel IS NOT NULL;
+  -- Every inbound message is stored before the platform is told it arrived; a restart picks up what was not handled.
+  CREATE TABLE channel_inbox (
+    id TEXT PRIMARY KEY,
+    channel TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    conversation TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    state TEXT NOT NULL,
+    error TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE (channel, external_id)
+  );
+  CREATE INDEX channel_inbox_state ON channel_inbox(state);
+  -- Everything a channel sends: written before sending; a send that may or may not have arrived is "uncertain".
+  CREATE TABLE outbox (
+    id TEXT PRIMARY KEY,
+    channel TEXT NOT NULL,
+    conversation TEXT NOT NULL,
+    thread_id TEXT,
+    kind TEXT NOT NULL,
+    body TEXT NOT NULL,
+    state TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    external_id TEXT,
+    error TEXT,
+    next_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX outbox_state ON outbox(state, next_at);
+  -- A stranger's pending request to talk, approved by the owner with its code.
+  CREATE TABLE pairing (
+    code TEXT PRIMARY KEY,
+    channel TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    conversation TEXT NOT NULL,
+    name TEXT NOT NULL,
+    text TEXT,
+    state TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+  );
+  CREATE INDEX pairing_sender ON pairing(channel, external_id);
+  `,
 ];

@@ -128,7 +128,7 @@ export const RunState = z.enum(["submitted", "working", "input-required", "compl
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
 
-export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code"]);
+export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel"]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
 export type WritePolicy = z.infer<typeof WritePolicy>;
@@ -147,6 +147,8 @@ export const Thread = z.object({
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
   cwd: z.string().optional(),
   write: WritePolicy.optional(),
+  /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
+  channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
   state: RunState.or(z.literal("idle")),
   preview: z.string().default(""),
   unread: z.number().int().nonnegative().default(0),
@@ -161,6 +163,8 @@ export const Author = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("system") }),
   /** Text sent by a widget's sendPrompt(): shown apart from the owner's own messages. */
   z.object({ kind: z.literal("surface"), id: Id, title: z.string() }),
+  /** Someone other than the owner, writing on a channel (a contact). */
+  z.object({ kind: z.literal("person"), id: Id, name: z.string(), channel: z.string() }),
 ]);
 export type Author = z.infer<typeof Author>;
 
@@ -375,6 +379,81 @@ export const Memory = z.object({
   updated_at: z.string(),
 });
 export type Memory = z.infer<typeof Memory>;
+
+/**
+ * People APX talks to. The owner is one person with addresses on each channel; a contact gets a sealed conversation
+ * (no tools, no memory, nothing of the owner's); anyone else is a stranger until the owner approves a pairing code.
+ */
+export const PersonRole = z.enum(["owner", "contact", "blocked"]);
+export type PersonRole = z.infer<typeof PersonRole>;
+export const Address = z.object({
+  id: Id,
+  person_id: Id,
+  /** The channel instance ("telegram-main") and the id the platform gives this person there. */
+  channel: z.string(),
+  external_id: z.string(),
+  label: z.string().optional(),
+});
+export type Address = z.infer<typeof Address>;
+export const Person = z.object({
+  id: Id,
+  name: z.string(),
+  role: PersonRole,
+  note: z.string().optional(),
+  addresses: z.array(Address),
+  created_at: z.string(),
+});
+export type Person = z.infer<typeof Person>;
+
+/** A channel instance as the owner configured it, and how it is doing. */
+export const ChannelInfo = z.object({
+  id: z.string(),
+  type: z.enum(["telegram", "fake"]),
+  label: z.string(),
+  enabled: z.boolean(),
+  /** The agent that answers on it. */
+  agent_id: Id,
+  /** What a stranger's first message gets: a pairing code the owner approves, or nothing. */
+  strangers: z.enum(["pair", "ignore"]),
+  /** A new message while the agent is working: wait for it, stop it, or (APX's own loop) slip into it. */
+  concurrency: z.enum(["queue", "interrupt", "steer"]),
+  /** The owner's messages go to the Home chat (one conversation everywhere) or to a chat of this channel. */
+  owner_thread: z.enum(["home", "own"]),
+  token_set: z.boolean(),
+  status: z.enum(["off", "starting", "running", "error"]),
+  error: z.string().optional(),
+  /** The account the channel runs as (a bot's @name). */
+  account: z.string().optional(),
+});
+export type ChannelInfo = z.infer<typeof ChannelInfo>;
+
+/** A stranger who wrote on a channel and is waiting for the owner to approve them. */
+export const PairingRequest = z.object({
+  code: z.string(),
+  channel: z.string(),
+  external_id: z.string(),
+  name: z.string(),
+  text: z.string().optional(),
+  created_at: z.string(),
+  expires_at: z.string(),
+});
+export type PairingRequest = z.infer<typeof PairingRequest>;
+
+export const OutboxState = z.enum(["queued", "sending", "sent", "uncertain", "failed"]);
+export const OutboxItem = z.object({
+  id: Id,
+  channel: z.string(),
+  conversation: z.string(),
+  thread_id: Id.optional(),
+  kind: z.enum(["reply", "notice", "pairing", "input"]),
+  text: z.string(),
+  state: OutboxState,
+  attempts: z.number().int(),
+  error: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type OutboxItem = z.infer<typeof OutboxItem>;
 
 /** An MCP server an agent may use: the owner's own, or one a project's `.apc/mcps.json` names. */
 export const McpServerStatus = z.object({

@@ -9,6 +9,7 @@ import { EnginesSection } from "./EnginesSection.tsx";
 import { McpSection } from "./McpSection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
+import { TelegramSection } from "./TelegramSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -33,7 +34,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.channels",
     items: [
       { id: "whatsapp", label: "channel.whatsapp.name", icon: <Icons.MessageCircle />, soon: true },
-      { id: "telegram", label: "channel.telegram.name", icon: <Icons.Send />, soon: true },
+      { id: "telegram", label: "channel.telegram.name", icon: <Icons.Send /> },
       { id: "discord", label: "channel.discord.name", icon: <Icons.Users />, soon: true },
     ],
   },
@@ -122,8 +123,9 @@ function Body({ section }: { section: ConfigSection }) {
       return <McpSection />;
     case "router":
       return <RouterSection />;
-    case "whatsapp":
     case "telegram":
+      return <TelegramSection />;
+    case "whatsapp":
     case "discord":
       return <ChannelSection channel={section} />;
     case "browser":

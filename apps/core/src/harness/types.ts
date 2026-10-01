@@ -15,6 +15,8 @@ export type TurnIO = {
   /** This turn's user item, already framed (preamble + origin envelope) and logged. */
   input: ChatItem & { role: "user" };
   tools: ToolSpec[];
+  /** A contact's turn: the engine must not use any tool of its own either. */
+  sealed?: boolean;
   /**
    * The models to try, in order, all run by this harness ("claude/claude-opus-5-5", "gemini/gemini-3.8-flash"; an
    * engine alone means its default model). The router made the list.

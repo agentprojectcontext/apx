@@ -130,3 +130,9 @@ Titles and summaries took the first API model of the router for every thread, so
 could have its transcript sent to a cloud API. The auxiliary model is now `model_aux`, else the API models that
 thread's agent may use (its own, then the router's), and threads run only by Claude Code or Codex are not
 summarized (their engine keeps its own transcript). Where: `apps/core/src/engine/upkeep.ts`.
+
+<a id="stable-selectors"></a>
+### A store selector must not build a new array
+`useChannels((s) => s.persons.filter(…))` returned a new array on every read, which the store took as a change:
+React re-rendered until it gave up (error #185) and the panel went black. Select the stored value and derive in the
+component. Where: `apps/web/src/config/TelegramSection.tsx`.

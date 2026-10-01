@@ -3,6 +3,7 @@
 import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
+import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
@@ -34,6 +35,9 @@ Usage:
   apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
   apx2 memory rm <id…>     Remove notes
+  apx2 channels [add|rm|outbox]   Channels (Telegram bots); apx2 channels add telegram <id> --agent <a>
+  apx2 contacts [add|block|rm]    People APX talks to on channels
+  apx2 pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx2 compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
   apx2 usage [days]        Turns and tokens by model, and whether they were included or paid per token
   apx2 mcps [list [project]] | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
@@ -140,6 +144,15 @@ try {
       break;
     case "skills":
       await skills(client, rest);
+      break;
+    case "channels":
+      await channels(client, rest, { agent: values.agent });
+      break;
+    case "contacts":
+      await contacts(client, rest);
+      break;
+    case "pairing":
+      await pairing(client, rest);
       break;
     case "compact": {
       if (!rest[0]) throw new Error("usage: apx2 compact <thread>");

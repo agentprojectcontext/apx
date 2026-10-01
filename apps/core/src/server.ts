@@ -9,6 +9,9 @@ import path from "node:path";
 import { BROWSER_CAP, type HarnessId, methods, type Result } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
+import { createChannels } from "./channels/manager.ts";
+import { telegramAdapter } from "./channels/telegram.ts";
+import type { AdapterFactory } from "./channels/types.ts";
 import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
@@ -29,6 +32,7 @@ import { providerRegistry } from "./providers/registry.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
+import { channelHandlers } from "./rpc/channels.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
@@ -66,6 +70,8 @@ export async function createCore(
     harnesses?: Partial<Record<HarnessId, Harness>>;
     /** Tests add tools of their own next to the built-in ones. */
     extraTools?: Tool[];
+    /** Channel adapters by type; tests use a fake one instead of Telegram. */
+    channelAdapters?: Record<string, AdapterFactory>;
   } = {},
 ) {
   const log = createLog("core", opts.quiet);
@@ -143,6 +149,14 @@ export async function createCore(
   };
   const mcp = createMcp({ store, secrets, log });
   const upkeep = createUpkeep({ store, llm, log });
+  const channels = createChannels({
+    store,
+    secrets,
+    bus,
+    log,
+    factories: opts.channelAdapters ?? { telegram: telegramAdapter },
+    dispatch: () => routed,
+  });
   const engine = createEngine({
     store,
     harnesses,
@@ -152,7 +166,10 @@ export async function createCore(
     home: config.home,
     apxPort: config.port || 7440,
     mcpTools: mcp.toolsFor,
-    afterRun: upkeep.afterRun,
+    afterRun: (run) => {
+      upkeep.afterRun(run);
+      channels.afterRun(run);
+    },
   });
 
   const dispatch = createRouter(
@@ -168,6 +185,7 @@ export async function createCore(
       ...threadHandlers(store, engine, upkeep),
       ...jobHandlers(store, engine),
       ...memoryHandlers(store),
+      ...channelHandlers(store, channels),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds, home: config.home }),
@@ -199,6 +217,7 @@ export async function createCore(
   const url = `http://${config.host}:${port}`;
   selfUrl = url;
   engine.start();
+  await channels.start();
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {
@@ -211,7 +230,9 @@ export async function createCore(
     engine,
     harnesses,
     secrets,
+    channels,
     async close() {
+      await channels.stop();
       await engine.stop();
       await upkeep.stop();
       await mcp.close();

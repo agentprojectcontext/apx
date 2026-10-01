@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   Agent,
   CatalogEngine,
+  ChannelInfo,
   EngineStatus,
   Id,
   Job,
@@ -11,7 +12,11 @@ import {
   MemoryScope,
   Message,
   ModelChoice,
+  OutboxItem,
+  PairingRequest,
   PendingInput,
+  Person,
+  PersonRole,
   Project,
   ProviderInfo,
   RouterConfig,
@@ -411,6 +416,96 @@ export const appMethods = {
     params: z.object({ id: Id }).strict(),
     result: z.object({ removed: z.boolean() }),
     effect: true,
+  },
+  /** The owner's channels (Telegram bots…), their settings and whether each is running. */
+  "channels.list": {
+    params: z.object({}).strict(),
+    result: z.object({ channels: z.array(ChannelInfo) }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Adds, changes or (null) removes a channel. `token` goes to the secret store and never comes back; the channel is
+   * restarted with the new settings.
+   */
+  "channels.set": {
+    params: z
+      .object({
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+        channel: z
+          .object({
+            type: z.enum(["telegram", "fake"]),
+            label: z.string().max(60).optional(),
+            enabled: z.boolean().default(true),
+            agent_id: Id,
+            strangers: z.enum(["pair", "ignore"]).default("pair"),
+            concurrency: z.enum(["queue", "interrupt", "steer"]).default("queue"),
+            owner_thread: z.enum(["home", "own"]).default("home"),
+          })
+          .nullable(),
+        token: z.string().min(8).max(400).optional(),
+      })
+      .strict(),
+    result: z.object({ channels: z.array(ChannelInfo) }),
+    effect: true,
+    access: "human",
+  },
+  /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
+  "channels.outbox": {
+    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
+    result: z.object({ items: z.array(OutboxItem) }),
+    effect: false,
+    access: "human",
+  },
+  "contacts.list": {
+    params: z.object({}).strict(),
+    result: z.object({ persons: z.array(Person) }),
+    effect: false,
+    access: "human",
+  },
+  /** Creates (no id) or changes a person; the owner stays the owner. */
+  "contacts.set": {
+    params: z
+      .object({
+        id: Id.optional(),
+        name: z.string().trim().min(1).max(80),
+        role: PersonRole.optional(),
+        note: z.string().max(500).optional(),
+      })
+      .strict(),
+    result: Person,
+    effect: true,
+    access: "human",
+  },
+  /** Removes a person (never the owner) with their addresses, or only one address. */
+  "contacts.remove": {
+    params: z.object({ id: Id.optional(), address: Id.optional() }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
+  "pairing.list": {
+    params: z.object({}).strict(),
+    result: z.object({ requests: z.array(PairingRequest) }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Approves a stranger's code: as the owner (this address is you), as a new contact (`name`), or as another address
+   * of an existing person (`person`). `deny` drops it.
+   */
+  "pairing.respond": {
+    params: z
+      .object({
+        code: z.string().min(4).max(12),
+        decision: z.enum(["owner", "contact", "deny"]),
+        person: Id.optional(),
+        name: z.string().trim().min(1).max(80).optional(),
+      })
+      .strict(),
+    result: z.object({ person: Person.optional() }),
+    effect: true,
+    access: "human",
   },
   "runs.get": {
     params: z.object({ run: Id }).strict(),

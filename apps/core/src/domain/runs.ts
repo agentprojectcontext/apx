@@ -9,6 +9,15 @@ export type Origin =
   | { kind: "user" }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
   | { kind: "surface"; id: string; title: string }
+  /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
+  | {
+      kind: "channel";
+      channel: string;
+      conversation: string;
+      person_id: string;
+      name: string;
+      role: "owner" | "contact";
+    }
   /** The owner answered something the agent asked, after the turn that asked had ended. */
   | { kind: "input_answer"; input_id: string }
   /** A background command the agent started has ended. */

@@ -75,10 +75,12 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
               pathToClaudeCodeExecutable: claudePath,
               cwd: io.thread.cwd ?? opts.cwd,
               systemPrompt: { type: "custom", prompt: io.system },
-              tools: code ? [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE] : CLAUDE_BUILTINS,
+              tools: io.sealed ? [] : code ? [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE] : CLAUDE_BUILTINS,
               // Outside code threads only the web tools and ours run. In a code thread every built-in tool (reads
               // included: they may reach outside the folder) comes to our policy through canUseTool.
-              allowedTools: [...(code ? [] : CLAUDE_BUILTINS), ...io.tools.map((s) => `mcp__apx__${s.function.name}`)],
+              allowedTools: io.sealed
+                ? []
+                : [...(code ? [] : CLAUDE_BUILTINS), ...io.tools.map((s) => `mcp__apx__${s.function.name}`)],
               permissionMode: code ? "default" : "dontAsk",
               ...(code
                 ? {

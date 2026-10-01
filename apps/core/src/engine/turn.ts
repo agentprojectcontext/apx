@@ -12,6 +12,7 @@ import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
+import { audienceOf, contactPrompt, SEALED_HARNESSES } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
@@ -80,6 +81,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   run = store.runs.patch(run, { message_id: display.message.id });
 
   // ── context ─────────────────────────────────────────────────────────
+  const audience = audienceOf(store, thread);
+  const sealed = audience.kind === "contact";
   const ctxState = store.threads.context(thread.id);
   const { items: history, from } = project(
     store.modelLog.list(thread.id),
@@ -87,8 +90,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     ctxState.compaction as Epoch,
   );
   const roster = rosterBlock(agent, store.agents.list(), thread);
-  const rosterChanged = ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id;
-  const recalled = recallFor(store, agent.id, thread, start.input.text, ctxState, from);
+  const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
+  // A contact's turn knows nothing of the owner's: no notes, no roster.
+  const recalled = sealed ? {} : recallFor(store, agent.id, thread, start.input.text, ctxState, from);
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
@@ -106,13 +110,13 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       ...(recalled.shown ? recalled.shown(at) : {}),
     });
 
-  const skills = skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));
+  const skills = sealed ? "" : skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));
 
   // ── tools ───────────────────────────────────────────────────────────
   const callers = callersOf(store, thread.id);
   // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
-  const mcpTools = deps.mcpTools ? await deps.mcpTools(thread).catch(() => []) : [];
-  const policy = inherit(agent, callers, [...deps.tools, ...mcpTools]);
+  const mcpTools = !sealed && deps.mcpTools ? await deps.mcpTools(thread).catch(() => []) : [];
+  const policy = inherit(agent, callers, sealed ? [] : [...deps.tools, ...mcpTools]);
   const available = policy.tools.filter(
     (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
   );
@@ -140,16 +144,20 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: systemPrompt(
-      agent,
-      thread,
-      store.settings.get("owner_language") ?? "es",
-      // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
-      (thread.project_id ?? agent.project_id)
-        ? store.projects.get(thread.project_id ?? agent.project_id ?? "")
-        : undefined,
-      skills,
-    ),
+    system:
+      audience.kind === "contact"
+        ? contactPrompt(agent, audience, store.settings.get("owner_language") ?? "es")
+        : systemPrompt(
+            agent,
+            thread,
+            store.settings.get("owner_language") ?? "es",
+            // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
+            (thread.project_id ?? agent.project_id)
+              ? store.projects.get(thread.project_id ?? agent.project_id ?? "")
+              : undefined,
+            skills,
+          ),
+    sealed,
     history,
     input,
     tools: available.map(toSpec),
@@ -168,7 +176,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     text: start.input.text,
     context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
     has_image: false,
-    channel: "app",
+    channel: thread.channel?.id ?? "app",
     trigger: start.trigger,
     agent_kind: agent.kind,
   });
@@ -179,7 +187,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     const ready = refs.length
       ? refs
       : (await harnesses.status()).filter((e) => e.id !== "native" && e.installed && e.logged_in).map((e) => e.id);
-    const groups = byHarness(ready);
+    // A sealed turn runs only where no tool of the engine's own can run.
+    const groups = byHarness(sealed ? ready.filter((r) => SEALED_HARNESSES.has(harnessOf(r))) : ready);
+    if (!groups.length && sealed)
+      throw new Error(
+        "no engine here can answer a contact without tools: add an API model or Claude Code to this agent's models",
+      );
     if (!groups.length)
       throw new Error(
         "no model chosen for this agent, the router has none and no engine is signed in; pick one in Settings → Engines and models",

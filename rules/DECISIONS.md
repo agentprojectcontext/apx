@@ -113,3 +113,17 @@ the API models the owner already chose; never a CLI and never a model name in co
 run into a fixed five-section summary (rejected when the shape is wrong) that replaces the older turns as a new epoch;
 the newest turns stay verbatim, and a summary of outside content stays marked untrusted so the policy does not relax.
 Claude Code and Codex keep and compact their own transcripts.
+
+<a id="d-014"></a>
+## D-014 — 2026-10-01 — Channels are adapters over threads.send; who writes decides everything
+A channel adapter (Telegram first) only translates platform messages in and presentations out. The manager stores
+every inbound message before the platform is told it arrived (`channel_inbox`, deduplicated by the platform's id),
+resolves the sender by an exact address match (`persons` + `addresses`; never by a name) and then: the owner's words
+go through `threads.send` with a server-side channel context (to the Home chat by default, one conversation
+everywhere); a contact's go to a thread of that conversation with a sealed agent (no tools of APX or of the engine,
+no memory, no projects, only that chat, input marked untrusted, reply filtered for paths and keys); a stranger gets a
+pairing code the owner approves (as themselves, as a contact, or not at all), which replaces v1's
+first-writer-is-owner. Everything a channel sends goes through a durable outbox (`queued → sending → sent`, retried
+only when nothing went out, `uncertain` when it may have, never resent blind). Answers return to the channel the
+thread's last message came from until the owner writes in the app; confirmations and options reach the owner as
+buttons only the owner's address can press.

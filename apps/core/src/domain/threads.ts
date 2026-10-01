@@ -14,6 +14,15 @@ const toThread = (r: Row): Thread => ({
   ...opt("session", r.session),
   ...opt("cwd", r.cwd),
   ...(r.write_policy ? { write: r.write_policy as NonNullable<Thread["write"]> } : {}),
+  ...(r.channel
+    ? {
+        channel: {
+          id: String(r.channel),
+          conversation: String(r.conversation),
+          ...opt("person_id", r.person_id),
+        },
+      }
+    : {}),
   state: r.state as Thread["state"],
   preview: String(r.preview),
   unread: Number(r.unread),
@@ -65,6 +74,11 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one("SELECT * FROM threads WHERE id = ?", id);
       return r ? toThread(r) : undefined;
     },
+    /** The thread of a channel conversation. */
+    byConversation(channel: string, conversation: string): Thread | undefined {
+      const r = one("SELECT * FROM threads WHERE channel = ? AND conversation = ?", channel, conversation);
+      return r ? toThread(r) : undefined;
+    },
     create(
       t: Pick<Thread, "kind" | "title" | "agent_ids"> & {
         project_id?: string | undefined;
@@ -72,13 +86,14 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         session?: string | undefined;
         cwd?: string | undefined;
         write?: Thread["write"];
+        channel?: Thread["channel"];
         id?: string;
       },
     ): Thread {
       const ts = now();
       const id = t.id ?? newId("th");
       run(
-        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, session, cwd, write_policy, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
+        "INSERT INTO threads (id, kind, title, agent_ids, project_id, parent_id, session, cwd, write_policy, channel, conversation, person_id, state, preview, unread, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'idle', '', 0, ?, ?)",
         id,
         t.kind,
         t.title,
@@ -88,6 +103,9 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         t.session ?? null,
         t.cwd ?? null,
         t.write ?? null,
+        t.channel?.id ?? null,
+        t.channel?.conversation ?? null,
+        t.channel?.person_id ?? null,
         ts,
         ts,
       );
