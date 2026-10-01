@@ -51,6 +51,38 @@ export const appMethods = {
     result: z.object({ agents: z.array(Agent) }),
     effect: false,
   },
+  /**
+   * Creates an agent. With a project it is written as .apc/agents/<slug>.md in that project's folder (the file is
+   * the definition); without one it is a global agent kept by APX.
+   */
+  "agents.create": {
+    params: z
+      .object({
+        project_id: Id.optional(),
+        slug: z
+          .string()
+          .regex(/^[a-z][a-z0-9_-]*$/)
+          .max(64),
+        name: z.string().min(1).max(80),
+        role: z.string().max(200).default(""),
+        description: z.string().max(2000).optional(),
+        prompt: z.string().max(100_000).default(""),
+        parent: z.string().max(64).optional(),
+        blob: z.string().max(40).optional(),
+        model_choice: ModelChoice.optional(),
+      })
+      .strict(),
+    result: Agent,
+    effect: true,
+    access: "human",
+  },
+  /** Removes an agent: a project agent's file moves to .apc/agents/.archived/ (never deleted); threads keep it. */
+  "agents.archive": {
+    params: z.object({ agent: Id }).strict(),
+    result: z.object({ ok: z.literal(true), moved_to: z.string().optional() }),
+    effect: true,
+    access: "human",
+  },
   "agents.update": {
     params: z
       .object({
@@ -58,6 +90,19 @@ export const appMethods = {
         browser_profile: z.enum(["shared", "isolated", "incognito"]).optional(),
         /** null = back to the install default. */
         model_choice: ModelChoice.nullable().optional(),
+        /** Definition fields: written to the agent's file for project agents. */
+        name: z.string().min(1).max(80).optional(),
+        role: z.string().max(200).optional(),
+        description: z.string().max(2000).optional(),
+        prompt: z.string().max(100_000).optional(),
+        parent: z.string().max(64).optional(),
+        blob: z.string().max(40).optional(),
+        /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */
+        slug: z
+          .string()
+          .regex(/^[a-z][a-z0-9_-]*$/)
+          .max(64)
+          .optional(),
         /** Shorthand for `model_choice: { model: <engine>, router: false }` (null = install default). */
         harness: HarnessId.nullable().optional(),
       })

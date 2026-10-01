@@ -44,7 +44,8 @@ export function createApcSync(deps: { store: Store; log: Log }) {
       });
       const ids: string[] = [];
       for (const a of agents) {
-        const id = agentIdOf(p.id, a.slug);
+        // A renamed file keeps its agent (and every thread that points at it).
+        const id = store.agents.forFile(projectId, a.slug, a.aliases)?.id ?? agentIdOf(p.id, a.slug);
         ids.push(id);
         store.agents.upsertApc({
           id,

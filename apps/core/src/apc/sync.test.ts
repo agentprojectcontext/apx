@@ -79,3 +79,60 @@ test("a registered project's agents come from its files; edits and removals foll
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("editing from APX writes the agent's file: create, edit, rename (same id) and archive (file moved, never deleted)", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcw-"));
+  try {
+    makeProject(root);
+    fs.appendFileSync(path.join(root, ".apc", "agents", "arch.md"), "");
+    // An unknown field another tool wrote must survive APX's edits.
+    const archFile = path.join(root, ".apc", "agents", "arch.md");
+    fs.writeFileSync(
+      archFile,
+      fs.readFileSync(archFile, "utf8").replace("icon: saturno", "icon: saturno\narea: engineering"),
+    );
+    await env.client.call("projects.register", { path: root });
+
+    const made = await env.client.call("agents.create", {
+      project_id: "p_abc123def456",
+      slug: "qa",
+      name: "Quinn",
+      role: "QA lead: tests: everything",
+      prompt: "Break things politely.",
+    });
+    assert.equal(made.id, "abc123def456-qa");
+    const qaText = fs.readFileSync(path.join(root, ".apc", "agents", "qa.md"), "utf8");
+    assert.match(qaText, /^---\nname: Quinn\nrole: "QA lead: tests: everything"\n---\n\nBreak things politely\.\n$/);
+
+    await env.client.call("agents.update", {
+      agent: "abc123def456-arch",
+      role: "Chief Architect",
+      prompt: "New body.",
+    });
+    const archText = fs.readFileSync(archFile, "utf8");
+    assert.match(archText, /role: Chief Architect/);
+    assert.match(archText, /area: engineering/, "unknown fields are kept");
+    assert.match(archText, /\n\nNew body\.\n$/);
+
+    const t = await env.client.call("threads.create", { kind: "agent", agent_id: "abc123def456-qa" });
+    const renamed = await env.client.call("agents.update", { agent: "abc123def456-qa", slug: "quality" });
+    assert.equal(renamed.id, "abc123def456-qa", "the id survives the rename");
+    assert.equal(renamed.slug, "quality");
+    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "quality.md")));
+    assert.match(fs.readFileSync(path.join(root, ".apc", "agents", "quality.md"), "utf8"), /aliases: qa/);
+    assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.agent_ids[0], "abc123def456-qa");
+
+    const gone = await env.client.call("agents.archive", { agent: "abc123def456-qa" });
+    assert.match(gone.moved_to ?? "", /^\.apc\/agents\/\.archived\/quality-.*\.md$/);
+    assert.ok(fs.existsSync(path.join(root, gone.moved_to ?? "")), "moved, not deleted");
+    const { agents } = await env.client.call("agents.list", {});
+    assert.ok(!agents.some((a) => a.id === "abc123def456-qa"));
+    const s = await env.client.call("projects.sync", { project: "p_abc123def456" });
+    assert.equal(s.agents, 2, "the archived file is not read back as an agent");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

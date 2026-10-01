@@ -4,7 +4,7 @@ import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { chat } from "./commands/chat.ts";
-import { agentModel, models } from "./commands/models.ts";
+import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { agents, projects, runs, secrets, threads } from "./commands/threads.ts";
 
 const HELP = `apx2 — APX v2 terminal
@@ -33,6 +33,9 @@ Usage:
   apx2 projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx2 agents              Agents and the model each one runs on
+  apx2 agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
+  apx2 agents set <agent> name=… role=… slug=… parent=… blob=…
+  apx2 agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx2 agents model <agent> <engine/model | engine | router | default> [--router]
                            An agent's model; --router keeps the router as its fallback
 
@@ -66,6 +69,8 @@ const { values, positionals } = parseArgs({
     interrupt: { type: "boolean" },
     keys: { type: "boolean" },
     refresh: { type: "boolean" },
+    project: { type: "string" },
+    role: { type: "string" },
     router: { type: "boolean" },
     timeout: { type: "string" },
     run: { type: "boolean" },
@@ -114,6 +119,7 @@ try {
       break;
     case "agents":
       if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
+      else if (rest[0] && rest[0] !== "list") await agentEdit(client, rest, values);
       else await agents(client);
       break;
     case "projects":

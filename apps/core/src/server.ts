@@ -18,6 +18,7 @@ import { createLog } from "./log.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
+import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { createRouter } from "./rpc/router.ts";
@@ -90,6 +91,7 @@ export async function createCore(
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc }),
+      ...agentHandlers(store, apc),
     },
     store.idempotency,
   );

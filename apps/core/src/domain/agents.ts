@@ -101,6 +101,23 @@ export function agentsRepo({ one, all, run }: Sql) {
         JSON.stringify(a.extra ?? {}),
       );
     },
+    /**
+     * The agent a project file stands for: same slug, or the file's slug was this agent's before a rename (its
+     * aliases list it), or the file lists this agent's current slug among its own aliases.
+     */
+    forFile(projectId: string, slug: string, aliases: string[]): AgentRecord | undefined {
+      const rows = all("SELECT * FROM agents WHERE project_id = ? AND source = 'apc'", projectId);
+      const hit =
+        rows.find((r) => r.slug === slug) ??
+        rows.find((r) => aliases.includes(String(r.slug))) ??
+        rows.find((r) =>
+          ((JSON.parse(String(r.extra ?? "{}")) as { aliases?: string[] }).aliases ?? []).includes(slug),
+        );
+      return hit ? toAgent(hit) : undefined;
+    },
+    archive(id: string): void {
+      run("UPDATE agents SET archived = 1 WHERE id = ?", id);
+    },
     /** Archives the project's file-defined agents that are not in `keep` (their files are gone). */
     archiveMissing(projectId: string, keep: string[]): number {
       const ids = all("SELECT id FROM agents WHERE project_id = ? AND source = 'apc' AND archived = 0", projectId)

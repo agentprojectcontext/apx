@@ -62,3 +62,44 @@ export async function agentModel(client: ApxClient, [agent, ref]: string[], o: {
   const a = await client.call("agents.update", { agent, model_choice: parseChoice(ref, o.router ?? false) });
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }
+
+/** apx2 agents new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
+export async function agentEdit(
+  client: ApxClient,
+  [sub, ...args]: string[],
+  o: { project?: string | undefined; role?: string | undefined },
+) {
+  if (sub === "new") {
+    const [slug, ...name] = args;
+    if (!slug || !name.length)
+      throw new Error('usage: apx2 agents new <slug> "<Name>" [--project <id>] [--role "<role>"]');
+    const a = await client.call("agents.create", {
+      slug,
+      name: name.join(" "),
+      ...(o.project ? { project_id: o.project } : {}),
+      ...(o.role ? { role: o.role } : {}),
+    });
+    console.log(`${a.name} (${a.id})${a.source === "apc" ? " · written to .apc/agents/" : ""}`);
+    return;
+  }
+  if (sub === "set") {
+    const [agent, ...pairs] = args;
+    if (!agent || !pairs.length) throw new Error("usage: apx2 agents set <agent> name=… role=… slug=… parent=… blob=…");
+    const patch: Record<string, string> = {};
+    for (const p of pairs) {
+      const i = p.indexOf("=");
+      if (i < 1) throw new Error(`expected key=value, got "${p}"`);
+      patch[p.slice(0, i)] = p.slice(i + 1);
+    }
+    const a = await client.call("agents.update", { agent, ...patch });
+    console.log(`${a.name} (${a.id})${a.slug ? ` · ${a.slug}` : ""} · ${a.role}`);
+    return;
+  }
+  if (sub === "archive") {
+    if (!args[0]) throw new Error("usage: apx2 agents archive <agent>");
+    const r = await client.call("agents.archive", { agent: args[0] });
+    console.log(r.moved_to ? `archived; file moved to ${r.moved_to}` : "archived");
+    return;
+  }
+  throw new Error(`unknown agents command: ${sub}`);
+}
