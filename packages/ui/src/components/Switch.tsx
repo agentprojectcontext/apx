@@ -13,6 +13,8 @@ export interface SwitchProps {
   description?: ReactNode;
   size?: "sm" | "md";
   className?: string;
+  /** Accessible name when there is no visible label. */
+  "aria-label"?: string;
 }
 
 /** On/off setting. Track fills with the selection color (ink in minimal, green in classic). */
@@ -25,6 +27,7 @@ export function Switch({
   description,
   size = "md",
   className,
+  "aria-label": ariaLabel,
 }: SwitchProps) {
   const id = useId();
   const control = (
@@ -35,6 +38,7 @@ export function Switch({
       defaultChecked={defaultChecked}
       onCheckedChange={(v) => onCheckedChange?.(v)}
       disabled={disabled}
+      aria-label={label ? undefined : ariaLabel}
     >
       <BaseSwitch.Thumb className="apx-switch__thumb" />
     </BaseSwitch.Root>

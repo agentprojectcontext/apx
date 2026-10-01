@@ -137,3 +137,13 @@ store stays synchronous and a transaction is plain code. Migrations stay plain S
 FTS5 tables are declared by hand next to the generated types and queried with `sql` fragments. Drizzle was not chosen
 because its `node:sqlite` driver exists only in its 1.0 release candidate; making the whole store async to use
 Kysely's executor would have touched every caller for no gain.
+
+## D-016 — 2026-10-01 — Routines: one scheduler that reserves before it runs; silence is an answer
+A routine is a row (schedule, prompt, agent) and each run is an ordinary run in a `routine` thread of its own, listed
+in `routine_runs`; its state is read from `runs`, never copied. One scheduler ticks every 15 s and, in the same
+transaction that starts a run, writes the next time and a lease, so a crash, a slow run or a second tick never runs a
+routine twice, and a time missed while the core was off runs once. Schedules are a small tested cron parser (five
+fields, local time) plus "every N minutes" (5 at least), "once" and "by hand"; no cron dependency for ~100 lines.
+The prompt is the owner's own words (trusted); the agent answers `SKIP` when there is nothing to say, and only other
+answers reach the owner. Routines are owner-only methods for now: an agent creating standing work for itself is a
+persistent rule and needs its own confirmation design.

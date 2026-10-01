@@ -10,6 +10,7 @@ import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
+import { routinesRepo } from "./routines.ts";
 import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
 import { sql } from "./sql.ts";
@@ -35,6 +36,7 @@ export function createStore(db: Db, bus: Bus) {
     channels: channelsRepo(q),
     surfaces: surfacesRepo(q, bus),
     tasks: tasksRepo(q, bus),
+    routines: routinesRepo(q),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),
     idempotency: idempotencyRepo(q),

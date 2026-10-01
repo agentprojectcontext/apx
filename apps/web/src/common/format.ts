@@ -84,3 +84,16 @@ export function elapsed(iso: string, now = Date.now()): string {
   const h = Math.floor(m / 60);
   return `${h} h ${String(m % 60).padStart(2, "0")}`;
 }
+
+/** A moment ahead: "Today · 08:30", "Tomorrow · 08:30", "Mon · 08:30", else "Sep 3 · 08:30". */
+export function aheadLabel(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+  const f = fmt();
+  const time = f.time.format(d);
+  if (days <= 0) return t("time.todayAt", { time });
+  if (days === 1) return t("time.tomorrowAt", { time });
+  if (days < 7) return `${f.weekday.format(d)} · ${time}`;
+  return `${f.date.format(d)} · ${time}`;
+}

@@ -19,6 +19,8 @@ const es = {
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
+  routine: (name: string, text: string) => `**${name}**\n\n${text}`,
+  routineFailed: (name: string, why: string) => `La rutina «${name}» no pudo terminar: ${why}`,
 };
 
 const en: typeof es = {
@@ -39,6 +41,8 @@ const en: typeof es = {
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
+  routine: (name, text) => `**${name}**\n\n${text}`,
+  routineFailed: (name, why) => `The routine "${name}" couldn't finish: ${why}`,
 };
 
 export type ChannelTexts = typeof es;

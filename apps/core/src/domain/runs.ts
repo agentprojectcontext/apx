@@ -20,6 +20,8 @@ export type Origin =
       name: string;
       role: "owner" | "contact";
     }
+  /** A routine the owner scheduled: its prompt is the owner's own words. */
+  | { kind: "routine"; id: string; name: string }
   /** The owner answered something the agent asked, after the turn that asked had ended. */
   | { kind: "input_answer"; input_id: string }
   /** A background command the agent started has ended. */

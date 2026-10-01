@@ -333,4 +333,31 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX task_events_task ON task_events(task_id, n);
   `,
+  `
+  -- Routines: work an agent does on a schedule. next_run_at is reserved before a run starts; lease_until keeps the
+  -- same routine from running twice at once. Each run's state lives in runs.
+  CREATE TABLE routines (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    project_id TEXT,
+    agent_id TEXT NOT NULL,
+    schedule TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    next_run_at TEXT,
+    lease_until TEXT,
+    last_run_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX routines_due ON routines(enabled, next_run_at);
+  CREATE TABLE routine_runs (
+    run_id TEXT PRIMARY KEY,
+    routine_id TEXT NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    thread_id TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    delivered INTEGER
+  );
+  CREATE INDEX routine_runs_routine ON routine_runs(routine_id, started_at);
+  `,
 ];

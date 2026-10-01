@@ -5,6 +5,7 @@ import { t } from "../i18n/index.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { jobsChanged } from "./jobs.ts";
+import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { taskChanged } from "./tasks.ts";
 
@@ -133,6 +134,7 @@ function apply(ev: CoreEvent): void {
     case "run.updated":
       data.set((s) => ({ runs: { ...s.runs, [ev.run.id]: ev.run } }));
       jobsChanged();
+      if (ev.run.trigger === "routine") routineRunChanged();
       return;
     case "job.updated":
       jobsChanged();

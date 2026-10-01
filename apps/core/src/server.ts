@@ -11,6 +11,7 @@ import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { createChannels } from "./channels/manager.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
+import { channelTexts } from "./channels/texts.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
@@ -19,6 +20,7 @@ import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
+import { createScheduler } from "./engine/routines.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -41,6 +43,7 @@ import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
+import { routineHandlers } from "./rpc/routines.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { threadHandlers } from "./rpc/threads.ts";
@@ -79,6 +82,8 @@ export async function createCore(
     extraTools?: Tool[];
     /** Channel adapters by type; tests use a fake one instead of Telegram. */
     channelAdapters?: Record<string, AdapterFactory>;
+    /** The scheduler's clock; tests move it to make routines due. */
+    clock?: () => Date;
   } = {},
 ) {
   const log = createLog("core", opts.quiet);
@@ -174,7 +179,19 @@ export async function createCore(
     afterRun: (run) => {
       upkeep.afterRun(run);
       channels.afterRun(run);
+      scheduler.afterRun(run);
       afterTaskTurn(store, engine.admit, run);
+    },
+  });
+  const scheduler = createScheduler({
+    store,
+    admit: (a) => engine.admit(a),
+    log,
+    ...(opts.clock ? { now: opts.clock } : {}),
+    deliver: ({ routine, run, text, failed }) => {
+      const texts = channelTexts(store);
+      const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);
+      channels.notifyOwner({ text: body }, "notice", run.thread_id);
     },
   });
 
@@ -194,6 +211,7 @@ export async function createCore(
       ...channelHandlers(store, channels),
       ...mediaHandlers(services),
       ...taskHandlers(store, engine),
+      ...routineHandlers(store, scheduler),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({
@@ -237,6 +255,7 @@ export async function createCore(
   selfUrl = url;
   engine.start();
   await channels.start();
+  scheduler.start();
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {
@@ -250,7 +269,9 @@ export async function createCore(
     harnesses,
     secrets,
     channels,
+    scheduler,
     async close() {
+      scheduler.stop();
       await channels.stop();
       await engine.stop();
       await upkeep.stop();

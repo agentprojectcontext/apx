@@ -196,6 +196,29 @@ export interface ProjectsTable {
   memory_md: string | null;
 }
 
+export interface RoutineRunsTable {
+  run_id: string;
+  routine_id: string;
+  thread_id: string;
+  started_at: string;
+  delivered: number | null;
+}
+
+export interface RoutinesTable {
+  id: string;
+  name: string;
+  project_id: string | null;
+  agent_id: string;
+  schedule: string;
+  prompt: string;
+  enabled: Generated<number>;
+  next_run_at: string | null;
+  lease_until: string | null;
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RunsTable {
   id: string;
   thread_id: string;
@@ -313,6 +336,8 @@ export interface Database {
   pending_inputs: PendingInputsTable;
   persons: PersonsTable;
   projects: ProjectsTable;
+  routine_runs: RoutineRunsTable;
+  routines: RoutinesTable;
   runs: RunsTable;
   steps: StepsTable;
   surfaces: SurfacesTable;

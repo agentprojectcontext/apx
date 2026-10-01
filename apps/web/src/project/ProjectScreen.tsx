@@ -4,6 +4,7 @@ import { findProject, inProject, isListed, type ProjectEntry, projectInitial, pr
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
+import { RoutinesPane } from "../routines/RoutinesPane.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
@@ -106,11 +107,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "tasks":
       return <TasksBoard projectId={project.id} />;
     case "routines":
-      return (
-        <SoonPane icon={<Icons.Clock />} title={t("project.tab.routines")}>
-          {t("project.routines.body")}
-        </SoonPane>
-      );
+      return <RoutinesPane projectId={project.id} />;
     case "files":
       return (
         <SoonPane icon={<Icons.Folder />} title={t("project.tab.files")}>

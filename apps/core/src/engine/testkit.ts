@@ -54,6 +54,7 @@ export async function startCore(opts: {
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;
   channelAdapters?: Record<string, AdapterFactory>;
+  clock?: () => Date;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -66,6 +67,7 @@ export async function startCore(opts: {
     ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
     ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
     ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
+    ...(opts.clock ? { clock: opts.clock } : {}),
   });
   // Tests choose their model like an owner would: through the settings, never through code defaults.
   if (!core.store.settings.get("model_default"))

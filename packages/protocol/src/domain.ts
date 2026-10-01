@@ -556,6 +556,50 @@ export const TaskEvent = z.object({
 });
 export type TaskEvent = z.infer<typeof TaskEvent>;
 
+/** When a routine runs: a five-field cron (local time), every N minutes, once, or only by hand. */
+export const Schedule = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cron"), cron: z.string().trim().min(9).max(120) }),
+  z.object({
+    kind: z.literal("every"),
+    minutes: z
+      .number()
+      .int()
+      .min(5)
+      .max(60 * 24 * 31),
+  }),
+  z.object({ kind: z.literal("once"), at: z.string().max(40) }),
+  z.object({ kind: z.literal("manual") }),
+]);
+export type Schedule = z.infer<typeof Schedule>;
+
+/** One run of a routine: its own conversation, and whether the owner was told (false = nothing worth saying). */
+export const RoutineRun = z.object({
+  run_id: Id,
+  thread_id: Id,
+  state: RunState,
+  started_at: z.string(),
+  ended_at: z.string().optional(),
+  delivered: z.boolean().optional(),
+});
+export type RoutineRun = z.infer<typeof RoutineRun>;
+
+/** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
+export const Routine = z.object({
+  id: Id,
+  name: z.string(),
+  project_id: Id.optional(),
+  agent_id: Id,
+  schedule: Schedule,
+  prompt: z.string(),
+  enabled: z.boolean(),
+  next_run_at: z.string().optional(),
+  last_run_at: z.string().optional(),
+  last: RoutineRun.optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type Routine = z.infer<typeof Routine>;
+
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
   /** The channel to use (its id); none = the first running channel that knows the owner. */

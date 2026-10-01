@@ -23,7 +23,10 @@ import {
   Project,
   ProviderInfo,
   RouterConfig,
+  Routine,
+  RoutineRun,
   Run,
+  Schedule,
   ServiceInfo,
   ServiceKind,
   ServiceSettings,
@@ -650,6 +653,49 @@ export const appMethods = {
     params: z.object({ task: Id, text: z.string().trim().min(1).max(20_000) }).strict(),
     result: z.object({ message: Message, runs: z.array(Run) }),
     effect: true,
+  },
+  /** Routines, all or one project's (the global ones have no project). */
+  "routines.list": {
+    params: z.object({ project: Id.optional() }).strict(),
+    result: z.object({ routines: z.array(Routine) }),
+    effect: false,
+    access: "human",
+  },
+  /** Creates (no id) or changes a routine; the next run is computed from its schedule. */
+  "routines.set": {
+    params: z
+      .object({
+        id: Id.optional(),
+        name: z.string().trim().min(1).max(120),
+        agent: Id,
+        project: Id.optional(),
+        schedule: Schedule,
+        prompt: z.string().trim().min(1).max(20_000),
+        enabled: z.boolean().default(true),
+      })
+      .strict(),
+    result: Routine,
+    effect: true,
+    access: "human",
+  },
+  "routines.remove": {
+    params: z.object({ routine: Id }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
+  /** Runs a routine now, outside its schedule. */
+  "routines.run": {
+    params: z.object({ routine: Id }).strict(),
+    result: RoutineRun,
+    effect: true,
+    access: "human",
+  },
+  "routines.runs": {
+    params: z.object({ routine: Id, limit: z.number().int().min(1).max(200).default(20) }).strict(),
+    result: z.object({ runs: z.array(RoutineRun) }),
+    effect: false,
+    access: "human",
   },
   "notices.get": {
     params: z.object({}).strict(),
