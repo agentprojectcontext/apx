@@ -119,6 +119,10 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
     setContext(id: string, value: Record<string, unknown>): void {
       run("UPDATE threads SET context = ? WHERE id = ?", JSON.stringify(value), id);
     },
+    /** Changes only the given keys (undefined removes one), over what is stored now: writers do not clobber each other. */
+    mergeContext(id: string, patch: Record<string, unknown>): void {
+      repo.setContext(id, { ...repo.context(id), ...patch });
+    },
   };
   return repo;
 }

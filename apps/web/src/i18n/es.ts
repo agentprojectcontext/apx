@@ -603,4 +603,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "res.manage": "Administrar",
   "res.ofProject": "proyecto",
   "res.global": "global",
+  "chat.more": "Más",
+  "chat.compact": "Resumir turnos anteriores",
+  "chat.compactSkipped": "No se resumió: {reason}",
+  "error.compact": "No se pudo resumir: {error}",
+  "notice.thread.compacted": "Se resumieron los turnos anteriores para que el agente siga con un contexto más chico.",
 };

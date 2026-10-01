@@ -49,6 +49,8 @@ export async function startCore(opts: {
   home?: string;
   harnesses?: Partial<Record<"native" | "claude" | "codex", Harness>>;
   extraTools?: Tool[];
+  /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
+  aux?: boolean;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -64,6 +66,7 @@ export async function startCore(opts: {
   // Tests choose their model like an owner would: through the settings, never through code defaults.
   if (!core.store.settings.get("model_default"))
     core.store.settings.set("model_default", JSON.stringify({ model: "fake/fake-1", router: false }));
+  if (!opts.aux && !core.store.settings.get("model_aux")) core.store.settings.set("model_aux", "off");
   const client = new ApxClient({ url: core.url });
   const settle = async (
     thread: string,

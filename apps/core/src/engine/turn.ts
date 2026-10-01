@@ -13,7 +13,7 @@ import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { gitChanges } from "./changes.ts";
-import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
+import { HISTORY_BUDGET_CHARS, projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
 import { createExecutor } from "./executor.ts";
@@ -23,6 +23,7 @@ import { MAX_DEPTH } from "./limits.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
+import type { Epoch } from "./upkeep.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
 
@@ -79,8 +80,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   run = store.runs.patch(run, { message_id: display.message.id });
 
   // ── context ─────────────────────────────────────────────────────────
-  const history = projectHistory(store.modelLog.list(thread.id));
   const ctxState = store.threads.context(thread.id);
+  const history = projectHistory(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction as Epoch);
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id;
   const recalled = recallFor(store, agent.id, thread, start.input.text, ctxState);
@@ -96,8 +97,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   };
   store.modelLog.append(thread.id, run.id, [input]);
   if (rosterChanged || recalled.shown)
-    store.threads.setContext(thread.id, {
-      ...ctxState,
+    store.threads.mergeContext(thread.id, {
       ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
       ...(recalled.shown ? { memory_shown: recalled.shown } : {}),
     });

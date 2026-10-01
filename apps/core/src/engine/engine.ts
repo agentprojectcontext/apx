@@ -66,6 +66,8 @@ export function createEngine(deps: {
   apxPort?: number;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
+  /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
+  afterRun?: (run: RunRecord) => void;
 }) {
   const { store, log } = deps;
   const busy = new Set<string>();
@@ -182,7 +184,13 @@ export function createEngine(deps: {
         steered.set(run.id, []);
         return texts;
       };
-      ended(await runTurn({ ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate }, run, ac.signal));
+      const done = await runTurn(
+        { ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate },
+        run,
+        ac.signal,
+      );
+      ended(done);
+      deps.afterRun?.(done);
     } finally {
       clock.stop();
       active.delete(run.id);

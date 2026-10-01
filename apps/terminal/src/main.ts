@@ -34,6 +34,7 @@ Usage:
   apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
   apx2 memory rm <id…>     Remove notes
+  apx2 compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
   apx2 usage [days]        Turns and tokens by model, and whether they were included or paid per token
   apx2 mcps [list [project]] | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
                            The one way to talk to an agent. Default: Home (the secretary)
@@ -140,6 +141,12 @@ try {
     case "skills":
       await skills(client, rest);
       break;
+    case "compact": {
+      if (!rest[0]) throw new Error("usage: apx2 compact <thread>");
+      const r = await client.call("threads.compact", { thread: rest[0] });
+      console.log(r.compacted ? "summarized" : `not summarized: ${r.reason ?? ""}`);
+      break;
+    }
     case "memory":
       await memory(client, rest, { project: values.project, agent: values.agent, json: values.json });
       break;

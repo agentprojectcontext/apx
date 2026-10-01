@@ -15,6 +15,7 @@ import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { ToolCall } from "./engine/turn.ts";
+import { createUpkeep } from "./engine/upkeep.ts";
 import { CallError } from "./errors.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
@@ -141,6 +142,7 @@ export async function createCore(
     return r.result as Result<typeof method>;
   };
   const mcp = createMcp({ store, secrets, log });
+  const upkeep = createUpkeep({ store, llm, log });
   const engine = createEngine({
     store,
     harnesses,
@@ -150,6 +152,7 @@ export async function createCore(
     home: config.home,
     apxPort: config.port || 7440,
     mcpTools: mcp.toolsFor,
+    afterRun: upkeep.afterRun,
   });
 
   const dispatch = createRouter(
@@ -162,7 +165,7 @@ export async function createCore(
         agent: { status: "ok", detail: llm.label() },
       })),
       ...browserHandlers(broker),
-      ...threadHandlers(store, engine),
+      ...threadHandlers(store, engine, upkeep),
       ...jobHandlers(store, engine),
       ...memoryHandlers(store),
       ...mcpHandlers(mcp),
@@ -210,6 +213,7 @@ export async function createCore(
     secrets,
     async close() {
       await engine.stop();
+      await upkeep.stop();
       await mcp.close();
       apc.close();
       for (const client of wss.clients) client.terminate();

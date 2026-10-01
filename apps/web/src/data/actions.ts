@@ -134,6 +134,16 @@ export async function createThread(input: {
 }
 
 /** Stops a background job: a terminal command is killed, an agent's run is canceled. */
+/** Summarizes the thread's older turns now; says why when there was nothing to do. */
+export async function compactThread(threadId: string): Promise<void> {
+  try {
+    const r = await client.call("threads.compact", { thread: threadId });
+    if (!r.compacted) notify(t("chat.compactSkipped", { reason: r.reason ?? "" }), "info");
+  } catch (e) {
+    notify(t("error.compact", { error: errText(e) }));
+  }
+}
+
 export async function cancelJob(job: string): Promise<void> {
   try {
     await client.call("jobs.cancel", { job });

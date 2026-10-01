@@ -426,6 +426,16 @@ export const appMethods = {
     result: z.object({ canceled: z.number().int() }),
     effect: true,
   },
+  /**
+   * Summarizes the thread's older turns now (APX's own loop sees the summary plus the newest turns verbatim). Claude
+   * Code and Codex keep and compact their own transcript.
+   */
+  "threads.compact": {
+    params: z.object({ thread: Id }).strict(),
+    result: z.object({ compacted: z.boolean(), reason: z.string().optional() }),
+    effect: true,
+    access: "human",
+  },
   "threads.read": {
     params: z.object({ thread: Id }).strict(),
     result: z.object({ ok: z.literal(true) }),

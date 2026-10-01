@@ -7,6 +7,7 @@ import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
+import { NoticePart } from "./parts/NoticePart.tsx";
 
 const EMPTY: Msg[] = [];
 /** Distance from the bottom (px) under which new content keeps the view pinned to the end. */
@@ -84,7 +85,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 <p className="transcript__usertext">{textOf(msg)}</p>
               </Message>
             ) : msg.author.kind === "system" ? (
-              <SystemNote>{textOf(msg)}</SystemNote>
+              <SystemMessage message={msg} />
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
                 {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
@@ -110,6 +111,20 @@ export function Transcript({ thread }: { thread: Thread }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** What APX itself says in a thread: notices (paused, summarized) and plain notes. */
+function SystemMessage({ message }: { message: Msg }) {
+  const notices = message.parts.filter((p) => p.type === "notice");
+  if (!notices.length) return <SystemNote>{textOf(message)}</SystemNote>;
+  return (
+    <>
+      {notices.map((p, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a message's parts never reorder.
+        <NoticePart key={i} part={p} />
+      ))}
+    </>
   );
 }
 

@@ -1,5 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, IconButton, Icons, ProjectTile, Tag } from "@apx/ui";
+import { AgentAvatar, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
+import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -62,6 +63,19 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
           className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
           onClick={go.toggleTools}
         />
+        {!sub && (
+          <Menu
+            align="end"
+            trigger={<IconButton label={t("chat.more")} icon={<Icons.Ellipsis size={16} />} />}
+            items={[
+              {
+                label: t("chat.compact"),
+                icon: <Icons.Layers size={14} />,
+                onSelect: () => void compactThread(thread.id),
+              },
+            ]}
+          />
+        )}
         <span className="chat__toolsdiv" />
         <PanelSwitcher wide={wide} />
       </div>

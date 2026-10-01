@@ -5,6 +5,7 @@ import { publicInput } from "../domain/inputs.ts";
 import { publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
+import type { Upkeep } from "../engine/upkeep.ts";
 import { CallError } from "../errors.ts";
 import type { Handler } from "./router.ts";
 
@@ -34,7 +35,7 @@ function codeFolder(store: Store, projectId: string | undefined, cwd: string | u
   return dir;
 }
 
-export function threadHandlers(store: Store, engine: Engine) {
+export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep, "compact">) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
     if (!thread) throw notFound(`thread ${threadId}`);
@@ -93,6 +94,10 @@ export function threadHandlers(store: Store, engine: Engine) {
       });
     }) as Handler<"threads.send">,
     "threads.cancel": (({ thread }) => ({ canceled: engine.cancel(thread) })) as Handler<"threads.cancel">,
+    "threads.compact": (async ({ thread }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      return upkeep.compact(thread);
+    }) as Handler<"threads.compact">,
     "threads.read": (({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       store.threads.patch(thread, { unread: 0 }, false);

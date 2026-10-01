@@ -33,6 +33,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "harness.call") return 17 * 60_000;
   // Listing models may start each agent CLI to ask it.
   if (method === "models.list") return 150_000;
+  // Summarizing waits on an auxiliary model call of up to 90 s.
+  if (method === "threads.compact") return 120_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }

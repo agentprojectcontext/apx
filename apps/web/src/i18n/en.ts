@@ -600,6 +600,11 @@ export const en = {
   "res.manage": "Manage",
   "res.ofProject": "project",
   "res.global": "global",
+  "chat.more": "More",
+  "chat.compact": "Summarize earlier turns",
+  "chat.compactSkipped": "Not summarized: {reason}",
+  "error.compact": "Could not summarize: {error}",
+  "notice.thread.compacted": "Earlier turns were summarized so the agent keeps working with a smaller context.",
 } as const;
 
 export type MessageKey = keyof typeof en;

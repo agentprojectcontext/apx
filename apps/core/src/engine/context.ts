@@ -125,7 +125,31 @@ const size = (items: ChatItem[]) => items.reduce((n, m) => n + JSON.stringify(m)
  * run; tool output older than FULL_OUTPUT_RUNS is replaced by a stub; the result always starts at a user item and
  * every tool call has its result.
  */
-export function projectHistory(entries: LogEntry[], budget = HISTORY_BUDGET_CHARS): ChatItem[] {
+export function projectHistory(
+  entries: LogEntry[],
+  budget = HISTORY_BUDGET_CHARS,
+  epoch?: { upto: number; summary: string; untrusted: boolean } | undefined,
+): ChatItem[] {
+  if (!epoch) return walkBack(entries, budget);
+  const summary = summaryBlock(epoch);
+  const items = walkBack(
+    entries.filter((e) => e.seq > epoch.upto),
+    budget - summary.length,
+  );
+  // The summary rides on the first kept user item: no invented turn, and roles keep alternating.
+  const [first, ...rest] = items;
+  return first?.role === "user" ? [{ ...first, content: `${summary}\n\n${first.content}` }, ...rest] : items;
+}
+
+/** A summary of turns that held outside content stays marked untrusted, so the policy does not relax. */
+function summaryBlock(epoch: { summary: string; untrusted: boolean }): string {
+  const note = "[summary of the earlier conversation in this thread, written by APX when it got long]";
+  return epoch.untrusted
+    ? `${note}\n${untrusted("conversation_summary", { note: "includes content from outside" }, epoch.summary)}`
+    : `${note}\n${epoch.summary}`;
+}
+
+function walkBack(entries: LogEntry[], budget: number): ChatItem[] {
   const groups: Group[] = [];
   for (const e of entries) {
     const last = groups.at(-1);
