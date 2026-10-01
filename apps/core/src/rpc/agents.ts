@@ -14,7 +14,7 @@ import { notFound } from "./threads.ts";
 const refuse = (message: string) => new CallError({ code: "bad_request", message });
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
-export type EngineIds = { harness: { has(id: string): boolean }; providers: ReadonlySet<string> };
+export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };
 
 export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
   /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */

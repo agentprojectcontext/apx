@@ -335,6 +335,24 @@ export const Job = z.object({
 });
 export type Job = z.infer<typeof Job>;
 
+/** A model API our own loop calls (Gemini, OpenCode Zen, Groq, a local Ollama…). The key never leaves the core. */
+export const ProviderInfo = z.object({
+  id: z.string(),
+  label: z.string(),
+  /** The kind of service, for its card's look (gemini, groq, ollama, openrouter…). */
+  preset: z.string().optional(),
+  transport: z.enum(["openai-chat", "anthropic-messages"]),
+  base_url: z.string(),
+  /** Whether a key is stored (or none is needed). */
+  key_set: z.boolean(),
+  needs_key: z.boolean(),
+  /** A fixed model list, for servers that cannot list their own; empty = asked to the provider. */
+  models: z.array(z.string()),
+  enabled: z.boolean(),
+  builtin: z.boolean(),
+});
+export type ProviderInfo = z.infer<typeof ProviderInfo>;
+
 /** An MCP server an agent may use: the owner's own, or one a project's `.apc/mcps.json` names. */
 export const McpServerStatus = z.object({
   name: z.string(),

@@ -1,14 +1,13 @@
 import type { EngineStatus } from "@apx/protocol";
-import { Badge, Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui";
+import { Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { loadEngines } from "../data/engines.ts";
 import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { DefaultModel } from "./models/DefaultModel.tsx";
 import { ModelCatalog } from "./models/ModelCatalog.tsx";
-import { RouterEditor } from "./models/RouterEditor.tsx";
-import { SectionHead } from "./SectionHead.tsx";
+import { ProvidersGrid } from "./ProvidersGrid.tsx";
+import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 type Look = { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey; login: MessageKey };
 
@@ -21,7 +20,10 @@ const LOOK: Record<string, Look> = {
 const ACP_LOOK: Look = { icon: <Icons.Bot />, tone: "ink", kind: "engine.kind.acp", login: "engine.login.acp" };
 const lookOf = (id: string): Look => LOOK[id] ?? ACP_LOOK;
 
-/** Engines (installed → signed in → default), the install default model, the router and the model catalog. */
+/**
+ * Engines as cards: the CLIs that run turns on your subscriptions (Claude Code and Codex always, ACP agents when
+ * installed), the model APIs our own loop calls (add your own), and every model each one offers.
+ */
 export function EnginesSection() {
   const t = useT();
   const engines = useData((s) => s.engines);
@@ -76,13 +78,17 @@ export function EnginesSection() {
         </div>
       ) : (
         <div className="engines">
-          {engines.map((e) => (
-            <EngineCard key={e.id} engine={e} />
-          ))}
+          {engines
+            // Our own loop is shown through its providers below; ACP agents only when installed here.
+            .filter((e) => e.id !== "native" && (e.installed || e.id === "claude" || e.id === "codex"))
+            .map((e) => (
+              <EngineCard key={e.id} engine={e} />
+            ))}
         </div>
       )}
-      <DefaultModel />
-      <RouterEditor />
+      <SubHead>{t("providers.title")}</SubHead>
+      <p className="config__hint">{t("providers.lead")}</p>
+      <ProvidersGrid />
       <ModelCatalog />
     </>
   );
@@ -94,7 +100,7 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
   const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(look.login) : undefined;
   const kind = t(look.kind);
   return (
-    <div className={e.default ? "engine is-default" : "engine"}>
+    <div className="engine">
       <div className="engine__top">
         <ProjectTile tone={look.tone} icon={look.icon} size={36} shape={e.id === "native" ? "square" : "circle"} />
         <div className="engine__titles">
@@ -104,17 +110,10 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
           </div>
           <div className="engine__kind">{e.detail ? `${kind} · ${e.detail}` : kind}</div>
         </div>
-        {/* The default is chosen in "Default for agents" below: one place, not one button per engine. */}
-        {e.default && (
-          <Badge tone="brand" dot>
-            {t("engine.default")}
-          </Badge>
-        )}
       </div>
       <ol className="engine__steps" aria-label={t("engines.status")}>
         <Step done={e.installed} label={t("engines.installed")} />
         <Step done={e.logged_in} label={t("engine.loggedIn")} />
-        <Step done={e.default} label={t("engine.default")} />
       </ol>
       {hint && <p className="engine__hint">{hint}</p>}
     </div>

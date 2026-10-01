@@ -1,9 +1,8 @@
 import type { ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
-import { Button, IconButton, Icons } from "@apx/ui";
+import { Badge, Button, IconButton, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { inCatalog, refLabel, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-import { SubHead } from "../SectionHead.tsx";
 import { ModelRefPicker } from "./ModelPickers.tsx";
 import { cleanWhen, RuleCard } from "./RuleCard.tsx";
 
@@ -41,10 +40,18 @@ const keysFor = (n: number) => Array.from({ length: n }, () => ++lastKey);
 const editOf = (router: RouterConfig | undefined): Edit | undefined =>
   router && { router, keys: keysFor(router.rules.length) };
 
-/** Router: rules (first match wins) and the fallback chain. Edited as a draft, saved in one models.set_config. */
+/**
+ * Everyone runs on the router: its chain's #1 is the default and the rest are tried in order. An older install
+ * default (a model outside the chain) shows as #1 and is folded in on save.
+ */
+const withDefault = (router: RouterConfig | undefined, model: ModelRef | undefined): RouterConfig | undefined =>
+  router && model && !router.chain.includes(model) ? { ...router, chain: [model, ...router.chain] } : router;
+
+/** Router: the model chain first (#1 is the default), then the content rules. Saved in one models.set_config. */
 export function RouterEditor() {
   const t = useT();
-  const saved = useModels((s) => s.config?.router);
+  const config = useModels((s) => s.config);
+  const saved = withDefault(config?.router, config?.default.model);
   const catalog = useModels((s) => s.catalog);
   const [edit, setEdit] = useState<Edit | undefined>(() => editOf(saved));
   const [base, setBase] = useState<RouterConfig | undefined>(saved);
@@ -59,7 +66,7 @@ export function RouterEditor() {
 
   if (!edit) return null;
   const draft = edit.router;
-  const dirty = !same(draft, saved);
+  const dirty = !same(draft, saved) || Boolean(config?.default.model);
   const refs = [...draft.chain, ...draft.rules.map((r) => r.model)];
   const unknown = catalog.length ? refs.filter((r) => !inCatalog(r, catalog)).length : 0;
   const setChain = (chain: ModelRef[]) => setEdit({ ...edit, router: { ...draft, chain } });
@@ -69,14 +76,68 @@ export function RouterEditor() {
   const save = async () => {
     setSaving(true);
     const next = normalize(draft);
-    if (await saveModelsConfig({ router: next })) setEdit({ ...edit, router: next });
+    if (await saveModelsConfig({ router: next, default: { router: true } })) setEdit({ ...edit, router: next });
     setSaving(false);
   };
 
   return (
     <div className="config__section router">
-      <SubHead>{t("router.title")}</SubHead>
-      <p className="config__hint">{t("router.lead")}</p>
+      <div className="router__block">
+        <div className="router__blockhead">
+          <span className="router__blocktitle">{t("router.chain")}</span>
+          <span className="router__blockhint">{t("router.chainHint")}</span>
+        </div>
+        {draft.chain.length === 0 ? (
+          <p className="router__empty">{t("router.noChain")}</p>
+        ) : (
+          <ol className="chain">
+            {draft.chain.map((ref, i) => (
+              <li key={ref} className="chain__item">
+                <span className="rule__n">#{i + 1}</span>
+                {i === 0 && (
+                  <Badge tone="brand" dot>
+                    {t("router.default")}
+                  </Badge>
+                )}
+                <span className="chain__ref">{refLabel(ref, catalog)}</span>
+                {catalog.length > 0 && !inCatalog(ref, catalog) && (
+                  <span className="chain__warn" title={t("models.notInCatalog")}>
+                    <Icons.TriangleAlert size={12} />
+                    {t("models.notInCatalogShort")}
+                  </span>
+                )}
+                <IconButton
+                  size="sm"
+                  label={t("router.moveUp")}
+                  icon={<Icons.ArrowUp size={14} />}
+                  disabled={i === 0}
+                  onClick={() => setChain(move(draft.chain, i, -1))}
+                />
+                <IconButton
+                  size="sm"
+                  label={t("router.moveDown")}
+                  icon={<Icons.ArrowDown size={14} />}
+                  disabled={i === draft.chain.length - 1}
+                  onClick={() => setChain(move(draft.chain, i, 1))}
+                />
+                <IconButton
+                  size="sm"
+                  label={t("router.removeFromChain")}
+                  icon={<Icons.X size={14} />}
+                  onClick={() => setChain(draft.chain.filter((_, j) => j !== i))}
+                />
+              </li>
+            ))}
+          </ol>
+        )}
+        <div>
+          <ModelRefPicker
+            label={t("router.addToChain")}
+            placeholder={t("router.addToChain")}
+            onChange={(ref) => !draft.chain.includes(ref) && setChain([...draft.chain, ref])}
+          />
+        </div>
+      </div>
 
       <div className="router__block">
         <div className="router__blockhead">
@@ -122,58 +183,6 @@ export function RouterEditor() {
           >
             {t("router.addRule")}
           </Button>
-        </div>
-      </div>
-
-      <div className="router__block">
-        <div className="router__blockhead">
-          <span className="router__blocktitle">{t("router.chain")}</span>
-          <span className="router__blockhint">{t("router.chainHint")}</span>
-        </div>
-        {draft.chain.length === 0 ? (
-          <p className="router__empty">{t("router.noChain")}</p>
-        ) : (
-          <ol className="chain">
-            {draft.chain.map((ref, i) => (
-              <li key={ref} className="chain__item">
-                <span className="rule__n">{i + 1}</span>
-                <span className="chain__ref">{refLabel(ref, catalog)}</span>
-                {catalog.length > 0 && !inCatalog(ref, catalog) && (
-                  <span className="chain__warn" title={t("models.notInCatalog")}>
-                    <Icons.TriangleAlert size={12} />
-                    {t("models.notInCatalogShort")}
-                  </span>
-                )}
-                <IconButton
-                  size="sm"
-                  label={t("router.moveUp")}
-                  icon={<Icons.ArrowUp size={14} />}
-                  disabled={i === 0}
-                  onClick={() => setChain(move(draft.chain, i, -1))}
-                />
-                <IconButton
-                  size="sm"
-                  label={t("router.moveDown")}
-                  icon={<Icons.ArrowDown size={14} />}
-                  disabled={i === draft.chain.length - 1}
-                  onClick={() => setChain(move(draft.chain, i, 1))}
-                />
-                <IconButton
-                  size="sm"
-                  label={t("router.removeFromChain")}
-                  icon={<Icons.X size={14} />}
-                  onClick={() => setChain(draft.chain.filter((_, j) => j !== i))}
-                />
-              </li>
-            ))}
-          </ol>
-        )}
-        <div>
-          <ModelRefPicker
-            label={t("router.addToChain")}
-            placeholder={t("router.addToChain")}
-            onChange={(ref) => !draft.chain.includes(ref) && setChain([...draft.chain, ref])}
-          />
         </div>
       </div>
 

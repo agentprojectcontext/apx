@@ -14,7 +14,6 @@ export function AgentModelPicker({ agent, chip = false }: { agent: Agent; chip?:
       label={t("agents.modelOf", { name: agent.name })}
       value={agent.model_choice ?? null}
       text={agentChoiceLabel(agent.model_choice, config, catalog)}
-      inherit={agentChoiceLabel(undefined, config, catalog)}
       className={chip ? `chip chip--mono chipbtn${own ? " is-own" : ""}` : undefined}
       onChange={(choice) => void setAgentModelChoice(agent.id, choice)}
     />

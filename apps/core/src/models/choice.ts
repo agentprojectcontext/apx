@@ -70,7 +70,7 @@ export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFea
  */
 export function refProblem(
   ref: string,
-  engines: { harness: { has(id: string): boolean }; providers: ReadonlySet<string> },
+  engines: { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } },
 ): string | undefined {
   const [engine = "", ...rest] = ref.split("/");
   const model = rest.join("/");

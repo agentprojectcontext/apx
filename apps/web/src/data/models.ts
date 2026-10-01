@@ -101,12 +101,11 @@ export function choiceLabel(choice: ModelChoice, catalog: readonly CatalogEngine
   return choice.router ? t("models.withRouter", { model: m }) : m;
 }
 
-/** What an agent runs on: its own choice, or "Default (<install default>)". */
+/** What an agent runs on: the router, or its own model (with the router if it fails). */
 export function agentChoiceLabel(
   choice: ModelChoice | undefined,
-  config: ModelsConfig | undefined,
+  _config: ModelsConfig | undefined,
   catalog: readonly CatalogEngine[],
 ): string {
-  if (choice) return choiceLabel(choice, catalog);
-  return config ? t("models.defaultWith", { choice: choiceLabel(config.default, catalog) }) : t("models.default");
+  return choice?.model ? choiceLabel(choice, catalog) : t("models.router");
 }

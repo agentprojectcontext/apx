@@ -1,5 +1,5 @@
 import type { ModelChoice, ModelRef } from "@apx/protocol";
-import { Icons, Popover, Switch } from "@apx/ui";
+import { Icons, Popover } from "@apx/ui";
 import { useState } from "react";
 import { choiceLabel, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -57,8 +57,8 @@ export function ModelRefPicker(props: {
 }
 
 /**
- * An agent's (or the install's) model choice: the router alone, a model, or a model with the router as fallback.
- * `inherit` adds an "Install default" option that maps to null.
+ * An agent's model: the router (everyone's default), or its own model tried first with the router as fallback.
+ * "Router" maps to null (no choice of its own).
  */
 export function ModelChoicePicker(props: {
   value: ModelChoice | null;
@@ -66,8 +66,6 @@ export function ModelChoicePicker(props: {
   label: string;
   /** Trigger text; defaults to the choice's own label. */
   text?: string;
-  /** Label of the install default when the owner can go back to it (agents). */
-  inherit?: string;
   /** Trigger class: a select button by default, a chip on team cards. */
   className?: string;
 }) {
@@ -79,8 +77,9 @@ export function ModelChoicePicker(props: {
     setOpen(false);
     props.onChange(choice);
   };
-  const text = props.text ?? (value ? choiceLabel(value, catalog) : (props.inherit ?? t("models.default")));
-  const warn = Boolean(value?.model) && catalog.length > 0 && !inCatalog(value?.model ?? "", catalog);
+  const own = value?.model;
+  const text = props.text ?? (own ? choiceLabel(value, catalog) : t("models.router"));
+  const warn = Boolean(own) && catalog.length > 0 && !inCatalog(own ?? "", catalog);
   return (
     <Popover
       open={open}
@@ -97,35 +96,9 @@ export function ModelChoicePicker(props: {
       })}
     >
       <div className="mchoice">
-        {props.inherit !== undefined && (
-          <Mode
-            selected={value === null}
-            title={props.inherit}
-            desc={t("models.inheritDesc")}
-            onPick={() => pick(null)}
-          />
-        )}
-        <Mode
-          selected={Boolean(value && !value.model)}
-          title={t("models.routerOnly")}
-          desc={t("models.routerOnlyDesc")}
-          onPick={() => pick({ router: true })}
-        />
-        <div className="mchoice__label">{t("models.aModel")}</div>
-        <ModelList
-          value={value?.model}
-          onPick={(model) => pick({ model, router: value?.model ? value.router : false })}
-        />
-        <div className="mchoice__fallback">
-          <Switch
-            size="sm"
-            checked={Boolean(value?.model && value.router)}
-            disabled={!value?.model}
-            onCheckedChange={(router) => value?.model && props.onChange({ model: value.model, router })}
-            label={t("models.useRouterOnFail")}
-            description={t("models.useRouterOnFailDesc")}
-          />
-        </div>
+        <Mode selected={!own} title={t("models.router")} desc={t("models.routerOnlyDesc")} onPick={() => pick(null)} />
+        <div className="mchoice__label">{t("models.ownModel")}</div>
+        <ModelList value={own} onPick={(model) => pick({ model, router: true })} />
       </div>
     </Popover>
   );

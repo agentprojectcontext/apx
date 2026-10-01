@@ -8,6 +8,7 @@ import { BrowserSection } from "./BrowserSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { McpSection } from "./McpSection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
+import { RouterSection } from "./RouterSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -23,6 +24,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.agents",
     items: [
       { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
+      { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
       { id: "mcp", label: "config.mcp", icon: <Icons.Server /> },
     ],
@@ -118,6 +120,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <AgentsSection />;
     case "mcp":
       return <McpSection />;
+    case "router":
+      return <RouterSection />;
     case "whatsapp":
     case "telegram":
     case "discord":

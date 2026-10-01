@@ -1,0 +1,54 @@
+// The model APIs our own loop can call: the built-in ones (config) plus what the owner adds or changes in the app
+// (settings). Read on every use, so a change applies to the next call without a restart.
+import type { ProviderConfig, ProviderTransport } from "../config.ts";
+import type { Store } from "../domain/store.ts";
+
+/** A provider as the owner set it; `removed` hides a built-in one. */
+export type ProviderEntry = ProviderConfig & {
+  label?: string | undefined;
+  /** Which kind of service it is (gemini, groq, ollama…), for the card's look; not behaviour. */
+  preset?: string | undefined;
+  enabled?: boolean | undefined;
+  removed?: boolean | undefined;
+};
+
+const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
+const TRANSPORTS = new Set<ProviderTransport>(["openai-chat", "anthropic-messages"]);
+
+export function providerRegistry(store: Store, builtIn: ProviderConfig[]) {
+  const own = (): ProviderEntry[] => {
+    try {
+      const raw = JSON.parse(store.settings.get("providers") ?? "[]") as ProviderEntry[];
+      return Array.isArray(raw) ? raw.filter((p) => ID.test(p.id) && (p.removed || TRANSPORTS.has(p.transport))) : [];
+    } catch {
+      return [];
+    }
+  };
+  /** Built-ins first, each replaced by the owner's version of it; then the owner's new ones. */
+  const all = (): Array<ProviderEntry & { builtin: boolean }> => {
+    const mine = new Map(own().map((p) => [p.id, p]));
+    const out = builtIn.map((b) => ({ ...b, ...mine.get(b.id), builtin: true }));
+    for (const p of mine.values()) if (!builtIn.some((b) => b.id === p.id)) out.push({ ...p, builtin: false });
+    return out.filter((p) => !p.removed);
+  };
+  return {
+    all,
+    /** What can run now: present and not switched off. */
+    active: (): ProviderConfig[] => all().filter((p) => p.enabled !== false),
+    has: (id: string) => all().some((p) => p.id === id && p.enabled !== false),
+    /** Saves the owner's version of one provider; null removes it (a built-in one is hidden instead). */
+    set(id: string, p: Omit<ProviderEntry, "id"> | null): void {
+      if (!ID.test(id)) throw new Error(`invalid provider id "${id}" (lowercase letters, digits and -)`);
+      const rest = own().filter((x) => x.id !== id);
+      const builtin = builtIn.some((b) => b.id === id);
+      const next = p
+        ? [...rest, { ...p, id }]
+        : builtin
+          ? [...rest, { ...(builtIn.find((b) => b.id === id) as ProviderConfig), removed: true }]
+          : rest;
+      store.settings.set("providers", JSON.stringify(next));
+    },
+  };
+}
+
+export type ProviderRegistry = ReturnType<typeof providerRegistry>;

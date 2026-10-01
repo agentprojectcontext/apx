@@ -31,19 +31,23 @@ const TRANSPORTS: Record<ProviderConfig["transport"], Transport> = {
 
 type Target = { provider: ProviderConfig; model: string };
 
+/** The key reference of a provider that needs none (a local server). */
+export const NO_KEY = "none";
+
 export function createLlm(opts: {
-  providers: ProviderConfig[];
+  /** Read on every call: a provider the owner adds or changes applies to the next one. */
+  providers: () => ProviderConfig[];
   secrets: Secrets;
   firstByteMs: number;
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
 }): Llm {
-  const { providers, secrets } = opts;
+  const { secrets } = opts;
 
   function targets(refs: string[]): Target[] {
     return refs.flatMap((ref) => {
       const [id, ...rest] = ref.split("/");
-      const provider = providers.find((p) => p.id === id);
+      const provider = opts.providers().find((p) => p.id === id);
       if (!provider) return [];
       const model = rest.join("/");
       return model ? [{ provider, model }] : provider.models.map((m) => ({ provider, model: m }));
@@ -52,7 +56,10 @@ export function createLlm(opts: {
 
   return {
     label() {
-      const ids = providers.filter((p) => secrets.has(p.key)).map((p) => p.id);
+      const ids = opts
+        .providers()
+        .filter((p) => p.key === NO_KEY || secrets.has(p.key))
+        .map((p) => p.id);
       return ids.length ? ids.join(", ") : "none";
     },
     async complete(req) {
@@ -66,8 +73,9 @@ export function createLlm(opts: {
       const skipped = new Set<string>();
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
-        const key = secrets.resolve(t.provider.key);
-        if (!key) {
+        // A local server (Ollama, LM Studio) needs no key.
+        const key = t.provider.key === NO_KEY ? "" : secrets.resolve(t.provider.key);
+        if (key === undefined || (key === "" && t.provider.key !== NO_KEY)) {
           skipped.add(t.provider.id);
           continue;
         }

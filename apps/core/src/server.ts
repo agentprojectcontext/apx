@@ -24,11 +24,13 @@ import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
+import { providerRegistry } from "./providers/registry.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
+import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { threadHandlers } from "./rpc/threads.ts";
@@ -79,7 +81,8 @@ export async function createCore(
   });
 
   let selfUrl = "";
-  const llm = opts.llm ?? createLlm({ providers: config.providers, secrets, firstByteMs: config.llmTimeoutMs });
+  const providers = providerRegistry(store, config.providers);
+  const llm = opts.llm ?? createLlm({ providers: providers.active, secrets, firstByteMs: config.llmTimeoutMs });
   const harnesses = createHarnesses({
     store,
     llm,
@@ -91,13 +94,17 @@ export async function createCore(
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
-  const catalog = createCatalog({ store, secrets, providers: config.providers, home: config.home });
+  const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home });
   const harnessEngines = () => ["claude", "codex", ...acpAgents(store).map(acpEngine)];
   const engineIds = {
     harness: { has: (id: string) => harnessEngines().includes(id) },
-    providers: new Set(config.providers.map((p) => p.id)),
+    providers: { has: providers.has },
   };
-  const apc = createApcSync({ store, log, engines: new Set([...harnessEngines(), ...engineIds.providers]) });
+  const apc = createApcSync({
+    store,
+    log,
+    engines: new Set([...harnessEngines(), ...providers.active().map((p) => p.id)]),
+  });
   apc.sync();
   const tools = [
     ...agentTools(store),
@@ -155,6 +162,7 @@ export async function createCore(
       ...threadHandlers(store, engine),
       ...jobHandlers(store, engine),
       ...mcpHandlers(mcp),
+      ...providerHandlers(providers, secrets),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds, home: config.home }),
       ...agentHandlers(store, apc, engineIds),
     },

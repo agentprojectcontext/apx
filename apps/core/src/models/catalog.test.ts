@@ -26,7 +26,7 @@ test("the catalog asks each engine for its models, caches them and keeps the las
     const catalog = createCatalog({
       store,
       secrets,
-      providers,
+      providers: () => providers,
       fetchImpl: (async () => {
         calls++;
         if (!up) return new Response("down", { status: 503 });

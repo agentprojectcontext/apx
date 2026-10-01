@@ -11,6 +11,7 @@ import {
   ModelChoice,
   PendingInput,
   Project,
+  ProviderInfo,
   RouterConfig,
   Run,
   Surface,
@@ -259,6 +260,39 @@ export const appMethods = {
     params: z.object({ job: Id }).strict(),
     result: z.object({ canceled: z.boolean() }),
     effect: true,
+  },
+  "providers.list": {
+    params: z.object({}).strict(),
+    result: z.object({ providers: z.array(ProviderInfo) }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Adds or changes a model API (null removes it). `api_key` is stored as a secret named after the provider and
+   * never returned; `needs_key: false` is for local servers.
+   */
+  "providers.set": {
+    params: z
+      .object({
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+        provider: z
+          .object({
+            label: z.string().max(60).optional(),
+            preset: z.string().max(32).optional(),
+            transport: z.enum(["openai-chat", "anthropic-messages"]),
+            base_url: z.string().url(),
+            models: z.array(z.string().min(1)).max(200).optional(),
+            enabled: z.boolean().optional(),
+            needs_key: z.boolean().optional(),
+          })
+          .strict()
+          .nullable(),
+        api_key: z.string().min(1).max(4000).optional(),
+      })
+      .strict(),
+    result: z.object({ providers: z.array(ProviderInfo) }),
+    effect: true,
+    access: "human",
   },
   /** MCP servers: the owner's and each project's, with whether they are approved and running. */
   "mcp.list": {

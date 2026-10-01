@@ -27,7 +27,7 @@ function sse(lines: object[]): Response {
 test("falls back down the chain on overload and reports which model answered", async () => {
   const seen: string[] = [];
   const llm = createLlm({
-    providers,
+    providers: () => providers,
     secrets,
     firstByteMs: 1000,
     retryDelayMs: 5,
@@ -65,7 +65,7 @@ test("falls back down the chain on overload and reports which model answered", a
 test("models are tried in the given order; quota moves on; providers without a key are never called", async () => {
   const seen: string[] = [];
   const llm = createLlm({
-    providers,
+    providers: () => providers,
     secrets,
     firstByteMs: 1000,
     retryDelayMs: 5,
@@ -90,7 +90,7 @@ test("models are tried in the given order; quota moves on; providers without a k
 
 test("tool calls stream in fragments and keep provider extras", async () => {
   const llm = createLlm({
-    providers: providers.slice(0, 1),
+    providers: () => providers.slice(0, 1),
     secrets,
     firstByteMs: 1000,
     retryDelayMs: 5,
@@ -150,7 +150,7 @@ test("anthropic conversion: leading system, later notes as user text, tool calls
 test("a per-model quota (Gemini's 429) moves on to the same provider's next model", async () => {
   const seen: string[] = [];
   const llm = createLlm({
-    providers: providers.slice(0, 1),
+    providers: () => providers.slice(0, 1),
     secrets,
     firstByteMs: 1000,
     retryDelayMs: 5,

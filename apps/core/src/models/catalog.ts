@@ -14,6 +14,7 @@ import type { Store } from "../domain/store.ts";
 import { type AcpAgent, acpAgents, acpEngine, openSession } from "../harness/acp/agents.ts";
 import { harnessEnv } from "../harness/claude.ts";
 import { which } from "../harness/detect.ts";
+import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
 
 const run = promisify(execFile);
@@ -133,7 +134,7 @@ export type Catalog = ReturnType<typeof createCatalog>;
 export function createCatalog(deps: {
   store: Store;
   secrets: Secrets;
-  providers: ProviderConfig[];
+  providers: () => ProviderConfig[];
   home: string;
   fetchImpl?: typeof fetch;
   /** Tests replace the CLI-backed lists. */
@@ -179,12 +180,12 @@ export function createCatalog(deps: {
         list: () => (deps.acpList ? deps.acpList(a) : acpModels(a, deps.home)),
       })),
     ];
-    for (const p of deps.providers) {
+    for (const p of deps.providers()) {
       out.push({
-        base: { id: p.id, kind: "provider", label: p.id },
+        base: { id: p.id, kind: "provider", label: (p as { label?: string }).label || p.id },
         list: async () => {
-          const key = secrets.resolve(p.key);
-          if (!key) throw new Error(`no key (${p.key})`);
+          const key = p.key === NO_KEY ? "" : secrets.resolve(p.key);
+          if (key === undefined || (key === "" && p.key !== NO_KEY)) throw new Error(`no key (${p.key})`);
           // A provider configured with an explicit list (e.g. a local gateway) is taken as given.
           if (p.models.length) return p.models.map((id) => ({ id, name: id, chat: true }));
           return providerModels(p, key, deps.fetchImpl ?? fetch);
