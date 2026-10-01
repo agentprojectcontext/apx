@@ -73,7 +73,7 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   return segments.every(simple) ? "never" : "ask";
 }
 
-export function shellTools(store: Store, home: string, apxPort?: number): Tool[] {
+export function shellTools(store: Store, home: string, apxPort: () => number): Tool[] {
   /** The project's folder when the thread belongs to one that is on disk, else APX's own work folder. */
   const baseDir = (projectId: string | undefined) => {
     const p = projectId ? store.projects.get(projectId) : undefined;
@@ -91,7 +91,7 @@ export function shellTools(store: Store, home: string, apxPort?: number): Tool[]
         cwd: z.string().max(500).optional().describe("folder inside the project, relative"),
       }),
       effect: "external",
-      confirm: (a) => commandRisk(a.command, apxPort),
+      confirm: (a) => commandRisk(a.command, apxPort()),
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,

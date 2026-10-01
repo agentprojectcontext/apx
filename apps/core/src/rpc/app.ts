@@ -1,7 +1,9 @@
-// Projects, agents, surfaces, engines, secrets and the v1 import.
+// The app's settings and catalog: projects, surfaces, models and the router, skills, secrets, desktop prefs and the
+// v1 import. (Agents live in rpc/agents.ts.)
 import { randomUUID } from "node:crypto";
 import type { ApcSync } from "../apc/sync.ts";
 import { publicProject } from "../domain/projects.ts";
+import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
 import { badRequest, conflict, errorMessage, notFound } from "../errors.ts";
@@ -12,7 +14,6 @@ import { modelSettings, refProblem } from "../models/choice.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { skillsFor } from "../skills/skills.ts";
-import type { EngineIds } from "./agents.ts";
 import type { Handlers } from "./router.ts";
 
 export function appHandlers(deps: {

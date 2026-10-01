@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { EngineStatus, HarnessId } from "@apx/protocol";
-import { engineOf, harnessOf } from "../domain/agents.ts";
+import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { unauthorized } from "../errors.ts";
 import { modelSettings } from "../models/choice.ts";

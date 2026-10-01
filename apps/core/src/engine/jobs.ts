@@ -4,11 +4,11 @@ import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { JobRecord } from "../domain/jobs.ts";
-import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { tripped } from "./breaker.ts";
+import type { AdmitFn } from "./engine.ts";
 
 /** A job's output file stops growing here; the rest is dropped with a note. */
 const OUTPUT_CAP = 20 * 1024 * 1024;
@@ -38,15 +38,7 @@ function stopGroup(pid: number, alive: () => boolean): void {
   }, 3000).unref();
 }
 
-export type JobAdmit = (a: {
-  thread_id: string;
-  agent_id: string;
-  trigger: "system";
-  origin: Origin;
-  text: string;
-}) => RunRecord;
-
-export function createJobs(deps: { store: Store; home: string; log: Log; admit: JobAdmit }) {
+export function createJobs(deps: { store: Store; home: string; log: Log; admit: AdmitFn }) {
   const { store, log } = deps;
   const dir = path.join(deps.home, "jobs");
   const procs = new Map<string, { kill(): void; done: Promise<JobRecord> }>();

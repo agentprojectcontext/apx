@@ -1,5 +1,6 @@
 import type { HarnessId, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { parseRef } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { ChatItem, Finish, ToolSpec, Usage } from "../providers/types.ts";
 
@@ -65,10 +66,7 @@ export type TurnOutcome = {
 export type Harness = { id: HarnessId; run(io: TurnIO): Promise<TurnOutcome> };
 
 /** The model part of a ref for a harness that takes one ("claude/claude-opus-5-5" → "claude-opus-5-5"). */
-export const modelPart = (ref: string | undefined): string | undefined => {
-  const i = ref?.indexOf("/") ?? -1;
-  return ref && i > 0 ? ref.slice(i + 1) : undefined;
-};
+export const modelPart = (ref: string | undefined): string | undefined => (ref ? parseRef(ref).model : undefined);
 
 /**
  * For an engine with no system-prompt option (Codex, ACP agents): a fresh session gets APX's instructions at the

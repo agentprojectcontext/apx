@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
 import type { Thread } from "@apx/protocol";
-import type { Inbound, InboundAction, Presentation } from "../domain/channels.ts";
+import type { Inbound, InboundAction, OutboxRow, Presentation } from "../domain/channels.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
@@ -9,6 +9,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Delivery } from "./delivery.ts";
+import { buttonId, parseButton } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
 
@@ -22,7 +23,7 @@ export function createInbound(deps: {
   call: InternalCall;
   delivery: Delivery;
   configs(): ChannelConfig[];
-  notifyOwner(body: Presentation, kind?: "notice" | "input" | "pairing", threadId?: string): void;
+  notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
   noticeInApp(code: string, textEn: string): void;
 }) {
   const { store, log, call, delivery } = deps;
@@ -118,8 +119,8 @@ export function createInbound(deps: {
       {
         text: t.pairingOwner(request.name, cfg.label, request.code),
         buttons: [
-          { id: `p:${request.code}:contact`, label: t.asContact },
-          { id: `p:${request.code}:deny`, label: t.ignore },
+          { id: buttonId.pairing(request.code, "contact"), label: t.asContact },
+          { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
         ],
       },
       "pairing",
@@ -170,24 +171,25 @@ export function createInbound(deps: {
     const t = channelTexts(store);
     const reply = (text: string) =>
       delivery.enqueue({ channel, conversation: a.conversation, kind: "notice", body: { text } });
+    const button = parseButton(a.data);
+    if (!button) return;
     try {
-      const [kind, ref, what] = a.data.split(":");
-      if (kind === "i" && ref) {
-        const input = store.inputs.get(ref);
-        if (input?.state !== "pending") return;
-        store.threads.mergeContext(input.thread_id, { reply_to: { channel, conversation: a.conversation } });
-        if (what === "a" || what === "d") {
-          await call("runs.respond", { input: ref, decision: what === "a" ? "approve" : "deny" }, { actor: "human" });
-          reply(what === "a" ? t.approved : t.denied);
-        } else if (what?.startsWith("o")) {
-          const choice = input.options?.[Number(what.slice(1))];
-          if (choice === undefined) return;
-          await call("runs.respond", { input: ref, text: choice }, { actor: "human" });
-          reply(t.answered(choice));
-        }
-      } else if (kind === "p" && ref && (what === "contact" || what === "deny")) {
-        await call("pairing.respond", { code: ref, decision: what }, { actor: "human" });
-        reply(what === "contact" ? t.approved : t.denied);
+      if (button.kind === "pairing") {
+        await call("pairing.respond", { code: button.code, decision: button.decision }, { actor: "human" });
+        reply(button.decision === "contact" ? t.approved : t.denied);
+        return;
+      }
+      const input = store.inputs.get(button.inputId);
+      if (input?.state !== "pending") return;
+      store.threads.mergeContext(input.thread_id, { reply_to: { channel, conversation: a.conversation } });
+      if (button.kind === "input") {
+        await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });
+        reply(button.answer === "approve" ? t.approved : t.denied);
+      } else {
+        const choice = input.options?.[button.index];
+        if (choice === undefined) return;
+        await call("runs.respond", { input: input.id, text: choice }, { actor: "human" });
+        reply(t.answered(choice));
       }
     } catch (err) {
       const msg = errorMessage(err, 200);

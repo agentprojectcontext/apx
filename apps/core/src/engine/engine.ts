@@ -49,6 +49,7 @@ function pausableClock(ms: number, fire: () => void): Clock {
   };
 }
 
+/** A turn to run, as everything that starts one describes it. */
 export type Admit = {
   thread_id: string;
   agent_id: string;
@@ -58,6 +59,8 @@ export type Admit = {
   depth?: number;
 };
 
+export type AdmitFn = (a: Admit) => RunRecord;
+
 export function createEngine(deps: {
   store: Store;
   harnesses: Harnesses;
@@ -65,7 +68,8 @@ export function createEngine(deps: {
   log: Log;
   call: ToolCall;
   home: string;
-  apxPort?: number;
+  /** The port this core listens on (known once the server listens): commands reaching it are APX's own door. */
+  apxPort: () => number;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */

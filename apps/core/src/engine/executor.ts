@@ -9,8 +9,8 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
-import { authorize, decide, UNTRUSTED_MARK } from "../tools/policy.ts";
-import { cap } from "../tools/result.ts";
+import { authorize, decide } from "../tools/policy.ts";
+import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
 import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
@@ -47,12 +47,21 @@ async function runTool(
   }
 }
 
-/** The call's arguments for the confirmation card, whole: the owner must see everything they approve. */
+/** How much of a call the confirmation card shows: the owner must see everything they approve. */
+const CONFIRM_DETAIL_CHARS = 20_000;
+/** A foreground command's output handed back to the model (the rest stays in the job's file). */
+const FOREGROUND_OUTPUT_CHARS = 60_000;
+/** A step's full output kept for read_output, its short summary, and the line shown on its card. */
+const STORED_OUTPUT_CHARS = 2_000_000;
+const STEP_SUMMARY_CHARS = 4000;
+const CARD_DETAIL_CHARS = 300;
+
+/** The call's arguments for the confirmation card, whole. */
 function describe(args: Record<string, unknown>): string {
   return Object.entries(args)
     .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
     .join("\n")
-    .slice(0, 20_000);
+    .slice(0, CONFIRM_DETAIL_CHARS);
 }
 
 export type Executor = {
@@ -84,7 +93,7 @@ export function createExecutor(o: {
   delegate: ToolContext["delegate"];
   jobs: Jobs;
   /** APX's own port: a command that reaches it always asks. */
-  apxPort?: number | undefined;
+  apxPort: () => number;
   /** Where an external agent works outside code threads. */
   workDir: string;
 }): Executor {
@@ -112,7 +121,7 @@ export function createExecutor(o: {
     signal.addEventListener("abort", stop, { once: true });
     try {
       const ended = await done;
-      return { job: ended, output: o.jobs.read(job.id, undefined, 60_000).output };
+      return { job: ended, output: o.jobs.read(job.id, undefined, FOREGROUND_OUTPUT_CHARS).output };
     } finally {
       clearTimeout(timer);
       signal.removeEventListener("abort", stop);
@@ -204,10 +213,10 @@ export function createExecutor(o: {
     };
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
     if (out.text.includes(UNTRUSTED_MARK)) untrusted = true;
-    const full = out.text.slice(0, 2_000_000);
-    store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, 4000), full);
+    const full = out.text.slice(0, STORED_OUTPUT_CHARS);
+    store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, STEP_SUMMARY_CHARS), full);
     signal.throwIfAborted();
-    card(out.ok ? "ok" : "error", out.text.slice(0, 300));
+    card(out.ok ? "ok" : "error", out.text.slice(0, CARD_DETAIL_CHARS));
     // The model gets a capped copy; the whole text stays in the step for read_output.
     const shown = cap(out.text);
     return {
@@ -225,7 +234,7 @@ export function createExecutor(o: {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
     if (kind === "fetch") return thread.kind === "code" ? "ask" : "untrusted";
-    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort);
+    if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
     return "ask";
   }
 

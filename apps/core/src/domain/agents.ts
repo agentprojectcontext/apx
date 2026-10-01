@@ -1,8 +1,9 @@
 // Agents are always addressed by id. Names are for people and models; turning a name into an id is an explicit,
 // scoped lookup (`resolve`) that refuses ambiguity instead of picking one.
-import { type Agent, Autonomy, type HarnessId, type ModelChoice } from "@apx/protocol";
+import { type Agent, Autonomy, type ModelChoice } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { AgentsTable } from "../db/schema.ts";
+import { harnessOf } from "./refs.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
 
 export type AgentRecord = Agent & { prompt: string };
@@ -39,18 +40,6 @@ function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "ski
     ...(skills.length ? { skills } : {}),
   };
 }
-
-const HARNESS_ENGINES = new Set<string>(["claude", "codex"]);
-
-/** The engine part of a model ref ("claude/x" → "claude"). */
-export const engineOf = (ref: string): string => ref.split("/")[0] ?? ref;
-
-/** The harness that runs a model ref: Claude Code, Codex or an ACP agent for theirs, our own loop for providers. */
-export const harnessOf = (ref: string): HarnessId => {
-  const e = engineOf(ref);
-  if (e.startsWith("acp:")) return "acp";
-  return HARNESS_ENGINES.has(e) ? (e as HarnessId) : "native";
-};
 
 const withChoice = (c: ModelChoice | undefined): Pick<Agent, "model_choice" | "harness"> =>
   c ? { model_choice: c, ...(c.model ? { harness: harnessOf(c.model) } : {}) } : {};

@@ -19,6 +19,9 @@ export function cap(text: string, max = RESULT_CAP): string {
   return `${text.slice(0, head)}\n…[${text.length - max} chars omitted]…\n${text.slice(-tail)}`;
 }
 
+/** What every untrusted envelope carries: finding it in a turn's context means outside content is there. */
+export const UNTRUSTED_MARK = 'trust="untrusted"';
+
 /** Marks text that came from outside (web, other agents, widgets) as data, not instructions. */
 export function untrusted(source: string, attrs: Record<string, string>, body: string): string {
   const a = Object.entries(attrs)
@@ -26,5 +29,5 @@ export function untrusted(source: string, attrs: Record<string, string>, body: s
     .join("");
   // The body cannot close its own envelope or pose as a note from APX.
   const safe = body.replace(new RegExp(`<(/?)(${source}|system_note)\\b`, "gi"), "&lt;$1$2");
-  return `<${source}${a} trust="untrusted">\n${safe}\n</${source}>`;
+  return `<${source}${a} ${UNTRUSTED_MARK}>\n${safe}\n</${source}>`;
 }

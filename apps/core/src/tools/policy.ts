@@ -18,9 +18,6 @@ const GROUPS: Record<string, (name: string) => boolean> = {
 /** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */
 const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
 
-/** Marker every untrusted envelope carries (tools/result.ts `untrusted`). */
-export const UNTRUSTED_MARK = 'trust="untrusted"';
-
 /**
  * The agent's `tools:` list as a filter. A list that names nothing APX knows (a file written for another tool) is
  * not a restriction: an agent left with no tools at all would be a silent break.

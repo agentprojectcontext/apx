@@ -1,7 +1,7 @@
 // Claude Code and Codex keep their own transcript per thread. Turns answered in the same thread by another engine
 // are not in it, so before handing them a turn we tell them what was said meanwhile (text only, newest last).
 import type { HarnessId, Part } from "@apx/protocol";
-import { engineOf } from "../domain/agents.ts";
+import { engineOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";

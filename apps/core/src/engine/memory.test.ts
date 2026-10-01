@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { ftsQuery, looksSecret } from "../domain/memories.ts";
-import { UNTRUSTED_MARK } from "../tools/policy.ts";
+import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { recallFor } from "./recall.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 

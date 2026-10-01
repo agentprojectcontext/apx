@@ -2,7 +2,7 @@
 import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { engineOf, harnessOf } from "../domain/agents.ts";
+import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -12,7 +12,8 @@ import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
-import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
+import { inherit } from "../tools/policy.ts";
+import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { type Audience, audienceOf, contactPrompt, SEALED_HARNESSES } from "./audience.ts";
@@ -52,7 +53,7 @@ export type TurnDeps = {
   jobs: Jobs;
   /** APX's home: the owner's skills live under it. */
   home: string;
-  apxPort?: number | undefined;
+  apxPort: () => number;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];

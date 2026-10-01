@@ -3,7 +3,7 @@
 // the title comes from the first message and a long thread is only trimmed by the history budget.
 // See DECISIONS.md#d-013
 
-import { harnessOf } from "../domain/agents.ts";
+import { harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Epoch, LogEntry } from "../domain/threads.ts";
@@ -11,7 +11,7 @@ import type { Log } from "../log.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
-import { UNTRUSTED_MARK } from "../tools/policy.ts";
+import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { HISTORY_BUDGET_CHARS } from "./context.ts";
 
 /** A thread is compacted once what the model would see since the last summary passes this. */

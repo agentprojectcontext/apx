@@ -115,15 +115,18 @@ export async function createCore(
   const apc = createApcSync({
     store,
     log,
-    engines: new Set([...harnessEngines(), ...providers.active().map((p) => p.id)]),
+    // Live: an ACP agent or a provider added later is recognized without a restart.
+    engines: { has: (id) => harnessEngines().includes(id) || providers.has(id) },
   });
   apc.sync();
+  // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
+  let listening = config.port || 7440;
   const tools = [
     ...agentTools(store),
     ...browserTools(),
     ...surfaceTools(),
     ...ownerTools(store),
-    ...shellTools(store, config.home, config.port || 7440),
+    ...shellTools(store, config.home, () => listening),
     ...skillTools(store, config.home),
     ...memoryTools(),
     ...mediaTools(),
@@ -158,7 +161,7 @@ export async function createCore(
     log,
     call,
     home: config.home,
-    apxPort: config.port || 7440,
+    apxPort: () => listening,
     mcpTools: mcp.toolsFor,
     afterRun: (run) => {
       upkeep.afterRun(run);
@@ -219,6 +222,7 @@ export async function createCore(
     server.listen(config.port, config.host, resolve);
   });
   const { port } = server.address() as AddressInfo;
+  listening = port;
   const url = `http://${config.host}:${port}`;
   selfUrl = url;
   engine.start();

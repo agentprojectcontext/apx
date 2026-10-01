@@ -4,10 +4,11 @@
 import type { InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
-import type { Origin, RunRecord } from "../domain/runs.ts";
+import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, notFound, Shutdown } from "../errors.ts";
 import type { Display } from "./display.ts";
+import type { AdmitFn } from "./engine.ts";
 
 /** How long a question or confirmation stays open while the agent waits in its turn. */
 export const INPUT_WAIT_MS = 15 * 60_000;
@@ -31,17 +32,9 @@ const grantKey = (thread: string, agent: string, tool: string, args: unknown) =>
 /** An approval that outlived its turn is good for one identical call, soon: not days later in another context. */
 const GRANT_MS = 30 * 60_000;
 
-export type Admit = (a: {
-  thread_id: string;
-  agent_id: string;
-  trigger: "user";
-  origin: Origin;
-  text: string;
-}) => RunRecord;
-
 export function createInputs(deps: {
   store: Store;
-  admit: Admit;
+  admit: AdmitFn;
   /** Stops the run's deadline while it waits; the returned function starts it again. */
   hold: (runId: string) => () => void;
 }) {

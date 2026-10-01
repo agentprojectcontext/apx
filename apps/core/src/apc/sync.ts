@@ -17,7 +17,7 @@ export const agentIdOf = (apcId: string, slug: string) => `${apcId}-${slug}`.toL
  * v1 wrote "provider:model". Only an engine this install knows becomes a choice; "inherit", a bare id or v1-only
  * engines ("chatgpt-codex:…@medium") say nothing we can run, so the agent keeps the install default.
  */
-function choiceFromV1(model: string | undefined, engines: ReadonlySet<string>): ModelChoice | undefined {
+function choiceFromV1(model: string | undefined, engines: { has(id: string): boolean }): ModelChoice | undefined {
   const m = model?.trim();
   if (!m || m === "inherit" || !m.includes(":")) return undefined;
   const [engine = "", ...rest] = m.split(":");
@@ -28,7 +28,7 @@ function choiceFromV1(model: string | undefined, engines: ReadonlySet<string>): 
 
 export type SyncResult = { project: string; agents: number; archived: number };
 
-export function createApcSync(deps: { store: Store; log: Log; engines: ReadonlySet<string> }) {
+export function createApcSync(deps: { store: Store; log: Log; engines: { has(id: string): boolean } }) {
   const { store, log } = deps;
   const watchers = new Map<string, fs.FSWatcher[]>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();

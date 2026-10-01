@@ -138,17 +138,17 @@ export function createChannels(deps: {
       .join("\n")
       .trim();
     const thread = store.threads.get(run.thread_id);
-    const contact = thread ? audienceOf(store, thread) : undefined;
+    const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
     if (!out && run.state === "failed") {
-      if (contact?.kind === "contact") {
+      if (audience?.kind === "contact") {
         // A contact never sees what went wrong inside APX; the owner does.
         out = channelTexts(store).contactFailed;
-        notifyOwner({ text: channelTexts(store).contactFailedOwner(contact.name, why) }, "notice", run.thread_id);
+        notifyOwner({ text: channelTexts(store).contactFailedOwner(audience.name, why) }, "notice", run.thread_id);
       } else out = channelTexts(store).failed(why);
     }
     if (!out) return;
-    if (contact?.kind === "contact") out = guardReply(out);
+    if (audience?.kind === "contact") out = guardReply(out);
     delivery.enqueue({
       channel: to.channel,
       conversation: to.conversation,

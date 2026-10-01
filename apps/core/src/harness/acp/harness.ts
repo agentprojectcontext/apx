@@ -1,7 +1,7 @@
 // Any CLI that speaks the Agent Client Protocol as a harness: one process per turn in the thread's folder, its own
 // session resumed when the agent can, APX tools through the per-run MCP proxy, its permission requests through our
 // policy, its own tool calls shown as cards.
-import { engineOf } from "../../domain/agents.ts";
+import { engineOf } from "../../domain/refs.ts";
 import type { McpCommand } from "../codex.ts";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "../types.ts";
 import { type AcpAgent, acpEngine, openSession } from "./agents.ts";

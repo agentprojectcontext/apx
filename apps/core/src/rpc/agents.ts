@@ -5,13 +5,13 @@ import type { Agent, ModelChoice } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import { archiveAgentFile, renameAgentFile, updateAgentFile, writeNewAgent } from "../apc/write.ts";
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
+import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import type { Handlers } from "./router.ts";
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
-export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };
 
 export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
   /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */

@@ -3,6 +3,7 @@
 // tries until one engine answers. Nothing here names a model: they all come from settings.
 import type { ModelChoice, ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { type EngineIds, parseRef } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 
 export type TurnFeatures = {
@@ -18,7 +19,7 @@ const EMPTY_ROUTER: RouterConfig = { rules: [], chain: [] };
 
 export function modelSettings(store: Store) {
   return {
-    /** The install default. Before one was saved, the engine picked in Config → Motores, with the router behind it. */
+    /** The install default. Before one was saved, the engine picked in Settings → Engines and models, with the router behind it. */
     defaultChoice(): ModelChoice {
       const raw = store.settings.get("model_default");
       if (raw) return JSON.parse(raw) as ModelChoice;
@@ -68,12 +69,8 @@ export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFea
  * Why a ref cannot run, or undefined when it can: the engine must exist, and a provider needs the model named
  * (only Claude Code and Codex have a default model of their own).
  */
-export function refProblem(
-  ref: string,
-  engines: { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } },
-): string | undefined {
-  const [engine = "", ...rest] = ref.split("/");
-  const model = rest.join("/");
+export function refProblem(ref: string, engines: EngineIds): string | undefined {
+  const { engine, model } = parseRef(ref);
   if (engines.harness.has(engine)) return undefined;
   if (!engines.providers.has(engine)) return `unknown engine "${engine}" in ${ref}`;
   if (!model) return `say which ${engine} model (${engine}/<model>)`;

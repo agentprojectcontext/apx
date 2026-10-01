@@ -1,6 +1,7 @@
 // The one way the core calls a model API. Walks the models it is given (the router's order), retries what is worth
 // retrying and moves down the list for this call only (the next call starts from the top again).
 import type { ProviderConfig } from "../config.ts";
+import { parseRef } from "../domain/refs.ts";
 import type { Secrets } from "../secrets.ts";
 import { anthropicMessages } from "./anthropic-messages.ts";
 import { openaiChat } from "./openai-chat.ts";
@@ -46,10 +47,9 @@ export function createLlm(opts: {
 
   function targets(refs: string[]): Target[] {
     return refs.flatMap((ref) => {
-      const [id, ...rest] = ref.split("/");
-      const provider = opts.providers().find((p) => p.id === id);
+      const { engine, model } = parseRef(ref);
+      const provider = opts.providers().find((p) => p.id === engine);
       if (!provider) return [];
-      const model = rest.join("/");
       return model ? [{ provider, model }] : provider.models.map((m) => ({ provider, model: m }));
     });
   }
@@ -67,7 +67,7 @@ export function createLlm(opts: {
       if (!list.length)
         throw new ProviderError(
           "model_gone",
-          `no model to run (${req.models.join(", ") || "none chosen"}); pick one in Config → Models`,
+          `no model to run (${req.models.join(", ") || "none chosen"}); pick one in Settings → Engines and models`,
         );
       let last: ProviderError | undefined;
       const skipped = new Set<string>();

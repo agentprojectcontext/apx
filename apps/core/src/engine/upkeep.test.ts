@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { LogEntry } from "../domain/threads.ts";
-import { UNTRUSTED_MARK } from "../tools/policy.ts";
-import { untrusted } from "../tools/result.ts";
+import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { projectHistory } from "./context.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 import { COMPACT_AT_CHARS, planCompaction, titleFromText, validSummary, validTitle } from "./upkeep.ts";
