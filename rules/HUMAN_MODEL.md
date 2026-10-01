@@ -61,11 +61,25 @@ desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`
 a thread's queue one run at a time → `engine/turn.ts` builds the context (`engine/context.ts`: byte-stable system
 prompt, projected history, per-turn input with the origin envelope), logs the input, and hands the turn to the
 agent's harness (`harness/`: native over `providers/`, Claude Code, Codex) → every tool call goes through one
-executor (card + `steps` row + deadline; `tools/`: browser via the desktop node, `show_widget`, `list_agents`,
-`delegate`) → the answer's parts stream as `message.part` events → the run ends completed / failed / canceled with
-a notice when there is no text. `delegate` admits a durable child run in an a2a sub-thread; if the caller is not
-waiting any more, the result comes back as a new `a2a_result` run on the caller's thread. On start,
-`engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools) and picks up queued runs.
+executor (`engine/executor.ts`: check the arguments against the tool's zod schema → `tools/policy.ts` `authorize`
+→ wait for the owner when it says so → `steps` row → run with a deadline → full output kept, a capped copy to the
+model) → the answer's parts stream as `message.part` events → the run ends completed / failed / canceled with a
+notice when there is no text. Tools that touch core state call protocol methods through the router as the agent
+(`ctx.call`), so owner-only methods refuse them.
+
+- **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
+  rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
+  wakes the agent with a new run.
+- **a2a** (`engine/delegation.ts`): `delegate` opens a named session (an a2a sub-thread) or continues one by name;
+  the child works with no more than its callers (`inherit`); if the caller stopped waiting, the result comes back as
+  an `a2a_result` run. Limits live in `engine/limits.ts`; `engine/breaker.ts` pauses chains that run without the
+  owner.
+- **Terminal jobs** (`engine/jobs.ts`): the `shell` tool runs commands in the project's folder; background ones
+  are `jobs` rows with an output file, and their end wakes the agent.
+- **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step.
+
+On start, `engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools), expired inputs and cut
+jobs are closed, and queued runs are picked up.
 
 ## 5. Auth and trust
 

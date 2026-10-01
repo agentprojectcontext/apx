@@ -85,3 +85,16 @@ image, size, context, channel, trigger, agent kind, keywords) and a fallback cha
 and moves to the next engine only if one fails before running a tool. The model lists come from the engines
 themselves (`/models`, the Agent SDK's `supportedModels()`, `codex debug models`) and are cached a day. Code holds
 no model names: defaults, chains and rules are data an owner sets from the app or `apx2 models`.
+
+<a id="d-012"></a>
+## D-012 — 2026-10-01 — One tool registry, one policy, one way to wait for the owner
+A tool is defined once with `defineTool`: its zod schema is the spec every harness sees (Claude Code gets it rebuilt
+with `z.fromJSONSchema`, never a hand-made copy) and the check the model's arguments go through. Tools that touch
+core state call protocol methods through the router as the agent, so the router's rules (validation, owner-only
+methods) apply to agents too. Whether a call runs is decided in one place, `authorize`: the agent's `tools:` list,
+its `autonomy:` (`ask` / `standard` / `total`, from its APC file), the tool's confirm level for those arguments
+(`never` / `untrusted` / `ask` / `always`) and whether untrusted content is in the turn. A delegated run gets the
+intersection of its callers' tools and the strictest autonomy. Confirmations, questions and (later) browser handoffs
+share one durable machine (`pending_inputs` + `runs.respond`): a wait survives restarts, a timeout counts as a no,
+and an approval that arrives after its turn ended allows exactly one identical call. Agents' own commands
+(`shell`) are not a protocol method: a method would be a door around the policy.
