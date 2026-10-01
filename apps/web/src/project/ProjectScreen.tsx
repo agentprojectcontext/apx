@@ -2,6 +2,7 @@ import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from 
 import { useEffect } from "react";
 import { findProject, inProject, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
@@ -10,8 +11,9 @@ import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
 import { SoonPane } from "./SoonPane.tsx";
 
-/** A project: header (tile, name, path, Nuevo chat) + underline tabs. SPEC §2.9. */
+/** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
 export function ProjectScreen({ layout }: { layout: Layout }) {
+  const t = useT();
   const pid = useNav((s) => s.projectId);
   const tab = useNav((s) => s.projectTab);
   const projects = useData((s) => s.projects);
@@ -25,16 +27,16 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
         <EmptyState
           size="lg"
           icon={<Icons.Folder />}
-          title={ready ? "Proyecto no encontrado" : "Cargando proyecto…"}
+          title={ready ? t("project.notFound") : t("project.loading")}
           action={
             ready && (
               <Button size="sm" variant="secondary" onClick={() => go.inbox()}>
-                Volver al Inbox
+                {t("common.backToInbox")}
               </Button>
             )
           }
         >
-          {ready ? "Puede que lo hayan quitado del core." : null}
+          {ready ? t("project.removed") : null}
         </EmptyState>
       </section>
     );
@@ -50,6 +52,7 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
 }
 
 function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTab }) {
+  const t = useT();
   return (
     <header className="project__head">
       <div className="project__titlerow">
@@ -60,20 +63,20 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
             {project.isDefault && (
               <Badge>
                 <Icons.Lock size={12} />
-                Proyecto base · no se puede borrar
+                {t("project.baseBadge")}
               </Badge>
             )}
           </div>
-          <div className="project__path">{project.path ?? "Espacio base · sin carpeta"}</div>
+          <div className="project__path">{project.path ?? t("project.basePath")}</div>
         </div>
         <NewChatMenu
           projectId={project.id}
-          trigger={<Button leadingIcon={<Icons.SquarePen size={14} />}>Nuevo chat</Button>}
+          trigger={<Button leadingIcon={<Icons.SquarePen size={14} />}>{t("chat.new")}</Button>}
         />
         <IconButton
           variant="secondary"
           size="lg"
-          label="Ajustes de los agentes"
+          label={t("project.agentSettings")}
           icon={<Icons.Settings size={16} />}
           onClick={() => go.config("agents")}
         />
@@ -82,13 +85,14 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
-        items={PROJECT_TABS.map((t) => ({ value: t.id, label: t.label }))}
+        items={PROJECT_TABS.map((x) => ({ value: x.id, label: t(x.label) }))}
       />
     </header>
   );
 }
 
 function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: ProjectTab; layout: Layout }) {
+  const t = useT();
   switch (tab) {
     case "overview":
       return <ProjectOverview project={project} />;
@@ -98,38 +102,40 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
       return <ProjectTeam project={project} />;
     case "tasks":
       return (
-        <SoonPane icon={<Icons.ListChecks />} title="Tareas del proyecto">
-          Lo que cada agente tiene en curso, pendiente o bloqueado, con los compromisos que prometió cumplir.
+        <SoonPane icon={<Icons.ListChecks />} title={t("project.tasks.title")}>
+          {t("project.tasks.body")}
         </SoonPane>
       );
     case "routines":
       return (
-        <SoonPane icon={<Icons.Clock />} title="Rutinas">
-          Trabajos programados: un pre-command, el agente si hace falta y un post-command.
+        <SoonPane icon={<Icons.Clock />} title={t("project.tab.routines")}>
+          {t("project.routines.body")}
         </SoonPane>
       );
     case "files":
       return (
-        <SoonPane icon={<Icons.Folder />} title="Archivos">
+        <SoonPane icon={<Icons.Folder />} title={t("project.tab.files")}>
           {project.path ? (
             <>
-              El árbol de <code className="soon__code">{project.path}</code> y lo que los agentes crean en los chats.
+              {t("project.files.treeBefore")}
+              <code className="soon__code">{project.path}</code>
+              {t("project.files.treeAfter")}
             </>
           ) : (
-            "Lo que los agentes crean en los chats de este espacio."
+            t("project.files.base")
           )}
         </SoonPane>
       );
     case "memory":
       return (
-        <SoonPane icon={<Icons.Brain />} title="Memoria">
-          El cuaderno de cada agente, el índice local y lo que recuerdan de este proyecto.
+        <SoonPane icon={<Icons.Brain />} title={t("project.tab.memory")}>
+          {t("project.memory.body")}
         </SoonPane>
       );
     case "resources":
       return (
-        <SoonPane icon={<Icons.Layers />} title="Recursos del proyecto">
-          Skills, MCP, integraciones y variables propias, más las globales que hereda.
+        <SoonPane icon={<Icons.Layers />} title={t("project.resources.title")}>
+          {t("project.resources.body")}
         </SoonPane>
       );
   }

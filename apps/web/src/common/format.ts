@@ -1,33 +1,67 @@
-const time = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
-const date = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
-const weekday = new Intl.DateTimeFormat("es", { weekday: "short" });
+import { currentLocale, t } from "../i18n/index.ts";
+
+type Formatters = { time: Intl.DateTimeFormat; date: Intl.DateTimeFormat; weekday: Intl.DateTimeFormat };
+const cache = new Map<string, Formatters>();
+
+/** Date formatters for the current language, built once per locale. */
+function fmt(): Formatters {
+  const locale = currentLocale();
+  let f = cache.get(locale);
+  if (!f) {
+    f = {
+      // es-AR defaults to "11:14 a. m."; Argentina reads clocks as 24 h.
+      time: new Intl.DateTimeFormat(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: locale.startsWith("es") ? "h23" : undefined,
+      }),
+      date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }),
+      weekday: new Intl.DateTimeFormat(locale, { weekday: "short" }),
+    };
+    cache.set(locale, f);
+  }
+  return f;
+}
 
 function dayStart(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
-/** List timestamp: "14:18" today, "Ayer", "lun" this week, else "3 sept". */
+/** List timestamp: "14:18" today, "Yesterday", "Mon" this week, else "Sep 3". */
 export function shortWhen(iso: string, now = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const days = Math.round((dayStart(now) - dayStart(d)) / 86_400_000);
-  if (days <= 0) return time.format(d);
-  if (days === 1) return "Ayer";
-  if (days < 7) return weekday.format(d);
-  return date.format(d);
+  const f = fmt();
+  if (days <= 0) return f.time.format(d);
+  if (days === 1) return t("time.yesterday");
+  if (days < 7) return f.weekday.format(d);
+  return f.date.format(d);
 }
 
-/** Day divider label: "Hoy · 14:18", "Ayer", "3 sept". */
+/** Day divider label: "Today · 14:18", "Yesterday · 09:02", "Sep 3 · 10:00". */
 export function dayLabel(iso: string, now = new Date()): string {
   const d = new Date(iso);
   const days = Math.round((dayStart(now) - dayStart(d)) / 86_400_000);
-  if (days <= 0) return `Hoy · ${time.format(d)}`;
-  if (days === 1) return `Ayer · ${time.format(d)}`;
-  return `${date.format(d)} · ${time.format(d)}`;
+  const f = fmt();
+  const time = f.time.format(d);
+  if (days <= 0) return t("time.todayAt", { time });
+  if (days === 1) return t("time.yesterdayAt", { time });
+  return `${f.date.format(d)} · ${time}`;
 }
 
 export function sameDay(a: string, b: string): boolean {
   return dayStart(new Date(a)) === dayStart(new Date(b));
+}
+
+/** A number in the current language ("12,345" / "12.345"). */
+export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string {
+  return n.toLocaleString(currentLocale(), opts);
+}
+
+/** Seconds with one decimal: "3.4 s" / "3,4 s". */
+export function formatSeconds(s: number): string {
+  return `${formatNumber(s, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
 }
 
 /** "github.com/login" from a URL, for compact display. */

@@ -2,12 +2,17 @@ import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
 import { Fragment } from "react";
 import logoUrl from "../assets/logo.png";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
+import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
+import { LANGUAGE_NAMES, LANGUAGES, type Language, useLanguage, useT } from "../i18n/index.ts";
 import { go, PROJECT_TABS, useNav } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 
-/** SPEC §1.5: Inbox / project / chat · Proyectos / project / tab · Apps / app · Tareas · Recursos. */
+const LANGS = Object.keys(LANGUAGES) as Language[];
+
+/** SPEC §1.5: Inbox / project / chat · Projects / project / tab · Apps / app · Tasks · Resources. */
 function useCrumbs(): string[] {
+  const t = useT();
   const view = useNav((s) => s.view);
   const projectId = useNav((s) => s.projectId);
   const projectTab = useNav((s) => s.projectTab);
@@ -16,26 +21,29 @@ function useCrumbs(): string[] {
   const projects = useData((s) => s.projects);
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   const app = useData((s) => (appId ? s.surfaces[appId] : undefined));
-  if (view === "app") return ["Apps", app?.title ?? "App"];
-  if (view === "tasks") return ["Tareas"];
-  if (view === "resources") return ["Recursos"];
+  if (view === "app") return [t("nav.apps"), app?.title ?? t("common.app")];
+  if (view === "tasks") return [t("nav.tasks")];
+  if (view === "resources") return [t("nav.resources")];
   if (view === "project") {
-    const tab = PROJECT_TABS.find((t) => t.id === projectTab)?.label ?? "Resumen";
-    return ["Proyectos", findProject(projects, projectId)?.name ?? "Proyecto", tab];
+    const tab = t(PROJECT_TABS.find((x) => x.id === projectTab)?.label ?? "project.tab.overview");
+    return [t("nav.projects"), findProject(projects, projectId)?.name ?? t("project.fallback"), tab];
   }
-  return thread ? ["Inbox", projectName(projects, thread.project_id), thread.title] : ["Inbox"];
+  const inbox = t("nav.inbox");
+  return thread ? [inbox, projectName(projects, thread.project_id), thread.title] : [inbox];
 }
 
 export function Topbar() {
+  const t = useT();
   const crumbs = useCrumbs();
   const mode = useNav((s) => s.mode);
+  const lang = useLanguage();
   const agents = useData((s) => s.agents);
-  const homeId = useData((s) => Object.values(s.threads).find((t) => t.kind === "home")?.id);
+  const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
   return (
     <header className="topbar">
       <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
-      <nav className="topbar__crumbs" aria-label="Ubicación">
+      <nav className="topbar__crumbs" aria-label={t("topbar.location")}>
         {crumbs.map((c, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs are positional
           <Fragment key={i}>
@@ -45,15 +53,15 @@ export function Topbar() {
         ))}
       </nav>
       <span className="topbar__spacer" />
-      <button type="button" className="topbar__search" title="Búsqueda: próximamente" disabled>
+      <button type="button" className="topbar__search" title={t("topbar.searchSoon")} disabled>
         <Icons.Search size={14} />
-        <span className="topbar__search-label">Buscar o saltar a…</span>
+        <span className="topbar__search-label">{t("topbar.search")}</span>
         <Kbd keys={["⌘", "K"]} />
       </button>
       <span className="topbar__spacer" />
       <RunningIndicator />
       <IconButton
-        label="Abrir en el teléfono"
+        label={t("phone.open")}
         icon={<Icons.Smartphone size={16} />}
         className="topbar__icon"
         onClick={() => go.phone(true)}
@@ -61,19 +69,26 @@ export function Topbar() {
       <Menu
         align="end"
         items={[
-          { type: "label", label: "Idioma" },
-          { label: "Español", icon: <Icons.Check />, onSelect: () => {} },
-          { label: "English", icon: <span />, shortcut: "pronto", disabled: true },
+          { type: "label", label: t("language.label") },
+          ...LANGS.map((l) => ({
+            label: LANGUAGE_NAMES[l],
+            icon: l === lang ? <Icons.Check /> : <span />,
+            onSelect: () => setPrefs({ language: l }),
+          })),
         ]}
         trigger={
-          <button type="button" className="topbar__lang" aria-label="Idioma: español">
+          <button
+            type="button"
+            className="topbar__lang"
+            aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
+          >
             <Icons.Languages size={16} />
-            ES
+            {lang.toUpperCase()}
           </button>
         }
       />
       <IconButton
-        label={mode === "dark" ? "Modo claro" : "Modo oscuro"}
+        label={mode === "dark" ? t("theme.light") : t("theme.dark")}
         icon={mode === "dark" ? <Icons.Sun size={16} /> : <Icons.Moon size={16} />}
         className="topbar__icon"
         onClick={go.toggleMode}
@@ -82,7 +97,7 @@ export function Topbar() {
         <button
           type="button"
           className="topbar__agent"
-          title={`Chat con ${sec.name} (⌘J)`}
+          title={t("topbar.chatWith", { name: sec.name })}
           onClick={() => homeId && go.inboxThread(homeId)}
           disabled={!homeId}
         >

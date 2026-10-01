@@ -1,6 +1,7 @@
 // Engines (who runs an agent's turns) and per-agent harness. The core may predate engines.*: degrade quietly.
 import type { EngineStatus, HarnessId } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
+import { type MessageKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
 import { data } from "./state.ts";
@@ -17,7 +18,7 @@ export async function loadEngines(refresh = false): Promise<void> {
     data.set({ engines: r.engines, enginesLoad: "ready" });
   } catch (e) {
     data.set({ enginesLoad: missing(e) ? "unavailable" : data.get().engines.length ? "ready" : "unavailable" });
-    if (refresh && !missing(e)) notify(`No se pudo revisar los motores: ${errText(e)}`);
+    if (refresh && !missing(e)) notify(t("error.checkEngines", { error: errText(e) }));
   }
 }
 
@@ -26,9 +27,7 @@ export async function setDefaultEngine(engine: HarnessId): Promise<void> {
     const r = await client.call("engines.set_default", { engine });
     data.set({ engines: r.engines, enginesLoad: "ready" });
   } catch (e) {
-    notify(
-      missing(e) ? "El core todavía no permite elegir el motor por defecto." : `No se pudo cambiar: ${errText(e)}`,
-    );
+    notify(missing(e) ? t("engines.defaultUnsupported") : t("error.change", { error: errText(e) }));
   }
 }
 
@@ -38,7 +37,7 @@ export async function setAgentHarness(agent: string, harness: HarnessId | null):
     const next = await client.call("agents.update", { agent, harness });
     data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
   } catch (e) {
-    notify(`No se pudo cambiar el motor: ${errText(e)}`);
+    notify(t("error.changeEngine", { error: errText(e) }));
   }
 }
 
@@ -57,11 +56,16 @@ export function engineLabel(id: HarnessId, engines: readonly EngineStatus[]): st
   return engines.find((e) => e.id === id)?.label ?? FALLBACK_LABEL[id];
 }
 
-/** What runs an agent: its own harness, or the install default ("Por defecto · X"). */
+/** What runs an agent: its own harness, or the install default ("Default · X"). */
 export function agentEngineLabel(harness: HarnessId | undefined, engines: readonly EngineStatus[]): string {
   if (harness) return engineLabel(harness, engines);
   const def = engines.find((e) => e.default);
-  return def ? `Por defecto · ${def.label}` : "Por defecto";
+  return def ? t("engine.defaultWith", { engine: def.label }) : t("engine.default");
 }
 
-export const PROFILE_LABEL = { shared: "Compartido", isolated: "Aislado", incognito: "Incógnito" } as const;
+/** Translation keys of the browser profiles. */
+export const PROFILE_KEY = {
+  shared: "profile.shared",
+  isolated: "profile.isolated",
+  incognito: "profile.incognito",
+} as const satisfies Record<string, MessageKey>;

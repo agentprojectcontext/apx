@@ -2,6 +2,7 @@ import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, Skelet
 import { useMemo, useState } from "react";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { groupByProject } from "./groupThreads.ts";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
@@ -9,6 +10,7 @@ import { ThreadRow } from "./ThreadRow.tsx";
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
 export function InboxList() {
+  const t = useT();
   const projectId = useNav((s) => (s.view === "project" ? s.projectId : undefined));
   const threadId = useNav((s) => s.threadId);
   const threads = useData((s) => s.threads);
@@ -25,7 +27,9 @@ export function InboxList() {
     () => groupByProject(threads, projects, { projectId, query }),
     [threads, projects, projectId, query],
   );
-  const title = projectId ? `Chats de ${findProject(projects, projectId)?.name ?? "proyecto"}` : "Inbox";
+  const title = projectId
+    ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
+    : t("nav.inbox");
 
   const newChat = async () => {
     const first = chatAgents[0];
@@ -42,36 +46,36 @@ export function InboxList() {
           <h1 className="inbox__title">{title}</h1>
           <NewChatMenu
             projectId={projectId}
-            trigger={<IconButton label="Nuevo chat" icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
+            trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}
           />
         </div>
         <SearchField
           size="sm"
-          placeholder="Buscar chats"
+          placeholder={t("inbox.search")}
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
         />
       </div>
       <div className="inbox__list">
         {!ready && offline ? (
-          <EmptyState icon={<Icons.WifiOff />} title="Sin conexión">
-            Los chats aparecen cuando vuelva el core.
+          <EmptyState icon={<Icons.WifiOff />} title={t("inbox.offline.title")}>
+            {t("inbox.offline.body")}
           </EmptyState>
         ) : !ready ? (
           <InboxSkeleton />
         ) : groups.length === 0 ? (
           <EmptyState
             icon={<Icons.Inbox />}
-            title={query ? "Sin resultados" : "No hay chats todavía"}
+            title={query ? t("inbox.noResults") : t("inbox.empty")}
             action={
               !query && (
                 <Button size="sm" onClick={newChat} loading={creating}>
-                  Nuevo chat
+                  {t("chat.new")}
                 </Button>
               )
             }
           >
-            {query ? `Nada coincide con “${query}”.` : "Escribile a un agente para empezar."}
+            {query ? t("inbox.noMatch", { query }) : t("inbox.emptyBody")}
           </EmptyState>
         ) : (
           groups.map((g) => {
@@ -91,7 +95,9 @@ export function InboxList() {
                   />
                   <span className="inbox__groupname">{g.name}</span>
                   <span className="inbox__groupcount">{g.threads.length}</span>
-                  {g.running > 0 && <span className="inbox__grouprun">· {g.running} en curso</span>}
+                  {g.running > 0 && (
+                    <span className="inbox__grouprun">{t("inbox.groupRunning", { n: g.running })}</span>
+                  )}
                   <span className="inbox__groupspacer" />
                   {isCollapsed ? <Icons.ChevronRight size={14} /> : <Icons.ChevronDown size={14} />}
                 </button>

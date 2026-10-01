@@ -2,6 +2,7 @@ import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadSurfaceDoc, surfacePrompt } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { buildSrcdoc, themeCss } from "./srcdoc.ts";
 
@@ -20,6 +21,7 @@ export type SurfaceFrameProps = {
  * --apx-* tokens. The widget talks back through postMessage: its height and window.apx.sendPrompt().
  */
 export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.surfaceMaxH }: SurfaceFrameProps) {
+  const t = useT();
   const summary = useData((s) => s.surfaces[surfaceId]);
   const doc = useData((s) => s.surfaceDocs[surfaceId]);
   const { mode } = useApx();
@@ -72,7 +74,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
       {srcdoc ? (
         <iframe
           ref={frame}
-          title={summary?.title ?? "Widget"}
+          title={summary?.title ?? t("panel.widget")}
           sandbox="allow-scripts"
           srcDoc={srcdoc}
           className="surfaceframe__iframe"
@@ -81,7 +83,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
       ) : summary || doc ? (
         <Skeleton shape="block" height={fit === "fill" ? "100%" : 120} />
       ) : (
-        <EmptyState icon={<Icons.LayoutGrid />} title="Widget no disponible" />
+        <EmptyState icon={<Icons.LayoutGrid />} title={t("widget.unavailable")} />
       )}
     </div>
   );

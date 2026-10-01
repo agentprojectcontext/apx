@@ -16,6 +16,8 @@ export interface AvatarProps {
   shape?: "circle" | "square";
   /** Presence dot on the bottom-right. */
   status?: "online" | "busy" | "away" | "offline";
+  /** Spoken name of `status` (translations); defaults to the status id. */
+  statusLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -28,7 +30,17 @@ function initials(name: string) {
 }
 
 /** Person/project avatar: photo → emoji → initials on a name-derived tint. For agents use AgentAvatar. */
-export function Avatar({ name, src, emoji, size = 32, shape = "circle", status, className, style }: AvatarProps) {
+export function Avatar({
+  name,
+  src,
+  emoji,
+  size = 32,
+  shape = "circle",
+  status,
+  statusLabel,
+  className,
+  style,
+}: AvatarProps) {
   const hue = HUES[hashSeed(name) % HUES.length];
   let content: ReactNode;
   if (src) content = <img src={src} alt="" className="apx-avatar__img" />;
@@ -45,7 +57,7 @@ export function Avatar({ name, src, emoji, size = 32, shape = "circle", status, 
         ...style,
       }}
       role="img"
-      aria-label={status ? `${name} (${status})` : name}
+      aria-label={status ? `${name} (${statusLabel ?? status})` : name}
     >
       {content}
       {status && <span className={cx("apx-avatar__status", `is-${status}`)} />}

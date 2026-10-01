@@ -3,22 +3,24 @@ import { Badge, Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui
 import { type ReactNode, useEffect, useState } from "react";
 import { loadEngines, setDefaultEngine } from "../data/engines.ts";
 import { useData } from "../data/state.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
-const LOOK: Record<EngineStatus["id"], { icon: ReactNode; tone: "brand" | "ink"; kind: string }> = {
-  native: { icon: <Icons.Sparkles />, tone: "brand", kind: "Motor propio de APX" },
-  claude: { icon: <Icons.Code />, tone: "ink", kind: "Sesión externa · CLI" },
-  codex: { icon: <Icons.Terminal />, tone: "ink", kind: "Sesión externa · CLI" },
+const LOOK: Record<EngineStatus["id"], { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey }> = {
+  native: { icon: <Icons.Sparkles />, tone: "brand", kind: "engine.kind.native" },
+  claude: { icon: <Icons.Code />, tone: "ink", kind: "engine.kind.cli" },
+  codex: { icon: <Icons.Terminal />, tone: "ink", kind: "engine.kind.cli" },
 };
 
-const LOGIN_HINT: Record<EngineStatus["id"], string> = {
-  native: "Configurá una clave de modelo en el core.",
-  claude: "Abrí Claude Code en una terminal e iniciá sesión con tu cuenta.",
-  codex: "Corré codex login en una terminal.",
+const LOGIN_HINT: Record<EngineStatus["id"], MessageKey> = {
+  native: "engine.login.native",
+  claude: "engine.login.claude",
+  codex: "engine.login.codex",
 };
 
-/** Motores y modelos: installed → logged in → default, from engines.status. */
+/** Engines and models: installed → logged in → default, from engines.status. */
 export function EnginesSection() {
+  const t = useT();
   const engines = useData((s) => s.engines);
   const load = useData((s) => s.enginesLoad);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,8 +36,8 @@ export function EnginesSection() {
   return (
     <>
       <SectionHead
-        title="Motores y modelos"
-        lead="Un motor corre los turnos de un agente: el propio de APX o una CLI externa con tu suscripción. Los agentes usan el motor por defecto salvo que elijas otro en Agentes."
+        title={t("config.engines")}
+        lead={t("engines.lead")}
         actions={
           <Button
             size="sm"
@@ -44,7 +46,7 @@ export function EnginesSection() {
             loading={refreshing}
             onClick={refresh}
           >
-            Revisar de nuevo
+            {t("engines.recheck")}
           </Button>
         }
       />
@@ -52,14 +54,14 @@ export function EnginesSection() {
         <EmptyState
           variant="dashed"
           icon={<Icons.Server />}
-          title="El core todavía no informa los motores"
+          title={t("engines.unavailable.title")}
           action={
             <Button size="sm" variant="secondary" onClick={refresh} loading={refreshing}>
-              Reintentar
+              {t("common.retry")}
             </Button>
           }
         >
-          Actualizá y reiniciá el core para ver qué está instalado y con sesión.
+          {t("engines.unavailable.body")}
         </EmptyState>
       ) : load !== "ready" && !engines.length ? (
         <div className="engines">
@@ -79,14 +81,12 @@ export function EnginesSection() {
 }
 
 function EngineCard({ engine: e }: { engine: EngineStatus }) {
+  const t = useT();
   const look = LOOK[e.id];
   const usable = e.installed && e.logged_in;
   const [busy, setBusy] = useState(false);
-  const hint = !e.installed
-    ? "No está instalado en esta computadora. Instalalo y tocá Revisar de nuevo."
-    : !e.logged_in
-      ? LOGIN_HINT[e.id]
-      : undefined;
+  const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(LOGIN_HINT[e.id]) : undefined;
+  const kind = t(look.kind);
   return (
     <div className={e.default ? "engine is-default" : "engine"}>
       <div className="engine__top">
@@ -96,11 +96,11 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
             {e.label}
             {e.version && <span className="engine__version">v{e.version.replace(/^v/, "")}</span>}
           </div>
-          <div className="engine__kind">{e.detail ? `${look.kind} · ${e.detail}` : look.kind}</div>
+          <div className="engine__kind">{e.detail ? `${kind} · ${e.detail}` : kind}</div>
         </div>
         {e.default ? (
           <Badge tone="brand" dot>
-            Por defecto
+            {t("engine.default")}
           </Badge>
         ) : (
           <Button
@@ -114,14 +114,14 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
               setBusy(false);
             }}
           >
-            Usar por defecto
+            {t("engines.useDefault")}
           </Button>
         )}
       </div>
-      <ol className="engine__steps" aria-label="Estado">
-        <Step done={e.installed} label="Instalado" />
-        <Step done={e.logged_in} label="Sesión iniciada" />
-        <Step done={e.default} label="Por defecto" />
+      <ol className="engine__steps" aria-label={t("engines.status")}>
+        <Step done={e.installed} label={t("engines.installed")} />
+        <Step done={e.logged_in} label={t("engine.loggedIn")} />
+        <Step done={e.default} label={t("engine.default")} />
       </ol>
       {hint && <p className="engine__hint">{hint}</p>}
     </div>

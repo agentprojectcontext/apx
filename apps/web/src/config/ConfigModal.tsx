@@ -1,5 +1,6 @@
 import { Dialog, Icons, NavItem, SearchField } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useState } from "react";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { AgentsSection } from "./AgentsSection.tsx";
@@ -7,36 +8,36 @@ import { BrowserSection } from "./BrowserSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
 
-type NavEntry = { id: ConfigSection; label: string; icon: ReactNode; soon?: boolean };
+type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
-const GROUPS: { label: string; items: NavEntry[] }[] = [
+const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
   {
-    label: "Configuración",
+    label: "config.group.general",
     items: [
-      { id: "account", label: "Cuenta", icon: <Icons.User /> },
-      { id: "appearance", label: "Apariencia", icon: <Icons.Sun /> },
+      { id: "account", label: "config.account", icon: <Icons.User /> },
+      { id: "appearance", label: "config.appearance", icon: <Icons.Sun /> },
     ],
   },
   {
-    label: "Agentes",
+    label: "config.group.agents",
     items: [
-      { id: "engines", label: "Motores y modelos", icon: <Icons.Sparkles /> },
-      { id: "agents", label: "Agentes", icon: <Icons.Bot /> },
+      { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
+      { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
     ],
   },
   {
-    label: "Canales",
+    label: "config.group.channels",
     items: [
-      { id: "whatsapp", label: "WhatsApp", icon: <Icons.MessageCircle />, soon: true },
-      { id: "telegram", label: "Telegram", icon: <Icons.Send />, soon: true },
-      { id: "discord", label: "Discord", icon: <Icons.Users />, soon: true },
+      { id: "whatsapp", label: "channel.whatsapp.name", icon: <Icons.MessageCircle />, soon: true },
+      { id: "telegram", label: "channel.telegram.name", icon: <Icons.Send />, soon: true },
+      { id: "discord", label: "channel.discord.name", icon: <Icons.Users />, soon: true },
     ],
   },
   {
-    label: "Esta computadora",
+    label: "config.group.computer",
     items: [
-      { id: "browser", label: "Navegador", icon: <Icons.Globe /> },
-      { id: "advanced", label: "Daemon y avanzado", icon: <Icons.Wrench /> },
+      { id: "browser", label: "config.browser", icon: <Icons.Globe /> },
+      { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
     ],
   },
 ];
@@ -50,26 +51,35 @@ const SIZE = {
 
 /** Config: a large modal with a grouped left nav (SPEC §2.12 Config). Open with go.config(section). */
 export function ConfigModal() {
+  const t = useT();
   const section = useNav((s) => s.config);
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
   const groups = GROUPS.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !query || `${g.label} ${i.label}`.toLowerCase().includes(query)),
+    label: t(g.label),
+    items: g.items
+      .map((i) => ({ ...i, text: t(i.label) }))
+      .filter((i) => !query || `${t(g.label)} ${i.text}`.toLowerCase().includes(query)),
   })).filter((g) => g.items.length);
 
   return (
     <Dialog
       bare
       size="xl"
-      title="Configuración"
+      title={t("config.title")}
+      closeLabel={t("common.close")}
       open={section != null}
       onOpenChange={(o) => !o && go.config(null)}
       className="config"
       style={SIZE}
     >
-      <nav className="config__nav" aria-label="Secciones de configuración">
-        <SearchField size="sm" placeholder="Buscar" value={q} onChange={(e) => setQ(e.currentTarget.value)} />
+      <nav className="config__nav" aria-label={t("config.sections")}>
+        <SearchField
+          size="sm"
+          placeholder={t("common.search")}
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+        />
         {groups.map((g) => (
           <div key={g.label} className="config__group">
             <div className="config__grouplabel">{g.label}</div>
@@ -78,8 +88,8 @@ export function ConfigModal() {
                 key={i.id}
                 className="config__navitem"
                 icon={i.icon}
-                label={i.label}
-                trailing={i.soon ? <span className="sidebar__soon">pronto</span> : undefined}
+                label={i.text}
+                trailing={i.soon ? <span className="sidebar__soon">{t("common.soonLower")}</span> : undefined}
                 active={section === i.id}
                 onClick={() => go.config(i.id)}
               />

@@ -1,23 +1,31 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { initialsOf, usePrefs } from "../data/prefs.ts";
+import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 
 /** Sidebar footer: who is using the panel, with quick theme / language / phone / config actions. */
 export function AccountRow({ rail }: { rail: boolean }) {
-  const name = usePrefs((s) => s.displayName);
+  const t = useT();
+  const name = usePrefs((s) => s.displayName) || t("account.you");
+  const lang = usePrefs((s) => s.language);
   const mode = useNav((s) => s.mode);
   const items: MenuEntry[] = [
     { type: "label", label: name },
-    { label: "Perfil y cuenta", icon: <Icons.User />, onSelect: () => go.config("account") },
+    { label: t("account.profile"), icon: <Icons.User />, onSelect: () => go.config("account") },
     {
-      label: mode === "dark" ? "Modo claro" : "Modo oscuro",
+      label: mode === "dark" ? t("theme.light") : t("theme.dark"),
       icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
       onSelect: go.toggleMode,
     },
-    { label: "Idioma", icon: <Icons.Languages />, shortcut: "ES", onSelect: () => go.config("appearance") },
-    { label: "Abrir en el teléfono", icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
+    {
+      label: t("language.label"),
+      icon: <Icons.Languages />,
+      shortcut: lang.toUpperCase(),
+      onSelect: () => go.config("appearance"),
+    },
+    { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
     { type: "separator" },
-    { label: "Configuración", icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },
+    { label: t("config.title"), icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },
   ];
   return (
     <div className={rail ? "account is-rail" : "account"}>
@@ -26,7 +34,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
         align="start"
         items={items}
         trigger={
-          <button type="button" className="account__btn" aria-label={`Cuenta de ${name}`}>
+          <button type="button" className="account__btn" aria-label={t("account.menuOf", { name })}>
             <span className="account__avatar" aria-hidden="true">
               {initialsOf(name)}
             </span>

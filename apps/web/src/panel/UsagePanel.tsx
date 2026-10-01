@@ -1,19 +1,20 @@
 import type { Message, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
-import { shortWhen } from "../common/format.ts";
+import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
 import { useData } from "../data/state.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 
 const EMPTY: Message[] = [];
 const STATE_TONE = { completed: "brand", failed: "danger", canceled: "neutral" } as const;
-const STATE_LABEL: Record<Run["state"], string> = {
-  submitted: "En cola",
-  working: "Trabajando",
-  "input-required": "Te espera",
-  completed: "Lista",
-  failed: "Falló",
-  canceled: "Cancelada",
+const STATE_LABEL: Record<Run["state"], MessageKey> = {
+  submitted: "usage.state.submitted",
+  working: "usage.state.working",
+  "input-required": "usage.state.waiting",
+  completed: "usage.state.completed",
+  failed: "usage.state.failed",
+  canceled: "usage.state.canceled",
 };
 
 function secs(run: Run): number | undefined {
@@ -21,8 +22,9 @@ function secs(run: Run): number | undefined {
   return (Date.parse(run.ended_at) - Date.parse(run.started_at)) / 1000;
 }
 
-/** "Consumo": time and tokens of this chat's runs (tokens when the provider reports them). */
+/** "Usage": time and tokens of this chat's runs (tokens when the provider reports them). */
 export function UsagePanel() {
+  const t = useT();
   const threadId = useNav((s) => s.threadId);
   const runsById = useData((s) => s.runs);
   const messages = useData((s) => (threadId ? (s.messages[threadId] ?? EMPTY) : EMPTY));
@@ -36,8 +38,8 @@ export function UsagePanel() {
   if (!threadId || !runs.length) {
     return (
       <div className="sidepanel__body">
-        <EmptyState icon={<Icons.Zap />} title="Sin consumo todavía">
-          Cuando el agente responda, ves acá sus corridas y tiempos.
+        <EmptyState icon={<Icons.Zap />} title={t("usage.empty")}>
+          {t("usage.emptyBody")}
         </EmptyState>
       </div>
     );
@@ -50,18 +52,17 @@ export function UsagePanel() {
       output: 0,
     },
   );
-  const fmt = (n: number) => n.toLocaleString("es-AR");
   const failed = runs.filter((r) => r.state === "failed").length;
   const model = [...messages].reverse().find((m) => m.model)?.model ?? "—";
   const rows: [string, string][] = [
-    ["Modelo", model],
-    ["Corridas", `${runs.length}${failed ? ` · ${failed} fallaron` : ""}`],
-    ["Tiempo de agente", `${total.toFixed(1)} s`],
+    [t("usage.model"), model],
+    [t("usage.runs"), `${formatNumber(runs.length)}${failed ? t("usage.runsFailed", { n: failed }) : ""}`],
+    [t("usage.agentTime"), formatSeconds(total)],
     [
-      "Tokens",
+      t("usage.tokens"),
       tokens.input + tokens.output
-        ? `${fmt(tokens.input)} entrada · ${fmt(tokens.output)} salida`
-        : "sin datos del proveedor",
+        ? t("usage.tokensValue", { input: formatNumber(tokens.input), output: formatNumber(tokens.output) })
+        : t("usage.noTokens"),
     ],
   ];
   return (
@@ -74,17 +75,17 @@ export function UsagePanel() {
           </div>
         ))}
       </dl>
-      <div className="usage__label">Últimas corridas</div>
+      <div className="usage__label">{t("usage.recent")}</div>
       <ul className="usage__runs">
         {runs.slice(0, 12).map((r) => {
           const s = secs(r);
           return (
             <li key={r.id} className="usage__run">
               <Badge tone={r.state in STATE_TONE ? STATE_TONE[r.state as keyof typeof STATE_TONE] : "info"}>
-                {STATE_LABEL[r.state]}
+                {t(STATE_LABEL[r.state])}
               </Badge>
               <span className="usage__when">{shortWhen(r.started_at)}</span>
-              <span className="usage__dur">{s != null ? `${s.toFixed(1)} s` : "…"}</span>
+              <span className="usage__dur">{s != null ? formatSeconds(s) : "…"}</span>
             </li>
           );
         })}

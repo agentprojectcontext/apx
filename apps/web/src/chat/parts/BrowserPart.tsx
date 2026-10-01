@@ -4,28 +4,31 @@ import { hostPath } from "../../common/format.ts";
 import { useInView } from "../../common/useInView.ts";
 import { useScreenshot } from "../../common/useScreenshot.ts";
 import { useData } from "../../data/state.ts";
+import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 
 const REFRESH_MS = 2000;
 
-/** "En vivo" card for a tab an agent is driving; refreshes its screenshot only while on screen. */
+/** "Live" card for a tab an agent is driving; refreshes its screenshot only while on screen. */
 export function BrowserPart({ part, agent }: { part: Extract<Part, { type: "browser" }>; agent?: Agent }) {
+  const t = useT();
   const tab = useData((s) => s.tabs.find((t) => t.tab === part.tab));
   const [ref, inView] = useInView<HTMLDivElement>();
   const live = part.state !== "done" && tab != null;
   const shot = useScreenshot(part.tab, REFRESH_MS, inView && live);
   const url = tab?.url ?? part.url;
-  const who = agent?.name ?? "El agente";
+  const name = agent?.name ?? t("chat.theAgent");
+  const host = hostPath(url);
   const status =
     part.state === "handoff"
-      ? (part.reason ?? `${who} necesita que sigas vos`)
+      ? (part.reason ?? t("browser.handoff", { name }))
       : part.state === "user"
-        ? "Tenés el control"
+        ? t("browser.youControl")
         : part.state === "agent"
-          ? `${who} está navegando · ${hostPath(url)}`
+          ? t("browser.agentBrowsing", { name, host })
           : tab
-            ? `Terminó · ${hostPath(url)}`
-            : "La pestaña se cerró";
+            ? t("browser.finished", { host })
+            : t("browser.tabClosed");
   const open = () => go.browser(part.tab);
   return (
     <div ref={ref}>
@@ -36,7 +39,8 @@ export function BrowserPart({ part, agent }: { part: Extract<Part, { type: "brow
         status={status}
         statusTone={part.state === "handoff" ? "warning" : "neutral"}
         thumbnail={shot.src}
-        actionLabel={tab ? "Abrir en vivo" : undefined}
+        liveLabel={t("browser.live")}
+        actionLabel={tab ? t("browser.openLive") : undefined}
         onOpen={tab ? open : undefined}
         onAction={open}
       />

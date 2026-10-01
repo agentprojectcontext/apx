@@ -225,7 +225,7 @@
   border-right: 1px solid var(--apx-border);
   overflow: hidden;
 }
-/* Long project lists scroll; Recursos, Config and the account row stay pinned at the bottom. */
+/* Long project lists scroll; Resources, Settings and the account row stay pinned at the bottom. */
 .sidebar__scroll {
   flex: 1;
   min-height: 0;

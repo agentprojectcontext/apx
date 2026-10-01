@@ -3,6 +3,7 @@ import { Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useMemo } from "react";
 import { inProject, isWorking, projectEntries, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { go, useNav } from "./nav.ts";
 
@@ -16,8 +17,9 @@ const RUNTIMES = [
   { id: "codex", name: "Codex", icon: <Icons.Terminal /> },
 ] as const;
 
-/** Inbox · Tareas · Canales · Proyectos · Sesiones externas · Apps · Recursos · Config · account. `rail` = 60px icons. */
+/** Inbox · Tasks · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
 export function Sidebar({ rail }: { rail: boolean }) {
+  const t = useT();
   const view = useNav((s) => s.view);
   const projectId = useNav((s) => s.projectId);
   const appId = useNav((s) => s.appId);
@@ -40,12 +42,12 @@ export function Sidebar({ rail }: { rail: boolean }) {
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
 
   return (
-    <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label="Navegación">
+    <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
       <div className="sidebar__scroll">
         <NavItem
           collapsed={rail}
           icon={<Icons.Inbox />}
-          label="Inbox"
+          label={t("nav.inbox")}
           count={stats.unread}
           active={view === "inbox"}
           onClick={() => go.inbox()}
@@ -53,12 +55,12 @@ export function Sidebar({ rail }: { rail: boolean }) {
         <NavItem
           collapsed={rail}
           icon={<Icons.ListChecks />}
-          label="Tareas"
+          label={t("nav.tasks")}
           active={view === "tasks"}
           onClick={() => go.view("tasks")}
         />
 
-        <Section rail={rail} title="Canales" />
+        <Section rail={rail} title={t("nav.channels")} />
         {CHANNELS.map((c) => (
           <NavItem
             key={c.id}
@@ -66,15 +68,21 @@ export function Sidebar({ rail }: { rail: boolean }) {
             disabled
             icon={<ProjectTile tone={c.tone} icon={c.icon} />}
             label={c.name}
-            trailing={<span className="sidebar__soon">pronto</span>}
+            trailing={<span className="sidebar__soon">{t("common.soonLower")}</span>}
           />
         ))}
 
         <Section
           rail={rail}
-          title="Proyectos"
+          title={t("nav.projects")}
           action={
-            <button type="button" className="sidebar__add" aria-label="Nuevo proyecto (pronto)" title="Pronto" disabled>
+            <button
+              type="button"
+              className="sidebar__add"
+              aria-label={t("nav.newProjectSoon")}
+              title={t("common.soon")}
+              disabled
+            >
               <Icons.Plus size={14} />
             </button>
           }
@@ -87,8 +95,8 @@ export function Sidebar({ rail }: { rail: boolean }) {
             label={p.name}
             trailing={
               <>
-                {p.isDefault && <Icons.Lock size={12} aria-label="Proyecto base" />}
-                {stats.running.has(p.id) && <span className="sidebar__running" title="En curso" />}
+                {p.isDefault && <Icons.Lock size={12} aria-label={t("nav.baseProject")} />}
+                {stats.running.has(p.id) && <span className="sidebar__running" title={t("common.running")} />}
               </>
             }
             active={view === "project" && projectId === p.id}
@@ -96,7 +104,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
           />
         ))}
 
-        <Section rail={rail} title="Sesiones externas" />
+        <Section rail={rail} title={t("nav.externalSessions")} />
         {RUNTIMES.map((r) => {
           const e = engines.find((x) => x.id === r.id);
           return (
@@ -114,7 +122,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
 
         {apps.length > 0 && (
           <>
-            <Section rail={rail} title="Apps" />
+            <Section rail={rail} title={t("nav.apps")} />
             {apps.map((a) => (
               <NavItem
                 key={a.id}
@@ -132,14 +140,14 @@ export function Sidebar({ rail }: { rail: boolean }) {
         <NavItem
           collapsed={rail}
           icon={<Icons.Layers />}
-          label="Recursos"
+          label={t("nav.resources")}
           active={view === "resources"}
           onClick={() => go.view("resources")}
         />
         <NavItem
           collapsed={rail}
           icon={<Icons.Settings />}
-          label="Config"
+          label={t("nav.config")}
           active={configOpen}
           onClick={() => go.config()}
         />
@@ -162,9 +170,10 @@ function Section({ rail, title, action }: { rail: boolean; title: string; action
   );
 }
 
-/** Logged in → green dot; installed without a session → hint; missing → "instalar"; unknown → nothing. */
+/** Logged in → green dot; installed without a session → hint; missing → "install"; unknown → nothing. */
 function EngineState({ engine }: { engine: EngineStatus | undefined }) {
+  const t = useT();
   if (!engine) return null;
-  if (engine.installed && engine.logged_in) return <span className="sidebar__running" title="Sesión iniciada" />;
-  return <span className="sidebar__soon">{engine.installed ? "sin sesión" : "instalar"}</span>;
+  if (engine.installed && engine.logged_in) return <span className="sidebar__running" title={t("engine.loggedIn")} />;
+  return <span className="sidebar__soon">{engine.installed ? t("engine.noSession") : t("engine.install")}</span>;
 }

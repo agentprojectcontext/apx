@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cx } from "../cx";
 
 export interface EmptyStateProps {
-  /** Short heading ("No hay chats todavía"). */
+  /** Short heading ("No chats yet"). */
   title?: ReactNode;
   /** Explanation under the title. */
   children?: ReactNode;

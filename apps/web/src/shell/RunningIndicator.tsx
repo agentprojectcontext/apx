@@ -3,10 +3,12 @@ import { useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
 
 /** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat. */
 export function RunningIndicator() {
+  const t = useT();
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
@@ -40,12 +42,12 @@ export function RunningIndicator() {
       width={360}
       open={open}
       onOpenChange={setOpen}
-      label="Procesos"
+      label={t("running.label")}
       trigger={
         <button
           type="button"
           className={active.length ? "running is-active" : "running"}
-          aria-label={`${working} en curso, ${waiting} esperando, ${background} en segundo plano`}
+          aria-label={t("running.aria", { working, waiting, background })}
         >
           {working > 0 && <Spinner size={12} />}
           <span className="running__count">
@@ -70,39 +72,39 @@ export function RunningIndicator() {
       <SegmentedControl
         size="sm"
         className="running__tabs"
-        label="Procesos"
+        label={t("running.label")}
         value={tab}
         onValueChange={setTab}
         options={[
-          { value: "agents", label: <TabLabel text="Agentes" n={active.length} /> },
-          { value: "bg", label: <TabLabel text="Segundo plano" n={background} /> },
+          { value: "agents", label: <TabLabel text={t("running.tab.agents")} n={active.length} /> },
+          { value: "bg", label: <TabLabel text={t("running.tab.background")} n={background} /> },
         ]}
       />
       {tab === "agents" ? (
         active.length ? (
           <div className="running__list">
-            {active.map((t) => {
-              const agent = threadAgent(t, agents);
-              const since = startedAt.get(t.id);
+            {active.map((th) => {
+              const agent = threadAgent(th, agents);
+              const since = startedAt.get(th.id);
               return (
                 <button
-                  key={t.id}
+                  key={th.id}
                   type="button"
                   className="running__row"
                   onClick={() => {
                     setOpen(false);
-                    go.inboxThread(t.id);
+                    go.inboxThread(th.id);
                   }}
                 >
-                  <AgentAvatar name={agent?.name ?? t.title} blob={blobOf(agent)} size={28} animated={false} />
+                  <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
                   <span className="running__item">
-                    <span className="running__title">{t.title}</span>
+                    <span className="running__title">{th.title}</span>
                     <span className="running__sub">
-                      {projectName(projects, t.project_id)} · {agent?.name ?? "Agente"}
+                      {projectName(projects, th.project_id)} · {agent?.name ?? t("common.agent")}
                     </span>
                   </span>
-                  {t.state === "input-required" ? (
-                    <span className="running__waiting">te espera</span>
+                  {th.state === "input-required" ? (
+                    <span className="running__waiting">{t("running.waitingForYou")}</span>
                   ) : (
                     since && <span className="running__elapsed">{elapsed(since)}</span>
                   )}
@@ -111,10 +113,10 @@ export function RunningIndicator() {
             })}
           </div>
         ) : (
-          <p className="running__empty">Nada corriendo ahora.</p>
+          <p className="running__empty">{t("running.empty")}</p>
         )
       ) : (
-        <p className="running__empty">Rutinas, indexado y reintentos van a aparecer acá. Pronto.</p>
+        <p className="running__empty">{t("running.backgroundEmpty")}</p>
       )}
     </Popover>
   );

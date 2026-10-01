@@ -2,6 +2,7 @@ import { EmptyState, Icons, Skeleton } from "@apx/ui";
 import { useEffect, useRef } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { useScreenshot } from "../common/useScreenshot.ts";
+import { useT } from "../i18n/index.ts";
 
 const POLL_MS = 1500;
 
@@ -46,15 +47,16 @@ function DesktopSlot({ desktop }: { desktop: NonNullable<Window["apxDesktop"]> }
 }
 
 function ScreenshotView({ tab }: { tab: string }) {
+  const t = useT();
   const visible = usePageVisible();
   const { src, error } = useScreenshot(tab, POLL_MS, visible);
   return (
     <div className="browser__page">
       {src ? (
-        <img className="browser__shot" src={src} alt="Vista en vivo de la pestaña" draggable={false} />
+        <img className="browser__shot" src={src} alt={t("browser.liveView")} draggable={false} />
       ) : error ? (
-        <EmptyState icon={<Icons.TriangleAlert />} title="Sin imagen">
-          No pudimos capturar la pestaña. ¿Está abierta la app de escritorio?
+        <EmptyState icon={<Icons.TriangleAlert />} title={t("browser.noImage")}>
+          {t("browser.noImageBody")}
         </EmptyState>
       ) : (
         <Skeleton shape="block" height="100%" />

@@ -5,6 +5,7 @@ import { hostPath } from "../common/format.ts";
 import { browserControl, browserHistory, browserNavigate, browserOpen } from "../data/actions.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
+import { t as tr, useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
 
 /** "example.com" → "https://example.com"; anything that is not http(s) is refused. */
@@ -22,6 +23,7 @@ function normalizeUrl(raw: string): string | undefined {
 
 /** Back · reload · address pill · who drives the tab. `tab` undefined = typing the URL of a new tab. */
 export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; onOpened: () => void }) {
+  const t = useT();
   const [editing, setEditing] = useState<string>();
   const [busy, setBusy] = useState(false);
   const isNew = tab == null;
@@ -29,7 +31,7 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
 
   const submit = async () => {
     const url = normalizeUrl(draft ?? "");
-    if (!url) return notify("Escribí una dirección http o https.");
+    if (!url) return notify(tr("browser.badUrl"));
     setEditing(undefined);
     if (tab) return void browserNavigate(tab.tab, url);
     const id = await browserOpen(url);
@@ -48,14 +50,14 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
     <div className="btoolbar">
       <IconButton
         size="sm"
-        label="Atrás"
+        label={t("browser.back")}
         icon={<Icons.ArrowLeft size={15} />}
         disabled={!tab}
         onClick={() => tab && void browserHistory(tab.tab, "back")}
       />
       <IconButton
         size="sm"
-        label="Recargar"
+        label={t("browser.reload")}
         icon={<Icons.RotateCcw size={14} />}
         disabled={!tab}
         onClick={() => tab && void browserHistory(tab.tab, "reload")}
@@ -65,8 +67,8 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
           className="btoolbar__input"
           // biome-ignore lint/a11y/noAutofocus: the field opens on an explicit click
           autoFocus
-          aria-label="Dirección"
-          placeholder="Escribí una URL"
+          aria-label={t("browser.address")}
+          placeholder={t("browser.typeUrl")}
           value={draft}
           onChange={(e) => setEditing(e.currentTarget.value)}
           onBlur={() => !isNew && setEditing(undefined)}
@@ -91,21 +93,21 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
           <span className="btoolbar__status is-agent">
             <span className="btoolbar__dot" />
             <span className="btoolbar__statustext">
-              <AgentName id={c.by} /> está usando esta pestaña
+              <AgentUsing id={c.by} />
             </span>
           </span>
           <Button size="sm" className="btoolbar__btn" onClick={control("user")} loading={busy}>
-            Tomar control
+            {t("browser.takeControl")}
           </Button>
         </>
       )}
       {c?.kind === "user" && draft == null && (
         <>
           <span className="btoolbar__status">
-            <span className="btoolbar__statustext">Tenés el control</span>
+            <span className="btoolbar__statustext">{t("browser.youControl")}</span>
           </span>
           <Button size="sm" variant="secondary" className="btoolbar__btn" onClick={control("idle")} loading={busy}>
-            Devolver
+            {t("browser.giveBack")}
           </Button>
         </>
       )}
@@ -113,8 +115,9 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
   );
 }
 
-/** The agent handed the tab to the human (login, 2FA, captcha): say why, and "Listo" when done. */
+/** The agent handed the tab to the human (login, 2FA, captcha): say why, and "Done" when finished. */
 export function HandoffBar({ tab }: { tab: TabInfo }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   if (tab.control.kind !== "handoff") return null;
   const { by, reason } = tab.control;
@@ -122,7 +125,8 @@ export function HandoffBar({ tab }: { tab: TabInfo }) {
     <div className="handoff" role="status">
       <Icons.Hand size={14} />
       <span className="handoff__text">
-        <b>{by}</b> te pasó la pestaña{reason ? `: ${reason}` : "."}
+        <b>{by}</b> {t("browser.handedYou")}
+        {reason ? `: ${reason}` : "."}
       </span>
       <Button
         size="sm"
@@ -134,14 +138,15 @@ export function HandoffBar({ tab }: { tab: TabInfo }) {
           setBusy(false);
         }}
       >
-        Listo
+        {t("common.done")}
       </Button>
     </div>
   );
 }
 
 /** Tabs record who drives them by agent id; people read the name. */
-function AgentName({ id }: { id: string }) {
+function AgentUsing({ id }: { id: string }) {
+  const t = useT();
   const name = useData((s) => s.agents[id]?.name);
-  return <>{name ?? id}</>;
+  return <>{t("browser.agentUsing", { name: name ?? id })}</>;
 }

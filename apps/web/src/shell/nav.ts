@@ -1,21 +1,22 @@
 // UI navigation state (what is open), separate from data. Plain store so any component can navigate.
 import type { ApxMode } from "@apx/ui";
 import { createStore, useSlice } from "../data/createStore.ts";
+import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage";
 
 export type View = "inbox" | "project" | "app" | "tasks" | "resources";
 
 export const PROJECT_TABS = [
-  { id: "overview", label: "Resumen" },
-  { id: "chats", label: "Chats" },
-  { id: "team", label: "Equipo" },
-  { id: "tasks", label: "Tareas" },
-  { id: "routines", label: "Rutinas" },
-  { id: "files", label: "Archivos" },
-  { id: "memory", label: "Memoria" },
-  { id: "resources", label: "Recursos" },
-] as const;
+  { id: "overview", label: "project.tab.overview" },
+  { id: "chats", label: "project.tab.chats" },
+  { id: "team", label: "project.tab.team" },
+  { id: "tasks", label: "project.tab.tasks" },
+  { id: "routines", label: "project.tab.routines" },
+  { id: "files", label: "project.tab.files" },
+  { id: "memory", label: "project.tab.memory" },
+  { id: "resources", label: "project.tab.resources" },
+] as const satisfies readonly { id: string; label: MessageKey }[];
 export type ProjectTab = (typeof PROJECT_TABS)[number]["id"];
 
 export const CONFIG_SECTIONS = [
@@ -45,7 +46,7 @@ export type NavState = {
   tools: boolean;
   /** Config modal section, or null when closed. */
   config: ConfigSection | null;
-  /** "Abrir en el teléfono" dialog. */
+  /** "Open on your phone" dialog. */
   phone: boolean;
 };
 

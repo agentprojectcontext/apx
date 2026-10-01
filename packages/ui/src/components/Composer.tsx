@@ -2,8 +2,20 @@ import { ArrowUp, Mic, Plus, Square } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useState } from "react";
 import { cx } from "../cx";
 
+/** Accessible names of the icon buttons; English by default. */
+export interface ComposerLabels {
+  attach: string;
+  stop: string;
+  send: string;
+  voice: string;
+}
+
+const DEFAULT_LABELS: ComposerLabels = { attach: "Attach", stop: "Stop", send: "Send", voice: "Voice" };
+
 export interface ComposerProps {
   placeholder?: string;
+  /** Override any icon button name (translations). */
+  labels?: Partial<ComposerLabels>;
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
@@ -30,6 +42,7 @@ export interface ComposerProps {
  */
 export function Composer({
   placeholder = "Message",
+  labels,
   value,
   defaultValue = "",
   onValueChange,
@@ -43,6 +56,7 @@ export function Composer({
   disabled,
   className,
 }: ComposerProps) {
+  const l = { ...DEFAULT_LABELS, ...labels };
   const [inner, setInner] = useState(defaultValue);
   const text = value ?? inner;
   const set = (v: string) => {
@@ -62,23 +76,23 @@ export function Composer({
   };
   const boxed = toolbar != null;
   const attach = onAttach && (
-    <button type="button" className="apx-composer__btn" aria-label="Attach" onClick={onAttach} disabled={disabled}>
+    <button type="button" className="apx-composer__btn" aria-label={l.attach} onClick={onAttach} disabled={disabled}>
       <Plus size={18} />
     </button>
   );
   const primary = busy ? (
-    <button type="button" className="apx-composer__send" aria-label="Stop" onClick={onStop}>
+    <button type="button" className="apx-composer__send" aria-label={l.stop} onClick={onStop}>
       <Square size={12} fill="currentColor" />
     </button>
   ) : text.trim() ? (
-    <button type="button" className="apx-composer__send" aria-label="Send" onClick={submit} disabled={disabled}>
+    <button type="button" className="apx-composer__send" aria-label={l.send} onClick={submit} disabled={disabled}>
       <ArrowUp size={16} strokeWidth={2.5} />
     </button>
   ) : (
     <button
       type="button"
       className={cx("apx-composer__send", boxed && "is-quiet")}
-      aria-label="Voice"
+      aria-label={l.voice}
       onClick={onVoice}
       disabled={disabled}
     >

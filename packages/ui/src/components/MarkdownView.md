@@ -9,5 +9,5 @@ Renders the Markdown agents write: paragraphs and line breaks, `#` headings, `-`
 - Put it inside a `Message` bubble for agent text, or alone for files and memory. `size="sm"` for compact panels.
 
 ```tsx
-<Message from="agent"><MarkdownView source={"Listo. Revisé **3 PRs**:\n- `acme/app#52`\n- `acme/app#53`"} /></Message>
+<Message from="agent"><MarkdownView source={"Done. I reviewed **3 PRs**:\n- `acme/app#52`\n- `acme/app#53`"} /></Message>
 ```

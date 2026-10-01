@@ -1,13 +1,13 @@
 // Per-device preferences (this browser only): display name and appearance. Nothing here reaches the core.
 import type { ApxLook } from "@apx/ui";
-import { defaultLanguage, type Language } from "../i18n/index.ts";
+import { defaultLanguage, isLanguage, type Language } from "../i18n/messages.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
 export type TranscriptWidth = "narrow" | "medium" | "wide";
 export type UiFont = "system" | "mono";
 
 export type Prefs = {
-  /** How the panel calls you (account row, greetings). */
+  /** How the panel calls you (account row, greetings). Empty = not set: the UI says "You" in its language. */
   displayName: string;
   look: ApxLook;
   font: UiFont;
@@ -17,10 +17,9 @@ export type Prefs = {
 };
 
 const KEY = "apx.prefs";
-export const DEFAULT_NAME = "Vos";
 
 const DEFAULTS: Prefs = {
-  displayName: DEFAULT_NAME,
+  displayName: "",
   look: "minimal",
   font: "system",
   transcriptWidth: "medium",
@@ -31,13 +30,12 @@ function load(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Prefs>;
     return {
-      displayName:
-        typeof raw.displayName === "string" && raw.displayName.trim() ? raw.displayName : DEFAULTS.displayName,
+      displayName: typeof raw.displayName === "string" ? raw.displayName.trim() : DEFAULTS.displayName,
       look: raw.look === "classic" ? "classic" : "minimal",
       font: raw.font === "mono" ? "mono" : "system",
       transcriptWidth:
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
-      language: raw.language === "en" || raw.language === "es" ? raw.language : DEFAULTS.language,
+      language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
     };
   } catch {
     return DEFAULTS;
@@ -59,7 +57,7 @@ export function usePrefs<T>(select: (s: Prefs) => T): T {
   return useSlice(prefs, select);
 }
 
-/** "Alex Lee" → "AL", "Vos" → "VO". */
+/** "Alex Lee" → "AL", "You" → "YO". */
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const first = parts[0] ?? "";

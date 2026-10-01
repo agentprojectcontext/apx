@@ -2,12 +2,14 @@ import { EmptyState, IconButton, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 
 /** Pinned surfaces stacked, newest first. */
 export function WidgetPanel() {
+  const t = useT();
   const surfaces = useData((s) => s.surfaces);
   const pinned = useMemo(
     () =>
@@ -19,8 +21,8 @@ export function WidgetPanel() {
   if (!pinned.length) {
     return (
       <div className="sidepanel__body">
-        <EmptyState icon={<Icons.LayoutGrid />} title="Sin widgets fijados">
-          Fijá un widget desde el chat para tenerlo siempre a mano.
+        <EmptyState icon={<Icons.LayoutGrid />} title={t("widgets.empty")}>
+          {t("widgets.emptyBody")}
         </EmptyState>
       </div>
     );
@@ -35,14 +37,14 @@ export function WidgetPanel() {
             {s.app && (
               <IconButton
                 size="sm"
-                label="Abrir como app"
+                label={t("widget.openApp")}
                 icon={<Icons.AppWindow size={14} />}
                 onClick={() => go.app(s.id)}
               />
             )}
             <IconButton
               size="sm"
-              label="Quitar del panel"
+              label={t("widget.unpin")}
               icon={<Icons.PinOff size={14} />}
               onClick={() => void setSurfaceFlags(s.id, { pinned: false })}
             />

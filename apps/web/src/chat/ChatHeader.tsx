@@ -2,10 +2,12 @@ import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, IconButton, Icons, ProjectTile, Tag } from "@apx/ui";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
 export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Agent | undefined; wide: boolean }) {
+  const t = useT();
   const projects = useData((s) => s.projects);
   const project = projects.find((p) => p.id === thread.project_id);
   const tools = useNav((s) => s.tools);
@@ -16,16 +18,22 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
     <header className="chat__header">
       {sub && thread.parent_id && (
         <IconButton
-          label="Volver al chat"
+          label={t("chat.back")}
           icon={<Icons.ArrowLeft size={16} />}
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <AgentAvatar name={agent?.name ?? name} blob={blobOf(agent)} size={32} status={sub ? undefined : "online"} />
+      <AgentAvatar
+        name={agent?.name ?? name}
+        blob={blobOf(agent)}
+        size={32}
+        status={sub ? undefined : "online"}
+        statusLabel={t("presence.online")}
+      />
       <div className="chat__titles">
         <div className="chat__title">
           <span className="chat__name">{name}</span>
-          {!sub && agent?.kind === "secretary" && <Tag kind="role">Super-agente</Tag>}
+          {!sub && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
           {!sub && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
         </div>
         <div className="chat__crumb">
@@ -37,12 +45,12 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
               <span className="chat__crumbthread">{thread.title}</span>
             </>
           )}
-          {sub && <Tag>Agente ↔ agente</Tag>}
+          {sub && <Tag>{t("thread.a2a")}</Tag>}
         </div>
       </div>
       <div className="chat__tools">
         <IconButton
-          label={tools ? "Ocultar herramientas" : "Mostrar herramientas"}
+          label={tools ? t("chat.hideTools") : t("chat.showTools")}
           icon={<Icons.Wrench size={16} />}
           className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
           onClick={go.toggleTools}

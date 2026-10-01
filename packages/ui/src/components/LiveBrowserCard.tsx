@@ -8,16 +8,16 @@ export interface LiveBrowserCardProps {
   url: string;
   /** Page title; falls back to the URL. */
   title?: ReactNode;
-  /** One status line under the URL ("Roby está navegando", "Esperando tu contraseña y 2FA"). */
+  /** One status line under the URL ("Roby is browsing", "Waiting for your password and 2FA"). */
   status?: ReactNode;
   /** warning = the agent needs you (handoff); neutral = informative. */
   statusTone?: "neutral" | "warning";
   /** Thumbnail image URL (screenshot data URL) or a custom node (screencast). Omit for a placeholder. */
   thumbnail?: string | ReactNode;
-  /** Shows the "En vivo" badge with a red dot. */
+  /** Shows the "Live" badge with a red dot. */
   live?: boolean;
   liveLabel?: ReactNode;
-  /** Primary action label ("Abrir en vivo"). */
+  /** Primary action label ("Open live"). */
   actionLabel?: ReactNode;
   /** Click on the preview area. */
   onOpen?: () => void;
@@ -34,7 +34,7 @@ export function LiveBrowserCard({
   statusTone = "neutral",
   thumbnail,
   live = false,
-  liveLabel = "En vivo",
+  liveLabel = "Live",
   actionLabel,
   onOpen,
   onAction,

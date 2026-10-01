@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useLanguage, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 
@@ -12,6 +13,8 @@ const EMPTY: Msg[] = [];
 const STICK_PX = 120;
 
 export function Transcript({ thread }: { thread: Thread }) {
+  const t = useT();
+  const lang = useLanguage();
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
   const agents = useData((s) => s.agents);
   const showTools = useNav((s) => s.tools);
@@ -21,6 +24,7 @@ export function Transcript({ thread }: { thread: Thread }) {
   const stick = useRef(true);
   const multiAgent = thread.kind === "a2a" || thread.agent_ids.length > 1;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
     const out: { key: string; day?: string; msg: Msg }[] = [];
     let prev: string | undefined;
@@ -29,7 +33,7 @@ export function Transcript({ thread }: { thread: Thread }) {
       prev = m.created_at;
     }
     return out;
-  }, [messages]);
+  }, [messages, lang]);
 
   // Thread switch: jump to the end.
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs per thread id on purpose
@@ -68,8 +72,8 @@ export function Transcript({ thread }: { thread: Thread }) {
     <div className="chat__scroll" ref={scroller} onScroll={onScroll}>
       <div className="transcript" ref={content}>
         {rows.length === 0 && !working && (
-          <EmptyState icon={<Icons.MessageCircle />} title={`Chat con ${agent?.name ?? thread.title}`}>
-            Escribí abajo para empezar.
+          <EmptyState icon={<Icons.MessageCircle />} title={t("chat.with", { name: agent?.name ?? thread.title })}>
+            {t("chat.startHint")}
           </EmptyState>
         )}
         {rows.map(({ key, day, msg }) => (
@@ -83,7 +87,7 @@ export function Transcript({ thread }: { thread: Thread }) {
               <SystemNote>{textOf(msg)}</SystemNote>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
-                Desde el widget <b>{msg.author.title}</b>: {textOf(msg)}
+                {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
               </SystemNote>
             ) : (
               <AgentTurn message={msg} agent={agents[msg.author.id]} showAvatar={multiAgent} showTools={showTools} />
@@ -94,14 +98,14 @@ export function Transcript({ thread }: { thread: Thread }) {
           <div className="transcript__activity">
             <ActivityPill
               tone="brand"
-              label={`${agent?.name ?? "El agente"} está trabajando…`}
+              label={t("chat.agentWorking", { name: agent?.name ?? t("chat.theAgent") })}
               from={agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={22} />}
             />
           </div>
         )}
         {thread.state === "input-required" && (
           <div className="transcript__activity">
-            <ActivityPill tone="danger" label={`${agent?.name ?? "El agente"} te espera`} />
+            <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />
           </div>
         )}
       </div>

@@ -15,6 +15,8 @@ export interface AgentAvatarProps {
   animated?: boolean;
   /** Presence dot. */
   status?: "online" | "busy" | "away" | "offline";
+  /** Spoken name of `status` (translations); defaults to the status id. */
+  statusLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -23,16 +25,28 @@ export interface AgentAvatarProps {
  * The one avatar for agents — APX's silicone blobs with SVG eyes that look around and blink,
  * each agent desynced by a name-derived delay. Unknown blob → initials Avatar.
  */
-export function AgentAvatar({ name, blob, size = 32, animated = true, status, className, style }: AgentAvatarProps) {
+export function AgentAvatar({
+  name,
+  blob,
+  size = 32,
+  animated = true,
+  status,
+  statusLabel,
+  className,
+  style,
+}: AgentAvatarProps) {
   const p = blob ? (BLOBS as Record<string, (typeof BLOBS)[BlobName]>)[blob] : undefined;
-  if (!p) return <Avatar name={name} size={size} status={status} className={className} style={style} />;
+  if (!p)
+    return (
+      <Avatar name={name} size={size} status={status} statusLabel={statusLabel} className={className} style={style} />
+    );
   const delay = `-${(hashSeed(name) % 40) / 10}s`;
   return (
     <span
       className={cx("apx-blob", animated && "apx-blob--anim", className)}
       style={{ width: size, height: size, ["--apx-blob-delay" as string]: delay, ...style }}
       role="img"
-      aria-label={status ? `${name} (${status})` : name}
+      aria-label={status ? `${name} (${statusLabel ?? status})` : name}
     >
       <span className="apx-blob__bob">
         <img className="apx-blob__body" src={p.src} alt="" draggable={false} />

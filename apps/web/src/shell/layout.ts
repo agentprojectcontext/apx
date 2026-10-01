@@ -11,7 +11,7 @@ export const LAYOUT = {
   panelW: 420,
   panelWNarrow: 360,
   chatMinW: 360,
-  /** Transcript + composer max width per Config › Apariencia (estrecho · medio · ancho). */
+  /** Transcript + composer max width per Settings › Appearance (narrow · medium · wide). */
   transcriptW: { narrow: 640, medium: 760, wide: 980 },
   /** Config modal (overlay padding 32). */
   configW: 1080,

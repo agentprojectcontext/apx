@@ -2,6 +2,7 @@ import type { SurfaceSummary } from "@apx/protocol";
 import { Button, IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { shareSurface } from "../data/actions.ts";
 import { notify } from "../data/notices.ts";
+import { t as tr, useT } from "../i18n/index.ts";
 
 function linkOf(s: SurfaceSummary): string | undefined {
   return s.share_path ? `${window.location.origin}${s.share_path}` : undefined;
@@ -10,24 +11,25 @@ function linkOf(s: SurfaceSummary): string | undefined {
 async function copy(url: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(url);
-    notify("Enlace copiado.", "info");
+    notify(tr("share.copied"), "info");
   } catch {
-    notify("No se pudo copiar el enlace.");
+    notify(tr("share.copyFailed"));
   }
 }
 
 /** Private ↔ public link for a surface (surfaces.share), with copy/open of the link. */
 export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSummary; variant?: "button" | "icon" }) {
+  const t = useT();
   const url = linkOf(surface);
   const items: MenuEntry[] = [
-    { type: "label", label: "Privado por defecto. Con enlace, cualquiera lo ve sin editar." },
+    { type: "label", label: t("share.hint") },
     {
-      label: url ? "Privado" : "Privado ✓",
+      label: url ? t("share.private") : `${t("share.private")} ✓`,
       icon: <Icons.Lock size={16} />,
       onSelect: () => url && void shareSurface(surface.id, false),
     },
     {
-      label: url ? "Cualquiera con el enlace ✓" : "Cualquiera con el enlace",
+      label: url ? `${t("share.anyone")} ✓` : t("share.anyone"),
       icon: <Icons.Globe size={16} />,
       onSelect: async () => {
         if (url) return;
@@ -39,27 +41,27 @@ export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSum
       ? ([
           { type: "separator" },
           { type: "label", label: <span className="share__url">{url}</span> },
-          { label: "Copiar enlace", icon: <Icons.Copy size={16} />, onSelect: () => void copy(url) },
+          { label: t("share.copy"), icon: <Icons.Copy size={16} />, onSelect: () => void copy(url) },
           {
-            label: "Abrir enlace",
+            label: t("share.open"),
             icon: <Icons.ExternalLink size={16} />,
             onSelect: () => window.open(url, "_blank", "noopener,noreferrer"),
           },
         ] satisfies MenuEntry[])
       : []),
   ];
-  const label = url ? "Compartido" : "Privado";
+  const label = url ? t("share.shared") : t("share.private");
   const trigger =
     variant === "icon" ? (
       <IconButton
         size="sm"
-        label={`Compartir · ${label}`}
+        label={t("share.iconLabel", { state: label })}
         icon={url ? <Icons.Globe size={14} /> : <Icons.Share size={14} />}
         active={Boolean(url)}
       />
     ) : (
       <Button size="sm" variant="secondary" leadingIcon={url ? <Icons.Globe size={14} /> : <Icons.Lock size={14} />}>
-        {url ? "Compartido" : "Compartir"}
+        {url ? t("share.shared") : t("share.share")}
       </Button>
     );
   return <Menu align="end" items={items} trigger={trigger} />;

@@ -5,12 +5,14 @@ import { loadThread, markRead } from "../data/actions.ts";
 import { threadAgent } from "../data/identity.ts";
 import { retryNow } from "../data/live.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { Transcript } from "./Transcript.tsx";
 
 export function ChatView({ wideHeader }: { wideHeader: boolean }) {
+  const t = useT();
   const threadId = useNav((s) => s.threadId);
   const ready = useData((s) => s.ready);
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
@@ -31,8 +33,8 @@ export function ChatView({ wideHeader }: { wideHeader: boolean }) {
   if (!threadId) {
     return (
       <section className="chat chat--empty">
-        <EmptyState size="lg" icon={<Icons.MessageCircle />} title="Elegí un chat">
-          O empezá uno nuevo con tu super-agente.
+        <EmptyState size="lg" icon={<Icons.MessageCircle />} title={t("chat.pick.title")}>
+          {t("chat.pick.body")}
         </EmptyState>
       </section>
     );
@@ -43,14 +45,14 @@ export function ChatView({ wideHeader }: { wideHeader: boolean }) {
         <EmptyState
           size="lg"
           icon={<Icons.WifiOff />}
-          title="Sin conexión con el core"
+          title={t("chat.offline.title")}
           action={
             <Button size="sm" variant="secondary" onClick={retryNow}>
-              Reintentar
+              {t("common.retry")}
             </Button>
           }
         >
-          Revisá que el core esté corriendo (apx2 status).
+          {t("chat.offline.body")}
         </EmptyState>
       </section>
     );
@@ -59,8 +61,8 @@ export function ChatView({ wideHeader }: { wideHeader: boolean }) {
   if (!thread) {
     return (
       <section className="chat chat--empty">
-        <EmptyState size="lg" icon={<Icons.TriangleAlert />} title="No encontramos este chat">
-          Puede que se haya borrado o que el core no esté disponible.
+        <EmptyState size="lg" icon={<Icons.TriangleAlert />} title={t("chat.notFound.title")}>
+          {t("chat.notFound.body")}
         </EmptyState>
       </section>
     );
@@ -74,7 +76,7 @@ export function ChatView({ wideHeader }: { wideHeader: boolean }) {
       {readOnly ? (
         <div className="chat__readonly">
           <Icons.Users size={14} />
-          Conversación entre agentes · solo lectura
+          {t("chat.readOnly")}
         </div>
       ) : (
         <ChatComposer thread={thread} agent={agent} />

@@ -5,6 +5,7 @@ import { createThread } from "../data/actions.ts";
 import { blobOf, inProject, realProjectId } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
+import { t as tr, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
 /** Who can start a chat in a project: the super-agent first, then the project's own agents. */
@@ -23,26 +24,27 @@ export function useChatAgents(projectId: string | undefined): Agent[] {
 /** Create a chat with `agent` in a nav project (undefined / the base space = no project) and open it. */
 export async function startChat(agent: Agent, projectId: string | undefined): Promise<void> {
   try {
-    const t = await createThread({ agentId: agent.id, projectId: realProjectId(projectId), title: "Nuevo chat" });
+    const t = await createThread({ agentId: agent.id, projectId: realProjectId(projectId), title: tr("chat.new") });
     if (projectId) go.project(projectId, "chats", t.id);
     else go.thread(t.id);
   } catch (e) {
-    notify(`No se pudo crear el chat: ${e instanceof Error ? e.message : String(e)}`);
+    notify(tr("error.createChat", { error: e instanceof Error ? e.message : String(e) }));
   }
 }
 
-/** "Nuevo chat con <agente>" picker around any trigger. */
+/** "New chat with <agent>" picker around any trigger. */
 export function NewChatMenu({ projectId, trigger }: { projectId: string | undefined; trigger: ReactElement }) {
+  const t = useT();
   const list = useChatAgents(projectId);
   const [busy, setBusy] = useState(false);
   const items: MenuEntry[] = list.length
     ? [
-        { type: "label", label: "Nuevo chat con…" },
+        { type: "label", label: t("chat.newWith") },
         ...list.slice(0, 20).map(
           (a): MenuEntry => ({
             label: a.name,
             icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={18} animated={false} />,
-            shortcut: a.kind === "secretary" ? "Super-agente" : undefined,
+            shortcut: a.kind === "secretary" ? t("agent.super") : undefined,
             disabled: busy,
             onSelect: async () => {
               setBusy(true);
@@ -52,6 +54,6 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
           }),
         ),
       ]
-    : [{ type: "label", label: "No hay agentes para este proyecto." }];
+    : [{ type: "label", label: t("chat.noAgents") }];
   return <Menu align="end" items={items} trigger={trigger} />;
 }

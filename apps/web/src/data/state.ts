@@ -37,7 +37,7 @@ export type DataState = {
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];
   enginesLoad: EnginesLoad;
-  /** Last system.health answer (Config › Avanzado). */
+  /** Last system.health answer (Settings › Advanced). */
   health: Health | undefined;
 };
 

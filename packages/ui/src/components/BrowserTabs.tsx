@@ -31,8 +31,8 @@ export function BrowserTabs({
   onValueChange,
   onClose,
   onNew,
-  newLabel = "Nueva pestaña",
-  closeLabel = "Cerrar pestaña",
+  newLabel = "New tab",
+  closeLabel = "Close tab",
   className,
 }: BrowserTabsProps) {
   return (

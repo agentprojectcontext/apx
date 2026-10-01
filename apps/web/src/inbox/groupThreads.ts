@@ -11,7 +11,7 @@ export type ThreadGroup = {
 
 const NO_PROJECT = "__none__";
 
-/** Inbox organisation "a" (Por chat): top-level threads grouped by project, most recent group first. */
+/** Inbox organisation "a" (by chat): top-level threads grouped by project, most recent group first. */
 export function groupByProject(
   threads: Record<string, Thread>,
   projects: Project[],

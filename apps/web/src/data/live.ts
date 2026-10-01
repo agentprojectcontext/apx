@@ -1,6 +1,7 @@
 // Live link to the core: one socket, events folded into the store, refetch on reconnect or seq gap.
 import { CoreEvent, type EventFrame, TabInfo } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
+import { t } from "../i18n/index.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { data, upsertMessage } from "./state.ts";
@@ -21,7 +22,7 @@ export function startLive(): void {
   void connect();
 }
 
-/** Offline banner's "Reintentar": skip the backoff wait. */
+/** Offline banner's "Retry": skip the backoff wait. */
 export function retryNow(): void {
   if (timer) clearTimeout(timer);
   timer = undefined;
@@ -52,7 +53,7 @@ async function connect(): Promise<void> {
     attempt = 0;
     await s.closed;
     if (gen !== generation) return;
-    data.set({ connection: "offline", error: "Se perdió la conexión con el core." });
+    data.set({ connection: "offline", error: t("offline.lost") });
   } catch (e) {
     s?.close();
     if (gen !== generation) return;

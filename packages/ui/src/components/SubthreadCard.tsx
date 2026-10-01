@@ -6,13 +6,13 @@ import { Spinner } from "./Spinner";
 export interface SubthreadCardProps {
   /** Avatar of the agent that was asked (AgentAvatar ~28px). */
   avatar: ReactNode;
-  /** What was asked ("Buscar vuelos a Lima"). */
+  /** What was asked ("Find flights to Lima"). */
   title: ReactNode;
   /** Line under the title ("Roby → Scout"). */
   subtitle?: ReactNode;
   /** running shows a spinner; done / failed / waiting tint the state label. */
   status?: "running" | "done" | "failed" | "waiting";
-  /** State label ("Trabajando", "Listo", "Falló"). */
+  /** State label ("Working", "Done", "Failed"). */
   statusLabel?: ReactNode;
   /** The answer or progress summary, clamped to 3 lines. */
   summary?: ReactNode;
@@ -31,7 +31,7 @@ export function SubthreadCard({
   statusLabel,
   summary,
   onOpen,
-  openLabel = "Abrir",
+  openLabel = "Open",
   className,
 }: SubthreadCardProps) {
   return (

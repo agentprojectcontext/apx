@@ -20,7 +20,7 @@ export interface ActionGroupProps {
   title: ReactNode;
   /** Number of failed actions — shown in danger after the title. */
   failed?: number;
-  /** Label for the failed count ("failed", "fallaron"). */
+  /** Label for the failed count ("failed"); pass a translation. */
   failedLabel?: string;
   /** Tool calls listed when expanded. */
   items?: ActionItem[];

@@ -2,6 +2,7 @@ import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, ConversationRow, Spinner, Tag } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
+import { type T, useT } from "../i18n/index.ts";
 
 export type ThreadRowProps = {
   thread: Thread;
@@ -11,23 +12,24 @@ export type ThreadRowProps = {
 };
 
 export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
+  const t = useT();
   const working = isWorking(thread.state);
   const waiting = thread.state === "input-required";
-  const preview = firstLine(thread.preview) || (working ? "Trabajando…" : "Sin mensajes todavía");
+  const preview = firstLine(thread.preview) || (working ? t("thread.working") : t("thread.noMessages"));
   return (
     <ConversationRow
       selected={selected}
       onClick={onOpen}
       avatar={<AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />}
       title={thread.title}
-      titleTag={agent?.kind === "secretary" ? <Tag kind="role">Super-agente</Tag> : undefined}
+      titleTag={agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
       time={shortWhen(thread.updated_at)}
       unread={thread.unread}
-      meta={metaLine(thread, agent)}
+      meta={metaLine(thread, agent, t)}
       preview={
         <span className="threadrow__preview">
           {working && <Spinner size={12} className="threadrow__spin" />}
-          {waiting && <span className="threadrow__waiting">Te espera · </span>}
+          {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
           {preview}
         </span>
       }
@@ -36,10 +38,10 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
 }
 
 /** Third line: what kind of chat this is, and the agent's role when it has one. */
-function metaLine(thread: Thread, agent: Agent | undefined): string {
-  if (thread.kind === "a2a") return "Agente ↔ agente";
-  if (thread.kind === "group") return `Grupo · ${thread.agent_ids.length} agentes`;
-  const kind = thread.kind === "home" ? "Chat principal" : "Chat";
+function metaLine(thread: Thread, agent: Agent | undefined, t: T): string {
+  if (thread.kind === "a2a") return t("thread.a2a");
+  if (thread.kind === "group") return t("thread.group", { n: thread.agent_ids.length });
+  const kind = thread.kind === "home" ? t("thread.home") : t("thread.chat");
   return agent?.role ? `${kind} · ${agent.role}` : kind;
 }
 

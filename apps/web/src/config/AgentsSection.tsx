@@ -2,15 +2,17 @@ import type { Agent, EngineStatus, HarnessId } from "@apx/protocol";
 import { AgentAvatar, Icons, Menu, type MenuEntry, ProjectTile, SearchField, SegmentedControl } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { setAgentBrowserProfile } from "../data/actions.ts";
-import { agentEngineLabel, engineLabel, setAgentHarness } from "../data/engines.ts";
+import { agentEngineLabel, engineLabel, PROFILE_KEY, setAgentHarness } from "../data/engines.ts";
 import { blobOf, DEFAULT_PID, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
 const HARNESSES: readonly HarnessId[] = ["native", "claude", "codex"];
 
-/** Agentes: which engine runs each agent and which browser profile it uses. */
+/** Agents: which engine runs each agent and which browser profile it uses. */
 export function AgentsSection() {
+  const t = useT();
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
   const engines = useData((s) => s.engines);
@@ -30,11 +32,8 @@ export function AgentsSection() {
   );
   return (
     <>
-      <SectionHead
-        title="Agentes"
-        lead="Motor: quién corre los turnos de cada agente (por defecto, el que elijas en Motores). Navegador: Compartido usa tus sesiones, Aislado tiene su propio perfil, Incógnito arranca vacío cada vez."
-      />
-      <SearchField placeholder="Buscar agente" value={q} onChange={(e) => setQ(e.currentTarget.value)} />
+      <SectionHead title={t("config.agents")} lead={t("agents.lead")} />
+      <SearchField placeholder={t("agents.search")} value={q} onChange={(e) => setQ(e.currentTarget.value)} />
       <ul className="agentcfg">
         {list.map((a) => {
           const project = projects.find((p) => p.id === a.project_id);
@@ -49,19 +48,19 @@ export function AgentsSection() {
                     tone={projectTone(project?.id ?? DEFAULT_PID)}
                     initial={projectInitial(project?.name ?? "Default")}
                   />
-                  {project?.name ?? (a.kind === "secretary" ? "Super-agente · global" : "Global")}
+                  {project?.name ?? (a.kind === "secretary" ? t("agents.superGlobal") : t("agents.global"))}
                 </span>
               </span>
               <HarnessPicker agent={a} engines={engines} />
               <SegmentedControl
                 size="sm"
-                label={`Perfil de ${a.name}`}
+                label={t("agents.profileOf", { name: a.name })}
                 value={a.browser_profile}
                 onValueChange={(v) => void setAgentBrowserProfile(a.id, v as Agent["browser_profile"])}
                 options={[
-                  { value: "shared", label: "Compartido" },
-                  { value: "isolated", label: "Aislado" },
-                  { value: "incognito", label: "Incógnito" },
+                  { value: "shared", label: t(PROFILE_KEY.shared) },
+                  { value: "isolated", label: t(PROFILE_KEY.isolated) },
+                  { value: "incognito", label: t(PROFILE_KEY.incognito) },
                 ]}
               />
             </li>
@@ -73,10 +72,11 @@ export function AgentsSection() {
 }
 
 function HarnessPicker({ agent, engines }: { agent: Agent; engines: EngineStatus[] }) {
+  const t = useT();
   const current = agent.harness;
   const check = (on: boolean) => (on ? <Icons.Check /> : <span />);
   const items: MenuEntry[] = [
-    { type: "label", label: `Motor de ${agent.name}` },
+    { type: "label", label: t("agents.engineOf", { name: agent.name }) },
     {
       label: agentEngineLabel(undefined, engines),
       icon: check(current == null),
@@ -89,7 +89,7 @@ function HarnessPicker({ agent, engines }: { agent: Agent; engines: EngineStatus
       return {
         label: engineLabel(h, engines),
         icon: check(current === h),
-        shortcut: e && !e.installed ? "no instalado" : e && !e.logged_in ? "sin sesión" : undefined,
+        shortcut: e && !e.installed ? t("engine.notInstalled") : e && !e.logged_in ? t("engine.noSession") : undefined,
         disabled: !usable && current !== h,
         onSelect: () => void setAgentHarness(agent.id, h),
       };
@@ -100,7 +100,7 @@ function HarnessPicker({ agent, engines }: { agent: Agent; engines: EngineStatus
       align="end"
       items={items}
       trigger={
-        <button type="button" className="selectbtn" aria-label={`Motor de ${agent.name}`}>
+        <button type="button" className="selectbtn" aria-label={t("agents.engineOf", { name: agent.name })}>
           <span className="selectbtn__text">{agentEngineLabel(current, engines)}</span>
           <Icons.ChevronDown size={12} />
         </button>

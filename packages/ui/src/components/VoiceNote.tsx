@@ -13,13 +13,25 @@ export interface VoiceNoteProps {
   detail?: string;
   /** Initial played fraction 0–1 (static previews). */
   progress?: number;
+  /** Accessible names of the play / pause button. */
+  playLabel?: string;
+  pauseLabel?: string;
   className?: string;
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /** Voice message card with play/pause and a scrubber — for voice notes from Telegram/WhatsApp or TTS replies. */
-export function VoiceNote({ src, duration, label = "Voice note", detail, progress = 0, className }: VoiceNoteProps) {
+export function VoiceNote({
+  src,
+  duration,
+  label = "Voice note",
+  detail,
+  progress = 0,
+  playLabel = "Play",
+  pauseLabel = "Pause",
+  className,
+}: VoiceNoteProps) {
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(progress * duration);
@@ -62,7 +74,7 @@ export function VoiceNote({ src, duration, label = "Voice note", detail, progres
           type="button"
           className="apx-voice__play"
           onClick={toggle}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? pauseLabel : playLabel}
           disabled={!src}
         >
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}

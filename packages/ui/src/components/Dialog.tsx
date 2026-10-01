@@ -22,6 +22,8 @@ export interface DialogProps {
    * close button floating top-right. `children` fill the popup; `description`/`footer` are ignored.
    */
   bare?: boolean;
+  /** Accessible name of the close button. */
+  closeLabel?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -38,6 +40,7 @@ export function Dialog({
   footer,
   size = "md",
   bare = false,
+  closeLabel = "Close",
   className,
   style,
 }: DialogProps) {
@@ -54,7 +57,7 @@ export function Dialog({
           {bare ? (
             <>
               <BaseDialog.Title className="apx-sr-only">{title}</BaseDialog.Title>
-              <BaseDialog.Close className="apx-dialog__close apx-dialog__close--float" aria-label="Close">
+              <BaseDialog.Close className="apx-dialog__close apx-dialog__close--float" aria-label={closeLabel}>
                 <X size={18} />
               </BaseDialog.Close>
               {children}
@@ -63,7 +66,7 @@ export function Dialog({
             <>
               <div className="apx-dialog__head">
                 <BaseDialog.Title className="apx-dialog__title">{title}</BaseDialog.Title>
-                <BaseDialog.Close className="apx-dialog__close" aria-label="Close">
+                <BaseDialog.Close className="apx-dialog__close" aria-label={closeLabel}>
                   <X size={16} />
                 </BaseDialog.Close>
               </div>

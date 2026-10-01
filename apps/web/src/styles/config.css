@@ -144,7 +144,7 @@
   color: var(--apx-fg-muted);
 }
 
-/* Motores */
+/* Engines */
 .engines {
   display: flex;
   flex-direction: column;
@@ -291,7 +291,7 @@
   min-width: 0;
 }
 
-/* Avanzado */
+/* Advanced */
 .kv {
   display: flex;
   flex-direction: column;

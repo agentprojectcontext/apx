@@ -11,9 +11,9 @@ export interface ConversationRowProps {
   time?: ReactNode;
   /** Last message, one line, truncated. */
   preview?: ReactNode;
-  /** Context Tags under the title (project, channel, "Agente ↔ agente"). Classic shows them; minimal keeps rows two-line. */
+  /** Context Tags under the title (project, channel, "Agent ↔ agent"). Classic shows them; minimal keeps rows two-line. */
   tags?: ReactNode;
-  /** Third line, 11px subtle: sessions, channels, kind ("Grupo · 3 agentes"). */
+  /** Third line, 11px subtle: sessions, channels, kind ("Group · 3 agents"). */
   meta?: ReactNode;
   /** Unread count; shows a dot/number and bolds the title. */
   unread?: number;

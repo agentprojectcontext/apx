@@ -7,6 +7,6 @@ An agent asked another agent something (agent ↔ agent sub-thread). Shows the a
 
 ```tsx
 <SubthreadCard avatar={<AgentAvatar name="Scout" blob="rubi" size={28} animated={false} />}
-  title="Buscar 3 hoteles en Lima" subtitle="Roby → Scout" status="done" statusLabel="Listo"
-  summary="Encontré tres opciones entre USD 80 y 140 por noche." onOpen={() => {}} />
+  title="Find 3 hotels in Lima" subtitle="Roby → Scout" status="done" statusLabel="Done"
+  summary="Found three options between USD 80 and 140 a night." onOpen={() => {}} />
 ```

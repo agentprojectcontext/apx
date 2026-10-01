@@ -2,6 +2,7 @@ import { BrowserTabs, EmptyState, IconButton, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { hostPath } from "../common/format.ts";
 import { browserClose, loadTabs } from "../data/actions.ts";
+import { useT } from "../i18n/index.ts";
 import { nav } from "../shell/nav.ts";
 import { BrowserToolbar, HandoffBar } from "./BrowserToolbar.tsx";
 import { BrowserViewport } from "./BrowserViewport.tsx";
@@ -10,6 +11,7 @@ import { useActiveTab } from "./useActiveTab.ts";
 
 /** Browser panel: tab strip in the header, toolbar (back · reload · address · who drives), then the page. */
 export function BrowserPanel() {
+  const t = useT();
   const { tabs, active } = useActiveTab();
   const [adding, setAdding] = useState(false);
 
@@ -23,7 +25,7 @@ export function BrowserPanel() {
         actions={
           active && (
             <IconButton
-              label="Abrir en ventana"
+              label={t("browser.openWindow")}
               icon={<Icons.ExternalLink size={15} />}
               onClick={() => window.open(active.url, "_blank", "noopener,noreferrer")}
             />
@@ -38,7 +40,9 @@ export function BrowserPanel() {
           }}
           onClose={(id) => void browserClose(id)}
           onNew={() => setAdding(true)}
-          tabs={tabs.map((t) => ({ id: t.tab, title: t.title || hostPath(t.url), url: t.url, holder: t.control.kind }))}
+          newLabel={t("browser.newTab")}
+          closeLabel={t("browser.closeTab")}
+          tabs={tabs.map((x) => ({ id: x.tab, title: x.title || hostPath(x.url), url: x.url, holder: x.control.kind }))}
         />
       </PanelHeader>
       {active || adding ? (
@@ -46,8 +50,8 @@ export function BrowserPanel() {
           <BrowserToolbar tab={adding ? undefined : active} onOpened={() => setAdding(false)} />
           {!adding && active?.control.kind === "handoff" && <HandoffBar tab={active} />}
           {adding || !active ? (
-            <EmptyState icon={<Icons.Globe />} title="Nueva pestaña">
-              Escribí una dirección arriba y apretá Enter.
+            <EmptyState icon={<Icons.Globe />} title={t("browser.newTab")}>
+              {t("browser.newTabHint")}
             </EmptyState>
           ) : (
             <BrowserViewport tab={active.tab} />
@@ -55,8 +59,8 @@ export function BrowserPanel() {
         </div>
       ) : (
         <div className="sidepanel__body">
-          <EmptyState icon={<Icons.Globe />} title="No hay pestañas abiertas">
-            Cuando un agente navegue, lo ves acá en vivo y podés tomar el control.
+          <EmptyState icon={<Icons.Globe />} title={t("browser.noTabs")}>
+            {t("browser.noTabsBody")}
           </EmptyState>
         </div>
       )}

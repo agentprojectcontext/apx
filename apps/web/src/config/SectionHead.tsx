@@ -13,7 +13,7 @@ export function SectionHead({ title, lead, actions }: { title: string; lead?: Re
   );
 }
 
-/** Sub-heading inside a section ("Motores", "Sesiones externas"). */
+/** Sub-heading inside a section ("Engines", "External sessions"). */
 export function SubHead({ children }: { children: ReactNode }) {
   return <h3 className="config__sub">{children}</h3>;
 }

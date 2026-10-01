@@ -1,109 +1,120 @@
 import { Badge, Button, EmptyState, Icons, Input, ProjectTile, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { loadHealth } from "../data/engines.ts";
-import { DEFAULT_NAME, initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
+import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
+import { isLanguage, LANGUAGE_NAMES, LANGUAGES, type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
-/** Cuenta: how the panel calls you. Stored in this browser only. */
+/** Account: how the panel calls you. Stored in this browser only. */
 export function AccountSection() {
-  const name = usePrefs((s) => s.displayName);
-  const [draft, setDraft] = useState(name);
-  const save = () => setPrefs({ displayName: draft.trim() || DEFAULT_NAME });
+  const t = useT();
+  const stored = usePrefs((s) => s.displayName);
+  const you = t("account.you");
+  const [draft, setDraft] = useState(stored);
+  const save = () => setPrefs({ displayName: draft.trim() });
   return (
     <>
-      <SectionHead
-        title="Cuenta"
-        lead="Tu perfil en este panel. Se guarda en este navegador y no sale de tu máquina."
-      />
+      <SectionHead title={t("config.account")} lead={t("account.lead")} />
       <div className="account-card">
-        <span className="account-card__avatar">{initialsOf(draft || DEFAULT_NAME)}</span>
+        <span className="account-card__avatar">{initialsOf(draft.trim() || you)}</span>
         <div className="account-card__text">
-          <div className="account-card__name">{name}</div>
-          <div className="account-card__sub">Dueño de esta instalación</div>
+          <div className="account-card__name">{stored || you}</div>
+          <div className="account-card__sub">{t("account.owner")}</div>
         </div>
       </div>
-      <SettingRow title="Nombre" description="Cómo te muestra el panel. Los agentes todavía no lo leen.">
+      <SettingRow title={t("account.name")} description={t("account.nameHint")}>
         <Input
           size="sm"
           className="config__input"
           value={draft}
-          placeholder={DEFAULT_NAME}
+          placeholder={you}
           maxLength={40}
           onChange={(e) => setDraft(e.currentTarget.value)}
           onBlur={save}
           onKeyDown={(e) => e.key === "Enter" && save()}
-          aria-label="Nombre"
+          aria-label={t("account.name")}
         />
       </SettingRow>
-      <SettingRow title="Cuenta en la nube" description="Sincronizar entre dispositivos y compartir con tu equipo.">
-        <Badge>Pronto</Badge>
+      <SettingRow title={t("account.cloud")} description={t("account.cloudHint")}>
+        <Badge>{t("common.soon")}</Badge>
       </SettingRow>
     </>
   );
 }
 
-/** Apariencia: look, mode, font, transcript width, language. */
+/** Appearance: look, mode, font, transcript width, language. */
 export function AppearanceSection() {
+  const t = useT();
   const mode = useNav((s) => s.mode);
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);
   const width = usePrefs((s) => s.transcriptWidth);
+  const lang = useLanguage();
   return (
     <>
-      <SectionHead title="Apariencia" />
-      <SettingRow title="Fuente de la interfaz" description="Menús, barras laterales y paneles.">
+      <SectionHead title={t("config.appearance")} />
+      <SettingRow title={t("appearance.font")} description={t("appearance.fontHint")}>
         <SegmentedControl
           size="sm"
-          label="Fuente"
+          label={t("appearance.fontLabel")}
           value={font}
           onValueChange={(v) => setPrefs({ font: v === "mono" ? "mono" : "system" })}
           options={[
-            { value: "system", label: "Sistema" },
-            { value: "mono", label: "Mono" },
+            { value: "system", label: t("appearance.font.system") },
+            { value: "mono", label: t("appearance.font.mono") },
           ]}
         />
       </SettingRow>
-      <SettingRow title="Ancho de la transcripción" description="Ancho máximo del chat y del cuadro de redacción.">
+      <SettingRow title={t("appearance.width")} description={t("appearance.widthHint")}>
         <SegmentedControl
           size="sm"
-          label="Ancho"
+          label={t("appearance.widthLabel")}
           value={width}
           onValueChange={(v) => setPrefs({ transcriptWidth: v === "narrow" || v === "wide" ? v : "medium" })}
           options={[
-            { value: "narrow", label: "Estrecho" },
-            { value: "medium", label: "Medio" },
-            { value: "wide", label: "Ancho" },
+            { value: "narrow", label: t("appearance.width.narrow") },
+            { value: "medium", label: t("appearance.width.medium") },
+            { value: "wide", label: t("appearance.width.wide") },
           ]}
         />
       </SettingRow>
-      <SettingRow title="Modo">
+      <SettingRow title={t("appearance.mode")}>
         <SegmentedControl
           size="sm"
-          label="Modo"
+          label={t("appearance.mode")}
           value={mode}
           onValueChange={(v) => go.setMode(v === "dark" ? "dark" : "light")}
           options={[
-            { value: "light", label: "Claro" },
-            { value: "dark", label: "Oscuro" },
+            { value: "light", label: t("appearance.mode.light") },
+            { value: "dark", label: t("appearance.mode.dark") },
           ]}
         />
       </SettingRow>
-      <SettingRow title="Estilo" description="Minimal es v2. Clásico trae el verde y la tipografía de v1.">
+      <SettingRow title={t("appearance.look")} description={t("appearance.lookHint")}>
         <SegmentedControl
           size="sm"
-          label="Estilo"
+          label={t("appearance.look")}
           value={look}
           onValueChange={(v) => setPrefs({ look: v === "classic" ? "classic" : "minimal" })}
           options={[
-            { value: "minimal", label: "Minimal" },
-            { value: "classic", label: "Clásico v1" },
+            { value: "minimal", label: t("appearance.look.minimal") },
+            { value: "classic", label: t("appearance.look.classic") },
           ]}
         />
       </SettingRow>
-      <SettingRow title="Idioma" description="El inglés llega pronto.">
-        <SegmentedControl size="sm" label="Idioma" value="es" options={[{ value: "es", label: "Español" }]} />
+      <SettingRow title={t("language.label")} description={t("language.hint")}>
+        <SegmentedControl
+          size="sm"
+          label={t("language.label")}
+          value={lang}
+          onValueChange={(v) => isLanguage(v) && setPrefs({ language: v })}
+          options={(Object.keys(LANGUAGES) as (keyof typeof LANGUAGES)[]).map((l) => ({
+            value: l,
+            label: LANGUAGE_NAMES[l],
+          }))}
+        />
       </SettingRow>
     </>
   );
@@ -111,46 +122,39 @@ export function AppearanceSection() {
 
 const CHANNEL_COPY = {
   whatsapp: {
-    name: "WhatsApp",
+    name: "channel.whatsapp.name",
     tone: "brand",
     icon: <Icons.MessageCircle />,
-    text: "Una cuenta vinculada por QR. No le contesta a nadie hasta que digas quién es, empezando por vos.",
+    text: "channel.whatsapp.text",
   },
-  telegram: {
-    name: "Telegram",
-    tone: "info",
-    icon: <Icons.Send />,
-    text: "Un bot de Telegram. Solo responde a los chats que apruebes.",
-  },
-  discord: {
-    name: "Discord",
-    tone: "violet",
-    icon: <Icons.Users />,
-    text: "Un bot en tu servidor, con permisos por rol.",
-  },
-} as const;
+  telegram: { name: "channel.telegram.name", tone: "info", icon: <Icons.Send />, text: "channel.telegram.text" },
+  discord: { name: "channel.discord.name", tone: "violet", icon: <Icons.Users />, text: "channel.discord.text" },
+} as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; icon: unknown }>;
 
-/** Canales: not wired to the core yet. */
+/** Channels: not wired to the core yet. */
 export function ChannelSection({ channel }: { channel: keyof typeof CHANNEL_COPY }) {
+  const t = useT();
   const c = CHANNEL_COPY[channel];
+  const name = t(c.name);
   return (
     <>
       <div className="channelcfg">
         <ProjectTile tone={c.tone} icon={c.icon} size={40} />
         <div className="channelcfg__text">
-          <h2 className="config__title">{c.name}</h2>
-          <p className="config__lead">{c.text}</p>
+          <h2 className="config__title">{name}</h2>
+          <p className="config__lead">{t(c.text)}</p>
         </div>
       </div>
-      <EmptyState variant="dashed" icon={<Icons.Clock />} title={`${c.name} llega pronto`}>
-        Los canales se conectan en una próxima versión del core. Mientras tanto, escribile a tus agentes desde el Inbox.
+      <EmptyState variant="dashed" icon={<Icons.Clock />} title={t("common.comingSoon", { name })}>
+        {t("channel.soonBody")}
       </EmptyState>
     </>
   );
 }
 
-/** Daemon y avanzado: where the panel is connected and which code the core runs. */
+/** Daemon and advanced: where the panel is connected and which code the core runs. */
 export function AdvancedSection() {
+  const t = useT();
   const health = useData((s) => s.health);
   const connection = useData((s) => s.connection);
   useEffect(() => {
@@ -158,19 +162,19 @@ export function AdvancedSection() {
   }, []);
   const rows: [string, string][] = health
     ? [
-        ["Core", window.location.origin],
-        ["Versión", health.version],
-        ["Código (code_sha)", health.code_sha],
-        ["Protocolo", String(health.protocol)],
-        ["Instalación", health.home_id],
-        ["Encendido hace", uptime(health.uptime_s)],
+        [t("advanced.core"), window.location.origin],
+        [t("advanced.version"), health.version],
+        [t("advanced.code"), health.code_sha],
+        [t("advanced.protocol"), String(health.protocol)],
+        [t("advanced.install"), health.home_id],
+        [t("advanced.uptime"), uptime(health.uptime_s)],
       ]
-    : [["Core", window.location.origin]];
+    : [[t("advanced.core"), window.location.origin]];
   return (
     <>
       <SectionHead
-        title="Daemon y avanzado"
-        lead="El core corre en esta computadora y es el único que guarda estado. El panel solo habla con él."
+        title={t("config.advanced")}
+        lead={t("advanced.lead")}
         actions={
           <Button
             size="sm"
@@ -178,16 +182,20 @@ export function AdvancedSection() {
             leadingIcon={<Icons.RefreshCw size={14} />}
             onClick={() => void loadHealth()}
           >
-            Actualizar
+            {t("common.refresh")}
           </Button>
         }
       />
       <dl className="kv">
         <div className="kv__row">
-          <dt>Conexión</dt>
+          <dt>{t("advanced.connection")}</dt>
           <dd>
             <Badge tone={connection === "online" ? "brand" : connection === "offline" ? "danger" : "neutral"} dot>
-              {connection === "online" ? "Conectado" : connection === "offline" ? "Sin conexión" : "Conectando"}
+              {connection === "online"
+                ? t("connection.online")
+                : connection === "offline"
+                  ? t("connection.offline")
+                  : t("connection.connecting")}
             </Badge>
           </dd>
         </div>
@@ -200,7 +208,7 @@ export function AdvancedSection() {
       </dl>
       {health ? (
         <div className="subsys">
-          <h3 className="config__sub">Subsistemas</h3>
+          <h3 className="config__sub">{t("advanced.subsystems")}</h3>
           {Object.entries(health.subsystems).map(([name, st]) => (
             <SettingRow key={name} title={name} description={st.detail}>
               <Badge tone={st.status === "ok" ? "brand" : st.status === "degraded" ? "warning" : "neutral"} dot>

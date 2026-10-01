@@ -1,36 +1,39 @@
 import { EmptyState, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
+import { useT } from "../i18n/index.ts";
 
 /** Honest placeholder for a screen whose API does not exist yet. Never sample data. */
 export function SoonPane({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  const t = useT();
   return (
     <div className="soon">
       <EmptyState variant="dashed" size="lg" icon={icon} title={title}>
         {children}
         <span className="soon__tag">
           <Icons.Clock size={12} />
-          Pronto
+          {t("common.soon")}
         </span>
       </EmptyState>
     </div>
   );
 }
 
-/** Tareas / Recursos as top-level views: page title + the placeholder. */
+/** Tasks / Resources as top-level views: page title + the placeholder. */
 export function SoonScreen({ kind }: { kind: "tasks" | "resources" }) {
+  const t = useT();
   const copy =
     kind === "tasks"
       ? {
-          title: "Tareas",
-          lead: "De todos los proyectos. Un compromiso es una tarea con fecha que un agente prometió cumplir.",
+          title: t("nav.tasks"),
+          lead: t("tasks.lead"),
           icon: <Icons.ListChecks />,
-          text: "Acá vas a ver las tareas en curso, pendientes, en revisión y bloqueadas de cada agente.",
+          text: t("tasks.body"),
         }
       : {
-          title: "Recursos",
-          lead: "Skills, MCP, integraciones y variables que usan tus agentes, globales o por proyecto.",
+          title: t("nav.resources"),
+          lead: t("resources.lead"),
           icon: <Icons.Layers />,
-          text: "Vas a poder activar, asignar y revisar cada recurso sin tocar archivos.",
+          text: t("resources.body"),
         };
   return (
     <section className="page" aria-label={copy.title}>
@@ -38,7 +41,7 @@ export function SoonScreen({ kind }: { kind: "tasks" | "resources" }) {
         <h1 className="page__title">{copy.title}</h1>
         <p className="page__lead">{copy.lead}</p>
       </header>
-      <SoonPane icon={copy.icon} title={`${copy.title} llega pronto`}>
+      <SoonPane icon={copy.icon} title={t("common.comingSoon", { name: copy.title })}>
         {copy.text}
       </SoonPane>
     </section>

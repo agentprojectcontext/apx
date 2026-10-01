@@ -1,5 +1,6 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { Message, Thread } from "@apx/protocol";
+import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { loadEngines } from "./engines.ts";
 import { notify } from "./notices.ts";
@@ -60,7 +61,7 @@ export async function loadThread(id: string): Promise<void> {
     });
   } catch (e) {
     data.set((s) => ({ threadLoad: { ...s.threadLoad, [id]: s.messages[id] ? "ready" : "error" } }));
-    notify(`No se pudo abrir el chat: ${errText(e)}`);
+    notify(t("error.openChat", { error: errText(e) }));
   }
 }
 
@@ -98,7 +99,7 @@ export async function send(threadId: string, text: string): Promise<void> {
       messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== local.id) },
       threads: patchThread(s.threads, threadId, { state: "idle" }),
     }));
-    notify(`No se pudo enviar: ${errText(e)}`);
+    notify(t("error.send", { error: errText(e) }));
     throw e;
   }
 }
@@ -122,7 +123,7 @@ export async function cancel(threadId: string): Promise<void> {
   try {
     await client.call("threads.cancel", { thread: threadId });
   } catch (e) {
-    notify(`No se pudo detener: ${errText(e)}`);
+    notify(t("error.stop", { error: errText(e) }));
   }
 }
 
@@ -142,7 +143,7 @@ export async function loadSurfaceDoc(id: string): Promise<void> {
     const doc = await client.call("surfaces.get", { surface: id });
     data.set((s) => ({ surfaceDocs: { ...s.surfaceDocs, [id]: doc } }));
   } catch (e) {
-    notify(`No se pudo cargar el widget: ${errText(e)}`);
+    notify(t("error.loadWidget", { error: errText(e) }));
   }
 }
 
@@ -151,7 +152,7 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
     const summary = await client.call("surfaces.update", { surface: id, ...flags });
     data.set((s) => ({ surfaces: { ...s.surfaces, [id]: summary } }));
   } catch (e) {
-    notify(`No se pudo actualizar el widget: ${errText(e)}`);
+    notify(t("error.updateWidget", { error: errText(e) }));
   }
 }
 
@@ -160,7 +161,7 @@ export async function surfacePrompt(id: string, text: string): Promise<void> {
   try {
     await client.call("surfaces.prompt", { surface: id, text: text.slice(0, 4000) });
   } catch (e) {
-    notify(`El widget no pudo enviar el mensaje: ${errText(e)}`);
+    notify(t("error.widgetPrompt", { error: errText(e) }));
   }
 }
 
@@ -169,7 +170,7 @@ export async function browserControl(tab: string, mode: "user" | "idle" | "done"
     const info = await client.call("browser.control", { tab, mode });
     data.set((s) => ({ tabs: s.tabs.map((t) => (t.tab === tab ? info : t)) }));
   } catch (e) {
-    notify(`No se pudo cambiar el control: ${errText(e)}`);
+    notify(t("error.browserControl", { error: errText(e) }));
   }
 }
 
@@ -190,7 +191,7 @@ export async function browserNavigate(tab: string, url: string): Promise<void> {
     await client.call("browser.navigate", { tab, url, by: "operator" });
     void loadTabs();
   } catch (e) {
-    notify(`No se pudo navegar: ${errText(e)}`);
+    notify(t("error.navigate", { error: errText(e) }));
   }
 }
 
@@ -199,7 +200,7 @@ export async function browserHistory(tab: string, action: "back" | "forward" | "
     await client.call("browser.history", { tab, action, by: "operator" });
     void loadTabs();
   } catch (e) {
-    notify(`No se pudo ${action === "reload" ? "recargar" : "navegar"}: ${errText(e)}`);
+    notify(t(action === "reload" ? "error.reload" : "error.navigate", { error: errText(e) }));
   }
 }
 
@@ -209,7 +210,7 @@ export async function browserOpen(url: string): Promise<string | undefined> {
     data.set((s) => ({ tabs: [...s.tabs.filter((t) => t.tab !== info.tab), info] }));
     return info.tab;
   } catch (e) {
-    notify(`No se pudo abrir la pestaña: ${errText(e)}`);
+    notify(t("error.openTab", { error: errText(e) }));
     return undefined;
   }
 }
@@ -219,7 +220,7 @@ export async function browserClose(tab: string): Promise<void> {
     await client.call("browser.close", { tab });
     data.set((s) => ({ tabs: s.tabs.filter((t) => t.tab !== tab) }));
   } catch (e) {
-    notify(`No se pudo cerrar la pestaña: ${errText(e)}`);
+    notify(t("error.closeTab", { error: errText(e) }));
   }
 }
 
@@ -236,7 +237,7 @@ export async function shareSurface(id: string, shared: boolean): Promise<string 
     });
     return summary.share_path;
   } catch (e) {
-    notify(`No se pudo cambiar el acceso: ${errText(e)}`);
+    notify(t("error.share", { error: errText(e) }));
     return undefined;
   }
 }
@@ -249,7 +250,7 @@ export async function setAgentBrowserProfile(
     const next = await client.call("agents.update", { agent, browser_profile });
     data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
   } catch (e) {
-    notify(`No se pudo guardar: ${errText(e)}`);
+    notify(t("error.save", { error: errText(e) }));
   }
 }
 
@@ -257,7 +258,7 @@ export async function cookieSources() {
   try {
     return (await client.call("browser.cookie_sources", {})).sources;
   } catch (e) {
-    notify(`Abrí la app de escritorio para importar sesiones (${errText(e)})`);
+    notify(t("browser.import.needsDesktop", { error: errText(e) }));
     return [];
   }
 }
@@ -266,7 +267,7 @@ export async function cookieDomains(source: string, filter: string) {
   try {
     return (await client.call("browser.cookie_domains", { source, filter })).domains;
   } catch (e) {
-    notify(`No se pudieron leer los dominios: ${errText(e)}`);
+    notify(t("error.readDomains", { error: errText(e) }));
     return [];
   }
 }
@@ -274,11 +275,10 @@ export async function cookieDomains(source: string, filter: string) {
 export async function importCookies(source: string, domains: string[]): Promise<void> {
   try {
     const r = await client.call("browser.import_cookies", { source, domains, profile: "shared" });
-    notify(
-      `Importé ${r.imported} cookies${r.skipped ? ` (${r.skipped} vencidas)` : ""}${r.failed ? `, ${r.failed} fallaron` : ""}.`,
-      "info",
-    );
+    const skipped = r.skipped ? t("browser.import.expired", { n: r.skipped }) : "";
+    const failed = r.failed ? t("browser.import.failed", { n: r.failed }) : "";
+    notify(`${t("browser.import.done", { n: r.imported })}${skipped}${failed}.`, "info");
   } catch (e) {
-    notify(`No se pudo importar: ${errText(e)}`);
+    notify(t("error.import", { error: errText(e) }));
   }
 }

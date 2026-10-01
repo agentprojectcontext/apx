@@ -1,4 +1,4 @@
-/* Project screen (header, Resumen, Equipo), placeholder pages. Tokens only; widths from --shell-*. */
+/* Project screen (header, Overview, Team), placeholder pages. Tokens only; widths from --shell-*. */
 
 .workspace {
   flex: 1;
@@ -77,7 +77,7 @@
   overflow: hidden;
 }
 
-/* ── Resumen ───────────────────────────────────────────────────────────────── */
+/* ── Overview ──────────────────────────────────────────────────────────────── */
 .overview {
   flex: 1;
   min-width: 0;
@@ -262,7 +262,7 @@
   font-weight: var(--apx-weight-semibold);
 }
 
-/* ── Equipo ────────────────────────────────────────────────────────────────── */
+/* ── Team ──────────────────────────────────────────────────────────────────── */
 .team {
   flex: 1;
   min-width: 0;
