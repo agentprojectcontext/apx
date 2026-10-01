@@ -149,3 +149,10 @@ code the bot sent to their own Telegram; requests show the @username. Where: `ap
 refused or unresolved connections are retried; everything else is "uncertain". A long reply rate-limited halfway
 continues from the part that failed (`Presentation.skip`) instead of being dropped. Where:
 `apps/core/src/channels/telegram.ts`, `delivery.ts`.
+
+<a id="shell-symlink-cwd"></a>
+### The shell's folder check resolves links
+`shell` compared its working folder with the project's as written, so `cwd: "escape"` where `escape` is a symlink to
+another folder passed the check and ran the command outside the project. Folder checks now go through one module:
+`isInside` for paths already resolved, `insideReal` (links resolved) wherever a path comes from an agent. Where:
+`apps/core/src/paths.ts`, `tools/shell.ts`.
