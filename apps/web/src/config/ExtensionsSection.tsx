@@ -112,9 +112,33 @@ function ExtensionSummary({ e }: { e: ExtensionInfo }) {
         <dd>{e.mcp.join(", ") || "—"}</dd>
         <dt>{t("ext.routines")}</dt>
         <dd>{e.routines.map((r) => r.name).join(", ") || "—"}</dd>
+        {e.plugin && (
+          <>
+            <dt>{t("ext.plugin")}</dt>
+            <dd>
+              {[
+                e.plugin.observe.length ? t("ext.plugin.watches", { events: e.plugin.observe.join(", ") }) : "",
+                e.plugin.context ? t("ext.plugin.context") : "",
+                e.plugin.network ? t("ext.plugin.network") : "",
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </dd>
+          </>
+        )}
         <dt>{t("ext.source")}</dt>
         <dd>{e.source}</dd>
       </dl>
+      {e.runs_code && (
+        <p className="pform__hint">
+          <Icons.TriangleAlert size={12} /> {t("ext.runsCode")}
+        </p>
+      )}
+      {e.plugin?.status === "error" && (
+        <Badge tone="danger" dot>
+          {t("ext.plugin.error", { error: e.plugin.error ?? "" })}
+        </Badge>
+      )}
     </>
   );
 }

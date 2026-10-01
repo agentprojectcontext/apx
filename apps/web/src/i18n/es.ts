@@ -897,4 +897,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "ext.getIt": "Dónde conseguirlo",
   "ext.addRoutine": "Agregar a Rutinas",
   "ext.routineAdded": "{name} se agregó a Rutinas, apagada: revisala y encendela.",
+  "ext.plugin": "Plugin",
+  "ext.plugin.watches": "observa {events}",
+  "ext.plugin.context": "agrega contexto a tus turnos",
+  "ext.plugin.network": "usa internet",
+  "ext.plugin.error": "El plugin se detuvo: {error}",
+  "ext.runsCode": "Trae código que corre en esta computadora. Encendela sólo si confiás en quien la hizo.",
 };

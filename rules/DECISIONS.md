@@ -162,4 +162,8 @@ only) and fingerprints it, off; turning it on approves exactly those files, and 
 off at start. Its MCP servers are the owner's (no extra approval) but can only name the extension's own secrets
 (`ext-<id>-<name>`), never `env:` or another secret, so a bundle cannot carry the owner's credentials elsewhere. Code
 that must run as part of APX (hooks) runs in a separate process with Node's permission model (stage 8b), never inside
-the core.
+the core. A plugin process reads only its folder,
+writes only its data folder and starts no processes (Node's permission model); Node does not restrict the network, so
+the runner also refuses raw socket modules and makes `fetch` refuse this machine and metadata addresses — a best-effort
+guard so a plugin cannot call APX's loopback API as the owner. Plugins watch declared events and may add context to
+owner turns (outside data, capped, 2 s); they never call APX.

@@ -20,12 +20,14 @@ import { createStore } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
+import { createHooks } from "./engine/hooks.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
 import { createScheduler } from "./engine/routines.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { createExtensions } from "./extensions/extensions.ts";
+import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
@@ -159,7 +161,9 @@ export async function createCore(
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
   const mcp = createMcp({ store, secrets, log });
-  const extensions = createExtensions({ store, secrets, home: config.home });
+  const hooks = createHooks();
+  const plugins = createPlugins({ home: config.home, secrets, bus, hooks, log });
+  const extensions = createExtensions({ store, secrets, home: config.home, plugins });
   const changed = extensions.verify();
   if (changed.length) log.warn({ extensions: changed }, "extensions changed on disk were turned off");
   const upkeep = createUpkeep({ store, llm, log });
@@ -185,6 +189,7 @@ export async function createCore(
     home: config.home,
     apxPort: () => listening,
     memory,
+    hooks,
     mcpTools: mcp.toolsFor,
     afterRun: (run) => {
       upkeep.afterRun(run);
@@ -301,6 +306,7 @@ export async function createCore(
     async close() {
       scheduler.stop();
       attention.stop();
+      plugins.close();
       await channels.stop();
       await engine.stop();
       await upkeep.stop();

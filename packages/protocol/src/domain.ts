@@ -626,6 +626,16 @@ export const Notification = z.object({
 });
 export type Notification = z.infer<typeof Notification>;
 
+/** Events a plugin may watch. */
+export const PluginEvent = z.enum([
+  "thread.updated",
+  "message.created",
+  "run.updated",
+  "task.updated",
+  "notification.updated",
+]);
+export type PluginEvent = z.infer<typeof PluginEvent>;
+
 /** Names inside an extension: its id, its MCP servers and its secrets. */
 const ExtName = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,19}$/);
 
@@ -664,6 +674,20 @@ export const ExtensionManifest = z
       .array(z.object({ name: ExtName, label: z.string().max(120), url: z.string().max(500).optional() }).strict())
       .max(10)
       .default([]),
+    /**
+     * Code that runs beside APX in a separate process (it reads only its folder and writes only its data folder). It
+     * can watch the events it names and add context to the owner's turns; it never calls APX.
+     */
+    plugin: z
+      .object({
+        entry: z.string().max(200),
+        observe: z.array(PluginEvent).max(10).default([]),
+        context: z.boolean().default(false),
+        /** Whether it may reach the internet (never this machine). */
+        network: z.boolean().default(false),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type ExtensionManifest = z.infer<typeof ExtensionManifest>;
@@ -683,6 +707,17 @@ export const ExtensionInfo = z.object({
   mcp: z.array(z.string()),
   routines: ExtensionManifest.shape.routines,
   secrets: z.array(z.object({ name: z.string(), label: z.string(), url: z.string().optional(), set: z.boolean() })),
+  plugin: z
+    .object({
+      observe: z.array(PluginEvent),
+      context: z.boolean(),
+      network: z.boolean(),
+      status: z.enum(["off", "running", "error"]),
+      error: z.string().optional(),
+    })
+    .optional(),
+  /** It brings code that runs on this computer (an MCP command or a plugin): turning it on trusts its author. */
+  runs_code: z.boolean(),
   installed_at: z.string(),
 });
 export type ExtensionInfo = z.infer<typeof ExtensionInfo>;

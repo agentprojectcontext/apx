@@ -16,6 +16,11 @@ function show(e: ExtensionInfo): void {
   if (e.mcp.length) console.log(`  mcp: ${e.mcp.join(", ")}`);
   if (e.routines.length) console.log(`  routines: ${e.routines.map((r) => r.name).join(", ")}`);
   for (const s of e.secrets) console.log(`  secret ${s.name}: ${s.label} (${s.set ? "set" : "missing"})`);
+  if (e.plugin)
+    console.log(
+      `  plugin: ${e.plugin.status}${e.plugin.error ? ` (${e.plugin.error})` : ""}; watches ${e.plugin.observe.join(", ") || "nothing"}${e.plugin.context ? "; adds context" : ""}${e.plugin.network ? "; internet" : ""}`,
+    );
+  if (e.runs_code) console.log("  runs code on this computer: turn it on only if you trust its author");
 }
 
 export async function extensions(

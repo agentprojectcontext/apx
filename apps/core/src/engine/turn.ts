@@ -14,7 +14,7 @@ import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { inherit } from "../tools/policy.ts";
-import { UNTRUSTED_MARK } from "../tools/result.ts";
+import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { type Audience, audienceOf, contactPrompt, SEALED_HARNESSES } from "./audience.ts";
@@ -23,6 +23,7 @@ import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } f
 import type { Caller, DelegateTo } from "./delegation.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
+import type { Hooks } from "./hooks.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
@@ -59,6 +60,7 @@ export type TurnDeps = {
   apxPort: () => number;
   /** Notes by words and by meaning. */
   memory: MemoryIndex;
+  hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
@@ -170,6 +172,15 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const recalled = remembers
     ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
     : {};
+  // A plugin's context is for the owner's own turns only, and arrives as outside data.
+  const extra =
+    !sealed && deps.hooks
+      ? await deps.hooks.context({
+          thread: { id: thread.id, kind: thread.kind, title: thread.title, project_id: thread.project_id },
+          agent: { id: agent.id, name: agent.name },
+          text: turn.input.text.slice(0, 4000),
+        })
+      : undefined;
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
@@ -179,6 +190,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
       roster: rosterChanged ? roster.text : undefined,
       memory: recalled.text,
       task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
+      extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
     }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);

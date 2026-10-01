@@ -889,6 +889,12 @@ export const en = {
   "ext.getIt": "Where to get it",
   "ext.addRoutine": "Add to Routines",
   "ext.routineAdded": "{name} added to Routines, off: check it and turn it on.",
+  "ext.plugin": "Plugin",
+  "ext.plugin.watches": "watches {events}",
+  "ext.plugin.context": "adds context to your turns",
+  "ext.plugin.network": "uses the internet",
+  "ext.plugin.error": "Plugin stopped: {error}",
+  "ext.runsCode": "It brings code that runs on this computer. Turn it on only if you trust its author.",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -101,6 +101,8 @@ export function turnInput(opts: {
   memory?: string | undefined;
   /** In a task's conversation: the task as it is now. */
   task?: string | undefined;
+  /** What an extension's plugin adds, already framed as outside data. */
+  extension?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
   const head = [
@@ -108,6 +110,7 @@ export function turnInput(opts: {
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.task ? `[task]\n${opts.task}` : "",
+    opts.extension ? `[extension context]\n${opts.extension}` : "",
   ].filter(Boolean);
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }

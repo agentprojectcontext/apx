@@ -10,6 +10,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { isInside } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
+import type { Plugins } from "./plugins.ts";
 
 export const MANIFEST = "apx-extension.json";
 const MAX_FILES = 2000;
@@ -61,6 +62,11 @@ export function readManifest(dir: string): ExtensionManifest {
   if (!parsed.success) throw badRequest(`${MANIFEST}: ${parsed.error.issues[0]?.message ?? "invalid"}`);
   const m = parsed.data;
   if (m.skills && !isInside(dir, path.resolve(dir, m.skills))) throw badRequest("skills points outside the extension");
+  if (m.plugin) {
+    const entry = path.resolve(dir, m.plugin.entry);
+    if (!isInside(dir, entry)) throw badRequest("plugin.entry points outside the extension");
+    if (!fs.existsSync(entry)) throw badRequest(`plugin.entry ${m.plugin.entry} does not exist`);
+  }
   const declared = new Set(m.secrets.map((s) => s.name));
   for (const [name, server] of Object.entries(m.mcp)) {
     if (!server.command && !server.url) throw badRequest(`mcp ${name} needs a command or a url`);
@@ -86,8 +92,8 @@ function skillNames(dir: string, m: ExtensionManifest): string[] {
   }
 }
 
-export function createExtensions(deps: { store: Store; secrets: Secrets; home: string }) {
-  const { store, secrets } = deps;
+export function createExtensions(deps: { store: Store; secrets: Secrets; home: string; plugins: Plugins }) {
+  const { store, secrets, plugins } = deps;
   const root = path.join(deps.home, "extensions");
 
   const info = (
@@ -109,6 +115,17 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       ...(s.url ? { url: s.url } : {}),
       set: secrets.has(`secret://${extSecret(e.id, s.name)}`),
     })),
+    ...(e.manifest.plugin
+      ? {
+          plugin: {
+            observe: e.manifest.plugin.observe,
+            context: e.manifest.plugin.context,
+            network: e.manifest.plugin.network,
+            ...plugins.status(e.id),
+          },
+        }
+      : {}),
+    runs_code: Boolean(e.manifest.plugin) || Object.values(e.manifest.mcp).some((m) => m.command),
     installed_at: e.installed_at,
   });
 
@@ -136,7 +153,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
         if (!same) {
           store.extensions.setEnabled(e.id, false);
           off.push(e.manifest.name);
-        }
+        } else plugins.start(e);
       }
       return off;
     },
@@ -178,12 +195,22 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       // The copy must still be what was installed.
       if (enabled && fingerprint(e.dir, filesOf(e.dir)) !== e.hash)
         throw badRequest(`${e.manifest.name} changed on disk since it was installed; install it again`);
+      if (enabled && e.manifest.plugin?.context) {
+        const holder = plugins.contextOwner();
+        if (holder && holder !== id)
+          throw badRequest(
+            `${store.extensions.get(holder)?.manifest.name ?? holder} already adds context to turns; turn it off first`,
+          );
+      }
       store.extensions.setEnabled(id, enabled);
+      if (enabled) plugins.start(get(id));
+      else plugins.stop(id);
       return info(get(id));
     },
     remove(id: string): boolean {
       const e = store.extensions.get(id);
       if (!e) return false;
+      plugins.stop(id);
       for (const s of e.manifest.secrets) secrets.set(extSecret(id, s.name), null);
       store.extensions.remove(id);
       fs.rmSync(e.dir, { recursive: true, force: true });
@@ -193,6 +220,11 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
       const e = get(id);
       if (!e.manifest.secrets.some((s) => s.name === name)) throw notFound(`secret ${name} of ${id}`);
       secrets.set(extSecret(id, name), value);
+      // A running plugin got its secrets at start.
+      if (e.enabled && e.manifest.plugin) {
+        plugins.stop(id);
+        plugins.start(e);
+      }
       return info(e);
     },
   };
