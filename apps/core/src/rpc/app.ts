@@ -13,7 +13,7 @@ import type { Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { skillsFor } from "../skills/skills.ts";
 import type { EngineIds } from "./agents.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 export function appHandlers(deps: {
   store: Store;
@@ -29,7 +29,7 @@ export function appHandlers(deps: {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
   return {
-    "system.import_v1": (async ({ keys, skills, services }) =>
+    "system.import_v1": async ({ keys, skills, services }) =>
       importFromV1(deps.apc, secrets, {
         ...deps.v1,
         v2Home: deps.home,
@@ -44,20 +44,20 @@ export function appHandlers(deps: {
                 return [id];
               })
           : undefined,
-      })) as Handler<"system.import_v1">,
-    "secrets.list": (() => ({ secrets: secrets.list() })) as Handler<"secrets.list">,
-    "desktop.get": (() => desktopPrefs(store)) as Handler<"desktop.get">,
-    "desktop.set": ((p) => {
+      }),
+    "secrets.list": () => ({ secrets: secrets.list() }),
+    "desktop.get": () => desktopPrefs(store),
+    "desktop.set": (p) => {
       store.settings.set("desktop", JSON.stringify(p));
       return desktopPrefs(store);
-    }) as Handler<"desktop.set">,
-    "secrets.set": (({ name, value }) => {
+    },
+    "secrets.set": ({ name, value }) => {
       secrets.set(name, value);
       return { ok: true as const };
-    }) as Handler<"secrets.set">,
-    "models.list": (async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) })) as Handler<"models.list">,
-    "models.config": (() => ({ default: models.defaultChoice(), router: models.router() })) as Handler<"models.config">,
-    "models.set_config": ((p) => {
+    },
+    "models.list": async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) }),
+    "models.config": () => ({ default: models.defaultChoice(), router: models.router() }),
+    "models.set_config": (p) => {
       const refs = [p.default?.model, ...(p.router?.chain ?? []), ...(p.router?.rules.map((r) => r.model) ?? [])];
       for (const ref of refs) {
         const why = ref ? refProblem(ref, deps.engines) : undefined;
@@ -65,12 +65,12 @@ export function appHandlers(deps: {
       }
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
-    }) as Handler<"models.set_config">,
-    "skills.list": (({ project }) => ({
+    },
+    "skills.list": ({ project }) => ({
       skills: skillsFor(store, deps.home, project).map(({ dir: _d, ...s }) => s),
-    })) as Handler<"skills.list">,
-    "projects.list": (() => ({ projects: store.projects.list().map(publicProject) })) as Handler<"projects.list">,
-    "projects.register": (({ path }) => {
+    }),
+    "projects.list": () => ({ projects: store.projects.list().map(publicProject) }),
+    "projects.register": ({ path }) => {
       let r: ReturnType<typeof deps.apc.register>;
       try {
         r = deps.apc.register(path);
@@ -80,15 +80,15 @@ export function appHandlers(deps: {
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
-    }) as Handler<"projects.register">,
-    "projects.sync": (({ project }) => deps.apc.sync(project)) as Handler<"projects.sync">,
-    "surfaces.list": (({ project_id }) => ({ surfaces: store.surfaces.list(project_id) })) as Handler<"surfaces.list">,
-    "surfaces.get": (({ surface }) => {
+    },
+    "projects.sync": ({ project }) => deps.apc.sync(project),
+    "surfaces.list": ({ project_id }) => ({ surfaces: store.surfaces.list(project_id) }),
+    "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);
       return s;
-    }) as Handler<"surfaces.get">,
-    "surfaces.show": ((p, ctx) => {
+    },
+    "surfaces.show": (p, ctx) => {
       const threadId = p.thread ?? ctx.agent?.thread_id;
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
@@ -108,32 +108,32 @@ export function appHandlers(deps: {
           app: p.app,
         }),
       );
-    }) as Handler<"surfaces.show">,
-    "surfaces.update": (({ surface, pinned, app }) => {
+    },
+    "surfaces.update": ({ surface, pinned, app }) => {
       const s = store.surfaces.patch(surface, { pinned, app });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
-    }) as Handler<"surfaces.update">,
-    "surfaces.share": (({ surface, shared }) => {
+    },
+    "surfaces.share": ({ surface, shared }) => {
       const s = store.surfaces.share(surface, shared);
       if (!s) throw notFound(`surface ${surface}`);
       return s;
-    }) as Handler<"surfaces.share">,
-    "engines.status": (async ({ refresh }) => ({
+    },
+    "engines.status": async ({ refresh }) => ({
       engines: await harnesses.status(refresh),
-    })) as Handler<"engines.status">,
-    "harness.tools": (({ token }) => ({
+    }),
+    "harness.tools": ({ token }) => ({
       tools: harnesses.gate(token).tools.map((t) => ({
         name: t.function.name,
         description: t.function.description,
         parameters: t.function.parameters,
       })),
-    })) as Handler<"harness.tools">,
-    "harness.call": (({ token, tool, args }) => {
+    }),
+    "harness.call": ({ token, tool, args }) => {
       const g = harnesses.gate(token);
       return g.execute(`${g.run.id}-x${randomUUID().slice(0, 8)}`, tool, args);
-    }) as Handler<"harness.call">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }
 
 /** The quick chat opens with Option+Space unless the owner picked another shortcut. */

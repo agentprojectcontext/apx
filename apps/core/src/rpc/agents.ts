@@ -8,7 +8,7 @@ import { type AgentRecord, publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
 export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };
@@ -54,9 +54,9 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
   };
 
   return {
-    "agents.list": (() => ({ agents: store.agents.list().map(publicAgent) })) as Handler<"agents.list">,
+    "agents.list": () => ({ agents: store.agents.list().map(publicAgent) }),
 
-    "agents.create": ((p) => {
+    "agents.create": (p) => {
       checkChoice(p.model_choice);
       if (!p.project_id) {
         if (store.agents.get(p.slug)) throw badRequest(`an agent with id ${p.slug} exists`);
@@ -86,9 +86,9 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       if (!created) throw badRequest("the agent file was written but could not be read back");
       if (p.model_choice) setLocal(created, { model_choice: p.model_choice });
       return fresh(created.id);
-    }) as Handler<"agents.create">,
+    },
 
-    "agents.update": ((p) => {
+    "agents.update": (p) => {
       const cur = store.agents.get(p.agent);
       if (!cur) throw notFound(`agent ${p.agent}`);
       const model_choice = p.model_choice;
@@ -119,9 +119,9 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       if (model_choice !== undefined || p.browser_profile)
         setLocal(now, { browser_profile: p.browser_profile, model_choice });
       return fresh(cur.id);
-    }) as Handler<"agents.update">,
+    },
 
-    "agents.archive": (({ agent }) => {
+    "agents.archive": ({ agent }) => {
       const cur = store.agents.get(agent);
       if (!cur) throw notFound(`agent ${agent}`);
       if (cur.kind === "secretary") throw badRequest("the secretary cannot be archived");
@@ -133,6 +133,6 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       }
       store.agents.archive(cur.id);
       return { ok: true as const, ...(moved ? { moved_to: moved } : {}) };
-    }) as Handler<"agents.archive">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }

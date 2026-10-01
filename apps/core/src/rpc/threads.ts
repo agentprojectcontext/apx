@@ -15,7 +15,7 @@ import type { CallContext } from "./context.ts";
 type SendMode = "queue" | "interrupt" | "steer";
 type ChannelSender = NonNullable<CallContext["channel"]>;
 
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 /**
  * A code thread's folder: inside its project's folder on disk, symlinks resolved, so the agent cannot be pointed
@@ -89,15 +89,15 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
-    "threads.list": (({ project_id, include_subthreads }) => ({
+    "threads.list": ({ project_id, include_subthreads }) => ({
       threads: store.threads.list({ project_id, include_subthreads }),
-    })) as Handler<"threads.list">,
-    "threads.get": (({ thread }) => {
+    }),
+    "threads.get": ({ thread }) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
-    }) as Handler<"threads.get">,
-    "threads.create": (({ kind, agent_id, title, project_id, cwd, write }) => {
+    },
+    "threads.create": ({ kind, agent_id, title, project_id, cwd, write }) => {
       const agent = store.agents.get(agent_id);
       if (!agent) throw notFound(`agent ${agent_id}`);
       const pid = project_id ?? agent.project_id;
@@ -109,8 +109,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         project_id: pid,
         ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
       });
-    }) as Handler<"threads.create">,
-    "threads.send": (({ thread, text, mode }, ctx) => {
+    },
+    "threads.send": ({ thread, text, mode }, ctx) => {
       const { agent } = threadAgent(thread);
       if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
       if (mode === "interrupt") engine.interrupt(thread);
@@ -129,32 +129,31 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         trigger: "user",
         origin: { kind: "user" },
       });
-    }) as Handler<"threads.send">,
-    "threads.cancel": (({ thread }) => ({ canceled: engine.cancel(thread) })) as Handler<"threads.cancel">,
-    "threads.compact": (async ({ thread }) => {
+    },
+    "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),
+    "threads.compact": async ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return upkeep.compact(thread);
-    }) as Handler<"threads.compact">,
-    "threads.read": (({ thread }) => {
+    },
+    "threads.read": ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       store.threads.patch(thread, { unread: 0 }, false);
       return { ok: true as const };
-    }) as Handler<"threads.read">,
-    "runs.pending": (({ thread }) => ({ inputs: engine.pending(thread) })) as Handler<"runs.pending">,
-    "runs.respond": (({ input, decision, text }) =>
-      publicInput(engine.respond(input, { decision, text }))) as Handler<"runs.respond">,
-    "runs.get": (({ run }) => {
+    },
+    "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),
+    "runs.respond": ({ input, decision, text }) => publicInput(engine.respond(input, { decision, text })),
+    "runs.get": ({ run }) => {
       const r = store.runs.get(run);
       if (!r) throw notFound(`run ${run}`);
       return publicRun(r);
-    }) as Handler<"runs.get">,
-    "runs.wait": (async ({ run, timeout_s }) => {
+    },
+    "runs.wait": async ({ run, timeout_s }) => {
       const r = await engine.wait(run, timeout_s * 1000);
       if (!r) throw notFound(`run ${run}`);
       return publicRun(r);
-    }) as Handler<"runs.wait">,
+    },
     /** A widget's sendPrompt(): an input on the thread that owns the widget, marked as coming from it. */
-    "surfaces.prompt": (({ surface, text }) => {
+    "surfaces.prompt": ({ surface, text }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);
       const threadId = s.thread_id ?? HOME_THREAD_ID;
@@ -174,6 +173,6 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         });
         return { thread: threadId, run: publicRun(run) };
       });
-    }) as Handler<"surfaces.prompt">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }

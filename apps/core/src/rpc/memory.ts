@@ -4,7 +4,7 @@ import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 export function memoryHandlers(store: Store) {
   /** The agent's view, or undefined for the owner (who sees everything). */
@@ -15,11 +15,11 @@ export function memoryHandlers(store: Store) {
   };
 
   return {
-    "memory.list": (({ query, scope, project, agent, limit }, ctx) => ({
+    "memory.list": ({ query, scope, project, agent, limit }, ctx) => ({
       memories: store.memories.list({ view: viewOf(ctx), scope, project_id: project, agent_id: agent, query, limit }),
-    })) as Handler<"memory.list">,
+    }),
 
-    "memory.add": (({ text, scope, project, agent, id, tainted }, ctx) => {
+    "memory.add": ({ text, scope, project, agent, id, tainted }, ctx) => {
       if (looksSecret(text))
         throw badRequest("that looks like a password, key or token: memory never keeps credentials");
       const view = viewOf(ctx);
@@ -58,15 +58,15 @@ export function memoryHandlers(store: Store) {
         thread_id: ctx.agent?.thread_id,
         tainted: tainted ?? true,
       });
-    }) as Handler<"memory.add">,
+    },
 
-    "memory.remove": (({ id }, ctx) => {
+    "memory.remove": ({ id }, ctx) => {
       const m = store.memories.get(id);
       if (!m) return { removed: false };
       const view = viewOf(ctx);
       if (view && (m.source === "owner" || !canSee(view, m)))
         throw unauthorized("an agent can only remove notes agents wrote that it can see");
       return { removed: store.memories.remove(id) };
-    }) as Handler<"memory.remove">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }

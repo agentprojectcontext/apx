@@ -3,7 +3,7 @@ import type { ProviderInfo } from "@apx/protocol";
 import { NO_KEY } from "../providers/llm.ts";
 import type { ProviderRegistry } from "../providers/registry.ts";
 import type { Secrets } from "../secrets.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 export function providerHandlers(providers: ProviderRegistry, secrets: Secrets) {
   const list = (): ProviderInfo[] =>
@@ -20,8 +20,8 @@ export function providerHandlers(providers: ProviderRegistry, secrets: Secrets) 
       builtin: p.builtin,
     }));
   return {
-    "providers.list": (() => ({ providers: list() })) as Handler<"providers.list">,
-    "providers.set": (({ id, provider, api_key }) => {
+    "providers.list": () => ({ providers: list() }),
+    "providers.set": ({ id, provider, api_key }) => {
       if (api_key) secrets.set(id, api_key);
       if (!provider) {
         providers.set(id, null);
@@ -39,6 +39,6 @@ export function providerHandlers(providers: ProviderRegistry, secrets: Secrets) 
         enabled: provider.enabled ?? true,
       });
       return { providers: list() };
-    }) as Handler<"providers.set">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }

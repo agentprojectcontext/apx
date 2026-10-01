@@ -5,29 +5,29 @@ import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 export function channelHandlers(store: Store, channels: Channels) {
   return {
-    "channels.list": (() => ({ channels: channels.info() })) as Handler<"channels.list">,
-    "channels.set": (async ({ id, channel, token }) => {
+    "channels.list": () => ({ channels: channels.info() }),
+    "channels.set": async ({ id, channel, token }) => {
       if (channel && !store.agents.get(channel.agent_id)) throw notFound(`agent ${channel.agent_id}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)
         throw badRequest("a Telegram channel needs its bot token (from @BotFather)");
       const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
       return { channels: await channels.set(id, config, token) };
-    }) as Handler<"channels.set">,
-    "channels.outbox": (({ limit }) => ({
+    },
+    "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
-    })) as Handler<"channels.outbox">,
+    }),
 
-    "notices.get": (() => noticePrefs(store)) as Handler<"notices.get">,
-    "notices.set": ((prefs) => saveNoticePrefs(store, prefs)) as Handler<"notices.set">,
-    "contacts.list": (() => {
+    "notices.get": () => noticePrefs(store),
+    "notices.set": (prefs) => saveNoticePrefs(store, prefs),
+    "contacts.list": () => {
       store.persons.owner();
       return { persons: store.persons.list() };
-    }) as Handler<"contacts.list">,
-    "contacts.set": (({ id, name, role, note }) => {
+    },
+    "contacts.set": ({ id, name, role, note }) => {
       if (!id) {
         if (role === "owner") throw badRequest("there is one owner");
         return store.persons.create({ name, role: role ?? "contact", note });
@@ -35,18 +35,18 @@ export function channelHandlers(store: Store, channels: Channels) {
       const p = store.persons.update(id, { name, ...(role ? { role } : {}), note });
       if (!p) throw notFound(`person ${id}`);
       return p;
-    }) as Handler<"contacts.set">,
-    "contacts.remove": (({ id, address }) => {
+    },
+    "contacts.remove": ({ id, address }) => {
       if (address) return { removed: store.persons.unlink(address) };
       if (!id) throw badRequest("give a person or an address");
       if (id === OWNER_ID) throw badRequest("the owner cannot be removed");
       return { removed: store.persons.remove(id) };
-    }) as Handler<"contacts.remove">,
+    },
 
-    "pairing.list": (() => ({
+    "pairing.list": () => ({
       requests: store.channels.pairing.open().map(({ conversation: _c, ...r }) => r),
-    })) as Handler<"pairing.list">,
-    "pairing.respond": (({ code, decision, person, name }) => {
+    }),
+    "pairing.respond": ({ code, decision, person, name }) => {
       const req = store.channels.pairing.get(code);
       if (!req) throw notFound(`pairing code ${code} (wrong or expired)`);
       if (decision === "deny") {
@@ -68,8 +68,8 @@ export function channelHandlers(store: Store, channels: Channels) {
         return who.id;
       });
       return { person: store.persons.get(id) };
-    }) as Handler<"pairing.respond">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }
 
 const defaultLabel = (type: string) => (type === "telegram" ? "Telegram" : type);

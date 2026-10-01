@@ -6,7 +6,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import { notFound, unauthorized } from "../errors.ts";
-import type { Handler } from "./router.ts";
+import type { Handlers } from "./router.ts";
 
 const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
 
@@ -33,7 +33,7 @@ export function jobHandlers(store: Store, engine: Engine) {
   };
 
   return {
-    "usage.summary": (({ since, project }) => {
+    "usage.summary": ({ since, project }) => {
       const from = since ?? new Date(Date.now() - 30 * 86_400_000).toISOString();
       return {
         since: from,
@@ -46,8 +46,8 @@ export function jobHandlers(store: Store, engine: Engine) {
           output: u.output,
         })),
       };
-    }) as Handler<"usage.summary">,
-    "jobs.list": (({ finished }) => {
+    },
+    "jobs.list": ({ finished }) => {
       const runs = store.runs.jobs(finished);
       return {
         running: [...runs.running.map(view), ...store.jobs.running().map(publicJob)].sort(newest),
@@ -55,8 +55,8 @@ export function jobHandlers(store: Store, engine: Engine) {
           .sort(newest)
           .slice(0, finished),
       };
-    }) as Handler<"jobs.list">,
-    "jobs.get": (({ job, offset, max_chars }, ctx) => {
+    },
+    "jobs.get": ({ job, offset, max_chars }, ctx) => {
       const j = store.jobs.get(job);
       if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id)
         throw unauthorized("an agent can only read its own thread's jobs");
@@ -64,9 +64,9 @@ export function jobHandlers(store: Store, engine: Engine) {
       const r = store.runs.get(job);
       if (!r) throw notFound(`job ${job}`);
       return { job: view(r), output: "", size: 0, offset: 0 };
-    }) as Handler<"jobs.get">,
+    },
     /** An agent may stop only the terminal jobs of its own thread; the owner stops anything. */
-    "jobs.cancel": (({ job }, ctx) => {
+    "jobs.cancel": ({ job }, ctx) => {
       const j = store.jobs.get(job);
       const r = j ? undefined : store.runs.get(job);
       const thread = j?.thread_id ?? r?.thread_id;
@@ -74,6 +74,6 @@ export function jobHandlers(store: Store, engine: Engine) {
       if (ctx.actor !== "human" && (!j || ctx.agent?.thread_id !== thread))
         throw unauthorized("an agent can only stop its own thread's jobs");
       return { canceled: j ? engine.jobs.cancel(j.id) : engine.cancel(thread) > 0 };
-    }) as Handler<"jobs.cancel">,
-  };
+    },
+  } satisfies Partial<Handlers>;
 }
