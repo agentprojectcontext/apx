@@ -53,8 +53,9 @@ Usage:
   apx2 models rules < rules.json        The router's rules (JSON on stdin)
 
   apx2 secrets [list] | set <name> (value on stdin) | rm <name>
-  apx2 import-v1 [--keys]  Register the project folders a local APX v1 knows (read-only);
-                           --keys also copies its model API keys into v2's secret store, once
+  apx2 import-v1 [--keys] [--skills]
+                           Register the project folders a local APX v1 knows (read-only); --keys also copies
+                           its model API keys into v2's secret store, --skills its skills into v2's home, once
 
   apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…)
   apx2 mcp --run           The tools of one agent run (APX_RUN_TOKEN), for an external harness
@@ -79,6 +80,7 @@ const { values, positionals } = parseArgs({
     cwd: { type: "string" },
     write: { type: "string" },
     keys: { type: "boolean" },
+    skills: { type: "boolean" },
     refresh: { type: "boolean" },
     project: { type: "string" },
     role: { type: "string" },
@@ -155,9 +157,9 @@ try {
       await secrets(client, rest);
       break;
     case "import-v1": {
-      const r = await client.call("system.import_v1", { keys: values.keys ?? false });
+      const r = await client.call("system.import_v1", { keys: values.keys ?? false, skills: values.skills ?? false });
       console.log(
-        `imported ${r.projects} projects, ${r.agents} agents${r.keys.length ? `; keys: ${r.keys.join(", ")}` : ""}`,
+        `imported ${r.projects} projects, ${r.agents} agents${r.keys.length ? `; keys: ${r.keys.join(", ")}` : ""}${r.skills.length ? `; ${r.skills.length} skills` : ""}`,
       );
       break;
     }

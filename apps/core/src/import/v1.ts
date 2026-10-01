@@ -1,6 +1,6 @@
 // Read-only import from a local APX v1: registers the project folders it knows (each one's AGENTS.md and .apc/ are
-// then read from disk, like any project) and, only when asked, copies its model API keys once into v2's secret
-// store. Never writes to v1; never sends the v1 token off this machine.
+// then read from disk, like any project) and, only when asked, copies its model API keys and its skills once into
+// v2's own home. Never writes to v1; never sends the v1 token off this machine.
 import fs from "node:fs";
 import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
@@ -21,13 +21,49 @@ function v1Value(config: unknown, dotted: string): string | undefined {
   return typeof cur === "string" && cur ? cur : undefined;
 }
 
+const SKILL_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+
+/**
+ * Copies v1's skills into `to` once: a folder is copied without the links inside it; a skill that was itself a link
+ * stays a link to the same place. A name v2 already has is left alone.
+ */
+export function importSkills(from: string, to: string): string[] {
+  let names: string[];
+  try {
+    names = fs.readdirSync(from);
+  } catch {
+    return [];
+  }
+  fs.mkdirSync(to, { recursive: true });
+  const copied: string[] = [];
+  for (const name of names.sort()) {
+    const src = path.join(from, name);
+    const dst = path.join(to, name);
+    if (!SKILL_NAME.test(name) || fs.existsSync(dst)) continue;
+    try {
+      if (!fs.existsSync(path.join(src, "SKILL.md"))) continue;
+      if (fs.lstatSync(src).isSymbolicLink()) fs.symlinkSync(fs.realpathSync(src), dst);
+      else
+        fs.cpSync(src, dst, {
+          recursive: true,
+          filter: (f) => !fs.lstatSync(f).isSymbolicLink() && path.basename(f) !== ".DS_Store",
+        });
+      copied.push(name);
+    } catch {
+      fs.rmSync(dst, { recursive: true, force: true });
+    }
+  }
+  return copied;
+}
+
 export async function importFromV1(
   apc: ApcSync,
   secrets: Secrets,
-  opts: { url: string; home: string; keys: boolean; fetchImpl?: typeof fetch },
+  opts: { url: string; home: string; v2Home: string; keys: boolean; skills: boolean; fetchImpl?: typeof fetch },
 ) {
   if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(opts.url).hostname))
     throw new Error("v1 import only talks to a local daemon");
+  const skills = opts.skills ? importSkills(path.join(opts.home, "skills"), path.join(opts.v2Home, "skills")) : [];
   const keys: string[] = [];
   if (opts.keys) {
     try {
@@ -62,5 +98,5 @@ export async function importFromV1(
       // A folder v1 lists but that is not an APC project (or not on disk now) is skipped.
     }
   }
-  return { projects, agents, keys };
+  return { projects, agents, keys, skills };
 }

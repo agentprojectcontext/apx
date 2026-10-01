@@ -23,11 +23,16 @@ import {
 export const appMethods = {
   /**
    * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
-   * and, when `keys` is set, copies its model API keys once into v2's own secret store.
+   * and, when asked, copies its model API keys (`keys`) and its skills (`skills`) once into v2's own home.
    */
   "system.import_v1": {
-    params: z.object({ keys: z.boolean().default(false) }).strict(),
-    result: z.object({ projects: z.number().int(), agents: z.number().int(), keys: z.array(z.string()) }),
+    params: z.object({ keys: z.boolean().default(false), skills: z.boolean().default(false) }).strict(),
+    result: z.object({
+      projects: z.number().int(),
+      agents: z.number().int(),
+      keys: z.array(z.string()),
+      skills: z.array(z.string()).default([]),
+    }),
     effect: true,
     access: "human",
   },

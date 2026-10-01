@@ -44,3 +44,24 @@ test("agents see a one-line catalog and load the body on demand; files outside t
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /outside the skill/);
 });
+
+test("v1 skills are copied once: folders without inner links, linked skills stay links, existing names kept", async () => {
+  const { importSkills } = await import("../import/v1.ts");
+  const v1 = fs.mkdtempSync(path.join(env.home, "v1-"));
+  const outside = fs.mkdtempSync(path.join(env.home, "outside-"));
+  fs.writeFileSync(path.join(outside, "SKILL.md"), "---\nname: linked\ndescription: Lives elsewhere.\n---\n");
+  fs.mkdirSync(path.join(v1, "plain"));
+  fs.writeFileSync(path.join(v1, "plain", "SKILL.md"), "---\nname: plain\ndescription: A plain one.\n---\n");
+  fs.symlinkSync(outside, path.join(v1, "plain", "leak"));
+  fs.symlinkSync(outside, path.join(v1, "linked"));
+  fs.mkdirSync(path.join(v1, "brief-writer"));
+  fs.writeFileSync(path.join(v1, "brief-writer", "SKILL.md"), "---\nname: brief-writer\ndescription: Old.\n---\n");
+  fs.mkdirSync(path.join(v1, "not-a-skill"));
+  const to = path.join(env.home, "skills");
+  assert.deepEqual(importSkills(v1, to), ["linked", "plain"]);
+  assert.equal(fs.existsSync(path.join(to, "plain", "leak")), false);
+  assert.equal(fs.realpathSync(path.join(to, "linked")), fs.realpathSync(outside));
+  assert.match(fs.readFileSync(path.join(to, "brief-writer", "SKILL.md"), "utf8"), /one-page briefs/);
+  assert.deepEqual(importSkills(v1, to), []);
+  for (const n of ["linked", "plain"]) fs.rmSync(path.join(to, n), { recursive: true, force: true });
+});

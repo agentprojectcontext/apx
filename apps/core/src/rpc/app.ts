@@ -28,8 +28,8 @@ export function appHandlers(deps: {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
   return {
-    "system.import_v1": (async ({ keys }) =>
-      importFromV1(deps.apc, secrets, { ...deps.v1, keys })) as Handler<"system.import_v1">,
+    "system.import_v1": (async ({ keys, skills }) =>
+      importFromV1(deps.apc, secrets, { ...deps.v1, v2Home: deps.home, keys, skills })) as Handler<"system.import_v1">,
     "secrets.list": (() => ({ secrets: secrets.list() })) as Handler<"secrets.list">,
     "secrets.set": (({ name, value }) => {
       secrets.set(name, value);
