@@ -5,26 +5,14 @@ import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
-type JsonProp = { type?: string; description?: string };
-
-/** Our tool specs are flat JSON Schema objects; the Agent SDK wants a zod raw shape. */
-function zodShape(params: object): Record<string, z.ZodType> {
-  const p = params as { properties?: Record<string, JsonProp>; required?: string[] };
-  const required = new Set(p.required ?? []);
-  const shape: Record<string, z.ZodType> = {};
-  for (const [key, prop] of Object.entries(p.properties ?? {})) {
-    let t: z.ZodType =
-      prop.type === "integer"
-        ? z.number().int()
-        : prop.type === "number"
-          ? z.number()
-          : prop.type === "boolean"
-            ? z.boolean()
-            : z.string();
-    if (prop.description) t = t.describe(prop.description);
-    shape[key] = required.has(key) ? t : t.optional();
-  }
-  return shape;
+/**
+ * Our tool specs are JSON Schema derived from each tool's zod schema; the Agent SDK wants a zod raw shape. Rebuilt
+ * from the same schema (arrays, enums, limits included): a looser copy made Claude send arguments our check refuses.
+ * See HISTORY.md#claude-tool-schema
+ */
+export function zodShape(params: object): z.ZodRawShape {
+  const s = z.fromJSONSchema(params as Parameters<typeof z.fromJSONSchema>[0]);
+  return s instanceof z.ZodObject ? s.shape : {};
 }
 
 // Claude Code's own web tools are useful to a secretary; its file and shell tools are not offered.

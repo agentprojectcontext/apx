@@ -58,3 +58,10 @@ resolves to the script's value. Where: `apps/desktop/src/main/browser/host.ts`.
 Google answers 429 "You exceeded your current quota" when one model's limit is hit; the next model of the same
 key still works. The gateway skips only that model on `quota` (auth and bad requests skip the provider).
 Where: `apps/core/src/providers/llm.ts`.
+
+<a id="claude-tool-schema"></a>
+### Claude Code gets the tools' real schema, not a hand-made copy
+The Claude harness rebuilt each tool's zod shape from JSON Schema by hand and turned every array into a string. The
+Agent SDK then made Claude send `options: "red, blue"`, our own check refused it twice, and the agent gave up on the
+option buttons. The shape now comes from `z.fromJSONSchema` of the same schema the tool defines.
+Where: `apps/core/src/harness/claude.ts`.

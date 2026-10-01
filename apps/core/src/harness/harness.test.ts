@@ -153,3 +153,16 @@ test("the per-run MCP proxy (used by Codex) lists and calls that run's tools thr
   assert.equal(gone.isError, true);
   await mcp.close();
 });
+
+test("Claude Code gets each tool's real schema: arrays stay arrays, limits stay limits", async () => {
+  const { zodShape } = await import("./claude.ts");
+  const { ownerTools } = await import("../tools/owner.ts");
+  const { toSpec } = await import("../tools/types.ts");
+  const ask = ownerTools(env.core.store).find((t) => t.name === "ask_owner");
+  assert.ok(ask);
+  const { z } = await import("zod");
+  const schema = z.object(zodShape(toSpec(ask).function.parameters));
+  assert.ok(schema.safeParse({ question: "Which?", options: ["red", "blue"] }).success);
+  assert.ok(!schema.safeParse({ question: "Which?", options: "red, blue" }).success);
+  assert.ok(!schema.safeParse({ question: "" }).success);
+});
