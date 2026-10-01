@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { guarded, insideReal, pathsOf } from "./paths.ts";
+import { insideReal } from "../paths.ts";
+import { guarded, pathsOf } from "./paths.ts";
 
 test("paths: inside means inside once links are resolved; git, APC and AGENTS.md are guarded", () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-paths-")));

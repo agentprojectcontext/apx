@@ -14,7 +14,8 @@ import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { guarded, insideReal, pathsOf } from "./paths.ts";
+import { insideReal } from "../paths.ts";
+import { guarded, pathsOf } from "./paths.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
 async function runTool(

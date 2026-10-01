@@ -134,3 +134,19 @@ test("a cwd outside the project folder is refused", async () => {
   await env.settle(t);
   assert.match(lastSeen(), /outside the project folder/);
 });
+
+test("a folder that is a symlink pointing outside the project is refused", async () => {
+  const { insideReal } = await import("../paths.ts");
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-link-")));
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-out-")));
+  fs.symlinkSync(outside, path.join(root, "escape"));
+  fs.mkdirSync(path.join(root, "src"));
+  assert.equal(insideReal(root, "src"), true);
+  assert.equal(insideReal(root, "escape"), false);
+  assert.equal(insideReal(root, "escape/deeper/not-there"), false);
+  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(outside, { recursive: true, force: true });
+});

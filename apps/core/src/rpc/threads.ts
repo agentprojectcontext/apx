@@ -8,6 +8,7 @@ import type { Upkeep } from "../engine/upkeep.ts";
 import type { CallContext } from "./context.ts";
 import type { Handler } from "./router.ts";
 import { badRequest, notFound } from "../errors.ts";
+import { isInside } from "../paths.ts";
 
 
 /**
@@ -26,8 +27,7 @@ function codeFolder(store: Store, projectId: string | undefined, cwd: string | u
   } catch {
     throw badRequest(`no folder ${cwd ?? project.path}`);
   }
-  if (dir !== root && !dir.startsWith(`${root}${path.sep}`))
-    throw badRequest(`${cwd} is outside the project's folder`);
+  if (!isInside(root, dir)) throw badRequest(`${cwd} is outside the project's folder`);
   return dir;
 }
 

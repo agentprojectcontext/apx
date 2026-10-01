@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { insideReal } from "../paths.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
@@ -98,8 +99,8 @@ export function shellTools(store: Store, home: string, apxPort?: number): Tool[]
         // A code thread works in its own folder; any other thread in its project's root.
         const base = ctx.thread.cwd ?? baseDir(ctx.thread.project_id);
         const cwd = path.resolve(base, a.cwd ?? ".");
-        if (cwd !== base && !cwd.startsWith(`${base}${path.sep}`))
-          return `refused: ${a.cwd} is outside the project folder`;
+        // Links resolved: a symlink inside the project must not run the command somewhere else.
+        if (!insideReal(base, a.cwd ?? ".")) return `refused: ${a.cwd} is outside the project folder`;
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
         if (a.command.includes(home) || /\.apx2\b/.test(a.command)) return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });

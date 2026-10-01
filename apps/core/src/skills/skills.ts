@@ -1,6 +1,7 @@
 // Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). The owner's live in
 // APX's home (`skills/`), a project's in `.apc/skills/`. Agents see a one-line catalog; the body loads on demand.
 import fs from "node:fs";
+import { isInside } from "../paths.ts";
 import path from "node:path";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -90,7 +91,7 @@ export function skillCatalog(skills: Skill[]): string {
 /** A skill's SKILL.md, or another file inside its folder (never outside it). */
 export function readSkillFile(skill: Skill, file?: string): string {
   const root = fs.realpathSync(skill.dir);
-  const inside = (p: string) => p === root || p.startsWith(`${root}${path.sep}`);
+  const inside = (p: string) => isInside(root, p);
   // Checked before touching the disk (no probing for files elsewhere) and again after links are resolved.
   const asked = path.resolve(root, file ?? "SKILL.md");
   if (!inside(asked)) throw new Error(`${file} is outside the skill`);

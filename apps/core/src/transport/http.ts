@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
+import { isInside } from "../paths.ts";
 import type { Log } from "../log.ts";
 import type { Dispatch } from "../rpc/router.ts";
 import { type Gate, refuse } from "./guard.ts";
@@ -28,7 +29,7 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
     return false;
   }
   let file = path.resolve(root, `.${decoded}`);
-  if (file !== root && !file.startsWith(root + path.sep)) return false;
+  if (!isInside(root, file)) return false;
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, "index.html");
   if (!fs.existsSync(file)) return false;
   res.writeHead(200, {
