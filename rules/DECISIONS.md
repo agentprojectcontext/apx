@@ -45,3 +45,22 @@ token that dies with the run. Claude runs isolated (`settingSources: []`, only W
 `permissionMode: "dontAsk"`); Codex runs read-only with no approvals. Each thread keeps the harness session id so
 the conversation resumes. If a harness fails before any tool ran (quota, logged out), the turn falls back to the
 native model with a visible card; after a tool ran it fails honestly (a retry could repeat an effect).
+
+<a id="d-008"></a>
+## D-008 — 2026-10-01 — Our own model client: one interface, two wire formats
+The built-in harness calls models through `apps/core/src/providers/`: a `Provider` config (id, transport, base URL,
+key reference, models) and two transports, `openai-chat` (OpenAI, Gemini's OpenAI endpoint, OpenRouter, Groq,
+Ollama, LM Studio) and `anthropic-messages`. The gateway (`llm.ts`) classifies errors (`rate_limit`, `overloaded`,
+`quota`, `auth`, `bad_request`, `model_gone`, `network`, `empty`), retries what is retryable once, falls back down
+the chain for that call only and reports `finish` (a `length` stop is continued, not shown as complete).
+Not the AI SDK: daily use goes through the Claude/Codex harnesses with the owner's subscriptions, so the built-in
+model is the fallback and the cheap path; two transports cover it without a large dependency (rule 20).
+
+<a id="d-009"></a>
+## D-009 — 2026-10-01 — One door for agent turns, and in-flight work is durable
+Every turn is a row in `runs` written with its input before it starts (`engine.admit`); `threads.send` is the
+only public way to create one, and delegation results, widget prompts and channels come in the same way with a
+typed `origin`. One coordinator runs a thread's queued runs in order. Each tool call is a `steps` row written
+before it runs and the model log is appended as the turn goes, so after a crash the core can close a cut turn
+honestly: a started tool with an effect is reported "effect UNKNOWN", one that never started "not run", queued
+runs run, and a finished delegation wakes its caller even when the caller's turn is long gone.

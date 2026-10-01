@@ -22,11 +22,13 @@ export const Health = z.object({
 });
 export type Health = z.infer<typeof Health>;
 
-type MethodDef = {
+export type MethodDef = {
   params: z.ZodType;
   result: z.ZodType;
   /** true → the call must carry an idempotency key. */
   effect: boolean;
+  /** "human" → only a human operator may call it (never an agent, a tool or an agent client). Default: anyone. */
+  access?: "human";
 };
 
 export const methods = {
@@ -46,8 +48,14 @@ export const methods = {
 
 export type MethodName = keyof typeof methods;
 export type Params<M extends MethodName> = z.input<(typeof methods)[M]["params"]>;
+/** Params after validation (defaults applied): what handlers receive. */
+export type ParsedParams<M extends MethodName> = z.output<(typeof methods)[M]["params"]>;
 export type Result<M extends MethodName> = z.output<(typeof methods)[M]["result"]>;
 
 export function isMethodName(name: string): name is MethodName {
   return Object.hasOwn(methods, name);
+}
+
+export function methodAccess(name: MethodName): "any" | "human" {
+  return (methods[name] as MethodDef).access ?? "any";
 }

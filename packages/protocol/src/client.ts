@@ -1,6 +1,7 @@
 // Client SDK used by terminal, web, desktop, mobile and nodes. Uses only web-standard
 // fetch/WebSocket so the same file runs in Node 24, browsers, Electron and React Native.
 import {
+  type Actor,
   type ApxErrorShape,
   type ClientRole,
   type EventFrame,
@@ -13,11 +14,13 @@ import { type MethodName, methods, type Params, type Result } from "./methods.ts
 export class ApxError extends Error {
   readonly code: ApxErrorShape["code"];
   readonly detail: unknown;
+  readonly retryable: boolean;
   constructor(shape: ApxErrorShape) {
     super(shape.message);
     this.name = "ApxError";
     this.code = shape.code;
     this.detail = shape.detail;
+    this.retryable = shape.retryable ?? false;
   }
 }
 
@@ -26,6 +29,7 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   if (method === "system.import_v1") return 60_000;
+  if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }
 
@@ -35,6 +39,8 @@ export type ClientOptions = {
   token?: string;
   client?: { name: string; version: string };
   timeoutMs?: number;
+  /** "agent" for clients driven by a model (e.g. `apx2 mcp`): they never get the human's controls. */
+  actor?: Actor;
 };
 
 export class ApxClient {
@@ -44,6 +50,7 @@ export class ApxClient {
     this.#opts = {
       client: { name: "apx-client", version: "0.0.0" },
       timeoutMs: 15_000,
+      actor: "human",
       ...opts,
       url: opts.url.replace(/\/$/, ""),
     };
@@ -53,6 +60,7 @@ export class ApxClient {
   async call<M extends MethodName>(method: M, params: Params<M>, idem?: string): Promise<Result<M>> {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (this.#opts.token) headers.authorization = `Bearer ${this.#opts.token}`;
+    if (this.#opts.actor === "agent") headers["x-apx-actor"] = "agent";
     const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
     if (key) headers["idempotency-key"] = key;
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
@@ -79,6 +87,7 @@ export class ApxClient {
       client: this.#opts.client,
       role,
       caps,
+      actor: this.#opts.actor,
     });
     return socket;
   }

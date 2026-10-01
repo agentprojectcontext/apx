@@ -1,13 +1,23 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import { ClientFrame, type HelloFrame, PROTOCOL_VERSION } from "@apx/protocol";
+import { ClientFrame, type HelloFrame, methodAccess, methods, PROTOCOL_VERSION } from "@apx/protocol";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { Bus } from "../bus.ts";
 import type { Identity } from "../identity.ts";
 import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
-import type { Dispatch } from "../rpc/router.ts";
+import { type Dispatch, NODE_METHODS } from "../rpc/router.ts";
 import { type Gate, mayBeNode, refuse } from "./guard.ts";
+
+const MAX_PAYLOAD = 8 * 1024 * 1024;
+
+/** What a connection may call, so the client does not have to guess. */
+function methodsFor(hello: HelloFrame): string[] {
+  if (hello.role === "node") return [...NODE_METHODS];
+  return (Object.keys(methods) as Array<keyof typeof methods>).filter(
+    (m) => hello.actor === "human" || methodAccess(m) !== "human",
+  );
+}
 
 export function attachWs(
   server: Server,
@@ -17,7 +27,7 @@ export function attachWs(
   const wss = new WebSocketServer({
     server,
     path: "/ws",
-    maxPayload: 8 * 1024 * 1024,
+    maxPayload: MAX_PAYLOAD,
     verifyClient: ({ req }, done) => {
       const why = refuse(req, gate, new URL(req.url ?? "/", "http://core").searchParams.get("token"));
       if (why) log.warn({ origin: req.headers.origin, why }, "socket refused");
@@ -79,6 +89,9 @@ export function attachWs(
             protocol: PROTOCOL_VERSION,
             session,
             server: { version: identity.version, code_sha: identity.code_sha },
+            methods: methodsFor(frame),
+            limits: { max_payload: MAX_PAYLOAD },
+            auth: { role: frame.role, actor: frame.actor },
           }),
         );
         return;
@@ -97,7 +110,7 @@ export function attachWs(
       const out = await dispatch(
         frame.method,
         frame.params,
-        { transport: "ws", role: hello.role, session, log },
+        { transport: "ws", role: hello.role, actor: hello.actor, session, log },
         frame.idem,
       );
       ws.send(JSON.stringify({ t: "res", id: frame.id, ...out }));

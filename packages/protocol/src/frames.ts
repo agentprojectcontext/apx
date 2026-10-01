@@ -22,11 +22,20 @@ export const ApxErrorShape = z.object({
   code: z.enum(Object.values(ErrorCode) as [ErrorCode, ...ErrorCode[]]),
   message: z.string(),
   detail: z.unknown().optional(),
+  /** true → the same call may succeed later (timeout, node offline); false or absent → do not retry as is. */
+  retryable: z.boolean().optional(),
 });
 export type ApxErrorShape = z.infer<typeof ApxErrorShape>;
 
 export const ClientRole = z.enum(["operator", "node"]);
 export type ClientRole = z.infer<typeof ClientRole>;
+
+/**
+ * Who is behind an operator connection. An agent client (e.g. `apx2 mcp` used by another tool) never gets the
+ * human's controls. Self-declared on loopback; scoped tokens replace it when pairing lands.
+ */
+export const Actor = z.enum(["human", "agent"]);
+export type Actor = z.infer<typeof Actor>;
 
 /** First frame a client sends on a socket. Device signing lands with pairing (F6). */
 export const HelloFrame = z.object({
@@ -36,6 +45,7 @@ export const HelloFrame = z.object({
   role: ClientRole,
   /** Capabilities a node offers (e.g. "browser", "fs", "notify"). Empty for operators. */
   caps: z.array(z.string()).default([]),
+  actor: Actor.default("human"),
 });
 export type HelloFrame = z.infer<typeof HelloFrame>;
 
@@ -44,6 +54,10 @@ export const WelcomeFrame = z.object({
   protocol: z.number().int(),
   session: z.string(),
   server: z.object({ version: z.string(), code_sha: z.string() }),
+  /** What this connection may call: the client does not guess. */
+  methods: z.array(z.string()).default([]),
+  limits: z.object({ max_payload: z.number().int() }).optional(),
+  auth: z.object({ role: ClientRole, actor: Actor }).optional(),
 });
 export type WelcomeFrame = z.infer<typeof WelcomeFrame>;
 

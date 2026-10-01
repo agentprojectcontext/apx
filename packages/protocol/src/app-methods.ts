@@ -14,11 +14,34 @@ import {
 } from "./domain.ts";
 
 export const appMethods = {
-  /** Read-only import of projects and agents from a running APX v1 daemon. */
+  /**
+   * Read-only import from a local APX v1: projects and agents from its daemon and, when `keys` is set, its model
+   * API keys copied once into v2's own secret store.
+   */
   "system.import_v1": {
-    params: z.object({}).strict(),
-    result: z.object({ projects: z.number().int(), agents: z.number().int() }),
+    params: z.object({ keys: z.boolean().default(false) }).strict(),
+    result: z.object({ projects: z.number().int(), agents: z.number().int(), keys: z.array(z.string()) }),
     effect: true,
+    access: "human",
+  },
+  /** Names of the stored secrets; values never leave the core. */
+  "secrets.list": {
+    params: z.object({}).strict(),
+    result: z.object({ secrets: z.array(z.object({ name: z.string(), updated_at: z.string() })) }),
+    effect: false,
+    access: "human",
+  },
+  "secrets.set": {
+    params: z
+      .object({
+        name: z.string().regex(/^[a-z0-9][a-z0-9_.-]{0,63}$/),
+        /** null removes it. */
+        value: z.string().min(1).max(16_384).nullable(),
+      })
+      .strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
   },
   "agents.list": {
     params: z.object({}).strict(),
@@ -36,6 +59,7 @@ export const appMethods = {
       .strict(),
     result: Agent,
     effect: true,
+    access: "human",
   },
   "engines.status": {
     params: z.object({ refresh: z.boolean().default(false) }).strict(),
@@ -46,6 +70,7 @@ export const appMethods = {
     params: z.object({ engine: HarnessId }).strict(),
     result: z.object({ engines: z.array(EngineStatus) }),
     effect: true,
+    access: "human",
   },
   /** Internal: an external harness (Codex) lists the tools of the run that owns `token`. */
   "harness.tools": {
@@ -90,11 +115,31 @@ export const appMethods = {
     result: Thread,
     effect: true,
   },
-  /** The human writes in a thread. Returns at once; the agent's run streams as events. */
+  /**
+   * The one way to talk to an agent. The message and its run are stored before this returns, so a restart does not
+   * lose them; the run streams as events. `interrupt` cancels the turn in progress first; `queue` waits for it.
+   */
   "threads.send": {
-    params: z.object({ thread: Id, text: z.string().min(1).max(50_000) }).strict(),
-    result: z.object({ message: Message, run: Run.optional() }),
+    params: z
+      .object({
+        thread: Id,
+        text: z.string().min(1).max(50_000),
+        mode: z.enum(["queue", "interrupt"]).default("queue"),
+      })
+      .strict(),
+    result: z.object({ message: Message, run: Run }),
     effect: true,
+  },
+  "runs.get": {
+    params: z.object({ run: Id }).strict(),
+    result: Run,
+    effect: false,
+  },
+  /** Waits until the run ends or `timeout_s` passes, and returns it as it is then. */
+  "runs.wait": {
+    params: z.object({ run: Id, timeout_s: z.number().int().min(1).max(600).default(60) }).strict(),
+    result: Run,
+    effect: false,
   },
   "threads.cancel": {
     params: z.object({ thread: Id }).strict(),
@@ -126,11 +171,12 @@ export const appMethods = {
     params: z.object({ surface: Id, shared: z.boolean() }).strict(),
     result: SurfaceSummary,
     effect: true,
+    access: "human",
   },
   /** A widget's sendPrompt(): the text goes to the thread that owns the surface, as the user. */
   "surfaces.prompt": {
     params: z.object({ surface: Id, text: z.string().min(1).max(4000) }).strict(),
-    result: z.object({ thread: Id }),
+    result: z.object({ thread: Id, run: Run }),
     effect: true,
   },
 } as const;

@@ -90,6 +90,7 @@ export const browserMethods = {
     params: z.object({ tab: Tab, mode: z.enum(["user", "idle", "done"]) }).strict(),
     result: TabInfo,
     effect: true,
+    access: "human",
   },
   /** The agent hands the tab to the human (login, 2FA, captcha) and waits until they finish or the deadline passes. */
   "browser.handoff": {
@@ -125,12 +126,14 @@ export const browserMethods = {
       ),
     }),
     effect: false,
+    access: "human",
   },
   /** Domains with cookies in a source, with counts only — never values. */
   "browser.cookie_domains": {
     params: z.object({ source: z.string(), filter: z.string().max(100).default("") }).strict(),
     result: z.object({ domains: z.array(z.object({ domain: z.string(), count: z.number().int() })) }),
     effect: false,
+    access: "human",
   },
   /** Copies the chosen domains' cookies into an APX profile. Values stay on the desktop. Human-only. */
   "browser.import_cookies": {
@@ -143,6 +146,7 @@ export const browserMethods = {
       .strict(),
     result: z.object({ imported: z.number().int(), skipped: z.number().int(), failed: z.number().int() }),
     effect: true,
+    access: "human",
   },
   "browser.close": {
     params: z.object({ tab: Tab }).strict(),

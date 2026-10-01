@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
+import { NoticePart } from "./parts/NoticePart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { SurfacePart } from "./parts/SurfacePart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
@@ -74,6 +75,8 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       return <BrowserPart part={p} agent={agent} />;
     case "image":
       return <ImagePart part={p} />;
+    case "notice":
+      return <NoticePart part={p} />;
     default:
       return null;
   }

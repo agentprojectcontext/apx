@@ -4,13 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
+import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-broker-"));
 
 before(async () => {
-  core = await createCore({ host: "127.0.0.1", port: 0, home, token: undefined }, { quiet: true });
+  core = await createCore(testConfig({ home }), { quiet: true });
 });
 after(async () => {
   await core.close();

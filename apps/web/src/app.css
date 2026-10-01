@@ -781,3 +781,21 @@ body {
   min-height: 0;
   padding: 16px 20px;
 }
+
+/* System notices in a turn (interrupted, fallback engine, no answer): quiet, never styled as the agent's words. */
+.notice {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--apx-fg-muted);
+  padding: 6px 10px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.notice--warn {
+  color: var(--apx-info-soft-fg);
+  background: var(--apx-info-soft);
+}
+.notice--error {
+  color: var(--apx-danger-soft-fg);
+  background: var(--apx-danger-soft);
+}

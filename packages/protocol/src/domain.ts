@@ -12,6 +12,9 @@ export const Project = z.object({
 });
 export type Project = z.infer<typeof Project>;
 
+export const HarnessId = z.enum(["native", "claude", "codex"]);
+export type HarnessId = z.infer<typeof HarnessId>;
+
 export const Agent = z.object({
   id: Id,
   name: z.string(),
@@ -23,12 +26,9 @@ export const Agent = z.object({
   browser_profile: z.enum(["shared", "isolated", "incognito"]).default("shared"),
   model: z.string().optional(),
   /** Which engine runs this agent's turns; absent = the install default. */
-  harness: z.enum(["native", "claude", "codex"]).optional(),
+  harness: HarnessId.optional(),
 });
 export type Agent = z.infer<typeof Agent>;
-
-export const HarnessId = z.enum(["native", "claude", "codex"]);
-export type HarnessId = z.infer<typeof HarnessId>;
 
 /** What the setup and Config → Motores show: installed → logged in → usable. */
 export const EngineStatus = z.object({
@@ -104,6 +104,14 @@ export const Part = z.discriminatedUnion("type", [
     reason: z.string().optional(),
   }),
   z.object({ type: z.literal("image"), url: z.string(), alt: z.string().default("") }),
+  /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
+  z.object({
+    type: z.literal("notice"),
+    level: z.enum(["info", "warn", "error"]),
+    /** Stable code the UI translates (e.g. "run.interrupted"); `text` is the English fallback. */
+    code: z.string(),
+    text: z.string(),
+  }),
 ]);
 export type Part = z.infer<typeof Part>;
 
@@ -119,11 +127,22 @@ export const Message = z.object({
 });
 export type Message = z.infer<typeof Message>;
 
+/** What started a run. Everything enters through threads.send; this only says from where. */
+export const RunTrigger = z.enum(["user", "a2a", "a2a_result", "surface", "channel", "routine", "system"]);
+export type RunTrigger = z.infer<typeof RunTrigger>;
+
 export const Run = z.object({
   id: Id,
   thread_id: Id,
   agent_id: Id,
   state: RunState,
+  trigger: RunTrigger.default("user"),
+  /** Delegated runs point at the run that asked for them. */
+  parent_run_id: Id.optional(),
+  depth: z.number().int().nonnegative().default(0),
+  deadline_at: z.string().optional(),
+  harness: HarnessId.optional(),
+  model: z.string().optional(),
   error: z.string().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
@@ -158,6 +177,14 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("thread.updated"), thread: Thread }),
   z.object({ type: z.literal("message.created"), message: Message }),
   z.object({ type: z.literal("message.updated"), message: Message }),
+  /** One part of a message changed (streaming text, a tool card): cheaper than resending the whole message. */
+  z.object({
+    type: z.literal("message.part"),
+    thread_id: Id,
+    message_id: Id,
+    index: z.number().int().nonnegative(),
+    part: Part,
+  }),
   z.object({ type: z.literal("run.updated"), run: Run }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(z.unknown()) }),

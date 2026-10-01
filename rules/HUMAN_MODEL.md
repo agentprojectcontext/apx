@@ -41,24 +41,31 @@ gets the types. There is no other way into a handler.
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
 - `packages/surfaces` ← web/desktop/mobile hosts and core store (F3).
-- `apps/core`: `transport → rpc → domain`; `domain` is pure (planned: `agent/`, `tools/`, `nodes/`, `surfaces/`,
-  `db/`, `channels/`, see `plan/01-arquitectura-v2.md` §2.1).
+- `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
+  aggregate over SQLite)`; `nodes/` routes capability calls to the desktop. Planned: `channels/`, `office/`,
+  `memory/` (see `plan/03-relevo-y-plan-motor.md` §6).
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
 ## 4. State and persistence
 
 `~/.apx2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
-`model_log` (what the model saw — never rendered), runs (A2A-shaped states + token usage), surfaces (+ share
-tokens), idempotency. `~/.apx2/home-id` is the install id. Browser sessions live in Electron partitions on the
+`model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, depth,
+deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
+idempotency. `~/.apx2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx2/home-id` is the
+install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
 
 ## 4b. The agent loop
 
-`threads.send` → `rpc/app.ts` stores the human message → `agent/runner.ts` queues one run per thread →
-`agent/context.ts` builds a stable system prompt + per-turn preamble → `agent/provider.ts` streams from an
-OpenAI-compatible model → tool calls run through `agent/tools.ts` (browser tools go to the desktop node via the
-broker; `show_widget` writes a surface; `delegate` opens an a2a sub-thread and may wake the caller later) →
-display parts are updated live and broadcast as events.
+`threads.send` (the only door) stores the message and a `submitted` run with its input → `engine/engine.ts` runs
+a thread's queue one run at a time → `engine/turn.ts` builds the context (`engine/context.ts`: byte-stable system
+prompt, projected history, per-turn input with the origin envelope), logs the input, and hands the turn to the
+agent's harness (`harness/`: native over `providers/`, Claude Code, Codex) → every tool call goes through one
+executor (card + `steps` row + deadline; `tools/`: browser via the desktop node, `show_widget`, `list_agents`,
+`delegate`) → the answer's parts stream as `message.part` events → the run ends completed / failed / canceled with
+a notice when there is no text. `delegate` admits a durable child run in an a2a sub-thread; if the caller is not
+waiting any more, the result comes back as a new `a2a_result` run on the caller's thread. On start,
+`engine/recovery.ts` closes runs a crash cut (effect UNKNOWN for started tools) and picks up queued runs.
 
 ## 5. Auth and trust
 
@@ -72,7 +79,7 @@ display parts are updated live and broadcast as events.
 - LLM: any OpenAI-compatible endpoint; default Gemini with the key read by reference from APX v1's config.
 - APX v1 daemon: read-only import of projects/agents (`import/v1.ts`, loopback only).
 - Electron + in-process CDP for the embedded browser; macOS Keychain + `sqlite3` for cookie import.
-Planned: Claude Agent SDK / `codex app-server` harnesses, Telegram and WhatsApp.
+Harnesses: native (our loop over `providers/`), Claude Code (Agent SDK) and Codex (Codex SDK) — D-007, D-008. Planned: ACP, Telegram and WhatsApp.
 
 ## 7. Build / test / run lifecycle
 

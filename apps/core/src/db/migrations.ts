@@ -49,4 +49,35 @@ export const MIGRATIONS: readonly string[] = [
     updated_at TEXT NOT NULL, PRIMARY KEY (thread_id, harness)
   );
   `,
+  `
+  -- A run is also the durable admission queue: it is stored with its input before it starts.
+  ALTER TABLE runs ADD COLUMN trigger TEXT NOT NULL DEFAULT 'user';
+  ALTER TABLE runs ADD COLUMN input TEXT;
+  ALTER TABLE runs ADD COLUMN parent_run_id TEXT;
+  ALTER TABLE runs ADD COLUMN depth INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE runs ADD COLUMN deadline_at TEXT;
+  ALTER TABLE runs ADD COLUMN harness TEXT;
+  ALTER TABLE runs ADD COLUMN model TEXT;
+  ALTER TABLE runs ADD COLUMN message_id TEXT;
+  ALTER TABLE runs ADD COLUMN created_at TEXT;
+  UPDATE runs SET created_at = started_at;
+  CREATE INDEX runs_thread_state ON runs(thread_id, state);
+  CREATE INDEX runs_parent ON runs(parent_run_id) WHERE parent_run_id IS NOT NULL;
+  -- One row per tool call, written before the tool runs: after a crash we know what may have happened.
+  CREATE TABLE steps (
+    id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE, seq INTEGER NOT NULL,
+    call_id TEXT NOT NULL, tool TEXT NOT NULL, args TEXT NOT NULL, effect TEXT NOT NULL, state TEXT NOT NULL,
+    result TEXT, started_at TEXT NOT NULL, ended_at TEXT, UNIQUE (run_id, call_id)
+  );
+  ALTER TABLE model_log ADD COLUMN run_id TEXT;
+  -- Per-thread context bookkeeping (e.g. the roster the agent last saw), so unchanged facts are not repeated.
+  ALTER TABLE threads ADD COLUMN context TEXT NOT NULL DEFAULT '{}';
+  CREATE TABLE idempotency_v2 (
+    key TEXT NOT NULL, method TEXT NOT NULL, response TEXT NOT NULL, created_at TEXT NOT NULL,
+    PRIMARY KEY (key, method)
+  );
+  INSERT OR IGNORE INTO idempotency_v2 SELECT key, method, response, created_at FROM idempotency;
+  DROP TABLE idempotency;
+  ALTER TABLE idempotency_v2 RENAME TO idempotency;
+  `,
 ];

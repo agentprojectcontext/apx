@@ -4,7 +4,7 @@ import type { IncomingMessage } from "node:http";
 
 export type Gate = { allowedOrigins: ReadonlySet<string>; token: string | undefined };
 
-export function originsFor(coreUrl: string, extra: string | undefined): Set<string> {
+export function originsFor(coreUrl: string, extra: readonly string[] = []): Set<string> {
   const u = new URL(coreUrl);
   const set = new Set([
     `http://127.0.0.1:${u.port}`,
@@ -12,11 +12,7 @@ export function originsFor(coreUrl: string, extra: string | undefined): Set<stri
     "http://127.0.0.1:7441",
     "http://localhost:7441",
   ]);
-  for (const o of (extra ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean))
-    set.add(o);
+  for (const o of extra) set.add(o);
   return set;
 }
 

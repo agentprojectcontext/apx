@@ -17,7 +17,9 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 | **operator** | A client that shows/controls things (terminal, web, desktop, mobile). | A **node**. |
 | **node** | A client that *lends capabilities* to the core (desktop: `browser`, `fs`; mobile: `camera`, `notify`). The core routes tool calls to it. | A Node.js process. |
 | **surface** | A widget/app/artifact: HTML bundle + manifest, shown inline, in the sidebar or fullscreen, or published. | A UI "surface" in the generic sense. |
-| **harness** | What runs an agent turn: `native` (own loop), `claude` (Agent SDK), `codex` (app-server), `acp`. | An **engine** (an LLM provider adapter). |
+| **provider** | A model API (Gemini, Anthropic, OpenAI-compatible…) called by the built-in harness. `apps/core/src/providers`. | A harness. |
+| **harness** | What runs an agent turn's loop: `native` (ours), `claude` (Agent SDK), `codex` (Codex SDK), later `acp`. | A provider. "Engine" and "runtime" are not used for either. |
+| **thread / run / step** | A conversation; one agent turn in it (durable, with its input and origin); one tool call in a run. | v1's ledgers, sessions and conversations (all replaced by these). |
 | **APC** | The open standard: `AGENTS.md` + `.apc/` in a project. APX implements it. | APX itself. |
 
 ## Dev loop
@@ -38,7 +40,7 @@ pnpm preflight                             # check:private + lint + typecheck + 
 ## Repo map
 
 ```
-apps/core        daemon — transport/ → rpc/ (single router) → domain/ (store) · agent/ (loop, tools) · nodes/ · db/
+apps/core        daemon — transport/ → rpc/ (single router) → engine/ (turns) · harness/ · providers/ · tools/ → domain/ (repos) · nodes/ · db/
 apps/terminal    apx2 CLI — protocol calls only
 apps/web         React panel — served by core, renderer of desktop
 apps/desktop     Electron shell + embedded browser node (tabs, CDP, profiles, cookie import)
@@ -93,6 +95,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     `DECISIONS.md` entry. `[review]`
 20. **New dependency = stated reason** why the platform or an existing dependency is not enough (in the PR/commit
     body). Prefer Node built-ins (`node:test`, `node:sqlite`, `fetch`, `WebSocket`). `[review]`
+
+21. **English first.** Code, comments, docs, commits and UI strings are English; the UI is translated (Spanish
+    first) through `apps/web/src/i18n`. Plans under `plan/` stay in Spanish. `[review]`
 
 ### Code comments
 

@@ -1,5 +1,6 @@
 // Per-device preferences (this browser only): display name and appearance. Nothing here reaches the core.
 import type { ApxLook } from "@apx/ui";
+import { defaultLanguage, type Language } from "../i18n/index.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
 export type TranscriptWidth = "narrow" | "medium" | "wide";
@@ -11,12 +12,20 @@ export type Prefs = {
   look: ApxLook;
   font: UiFont;
   transcriptWidth: TranscriptWidth;
+  /** UI language; English is the base, Spanish a translation. */
+  language: Language;
 };
 
 const KEY = "apx.prefs";
 export const DEFAULT_NAME = "Vos";
 
-const DEFAULTS: Prefs = { displayName: DEFAULT_NAME, look: "minimal", font: "system", transcriptWidth: "medium" };
+const DEFAULTS: Prefs = {
+  displayName: DEFAULT_NAME,
+  look: "minimal",
+  font: "system",
+  transcriptWidth: "medium",
+  language: defaultLanguage(),
+};
 
 function load(): Prefs {
   try {
@@ -28,6 +37,7 @@ function load(): Prefs {
       font: raw.font === "mono" ? "mono" : "system",
       transcriptWidth:
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
+      language: raw.language === "en" || raw.language === "es" ? raw.language : DEFAULTS.language,
     };
   } catch {
     return DEFAULTS;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { hostPath } from "../common/format.ts";
 import { browserControl, browserHistory, browserNavigate, browserOpen } from "../data/actions.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { nav } from "../shell/nav.ts";
 
 /** "example.com" → "https://example.com"; anything that is not http(s) is refused. */
@@ -89,7 +90,9 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
         <>
           <span className="btoolbar__status is-agent">
             <span className="btoolbar__dot" />
-            <span className="btoolbar__statustext">{c.by} está usando esta pestaña</span>
+            <span className="btoolbar__statustext">
+              <AgentName id={c.by} /> está usando esta pestaña
+            </span>
           </span>
           <Button size="sm" className="btoolbar__btn" onClick={control("user")} loading={busy}>
             Tomar control
@@ -135,4 +138,10 @@ export function HandoffBar({ tab }: { tab: TabInfo }) {
       </Button>
     </div>
   );
+}
+
+/** Tabs record who drives them by agent id; people read the name. */
+function AgentName({ id }: { id: string }) {
+  const name = useData((s) => s.agents[id]?.name);
+  return <>{name ?? id}</>;
 }

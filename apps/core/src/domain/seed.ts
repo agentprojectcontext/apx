@@ -4,33 +4,33 @@ import type { Store } from "./store.ts";
 export const HOME_THREAD_ID = "home";
 
 export function seed(store: Store): void {
-  if (store.agents().length === 0) {
-    store.upsertAgent({
+  if (store.agents.list().length === 0) {
+    store.agents.upsert({
       id: "roby",
       name: "Roby",
-      role: "secretario personal",
+      role: "personal secretary",
       kind: "secretary",
       blob: "menta",
       browser_profile: "shared",
     });
-    store.upsertAgent({
+    store.agents.upsert({
       id: "scout",
       name: "Scout",
-      role: "investigación web; siempre navega en incógnito",
+      role: "web research; always browses incognito",
       kind: "agent",
       blob: "zafiro",
       browser_profile: "incognito",
     });
-    store.upsertAgent({
+    store.agents.upsert({
       id: "vera",
       name: "Vera",
-      role: "diseño y widgets visuales",
+      role: "design and visual widgets",
       kind: "agent",
       blob: "coral",
       browser_profile: "isolated",
     });
   }
-  if (!store.thread(HOME_THREAD_ID)) {
-    store.createThread({ id: HOME_THREAD_ID, kind: "home", title: "Home", agent_ids: ["roby"] });
+  if (!store.threads.get(HOME_THREAD_ID)) {
+    store.threads.create({ id: HOME_THREAD_ID, kind: "home", title: "Home", agent_ids: ["roby"] });
   }
 }

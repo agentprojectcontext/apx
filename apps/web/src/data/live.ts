@@ -113,6 +113,20 @@ function apply(ev: CoreEvent): void {
       });
       return;
     }
+    case "message.part":
+      data.set((s) => {
+        const list = s.messages[ev.thread_id];
+        const cur = list?.find((m) => m.id === ev.message_id);
+        if (!list || !cur) {
+          // A part for a message we have not seen: the next refetch brings it whole.
+          if (list) scheduleRefetch();
+          return {};
+        }
+        const parts = [...cur.parts];
+        parts[ev.index] = ev.part;
+        return { messages: { ...s.messages, [ev.thread_id]: upsertMessage(list, { ...cur, parts }) } };
+      });
+      return;
     case "run.updated":
       data.set((s) => ({ runs: { ...s.runs, [ev.run.id]: ev.run } }));
       return;

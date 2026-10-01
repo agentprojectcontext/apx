@@ -2,6 +2,9 @@
 // The terminal owns no domain logic: every command is a protocol call to the core.
 import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
+import { browser } from "./commands/browser.ts";
+import { chat } from "./commands/chat.ts";
+import { agents, runs, secrets, threads } from "./commands/threads.ts";
 
 const HELP = `apx2 — APX v2 terminal
 
@@ -22,8 +25,15 @@ Usage:
   apx2 browser cookies <source> [filter]        Domains with cookies (counts only)
   apx2 browser import <source> <domain,…> [--profile shared|agent:<id>]
 
-  apx2 chat "<text>" [--thread home]   Talk to an agent; prints tool steps and the answer
-  apx2 import-v1                       Import projects and agents from a running APX v1 (read-only)
+  apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach] [--interrupt]
+                           The one way to talk to an agent. Default: Home (the secretary)
+  apx2 threads [list] | get <thread> | cancel <thread>
+  apx2 runs get <run> | wait <run> [--timeout 60]
+  apx2 agents              Agents and the engine each one runs on
+
+  apx2 secrets [list] | set <name> (value on stdin) | rm <name>
+  apx2 import-v1 [--keys]  Import projects and agents from a local APX v1 (read-only);
+                           --keys also copies its model API keys into v2's secret store, once
 
   apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…)
 
@@ -38,15 +48,23 @@ const { values, positionals } = parseArgs({
     by: { type: "string" },
     submit: { type: "boolean" },
     thread: { type: "string" },
+    agent: { type: "string" },
+    new: { type: "boolean" },
+    detach: { type: "boolean" },
+    interrupt: { type: "boolean" },
+    keys: { type: "boolean" },
+    timeout: { type: "string" },
     run: { type: "string" },
   },
 });
 const [command, ...rest] = positionals;
-const client = new ApxClient({
+const connection = {
   url: process.env.APX_URL ?? "http://127.0.0.1:7440",
   ...(process.env.APX_TOKEN ? { token: process.env.APX_TOKEN } : {}),
-  client: { name: "apx2-terminal", version: "0.0.0" },
-});
+};
+const client = new ApxClient({ ...connection, client: { name: "apx2-terminal", version: "0.0.0" } });
+/** MCP servers are driven by a model: the core never gives them the owner's controls. */
+const agentClient = new ApxClient({ ...connection, client: { name: "apx2-mcp", version: "0.0.0" }, actor: "agent" });
 
 try {
   switch (values.help ? "help" : command) {
@@ -69,24 +87,38 @@ try {
       break;
     }
     case "browser":
-      await browser(rest);
+      await browser(client, values, rest);
       break;
     case "chat":
-      await chat(rest.join(" "), values.thread ?? "home");
+      await chat(client, rest.join(" "), values);
+      break;
+    case "threads":
+      await threads(client, rest);
+      break;
+    case "runs":
+      await runs(client, rest, Number(values.timeout ?? 60));
+      break;
+    case "agents":
+      await agents(client);
+      break;
+    case "secrets":
+      await secrets(client, rest);
       break;
     case "import-v1": {
-      const r = await client.call("system.import_v1", {});
-      console.log(`imported ${r.projects} projects, ${r.agents} agents`);
+      const r = await client.call("system.import_v1", { keys: values.keys ?? false });
+      console.log(
+        `imported ${r.projects} projects, ${r.agents} agents${r.keys.length ? `; keys: ${r.keys.join(", ")}` : ""}`,
+      );
       break;
     }
     case "mcp": {
       if (values.run) {
         const { runRunMcp } = await import("./mcp-run.ts");
-        await runRunMcp(client, values.run);
+        await runRunMcp(agentClient, values.run);
         break;
       }
       const { runMcp } = await import("./mcp.ts");
-      await runMcp(client, values.by ?? "mcp-client");
+      await runMcp(agentClient, values.by ?? "mcp-client");
       break;
     }
     default:
@@ -99,159 +131,4 @@ try {
     console.error("apx2: the core is not running (try: pnpm dev)");
   else console.error(`apx2: ${err instanceof Error ? err.message : String(err)}`);
   process.exitCode = 1;
-}
-
-async function browser([sub, a, b, c]: string[]): Promise<void> {
-  const by = values.by ?? "terminal";
-  const need = (v: string | undefined, what: string): string => {
-    if (!v) throw new Error(`missing ${what} (see apx2 --help)`);
-    return v;
-  };
-  switch (sub) {
-    case "tabs": {
-      const { tabs } = await client.call("browser.tabs", {});
-      for (const t of tabs)
-        console.log(`${t.tab}\t${t.profile}\t${t.control.kind === "agent" ? t.control.by : t.control.kind}\t${t.url}`);
-      if (!tabs.length) console.log("(no tabs)");
-      return;
-    }
-    case "open": {
-      const t = await client.call("browser.open", {
-        url: need(a, "url"),
-        ...(values.profile ? { profile: values.profile } : {}),
-        by,
-      });
-      console.log(`${t.tab} · ${t.profile} · ${t.title || t.url}`);
-      return;
-    }
-    case "nav": {
-      const r = await client.call("browser.navigate", { tab: need(a, "tab"), url: need(b, "url"), by });
-      console.log(`${r.title} · ${r.url}`);
-      return;
-    }
-    case "snapshot": {
-      const s = await client.call("browser.snapshot", { tab: need(a, "tab") });
-      console.log(s.tree);
-      console.log(`\n${s.refs} refs${s.truncated ? " (truncated)" : ""} · ${s.url}`);
-      return;
-    }
-    case "click": {
-      const r = await client.call("browser.click", { tab: need(a, "tab"), ref: need(b, "ref"), by });
-      console.log(`ok · ${r.url}`);
-      return;
-    }
-    case "type": {
-      const r = await client.call("browser.type", {
-        tab: need(a, "tab"),
-        ref: need(b, "ref"),
-        text: need(c, "text"),
-        submit: values.submit ?? false,
-        by,
-      });
-      console.log(`ok · ${r.url}`);
-      return;
-    }
-    case "shot": {
-      const r = await client.call("browser.screenshot", { tab: need(a, "tab") });
-      const { writeFileSync } = await import("node:fs");
-      writeFileSync(need(b, "file"), Buffer.from(r.data, "base64"));
-      console.log(`wrote ${b} (${r.bytes} bytes)`);
-      return;
-    }
-    case "cookies": {
-      if (!a) {
-        const { sources } = await client.call("browser.cookie_sources", {});
-        for (const x of sources) console.log(`${x.id}\t${x.family}`);
-        return;
-      }
-      const { domains } = await client.call("browser.cookie_domains", { source: a, filter: b ?? "" });
-      for (const d of domains.slice(0, 30)) console.log(`${String(d.count).padStart(5)}  ${d.domain}`);
-      return;
-    }
-    case "import": {
-      const r = await client.call("browser.import_cookies", {
-        source: need(a, "source"),
-        domains: need(b, "domains").split(","),
-        ...(values.profile ? { profile: values.profile } : {}),
-      });
-      console.log(`imported ${r.imported} · skipped ${r.skipped} (expired) · failed ${r.failed}`);
-      return;
-    }
-    case "control": {
-      const mode = need(b, "mode");
-      if (mode !== "user" && mode !== "idle" && mode !== "done") throw new Error("mode must be user, idle or done");
-      const t = await client.call("browser.control", { tab: need(a, "tab"), mode });
-      console.log(`${t.tab} · ${t.control.kind}`);
-      return;
-    }
-    case "close":
-      await client.call("browser.close", { tab: need(a, "tab") });
-      console.log("closed");
-      return;
-    default:
-      console.log(HELP);
-      process.exitCode = 1;
-  }
-}
-
-async function chat(text: string, thread: string): Promise<void> {
-  if (!text) throw new Error('usage: apx2 chat "<text>"');
-  const socket = await client.connect();
-  const printed = new Set<string>();
-  // Only this send's run counts: an earlier queued run on the same thread must not end the wait.
-  let runId: string | undefined;
-  const ended = new Set<string>();
-  let finish: () => void = () => {};
-  const done = new Promise<void>((resolve) => {
-    finish = resolve;
-    socket.onEvent((e) => {
-      const ev = e.payload as {
-        type: string;
-        message?: { thread_id: string; author: { kind: string }; parts: Array<Record<string, unknown>> };
-        run?: { thread_id: string; state: string; error?: string };
-      };
-      if (
-        (ev.type === "message.updated" || ev.type === "message.created") &&
-        ev.message?.thread_id === thread &&
-        ev.message.author.kind === "agent"
-      ) {
-        for (const p of ev.message.parts) {
-          const key =
-            p.type === "tool"
-              ? `${p.call_id}:${p.status}`
-              : p.type === "text"
-                ? `text:${p.text}`
-                : `${p.type}:${JSON.stringify(p)}`;
-          if (printed.has(key) || (p.type === "tool" && p.status === "running")) continue;
-          printed.add(key);
-          if (p.type === "tool") console.log(`  ${p.status === "ok" ? "✓" : "✗"} ${p.title}`);
-          else if (p.type === "subthread")
-            console.log(`  ↳ ${p.state} · ${p.title}${p.summary ? ` — ${String(p.summary).slice(0, 80)}` : ""}`);
-          else if (p.type === "surface") console.log(`  ▣ widget: ${p.title} (v${p.version})`);
-          else if (p.type === "browser") console.log(`  ◎ browser ${p.state}: ${p.url}`);
-        }
-      }
-      const r = ev.run as { id?: string; thread_id: string; state: string } | undefined;
-      if (
-        ev.type === "run.updated" &&
-        r?.id &&
-        r.thread_id === thread &&
-        ["completed", "failed", "canceled"].includes(r.state)
-      ) {
-        ended.add(r.id);
-        if (r.id === runId) resolve();
-      }
-    });
-  });
-  const sent = await socket.call("threads.send", { thread, text });
-  runId = sent.run?.id;
-  if (!runId || ended.has(runId)) finish();
-  await done;
-  const { messages } = await socket.call("threads.get", { thread });
-  const last = messages.filter((m) => m.run_id === runId).at(-1) ?? messages.at(-1);
-  const answer = last?.parts.find((p) => p.type === "text");
-  console.log(
-    `\n${answer && answer.type === "text" ? answer.text : "(no text)"}${last?.model ? `\n— ${last.model}` : ""}`,
-  );
-  socket.close();
 }

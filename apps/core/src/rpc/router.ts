@@ -1,18 +1,22 @@
-// The single dispatcher. HTTP /rpc, the WS socket and (later) node links and agent tools
-// all enter here — there is no second path into a handler.
+// The single dispatcher. HTTP /rpc, the WS socket and agent-side clients all enter here — there is no second path
+// into a handler. Access, params, result shape and idempotency are checked here, not in each handler.
 import {
   type ApxErrorShape,
   ErrorCode,
   isMethodName,
   type MethodName,
+  methodAccess,
   methods,
-  type Params,
+  type ParsedParams,
   type Result,
 } from "@apx/protocol";
 import { CallError } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 
-export type Handler<M extends MethodName> = (params: Params<M>, ctx: CallContext) => Promise<Result<M>> | Result<M>;
+export type Handler<M extends MethodName> = (
+  params: ParsedParams<M>,
+  ctx: CallContext,
+) => Promise<Result<M>> | Result<M>;
 export type Handlers = { [M in MethodName]: Handler<M> };
 
 export type DispatchResult = { ok: true; result: unknown } | { ok: false; error: ApxErrorShape };
@@ -23,24 +27,22 @@ export type IdemStore = {
   put(key: string, method: string, response: unknown): void;
 };
 
+const RETRYABLE = new Set<string>([ErrorCode.Timeout, ErrorCode.Unavailable]);
+
+/** Methods a node connection may call: it lends capabilities, it does not operate the core. */
+export const NODE_METHODS: ReadonlySet<string> = new Set(["system.health", "system.ping"]);
+
 export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
-  return async function dispatch(
-    method: string,
+  /** Effect calls in progress by key: a concurrent retry joins the first call instead of running it twice. */
+  const inFlight = new Map<string, Promise<DispatchResult>>();
+
+  async function invoke(
+    method: MethodName,
     rawParams: unknown,
     ctx: CallContext,
     idem?: string,
   ): Promise<DispatchResult> {
-    if (!isMethodName(method)) {
-      return { ok: false, error: { code: ErrorCode.UnknownMethod, message: `unknown method: ${method}` } };
-    }
     const def = methods[method];
-    if (def.effect && !idem) {
-      return { ok: false, error: { code: ErrorCode.BadRequest, message: `${method} requires an idempotency key` } };
-    }
-    if (def.effect && idem && idemStore) {
-      const seen = idemStore.get(idem, method);
-      if (seen !== undefined) return { ok: true, result: seen };
-    }
     const parsed = def.params.safeParse(rawParams ?? {});
     if (!parsed.success) {
       return {
@@ -50,18 +52,54 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
     }
     try {
       const handler = handlers[method] as Handler<typeof method>;
-      const result = await handler(parsed.data as never, ctx);
-      const out = def.result.parse(result);
+      const out = def.result.parse(await handler(parsed.data as never, ctx));
       if (def.effect && idem && idemStore) idemStore.put(idem, method, out);
       return { ok: true, result: out };
     } catch (err) {
-      if (err instanceof CallError) return { ok: false, error: err.shape };
+      if (err instanceof CallError) {
+        const shape = err.shape;
+        return { ok: false, error: { ...shape, retryable: shape.retryable ?? RETRYABLE.has(shape.code) } };
+      }
       ctx.log.error({ method, err: String(err) }, "handler failed");
       return {
         ok: false,
-        error: { code: ErrorCode.Internal, message: err instanceof Error ? err.message : String(err) },
+        error: {
+          code: ErrorCode.Internal,
+          message: err instanceof Error ? err.message : String(err),
+          retryable: false,
+        },
       };
     }
+  }
+
+  return async function dispatch(
+    method: string,
+    rawParams: unknown,
+    ctx: CallContext,
+    idem?: string,
+  ): Promise<DispatchResult> {
+    if (!isMethodName(method)) {
+      return { ok: false, error: { code: ErrorCode.UnknownMethod, message: `unknown method: ${method}` } };
+    }
+    if (ctx.role === "node" && !NODE_METHODS.has(method)) {
+      return { ok: false, error: { code: ErrorCode.Unauthorized, message: `${method} is not available to nodes` } };
+    }
+    if (methodAccess(method) === "human" && ctx.actor !== "human") {
+      return { ok: false, error: { code: ErrorCode.Unauthorized, message: `${method} is reserved to the owner` } };
+    }
+    const def = methods[method];
+    if (!def.effect) return invoke(method, rawParams, ctx);
+    if (!idem) {
+      return { ok: false, error: { code: ErrorCode.BadRequest, message: `${method} requires an idempotency key` } };
+    }
+    const seen = idemStore?.get(idem, method);
+    if (seen !== undefined) return { ok: true, result: seen };
+    const key = `${method}\u0000${idem}`;
+    const running = inFlight.get(key);
+    if (running) return running;
+    const p = invoke(method, rawParams, ctx, idem).finally(() => inFlight.delete(key));
+    inFlight.set(key, p);
+    return p;
   };
 }
 

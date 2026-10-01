@@ -49,7 +49,7 @@ function artifactPage(title: string, html: string): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
   const doc = /<html[\s>]/i.test(html)
     ? html
-    : `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title><style>:root{--apx-bg:#faf9f7;--apx-surface:#fff;--apx-fg:#1c1b19;--apx-fg-muted:#6f6b63;--apx-border:#e6e3dc;--apx-brand:#1f9d63}@media (prefers-color-scheme:dark){:root{--apx-bg:#1b1a18;--apx-surface:#252421;--apx-fg:#ecebe7;--apx-fg-muted:#9b978d;--apx-border:#34322e;--apx-brand:#3fbf84}}body{margin:0;padding:16px;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.45 system-ui,sans-serif}</style></head><body>${html}</body></html>`;
+    : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title><style>:root{--apx-bg:#faf9f7;--apx-surface:#fff;--apx-fg:#1c1b19;--apx-fg-muted:#6f6b63;--apx-border:#e6e3dc;--apx-brand:#1f9d63}@media (prefers-color-scheme:dark){:root{--apx-bg:#1b1a18;--apx-surface:#252421;--apx-fg:#ecebe7;--apx-fg-muted:#9b978d;--apx-border:#34322e;--apx-brand:#3fbf84}}body{margin:0;padding:16px;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.45 system-ui,sans-serif}</style></head><body>${html}</body></html>`;
   return doc;
 }
 
@@ -60,7 +60,11 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
       return send(
         res,
         200,
-        await dispatch("system.health", {}, { transport: "http", role: "operator", session: undefined, log }),
+        await dispatch(
+          "system.health",
+          {},
+          { transport: "http", role: "operator", actor: "human", session: undefined, log },
+        ),
       );
     }
     if (req.method === "POST" && url.pathname.startsWith("/rpc/")) {
@@ -83,7 +87,13 @@ export function httpHandler(dispatch: Dispatch, log: Log, gate: Gate, webDist?: 
       const out = await dispatch(
         url.pathname.slice(5),
         body,
-        { transport: "http", role: "operator", session: undefined, log },
+        {
+          transport: "http",
+          role: "operator",
+          actor: header(req, "x-apx-actor") === "agent" ? "agent" : "human",
+          session: undefined,
+          log,
+        },
         idem,
       );
       return send(res, out.ok ? 200 : statusFor(out.error.code), out);

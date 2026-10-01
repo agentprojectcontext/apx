@@ -4,14 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
-import { assertSafeBind } from "./config.ts";
+import { assertSafeBind, testConfig } from "./config.ts";
 import { createCore } from "./server.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-test-"));
 
 before(async () => {
-  core = await createCore({ host: "127.0.0.1", port: 0, home, token: undefined }, { quiet: true });
+  core = await createCore(testConfig({ home }), { quiet: true });
 });
 after(async () => {
   await core.close();
@@ -54,6 +54,7 @@ function ctx() {
   return {
     transport: "internal" as const,
     role: "operator" as const,
+    actor: "human" as const,
     session: undefined,
     log: { info: noop, warn: noop, error: noop },
   };

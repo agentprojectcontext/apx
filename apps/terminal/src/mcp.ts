@@ -1,6 +1,6 @@
 // `apx2 mcp`: stdio MCP server that exposes the core's browser.* methods as tools, so any MCP client
 // (Claude Code, Codex, …) can drive the APX embedded browser. It forwards through the protocol; no logic here.
-import { type BrowserMethod, browserMethods } from "@apx/protocol";
+import { type BrowserMethod, browserMethods, methodAccess } from "@apx/protocol";
 import { type ApxClient, ApxError } from "@apx/protocol/client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -34,19 +34,12 @@ const DESCRIPTIONS: Record<BrowserMethod, string> = {
   "browser.import_cookies": "",
 };
 
-// The human's controls are not tools for agents.
-const HUMAN_ONLY = new Set<BrowserMethod>([
-  "browser.control",
-  "browser.cookie_sources",
-  "browser.cookie_domains",
-  "browser.import_cookies",
-]);
-
 export async function runMcp(client: ApxClient, agent: string): Promise<void> {
   const server = new McpServer({ name: "apx-browser", version: "0.0.0" });
   const register = server.registerTool.bind(server) as unknown as Register;
 
-  for (const method of (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => !HUMAN_ONLY.has(m))) {
+  // The owner's controls are not tools: the core refuses them to agent clients; listing them would only mislead.
+  for (const method of (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => methodAccess(m) !== "human")) {
     const def = browserMethods[method];
     const shape = { ...def.params.shape } as Record<string, unknown>;
     delete shape.by; // identity is the MCP client's, not something the model picks
