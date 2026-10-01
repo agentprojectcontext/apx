@@ -1,5 +1,7 @@
 // remember / recall / forget: an agent's notes between threads, through the memory.* methods like any client.
+import type { Memory } from "@apx/protocol";
 import { z } from "zod";
+import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const SCOPE = z
@@ -8,8 +10,35 @@ const SCOPE = z
     "global: about the owner (preferences, people, how they work), every agent sees it; project: about this thread's project; agent: your own notebook",
   );
 
-const line = (m: { id: string; scope: string; source: string; text: string }) =>
-  `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : ""}) ${m.text}`;
+export const MEMORY_BLOCK_CHARS = 2400;
+
+const line = (m: Memory) =>
+  `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : ""}) ${m.text.replace(/\s+/g, " ")}`;
+
+/**
+ * Notes as the model reads them, capped. A note saved while outside content was in the turn is wrapped as untrusted,
+ * so it counts as outside content again wherever it shows up.
+ */
+export function notesText(notes: Memory[], max = MEMORY_BLOCK_CHARS): { text?: string; ids: string[] } {
+  const clean: string[] = [];
+  const tainted: string[] = [];
+  const ids: string[] = [];
+  let used = 0;
+  for (const m of notes) {
+    const l = line(m);
+    if (used + l.length > max) break;
+    (m.tainted ? tainted : clean).push(l);
+    ids.push(m.id);
+    used += l.length;
+  }
+  const parts = [
+    clean.join("\n"),
+    tainted.length
+      ? untrusted("memory_notes", { note: "saved while outside content was in context" }, tainted.join("\n"))
+      : "",
+  ].filter(Boolean);
+  return parts.length ? { text: parts.join("\n"), ids } : { ids };
+}
 
 export function memoryTools(): Tool[] {
   return [
@@ -29,7 +58,12 @@ export function memoryTools(): Tool[] {
       title: (a) => `Remembered: ${String(a.text ?? "").slice(0, 80)}`,
       async run(a, ctx) {
         const scope = a.scope ?? (ctx.thread.project_id ? "project" : "global");
-        const m = await ctx.call("memory.add", { text: a.text, scope, ...(a.id ? { id: a.id } : {}) });
+        const m = await ctx.call("memory.add", {
+          text: a.text,
+          scope,
+          tainted: ctx.untrusted(),
+          ...(a.id ? { id: a.id } : {}),
+        });
         return `saved as ${m.id} (${m.scope}).`;
       },
     }),
@@ -43,7 +77,7 @@ export function memoryTools(): Tool[] {
       title: (a) => `Searched memory for "${String(a.query ?? "").slice(0, 60)}"`,
       async run(a, ctx) {
         const { memories } = await ctx.call("memory.list", { query: a.query, limit: a.limit ?? 8 });
-        return memories.length ? memories.map(line).join("\n") : "no notes match.";
+        return notesText(memories, 8000).text ?? "no notes match.";
       },
     }),
     defineTool({

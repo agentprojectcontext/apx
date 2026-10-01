@@ -23,6 +23,8 @@ export type ToolContext = {
   thread: Thread;
   run: RunRecord;
   signal: AbortSignal;
+  /** Whether outside content (web, another agent, a message) is in this turn's context right now. */
+  untrusted(): boolean;
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */

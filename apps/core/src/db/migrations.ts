@@ -209,4 +209,8 @@ export const MIGRATIONS: readonly string[] = [
   -- A project's .apc/memory.md, written by the owner: project context like AGENTS.md.
   ALTER TABLE projects ADD COLUMN memory_md TEXT;
   `,
+  `
+  -- A note an agent saved while outside content (web, another agent, a message) was in its turn: shown as data.
+  ALTER TABLE memories ADD COLUMN tainted INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

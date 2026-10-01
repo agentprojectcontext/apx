@@ -605,6 +605,9 @@ export const en = {
   "chat.compactSkipped": "Not summarized: {reason}",
   "error.compact": "Could not summarize: {error}",
   "notice.thread.compacted": "Earlier turns were summarized so the agent keeps working with a smaller context.",
+  "memory.tainted": "from outside content",
+  "memory.taintedHint":
+    "Saved while a web page, another agent or a message was in the chat. Agents read it as data, not as your word; edit it to vouch for it.",
 } as const;
 
 export type MessageKey = keyof typeof en;

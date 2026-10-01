@@ -13,7 +13,7 @@ import { inherit, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { gitChanges } from "./changes.ts";
-import { HISTORY_BUDGET_CHARS, projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
+import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
 import { createExecutor } from "./executor.ts";
@@ -81,10 +81,14 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   // ── context ─────────────────────────────────────────────────────────
   const ctxState = store.threads.context(thread.id);
-  const history = projectHistory(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction as Epoch);
+  const { items: history, from } = project(
+    store.modelLog.list(thread.id),
+    HISTORY_BUDGET_CHARS,
+    ctxState.compaction as Epoch,
+  );
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id;
-  const recalled = recallFor(store, agent.id, thread, start.input.text, ctxState);
+  const recalled = recallFor(store, agent.id, thread, start.input.text, ctxState, from);
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
@@ -95,11 +99,11 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       memory: recalled.text,
     }),
   };
-  store.modelLog.append(thread.id, run.id, [input]);
+  const at = store.modelLog.append(thread.id, run.id, [input]);
   if (rosterChanged || recalled.shown)
     store.threads.mergeContext(thread.id, {
       ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
-      ...(recalled.shown ? { memory_shown: recalled.shown } : {}),
+      ...(recalled.shown ? recalled.shown(at) : {}),
     });
 
   const skills = skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));

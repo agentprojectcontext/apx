@@ -44,11 +44,19 @@ function scan(root: string, allowLinks: boolean, base: Pick<Skill, "scope" | "pr
   });
 }
 
+const isLink = (p: string) => {
+  try {
+    return fs.lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
 export function skillsFor(store: Store, home: string, projectId: string | undefined): Skill[] {
   const project = projectId ? store.projects.get(projectId) : undefined;
   const own = scan(path.join(home, "skills"), true, { scope: "global" });
   const theirs =
-    project?.path && project.present
+    project?.path && project.present && !isLink(path.join(project.path, ".apc"))
       ? scan(path.join(project.path, ".apc", "skills"), false, { scope: "project", project_id: project.id })
       : [];
   // A project's skill with the same name as one of the owner's takes its place inside that project.
@@ -75,7 +83,7 @@ export function skillCatalog(skills: Skill[]): string {
     "## Skills",
     "Know-how you can load when a task matches one: call load_skill with its name before doing the task.",
     ...skills.slice(0, CATALOG_MAX).map(line),
-    ...(more > 0 ? [`(${more} more: load_skill with a name you know, or skills_list)`] : []),
+    ...(more > 0 ? [`(${more} more not listed; load_skill works with any skill's name)`] : []),
   ].join("\n");
 }
 

@@ -200,6 +200,11 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
         <div className="memory__text">{note.text}</div>
       )}
       <div className="memory__meta">
+        {note.tainted && (
+          <Badge tone="warning" title={t("memory.taintedHint")}>
+            {t("memory.tainted")}
+          </Badge>
+        )}
         {owner && <Badge>{t("memory.notebookOf", { name: owner.name })}</Badge>}
         {note.source === "owner" ? (
           <span className="memory__by">{t("memory.byYou")}</span>

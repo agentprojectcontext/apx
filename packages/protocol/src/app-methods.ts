@@ -399,6 +399,8 @@ export const appMethods = {
         project: Id.optional(),
         agent: Id.optional(),
         id: Id.optional(),
+        /** Set by an agent's tool when outside content is in its turn (agents' notes default to tainted). */
+        tainted: z.boolean().optional(),
       })
       .strict(),
     result: Memory,

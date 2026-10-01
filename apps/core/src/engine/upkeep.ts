@@ -139,10 +139,11 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
   const ac = new AbortController();
 
   /**
-   * The auxiliary model: the `model_aux` setting ("off" for none), else the API models the owner already chose
-   * (never a CLI: those run whole agent turns).
+   * The auxiliary model for a thread: the `model_aux` setting ("off" for none), else the API models this thread's
+   * agent may already send its turns to (its own, then the router's), so a transcript never goes anywhere new. Never a
+   * CLI: those run whole agent turns.
    */
-  function auxModels(): string[] {
+  function auxModels(agentId?: string): string[] {
     const set = store.settings.get("model_aux");
     if (set === "off") return [];
     if (set)
@@ -152,12 +153,14 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         .filter(Boolean);
     const m = modelSettings(store);
     const router = m.router();
-    const refs = [m.defaultChoice().model, ...router.rules.map((r) => r.model), ...router.chain];
+    const choice = (agentId ? store.agents.get(agentId)?.model_choice : undefined) ?? m.defaultChoice();
+    const viaRouter = choice.router || !choice.model ? [...router.rules.map((r) => r.model), ...router.chain] : [];
+    const refs = [choice.model, ...viaRouter];
     return [...new Set(refs.filter((r): r is string => !!r && harnessOf(r) === "native"))];
   }
 
-  async function ask(system: string, user: string): Promise<string | undefined> {
-    const models = auxModels();
+  async function ask(agentId: string | undefined, system: string, user: string): Promise<string | undefined> {
+    const models = auxModels(agentId);
     if (!models.length) return undefined;
     const r = await llm.complete({
       models,
@@ -187,7 +190,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       : "";
     let next: string | undefined;
     try {
-      const out = await ask(TITLE_PROMPT, `Owner: ${said.slice(0, 1500)}\n\nAgent: ${answer.slice(0, 800)}`);
+      const out = await ask(agent.id, TITLE_PROMPT, `Owner: ${said.slice(0, 1500)}\n\nAgent: ${answer.slice(0, 800)}`);
       next = out ? validTitle(out) : undefined;
     } catch (err) {
       log.warn({ thread: t.id, err: String(err) }, "no title from the auxiliary model");
@@ -200,12 +203,16 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
 
   /** Summarizes the older turns into a new epoch. `force` compacts whatever there is beyond the newest turns. */
   async function compact(threadId: string, force = false): Promise<{ compacted: boolean; reason?: string }> {
+    // Only our own loop reads this history; Claude Code and Codex keep and compact their own transcript.
+    const runs = store.runs.list(threadId, 200);
+    if (!runs.some((r) => r.harness === "native"))
+      return { compacted: false, reason: "this thread's engine keeps and compacts its own transcript" };
     const ctx = store.threads.context(threadId);
     const epoch = ctx.compaction as Epoch | undefined;
     const plan = planCompaction(store.modelLog.list(threadId), epoch, force);
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";
-    const out = await ask(SUMMARY_PROMPT, `${previous}Conversation:\n${transcriptOf(plan.items)}`);
+    const out = await ask(runs[0]?.agent_id, SUMMARY_PROMPT, `${previous}Conversation:\n${transcriptOf(plan.items)}`);
     if (out === undefined) return { compacted: false, reason: "no auxiliary model: set model_aux or add an API model" };
     const summary = validSummary(out);
     if (!summary) {
@@ -223,6 +230,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     store.threads.mergeContext(threadId, {
       compaction: next,
       memory_shown: undefined,
+      memory_since: undefined,
       roster_hash: undefined,
     });
     store.messages.add({

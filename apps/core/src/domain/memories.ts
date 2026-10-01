@@ -12,6 +12,7 @@ const toMemory = (r: Row): Memory => ({
   source: r.source === "owner" ? "owner" : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
+  tainted: Boolean(r.tainted),
   created_at: String(r.created_at),
   updated_at: String(r.updated_at),
 });
@@ -60,8 +61,10 @@ const SECRET_SHAPES = [
   /\b(sk|pk|rk)[-_][A-Za-z0-9_-]{16,}/,
   /\b(ghp|gho|ghs|github_pat|xox[abprs]|glpat|AKIA)[-_A-Za-z0-9]{12,}/,
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /\b(?=[A-Za-z0-9+/_-]*\d)(?=[A-Za-z0-9+/_-]*[a-z])(?=[A-Za-z0-9+/_-]*[A-Z])[A-Za-z0-9+/_-]{32,}\b/,
-  /\b(password|passwd|contraseña|clave|pin|2fa|otp)\s*[:=]\s*\S+/i,
+  // One unbroken run of mixed case and digits (keys, tokens); paths and slugs are broken by "/" and "-".
+  /(?<![\w/-])(?=[A-Za-z0-9_+=]*\d)(?=[A-Za-z0-9_+=]*[a-z])(?=[A-Za-z0-9_+=]*[A-Z])[A-Za-z0-9_+=]{32,}(?![\w/-])/,
+  // A credential label followed by a value that has a digit or symbol in it.
+  /\b(password|passwd|contraseña|clave|pin|2fa|otp)\s*[:=]\s*(?=\S*[\d!@#$%^&*])\S{4,}/i,
 ];
 
 /** A note must never hold a credential: memory goes into prompts. */
@@ -90,6 +93,7 @@ export function memoriesRepo({ one, all, run }: Sql) {
       source: "owner" | "agent";
       author_agent?: string | undefined;
       thread_id?: string | undefined;
+      tainted?: boolean | undefined;
     }): Memory {
       const same = one(
         "SELECT id FROM memories WHERE scope = ? AND IFNULL(project_id, '') = ? AND IFNULL(agent_id, '') = ? AND lower(trim(text)) = lower(trim(?))",
@@ -102,7 +106,7 @@ export function memoriesRepo({ one, all, run }: Sql) {
       const id = newId("mem");
       const at = now();
       run(
-        "INSERT INTO memories (id, scope, project_id, agent_id, text, source, author_agent, thread_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO memories (id, scope, project_id, agent_id, text, source, author_agent, thread_id, tainted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         m.scope,
         m.project_id ?? null,
@@ -111,13 +115,14 @@ export function memoriesRepo({ one, all, run }: Sql) {
         m.source,
         m.author_agent ?? null,
         m.thread_id ?? null,
+        m.tainted ? 1 : 0,
         at,
         at,
       );
       return repo.get(id) as Memory;
     },
-    edit(id: string, text: string): Memory | undefined {
-      run("UPDATE memories SET text = ?, updated_at = ? WHERE id = ?", text, now(), id);
+    edit(id: string, text: string, tainted: boolean): Memory | undefined {
+      run("UPDATE memories SET text = ?, tainted = ?, updated_at = ? WHERE id = ?", text, tainted ? 1 : 0, now(), id);
       return repo.get(id);
     },
     remove(id: string): boolean {

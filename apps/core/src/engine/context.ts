@@ -3,7 +3,7 @@
 // - history: a projection of the model log with a size budget, old tool output pruned, call/result pairs intact;
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 import { createHash } from "node:crypto";
-import type { Memory, Thread } from "@apx/protocol";
+import type { Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { LogEntry } from "../domain/threads.ts";
@@ -35,7 +35,7 @@ export function systemPrompt(
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
     project ? `\n## Project: ${project.name}${project.context ? `\nIts AGENTS.md:\n\n${project.context}` : ""}` : "",
-    project?.memory ? `\n### The owner's notes for this project (.apc/memory.md)\n\n${project.memory}` : "",
+    project?.memory ? `\n### Project notes (.apc/memory.md)\n\n${project.memory}` : "",
     skills ? `\n${skills}` : "",
     "",
     "## Rules",
@@ -85,21 +85,6 @@ export function frameInput(origin: Origin, text: string): string {
   }
 }
 
-export const MEMORY_BLOCK_CHARS = 2400;
-
-/** Notes for this turn, under a header that says what they are; the size is capped. */
-export function memoryBlock(notes: Memory[], max = MEMORY_BLOCK_CHARS): string | undefined {
-  const lines: string[] = [];
-  let used = 0;
-  for (const m of notes) {
-    const l = `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : ""}) ${m.text.replace(/\s+/g, " ")}`;
-    if (used + l.length > max) break;
-    lines.push(l);
-    used += l.length;
-  }
-  return lines.length ? lines.join("\n") : undefined;
-}
-
 export function turnInput(opts: {
   origin: Origin;
   text: string;
@@ -116,7 +101,7 @@ export function turnInput(opts: {
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }
 
-type Group = { run: string | undefined; items: ChatItem[] };
+type Group = { run: string | undefined; items: ChatItem[]; seq: number };
 
 const size = (items: ChatItem[]) => items.reduce((n, m) => n + JSON.stringify(m).length, 0);
 
@@ -130,15 +115,27 @@ export function projectHistory(
   budget = HISTORY_BUDGET_CHARS,
   epoch?: { upto: number; summary: string; untrusted: boolean } | undefined,
 ): ChatItem[] {
+  return project(entries, budget, epoch).items;
+}
+
+/** The history and the model log seq it starts at (what is older is out of the model's view). */
+export function project(
+  entries: LogEntry[],
+  budget = HISTORY_BUDGET_CHARS,
+  epoch?: { upto: number; summary: string; untrusted: boolean } | undefined,
+): { items: ChatItem[]; from: number } {
   if (!epoch) return walkBack(entries, budget);
   const summary = summaryBlock(epoch);
-  const items = walkBack(
+  const { items, from } = walkBack(
     entries.filter((e) => e.seq > epoch.upto),
     budget - summary.length,
   );
   // The summary rides on the first kept user item: no invented turn, and roles keep alternating.
   const [first, ...rest] = items;
-  return first?.role === "user" ? [{ ...first, content: `${summary}\n\n${first.content}` }, ...rest] : items;
+  return {
+    items: first?.role === "user" ? [{ ...first, content: `${summary}\n\n${first.content}` }, ...rest] : items,
+    from,
+  };
 }
 
 /** A summary of turns that held outside content stays marked untrusted, so the policy does not relax. */
@@ -149,7 +146,7 @@ function summaryBlock(epoch: { summary: string; untrusted: boolean }): string {
     : `${note}\n${epoch.summary}`;
 }
 
-function walkBack(entries: LogEntry[], budget: number): ChatItem[] {
+function walkBack(entries: LogEntry[], budget: number): { items: ChatItem[]; from: number } {
   const groups: Group[] = [];
   for (const e of entries) {
     const last = groups.at(-1);
@@ -157,10 +154,11 @@ function walkBack(entries: LogEntry[], budget: number): ChatItem[] {
     // Entries written before runs were recorded carry no run id: each user item starts a group of its own.
     const same = last && last.run === e.run_id && (e.run_id !== undefined || item.role !== "user");
     if (same) last.items.push(item);
-    else groups.push({ run: e.run_id, items: [item] });
+    else groups.push({ run: e.run_id, items: [item], seq: e.seq });
   }
   const kept: ChatItem[][] = [];
   let used = 0;
+  let from = Number.POSITIVE_INFINITY;
   for (let i = groups.length - 1; i >= 0; i--) {
     const g = groups[i] as Group;
     const items = kept.length >= FULL_OUTPUT_RUNS ? pruneOutput(g.items) : g.items;
@@ -168,8 +166,9 @@ function walkBack(entries: LogEntry[], budget: number): ChatItem[] {
     if (kept.length > 0 && used + n > budget) break;
     kept.unshift(items);
     used += n;
+    from = g.seq;
   }
-  return repair(kept.flat());
+  return { items: repair(kept.flat()), from };
 }
 
 function pruneOutput(items: ChatItem[]): ChatItem[] {

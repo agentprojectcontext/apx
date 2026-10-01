@@ -369,6 +369,8 @@ export const Memory = z.object({
   /** The agent that wrote it, and the thread it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),
+  /** Saved by an agent while outside content was in its turn: agents see it as data, not as the owner's word. */
+  tainted: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
 });

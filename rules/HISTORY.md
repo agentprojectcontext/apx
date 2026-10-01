@@ -115,3 +115,18 @@ Where: `apps/core/src/domain/threads.ts`, `engine/upkeep.ts`.
 ### A system message with only a notice rendered as an empty line
 The chat drew system messages from their text parts only, so notices APX posts on its own ("paused", "summarized")
 never showed. System messages now render their notice parts. Where: `apps/web/src/chat/Transcript.tsx`.
+
+<a id="tainted-notes"></a>
+### A note saved from outside content stays outside content
+With total autonomy, `remember` ran without asking while a web page was in the turn; the note then reached later
+turns as plain text, so those turns counted as clean and high-impact tools stopped asking. Notes now carry `tainted`
+(set from the turn's live state; the owner's edit clears it) and tainted notes are shown inside an untrusted
+envelope wherever they appear (turn preamble, `recall`). Likewise a paused delegation's result is logged wrapped, so
+a summary of it stays untrusted. Where: `apps/core/src/tools/memory.ts`, `rpc/memory.ts`, `engine/engine.ts`.
+
+<a id="aux-model-scope"></a>
+### An auxiliary call only goes where the thread's turns may already go
+Titles and summaries took the first API model of the router for every thread, so a thread kept on a local model
+could have its transcript sent to a cloud API. The auxiliary model is now `model_aux`, else the API models that
+thread's agent may use (its own, then the router's), and threads run only by Claude Code or Codex are not
+summarized (their engine keeps its own transcript). Where: `apps/core/src/engine/upkeep.ts`.

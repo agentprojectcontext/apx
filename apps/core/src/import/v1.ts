@@ -23,6 +23,16 @@ function v1Value(config: unknown, dotted: string): string | undefined {
 
 const SKILL_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 
+/** Anything already at that name, a broken link included, is the owner's and stays. */
+const taken = (p: string) => {
+  try {
+    fs.lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Copies v1's skills into `to` once: a folder is copied without the links inside it; a skill that was itself a link
  * stays a link to the same place. A name v2 already has is left alone.
@@ -39,7 +49,7 @@ export function importSkills(from: string, to: string): string[] {
   for (const name of names.sort()) {
     const src = path.join(from, name);
     const dst = path.join(to, name);
-    if (!SKILL_NAME.test(name) || fs.existsSync(dst)) continue;
+    if (!SKILL_NAME.test(name) || taken(dst)) continue;
     try {
       if (!fs.existsSync(path.join(src, "SKILL.md"))) continue;
       if (fs.lstatSync(src).isSymbolicLink()) fs.symlinkSync(fs.realpathSync(src), dst);

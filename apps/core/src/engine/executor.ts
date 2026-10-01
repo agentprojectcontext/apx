@@ -181,6 +181,7 @@ export function createExecutor(o: {
       thread,
       run,
       signal,
+      untrusted: () => untrusted,
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
       delegate: o.delegate,

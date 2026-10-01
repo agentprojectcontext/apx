@@ -24,7 +24,7 @@ export function memoryHandlers(store: Store) {
       memories: store.memories.list({ view: viewOf(ctx), scope, project_id: project, agent_id: agent, query, limit }),
     })) as Handler<"memory.list">,
 
-    "memory.add": (({ text, scope, project, agent, id }, ctx) => {
+    "memory.add": (({ text, scope, project, agent, id, tainted }, ctx) => {
       if (looksSecret(text)) throw bad("that looks like a password, key or token: memory never keeps credentials");
       const view = viewOf(ctx);
       if (id) {
@@ -32,7 +32,8 @@ export function memoryHandlers(store: Store) {
         if (!m) throw notFound(`memory ${id}`);
         if (view && (m.source === "owner" || !canSee(view, m)))
           throw refused("an agent can only edit notes agents wrote that it can see");
-        return store.memories.edit(id, text) ?? m;
+        // The owner vouches for what they write; an agent's note is tainted unless its tool says the turn was clean.
+        return store.memories.edit(id, text, view ? (tainted ?? true) : false) ?? m;
       }
       if (!view) {
         if (scope === "project" && !(project && store.projects.get(project)))
@@ -58,6 +59,7 @@ export function memoryHandlers(store: Store) {
         source: "agent",
         author_agent: view.agent_id,
         thread_id: ctx.agent?.thread_id,
+        tainted: tainted ?? true,
       });
     }) as Handler<"memory.add">,
 

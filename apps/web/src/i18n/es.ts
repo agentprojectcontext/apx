@@ -608,4 +608,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.compactSkipped": "No se resumió: {reason}",
   "error.compact": "No se pudo resumir: {error}",
   "notice.thread.compacted": "Se resumieron los turnos anteriores para que el agente siga con un contexto más chico.",
+  "memory.tainted": "con contenido de afuera",
+  "memory.taintedHint":
+    "Se guardó mientras había una página web, otro agente o un mensaje en el chat. Los agentes la leen como dato, no como palabra tuya; editala para darla por buena.",
 };

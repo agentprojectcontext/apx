@@ -206,7 +206,8 @@ export function modelLogRepo({ one, all, run }: Sql) {
         JSON.parse(String(r.item)),
       );
     },
-    append(threadId: string, runId: string | undefined, items: unknown[]): void {
+    /** Appends items in order; returns the seq of the first one. */
+    append(threadId: string, runId: string | undefined, items: unknown[]): number {
       const base = Number(
         one("SELECT COALESCE(MAX(seq), 0) AS m FROM model_log WHERE thread_id = ?", threadId)?.m ?? 0,
       );
@@ -218,6 +219,7 @@ export function modelLogRepo({ one, all, run }: Sql) {
           JSON.stringify(item),
           runId ?? null,
         );
+      return base + 1;
     },
   };
 }
