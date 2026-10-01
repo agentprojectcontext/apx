@@ -26,7 +26,6 @@ import { MAX_DEPTH } from "./limits.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
-import type { Epoch } from "./upkeep.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
 
@@ -158,7 +157,7 @@ function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const { items: history, from } = project(
     store.modelLog.list(thread.id),
     HISTORY_BUDGET_CHARS,
-    ctxState.compaction as Epoch,
+    ctxState.compaction,
   );
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);

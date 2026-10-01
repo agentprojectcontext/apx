@@ -137,7 +137,7 @@ export function createChannels(deps: {
 
   // ── replies, confirmations, typing ────────────────────────────────────
   const replyTo = (threadId: string) =>
-    store.threads.context(threadId).reply_to as { channel: string; conversation: string } | undefined;
+    store.threads.context(threadId).reply_to;
 
   /**
    * A run ended: while the thread's last words from the owner (or contact) came from a channel, the answer goes back

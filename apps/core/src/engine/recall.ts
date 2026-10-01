@@ -4,6 +4,7 @@
 // out of the model's view (history budget), they are offered again.
 import type { Memory, Thread } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
+import type { ThreadContext } from "../domain/threads.ts";
 import { notesText } from "../tools/memory.ts";
 
 const STANDING = 8;
@@ -11,8 +12,6 @@ const MATCHES = 5;
 /** Ids remembered as shown, per agent: older ones may be shown again (they left the context long ago). */
 const SHOWN_CAP = 200;
 
-type Shown = Record<string, string[]>;
-type Since = Record<string, number>;
 
 /**
  * `from`: the oldest model log seq still in the model's view. Returns the block and, when something changed, the
@@ -23,11 +22,11 @@ export function recallFor(
   agentId: string,
   thread: Pick<Thread, "project_id">,
   text: string,
-  ctx: Record<string, unknown>,
+  ctx: ThreadContext,
   from: number,
-): { text?: string | undefined; shown?: ((at: number) => Record<string, unknown>) | undefined } {
-  const all = (ctx.memory_shown ?? {}) as Shown;
-  const since = (ctx.memory_since ?? {}) as Since;
+): { text?: string | undefined; shown?: ((at: number) => ThreadContext) | undefined } {
+  const all = ctx.memory_shown ?? {};
+  const since = ctx.memory_since ?? {};
   const stale = since[agentId] !== undefined && (since[agentId] as number) < from;
   const before = stale ? undefined : all[agentId];
   const seen = new Set(before ?? []);

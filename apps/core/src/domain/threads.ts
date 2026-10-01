@@ -43,6 +43,24 @@ const toMessage = (r: Selectable<MessagesTable>): Message => ({
   created_at: r.created_at,
 });
 
+/** A summary that stands for the model log up to `upto`: a new epoch of the thread's context (engine/upkeep.ts). */
+export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: number; at: string };
+
+/** What the context builder, the upkeep and the channels keep per thread. */
+export type ThreadContext = {
+  /** Answers go back to this channel conversation while the last words came from it. */
+  reply_to?: { channel: string; conversation: string };
+  compaction?: Epoch;
+  /** The roster last shown to this agent, to show it again only when it changes. */
+  roster_hash?: string;
+  roster_agent?: string;
+  /** A title was given (or tried) once. */
+  titled?: boolean;
+  /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */
+  memory_shown?: Record<string, string[]>;
+  memory_since?: Record<string, number>;
+};
+
 export type LogEntry = { seq: number; run_id: string | undefined; item: unknown };
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
@@ -147,12 +165,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       bus.emit({ type: "thread.updated", thread: next });
       return next;
     },
-    /** Free-form bookkeeping the context builder keeps per thread (never shown). */
-    context(id: string): Record<string, unknown> {
+    /** The bookkeeping kept per thread (never shown). */
+    context(id: string): ThreadContext {
       const r = one(qb.selectFrom("threads").select("context").where("id", "=", id));
-      return r ? (JSON.parse(r.context) as Record<string, unknown>) : {};
+      return r ? (JSON.parse(r.context) as ThreadContext) : {};
     },
-    setContext(id: string, value: Record<string, unknown>): void {
+    setContext(id: string, value: ThreadContext): void {
       run(
         qb
           .updateTable("threads")
@@ -161,7 +179,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       );
     },
     /** Changes only the given keys (undefined removes one), over what is stored now: writers do not clobber each other. */
-    mergeContext(id: string, patch: Record<string, unknown>): void {
+    mergeContext(id: string, patch: { [K in keyof ThreadContext]?: ThreadContext[K] | undefined }): void {
       repo.setContext(id, { ...repo.context(id), ...patch });
     },
   };

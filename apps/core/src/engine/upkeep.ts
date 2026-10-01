@@ -6,7 +6,7 @@
 import { harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import type { LogEntry } from "../domain/threads.ts";
+import type { Epoch, LogEntry } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
@@ -25,8 +25,6 @@ const AUX_TIMEOUT_MS = 90_000;
 
 export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
 
-/** The current epoch: model log entries up to `upto` are replaced by `summary`. */
-export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: number; at: string };
 
 const SUMMARY_PROMPT = [
   "You compress a conversation between an owner and their AI agent so the agent can go on without the full transcript.",
@@ -208,7 +206,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     if (!runs.some((r) => r.harness === "native"))
       return { compacted: false, reason: "this thread's engine keeps and compacts its own transcript" };
     const ctx = store.threads.context(threadId);
-    const epoch = ctx.compaction as Epoch | undefined;
+    const epoch = ctx.compaction;
     const plan = planCompaction(store.modelLog.list(threadId), epoch, force);
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";
