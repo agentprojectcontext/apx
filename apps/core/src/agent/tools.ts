@@ -14,7 +14,7 @@ export type ToolContext = {
   signal: AbortSignal;
   /** Mutates the assistant's display message (tool cards, browser card, surfaces, sub-threads). */
   upsertPart(match: (p: Part) => boolean, part: Part): void;
-  askAgent(target: AgentRecord, task: string): Promise<string>;
+  delegate(target: AgentRecord, task: string, waitMs: number): Promise<string>;
 };
 
 export type Tool = {
@@ -333,24 +333,30 @@ export function createTools(deps: { broker: NodeBroker; store: Store }): Tool[] 
       spec: {
         type: "function",
         function: {
-          name: "ask_agent",
+          name: "delegate",
           description:
-            "Ask another agent to do a task and wait for its answer (runs in a sub-thread the user can open). Use agent id or name.",
-          parameters: obj({ agent: s("agent id or name"), task: s("clear, self-contained task") }, ["agent", "task"]),
+            "Delegate a task to another agent (use its id or name). It works in a sub-thread the owner can open. If it answers within wait_s you get the answer now; otherwise you get the result later in a new turn — never poll for it.",
+          parameters: obj(
+            {
+              agent: s("agent id or name"),
+              task: s("clear, self-contained task with everything the other agent needs"),
+              wait_s: { type: "integer", description: "seconds to wait inside this turn (0-120, default 60)" },
+            },
+            ["agent", "task"],
+          ),
         },
       },
-      title: (a) => `Le pidió a ${a.agent}`,
+      title: (a) => `Le delegó a ${a.agent}`,
       async run(a, ctx) {
         if (ctx.depth >= 2) return "refused: delegation depth limit reached; do it yourself.";
         const target = store.agent(String(a.agent));
-        if (!target)
-          return `unknown agent "${a.agent}". Known: ${store
-            .agents()
-            .map((x) => x.name)
-            .join(", ")}`;
+        if (!target) return `unknown agent "${a.agent}". Use list_agents to find the right one.`;
         if (target.id === ctx.agent.id) return "refused: you cannot delegate to yourself.";
-        const answer = await ctx.askAgent(target, String(a.task));
-        return `<agent_reply from="${target.name}" trust="untrusted">\n${cap(answer)}\n</agent_reply>`;
+        const waitS = Math.min(120, Math.max(0, Number(a.wait_s ?? 60) || 0));
+        const answer = await ctx.delegate(target, String(a.task), waitS * 1000);
+        return answer.startsWith(`${target.name} sigue trabajando`)
+          ? answer
+          : `<agent_reply from="${target.name}" trust="untrusted">\n${cap(answer)}\n</agent_reply>`;
       },
     },
   ];

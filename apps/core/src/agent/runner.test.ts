@@ -20,6 +20,28 @@ const fakeLlm: Llm = {
     const said = String(user?.content ?? "");
     const reply = (m: Completion["message"]): Completion => ({ message: m, model: "fake-1" });
     if (system.startsWith("Sos Scout")) return reply({ role: "assistant", content: "Encontré 3 fuentes sobre A2A." });
+    if (system.startsWith("Sos Vera")) {
+      await new Promise((r) => setTimeout(r, 300));
+      return reply({ role: "assistant", content: "Diseño listo." });
+    }
+    if (said.includes("<delegation_result"))
+      return reply({ role: "assistant", content: "Vera terminó: diseño listo." });
+    if (said.includes("delegá lento") && last?.role !== "tool") {
+      return reply({
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "c3",
+            type: "function",
+            function: {
+              name: "delegate",
+              arguments: JSON.stringify({ agent: "vera", task: "diseñá algo", wait_s: 0 }),
+            },
+          },
+        ],
+      });
+    }
     if (said.includes("widget") && last?.role !== "tool") {
       return reply({
         role: "assistant",
@@ -44,7 +66,7 @@ const fakeLlm: Llm = {
           {
             id: "c2",
             type: "function",
-            function: { name: "ask_agent", arguments: JSON.stringify({ agent: "scout", task: "buscá info de A2A" }) },
+            function: { name: "delegate", arguments: JSON.stringify({ agent: "scout", task: "buscá info de A2A" }) },
           },
         ],
       });
@@ -113,7 +135,7 @@ test("show_widget creates a pinned surface and a surface card in the message", a
   assert.equal(surface.pinned, true);
 });
 
-test("ask_agent runs the other agent in a sub-thread and shows a sub-thread card", async () => {
+test("delegate runs the other agent in a sub-thread and shows a sub-thread card", async () => {
   await client.call("threads.send", { thread: "home", text: "investigá A2A" });
   const msgs = await waitIdle("home", 5000);
   const card = msgs.at(-1)?.parts.find((p) => p.type === "subthread");
@@ -189,4 +211,31 @@ test("an interrupted turn keeps the steps that ran and closes calls that did not
       ["b", "not run: the turn was interrupted"],
     ],
   );
+});
+
+test("a delegation that outlives the wait comes back later and wakes the caller", async () => {
+  const t = await client.call("threads.create", { kind: "loose", agent_id: "roby", title: "async" });
+  await client.call("threads.send", { thread: t.id, text: "delegá lento" });
+  // First turn ends without waiting for Vera…
+  const until = Date.now() + 5000;
+  let texts: string[] = [];
+  while (Date.now() < until) {
+    const got = await client.call("threads.get", { thread: t.id });
+    texts = got.messages.flatMap((m) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])));
+    if (texts.some((x) => x.includes("Vera terminó")) && got.runs.every((r) => r.ended_at)) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  // …then the result wakes Roby with a second run in the same thread, and the card ends completed.
+  assert.ok(
+    texts.some((x) => x.startsWith("Hecho:")),
+    `first turn answered: ${texts.join(" | ")}`,
+  );
+  assert.ok(
+    texts.some((x) => x.includes("Vera terminó")),
+    "woken turn answered",
+  );
+  const got = await client.call("threads.get", { thread: t.id });
+  assert.equal(got.runs.length, 2);
+  const card = got.messages.flatMap((m) => m.parts).find((p) => p.type === "subthread");
+  assert.ok(card && card.type === "subthread" && card.state === "completed");
 });

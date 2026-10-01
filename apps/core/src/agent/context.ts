@@ -14,7 +14,7 @@ export function buildSystemPrompt(agent: AgentRecord, roster: AgentRecord[], thr
   return [
     `Sos ${agent.name}${agent.role ? `, ${agent.role}` : ""}, un agente de APX: el sistema que organiza los proyectos y el día de tu dueño.`,
     agent.kind === "secretary"
-      ? "Sos el secretario principal: entendés el pedido, lo resolvés vos o se lo delegás al agente indicado con ask_agent, y contestás con lo que pasó."
+      ? "Sos el secretario principal: entendés el pedido, lo resolvés vos o se lo delegás al agente indicado con delegate, y contestás con lo que pasó."
       : "Sos un agente especialista: hacés bien tu parte y contestás con el resultado concreto.",
     agent.prompt,
     "",
@@ -26,7 +26,7 @@ export function buildSystemPrompt(agent: AgentRecord, roster: AgentRecord[], thr
     "- Para navegar: browser_open → browser_snapshot (refs) → browser_click/browser_type; para leer contenido usá browser_text.",
     "- No inventes resultados de herramientas. Si algo falló, decilo.",
     "",
-    others ? `Otros agentes disponibles (ask_agent):\n${others}` : "No hay otros agentes disponibles.",
+    others ? `Otros agentes disponibles (delegate):\n${others}` : "No hay otros agentes disponibles.",
     hidden ? `Hay ${hidden} agentes más en los proyectos del dueño: buscalos con list_agents.` : "",
     "",
     `Hilo: ${thread.kind}${thread.parent_id ? " (sub-hilo entre agentes)" : ""}.`,
