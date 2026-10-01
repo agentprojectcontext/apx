@@ -107,8 +107,8 @@ test("the per-run MCP proxy (used by Codex) lists and calls that run's tools thr
   await mcp.connect(
     new StdioClientTransport({
       command: process.execPath,
-      args: [terminal, "mcp", "--run", token],
-      env: { ...process.env, APX_URL: env.core.url } as Record<string, string>,
+      args: [terminal, "mcp", "--run"],
+      env: { ...process.env, APX_URL: env.core.url, APX_RUN_TOKEN: token } as Record<string, string>,
     }),
   );
   const { tools } = await mcp.listTools();

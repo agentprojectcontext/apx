@@ -9,7 +9,8 @@ import type { ChatItem } from "../providers/types.ts";
 import { MAX_DEPTH } from "../tools/agents.ts";
 import { type Tool, type ToolContext, toSpec } from "../tools/types.ts";
 import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
-import { type Display, openDisplay } from "./display.ts";
+import type { Caller } from "./delegation.ts";
+import { openDisplay } from "./display.ts";
 import { closeTurnLog } from "./recovery.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex" };
@@ -19,12 +20,7 @@ export type TurnDeps = {
   harnesses: Harnesses;
   tools: Tool[];
   log: Log;
-  delegate(
-    parent: { run: RunRecord; agent: AgentRecord; display: Display },
-    to: AgentRecord,
-    task: string,
-    waitMs: number,
-  ): Promise<string>;
+  delegate(caller: Caller, to: AgentRecord, task: string, waitMs: number): Promise<string>;
 };
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */

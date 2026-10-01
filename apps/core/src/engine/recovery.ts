@@ -20,7 +20,9 @@ export function closeTurnLog(store: Store, run: RunRecord, why: string): void {
   const answered = new Set(items.flatMap((m) => (m.role === "tool" ? [m.tool_call_id] : [])));
   const last = [...items].reverse().find((m): m is AssistantItem => m.role === "assistant");
   const fill: ChatItem[] = [];
+  const handled = new Set<string>();
   for (const c of last?.tool_calls ?? []) {
+    handled.add(c.id);
     if (answered.has(c.id)) continue;
     const s = steps.get(c.id);
     let content = NOT_RUN;
@@ -32,7 +34,19 @@ export function closeTurnLog(store: Store, run: RunRecord, why: string): void {
     }
     fill.push({ role: "tool", tool_call_id: c.id, content });
   }
-  store.modelLog.append(run.thread_id, run.id, [...fill, systemNote(why)]);
+  // External harnesses keep their own transcript: their started steps have no call in our log, so they are named
+  // in the note instead.
+  const loose: string[] = [];
+  for (const st of steps.values()) {
+    if (st.state !== "running" || handled.has(st.call_id)) continue;
+    const unknown = st.effect !== "none";
+    store.runs.endStep(run.id, st.call_id, unknown ? "unknown" : "skipped", unknown ? UNKNOWN(st.tool) : NOT_RUN);
+    if (unknown) loose.push(st.tool);
+  }
+  const note = loose.length
+    ? `${why} These tools had started and may have acted (effect UNKNOWN): ${loose.join(", ")}.`
+    : why;
+  store.modelLog.append(run.thread_id, run.id, [...fill, systemNote(note)]);
 }
 
 /** Runs a crash or restart left mid-turn: closed as failed, with their cards settled. Returns them. */

@@ -54,5 +54,6 @@ export function agentTools(store: Store): Tool[] {
   ];
 }
 
-/** How a delegated answer enters the caller's context: as data from another agent. */
-export const agentReply = (name: string, text: string) => untrusted("agent_reply", { from: name }, cap(text));
+/** How a delegated answer enters the caller's context: as data from another agent, with how its run ended. */
+export const agentReply = (name: string, text: string, state: string) =>
+  untrusted("agent_reply", { from: name, state }, cap(text));

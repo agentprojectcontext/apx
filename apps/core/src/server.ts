@@ -35,7 +35,7 @@ function workspaceWebDist(): string | undefined {
   return fs.existsSync(path.join(dist, "index.html")) ? dist : undefined;
 }
 
-/** `apx2 mcp --run <token>`: how an external harness (Codex) reaches the tools of its run. */
+/** `apx2 mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
 
 export async function createCore(
@@ -47,7 +47,7 @@ export async function createCore(
   const db = openDb(config.home);
   const bus = createBus();
   const store = createStore(db, bus);
-  const secrets = createSecrets(config.home);
+  const secrets = createSecrets(config.home, config.secrets);
   seed(store);
   store.idempotency.prune();
 

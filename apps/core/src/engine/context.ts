@@ -94,8 +94,11 @@ export function projectHistory(entries: LogEntry[], budget = HISTORY_BUDGET_CHAR
   const groups: Group[] = [];
   for (const e of entries) {
     const last = groups.at(-1);
-    if (last && last.run === e.run_id) last.items.push(e.item as ChatItem);
-    else groups.push({ run: e.run_id, items: [e.item as ChatItem] });
+    const item = e.item as ChatItem;
+    // Entries written before runs were recorded carry no run id: each user item starts a group of its own.
+    const same = last && last.run === e.run_id && (e.run_id !== undefined || item.role !== "user");
+    if (same) last.items.push(item);
+    else groups.push({ run: e.run_id, items: [item] });
   }
   const kept: ChatItem[][] = [];
   let used = 0;

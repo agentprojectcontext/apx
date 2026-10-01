@@ -46,7 +46,8 @@ export function createHarnesses(deps: {
         gate: (io) => {
           const token = openGate(io);
           const proxy = deps.mcpProxy();
-          const command: McpCommand = { ...proxy, args: [...proxy.args, token] };
+          // The run token travels in the environment: on the command line any local user could read it with ps.
+          const command: McpCommand = { ...proxy, env: { ...proxy.env, APX_RUN_TOKEN: token } };
           return { command, close: () => gates.delete(token) };
         },
       }),

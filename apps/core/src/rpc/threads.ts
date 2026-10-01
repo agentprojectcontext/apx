@@ -35,21 +35,25 @@ export function threadHandlers(store: Store, engine: Engine) {
         project_id: project_id ?? agent.project_id,
       });
     }) as Handler<"threads.create">,
-    "threads.send": (({ thread, text, mode }) => {
+    "threads.send": (({ thread, text, mode }, ctx) => {
       const { agent } = threadAgent(thread);
-      if (mode === "interrupt") engine.cancel(thread);
+      if (mode === "interrupt") engine.interrupt(thread);
+      // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data.
+      const fromAgent = ctx.actor === "agent";
       return store.tx(() => {
         const message = store.messages.add({
           thread_id: thread,
-          author: { kind: "user" },
+          author: fromAgent ? { kind: "system" } : { kind: "user" },
           parts: [{ type: "text", text }],
         });
         store.threads.patch(thread, { preview: text.slice(0, 160) });
         const run = engine.admit({
           thread_id: thread,
           agent_id: agent.id,
-          trigger: "user",
-          origin: { kind: "user" },
+          trigger: fromAgent ? "channel" : "user",
+          origin: fromAgent
+            ? { kind: "agent", id: "external", name: "an external agent client", thread_id: thread, run_id: "" }
+            : { kind: "user" },
           text,
         });
         return { message, run: publicRun(run) };

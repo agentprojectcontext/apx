@@ -24,5 +24,7 @@ export function untrusted(source: string, attrs: Record<string, string>, body: s
   const a = Object.entries(attrs)
     .map(([k, v]) => ` ${k}="${v.replace(/["<>]/g, "'")}"`)
     .join("");
-  return `<${source}${a} trust="untrusted">\n${body}\n</${source}>`;
+  // The body cannot close its own envelope or pose as a note from APX.
+  const safe = body.replace(new RegExp(`<(/?)(${source}|system_note)\\b`, "gi"), "&lt;$1$2");
+  return `<${source}${a} trust="untrusted">\n${safe}\n</${source}>`;
 }

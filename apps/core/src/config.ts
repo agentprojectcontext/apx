@@ -1,6 +1,7 @@
 // One config loader, injected everywhere (no import-time singletons, no process.env reads elsewhere).
 import os from "node:os";
 import path from "node:path";
+import type { SecretsBackend } from "./secrets.ts";
 
 export type ProviderTransport = "openai-chat" | "anthropic-messages";
 
@@ -28,6 +29,7 @@ export type CoreConfig = {
   /** Local APX v1 daemon, only for the explicit read-only import. */
   v1: { url: string; home: string };
   providers: ProviderConfig[];
+  secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
   llmTimeoutMs: number;
 };
@@ -86,6 +88,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
     providers: [...custom, ...DEFAULT_PROVIDERS],
+    secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
   };
   assertSafeBind(config);
@@ -100,5 +103,5 @@ export function assertSafeBind(config: Pick<CoreConfig, "host" | "token">): void
 
 /** Config for tests and embedders: defaults plus overrides, no environment. */
 export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreConfig {
-  return { ...loadConfig({}), port: 0, ...over };
+  return { ...loadConfig({}), port: 0, secrets: "file", ...over };
 }

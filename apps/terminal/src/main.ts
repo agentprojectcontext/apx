@@ -36,6 +36,7 @@ Usage:
                            --keys also copies its model API keys into v2's secret store, once
 
   apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…)
+  apx2 mcp --run           The tools of one agent run (APX_RUN_TOKEN), for an external harness
 
 Env: APX_URL (default http://127.0.0.1:7440), APX_TOKEN`;
 
@@ -54,7 +55,7 @@ const { values, positionals } = parseArgs({
     interrupt: { type: "boolean" },
     keys: { type: "boolean" },
     timeout: { type: "string" },
-    run: { type: "string" },
+    run: { type: "boolean" },
   },
 });
 const [command, ...rest] = positionals;
@@ -113,8 +114,11 @@ try {
     }
     case "mcp": {
       if (values.run) {
+        // The run token comes in the environment, never on the command line.
+        const token = process.env.APX_RUN_TOKEN;
+        if (!token) throw new Error("apx2 mcp --run needs APX_RUN_TOKEN");
         const { runRunMcp } = await import("./mcp-run.ts");
-        await runRunMcp(agentClient, values.run);
+        await runRunMcp(agentClient, token);
         break;
       }
       const { runMcp } = await import("./mcp.ts");
