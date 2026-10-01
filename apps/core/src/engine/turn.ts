@@ -20,6 +20,7 @@ import { createExecutor } from "./executor.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
+import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
 
@@ -82,6 +83,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const ctxState = store.threads.context(thread.id);
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id;
+  const recalled = recallFor(store, agent.id, thread, start.input.text, ctxState);
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
@@ -89,11 +91,16 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       text: start.input.text,
       now: new Date(),
       roster: rosterChanged ? roster.text : undefined,
+      memory: recalled.text,
     }),
   };
   store.modelLog.append(thread.id, run.id, [input]);
-  if (rosterChanged)
-    store.threads.setContext(thread.id, { ...ctxState, roster_hash: roster.hash, roster_agent: agent.id });
+  if (rosterChanged || recalled.shown)
+    store.threads.setContext(thread.id, {
+      ...ctxState,
+      ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
+      ...(recalled.shown ? { memory_shown: recalled.shown } : {}),
+    });
 
   const skills = skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));
 
@@ -133,7 +140,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       agent,
       thread,
       store.settings.get("owner_language") ?? "es",
-      agent.project_id ? store.projects.get(agent.project_id) : undefined,
+      // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
+      (thread.project_id ?? agent.project_id)
+        ? store.projects.get(thread.project_id ?? agent.project_id ?? "")
+        : undefined,
       skills,
     ),
     history,

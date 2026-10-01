@@ -7,6 +7,8 @@ import {
   Id,
   Job,
   McpServerStatus,
+  Memory,
+  MemoryScope,
   Message,
   ModelChoice,
   PendingInput,
@@ -370,6 +372,43 @@ export const appMethods = {
       ),
     }),
     effect: false,
+  },
+  /**
+   * Notes agents keep between threads. With `query`, the best matches first (full-text, accents ignored). An agent
+   * sees the owner's global notes, its thread's project notes and its own.
+   */
+  "memory.list": {
+    params: z
+      .object({
+        query: z.string().max(500).optional(),
+        scope: MemoryScope.optional(),
+        project: Id.optional(),
+        agent: Id.optional(),
+        limit: z.number().int().min(1).max(500).default(100),
+      })
+      .strict(),
+    result: z.object({ memories: z.array(Memory) }),
+    effect: false,
+  },
+  /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
+  "memory.add": {
+    params: z
+      .object({
+        text: z.string().trim().min(1).max(2000),
+        scope: MemoryScope,
+        project: Id.optional(),
+        agent: Id.optional(),
+        id: Id.optional(),
+      })
+      .strict(),
+    result: Memory,
+    effect: true,
+  },
+  /** An agent may remove only notes agents wrote that it can see; the owner removes any. */
+  "memory.remove": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
   },
   "runs.get": {
     params: z.object({ run: Id }).strict(),

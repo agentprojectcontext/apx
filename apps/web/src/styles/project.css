@@ -512,3 +512,128 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
 }
+
+/* ── Memory and resources ──────────────────────────────────────────────────── */
+.memory {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: var(--shell-team-max-w);
+  margin: 0 auto;
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.memory__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-2, var(--apx-surface));
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.memory__file code {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.memory__add {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.memory__add > :first-child {
+  flex: 1;
+}
+.memory__list,
+.res__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  overflow: hidden;
+}
+.memory__row,
+.res__row {
+  padding: 10px 14px;
+  border-top: 1px solid var(--apx-border);
+}
+.memory__row:first-child,
+.res__row:first-child {
+  border-top: 0;
+}
+.memory__text {
+  font-size: var(--apx-text-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.memory__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.memory__by {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.memory__spacer {
+  flex: 1;
+}
+.memory__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.memory__editbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.res {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.res + .res {
+  margin-top: 12px;
+}
+.res__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.res__icon {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.res__main {
+  flex: 1;
+  min-width: 0;
+}
+.res__name {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.res__desc {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.res__mono {
+  font-family: var(--apx-font-mono);
+}

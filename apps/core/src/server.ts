@@ -30,6 +30,7 @@ import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
+import { memoryHandlers } from "./rpc/memory.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
@@ -37,6 +38,7 @@ import { threadHandlers } from "./rpc/threads.ts";
 import { createSecrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
+import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
@@ -113,6 +115,7 @@ export async function createCore(
     ...ownerTools(store),
     ...shellTools(store, config.home, config.port || 7440),
     ...skillTools(store, config.home),
+    ...memoryTools(),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -161,6 +164,7 @@ export async function createCore(
       ...browserHandlers(broker),
       ...threadHandlers(store, engine),
       ...jobHandlers(store, engine),
+      ...memoryHandlers(store),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
       ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds, home: config.home }),

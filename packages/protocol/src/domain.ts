@@ -353,6 +353,27 @@ export const ProviderInfo = z.object({
 });
 export type ProviderInfo = z.infer<typeof ProviderInfo>;
 
+/**
+ * A note agents keep between threads. `global`: about the owner, every agent sees it; `project`: agents working in
+ * that project; `agent`: only that agent. `source` says who wrote it: the owner's notes are not an agent's to remove.
+ */
+export const MemoryScope = z.enum(["global", "project", "agent"]);
+export type MemoryScope = z.infer<typeof MemoryScope>;
+export const Memory = z.object({
+  id: Id,
+  scope: MemoryScope,
+  project_id: Id.optional(),
+  agent_id: Id.optional(),
+  text: z.string(),
+  source: z.enum(["owner", "agent"]),
+  /** The agent that wrote it, and the thread it learned it in. */
+  author_agent: Id.optional(),
+  thread_id: Id.optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type Memory = z.infer<typeof Memory>;
+
 /** An MCP server an agent may use: the owner's own, or one a project's `.apc/mcps.json` names. */
 export const McpServerStatus = z.object({
   name: z.string(),

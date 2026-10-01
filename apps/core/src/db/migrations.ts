@@ -176,4 +176,37 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE threads ADD COLUMN cwd TEXT;
   ALTER TABLE threads ADD COLUMN write_policy TEXT;
   `,
+  `
+  -- Memory: notes agents keep between threads, with full-text search (accents ignored). Column n is the stable rowid the
+  -- index points at (an implicit rowid may change on VACUUM).
+  CREATE TABLE memories (
+    n INTEGER PRIMARY KEY,
+    id TEXT NOT NULL UNIQUE,
+    scope TEXT NOT NULL,
+    project_id TEXT,
+    agent_id TEXT,
+    text TEXT NOT NULL,
+    source TEXT NOT NULL,
+    author_agent TEXT,
+    thread_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX memories_scope ON memories(scope, project_id, agent_id);
+  CREATE VIRTUAL TABLE memories_fts USING fts5(
+    text, content='memories', content_rowid='n', tokenize='unicode61 remove_diacritics 2'
+  );
+  CREATE TRIGGER memories_ai AFTER INSERT ON memories BEGIN
+    INSERT INTO memories_fts(rowid, text) VALUES (new.n, new.text);
+  END;
+  CREATE TRIGGER memories_ad AFTER DELETE ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', old.n, old.text);
+  END;
+  CREATE TRIGGER memories_au AFTER UPDATE OF text ON memories BEGIN
+    INSERT INTO memories_fts(memories_fts, rowid, text) VALUES ('delete', old.n, old.text);
+    INSERT INTO memories_fts(rowid, text) VALUES (new.n, new.text);
+  END;
+  -- A project's .apc/memory.md, written by the owner: project context like AGENTS.md.
+  ALTER TABLE projects ADD COLUMN memory_md TEXT;
+  `,
 ];

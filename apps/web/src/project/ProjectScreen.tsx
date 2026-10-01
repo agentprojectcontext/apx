@@ -7,7 +7,9 @@ import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
+import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
+import { ProjectResources } from "./ProjectResources.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
 import { SoonPane } from "./SoonPane.tsx";
 
@@ -127,17 +129,9 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
         </SoonPane>
       );
     case "memory":
-      return (
-        <SoonPane icon={<Icons.Brain />} title={t("project.tab.memory")}>
-          {t("project.memory.body")}
-        </SoonPane>
-      );
+      return <ProjectMemory project={project} />;
     case "resources":
-      return (
-        <SoonPane icon={<Icons.Layers />} title={t("project.resources.title")}>
-          {t("project.resources.body")}
-        </SoonPane>
-      );
+      return <ProjectResources project={project} />;
   }
 }
 

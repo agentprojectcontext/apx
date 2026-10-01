@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { browser } from "./commands/browser.ts";
 import { chat } from "./commands/chat.ts";
+import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
 
@@ -30,6 +31,9 @@ Usage:
   apx2 chat "<text>" --code [--cwd <folder>] [--write ask|auto|read-only] [--agent <id>]   Code thread
   apx2 jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
   apx2 skills [project]    Skills agents can load
+  apx2 memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
+  apx2 memory add [global|project|agent] <text> [--project p] [--agent a]
+  apx2 memory rm <id…>     Remove notes
   apx2 usage [days]        Turns and tokens by model, and whether they were included or paid per token
   apx2 mcps [list [project]] | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
                            The one way to talk to an agent. Default: Home (the secretary)
@@ -135,6 +139,9 @@ try {
       break;
     case "skills":
       await skills(client, rest);
+      break;
+    case "memory":
+      await memory(client, rest, { project: values.project, agent: values.agent, json: values.json });
       break;
     case "usage":
       await usage(client, rest);

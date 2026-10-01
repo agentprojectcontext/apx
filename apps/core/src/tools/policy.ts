@@ -11,10 +11,11 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   agents: (n) => n === "list_agents" || n === "delegate",
   shell: (n) => n.startsWith("shell"),
   mcp: (n) => n.startsWith("mcp_"),
+  memory: (n) => n === "remember" || n === "recall" || n === "forget",
 };
 
-/** Tools every agent keeps whatever its list says: they only read what the turn already produced or ask the owner. */
-const ALWAYS = new Set(["read_output", "ask_owner", "load_skill"]);
+/** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */
+const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
 
 /** Marker every untrusted envelope carries (tools/result.ts `untrusted`). */
 export const UNTRUSTED_MARK = 'trust="untrusted"';

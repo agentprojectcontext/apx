@@ -8,6 +8,8 @@ import { type Fields, listField, parseFrontmatter, textField } from "./frontmatt
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 /** AGENTS.md is project context for its agents; past this size the head and tail are kept. */
 const AGENTS_MD_CAP = 12_000;
+/** .apc/memory.md, the owner's notes for the project's agents. */
+const MEMORY_MD_CAP = 6_000;
 
 export type ApcProject = {
   /** Stable id: the committed apx_id when there is one, else derived from the path. */
@@ -20,6 +22,8 @@ export type ApcProject = {
   kind?: string | undefined;
   /** AGENTS.md, capped. */
   context?: string | undefined;
+  /** .apc/memory.md (written by the owner), capped. */
+  memory?: string | undefined;
 };
 
 export type ApcAgent = {
@@ -53,10 +57,18 @@ const readText = (file: string): string | undefined => {
   }
 };
 
-function cap(text: string): string {
-  if (text.length <= AGENTS_MD_CAP) return text;
-  const head = Math.floor(AGENTS_MD_CAP * 0.7);
-  return `${text.slice(0, head)}\n\n[… ${text.length - AGENTS_MD_CAP} chars of AGENTS.md omitted …]\n\n${text.slice(-(AGENTS_MD_CAP - head))}`;
+const isLink = (p: string) => {
+  try {
+    return fs.lstatSync(p).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+function cap(text: string, max = AGENTS_MD_CAP, name = "AGENTS.md"): string {
+  if (text.length <= max) return text;
+  const head = Math.floor(max * 0.7);
+  return `${text.slice(0, head)}\n\n[… ${text.length - max} chars of ${name} omitted …]\n\n${text.slice(-(max - head))}`;
 }
 
 /** Whether a folder is an APC project (has .apc/ or AGENTS.md). */
@@ -73,6 +85,8 @@ export function readProject(root: string): ApcProject {
   const pathId = createHash("sha256").update(abs).digest("hex").slice(0, 12);
   const id = meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id) ? meta.apx_id : pathId;
   const agentsMd = readText(path.join(abs, "AGENTS.md"));
+  const apc = path.join(abs, ".apc");
+  const memoryMd = isLink(apc) ? undefined : readText(path.join(apc, "memory.md"))?.trim();
   return {
     id,
     pathId,
@@ -81,6 +95,7 @@ export function readProject(root: string): ApcProject {
     description: meta.description,
     kind: meta.kind,
     context: agentsMd ? cap(agentsMd.trim()) : undefined,
+    memory: memoryMd ? cap(memoryMd, MEMORY_MD_CAP, ".apc/memory.md") : undefined,
   };
 }
 

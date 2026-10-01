@@ -59,6 +59,7 @@ export function createApcSync(deps: { store: Store; log: Log; engines: ReadonlyS
         ...(p.description ? { description: p.description } : {}),
         ...(p.kind ? { kind: p.kind } : {}),
         ...(p.context ? { context: p.context } : {}),
+        ...(p.memory ? { memory: p.memory } : {}),
         present: true,
       });
       const ids: string[] = [];
