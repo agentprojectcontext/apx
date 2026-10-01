@@ -34,7 +34,14 @@ export type TurnIO = {
    * An external agent asks to use one of its own tools (edit a file, run a command): our policy answers, asking
    * the owner when it must. `kind` is the protocol's tool kind (read, edit, execute, fetch…).
    */
-  approve(req: { callId: string; title: string; kind: string; detail?: string | undefined }): Promise<boolean>;
+  approve(req: {
+    callId: string;
+    title: string;
+    kind: string;
+    detail?: string | undefined;
+    /** The tool's raw input when the agent sends it (a command to run, a file and its diff). */
+    input?: unknown;
+  }): Promise<boolean>;
   /** An external agent's own tool call, shown as a card and recorded as a step (effects are not ours to know). */
   observe(ev: {
     callId: string;

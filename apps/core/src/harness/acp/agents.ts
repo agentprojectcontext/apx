@@ -13,12 +13,25 @@ export type AcpAgent = {
   args: string[];
   /** Auth method that reuses the CLI's own login (no prompt, no browser), tried once when a session needs auth. */
   auth?: string;
+  /**
+   * What puts the CLI in "ask before acting" mode, so its edits and commands come to our policy as permission
+   * requests. A CLI that acts without asking would bypass it.
+   */
+  env?: Record<string, string>;
 };
 
 /** ACP CLIs APX knows how to start. An owner adds others with the `acp_agents` setting. */
 export const KNOWN_ACP_AGENTS: AcpAgent[] = [
-  { id: "opencode", label: "OpenCode", command: "opencode", args: ["acp"] },
-  { id: "qwen", label: "Qwen Code", command: "qwen", args: ["--acp"] },
+  {
+    id: "opencode",
+    label: "OpenCode",
+    command: "opencode",
+    args: ["acp"],
+    env: {
+      OPENCODE_PERMISSION: JSON.stringify({ edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" }),
+    },
+  },
+  { id: "qwen", label: "Qwen Code", command: "qwen", args: ["--acp", "--approval-mode", "default"] },
   { id: "cursor", label: "Cursor", command: "cursor-agent", args: ["acp"], auth: "cursor_login" },
   { id: "gemini-cli", label: "Gemini CLI", command: "gemini", args: ["--experimental-acp"] },
 ];
@@ -103,7 +116,11 @@ export async function openSession(
     onRequest?: RequestHandler;
   },
 ): Promise<AcpSession> {
-  const child = spawn(o.binary, agent.args, { cwd: o.cwd, env: childEnv(), stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(o.binary, agent.args, {
+    cwd: o.cwd,
+    env: { ...childEnv(), ...agent.env },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
   child.stderr.resume();
   const rpc = connect(child, {
     request: (method, params) =>

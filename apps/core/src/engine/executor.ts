@@ -7,9 +7,10 @@ import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { TurnIO } from "../harness/index.ts";
-import { authorize, UNTRUSTED_MARK } from "../tools/policy.ts";
+import { authorize, decide, UNTRUSTED_MARK } from "../tools/policy.ts";
 import { cap } from "../tools/result.ts";
-import type { Tool, ToolContext } from "../tools/types.ts";
+import { commandRisk } from "../tools/shell.ts";
+import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -77,6 +78,8 @@ export function createExecutor(o: {
   call<M extends MethodName>(method: M, params: Params<M>, as: { run: RunRecord; callId: string }): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
   jobs: Jobs;
+  /** APX's own port: a command that reaches it always asks. */
+  apxPort?: number | undefined;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
@@ -200,15 +203,26 @@ export function createExecutor(o: {
   };
 
   /** An external agent's own tool: reading runs, anything else is the owner's call unless autonomy is total. */
+  /**
+   * An external agent's own tool, judged by the same rule as ours: looking runs, a command is classified like the
+   * shell tool's, anything else that changes something asks (unless autonomy allows it).
+   */
   const approve: TurnIO["approve"] = async (req) => {
-    if (LOOKING.has(req.kind) || agent.autonomy === "total") return true;
+    const command = (req.input as { command?: unknown } | undefined)?.command;
+    const level: Confirm = LOOKING.has(req.kind)
+      ? "never"
+      : req.kind === "execute" && typeof command === "string"
+        ? commandRisk(command, o.apxPort)
+        : "ask";
+    const decision = decide(level, LOOKING.has(req.kind) ? "none" : "external", agent, untrusted);
+    if (decision.kind === "allow") return true;
     const answer = await o.inputs.ask({
       run: o.run(),
       agent,
       display,
       callId: req.callId,
       kind: "confirm",
-      prompt: `${agent.name} wants to ${req.kind === "other" ? "use a tool" : req.kind}: ${req.title}.`,
+      prompt: `${agent.name} wants to ${req.kind === "other" ? "use a tool" : req.kind}: ${req.title}. ${decision.reason}.`,
       tool: req.kind,
       ...(req.detail ? { detail: req.detail } : {}),
       waitMs: INPUT_WAIT_MS,

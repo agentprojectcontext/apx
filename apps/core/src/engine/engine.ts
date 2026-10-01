@@ -63,6 +63,7 @@ export function createEngine(deps: {
   log: Log;
   call: ToolCall;
   home: string;
+  apxPort?: number;
 }) {
   const { store, log } = deps;
   const busy = new Set<string>();

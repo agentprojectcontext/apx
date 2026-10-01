@@ -126,7 +126,7 @@ export async function createCore(
     if (!r.ok) throw new CallError(r.error);
     return r.result as Result<typeof method>;
   };
-  const engine = createEngine({ store, harnesses, tools, log, call, home: config.home });
+  const engine = createEngine({ store, harnesses, tools, log, call, home: config.home, apxPort: config.port || 7440 });
 
   const dispatch = createRouter(
     {

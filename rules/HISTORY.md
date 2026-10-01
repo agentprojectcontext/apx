@@ -81,3 +81,10 @@ Permissions inherited by a delegated agent were read from the run's `parent_run_
 same sub-thread (a finished background job, an answer after a restart, a delegation result) have no parent run, so
 they ran with the agent's own, looser policy and a reset depth. Callers and depth now come from the thread's
 ancestors. Where: `apps/core/src/engine/ancestry.ts`.
+
+<a id="acp-ask-mode"></a>
+### An ACP agent must be started in "ask" mode, or it acts without our policy
+OpenCode's default configuration lets it edit files without a permission request, so the first real test wrote a
+file the owner never approved. Each known ACP agent now says what puts it in ask mode (`OPENCODE_PERMISSION`,
+`qwen --approval-mode default`); its requests then go through the same `decide()` rule as APX's tools, commands
+classified like the `shell` tool's. Where: `apps/core/src/harness/acp/agents.ts`, `engine/executor.ts`.

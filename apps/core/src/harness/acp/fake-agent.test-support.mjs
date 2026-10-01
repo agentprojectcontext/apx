@@ -43,6 +43,16 @@ rl.on("line", async (line) => {
   if (m.method === "session/prompt") {
     const sid = m.params.sessionId;
     const text = m.params.prompt[0].text;
+    // A reading command: allowed by the same classifier as APX's shell tool, without asking.
+    const ls = await ask("session/request_permission", {
+      sessionId: sid,
+      toolCall: { toolCallId: "t0", title: "ls", kind: "execute", rawInput: { command: "ls -la" } },
+      options: [
+        { optionId: "yes", kind: "allow_once", name: "Allow" },
+        { optionId: "no", kind: "reject_once", name: "Reject" },
+      ],
+    });
+    if (ls?.outcome?.optionId !== "yes") throw new Error("ls should have been allowed");
     update(sid, {
       sessionUpdate: "tool_call",
       toolCallId: "t1",

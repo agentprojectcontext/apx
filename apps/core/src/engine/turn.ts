@@ -42,6 +42,7 @@ export type TurnDeps = {
   log: Log;
   inputs: Inputs;
   jobs: Jobs;
+  apxPort?: number | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
   /** A protocol method through the router, as the agent of `as.run`. */
@@ -108,6 +109,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     external: () => harness !== "native",
     call: deps.call,
     jobs: deps.jobs,
+    apxPort: deps.apxPort,
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
   });
   const execute = exec.execute;

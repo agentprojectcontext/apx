@@ -91,7 +91,8 @@ export function acpHarness(opts: {
             callId: call.toolCallId ?? `perm-${Date.now()}`,
             title: call.title ?? known?.title ?? "an action",
             kind: call.kind ?? known?.kind ?? "other",
-            detail: call.rawInput === undefined ? undefined : JSON.stringify(call.rawInput).slice(0, 600),
+            detail: call.rawInput === undefined ? undefined : JSON.stringify(call.rawInput, null, 1),
+            input: call.rawInput,
           });
           const options = p.options ?? [];
           const pick =
