@@ -117,4 +117,30 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE runs ADD COLUMN tool_calls INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE runs ADD COLUMN activity TEXT;
   `,
+  `
+  -- What an agent waits on from the owner: a confirmation before a tool runs, or a question. Outlives restarts; an
+  -- answer that arrives after its run is gone wakes the agent with a new run.
+  CREATE TABLE pending_inputs (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    message_id TEXT,
+    call_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    tool TEXT,
+    args TEXT,
+    detail TEXT,
+    options TEXT,
+    state TEXT NOT NULL DEFAULT 'pending',
+    answer TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    answered_at TEXT
+  );
+  CREATE INDEX pending_inputs_state ON pending_inputs(state, thread_id);
+  -- A tool's full output; the model gets head and tail, and read_output pages through the rest.
+  ALTER TABLE steps ADD COLUMN output TEXT;
+  `,
 ];

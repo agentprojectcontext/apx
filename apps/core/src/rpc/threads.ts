@@ -1,5 +1,6 @@
 import type { Job } from "@apx/protocol";
 import { ErrorCode } from "@apx/protocol";
+import { publicInput } from "../domain/inputs.ts";
 import { publicRun, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
@@ -90,6 +91,9 @@ export function threadHandlers(store: Store, engine: Engine) {
       const j = store.runs.jobs(finished);
       return { running: j.running.map(view), finished: j.finished.map(view) };
     }) as Handler<"jobs.list">,
+    "runs.pending": (({ thread }) => ({ inputs: engine.pending(thread) })) as Handler<"runs.pending">,
+    "runs.respond": (({ input, decision, text }) =>
+      publicInput(engine.respond(input, { decision, text }))) as Handler<"runs.respond">,
     "runs.get": (({ run }) => {
       const r = store.runs.get(run);
       if (!r) throw notFound(`run ${run}`);

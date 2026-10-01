@@ -9,10 +9,39 @@ import type { Log } from "../log.ts";
 import type { Tool } from "../tools/types.ts";
 import { A2A_DEADLINE_MS, createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
+import { createInputs, Shutdown } from "./inputs.ts";
 import { recoverInterrupted } from "./recovery.ts";
-import { runTurn } from "./turn.ts";
+import { runTurn, type ToolCall } from "./turn.ts";
 
 export const RUN_DEADLINE_MS = 6 * 60_000;
+/** Time a turn gets back after the owner answers, even if its clock had almost run out. */
+const AFTER_ANSWER_MS = 60_000;
+
+type Clock = { pause(): void; resume(): void; stop(): void };
+
+/** A deadline that can be held (nested holds count): used while a turn waits for the owner. */
+function pausableClock(ms: number, fire: () => void): Clock {
+  let left = ms;
+  let since = Date.now();
+  let holds = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(fire, ms);
+  return {
+    pause() {
+      if (holds++ > 0) return;
+      clearTimeout(timer);
+      timer = undefined;
+      left -= Date.now() - since;
+    },
+    resume() {
+      if (holds === 0 || --holds > 0) return;
+      since = Date.now();
+      timer = setTimeout(fire, Math.max(left, AFTER_ANSWER_MS));
+    },
+    stop() {
+      clearTimeout(timer);
+    },
+  };
+}
 
 export type Admit = {
   thread_id: string;
@@ -23,12 +52,12 @@ export type Admit = {
   depth?: number;
 };
 
-export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: Tool[]; log: Log }) {
+export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: Tool[]; log: Log; call: ToolCall }) {
   const { store, log } = deps;
   const busy = new Set<string>();
   const running = new Set<Promise<void>>();
-  /** Running turns: run id → its abort controller and thread. */
-  const active = new Map<string, { ac: AbortController; thread: string }>();
+  /** Running turns: run id → its abort controller, thread and deadline. */
+  const active = new Map<string, { ac: AbortController; thread: string; clock: Clock }>();
   const live = new Map<string, Display>();
   const waiters = new Map<string, Set<(run: RunRecord) => void>>();
   let stopping = false;
@@ -54,6 +83,17 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
         text: answer,
         depth: parent.depth,
       });
+    },
+  });
+
+  // The turn's clock stops while it waits for the owner: their time to answer is not the agent's time to work.
+  const inputs = createInputs({
+    store,
+    admit: (a) => admit(a),
+    hold: (runId) => {
+      const clock = active.get(runId)?.clock;
+      clock?.pause();
+      return () => clock?.resume();
     },
   });
 
@@ -90,16 +130,15 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
 
   async function execute(run: RunRecord): Promise<void> {
     const ac = new AbortController();
-    active.set(run.id, { ac, thread: run.thread_id });
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
-    const timer = setTimeout(
-      () => ac.abort(new Error("deadline")),
-      run.trigger === "a2a" ? A2A_DEADLINE_MS : RUN_DEADLINE_MS,
+    const clock = pausableClock(run.trigger === "a2a" ? A2A_DEADLINE_MS : RUN_DEADLINE_MS, () =>
+      ac.abort(new Error("deadline")),
     );
+    active.set(run.id, { ac, thread: run.thread_id, clock });
     try {
-      ended(await runTurn({ ...deps, delegate: delegations.delegate }, run, ac.signal));
+      ended(await runTurn({ ...deps, inputs, delegate: delegations.delegate }, run, ac.signal));
     } finally {
-      clearTimeout(timer);
+      clock.stop();
       active.delete(run.id);
       live.delete(run.id);
       delegations.callerEnded(run.id);
@@ -143,6 +182,9 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
   return {
     admit,
     cancel,
+    /** The owner's answer to something an agent asked (runs.respond). */
+    respond: inputs.respond,
+    pending: inputs.pending,
     /** Stops only the turn in progress (and what it delegated); queued inputs still run. */
     interrupt: stopRunning,
     /** Resolves when the run ends, or after `timeoutMs` with the run as it is then. */
@@ -165,6 +207,7 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     },
     /** Boot: close what a restart interrupted, then pick the durable queue back up. */
     start(): void {
+      inputs.expireOverdue();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");
       for (const r of interrupted) ended(r);
@@ -173,7 +216,7 @@ export function createEngine(deps: { store: Store; harnesses: Harnesses; tools: 
     /** Shutdown: stops every running turn (each ends as failed, saying why) and waits for them to finish writing. */
     async stop(): Promise<void> {
       stopping = true;
-      for (const a of active.values()) a.ac.abort(new Error("APX is shutting down"));
+      for (const a of active.values()) a.ac.abort(new Shutdown());
       await Promise.allSettled([...running]);
     },
   };

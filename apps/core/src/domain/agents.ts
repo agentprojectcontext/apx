@@ -1,6 +1,6 @@
 // Agents are always addressed by id. Names are for people and models; turning a name into an id is an explicit,
 // scoped lookup (`resolve`) that refuses ambiguity instead of picking one.
-import type { Agent, HarnessId, ModelChoice } from "@apx/protocol";
+import { type Agent, Autonomy, type HarnessId, type ModelChoice } from "@apx/protocol";
 import { now, opt, type Row, type Sql } from "./sql.ts";
 
 export type AgentRecord = Agent & { prompt: string };
@@ -18,8 +18,20 @@ const toAgent = (r: Row): AgentRecord => ({
   ...opt("parent", r.parent),
   ...opt("description", r.description),
   source: r.source === "apc" ? "apc" : "local",
+  ...policyOf(r.extra),
   prompt: String(r.prompt),
 });
+
+/** `tools:` and `autonomy:` as the agent's file wrote them; unknown autonomy values mean the default. */
+function policyOf(extra: unknown): Pick<Agent, "tools" | "autonomy"> {
+  let e: { tools?: unknown; autonomy?: unknown } = {};
+  try {
+    e = extra ? JSON.parse(String(extra)) : {};
+  } catch {}
+  const tools = Array.isArray(e.tools) ? e.tools.map(String).filter(Boolean) : [];
+  const autonomy = Autonomy.safeParse(String(e.autonomy ?? "").toLowerCase());
+  return { ...(tools.length ? { tools } : {}), ...(autonomy.success ? { autonomy: autonomy.data } : {}) };
+}
 
 const HARNESS_ENGINES = new Set<string>(["claude", "codex"]);
 

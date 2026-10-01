@@ -1,10 +1,12 @@
 // Composition root: config → identity → db/store → providers → harnesses → engine → router → transports.
 // Only wiring lives here. Tests call createCore directly (with a temp home and fakes).
+
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { BROWSER_CAP, type HarnessId } from "@apx/protocol";
+import { BROWSER_CAP, type HarnessId, methods, type Result } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
@@ -12,6 +14,8 @@ import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createEngine } from "./engine/engine.ts";
+import type { ToolCall } from "./engine/turn.ts";
+import { CallError } from "./errors.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createLog } from "./log.ts";
@@ -21,13 +25,15 @@ import { createLlm, type Llm } from "./providers/llm.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
-import { createRouter } from "./rpc/router.ts";
+import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { createSecrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
+import { ownerTools } from "./tools/owner.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
+import type { Tool } from "./tools/types.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
@@ -43,7 +49,13 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 
 export async function createCore(
   config: CoreConfig,
-  opts: { quiet?: boolean; llm?: Llm; harnesses?: Partial<Record<HarnessId, Harness>> } = {},
+  opts: {
+    quiet?: boolean;
+    llm?: Llm;
+    harnesses?: Partial<Record<HarnessId, Harness>>;
+    /** Tests add tools of their own next to the built-in ones. */
+    extraTools?: Tool[];
+  } = {},
 ) {
   const log = createLog("core", opts.quiet);
   const identity = readIdentity(config.home);
@@ -77,8 +89,36 @@ export async function createCore(
   const engineIds = { harness: new Set(["claude", "codex"]), providers: new Set(config.providers.map((p) => p.id)) };
   const apc = createApcSync({ store, log, engines: new Set([...engineIds.harness, ...engineIds.providers]) });
   apc.sync();
-  const tools = [...agentTools(store), ...browserTools(broker), ...surfaceTools(store)];
-  const engine = createEngine({ store, harnesses, tools, log });
+  const tools = [
+    ...agentTools(store),
+    ...browserTools(),
+    ...surfaceTools(),
+    ...ownerTools(store),
+    ...(opts.extraTools ?? []),
+  ];
+  // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
+  // The router exists only after the engine, hence the late binding.
+  let routed: Dispatch | undefined;
+  const call: ToolCall = async (method, params, as) => {
+    if (!routed) throw new Error("the router is not ready");
+    const r = await routed(
+      method,
+      params,
+      {
+        transport: "internal",
+        role: "operator",
+        actor: "agent",
+        session: undefined,
+        log,
+        agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id },
+      },
+      // In-process calls are never retried by a transport; the key only satisfies the effect contract.
+      methods[method].effect ? `tool:${as.run.id}:${as.callId}:${randomUUID()}` : undefined,
+    );
+    if (!r.ok) throw new CallError(r.error);
+    return r.result as Result<typeof method>;
+  };
+  const engine = createEngine({ store, harnesses, tools, log, call });
 
   const dispatch = createRouter(
     {
@@ -96,6 +136,7 @@ export async function createCore(
     },
     store.idempotency,
   );
+  routed = dispatch;
 
   const gate: Gate = {
     allowedOrigins: originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins),

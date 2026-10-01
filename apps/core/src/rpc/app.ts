@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { ApcSync } from "../apc/sync.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
+import { summary } from "../domain/surfaces.ts";
 import { CallError } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
@@ -62,6 +63,23 @@ export function appHandlers(deps: {
       if (!s) throw notFound(`surface ${surface}`);
       return s;
     }) as Handler<"surfaces.get">,
+    "surfaces.show": ((p, ctx) => {
+      const threadId = p.thread ?? ctx.agent?.thread_id;
+      const thread = threadId ? store.threads.get(threadId) : undefined;
+      if (threadId && !thread) throw notFound(`thread ${threadId}`);
+      return summary(
+        store.surfaces.upsert({
+          name: p.name,
+          title: p.title,
+          html: p.html,
+          project_id: thread?.project_id,
+          thread_id: thread?.id,
+          created_by: ctx.agent?.id ?? "owner",
+          pinned: p.pinned,
+          app: p.app,
+        }),
+      );
+    }) as Handler<"surfaces.show">,
     "surfaces.update": (({ surface, pinned, app }) => {
       const s = store.surfaces.patch(surface, { pinned, app });
       if (!s) throw notFound(`surface ${surface}`);

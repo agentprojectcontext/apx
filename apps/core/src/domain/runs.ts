@@ -9,6 +9,8 @@ export type Origin =
   | { kind: "user" }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
   | { kind: "surface"; id: string; title: string }
+  /** The owner answered something the agent asked, after the turn that asked had ended. */
+  | { kind: "input_answer"; input_id: string }
   | {
       kind: "delegation_result";
       agent_id: string;
@@ -193,11 +195,16 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     },
 
     // ── steps ──────────────────────────────────────────────────────────
-    beginStep(runId: string, s: { call_id: string; tool: string; args: Record<string, unknown>; effect: string }) {
+    /** Written before the tool runs (recovery reads it). Returns the step id. */
+    beginStep(
+      runId: string,
+      s: { call_id: string; tool: string; args: Record<string, unknown>; effect: string },
+    ): string {
       const seq = Number(one("SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM steps WHERE run_id = ?", runId)?.n ?? 1);
+      const id = newId("stp");
       run(
         "INSERT OR REPLACE INTO steps (id, run_id, seq, call_id, tool, args, effect, state, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?)",
-        newId("stp"),
+        id,
         runId,
         seq,
         s.call_id,
@@ -206,16 +213,28 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         s.effect,
         now(),
       );
+      return id;
     },
-    endStep(runId: string, callId: string, state: StepState, result: string): void {
+    /** `result` is the short form shown in recovery notes; `output` the whole text, kept for read_output. */
+    endStep(runId: string, callId: string, state: StepState, result: string, output?: string): void {
       run(
-        "UPDATE steps SET state = ?, result = ?, ended_at = ? WHERE run_id = ? AND call_id = ?",
+        "UPDATE steps SET state = ?, result = ?, output = ?, ended_at = ? WHERE run_id = ? AND call_id = ?",
         state,
         result,
+        output ?? null,
         now(),
         runId,
         callId,
       );
+    },
+    /** A step's full output, only from a run of the given thread (an agent reads its own thread's outputs). */
+    output(stepId: string, threadId: string): string | undefined {
+      const r = one(
+        "SELECT s.output FROM steps s JOIN runs r ON r.id = s.run_id WHERE s.id = ? AND r.thread_id = ?",
+        stepId,
+        threadId,
+      );
+      return r?.output == null ? undefined : String(r.output);
     },
     steps(runId: string): Step[] {
       return all("SELECT * FROM steps WHERE run_id = ? ORDER BY seq", runId).map((r) => ({

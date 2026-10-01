@@ -9,4 +9,6 @@ export type CallContext = {
   actor: Actor;
   session: string | undefined;
   log: Log;
+  /** Set when an agent's tool calls a method in-process: which agent, in which run and thread. */
+  agent?: { id: string; run_id: string; thread_id: string } | undefined;
 };

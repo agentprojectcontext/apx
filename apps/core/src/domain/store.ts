@@ -3,6 +3,7 @@
 import type { Bus } from "../bus.ts";
 import type { Db } from "../db/db.ts";
 import { agentsRepo } from "./agents.ts";
+import { inputsRepo } from "./inputs.ts";
 import { projectsRepo } from "./projects.ts";
 import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
@@ -20,6 +21,7 @@ export function createStore(db: Db, bus: Bus) {
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
     runs: runsRepo(q, bus),
+    inputs: inputsRepo(q),
     surfaces: surfacesRepo(q, bus),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),

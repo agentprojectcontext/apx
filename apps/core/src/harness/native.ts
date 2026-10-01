@@ -2,7 +2,6 @@
 // logged as they happen.
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, Usage } from "../providers/types.ts";
-import { cap } from "../tools/result.ts";
 import type { Harness } from "./types.ts";
 
 const MAX_STEPS = 14;
@@ -77,7 +76,7 @@ export function nativeHarness(llm: Llm): Harness {
             args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
           } catch {}
           const out = await io.execute(call.id, call.function.name, args);
-          push({ role: "tool", tool_call_id: call.id, content: cap(out.text) });
+          push({ role: "tool", tool_call_id: call.id, content: out.text });
           const sig = `${call.function.name}:${call.function.arguments}`;
           seen.set(sig, (seen.get(sig) ?? 0) + 1);
           if ((seen.get(sig) ?? 0) >= REPEAT_LIMIT) stuck = call.function.name;

@@ -72,6 +72,13 @@ export const CatalogEngine = z.object({
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
+/**
+ * `ask`: every call that changes something waits for the owner. `standard`: high-impact calls wait while untrusted
+ * content is in context. `total`: only calls marked "always" wait.
+ */
+export const Autonomy = z.enum(["ask", "standard", "total"]);
+export type Autonomy = z.infer<typeof Autonomy>;
+
 export const Agent = z.object({
   id: Id,
   name: z.string(),
@@ -92,6 +99,10 @@ export const Agent = z.object({
   source: z.enum(["apc", "local"]).default("local"),
   /** The engine of the agent's own model, when it has one (derived from `model_choice`). */
   harness: HarnessId.optional(),
+  /** Tools (or groups: browser, widgets, agents, shell) it may use; absent = the default set. From `tools:`. */
+  tools: z.array(z.string()).optional(),
+  /** How often it stops for the owner's yes. From `autonomy:`; absent = standard. */
+  autonomy: Autonomy.optional(),
 });
 export type Agent = z.infer<typeof Agent>;
 
@@ -140,6 +151,31 @@ export const Author = z.discriminatedUnion("kind", [
 ]);
 export type Author = z.infer<typeof Author>;
 
+export const InputKind = z.enum(["confirm", "question"]);
+export type InputKind = z.infer<typeof InputKind>;
+/** `expired` = nobody answered in time or the run ended first; for a confirmation it counts as a no. */
+export const InputState = z.enum(["pending", "approved", "denied", "answered", "expired"]);
+export type InputState = z.infer<typeof InputState>;
+
+/** Something an agent waits on from the owner. Durable: it outlives a restart of the core. */
+export const PendingInput = z.object({
+  id: Id,
+  run_id: Id,
+  thread_id: Id,
+  agent_id: Id,
+  kind: InputKind,
+  prompt: z.string(),
+  tool: z.string().optional(),
+  detail: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  state: InputState,
+  answer: z.string().optional(),
+  created_at: z.string(),
+  expires_at: z.string(),
+  answered_at: z.string().optional(),
+});
+export type PendingInput = z.infer<typeof PendingInput>;
+
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
@@ -169,6 +205,19 @@ const KnownPart = z.discriminatedUnion("type", [
     reason: z.string().optional(),
   }),
   z.object({ type: z.literal("image"), url: z.string(), alt: z.string().default("") }),
+  /** The agent waits for the owner: a yes/no on an action, or an answer to a question. Answered with runs.respond. */
+  z.object({
+    type: z.literal("input"),
+    input_id: Id,
+    kind: InputKind,
+    prompt: z.string(),
+    /** For a confirmation: the tool and a readable summary of its arguments. */
+    tool: z.string().optional(),
+    detail: z.string().optional(),
+    options: z.array(z.string()).optional(),
+    state: InputState,
+    answer: z.string().optional(),
+  }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
   z.object({
     type: z.literal("notice"),

@@ -14,6 +14,8 @@ export const ErrorCode = {
   PausedByUser: "paused_by_user",
   /** The action would type into a password/OTP/card field: hand off to the human. */
   CredentialField: "credential_field",
+  /** The state moved on (answered already, expired): re-read before acting. */
+  Conflict: "conflict",
   Internal: "internal",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

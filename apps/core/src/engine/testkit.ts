@@ -9,6 +9,7 @@ import type { Harness } from "../harness/index.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
+import type { Tool } from "../tools/types.ts";
 
 export type Script = (
   req: LlmRequest,
@@ -47,6 +48,7 @@ export async function startCore(opts: {
   llm: Llm;
   home?: string;
   harnesses?: Partial<Record<"native" | "claude" | "codex", Harness>>;
+  extraTools?: Tool[];
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -57,6 +59,7 @@ export async function startCore(opts: {
     quiet: true,
     llm: opts.llm,
     ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
+    ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
   });
   // Tests choose their model like an owner would: through the settings, never through code defaults.
   if (!core.store.settings.get("model_default"))

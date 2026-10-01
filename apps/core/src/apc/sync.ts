@@ -5,6 +5,7 @@ import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
+import { textField } from "./frontmatter.ts";
 import { type ApcAgent, isApcProject, readAgents, readProject } from "./read.ts";
 
 const DEBOUNCE_MS = 400;
@@ -79,7 +80,13 @@ export function createApcSync(deps: { store: Store; log: Log; engines: ReadonlyS
           parent: a.parent,
           blob: a.icon,
           model_choice: choiceFromV1(a.model, deps.engines),
-          extra: { skills: a.skills, tools: a.tools, aliases: a.aliases, emoji: a.emoji },
+          extra: {
+            skills: a.skills,
+            tools: a.tools,
+            aliases: a.aliases,
+            emoji: a.emoji,
+            autonomy: textField(a.fields.autonomy ?? a.fields.Autonomy),
+          },
         });
       }
       return { project: projectId, agents: agents.length, archived: store.agents.archiveMissing(projectId, ids) };

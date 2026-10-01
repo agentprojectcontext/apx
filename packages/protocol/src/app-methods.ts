@@ -8,6 +8,7 @@ import {
   Job,
   Message,
   ModelChoice,
+  PendingInput,
   Project,
   RouterConfig,
   Run,
@@ -209,6 +210,28 @@ export const appMethods = {
     result: z.object({ running: z.array(Job), finished: z.array(Job) }),
     effect: false,
   },
+  /** What agents are waiting on from the owner (confirmations, questions), oldest first. */
+  "runs.pending": {
+    params: z.object({ thread: Id.optional() }).strict(),
+    result: z.object({ inputs: z.array(PendingInput) }),
+    effect: false,
+  },
+  /**
+   * The owner's answer to a pending input: approve/deny for a confirmation, text (or one of its options) for a
+   * question. Only the owner answers; an expired input refuses the answer.
+   */
+  "runs.respond": {
+    params: z
+      .object({
+        input: Id,
+        decision: z.enum(["approve", "deny"]).optional(),
+        text: z.string().max(4000).optional(),
+      })
+      .strict(),
+    result: PendingInput,
+    effect: true,
+    access: "human",
+  },
   "runs.get": {
     params: z.object({ run: Id }).strict(),
     result: Run,
@@ -239,6 +262,28 @@ export const appMethods = {
     params: z.object({ surface: Id }).strict(),
     result: Surface,
     effect: false,
+  },
+  /**
+   * Creates or updates a widget by its stable name (per project). Called by an agent, it lands in the agent's thread;
+   * `thread` places it elsewhere.
+   */
+  "surfaces.show": {
+    params: z
+      .object({
+        name: z
+          .string()
+          .min(1)
+          .max(60)
+          .regex(/^[a-z0-9][a-z0-9-]*$/),
+        title: z.string().min(1).max(120),
+        html: z.string().min(1).max(400_000),
+        pinned: z.boolean().optional(),
+        app: z.boolean().optional(),
+        thread: Id.optional(),
+      })
+      .strict(),
+    result: SurfaceSummary,
+    effect: true,
   },
   "surfaces.update": {
     params: z.object({ surface: Id, pinned: z.boolean().optional(), app: z.boolean().optional() }).strict(),

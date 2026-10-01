@@ -1,5 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
-import type { HarnessId } from "@apx/protocol";
+import type { HarnessId, MethodName, Params, Result } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { harnessOf } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -9,10 +9,13 @@ import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { MAX_DEPTH } from "../tools/agents.ts";
-import { type Tool, type ToolContext, toSpec } from "../tools/types.ts";
+import { allowedTools, UNTRUSTED_MARK } from "../tools/policy.ts";
+import { type Tool, toSpec } from "../tools/types.ts";
 import { projectHistory, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller } from "./delegation.ts";
 import { openDisplay } from "./display.ts";
+import { createExecutor } from "./executor.ts";
+import type { Inputs } from "./inputs.ts";
 import { recapFor } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
 
@@ -36,37 +39,17 @@ export type TurnDeps = {
   harnesses: Harnesses;
   tools: Tool[];
   log: Log;
+  inputs: Inputs;
+  /** A protocol method through the router, as the agent of `as.run`. */
+  call: ToolCall;
   delegate(caller: Caller, to: AgentRecord, task: string, waitMs: number): Promise<string>;
 };
 
-/** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
-async function runTool(
-  tool: Tool,
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<{ ok: boolean; text: string }> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`${tool.name} took longer than ${tool.deadlineMs / 1000}s`)),
-      tool.deadlineMs,
-    );
-    if (ctx.signal.aborted) reject(ctx.signal.reason);
-    ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
-  });
-  limit.catch(() => {});
-  try {
-    return { ok: true, text: await Promise.race([tool.run(args, ctx), limit]) };
-  } catch (err) {
-    const shape = (err as { shape?: { code: string; message: string } }).shape;
-    return {
-      ok: false,
-      text: shape ? `${shape.code}: ${shape.message}` : err instanceof Error ? err.message : String(err),
-    };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+export type ToolCall = <M extends MethodName>(
+  method: M,
+  params: Params<M>,
+  as: { run: RunRecord; callId: string },
+) => Promise<Result<M>>;
 
 export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSignal): Promise<RunRecord> {
   const { store, harnesses, log } = deps;
@@ -102,44 +85,23 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.threads.setContext(thread.id, { ...ctxState, roster_hash: roster.hash, roster_agent: agent.id });
 
   // ── tools ───────────────────────────────────────────────────────────
-  const available = deps.tools.filter((t) => run.depth < MAX_DEPTH || t.name !== "delegate");
-  const byName = new Map(available.map((t) => [t.name, t]));
-  const ctx: ToolContext = {
+  const available = allowedTools(agent, deps.tools).filter((t) => run.depth < MAX_DEPTH || t.name !== "delegate");
+  let harness: HarnessId = "native";
+  const exec = createExecutor({
+    store,
+    inputs: deps.inputs,
+    tools: available,
     agent,
     thread,
-    run,
+    run: () => run,
+    display,
     signal,
-    upsertPart: display.upsert,
+    untrusted: [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK)),
+    external: () => harness !== "native",
+    call: deps.call,
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
-  };
-  let toolsRan = 0;
-  const execute: TurnIO["execute"] = async (callId, name, args) => {
-    const tool = byName.get(name);
-    const title = tool ? tool.title(args) : name;
-    const card = (status: "running" | "ok" | "error", detail?: string) =>
-      display.upsert((p) => p.type === "tool" && p.call_id === callId, {
-        type: "tool",
-        call_id: callId,
-        tool: name,
-        title,
-        status,
-        ...(detail ? { detail } : {}),
-      });
-    card("running");
-    if (signal.aborted) throw signal.reason ?? new Error("canceled");
-    if (!tool) {
-      card("error", "unknown tool");
-      return { ok: false, text: `unknown tool ${name}` };
-    }
-    toolsRan++;
-    store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
-    store.runs.setActivity(run.id, title, true);
-    const out = await runTool(tool, args, ctx);
-    store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, 4000));
-    if (signal.aborted) throw signal.reason ?? new Error("canceled");
-    card(out.ok ? "ok" : "error", out.text.slice(0, 300));
-    return out;
-  };
+  });
+  const execute = exec.execute;
 
   const io = (): TurnIO => ({
     agent,
@@ -184,6 +146,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       );
     for (const [i, g] of groups.entries()) {
       try {
+        harness = g.harness;
         run = store.runs.patch(run, { harness: g.harness });
         const external = g.harness !== "native";
         const sessionId = external ? store.harnessSessions.get(thread.id, g.harness) : undefined;
@@ -204,7 +167,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         // Out of quota or logged out before doing anything: the next engine the router lists answers instead.
         // Once a tool ran, a retry could repeat its effect, so the failure stands.
         const next = groups[i + 1];
-        if (signal.aborted || toolsRan > 0 || !next) throw err;
+        if (signal.aborted || exec.toolsRan > 0 || !next) throw err;
         const reason = (err instanceof Error ? err.message : String(err)).split("\n")[0]?.slice(0, 160);
         log.warn({ thread: thread.id, harness: g.harness, err: reason }, "engine unavailable, trying the next one");
         display.notice(
@@ -220,13 +183,14 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     display.setModel(outcome.model);
     const text = outcome.text.trim();
     if (text) display.finalText(text);
-    else display.notice("info", "run.empty", toolsRan ? "Finished without a message." : "The model gave no answer.");
+    else
+      display.notice("info", "run.empty", exec.toolsRan ? "Finished without a message." : "The model gave no answer.");
     run = store.runs.patch(run, { model: outcome.model, ...(outcome.usage ? { usage: outcome.usage } : {}) });
     run = store.runs.setState(run, "completed");
     const t = store.threads.get(thread.id);
     store.threads.patch(thread.id, {
       state: "idle",
-      preview: (text || (toolsRan ? "Finished without a message." : "No answer.")).slice(0, 160),
+      preview: (text || (exec.toolsRan ? "Finished without a message." : "No answer.")).slice(0, 160),
       unread: (t?.unread ?? 0) + 1,
     });
     return run;
