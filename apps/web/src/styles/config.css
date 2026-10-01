@@ -530,3 +530,38 @@
   border-color: var(--apx-brand, var(--apx-border-strong));
   color: var(--apx-fg-muted);
 }
+
+/* ── Image and voice services ───────────────────────────────────────────── */
+.svc__order {
+  display: flex;
+  flex-direction: column;
+}
+.svc__dialect {
+  margin-left: 6px;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs, 11px);
+  color: var(--apx-fg-subtle);
+}
+.res__row.is-off {
+  opacity: 0.6;
+}
+.svc__test {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.svc__result {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.svc__result img {
+  max-width: 320px;
+  border-radius: var(--apx-radius-lg);
+  border: 1px solid var(--apx-border);
+}
+.svc__result figcaption {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

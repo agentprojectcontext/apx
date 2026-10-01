@@ -6,6 +6,7 @@ import {
   ChannelInfo,
   EngineStatus,
   Id,
+  ImageDefaults,
   Job,
   McpServerStatus,
   Memory,
@@ -22,6 +23,9 @@ import {
   ProviderInfo,
   RouterConfig,
   Run,
+  ServiceInfo,
+  ServiceKind,
+  ServiceSettings,
   Surface,
   SurfaceSummary,
   Thread,
@@ -31,15 +35,23 @@ import {
 export const appMethods = {
   /**
    * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
-   * and, when asked, copies its model API keys (`keys`) and its skills (`skills`) once into v2's own home.
+   * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
+   * engines and voices (`services`).
    */
   "system.import_v1": {
-    params: z.object({ keys: z.boolean().default(false), skills: z.boolean().default(false) }).strict(),
+    params: z
+      .object({
+        keys: z.boolean().default(false),
+        skills: z.boolean().default(false),
+        services: z.boolean().default(false),
+      })
+      .strict(),
     result: z.object({
       projects: z.number().int(),
       agents: z.number().int(),
       keys: z.array(z.string()),
       skills: z.array(z.string()).default([]),
+      services: z.array(z.string()).default([]),
     }),
     effect: true,
     access: "human",
@@ -470,6 +482,89 @@ export const appMethods = {
     result: z.object({ shortcut: z.string(), launch_at_login: z.boolean() }),
     effect: true,
     access: "human",
+  },
+  /** Image and voice services in the owner's order, with whether each answers now; and the shared image defaults. */
+  "services.list": {
+    params: z.object({ kind: ServiceKind.optional() }).strict(),
+    result: z.object({ services: z.array(ServiceInfo), image_defaults: ImageDefaults }),
+    effect: false,
+    access: "human",
+  },
+  /** Adds, changes or (null) removes a service; `api_key` goes to the secret store and never comes back. */
+  "services.set": {
+    params: z
+      .object({
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+        service: ServiceSettings.nullable(),
+        api_key: z.string().min(1).max(4000).optional(),
+      })
+      .strict(),
+    result: z.object({ services: z.array(ServiceInfo) }),
+    effect: true,
+    access: "human",
+  },
+  /** The order services of one kind are tried in. */
+  "services.order": {
+    params: z.object({ kind: ServiceKind, ids: z.array(z.string()).max(50) }).strict(),
+    result: z.object({ services: z.array(ServiceInfo) }),
+    effect: true,
+    access: "human",
+  },
+  "services.defaults": {
+    params: ImageDefaults.strict(),
+    result: ImageDefaults,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Draws an image with the first image service that answers (or `service`). With `thread`, the images are shown in
+   * that chat. Agents call it through make_image.
+   */
+  "media.image": {
+    params: z
+      .object({
+        prompt: z.string().trim().min(1).max(4000),
+        service: z.string().optional(),
+        width: z.number().int().min(64).max(4096).optional(),
+        height: z.number().int().min(64).max(4096).optional(),
+        steps: z.number().int().min(1).max(200).optional(),
+        negative_prompt: z.string().max(2000).optional(),
+        count: z.number().int().min(1).max(4).optional(),
+        seed: z.number().int().optional(),
+        thread: Id.optional(),
+      })
+      .strict(),
+    result: z.object({
+      media: z.array(z.object({ id: Id, mime: z.string() })),
+      service: z.string(),
+      model: z.string().optional(),
+      /** Services tried before this one, and why each failed. */
+      skipped: z.array(z.string()),
+    }),
+    effect: true,
+  },
+  /** Speaks text with the first voice service that answers (or `service`). */
+  "media.speak": {
+    params: z
+      .object({
+        text: z.string().trim().min(1).max(4000),
+        service: z.string().optional(),
+        voice: z.string().max(100).optional(),
+        thread: Id.optional(),
+      })
+      .strict(),
+    result: z.object({
+      media: z.object({ id: Id, mime: z.string() }),
+      service: z.string(),
+      skipped: z.array(z.string()),
+    }),
+    effect: true,
+  },
+  /** The bytes of an image or audio APX made, base64. */
+  "media.get": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    effect: false,
   },
   "notices.get": {
     params: z.object({}).strict(),

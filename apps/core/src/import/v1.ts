@@ -3,6 +3,7 @@
 // v2's own home. Never writes to v1; never sends the v1 token off this machine.
 import fs from "node:fs";
 import path from "node:path";
+import type { ServiceSettings } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Secrets } from "../secrets.ts";
 
@@ -66,13 +67,107 @@ export function importSkills(from: string, to: string): string[] {
   return copied;
 }
 
+type V1Service = {
+  label?: string;
+  kind?: string;
+  base_url?: string;
+  enabled?: boolean;
+  model?: string | null;
+  voice?: string | null;
+  language?: string | null;
+  style?: string | null;
+  clone?: string | null;
+  ref_text?: string | null;
+  temperature?: number | null;
+  defaults?: { steps?: number; cfg_scale?: number; size?: string };
+};
+
+const IMAGE_DIALECT: Record<string, ServiceSettings["dialect"]> = {
+  a1111: "a1111",
+  sdcpp: "sdcpp",
+  openai: "openai-images",
+};
+
+/** v1's language names to the codes v2 sends. */
+const LANG: Record<string, string> = { spanish: "es", english: "en", español: "es" };
+
+/** v1's own image engines and custom voices as v2 services; keys are not part of it. */
+export function v1Services(config: unknown): Array<{ id: string; settings: ServiceSettings }> {
+  const c = config as {
+    images?: { custom?: Record<string, V1Service> };
+    voice?: { tts?: { custom?: Record<string, V1Service> } };
+  };
+  const out: Array<{ id: string; settings: ServiceSettings }> = [];
+  const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  for (const [slug, s] of Object.entries(c.images?.custom ?? {})) {
+    if (!s.base_url) continue;
+    const [w, h] = (s.defaults?.size ?? "").split("x").map(Number);
+    const defaults = {
+      ...(s.defaults?.steps ? { steps: s.defaults.steps } : {}),
+      ...(s.defaults?.cfg_scale !== undefined ? { cfg_scale: s.defaults.cfg_scale } : {}),
+      ...(w && h ? { width: w, height: h } : {}),
+    };
+    out.push({
+      id: slug.replaceAll("_", "-"),
+      settings: {
+        kind: "image",
+        dialect: IMAGE_DIALECT[s.kind ?? "a1111"] ?? "a1111",
+        label: s.label ?? slug,
+        base_url: s.base_url,
+        enabled: s.enabled !== false,
+        needs_key: false,
+        ...(str(s.model) ? { model: str(s.model) } : {}),
+        ...(Object.keys(defaults).length ? { defaults } : {}),
+      },
+    });
+  }
+  for (const [slug, s] of Object.entries(c.voice?.tts?.custom ?? {})) {
+    if (!s.base_url) continue;
+    const lang = str(s.language);
+    out.push({
+      id: slug.replaceAll("_", "-"),
+      settings: {
+        kind: "speech",
+        dialect: "openai-speech",
+        label: s.label ?? slug,
+        base_url: s.base_url,
+        enabled: s.enabled !== false,
+        needs_key: false,
+        ...(str(s.model) ? { model: str(s.model) } : {}),
+        ...(str(s.voice) ? { voice: str(s.voice) } : {}),
+        ...(lang ? { language: LANG[lang.toLowerCase()] ?? lang } : {}),
+        ...(str(s.style) ? { style: str(s.style) } : {}),
+        ...(str(s.clone) ? { clone: str(s.clone) } : {}),
+        ...(str(s.ref_text) ? { ref_text: str(s.ref_text)?.slice(0, 2000) } : {}),
+        ...(typeof s.temperature === "number" ? { temperature: s.temperature } : {}),
+      },
+    });
+  }
+  return out;
+}
+
 export async function importFromV1(
   apc: ApcSync,
   secrets: Secrets,
-  opts: { url: string; home: string; v2Home: string; keys: boolean; skills: boolean; fetchImpl?: typeof fetch },
+  opts: {
+    url: string;
+    home: string;
+    v2Home: string;
+    keys: boolean;
+    skills: boolean;
+    /** Adds services v2 does not have yet (by id); none means "do not import services". */
+    services?: ((list: Array<{ id: string; settings: ServiceSettings }>) => string[]) | undefined;
+    fetchImpl?: typeof fetch;
+  },
 ) {
   if (!["127.0.0.1", "localhost", "[::1]"].includes(new URL(opts.url).hostname))
     throw new Error("v1 import only talks to a local daemon");
+  let services: string[] = [];
+  if (opts.services) {
+    try {
+      services = opts.services(v1Services(JSON.parse(fs.readFileSync(path.join(opts.home, "config.json"), "utf8"))));
+    } catch {}
+  }
   const skills = opts.skills ? importSkills(path.join(opts.home, "skills"), path.join(opts.v2Home, "skills")) : [];
   const keys: string[] = [];
   if (opts.keys) {
@@ -108,5 +203,5 @@ export async function importFromV1(
       // A folder v1 lists but that is not an APC project (or not on disk now) is skipped.
     }
   }
-  return { projects, agents, keys, skills };
+  return { projects, agents, keys, skills, services };
 }

@@ -12,6 +12,7 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   shell: (n) => n.startsWith("shell"),
   mcp: (n) => n.startsWith("mcp_"),
   memory: (n) => n === "remember" || n === "recall" || n === "forget",
+  images: (n) => n === "make_image",
 };
 
 /** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */

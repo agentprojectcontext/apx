@@ -10,6 +10,7 @@ import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import type { Secrets } from "../secrets.ts";
+import type { Services } from "../services/registry.ts";
 import { skillsFor } from "../skills/skills.ts";
 import type { EngineIds } from "./agents.ts";
 import type { Handler } from "./router.ts";
@@ -24,12 +25,27 @@ export function appHandlers(deps: {
   apc: ApcSync;
   engines: EngineIds;
   home: string;
+  services: Services;
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
   return {
-    "system.import_v1": (async ({ keys, skills }) =>
-      importFromV1(deps.apc, secrets, { ...deps.v1, v2Home: deps.home, keys, skills })) as Handler<"system.import_v1">,
+    "system.import_v1": (async ({ keys, skills, services }) =>
+      importFromV1(deps.apc, secrets, {
+        ...deps.v1,
+        v2Home: deps.home,
+        keys,
+        skills,
+        // Only what v2 does not have yet: an import never overwrites the owner's own settings.
+        services: services
+          ? (list) =>
+              list.flatMap(({ id, settings }) => {
+                if (deps.services.has(id)) return [];
+                deps.services.set(id, settings);
+                return [id];
+              })
+          : undefined,
+      })) as Handler<"system.import_v1">,
     "secrets.list": (() => ({ secrets: secrets.list() })) as Handler<"secrets.list">,
     "desktop.get": (() => desktopPrefs(store)) as Handler<"desktop.get">,
     "desktop.set": ((p) => {

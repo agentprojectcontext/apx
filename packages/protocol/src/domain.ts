@@ -221,7 +221,16 @@ const KnownPart = z.discriminatedUnion("type", [
     state: z.enum(["agent", "handoff", "user", "done"]),
     reason: z.string().optional(),
   }),
-  z.object({ type: z.literal("image"), url: z.string(), alt: z.string().default("") }),
+  /** An image: one from the web (`url`) or one APX made (`media_id`, its bytes from media.get). */
+  z.object({
+    type: z.literal("image"),
+    url: z.string().optional(),
+    media_id: Id.optional(),
+    mime: z.string().optional(),
+    alt: z.string().default(""),
+  }),
+  /** Speech APX made; the bytes come from media.get. */
+  z.object({ type: z.literal("audio"), media_id: Id, mime: z.string(), transcript: z.string().optional() }),
   /** What changed in a code thread's folder (uncommitted, per git) when the turn ended. */
   z.object({
     type: z.literal("changes"),
@@ -438,6 +447,51 @@ export const PairingRequest = z.object({
   expires_at: z.string(),
 });
 export type PairingRequest = z.infer<typeof PairingRequest>;
+
+/**
+ * A media service the owner runs or uses: an image generator (a homelab's A1111 or stable-diffusion.cpp, an
+ * OpenAI-compatible API) or a voice (QVox and other OpenAI-compatible speech servers, Gemini). Per kind, the first
+ * reachable enabled one in the owner's order answers.
+ */
+export const ServiceKind = z.enum(["image", "speech"]);
+export type ServiceKind = z.infer<typeof ServiceKind>;
+export const ServiceDialect = z.enum(["a1111", "sdcpp", "openai-images", "openai-speech", "gemini-speech"]);
+export type ServiceDialect = z.infer<typeof ServiceDialect>;
+export const ImageDefaults = z.object({
+  width: z.number().int().min(64).max(4096),
+  height: z.number().int().min(64).max(4096),
+  steps: z.number().int().min(1).max(200),
+  cfg_scale: z.number().min(0).max(50),
+  negative_prompt: z.string().max(2000),
+  count: z.number().int().min(1).max(8),
+});
+export type ImageDefaults = z.infer<typeof ImageDefaults>;
+export const ServiceSettings = z.object({
+  kind: ServiceKind,
+  dialect: ServiceDialect,
+  label: z.string().min(1).max(60),
+  base_url: z.string().url(),
+  enabled: z.boolean(),
+  needs_key: z.boolean(),
+  model: z.string().max(200).optional(),
+  voice: z.string().max(100).optional(),
+  language: z.string().max(20).optional(),
+  style: z.string().max(300).optional(),
+  /** QVox cloned voices: the reference recording (a path on the QVox machine), its words, and how loose to read. */
+  clone: z.string().max(500).optional(),
+  ref_text: z.string().max(2000).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  /** Image services: this one's own defaults over the shared ones. */
+  defaults: ImageDefaults.partial().optional(),
+});
+export type ServiceSettings = z.infer<typeof ServiceSettings>;
+export const ServiceInfo = ServiceSettings.extend({
+  id: z.string(),
+  key_set: z.boolean(),
+  /** Checked a moment ago: answers, does not answer, or not checked (switched off). */
+  status: z.enum(["reachable", "unreachable", "unknown"]),
+});
+export type ServiceInfo = z.infer<typeof ServiceInfo>;
 
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({

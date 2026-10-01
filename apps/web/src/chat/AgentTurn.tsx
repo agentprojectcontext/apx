@@ -2,6 +2,7 @@ import type { Agent, Message as Msg, Part } from "@apx/protocol";
 import { AgentAvatar, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
+import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
@@ -78,6 +79,8 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       return <BrowserPart part={p} agent={agent} />;
     case "image":
       return <ImagePart part={p} />;
+    case "audio":
+      return <AudioPart part={p} />;
     case "notice":
       return <NoticePart part={p} />;
     case "input":

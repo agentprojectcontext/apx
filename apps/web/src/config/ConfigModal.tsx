@@ -10,6 +10,7 @@ import { EnginesSection } from "./EnginesSection.tsx";
 import { McpSection } from "./McpSection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
+import { ServicesSection } from "./ServicesSection.tsx";
 import { TelegramSection } from "./TelegramSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
@@ -29,6 +30,8 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
       { id: "mcp", label: "config.mcp", icon: <Icons.Server /> },
+      { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
+      { id: "images", label: "config.images", icon: <Icons.Image /> },
     ],
   },
   {
@@ -125,6 +128,10 @@ function Body({ section }: { section: ConfigSection }) {
       return <McpSection />;
     case "router":
       return <RouterSection />;
+    case "voices":
+      return <ServicesSection kind="speech" />;
+    case "images":
+      return <ServicesSection kind="image" />;
     case "telegram":
       return <TelegramSection />;
     case "whatsapp":

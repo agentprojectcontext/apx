@@ -282,4 +282,19 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX pairing_sender ON pairing(channel, external_id);
   `,
+  `
+  -- Media APX made (images, speech): the bytes live in a file under the home, the row says what and where.
+  CREATE TABLE media (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    bytes INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    thread_id TEXT,
+    service TEXT,
+    prompt TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX media_thread ON media(thread_id, created_at);
+  `,
 ];

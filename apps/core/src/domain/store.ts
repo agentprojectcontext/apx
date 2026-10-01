@@ -6,6 +6,7 @@ import { agentsRepo } from "./agents.ts";
 import { channelsRepo } from "./channels.ts";
 import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
+import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
@@ -28,6 +29,7 @@ export function createStore(db: Db, bus: Bus) {
     inputs: inputsRepo(q),
     jobs: jobsRepo(q, bus),
     memories: memoriesRepo(q),
+    media: mediaRepo(q),
     persons: personsRepo(q),
     channels: channelsRepo(q),
     surfaces: surfacesRepo(q, bus),

@@ -74,6 +74,18 @@ export interface JobsTable {
   proc_start: string | null;
 }
 
+export interface MediaTable {
+  id: string;
+  kind: string;
+  mime: string;
+  bytes: number;
+  path: string;
+  thread_id: string | null;
+  service: string | null;
+  prompt: string | null;
+  created_at: string;
+}
+
 export interface MemoriesTable {
   n: Generated<number>;
   id: string;
@@ -262,6 +274,7 @@ export interface Database {
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;
   jobs: JobsTable;
+  media: MediaTable;
   memories: MemoriesTable;
   messages: MessagesTable;
   meta: MetaTable;

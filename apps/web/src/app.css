@@ -1166,3 +1166,23 @@ body {
 .quick .chat__scroll {
   flex: 1;
 }
+
+.imagepart--loading {
+  display: block;
+  width: 256px;
+  height: 256px;
+  border-radius: var(--apx-radius-lg);
+}
+.audiopart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.audiopart audio {
+  width: min(360px, 100%);
+}
+.audiopart__text {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}

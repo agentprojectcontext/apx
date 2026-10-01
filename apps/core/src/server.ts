@@ -35,14 +35,17 @@ import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
+import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { createSecrets } from "./secrets.ts";
+import { createServices } from "./services/registry.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
+import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { shellTools } from "./tools/shell.ts";
@@ -123,6 +126,7 @@ export async function createCore(
     ...shellTools(store, config.home, config.port || 7440),
     ...skillTools(store, config.home),
     ...memoryTools(),
+    ...mediaTools(),
     ...(opts.extraTools ?? []),
   ];
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -149,6 +153,7 @@ export async function createCore(
   };
   const mcp = createMcp({ store, secrets, log });
   const upkeep = createUpkeep({ store, llm, log });
+  const services = createServices({ store, secrets, home: config.home, log });
   const channels = createChannels({
     store,
     secrets,
@@ -186,9 +191,20 @@ export async function createCore(
       ...jobHandlers(store, engine),
       ...memoryHandlers(store),
       ...channelHandlers(store, channels),
+      ...mediaHandlers(services),
       ...mcpHandlers(mcp),
       ...providerHandlers(providers, secrets),
-      ...appHandlers({ store, harnesses, secrets, v1: config.v1, catalog, apc, engines: engineIds, home: config.home }),
+      ...appHandlers({
+        store,
+        harnesses,
+        secrets,
+        v1: config.v1,
+        catalog,
+        apc,
+        engines: engineIds,
+        home: config.home,
+        services,
+      }),
       ...agentHandlers(store, apc, engineIds),
     },
     store.idempotency,
