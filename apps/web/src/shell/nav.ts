@@ -145,6 +145,9 @@ nav.subscribe(() => {
   if (window.location.hash !== next) history.replaceState(null, "", next);
 });
 
+// A deep link followed in place (a link in a message, the address bar); replaceState above never fires this.
+window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null, ...fromHash() }));
+
 /** Inbox, or a project's Chats tab: the list + chat + side panel layout. */
 export function showsChat(s: Pick<NavState, "view" | "projectTab">): boolean {
   return s.view === "inbox" || (s.view === "project" && s.projectTab === "chats");
