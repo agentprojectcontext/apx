@@ -6,6 +6,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { sourceTag } from "./labels.ts";
 import type { TabProps } from "./ResourcesView.tsx";
+import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 import { SkillDetail } from "./SkillDetail.tsx";
 
 const keyOf = (s: SkillInfo) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
@@ -36,6 +37,23 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
           .map((p) => ({ title: p.name, items: shown.filter((s) => s.project_id === p.id) })),
       ];
   const current = shown.find((s) => keyOf(s) === picked) ?? (all ?? []).find((s) => keyOf(s) === picked);
+  const inherit = useInheritance(projectId, "skills", res.loadSkills);
+  const row = (s: SkillInfo) => {
+    const tag = sourceTag(s, t);
+    return (
+      <PickRow
+        key={keyOf(s)}
+        mono
+        title={s.name}
+        description={s.description || t("res.noDescription")}
+        trailing={tag && <Tag>{tag}</Tag>}
+        dot={s.on ? "on" : "off"}
+        muted={!s.on}
+        selected={keyOf(s) === picked}
+        onClick={() => setPicked(keyOf(s))}
+      />
+    );
+  };
 
   return (
     <>
@@ -48,6 +66,15 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
             <EmptyState variant="dashed" size="sm" icon={<Icons.Sparkles />}>
               {query ? t("res.noMatch") : t("res.noSkills")}
             </EmptyState>
+          ) : projectId ? (
+            <ScopedGroups
+              ownTitle={groups[0]?.title ?? ""}
+              own={groups[0]?.items ?? []}
+              globals={groups[1]?.items ?? []}
+              inherit={inherit}
+              emptyOwn={t("res.noOwnSkills")}
+              render={row}
+            />
           ) : (
             groups
               .filter((g) => g.items.length)
@@ -56,22 +83,7 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
                   <div className="resv__grouptitle">
                     {g.title} <span>{g.items.length}</span>
                   </div>
-                  {g.items.map((s) => {
-                    const tag = sourceTag(s, t);
-                    return (
-                      <PickRow
-                        key={keyOf(s)}
-                        mono
-                        title={s.name}
-                        description={s.description || t("res.noDescription")}
-                        trailing={tag && <Tag>{tag}</Tag>}
-                        dot={s.on ? "on" : "off"}
-                        muted={!s.on}
-                        selected={keyOf(s) === picked}
-                        onClick={() => setPicked(keyOf(s))}
-                      />
-                    );
-                  })}
+                  {g.items.map(row)}
                 </div>
               ))
           )

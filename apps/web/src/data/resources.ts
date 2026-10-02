@@ -64,3 +64,8 @@ export const setSecret = (name: string, value: string | null, project?: string) 
   attempt(() => client.call("secrets.set", { name, value, ...(project ? { project } : {}) }));
 
 export type { McpServerStatus, SecretInfo, SkillInfo };
+
+export const getInheritance = (project: string) => attempt(() => client.call("resources.inheritance", { project }));
+
+export const setInheritance = (project: string, kind: "skills" | "mcp", on: boolean) =>
+  attempt(() => client.call("resources.inherit", { project, kind, on }));

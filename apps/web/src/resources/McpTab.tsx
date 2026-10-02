@@ -8,6 +8,7 @@ import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpDetail } from "./McpDetail.tsx";
 import { McpDialog } from "./McpDialog.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
+import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 
 const keyOf = (s: McpServerStatus) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
 
@@ -38,6 +39,20 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
           .map((p) => ({ title: p.name, items: shown.filter((s) => s.project_id === p.id) })),
       ];
   const current = (all ?? []).find((s) => keyOf(s) === picked);
+  const inherit = useInheritance(projectId, "mcp", res.loadServers);
+  const row = (s: McpServerStatus) => (
+    <PickRow
+      key={keyOf(s)}
+      mono
+      title={s.name}
+      description={s.off_here ? t("res.offHere") : s.tools ? t("mcp.tools", { n: s.tools }) : t(STATUS_KEY[s.status])}
+      trailing={<Tag>{s.transport}</Tag>}
+      dot={mcpDot(s)}
+      muted={s.off_here || s.status === "disabled"}
+      selected={keyOf(s) === picked}
+      onClick={() => setPicked(keyOf(s))}
+    />
+  );
 
   return (
     <>
@@ -50,6 +65,15 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
             <EmptyState variant="dashed" size="sm" icon={<Icons.Server />}>
               {query ? t("res.noMatch") : t("res.noMcp")}
             </EmptyState>
+          ) : projectId ? (
+            <ScopedGroups
+              ownTitle={groups[0]?.title ?? ""}
+              own={groups[0]?.items ?? []}
+              globals={groups[1]?.items ?? []}
+              inherit={inherit}
+              emptyOwn={t("res.noOwnMcp")}
+              render={row}
+            />
           ) : (
             groups
               .filter((g) => g.items.length)
@@ -58,25 +82,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
                   <div className="resv__grouptitle">
                     {g.title} <span>{g.items.length}</span>
                   </div>
-                  {g.items.map((s) => (
-                    <PickRow
-                      key={keyOf(s)}
-                      mono
-                      title={s.name}
-                      description={
-                        s.off_here
-                          ? t("res.offHere")
-                          : s.tools
-                            ? t("mcp.tools", { n: s.tools })
-                            : t(STATUS_KEY[s.status])
-                      }
-                      trailing={<Tag>{s.transport}</Tag>}
-                      dot={mcpDot(s)}
-                      muted={s.off_here || s.status === "disabled"}
-                      selected={keyOf(s) === picked}
-                      onClick={() => setPicked(keyOf(s))}
-                    />
-                  ))}
+                  {g.items.map(row)}
                 </div>
               ))
           )

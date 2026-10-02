@@ -21,7 +21,7 @@ export const enResources = {
   "res.scope.global": "Global",
   "res.scope.project": "Project",
   "res.inherit": "{name}'s own and the inherited global ones. What you turn off here leaves the global one as it is.",
-  "res.group.own": "In {name}",
+  "res.group.own": "{name}'s own",
   "res.group.inherited": "Global · inherited",
   "res.inherited": "Inherited",
   "res.noMatch": "Nothing matches the search.",
@@ -123,4 +123,9 @@ export const enResources = {
   "res.skillOffEverywhere": "Turned off everywhere: turn it back on from Resources (global).",
   "res.mcpRemoveTitle": "Remove {name}?",
   "res.mcpRemoveBody": "Agents stop seeing its tools in every project. Its variables stay.",
+  "res.group.global": "Global",
+  "res.useGlobals": "Use in this project",
+  "res.globalsOffHere": "This project does not use the global ones: its agents only see its own.",
+  "res.noOwnSkills": "No skills of its own yet. “+ Skill” creates one in .apc/skills/.",
+  "res.noOwnMcp": "No servers of its own yet (.apc/mcps.json).",
 } as const;

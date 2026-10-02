@@ -414,3 +414,23 @@
 .exttest__out.is-error {
   color: var(--apx-danger);
 }
+
+/* A project's resources: its own, then the global ones under "Use in this project" */
+.resv__grouptitle--switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.resv__grouptitle--switch .apx-choice__label {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.resv__groupempty {
+  margin: 2px 10px 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.resv__group.is-off .apx-pickrow {
+  opacity: 0.5;
+}

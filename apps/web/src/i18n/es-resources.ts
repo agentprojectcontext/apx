@@ -23,7 +23,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.scope.global": "Global",
   "res.scope.project": "Proyecto",
   "res.inherit": "Propias de {name} y globales heredadas. Lo que apagues acá no toca la global.",
-  "res.group.own": "De {name}",
+  "res.group.own": "Propias de {name}",
   "res.group.inherited": "Globales · heredadas",
   "res.inherited": "Heredada",
   "res.noMatch": "Nada coincide con la búsqueda.",
@@ -126,4 +126,9 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.skillOffEverywhere": "Está apagada en todos lados: volvé a prenderla desde Recursos (global).",
   "res.mcpRemoveTitle": "¿Quitar {name}?",
   "res.mcpRemoveBody": "Los agentes dejan de ver sus tools en todos los proyectos. Sus variables quedan.",
+  "res.group.global": "Globales",
+  "res.useGlobals": "Usar en este proyecto",
+  "res.globalsOffHere": "Este proyecto no usa las globales: sus agentes solo ven las propias.",
+  "res.noOwnSkills": "Todavía no tiene skills propias. «+ Skill» crea una en .apc/skills/.",
+  "res.noOwnMcp": "Todavía no tiene servidores propios (.apc/mcps.json).",
 };
