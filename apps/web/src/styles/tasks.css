@@ -223,3 +223,45 @@
     display: none;
   }
 }
+
+/* New task: labelled fields, two per row on wide screens */
+.taskform {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.taskform__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.taskform__remind {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.taskform .apx-datewrap,
+.taskform .apx-datefield {
+  width: 100%;
+}
+
+/* Priority: a dot, red to gray */
+.prio-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.prio-dot.is-urgent {
+  background: var(--apx-danger);
+}
+.prio-dot.is-high {
+  background: var(--apx-warning);
+}
+.prio-dot.is-normal {
+  background: var(--apx-info, var(--apx-accent));
+}
+.prio-dot.is-low {
+  background: var(--apx-border-strong);
+}

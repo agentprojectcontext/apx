@@ -1,5 +1,5 @@
 // The office board: tasks (tasks.*), kept current by task.updated events.
-import type { Task, TaskColumn, TaskEvent, TaskState } from "@apx/protocol";
+import type { Params, Task, TaskColumn, TaskEvent, TaskState } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -39,15 +39,7 @@ export function taskChanged(task: Task): void {
   store.set((s) => ({ tasks: { ...s.tasks, [task.id]: task } }));
 }
 
-export async function createTask(p: {
-  title: string;
-  description?: string;
-  project?: string;
-  assignee?: string;
-  person?: string;
-  owed_by?: "owner" | "person";
-  due_at?: string;
-}) {
+export async function createTask(p: Params<"tasks.create">) {
   try {
     taskChanged(await client.call("tasks.create", p));
   } catch (e) {
@@ -55,19 +47,7 @@ export async function createTask(p: {
   }
 }
 
-export async function updateTask(
-  task: string,
-  c: {
-    status?: string;
-    assignee?: string | null;
-    title?: string;
-    description?: string;
-    awaits_owner?: boolean;
-    person?: string | null;
-    owed_by?: "owner" | "person";
-    due_at?: string | null;
-  },
-) {
+export async function updateTask(task: string, c: Omit<Params<"tasks.update">, "task">) {
   try {
     taskChanged(await client.call("tasks.update", { task, ...c }));
   } catch (e) {
