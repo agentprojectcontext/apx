@@ -121,7 +121,13 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     if (pipe) {
       const pre = await pipe.before(signal);
       signal.throwIfAborted();
-      if (!pre.call) return end(skipModel(store, { run, thread, display }), true);
+      if (!pre.call)
+        return end(
+          pre.message !== undefined
+            ? sendAsIs(store, { run, thread, display, text: pre.message })
+            : skipModel(store, { run, thread, display, shell: routine?.action === "shell" }),
+          true,
+        );
       turn.input = { ...turn.input, text: pre.prompt(turn.input.text) };
     }
     prepared = { ...(await buildContext(deps, turn, run)), ...(await turnTools(deps, turn)) };
@@ -189,9 +195,23 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   return end(run);
 }
 
-/** A routine's run whose pre-command said the model is not needed: done, without a model call. */
-function skipModel(store: Store, t: { run: RunRecord; thread: Thread; display: Display }): RunRecord {
-  t.display.notice("info", "routine.skipped", "The model was not called; the pre-command's result did not ask for it.");
+/** A message routine's text, as the run's answer: delivered to the owner like any routine's, with no model call. */
+function sendAsIs(store: Store, t: { run: RunRecord; thread: Thread; display: Display; text: string }): RunRecord {
+  t.display.finalText(t.text);
+  const run = store.runs.setState(t.run, "completed");
+  store.threads.patch(t.thread.id, { state: "idle", preview: previewOf(t.text) });
+  return run;
+}
+
+/** A routine's run whose pre-command said the model is not needed (or a shell routine): done, without a model call. */
+function skipModel(store: Store, t: { run: RunRecord; thread: Thread; display: Display; shell?: boolean }): RunRecord {
+  if (t.shell) t.display.notice("info", "routine.shell", "Ran the command.");
+  else
+    t.display.notice(
+      "info",
+      "routine.skipped",
+      "The model was not called; the pre-command's result did not ask for it.",
+    );
   const run = store.runs.setState(t.run, "completed");
   store.threads.patch(t.thread.id, { state: "idle", preview: previewOf("Ran without calling the model.") });
   return run;

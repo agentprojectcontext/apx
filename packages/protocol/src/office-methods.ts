@@ -8,6 +8,7 @@ import {
   ExtensionInfo,
   Notification,
   Routine,
+  RoutineAction,
   RoutineRun,
   Schedule,
   Task,
@@ -117,6 +118,8 @@ export const officeMethods = {
         agent: Id,
         project: Id.optional(),
         schedule: Schedule,
+        /** Absent: what the routine had ("agent" for a new one). A shell routine's prompt is a short note. */
+        action: RoutineAction.optional(),
         prompt: z.string().trim().min(1).max(20_000),
         /** On a change, absent keeps what the routine had and "" removes it. */
         pre_command: z.string().trim().max(4000).optional(),

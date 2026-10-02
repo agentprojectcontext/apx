@@ -259,6 +259,7 @@ export interface RoutinesTable {
   pre_command: string | null;
   post_command: string | null;
   call_model: Generated<string>;
+  action: Generated<string>;
 }
 
 export interface RunsTable {

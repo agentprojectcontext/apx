@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import type { Params } from "@apx/protocol";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { callsModel, runStep, withPreOutput } from "./pipeline.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
@@ -142,4 +143,68 @@ test('turning a routine off and on (without its commands in the call) keeps them
   assert.equal(off.call_model, "fails");
   const cleared = await env.client.call("routines.set", { ...base, id: r.id, pre_command: "" });
   assert.equal(cleared.pre_command, undefined);
+});
+
+/** Runs a routine once and waits until it is handed back; its runs and its thread's text. */
+async function runOnce(set: Omit<Params<"routines.set">, "name" | "agent" | "schedule">) {
+  const r = await env.client.call("routines.set", {
+    name: `Action ${set.action ?? "agent"}`,
+    agent: "roby",
+    schedule: { kind: "manual" },
+    ...set,
+  });
+  const started = await env.client.call("routines.run", { routine: r.id });
+  await env.settle(started.thread_id);
+  const end = Date.now() + 4000;
+  let runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  while (runs[0]?.delivered === undefined && Date.now() < end) {
+    await new Promise((res) => setTimeout(res, 25));
+    runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  }
+  const { messages } = await env.client.call("threads.get", { thread: started.thread_id });
+  const said = messages
+    .filter((m) => m.author.kind === "agent")
+    .flatMap((m) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])))
+    .join("\n");
+  return { runs, said };
+}
+
+test("a message routine sends its text as it is, with the command's output, and never calls the model", async () => {
+  const calls = llm.calls.length;
+  const sent = await runOnce({
+    action: "message",
+    prompt: "Weather: {{pre_output}}",
+    pre_command: "echo 18C",
+    call_model: "output",
+  });
+  assert.equal(llm.calls.length, calls, "no model call");
+  assert.equal(sent.said, "Weather: 18C");
+  assert.equal(sent.runs[0]?.delivered, true, "the owner hears it");
+  assert.equal(sent.runs[0]?.model_called, false);
+  const quiet = await runOnce({
+    action: "message",
+    prompt: "News: {{pre_output}}",
+    pre_command: "true",
+    call_model: "output",
+  });
+  assert.equal(quiet.said, "", "nothing printed and 'if output': nothing sent");
+  assert.equal(quiet.runs[0]?.delivered, false);
+});
+
+test("a shell routine only runs its command", async () => {
+  const calls = llm.calls.length;
+  const done = await runOnce({ action: "shell", prompt: "Back up notes", pre_command: "echo ok > shell-ran.txt" });
+  assert.equal(llm.calls.length, calls);
+  assert.ok(fs.existsSync(path.join(env.home, "work", "shell-ran.txt")));
+  assert.equal(done.runs[0]?.delivered, false, "nothing to tell the owner");
+  await assert.rejects(
+    env.client.call("routines.set", {
+      name: "No command",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      action: "shell",
+      prompt: "x",
+    }),
+    /needs its command/,
+  );
 });

@@ -96,12 +96,18 @@ export function withPreOutput(prompt: string, pre: StepResult): string {
 
 const label = (r: StepResult) => (r.timedOut ? "timed out" : r.exit === 0 ? "ok" : `exit ${r.exit ?? "?"}`);
 
-/** The routine behind a run, when it is a routine's run with commands of its own. */
+/** The routine behind a run, when it needs the pipeline: commands of its own, or an action other than its agent. */
 export function routineWithCommands(store: Store, run: RunRecord): Routine | undefined {
   const origin = run.input?.origin;
   if (run.trigger !== "routine" || origin?.kind !== "routine") return undefined;
   const r = store.routines.get(origin.id);
-  return r && (r.pre_command || r.post_command) ? r : undefined;
+  return r && (r.pre_command || r.post_command || r.action !== "agent") ? r : undefined;
+}
+
+/** A message routine's text: the owner's words with the pre-command's output, as it is, in its slot. */
+export function messageText(text: string, pre: StepResult | undefined): string {
+  const out = pre?.output.trim() ?? "";
+  return text.includes(PRE_SLOT) ? text.replace(PRE_SLOT, out) : text;
 }
 
 /** One routine run's pipeline: the pre-step before the turn and the post-step after it, shown in the run's message. */
@@ -126,14 +132,22 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
   };
 
   return {
-    /** Runs the pre-command (if any); says whether the model should be called. */
-    async before(signal: AbortSignal): Promise<{ call: boolean; prompt: (text: string) => string }> {
-      if (!routine.pre_command) return { call: true, prompt: (t) => t };
-      pre = await step("routine.pre", routine.pre_command, {}, signal);
+    /**
+     * Runs the pre-command (if any) and says what comes next: the model (an agent routine), a message to send as it is
+     * (a message routine, when its condition holds), or nothing more (a shell routine, or a condition that said no).
+     */
+    async before(signal: AbortSignal): Promise<{ call: boolean; message?: string; prompt: (text: string) => string }> {
+      if (routine.pre_command) pre = await step("routine.pre", routine.pre_command, {}, signal);
       const result = pre;
-      const call = callsModel(routine.call_model, result);
-      o.store.routines.modelCalled(o.run.id, call);
-      return { call, prompt: (t) => withPreOutput(t, result) };
+      const goOn = result ? callsModel(routine.call_model, result) : true;
+      if (routine.action !== "agent") {
+        o.store.routines.modelCalled(o.run.id, false);
+        const message = routine.action === "message" && goOn ? messageText(routine.prompt, result) : undefined;
+        return { call: false, ...(message ? { message } : {}), prompt: (t) => t };
+      }
+      if (!result) return { call: true, prompt: (t) => t };
+      o.store.routines.modelCalled(o.run.id, goOn);
+      return { call: goOn, prompt: (t) => withPreOutput(t, result) };
     },
     /** Runs the post-command (if any) with what the run produced; `limitMs` is shorter after a missed deadline. */
     async after(done: RunRecord, skipped: boolean, limitMs = STEP_TIMEOUT_MS): Promise<void> {

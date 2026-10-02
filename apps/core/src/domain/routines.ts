@@ -1,6 +1,6 @@
 // Routines: work an agent does on a schedule. The row says what and when; each run is a normal run (its state lives
 // in runs) in a conversation of its own, listed in routine_runs.
-import type { CallModel, Routine, RoutineRun, RunState, Schedule } from "@apx/protocol";
+import type { CallModel, Routine, RoutineAction, RoutineRun, RunState, Schedule } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { RoutinesTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -11,6 +11,7 @@ const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): 
   ...opt("project_id", r.project_id),
   agent_id: r.agent_id,
   schedule: JSON.parse(r.schedule) as Schedule,
+  action: r.action as RoutineAction,
   prompt: r.prompt,
   ...opt("pre_command", r.pre_command),
   ...opt("post_command", r.post_command),
@@ -28,6 +29,7 @@ export type RoutineDraft = {
   agent_id: string;
   project_id?: string | undefined;
   schedule: Schedule;
+  action: RoutineAction;
   prompt: string;
   pre_command?: string | undefined;
   post_command?: string | undefined;
@@ -37,6 +39,7 @@ export type RoutineDraft = {
 };
 
 const commands = (d: RoutineDraft) => ({
+  action: d.action,
   pre_command: d.pre_command || null,
   post_command: d.post_command || null,
   call_model: d.call_model,

@@ -441,4 +441,9 @@ export const MIGRATIONS: readonly string[] = [
   -- An agent's activity (its runs, newest first) is read by agent.
   CREATE INDEX runs_agent ON runs(agent_id, created_at);
   `,
+  `
+  -- What a routine does each time: its agent answers the prompt, a fixed message reaches the owner (no model), or only
+  -- its command runs.
+  ALTER TABLE routines ADD COLUMN action TEXT NOT NULL DEFAULT 'agent';
+  `,
 ];

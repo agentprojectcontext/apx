@@ -89,6 +89,13 @@ export type RoutineRun = z.infer<typeof RoutineRun>;
 export const CallModel = z.enum(["always", "output", "fails", "never"]);
 export type CallModel = z.infer<typeof CallModel>;
 
+/**
+ * What a routine does: its agent answers the prompt; or the prompt itself is sent to the owner as it is (a message,
+ * `{{pre_output}}` filled with the pre-command's output, no model); or only its pre-command runs (a shell job).
+ */
+export const RoutineAction = z.enum(["agent", "message", "shell"]);
+export type RoutineAction = z.infer<typeof RoutineAction>;
+
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
 export const Routine = z.object({
   id: Id,
@@ -96,6 +103,7 @@ export const Routine = z.object({
   project_id: Id.optional(),
   agent_id: Id,
   schedule: Schedule,
+  action: RoutineAction.default("agent"),
   prompt: z.string(),
   /** Shell run in the project's folder before the agent; its output reaches the prompt as outside data. */
   pre_command: z.string().optional(),

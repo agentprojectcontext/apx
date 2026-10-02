@@ -14,6 +14,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
       agent,
       project,
       schedule,
+      action,
       prompt,
       pre_command,
       post_command,
@@ -33,11 +34,14 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");
       const was = id ? store.routines.get(id) : undefined;
+      const act = action ?? was?.action ?? "agent";
+      if (act === "shell" && !(pre_command ?? was?.pre_command)) throw badRequest("a shell routine needs its command");
       const draft = {
         name,
         agent_id: agent,
         project_id: project,
         schedule,
+        action: act,
         prompt,
         pre_command: pre_command ?? was?.pre_command,
         post_command: post_command ?? was?.post_command,
