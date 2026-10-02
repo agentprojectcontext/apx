@@ -1,50 +1,17 @@
 // Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
 // what it creates goes to its thread's project. A comment that @mentions an agent runs a turn of it in the task's
 // conversation.
-import type { Author, Task, TaskColumn } from "@apx/protocol";
+import type { Author, Task } from "@apx/protocol";
 import { publicRun, type RunRecord } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { DEFAULT_COLUMNS } from "../domain/tasks.ts";
+import { columnsOf, dueOf, tagsOf } from "../domain/tasks.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Engine } from "../engine/engine.ts";
 import { MAX_MENTION_DEPTH, mentioned } from "../engine/office.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
-
-export function columnsOf(store: Store): TaskColumn[] {
-  try {
-    const saved = JSON.parse(store.settings.get("task_columns") ?? "null") as TaskColumn[] | null;
-    return Array.isArray(saved) && saved.length ? saved : DEFAULT_COLUMNS;
-  } catch {
-    return DEFAULT_COLUMNS;
-  }
-}
-
-/**
- * A due date as a moment: a bare day ("2026-10-05") means 09:00 that day, local time; otherwise an ISO date-time.
- * Nothing ambiguous ("05/10/2026") or impossible ("2026-02-31") is accepted.
- */
-export function dueOf(text: string | null | undefined): string | null {
-  if (!text) return null;
-  const v = text.trim();
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-  let d: Date;
-  if (day) {
-    const [y, m, dd] = [Number(day[1]), Number(day[2]), Number(day[3])];
-    d = new Date(y, m - 1, dd, 9);
-    if (d.getMonth() !== m - 1 || d.getDate() !== dd) throw badRequest(`"${text}" is not a date`);
-  } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) d = new Date(v);
-  else throw badRequest(`"${text}" is not a date (use 2026-10-05 or an ISO date-time)`);
-  const year = d.getFullYear();
-  if (Number.isNaN(d.getTime()) || year < 2000 || year > 2200) throw badRequest(`"${text}" is not a date`);
-  return d.toISOString();
-}
-
-/** Tags as typed, without repeats (any case). */
-const tagsOf = (tags: string[] | undefined) =>
-  tags && [...new Map(tags.map((t) => [t.trim().toLowerCase(), t.trim()])).values()].filter(Boolean);
 
 export function taskHandlers(store: Store, engine: Engine) {
   /** The agent's project (from its thread), or undefined for the owner. */

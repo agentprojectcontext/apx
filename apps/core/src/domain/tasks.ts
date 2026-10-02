@@ -4,7 +4,9 @@ import type { Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } f
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
+import { badRequest } from "../errors.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
+import type { Store } from "./store.ts";
 
 export const DEFAULT_COLUMNS: TaskColumn[] = [
   { id: "backlog", label: "Backlog" },
@@ -12,6 +14,40 @@ export const DEFAULT_COLUMNS: TaskColumn[] = [
   { id: "doing", label: "Doing" },
   { id: "review", label: "Review" },
 ];
+
+/** The board's columns: the owner's, or the default ones when none are saved (or they do not read). */
+export function columnsOf(store: Store): TaskColumn[] {
+  try {
+    const saved = JSON.parse(store.settings.get("task_columns") ?? "null") as TaskColumn[] | null;
+    return Array.isArray(saved) && saved.length ? saved : DEFAULT_COLUMNS;
+  } catch {
+    return DEFAULT_COLUMNS;
+  }
+}
+
+/**
+ * A due date as a moment: a bare day ("2026-10-05") means 09:00 that day, local time; otherwise an ISO date-time.
+ * Nothing ambiguous ("05/10/2026") or impossible ("2026-02-31") is accepted.
+ */
+export function dueOf(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const v = text.trim();
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  let d: Date;
+  if (day) {
+    const [y, m, dd] = [Number(day[1]), Number(day[2]), Number(day[3])];
+    d = new Date(y, m - 1, dd, 9);
+    if (d.getMonth() !== m - 1 || d.getDate() !== dd) throw badRequest(`"${text}" is not a date`);
+  } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) d = new Date(v);
+  else throw badRequest(`"${text}" is not a date (use 2026-10-05 or an ISO date-time)`);
+  const year = d.getFullYear();
+  if (Number.isNaN(d.getTime()) || year < 2000 || year > 2200) throw badRequest(`"${text}" is not a date`);
+  return d.toISOString();
+}
+
+/** Tags as typed, without repeats (any case). */
+export const tagsOf = (tags: string[] | undefined) =>
+  tags && [...new Map(tags.map((t) => [t.trim().toLowerCase(), t.trim()])).values()].filter(Boolean);
 
 /** Tasks with the name of their commitment's person. */
 const tasksQuery = () =>
