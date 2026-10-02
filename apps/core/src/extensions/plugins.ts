@@ -7,7 +7,7 @@ import path from "node:path";
 import type { CoreEvent } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { ExtensionRecord } from "../domain/extensions.ts";
-import type { Hooks } from "../engine/hooks.ts";
+import type { ContextInput, Hooks } from "../engine/hooks.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
@@ -169,27 +169,27 @@ export function createPlugins(deps: {
     }
   });
 
+  /** Asks a running plugin for a turn's context; undefined when it is not running or does not answer in time. */
+  const ask = (extId: string, input: ContextInput) =>
+    new Promise<string | undefined>((resolve) => {
+      const l = live.get(extId);
+      if (!l) return resolve(undefined);
+      const id = nextId++;
+      l.pending.set(id, resolve);
+      write(l, { t: "context", id, input });
+      setTimeout(() => {
+        if (l.pending.delete(id)) resolve(undefined);
+      }, CONTEXT_WAIT_MS).unref();
+    });
+
   return {
+    ask,
     /** Starts the plugin of an enabled extension (taking the context point if it asks for it). */
     start(ext: ExtensionRecord): void {
       const plugin = ext.manifest.plugin;
       if (!plugin || live.has(ext.id)) return;
       if (plugin.context)
-        deps.hooks.provideContext({
-          owner: ext.id,
-          name: ext.manifest.name,
-          fn: (input) =>
-            new Promise((resolve) => {
-              const l = live.get(ext.id);
-              if (!l) return resolve(undefined);
-              const id = nextId++;
-              l.pending.set(id, resolve);
-              write(l, { t: "context", id, input });
-              setTimeout(() => {
-                if (l.pending.delete(id)) resolve(undefined);
-              }, CONTEXT_WAIT_MS).unref();
-            }),
-        });
+        deps.hooks.provideContext({ owner: ext.id, name: ext.manifest.name, fn: (input) => ask(ext.id, input) });
       wanted.set(ext.id, ext);
       try {
         launch(ext);

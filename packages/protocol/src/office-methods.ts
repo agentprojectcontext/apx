@@ -186,6 +186,18 @@ export const officeMethods = {
     access: "human",
   },
   /** Stores (or with null, deletes) one of the secrets an extension declares. */
+  /** Asks the extension's plugin for context on a sample text, as a turn would: what it adds, or why not. */
+  "extensions.test": {
+    params: z.object({ id: z.string().min(1).max(80), text: z.string().trim().min(1).max(2000) }).strict(),
+    result: z.object({
+      ok: z.boolean(),
+      ms: z.number().int(),
+      context: z.string().optional(),
+      error: z.string().optional(),
+    }),
+    effect: false,
+    access: "human",
+  },
   "extensions.set_secret": {
     params: z
       .object({ id: z.string().max(40), name: z.string().max(40), value: z.string().max(10_000).nullable() })

@@ -153,6 +153,25 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
   };
 
   return {
+    /** The owner's "Test": its plugin asked for context on a sample text, as a turn would ask it. */
+    async testContext(
+      id: string,
+      text: string,
+    ): Promise<{ ok: boolean; ms: number; context?: string; error?: string }> {
+      const e = get(id);
+      if (!e.manifest.plugin?.context) throw badRequest(`${e.manifest.name} adds no context to turns`);
+      const st = plugins.status(id);
+      if (st.status !== "running")
+        return { ok: false, ms: 0, error: st.error ?? "its plugin is not running: turn the extension on" };
+      const t0 = Date.now();
+      const out = await plugins.ask(id, {
+        thread: { id: "test", kind: "loose", title: "Test" },
+        agent: { id: "test", name: "Test" },
+        text,
+      });
+      const ms = Date.now() - t0;
+      return out ? { ok: true, ms, context: out.slice(0, 4000) } : { ok: false, ms, error: "no answer in time" };
+    },
     /** The extension as approved now: enabled and with the files that were turned on. */
     approved(id: string): ExtensionRecord | undefined {
       const e = store.extensions.get(id);

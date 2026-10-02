@@ -94,6 +94,13 @@ test("a plugin watches what it named and adds context to owner turns, as outside
   assert.match(input, /asked=hello/);
 });
 
+test("Test asks the plugin for context on a sample text, as a turn would", async () => {
+  const r = await env.client.call("extensions.test", { id: "watcher", text: "sample words" });
+  assert.equal(r.ok, true, r.error);
+  assert.match(r.context ?? "", /asked=sample words/);
+  await assert.rejects(env.client.call("extensions.test", { id: "nobody", text: "x" }), /not found/);
+});
+
 test("its sandbox: no files outside its folder, no processes, no reaching APX; its data folder is writable", async () => {
   const input = await turnInput(`check ${env.core.url}/health`);
   assert.match(input, /outside=ERR_ACCESS_DENIED/);

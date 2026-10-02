@@ -24,6 +24,7 @@ export function extensionHandlers(extensions: Extensions, mcp: Mcp) {
       dropServers(id);
       return { removed: extensions.remove(id) };
     },
+    "extensions.test": ({ id, text }) => extensions.testContext(id, text),
     "extensions.set_secret": ({ id, name, value }) => {
       // A server started with the old value would keep it.
       dropServers(id);
