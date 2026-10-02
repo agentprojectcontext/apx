@@ -87,7 +87,7 @@ export function AssigneePicker(props: {
     <Menu
       trigger={
         <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} />}
+          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} animated={false} />}
           {current?.name ?? t("tasks.nobody")}
         </Button>
       }

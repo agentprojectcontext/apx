@@ -63,7 +63,7 @@ function AgentPicker({ value, onChange }: { value: string; onChange: (id: string
       align="end"
       trigger={
         <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} />}
+          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} animated={false} />}
           {current?.name ?? value}
         </Button>
       }
@@ -397,7 +397,7 @@ function Notices() {
         />
       </SettingRow>
       <SettingRow title={t("tg.quiet")} description={t("tg.quietHint")}>
-        <div className="tgtoken">
+        <div className="tgquiet">
           <Switch
             size="sm"
             checked={quiet}
@@ -408,16 +408,18 @@ function Notices() {
                   : { inputs_after_s: prefs.inputs_after_s, ...(prefs.channel ? { channel: prefs.channel } : {}) },
               )
             }
-            label={t("tg.quiet")}
+            aria-label={t("tg.quiet")}
           />
           {quiet && (
             <>
+              <span className="tgquiet__word">{t("tg.quietFrom")}</span>
               <Input
                 aria-label={t("tg.quietFrom")}
                 type="time"
                 value={prefs.quiet_from ?? ""}
                 onChange={(e) => void saveNotices({ ...prefs, quiet_from: e.currentTarget.value })}
               />
+              <span className="tgquiet__word">{t("tg.quietTo")}</span>
               <Input
                 aria-label={t("tg.quietTo")}
                 type="time"

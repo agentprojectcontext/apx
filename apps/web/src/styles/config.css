@@ -503,6 +503,20 @@
   gap: 8px;
   align-items: center;
 }
+.tgquiet {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.tgquiet__word {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.tgquiet .apx-field {
+  width: 112px;
+}
 .tgremove {
   margin-top: 4px;
 }

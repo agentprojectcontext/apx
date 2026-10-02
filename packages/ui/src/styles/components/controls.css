@@ -14,6 +14,13 @@
     color var(--apx-duration) var(--apx-ease),
     border-color var(--apx-duration) var(--apx-ease);
 }
+/* An avatar or icon passed with the text lines up with it, never on the text's baseline. */
+.apx-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .apx-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
