@@ -7,6 +7,13 @@ import { useNav } from "./nav.ts";
 /** Chat list · chat · side panel. The Inbox and a project's Chats tab share it. */
 export function ChatWorkspace({ layout }: { layout: Layout }) {
   const panel = useNav((s) => s.panel);
+  const listInFront = useNav((s) => s.listInFront);
+  if (layout.compact)
+    return (
+      <div className="workspace">
+        {listInFront ? <InboxList /> : panel != null ? <SidePanel /> : <ChatView wideHeader={false} compact />}
+      </div>
+    );
   return (
     <div className="workspace">
       {layout.listW > 0 && <InboxList />}

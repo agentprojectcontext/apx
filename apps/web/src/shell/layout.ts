@@ -33,6 +33,8 @@ export const BREAKPOINTS = {
   panelWide: 1240,
   /** Chat column width from which the header shows the panel switcher as inline icons (else a dropdown). */
   chatHeaderWide: 720,
+  /** Below this width the chat workspace shows one column at a time: the list, the chat or the side panel. */
+  compact: 640,
 } as const;
 
 export type Layout = {
@@ -43,6 +45,8 @@ export type Layout = {
   panelW: number;
   /** Chat header shows inline panel icons (true) or one dropdown (false). */
   wideHeader: boolean;
+  /** One column at a time (phone width): the chat header gets a back button to the list. */
+  compact: boolean;
 };
 
 /** Column widths for a viewport width, following the design's breakpoints. */
@@ -53,11 +57,18 @@ export function computeLayout(
   transcript: keyof typeof LAYOUT.transcriptW = "medium",
 ): Layout {
   const rail = width < BREAKPOINTS.sidebarFull;
+  const compact = width < BREAKPOINTS.compact;
   const narrow = width < BREAKPOINTS.panelWide;
   const hideList = narrow && panelOpen && chatShown;
   const sidebarW = rail ? LAYOUT.sidebarRailW : LAYOUT.sidebarW;
-  const listW = hideList ? 0 : width >= BREAKPOINTS.listWide ? LAYOUT.listW : LAYOUT.listWNarrow;
-  const panelW = narrow ? LAYOUT.panelWNarrow : LAYOUT.panelW;
+  const listW = compact
+    ? width - sidebarW
+    : hideList
+      ? 0
+      : width >= BREAKPOINTS.listWide
+        ? LAYOUT.listW
+        : LAYOUT.listWNarrow;
+  const panelW = compact ? width - sidebarW : narrow ? LAYOUT.panelWNarrow : LAYOUT.panelW;
   const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
   return {
     rail,
@@ -65,7 +76,8 @@ export function computeLayout(
     transcriptW: LAYOUT.transcriptW[transcript],
     listW,
     panelW,
-    wideHeader: chatW >= BREAKPOINTS.chatHeaderWide,
+    wideHeader: !compact && chatW >= BREAKPOINTS.chatHeaderWide,
+    compact,
   };
 }
 
@@ -77,7 +89,7 @@ export function layoutVars(l: Layout): Record<string, string> {
     "--shell-sidebar-w": `${l.sidebarW}px`,
     "--shell-list-w": `${l.listW}px`,
     "--shell-panel-w": `${l.panelW}px`,
-    "--shell-chat-min-w": `${LAYOUT.chatMinW}px`,
+    "--shell-chat-min-w": l.compact ? "0px" : `${LAYOUT.chatMinW}px`,
     "--shell-transcript-w": `${l.transcriptW}px`,
     "--shell-project-max-w": `${LAYOUT.projectMaxW}px`,
     "--shell-team-max-w": `${LAYOUT.teamMaxW}px`,

@@ -13,8 +13,9 @@ export function PanelSwitcher({ wide }: { wide: boolean }) {
         {PANELS.map((p) => (
           <IconButton
             key={p.id}
+            size="sm"
             label={t(p.label)}
-            icon={p.icon(16)}
+            icon={p.icon(14)}
             className={panel === p.id ? "panelswitch__btn is-on" : "panelswitch__btn"}
             onClick={() => go.togglePanel(p.id)}
           />
@@ -29,13 +30,13 @@ export function PanelSwitcher({ wide }: { wide: boolean }) {
       items={[
         ...PANELS.map((p) => ({
           label: t(p.label),
-          icon: p.icon(16),
+          icon: p.icon(14),
           onSelect: () => go.panel(p.id),
         })),
         ...(panel
           ? [
               { type: "separator" as const },
-              { label: t("panel.close"), icon: <Icons.X size={16} />, onSelect: () => go.panel(null) },
+              { label: t("panel.close"), icon: <Icons.X size={14} />, onSelect: () => go.panel(null) },
             ]
           : []),
       ]}
@@ -46,7 +47,7 @@ export function PanelSwitcher({ wide }: { wide: boolean }) {
           aria-label={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}
           title={current ? t("panel.current", { name: t(current.label) }) : t("panel.open")}
         >
-          {current ? current.icon(16) : <Icons.Globe size={16} />}
+          {current ? current.icon(14) : <Icons.Globe size={14} />}
           <Icons.ChevronDown size={12} />
         </button>
       }

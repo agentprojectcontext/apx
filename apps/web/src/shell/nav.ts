@@ -55,6 +55,8 @@ export type NavState = {
   config: ConfigSection | null;
   /** "Open on your phone" dialog. */
   phone: boolean;
+  /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
+  listInFront: boolean;
 };
 
 const THEME_KEY = "apx.mode";
@@ -108,6 +110,7 @@ export const nav = createStore<NavState>({
   tools: true,
   config: null,
   phone: false,
+  listInFront: false,
   ...fromHash(),
 });
 
@@ -148,11 +151,19 @@ export const go = {
   },
   /** Open a chat where it lives: inside the open project's Chats tab, else in the Inbox. */
   thread(threadId: string) {
-    nav.set((s) => (s.view === "project" && s.projectTab === "chats" ? { threadId } : { view: "inbox", threadId }));
+    nav.set((s) =>
+      s.view === "project" && s.projectTab === "chats"
+        ? { threadId, listInFront: false }
+        : { view: "inbox", threadId, listInFront: false },
+    );
   },
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
-    nav.set({ view: "inbox", threadId });
+    nav.set({ view: "inbox", threadId, listInFront: false });
+  },
+  /** Phone width: back from a chat to the chat list. */
+  showList() {
+    nav.set({ listInFront: true, panel: null });
   },
   app(appId: string) {
     nav.set({ view: "app", appId });

@@ -61,8 +61,8 @@
   color: inherit;
 }
 .apx-menu__icon svg {
-  width: 15px;
-  height: 15px;
+  width: var(--apx-icon-sm);
+  height: var(--apx-icon-sm);
 }
 .apx-menu__text {
   flex: 1;

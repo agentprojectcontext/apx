@@ -1,5 +1,5 @@
 import type { EngineStatus } from "@apx/protocol";
-import { Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
+import { EngineIcon, Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useMemo } from "react";
 import { isListed } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -72,13 +72,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
             <NavItem
               key={e.id}
               collapsed={rail}
-              icon={
-                <ProjectTile
-                  tone="ink"
-                  shape="circle"
-                  icon={e.id === "codex" ? <Icons.Terminal /> : e.id === "claude" ? <Icons.Code /> : <Icons.Bot />}
-                />
-              }
+              icon={<EngineIcon engine={e.id} tile size={20} />}
               label={e.label}
               trailing={<EngineState engine={e} />}
               active={false}

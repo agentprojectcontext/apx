@@ -11,7 +11,7 @@ import { ChatComposer } from "./ChatComposer.tsx";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { Transcript } from "./Transcript.tsx";
 
-export function ChatView({ wideHeader }: { wideHeader: boolean }) {
+export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const ready = useData((s) => s.ready);
@@ -71,7 +71,7 @@ export function ChatView({ wideHeader }: { wideHeader: boolean }) {
   const readOnly = thread.kind === "a2a" || thread.parent_id != null;
   return (
     <section className="chat" aria-label={thread.title}>
-      <ChatHeader thread={thread} agent={agent} wide={wideHeader} />
+      <ChatHeader thread={thread} agent={agent} wide={wideHeader} compact={compact} />
       <Transcript thread={thread} />
       {readOnly ? (
         <div className="chat__readonly">

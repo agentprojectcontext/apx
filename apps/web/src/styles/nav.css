@@ -64,9 +64,15 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.topbar__extras {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
 .topbar .topbar__icon {
-  width: 30px;
-  height: 30px;
+  width: var(--apx-control-h-sm);
+  height: var(--apx-control-h-sm);
   flex: none;
   border-radius: var(--apx-radius-sm);
   color: var(--apx-fg-muted);
@@ -76,7 +82,7 @@
   align-items: center;
   gap: 6px;
   flex: none;
-  height: 30px;
+  height: var(--apx-control-h-sm);
   padding: 0 8px;
   border: 0;
   border-radius: var(--apx-radius-sm);
@@ -105,6 +111,40 @@
   font-size: var(--apx-text-2xs);
   font-weight: var(--apx-weight-regular);
   color: var(--apx-fg-subtle);
+}
+
+.topbar .topbar__more {
+  display: none;
+}
+/* Narrow: the last crumb only, the search as an icon, and phone/language/theme in the "more" menu. */
+@media (max-width: 899px) {
+  .topbar {
+    gap: 8px;
+  }
+  .topbar__crumb:not(.is-last),
+  .topbar__sep,
+  .topbar__search-label,
+  .topbar__search .apx-kbd {
+    display: none;
+  }
+  .topbar__search {
+    width: var(--apx-control-h-sm);
+    padding: 0;
+    justify-content: center;
+  }
+}
+@media (max-width: 639px) {
+  .topbar__extras,
+  .topbar__agentkbd,
+  .topbar__agentname {
+    display: none;
+  }
+  .topbar .topbar__more {
+    display: inline-grid;
+  }
+  .topbar__agent {
+    padding: 0 4px;
+  }
 }
 
 /* ── Running pill + popover ────────────────────────────────────────────────── */

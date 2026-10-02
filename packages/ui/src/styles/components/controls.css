@@ -122,16 +122,16 @@
   height: var(--apx-control-h-lg);
 }
 .apx-iconbtn--sm svg {
-  width: 15px;
-  height: 15px;
+  width: var(--apx-icon-sm);
+  height: var(--apx-icon-sm);
 }
 .apx-iconbtn--md svg {
-  width: 17px;
-  height: 17px;
+  width: var(--apx-icon-md);
+  height: var(--apx-icon-md);
 }
 .apx-iconbtn--lg svg {
-  width: 19px;
-  height: 19px;
+  width: var(--apx-icon-lg);
+  height: var(--apx-icon-lg);
 }
 .apx-iconbtn--circle {
   border-radius: var(--apx-radius-pill);
@@ -606,8 +606,8 @@
     background var(--apx-duration);
 }
 .apx-tabs__tab svg {
-  width: 15px;
-  height: 15px;
+  width: var(--apx-icon-sm);
+  height: var(--apx-icon-sm);
 }
 .apx-tabs__tab:hover {
   color: var(--apx-fg);

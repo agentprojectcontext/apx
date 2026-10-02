@@ -238,8 +238,8 @@ button.apx-agentchip:hover {
   flex-shrink: 0;
 }
 .apx-nav__icon svg {
-  width: 16px;
-  height: 16px;
+  width: var(--apx-icon-md);
+  height: var(--apx-icon-md);
 }
 .apx-nav.is-disabled .apx-nav__icon {
   opacity: 0.75;

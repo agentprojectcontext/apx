@@ -37,6 +37,13 @@
   --apx-space-8: 32px;
 
   --apx-radius-pill: 999px;
+
+  /* Icon sizes: toolbars and rows use sm, titles md. Controls keep their own heights (--apx-control-h-*). */
+  --apx-icon-xs: 12px;
+  --apx-icon-sm: 14px;
+  --apx-icon-md: 16px;
+  --apx-icon-lg: 18px;
+
   --apx-duration: 140ms;
   --apx-ease: cubic-bezier(0.2, 0, 0, 1);
 

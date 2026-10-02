@@ -123,3 +123,24 @@
   gap: 8px;
   flex: none;
 }
+
+/* ── EngineIcon ────────────────────────────────────────────────────────────── */
+.apx-engine {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  line-height: 0;
+}
+.apx-engine--tile {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--apx-border);
+}
+.apx-engine--tile.apx-engine--claude {
+  box-shadow: none;
+}
+.apx-engine--none {
+  color: var(--apx-fg-muted);
+}
+.apx-engine--none.apx-engine--tile {
+  background: var(--apx-fill);
+}

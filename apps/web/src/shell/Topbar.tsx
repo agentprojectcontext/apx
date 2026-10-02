@@ -41,6 +41,14 @@ export function Topbar() {
   const agents = useData((s) => s.agents);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
+  const languageItems = [
+    { type: "label" as const, label: t("language.label") },
+    ...LANGS.map((l) => ({
+      label: LANGUAGE_NAMES[l],
+      icon: l === lang ? <Icons.Check /> : <span />,
+      onSelect: () => setPrefs({ language: l }),
+    })),
+  ];
   return (
     <header className="topbar">
       <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
@@ -62,38 +70,57 @@ export function Topbar() {
       <span className="topbar__spacer" />
       <RunningIndicator />
       <AttentionTray />
-      <IconButton
-        label={t("phone.open")}
-        icon={<Icons.Smartphone size={16} />}
-        className="topbar__icon"
-        onClick={() => go.phone(true)}
-      />
+      <div className="topbar__extras">
+        <IconButton
+          size="sm"
+          label={t("phone.open")}
+          icon={<Icons.Smartphone size={14} />}
+          className="topbar__icon"
+          onClick={() => go.phone(true)}
+        />
+        <Menu
+          align="end"
+          items={languageItems}
+          trigger={
+            <button
+              type="button"
+              className="topbar__lang"
+              aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
+            >
+              <Icons.Languages size={14} />
+              {lang.toUpperCase()}
+            </button>
+          }
+        />
+        <IconButton
+          size="sm"
+          label={mode === "dark" ? t("theme.light") : t("theme.dark")}
+          icon={mode === "dark" ? <Icons.Sun size={14} /> : <Icons.Moon size={14} />}
+          className="topbar__icon"
+          onClick={go.toggleMode}
+        />
+      </div>
+      {/* Narrow windows fold phone, language and theme into one menu so the bar never scrolls sideways. */}
       <Menu
         align="end"
         items={[
-          { type: "label", label: t("language.label") },
-          ...LANGS.map((l) => ({
-            label: LANGUAGE_NAMES[l],
-            icon: l === lang ? <Icons.Check /> : <span />,
-            onSelect: () => setPrefs({ language: l }),
-          })),
+          { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
+          {
+            label: mode === "dark" ? t("theme.light") : t("theme.dark"),
+            icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
+            onSelect: go.toggleMode,
+          },
+          { type: "separator" },
+          ...languageItems,
         ]}
         trigger={
-          <button
-            type="button"
-            className="topbar__lang"
-            aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
-          >
-            <Icons.Languages size={16} />
-            {lang.toUpperCase()}
-          </button>
+          <IconButton
+            size="sm"
+            label={t("topbar.more")}
+            icon={<Icons.Ellipsis size={14} />}
+            className="topbar__icon topbar__more"
+          />
         }
-      />
-      <IconButton
-        label={mode === "dark" ? t("theme.light") : t("theme.dark")}
-        icon={mode === "dark" ? <Icons.Sun size={16} /> : <Icons.Moon size={16} />}
-        className="topbar__icon"
-        onClick={go.toggleMode}
       />
       {sec && (
         <button
@@ -104,7 +131,7 @@ export function Topbar() {
           disabled={!homeId}
         >
           <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
-          <span>{sec.name}</span>
+          <span className="topbar__agentname">{sec.name}</span>
           <span className="topbar__agentkbd">⌘J</span>
         </button>
       )}

@@ -1,5 +1,5 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
+import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
 import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -7,7 +7,18 @@ import { useT } from "../i18n/index.ts";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
-export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Agent | undefined; wide: boolean }) {
+export function ChatHeader({
+  thread,
+  agent,
+  wide,
+  compact = false,
+}: {
+  thread: Thread;
+  agent: Agent | undefined;
+  wide: boolean;
+  /** Phone width: a back button returns to the chat list. */
+  compact?: boolean;
+}) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const project = projects.find((p) => p.id === thread.project_id);
@@ -16,11 +27,15 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
   const name = sub ? thread.title : (agent?.name ?? thread.title);
 
   return (
-    <header className="chat__header">
+    <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
+      {compact && !(sub && thread.parent_id) && (
+        <IconButton size="sm" label={t("chat.toList")} icon={<Icons.ArrowLeft size={14} />} onClick={go.showList} />
+      )}
       {sub && thread.parent_id && (
         <IconButton
           label={t("chat.back")}
-          icon={<Icons.ArrowLeft size={16} />}
+          size="sm"
+          icon={<Icons.ArrowLeft size={14} />}
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
@@ -54,7 +69,7 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
           )}
           {thread.kind === "code" && thread.cwd && (
             <span className="chat__code" title={thread.cwd}>
-              <Icons.Code size={12} />
+              {agent?.harness ? <EngineIcon engine={agent.harness} size={12} /> : <Icons.Code size={12} />}
               <span className="chat__cwd">{thread.cwd}</span>
               <Tag>{t(`write.${thread.write ?? "ask"}`)}</Tag>
             </span>
@@ -63,15 +78,16 @@ export function ChatHeader({ thread, agent, wide }: { thread: Thread; agent: Age
       </div>
       <div className="chat__tools">
         <IconButton
+          size="sm"
           label={tools ? t("chat.hideTools") : t("chat.showTools")}
-          icon={<Icons.Wrench size={16} />}
+          icon={<Icons.Wrench size={14} />}
           className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
           onClick={go.toggleTools}
         />
         {!sub && (
           <Menu
             align="end"
-            trigger={<IconButton label={t("chat.more")} icon={<Icons.Ellipsis size={16} />} />}
+            trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
             items={[
               {
                 label: t("chat.compact"),

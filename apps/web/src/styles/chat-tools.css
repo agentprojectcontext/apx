@@ -25,7 +25,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 30px;
+  height: var(--apx-control-h-sm);
   padding: 0 8px;
   border: 0;
   border-radius: 8px;
@@ -293,4 +293,10 @@
 }
 .changes__more {
   color: var(--apx-fg-subtle);
+}
+
+/* Phone width: the name keeps the room; the role tag and the divider give it up. */
+.chat__header--compact .apx-tag,
+.chat__header--compact .chat__toolsdiv {
+  display: none;
 }
