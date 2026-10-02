@@ -23,7 +23,7 @@ import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
 import { inputPresentation, inQuietHours } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
-import type { AdapterFactory, ChannelAdapter, ChannelConfig } from "./types.ts";
+import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 
 const TYPING_EVERY_MS = 4500;
 
@@ -31,12 +31,15 @@ type Live = {
   config: ChannelConfig;
   adapter: ChannelAdapter;
   ac: AbortController;
+  /** The next start after a failure that may pass (the network); cleared when the channel stops. */
+  retry?: ReturnType<typeof setTimeout>;
   status: ChannelInfo["status"];
   error?: string | undefined;
   account?: string | undefined;
 };
 
 const tokenName = (id: string) => `channel-${id}`;
+const RETRY_MS = [10_000, 30_000, 60_000, 120_000, 300_000];
 
 export function createChannels(deps: {
   store: Store;
@@ -50,7 +53,10 @@ export function createChannels(deps: {
   services: Services;
   /** Notices for the app's attention tray. */
   attention: (n: NewNotification) => void;
+  /** Waits before starting again a channel that failed to start; the last one repeats. */
+  retryMs?: readonly number[];
 }) {
+  const retryMs = deps.retryMs ?? RETRY_MS;
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
@@ -238,7 +244,7 @@ export function createChannels(deps: {
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────
-  async function startOne(config: ChannelConfig): Promise<void> {
+  async function startOne(config: ChannelConfig, attempt = 0): Promise<void> {
     const factory = deps.factories[config.type];
     if (!factory || !config.enabled || stopped) return;
     const ac = new AbortController();
@@ -263,12 +269,25 @@ export function createChannels(deps: {
       l.status = "error";
       l.error = errorMessage(err, 300);
       log.warn({ channel: config.id, err: l.error }, "channel did not start");
+      if (err instanceof ChannelRefused || ac.signal.aborted || stopped) return;
+      // Most likely the network: try again, waiting longer each time.
+      const wait = retryMs[Math.min(attempt, retryMs.length - 1)] ?? 300_000;
+      l.retry = setTimeout(() => {
+        if (live.get(config.id) !== l || stopped) return;
+        void serially(config.id, async () => {
+          if (live.get(config.id) !== l) return;
+          await stopOne(config.id);
+          await startOne(config, attempt + 1);
+        });
+      }, wait);
+      l.retry.unref?.();
     }
   }
 
   async function stopOne(id: string): Promise<void> {
     const l = live.get(id);
     if (!l) return;
+    clearTimeout(l.retry);
     l.ac.abort();
     await l.adapter.stop().catch(() => {});
     if (live.get(id) === l) live.delete(id);

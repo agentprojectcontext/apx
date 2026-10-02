@@ -27,6 +27,14 @@ export class SendError extends Error {
   }
 }
 
+/** The platform refused the channel (a bad token): starting again will not help until the owner changes it. */
+export class ChannelRefused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ChannelRefused";
+  }
+}
+
 export type AdapterIO = {
   /** Stores the message; returns once it is safe to tell the platform it arrived. */
   receive(m: Inbound): void;

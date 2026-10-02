@@ -4,7 +4,14 @@
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
-import { type AdapterFactory, type AdapterIO, type ChannelAdapter, type OutFile, SendError } from "./types.ts";
+import {
+  type AdapterFactory,
+  type AdapterIO,
+  type ChannelAdapter,
+  ChannelRefused,
+  type OutFile,
+  SendError,
+} from "./types.ts";
 
 const POLL_S = 25;
 const CALL_MS = 20_000;
@@ -254,7 +261,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     async start(io) {
       const me = await api<{ username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
-          ? new Error("Telegram refused the bot token: check it with @BotFather")
+          ? new ChannelRefused("Telegram refused the bot token: check it with @BotFather")
           : err;
       });
       loop = poll(io);

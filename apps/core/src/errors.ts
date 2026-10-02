@@ -17,9 +17,12 @@ export const conflict = (message: string) => new CallError({ code: ErrorCode.Con
 export const unavailable = (message: string) =>
   new CallError({ code: ErrorCode.Unavailable, message, retryable: true });
 
-/** An error's message, cut to `max` characters when given. */
+/** An error's message with its cause's code ("fetch failed (ENOTFOUND)"), cut to `max` characters when given. */
 export function errorMessage(err: unknown, max?: number): string {
-  const m = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? (err.cause as { code?: unknown; message?: unknown } | undefined) : undefined;
+  const why = typeof cause?.code === "string" ? cause.code : typeof cause?.message === "string" ? cause.message : "";
+  const base = err instanceof Error ? err.message : String(err);
+  const m = why && !base.includes(why) ? `${base} (${why})` : base;
   return max === undefined ? m : m.slice(0, max);
 }
 

@@ -48,6 +48,8 @@ export type CoreOptions = {
   extraTools?: Tool[];
   /** Channel adapters by type; tests use a fake one instead of Telegram. */
   channelAdapters?: Record<string, AdapterFactory>;
+  /** Waits before a channel that failed to start tries again; tests shorten them. */
+  channelRetryMs?: readonly number[];
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
 };
@@ -120,6 +122,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     bus,
     log,
     factories: opts.channelAdapters ?? { telegram: telegramAdapter },
+    ...(opts.channelRetryMs ? { retryMs: opts.channelRetryMs } : {}),
     call: internal,
     services,
     attention: attention.add,

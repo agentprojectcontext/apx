@@ -54,6 +54,7 @@ export async function startCore(opts: {
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;
   channelAdapters?: Record<string, AdapterFactory>;
+  channelRetryMs?: readonly number[];
   clock?: () => Date;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
@@ -67,6 +68,7 @@ export async function startCore(opts: {
     ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
     ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
     ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
+    ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
     ...(opts.clock ? { clock: opts.clock } : {}),
   });
   // Tests choose their model like an owner would: through the settings, never through code defaults.
