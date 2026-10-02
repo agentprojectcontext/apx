@@ -1,6 +1,7 @@
 // Curated lucide icons re-exported as one object, so designs built with @apx/ui use the
 // same set as the components. Size with the `size` prop (14–18 in controls).
 import {
+  Activity,
   AppWindow,
   ArrowDown,
   ArrowLeft,
@@ -36,6 +37,7 @@ import {
   FolderOpen,
   Globe,
   Hand,
+  HeartPulse,
   House,
   Image,
   Inbox,
@@ -98,6 +100,8 @@ import {
 
 export const Icons = {
   AppWindow,
+  HeartPulse,
+  Activity,
   MapPin,
   ArrowRightLeft,
   Tag,

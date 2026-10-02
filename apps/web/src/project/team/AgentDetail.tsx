@@ -1,17 +1,27 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu } from "@apx/ui";
-import { useState } from "react";
+import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu, Tabs } from "@apx/ui";
+import { type ReactNode, useMemo, useState } from "react";
+import { shortWhen } from "../../common/format.ts";
 import { AgentModelPicker } from "../../config/models/AgentModelPicker.tsx";
 import { setAgentBrowserProfile } from "../../data/actions.ts";
 import { PROFILE_KEY } from "../../data/engines.ts";
 import { blobOf } from "../../data/identity.ts";
+import { useRoutines } from "../../data/routines.ts";
+import { useData } from "../../data/state.ts";
+import { useTasks } from "../../data/tasks.ts";
 import { setAgentParent } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
+import { AgentActivity } from "./AgentActivity.tsx";
+import { AgentEditor } from "./AgentEditor.tsx";
+import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
 
 const PROFILES = ["shared", "isolated", "incognito"] as const;
 
-/** The selected agent beside the canvas: who it is, who it reports to (with confirmation), model and browser. */
+/**
+ * The selected agent beside the canvas, for a quick look and quick edits: its numbers, who it reports to (with
+ * confirmation), model and browser; what it did lately; its routines. "Edit" opens the whole agent.
+ */
 export function AgentDetail({
   agent,
   team,
@@ -25,6 +35,21 @@ export function AgentDetail({
 }) {
   const t = useT();
   const [pending, setPending] = useState<string>();
+  const [tab, setTab] = useState("summary");
+  const [editing, setEditing] = useState(false);
+  const threads = useData((s) => s.threads);
+  const tasks = useTasks((s) => s.tasks);
+  const routines = useRoutines((s) => s.routines);
+  const stats = useMemo(() => {
+    const mine = Object.values(threads).filter((th) => th.agent_ids.includes(agent.id) && !th.parent_id);
+    const last = mine.reduce<string | undefined>((m, th) => (!m || th.updated_at > m ? th.updated_at : m), undefined);
+    return {
+      chats: mine.filter((th) => th.kind !== "a2a" && th.kind !== "task" && th.kind !== "routine").length,
+      tasks: Object.values(tasks).filter((x) => x.state === "open" && x.assignee === agent.id).length,
+      routines: routines.filter((x) => x.agent_id === agent.id && x.enabled).length,
+      last,
+    };
+  }, [threads, tasks, routines, agent.id]);
   const fromFile = agent.source === "apc" && Boolean(agent.slug);
   // Its own reports cannot become its parent: the core refuses loops, the list does not offer them.
   const below = new Set<string>();
@@ -39,6 +64,55 @@ export function AgentDetail({
   const parents = team.filter((a) => a.slug && a.id !== agent.id && !below.has(a.slug));
   const nameOf = (slug: string | undefined) => team.find((a) => a.slug === slug)?.name ?? t("team.parent.none");
 
+  const facts = (
+    <dl className="teamdetail__facts">
+      <dt>{t("team.parent")}</dt>
+      <dd>
+        {fromFile ? (
+          <Pick
+            label={t("team.parent")}
+            text={nameOf(agent.parent)}
+            options={[
+              { value: "", text: t("team.parent.none") },
+              ...parents.map((p) => ({ value: p.slug ?? "", text: p.name })),
+            ]}
+            value={agent.parent ?? ""}
+            onPick={(v) => v !== (agent.parent ?? "") && setPending(v)}
+          />
+        ) : (
+          <span className="teamdetail__muted">{t("team.parent.global")}</span>
+        )}
+      </dd>
+      {agent.area && (
+        <>
+          <dt>{t("team.area")}</dt>
+          <dd>{agent.area}</dd>
+        </>
+      )}
+      <dt>{t("team.engine")}</dt>
+      <dd className="teamdetail__engine">
+        <EngineIcon engine={engineOf(agent)} size={14} />
+        <AgentModelPicker agent={agent} chip />
+      </dd>
+      <dt>{t("team.browserProfile")}</dt>
+      <dd>
+        <Pick
+          label={t("team.browserProfile")}
+          text={t(PROFILE_KEY[agent.browser_profile])}
+          options={PROFILES.map((p) => ({ value: p, text: t(PROFILE_KEY[p]) }))}
+          value={agent.browser_profile}
+          onPick={(v) => void setAgentBrowserProfile(agent.id, v as (typeof PROFILES)[number])}
+        />
+      </dd>
+      {fromFile && (
+        <>
+          <dt>{t("team.file")}</dt>
+          <dd className="teamdetail__mono">.apc/agents/{agent.slug}.md</dd>
+        </>
+      )}
+    </dl>
+  );
+
   return (
     <aside className="teamdetail" aria-label={agent.name}>
       <header className="teamdetail__head">
@@ -47,6 +121,12 @@ export function AgentDetail({
           <div className="teamdetail__name">{agent.name}</div>
           <div className="teamdetail__slug">{agent.slug ?? agent.id}</div>
         </div>
+        <IconButton
+          size="sm"
+          label={t("agent.edit.open")}
+          icon={<Icons.Pencil size={14} />}
+          onClick={() => setEditing(true)}
+        />
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
       </header>
       {agent.role && <div className="teamdetail__role">{agent.role}</div>}
@@ -55,52 +135,30 @@ export function AgentDetail({
         {t("team.chatWith", { name: agent.name })}
       </Button>
 
-      <dl className="teamdetail__facts">
-        <dt>{t("team.parent")}</dt>
-        <dd>
-          {fromFile ? (
-            <Pick
-              label={t("team.parent")}
-              text={nameOf(agent.parent)}
-              options={[
-                { value: "", text: t("team.parent.none") },
-                ...parents.map((p) => ({ value: p.slug ?? "", text: p.name })),
-              ]}
-              value={agent.parent ?? ""}
-              onPick={(v) => v !== (agent.parent ?? "") && setPending(v)}
-            />
-          ) : (
-            <span className="teamdetail__muted">{t("team.parent.global")}</span>
-          )}
-        </dd>
-        {agent.area && (
-          <>
-            <dt>{t("team.area")}</dt>
-            <dd>{agent.area}</dd>
-          </>
-        )}
-        <dt>{t("team.engine")}</dt>
-        <dd className="teamdetail__engine">
-          <EngineIcon engine={engineOf(agent)} size={14} />
-          <AgentModelPicker agent={agent} chip />
-        </dd>
-        <dt>{t("team.browserProfile")}</dt>
-        <dd>
-          <Pick
-            label={t("team.browserProfile")}
-            text={t(PROFILE_KEY[agent.browser_profile])}
-            options={PROFILES.map((p) => ({ value: p, text: t(PROFILE_KEY[p]) }))}
-            value={agent.browser_profile}
-            onPick={(v) => void setAgentBrowserProfile(agent.id, v as (typeof PROFILES)[number])}
-          />
-        </dd>
-        {fromFile && (
-          <>
-            <dt>{t("team.file")}</dt>
-            <dd className="teamdetail__mono">.apc/agents/{agent.slug}.md</dd>
-          </>
-        )}
-      </dl>
+      <div className="teamdetail__stats">
+        <Stat value={stats.chats} label={t("agent.stats.chats")} />
+        <Stat value={stats.tasks} label={t("agent.stats.tasks")} />
+        <Stat value={stats.routines} label={t("agent.stats.routines")} />
+        <Stat value={stats.last ? shortWhen(stats.last) : "—"} label={t("agent.stats.last")} />
+      </div>
+
+      <Tabs
+        variant="pill"
+        className="teamdetail__tabs"
+        value={tab}
+        onValueChange={setTab}
+        items={[
+          { value: "summary", label: t("agent.tab.summary"), content: facts },
+          { value: "activity", label: t("agent.tab.activity"), content: <AgentActivity agent={agent} /> },
+          {
+            value: "routines",
+            label: t("agent.tab.routines"),
+            count: routines.filter((x) => x.agent_id === agent.id).length,
+            content: <AgentRoutines agent={agent} />,
+          },
+        ]}
+      />
+      {editing && <AgentEditor agent={agent} onClose={() => setEditing(false)} />}
 
       {pending !== undefined && (
         <Dialog
@@ -135,6 +193,15 @@ export function AgentDetail({
         </Dialog>
       )}
     </aside>
+  );
+}
+
+function Stat({ value, label }: { value: ReactNode; label: string }) {
+  return (
+    <div className="teamdetail__stat">
+      <span className="teamdetail__statvalue">{value}</span>
+      <span className="teamdetail__statlabel">{label}</span>
+    </div>
   );
 }
 

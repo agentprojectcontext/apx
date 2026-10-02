@@ -1,5 +1,5 @@
 // Team screen writes: who an agent reports to, and installing agent templates into a project.
-import type { AgentTemplate, TeamTemplate } from "@apx/protocol";
+import type { AgentTemplate, Params, Result, TeamTemplate } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
@@ -45,5 +45,37 @@ export async function installTemplates(
   } catch (e) {
     notify(t("team.import.error", { error: errText(e) }));
     return undefined;
+  }
+}
+
+/** One agent with its prompt (the owner's view); undefined when the core refused. */
+export async function getAgent(agent: string): Promise<Result<"agents.get"> | undefined> {
+  try {
+    return await client.call("agents.get", { agent });
+  } catch (e) {
+    notify(t("error.load", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+/** An agent's runs, newest first; `before` pages back. */
+export async function agentRuns(agent: string, before?: string): Promise<Result<"runs.list">> {
+  try {
+    return await client.call("runs.list", { agent, limit: 30, ...(before ? { before } : {}) });
+  } catch (e) {
+    notify(t("error.load", { error: errText(e) }));
+    return { runs: [], threads: [] };
+  }
+}
+
+/** Saves what changed in an agent (identity, prompt, parent…); true when the core took it. */
+export async function updateAgent(agent: string, fields: Omit<Params<"agents.update">, "agent">): Promise<boolean> {
+  try {
+    const next = await client.call("agents.update", { agent, ...fields });
+    data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
   }
 }
