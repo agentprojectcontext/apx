@@ -33,10 +33,11 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Tas
   thread_id: r.thread_id,
   awaits_owner: Boolean(r.awaits_owner),
   ...(r.due_at ? { due_at: r.due_at } : {}),
-  ...(r.person_id
+  // A person removed before this fix left an id behind: shown as no person, never as the id.
+  ...(r.person_id && r.person_name
     ? {
         person_id: r.person_id,
-        person_name: r.person_name ?? r.person_id,
+        person_name: r.person_name,
         owed_by: (r.owed_by ?? "owner") as "owner" | "person",
       }
     : {}),

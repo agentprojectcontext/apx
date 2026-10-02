@@ -93,3 +93,13 @@ test("unknown people, the owner and bad dates are refused", async () => {
   await env.client.call("contacts.set", { name: "Ana", role: "contact" });
   await refused(env.client.call("tasks.create", { title: "x", person: "ana" }), /2 contacts are called/);
 });
+
+test("removing a person turns their commitments into plain tasks, never an id", async () => {
+  const p = await env.client.call("contacts.set", { name: "Temp", role: "contact" });
+  const t = await env.client.call("tasks.create", { title: "Get the keys", person: p.id, owed_by: "person" });
+  assert.equal(t.person_name, "Temp");
+  await env.client.call("contacts.remove", { id: p.id });
+  const { task } = await env.client.call("tasks.get", { task: t.id });
+  assert.equal(task.person_id, undefined);
+  assert.equal(task.person_name, undefined);
+});

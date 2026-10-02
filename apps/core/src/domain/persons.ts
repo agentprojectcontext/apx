@@ -34,7 +34,7 @@ export type PersonDetails = {
   perms?: Partial<PersonPerms> | undefined;
 };
 
-export function personsRepo({ one, all, run }: Sql) {
+export function personsRepo({ one, all, run, tx }: Sql) {
   const addressesOf = (id: string) =>
     all(qb.selectFrom("addresses").selectAll().where("person_id", "=", id).orderBy("created_at")).map(toAddress);
   const toPerson = (r: Selectable<PersonsTable>): Person => {
@@ -113,7 +113,11 @@ export function personsRepo({ one, all, run }: Sql) {
     },
     remove(id: string): boolean {
       if (id === OWNER_ID) return false;
-      return run(qb.deleteFrom("persons").where("id", "=", id)) > 0;
+      // Their commitments stay as plain tasks: no task keeps pointing at someone who is gone.
+      return tx(() => {
+        run(qb.updateTable("tasks").set({ person_id: null, owed_by: null }).where("person_id", "=", id));
+        return run(qb.deleteFrom("persons").where("id", "=", id)) > 0;
+      });
     },
     /** Who this channel address belongs to. */
     byAddress(channel: string, externalId: string): Person | undefined {
