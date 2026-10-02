@@ -32,7 +32,9 @@ import {
   ExternalLink,
   Eye,
   File,
+  FileImage,
   FileText,
+  Film,
   Filter,
   FlaskConical,
   Folder,
@@ -65,6 +67,7 @@ import {
   Minus,
   Monitor,
   Moon,
+  Music,
   PanelRight,
   Paperclip,
   Pencil,
@@ -105,6 +108,9 @@ import {
 } from "lucide-react";
 
 export const Icons = {
+  FileImage,
+  Music,
+  Film,
   AppWindow,
   Grid2x2,
   AtSign,

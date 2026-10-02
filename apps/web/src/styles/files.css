@@ -146,3 +146,42 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Media preview: fits the pane, never wider */
+.files__media {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+}
+.files__media img,
+.files__media video {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--apx-radius-md);
+}
+.files__media.is-image {
+  background: repeating-conic-gradient(var(--apx-fill) 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+}
+.files__media audio {
+  width: min(480px, 100%);
+}
+.files__media.is-pdf {
+  padding: 0;
+  align-items: stretch;
+}
+.files__media iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 480px;
+  border: 0;
+}
+.files__confirm {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+  overflow-wrap: anywhere;
+}
