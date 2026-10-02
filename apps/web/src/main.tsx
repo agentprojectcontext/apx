@@ -10,6 +10,7 @@ import "./styles/nav.css";
 import "./styles/project.css";
 import "./styles/team.css";
 import "./styles/resources.css";
+import "./styles/tasks.css";
 import "./styles/office.css";
 import "./styles/config.css";
 import "./styles/models.css";

@@ -97,3 +97,20 @@ export function aheadLabel(iso: string, now = new Date()): string {
   if (days < 7) return `${f.weekday.format(d)} · ${time}`;
   return `${f.date.format(d)} · ${time}`;
 }
+
+/**
+ * A due date for lists: "Today 18:00", "Tomorrow", "Fri" this week, else "Oct 9". A bare day (09:00 local, how
+ * a date without a time is stored) shows no time. `late` says it is already past.
+ */
+export function dueLabel(iso: string, now = new Date()): { text: string; late: boolean } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { text: "", late: false };
+  const f = fmt();
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+  const bare = d.getHours() === 9 && d.getMinutes() === 0;
+  const late = d.getTime() < now.getTime();
+  if (days === 0) return { text: bare ? t("time.today") : t("time.todayTime", { time: f.time.format(d) }), late };
+  if (days === 1) return { text: t("time.tomorrow"), late };
+  if (days > 1 && days < 7) return { text: f.weekday.format(d), late };
+  return { text: f.date.format(d), late };
+}

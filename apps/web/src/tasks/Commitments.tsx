@@ -1,5 +1,5 @@
 import type { Task } from "@apx/protocol";
-import { Badge, Button, EmptyState, Icons, Input, Menu, SegmentedControl } from "@apx/ui";
+import { Badge, Button, Icons, Input, Menu, SegmentedControl } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { aheadLabel, shortWhen } from "../common/format.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
@@ -110,56 +110,5 @@ function DueInput({ value, onCommit }: { value: string | undefined; onCommit: (d
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && commit()}
     />
-  );
-}
-
-/** Commitments: what the owner promised and what others owe them, soonest first. */
-export function CommitmentsList({ tasks, onOpen }: { tasks: Task[]; onOpen: (id: string) => void }) {
-  const t = useT();
-  const open = tasks.filter((x) => x.person_id && x.state === "open");
-  const byDue = (a: Task, b: Task) => (a.due_at ?? "9999").localeCompare(b.due_at ?? "9999");
-  const groups: Array<{ key: string; label: string; items: Task[] }> = [
-    {
-      key: "owner",
-      label: t("commitments.youOweGroup"),
-      items: open.filter((x) => x.owed_by !== "person").sort(byDue),
-    },
-    {
-      key: "person",
-      label: t("commitments.theyOweGroup"),
-      items: open.filter((x) => x.owed_by === "person").sort(byDue),
-    },
-  ];
-  if (!open.length)
-    return (
-      <EmptyState variant="dashed" size="lg" icon={<Icons.Hand />} title={t("commitments.emptyTitle")}>
-        {t("commitments.empty")}
-      </EmptyState>
-    );
-  return (
-    <div className="board__columns">
-      {groups.map((g) => (
-        <section key={g.key} className="board__column" aria-label={g.label}>
-          <header className="board__colhead">
-            {g.label}
-            <span className="team__count">{g.items.length}</span>
-          </header>
-          {g.items.map((x) => (
-            <CommitmentCard key={x.id} task={x} onOpen={() => onOpen(x.id)} />
-          ))}
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function CommitmentCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
-  return (
-    <button type="button" className="taskcard" onClick={onOpen}>
-      <span className="taskcard__title">{task.title}</span>
-      <span className="taskcard__meta">
-        <CommitmentMeta task={task} />
-      </span>
-    </button>
   );
 }

@@ -9,7 +9,7 @@ import { RoutinesPane } from "../routines/RoutinesPane.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
-import { TasksBoard } from "../tasks/TasksBoard.tsx";
+import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
@@ -105,7 +105,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "team":
       return <ProjectTeam project={project} />;
     case "tasks":
-      return <TasksBoard projectId={project.id} />;
+      return <ProjectTasks projectId={project.id} />;
     case "routines":
       return <RoutinesPane projectId={project.id} />;
     case "files":
