@@ -427,4 +427,14 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE routines ADD COLUMN call_model TEXT NOT NULL DEFAULT 'always';
   ALTER TABLE routine_runs ADD COLUMN model_called INTEGER;
   `,
+  `
+  -- A task's kind (a task, a commitment with someone, an errand for the way), its priority, free tags (JSON array) and
+  -- its own reminder time (otherwise it is reminded when it is due). Tasks with a person were commitments already.
+  ALTER TABLE tasks ADD COLUMN kind TEXT NOT NULL DEFAULT 'task';
+  ALTER TABLE tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'normal';
+  ALTER TABLE tasks ADD COLUMN tags TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE tasks ADD COLUMN remind_at TEXT;
+  UPDATE tasks SET kind = 'commitment' WHERE person_id IS NOT NULL;
+  CREATE INDEX tasks_remind ON tasks(state, remind_at);
+  `,
 ];

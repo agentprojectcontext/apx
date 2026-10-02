@@ -13,7 +13,10 @@ import {
   Task,
   TaskColumn,
   TaskEvent,
+  TaskKind,
+  TaskPriority,
   TaskState,
+  TaskTag,
 } from "./office.ts";
 
 export const officeMethods = {
@@ -47,7 +50,11 @@ export const officeMethods = {
         assignee: Id.optional(),
         status: z.string().max(40).optional(),
         parent: Id.optional(),
+        kind: TaskKind.optional(),
+        priority: TaskPriority.optional(),
+        tags: z.array(TaskTag).max(12).optional(),
         due_at: z.string().max(40).optional(),
+        remind_at: z.string().max(40).optional(),
         /** A commitment: the person (id or exact name) and who owes it (default: the owner). */
         person: z.string().max(80).optional(),
         owed_by: z.enum(["owner", "person"]).optional(),
@@ -56,7 +63,10 @@ export const officeMethods = {
     result: Task,
     effect: true,
   },
-  /** Changes what is given; `assignee: null` / `due_at: null` clear them. */
+  /**
+   * Changes what is given; `null` clears assignee, dates and person. `project` moves the task (and its conversation);
+   * `null` makes it global. An assignee from another project is unassigned.
+   */
   "tasks.update": {
     params: z
       .object({
@@ -65,7 +75,12 @@ export const officeMethods = {
         description: z.string().max(10_000).optional(),
         status: z.string().max(40).optional(),
         assignee: Id.nullable().optional(),
+        project: Id.nullable().optional(),
+        kind: TaskKind.optional(),
+        priority: TaskPriority.optional(),
+        tags: z.array(TaskTag).max(12).optional(),
         due_at: z.string().max(40).nullable().optional(),
+        remind_at: z.string().max(40).nullable().optional(),
         awaits_owner: z.boolean().optional(),
         person: z.string().max(80).nullable().optional(),
         owed_by: z.enum(["owner", "person"]).optional(),

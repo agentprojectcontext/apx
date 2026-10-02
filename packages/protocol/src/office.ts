@@ -9,6 +9,12 @@ import { Id, RunState } from "./domain.ts";
 export const TaskState = z.enum(["open", "done", "dropped"]);
 export type TaskState = z.infer<typeof TaskState>;
 export const TaskColumn = z.object({ id: z.string(), label: z.string() });
+/** A task, a commitment with someone (who owes whom), or an errand: something small to do on the way. */
+export const TaskKind = z.enum(["task", "commitment", "errand"]);
+export type TaskKind = z.infer<typeof TaskKind>;
+export const TaskPriority = z.enum(["low", "normal", "high", "urgent"]);
+export type TaskPriority = z.infer<typeof TaskPriority>;
+export const TaskTag = z.string().trim().min(1).max(32);
 export type TaskColumn = z.infer<typeof TaskColumn>;
 export const Task = z.object({
   id: Id,
@@ -18,6 +24,9 @@ export const Task = z.object({
   description: z.string(),
   status: z.string(),
   state: TaskState,
+  kind: TaskKind,
+  priority: TaskPriority,
+  tags: z.array(z.string()),
   /** The agent working on it. */
   assignee: Id.optional(),
   parent_id: Id.optional(),
@@ -25,6 +34,8 @@ export const Task = z.object({
   /** Waiting for the owner (a decision, an answer). */
   awaits_owner: z.boolean(),
   due_at: z.string().optional(),
+  /** When the owner is reminded; without it, when the task is due. */
+  remind_at: z.string().optional(),
   /** A commitment: the person on the other side, and who owes it (the owner promised it, or the person did). */
   person_id: Id.optional(),
   person_name: z.string().optional(),

@@ -1,6 +1,6 @@
 // Tasks: the row is the task as it is now; every change is also an event, so its history can be told. The board's
 // columns are a setting; "done" and "dropped" are states, never columns.
-import type { Task, TaskColumn, TaskEvent, TaskState } from "@apx/protocol";
+import type { Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
@@ -28,11 +28,15 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Tas
   description: r.description,
   status: r.status,
   state: r.state as TaskState,
+  kind: r.kind as TaskKind,
+  priority: r.priority as TaskPriority,
+  tags: JSON.parse(r.tags) as string[],
   ...(r.assignee ? { assignee: r.assignee } : {}),
   ...(r.parent_id ? { parent_id: r.parent_id } : {}),
   thread_id: r.thread_id,
   awaits_owner: Boolean(r.awaits_owner),
   ...(r.due_at ? { due_at: r.due_at } : {}),
+  ...(r.remind_at ? { remind_at: r.remind_at } : {}),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
   ...(r.person_id && r.person_name
     ? {
@@ -53,7 +57,12 @@ export type TaskChange = Partial<{
   status: string;
   state: TaskState;
   assignee: string | null;
+  project_id: string | null;
+  kind: TaskKind;
+  priority: TaskPriority;
+  tags: string[];
   due_at: string | null;
+  remind_at: string | null;
   awaits_owner: boolean;
   person_id: string | null;
   owed_by: "owner" | "person";
@@ -108,6 +117,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       status: string;
       parent_id?: string | undefined;
       due_at?: string | undefined;
+      remind_at?: string | undefined;
+      kind?: TaskKind | undefined;
+      priority?: TaskPriority | undefined;
+      tags?: string[] | undefined;
       person_id?: string | undefined;
       owed_by?: "owner" | "person" | undefined;
       thread_id: string;
@@ -126,6 +139,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           parent_id: t.parent_id ?? null,
           thread_id: t.thread_id,
           due_at: t.due_at ?? null,
+          remind_at: t.remind_at ?? null,
+          kind: t.kind ?? (t.person_id ? "commitment" : "task"),
+          priority: t.priority ?? "normal",
+          tags: JSON.stringify(t.tags ?? []),
           person_id: t.person_id ?? null,
           owed_by: t.person_id ? (t.owed_by ?? "owner") : null,
           created_by: t.by,
@@ -153,9 +170,16 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.status !== undefined ? { status: c.status } : {}),
             ...(c.state !== undefined ? { state: c.state } : {}),
             ...(c.assignee !== undefined ? { assignee: c.assignee } : {}),
-            // A new date is reminded again.
+            ...(c.project_id !== undefined ? { project_id: c.project_id } : {}),
+            ...(c.kind !== undefined ? { kind: c.kind } : {}),
+            ...(c.priority !== undefined ? { priority: c.priority } : {}),
+            ...(c.tags !== undefined ? { tags: JSON.stringify(c.tags) } : {}),
+            // A new date or reminder time is reminded again.
             ...(c.due_at !== undefined && c.due_at !== (cur.due_at ?? null)
               ? { due_at: c.due_at, reminded_at: null }
+              : {}),
+            ...(c.remind_at !== undefined && c.remind_at !== (cur.remind_at ?? null)
+              ? { remind_at: c.remind_at, reminded_at: null }
               : {}),
             ...(c.person_id !== undefined
               ? { person_id: c.person_id, owed_by: c.person_id ? (c.owed_by ?? cur.owed_by ?? "owner") : null }
@@ -179,13 +203,18 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       const task = repo.get(id);
       if (task) emit(task);
     },
-    /** Open tasks whose date has come and that were not reminded yet; marks them reminded. */
+    /** Open tasks whose reminder (or, without one, whose date) has come and were not reminded yet; marks them. */
     remindDue(at: string): Task[] {
       const rows = all(
         tasksQuery()
           .where("tasks.state", "=", "open")
-          .where("tasks.due_at", "<=", at)
-          .where("tasks.reminded_at", "is", null),
+          .where("tasks.reminded_at", "is", null)
+          .where((eb) =>
+            eb.or([
+              eb("tasks.remind_at", "<=", at),
+              eb.and([eb("tasks.remind_at", "is", null), eb("tasks.due_at", "<=", at)]),
+            ]),
+          ),
       );
       if (rows.length)
         run(

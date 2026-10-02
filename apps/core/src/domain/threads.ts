@@ -186,6 +186,19 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       bus.emit({ type: "thread.updated", thread: next });
       return next;
     },
+    /** Moves a thread to another project (or to none): a task's conversation follows its task. */
+    moveTo(id: string, projectId: string | undefined): Thread {
+      run(
+        qb
+          .updateTable("threads")
+          .set({ project_id: projectId ?? null })
+          .where("id", "=", id),
+      );
+      const next = repo.get(id);
+      if (!next) throw new Error(`unknown thread ${id}`);
+      bus.emit({ type: "thread.updated", thread: next });
+      return next;
+    },
     /** The bookkeeping kept per thread (never shown). */
     context(id: string): ThreadContext {
       const r = one(qb.selectFrom("threads").select("context").where("id", "=", id));

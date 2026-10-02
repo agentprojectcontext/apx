@@ -1,5 +1,5 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
-import type { Task } from "@apx/protocol";
+import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -21,6 +21,14 @@ const commitmentArgs = {
     .optional()
     .describe('"owner" if the owner promised it to the person (default), "person" if the person owes it to the owner.'),
   due_at: z.string().max(40).optional().describe("When it is due: a day (2026-10-05) or a moment (ISO)."),
+};
+
+const shapeArgs = {
+  kind: TaskKind.optional().describe(
+    '"task", "commitment" (with a person) or "errand" (something small to do on the way).',
+  ),
+  priority: TaskPriority.optional().describe("low, normal (default), high or urgent."),
+  tags: z.array(TaskTag).max(12).optional().describe("Short labels that help organize (client, area…)."),
 };
 
 export function taskTools(): Tool[] {
@@ -55,6 +63,7 @@ export function taskTools(): Tool[] {
         description: z.string().max(5000).optional(),
         assignee: z.string().max(80).optional(),
         status: z.string().max(40).optional(),
+        ...shapeArgs,
         ...commitmentArgs,
       }),
       effect: "local",
@@ -77,6 +86,7 @@ export function taskTools(): Tool[] {
         title: z.string().trim().min(3).max(200).optional(),
         description: z.string().max(5000).optional(),
         awaits_owner: z.boolean().optional(),
+        ...shapeArgs,
         ...commitmentArgs,
       }),
       effect: "local",

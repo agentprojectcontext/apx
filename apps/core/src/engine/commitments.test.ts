@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -102,4 +104,58 @@ test("removing a person turns their commitments into plain tasks, never an id", 
   const { task } = await env.client.call("tasks.get", { task: t.id });
   assert.equal(task.person_id, undefined);
   assert.equal(task.person_name, undefined);
+});
+
+test("a task keeps its kind, priority and tags; with a person it is a commitment", async () => {
+  const t = await env.client.call("tasks.create", {
+    title: "Buy bread",
+    kind: "errand",
+    priority: "high",
+    tags: ["home", "Home", " shop "],
+  });
+  assert.equal(t.kind, "errand");
+  assert.equal(t.priority, "high");
+  assert.deepEqual(t.tags, ["Home", "shop"], "no repeats in any case, trimmed");
+  const plain = await env.client.call("tasks.create", { title: "Plain" });
+  assert.equal(plain.kind, "task");
+  assert.equal(plain.priority, "normal");
+  const ula = await env.client.call("contacts.set", { name: "Ula", role: "contact" });
+  const promised = await env.client.call("tasks.update", { task: plain.id, person: ula.id });
+  assert.equal(promised.kind, "commitment");
+  const retagged = await env.client.call("tasks.update", { task: t.id, tags: [], priority: "low" });
+  assert.deepEqual(retagged.tags, []);
+  assert.equal(retagged.priority, "low");
+});
+
+test("a task's own reminder time comes before its due date", async () => {
+  clock = new Date(2026, 9, 10, 8, 0);
+  const t = await env.client.call("tasks.create", {
+    title: "Call the bank",
+    due_at: "2026-10-12",
+    remind_at: "2026-10-11T18:00",
+  });
+  env.core.scheduler.tick();
+  assert.equal((await tray()).notifications.filter((n) => n.kind === "due" && n.ref === t.id).length, 0);
+  clock = new Date(2026, 9, 11, 18, 5);
+  env.core.scheduler.tick();
+  assert.equal((await tray()).notifications.filter((n) => n.kind === "due" && n.ref === t.id).length, 1);
+  // Reminded once: its due date does not remind again.
+  clock = new Date(2026, 9, 12, 10, 0);
+  env.core.scheduler.tick();
+  assert.equal((await tray()).notifications.filter((n) => n.kind === "due" && n.ref === t.id).length, 1);
+  await env.client.call("tasks.close", { task: t.id, state: "done" });
+});
+
+test("moving a task to another project moves its conversation and lets go of an agent from elsewhere", async () => {
+  const dir = fs.mkdtempSync(path.join(env.home, "proj-"));
+  fs.writeFileSync(`${dir}/AGENTS.md`, "# Acme\n");
+  const { project: p } = await env.client.call("projects.register", { path: dir });
+  const a = await env.client.call("agents.create", { name: "Helper", slug: "helper", project_id: p.id });
+  const t = await env.client.call("tasks.create", { title: "Ship it", project: p.id, assignee: a.id });
+  const moved = await env.client.call("tasks.update", { task: t.id, project: null });
+  assert.equal(moved.project_id, undefined);
+  assert.equal(moved.assignee, undefined, "a project agent cannot work on a global task");
+  const { thread } = await env.client.call("threads.get", { thread: t.thread_id });
+  assert.equal(thread.project_id, undefined, "its conversation went with it");
+  await assert.rejects(env.client.call("tasks.update", { task: t.id, project: "p_missing" }), /not found/);
 });
