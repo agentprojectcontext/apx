@@ -94,6 +94,11 @@ export const enResources = {
   "res.varValue": "Value",
   "res.varUsedIn": "Used in",
   "res.actions": "Actions",
+  "res.varOverrides": "Over the global",
+  "res.varOverridden": "Overridden here",
+  "res.varOnlyHere": "Only for {project}",
+  "res.varOnlyHereHint":
+    "This project's own value: your MCP servers use it in this project's chats instead of the global one.",
   "res.noValue": "No value",
   "res.varReplace": "Replace the value of {name}",
   "res.varSetValue": "Set a value for {name}",

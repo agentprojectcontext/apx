@@ -1,34 +1,45 @@
-import { Badge, Button, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
+import { Badge, Button, Checkbox, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
 import { useState } from "react";
+import { projectName } from "../data/identity.ts";
 import { setSecret } from "../data/resources.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 
-type Row = { name: string; hint?: string | undefined; stored: boolean; usedIn: string[] };
+type Row = {
+  name: string;
+  /** A project's own value (absent: the global one). */
+  project?: string | undefined;
+  hint?: string | undefined;
+  stored: boolean;
+  usedIn: string[];
+};
+const keyOf = (r: Row) => `${r.project ?? ""}/${r.name}`;
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 
 /**
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
  * to the panel; long ones show their last four characters. A name a server uses but nobody stored shows "No value".
  */
-export function VariablesTab({ query, adding, setAdding, res }: TabProps) {
+export function VariablesTab({ projectId, query, adding, setAdding, res }: TabProps) {
   const t = useT();
+  const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<Row>();
   const [removing, setRemoving] = useState<Row>();
-  const stored: Row[] = (res.data.secrets ?? []).map((s) => ({
-    name: s.name,
-    hint: s.hint,
-    stored: true,
-    usedIn: s.used_in,
-  }));
+  // In a project: the global values and this project's own; globally: every value, each with its project.
+  const stored: Row[] = (res.data.secrets ?? [])
+    .filter((s) => !projectId || !s.project_id || s.project_id === projectId)
+    .map((s) => ({ name: s.name, project: s.project_id, hint: s.hint, stored: true, usedIn: s.used_in }));
+  const own = new Set(stored.filter((r) => r.project).map((r) => r.name));
   const missing = new Map<string, string[]>();
   for (const srv of res.data.servers ?? [])
     for (const v of srv.vars)
       if (!v.set && !stored.some((r) => r.name === v.name))
         missing.set(v.name, [...(missing.get(v.name) ?? []), `mcp:${srv.name}`]);
-  const rows: Row[] = [...stored, ...[...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn }))]
+  const empty: Row[] = [...missing].map(([name, usedIn]) => ({ name, stored: false, usedIn }));
+  const rows: Row[] = [...stored, ...empty]
     .filter((r) => !query || `${r.name} ${r.usedIn.join(" ")}`.toLowerCase().includes(query))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name) || Number(Boolean(a.project)) - Number(Boolean(b.project)));
   const reload = async () => {
     await res.loadSecrets();
     await res.loadServers();
@@ -54,10 +65,16 @@ export function VariablesTab({ query, adding, setAdding, res }: TabProps) {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.name}>
+              <tr key={keyOf(r)} className={projectId && !r.project && own.has(r.name) ? "is-shadowed" : undefined}>
                 <td className="resvars__name">{r.name}</td>
                 <td>
-                  <Badge>{t("res.scope.global")}</Badge>
+                  <span className="resvars__scope">
+                    <Badge>{r.project ? projectName(projects, r.project) : t("res.scope.global")}</Badge>
+                    {r.project && stored.some((g) => g.name === r.name && !g.project) && (
+                      <Badge tone="info">{t("res.varOverrides")}</Badge>
+                    )}
+                    {projectId && !r.project && own.has(r.name) && <Badge>{t("res.varOverridden")}</Badge>}
+                  </span>
                 </td>
                 <td className="resvars__value">
                   {r.stored ? `••••••••${r.hint ?? ""}` : <span className="resvars__missing">{t("res.noValue")}</span>}
@@ -87,6 +104,7 @@ export function VariablesTab({ query, adding, setAdding, res }: TabProps) {
       {(adding || editing) && (
         <VariableDialog
           row={editing}
+          projectId={projectId}
           onClose={() => {
             setAdding(false);
             setEditing(undefined);
@@ -111,9 +129,9 @@ export function VariablesTab({ query, adding, setAdding, res }: TabProps) {
               <Button
                 variant="danger"
                 onClick={() => {
-                  const name = removing.name;
+                  const { name } = removing;
                   setRemoving(undefined);
-                  void setSecret(name, null).then(reload);
+                  void setSecret(name, null, removing.project).then(reload);
                 }}
               >
                 {t("res.remove")}
@@ -133,9 +151,19 @@ export function VariablesTab({ query, adding, setAdding, res }: TabProps) {
 }
 
 /** New variable, or a new value for one: the old value is replaced, never shown. */
-function VariableDialog({ row, onClose, onSaved }: { row: Row | undefined; onClose(): void; onSaved(): void }) {
+function VariableDialog(props: {
+  row: Row | undefined;
+  projectId: string | undefined;
+  onClose(): void;
+  onSaved(): void;
+}) {
+  const { row, onClose, onSaved } = props;
   const t = useT();
+  const projects = useData((s) => s.projects);
   const [name, setName] = useState(row?.name ?? "");
+  // A new value from a project's view is that project's own unless the owner says otherwise.
+  const [onlyHere, setOnlyHere] = useState(row ? Boolean(row.project) : Boolean(props.projectId));
+  const project = row ? row.project : onlyHere ? props.projectId : undefined;
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const valid = NAME.test(name) && value.length > 0;
@@ -155,7 +183,7 @@ function VariableDialog({ row, onClose, onSaved }: { row: Row | undefined; onClo
             loading={busy}
             onClick={() => {
               setBusy(true);
-              void setSecret(name, value).then((r) => {
+              void setSecret(name, value, project).then((r) => {
                 setBusy(false);
                 if (r) onSaved();
               });
@@ -178,6 +206,14 @@ function VariableDialog({ row, onClose, onSaved }: { row: Row | undefined; onClo
           />
           <span className="pform__hint">{t("res.varNameHint")}</span>
         </div>
+        {!row && props.projectId && (
+          <Checkbox
+            checked={onlyHere}
+            onCheckedChange={setOnlyHere}
+            label={t("res.varOnlyHere", { project: projectName(projects, props.projectId) })}
+            description={t("res.varOnlyHereHint")}
+          />
+        )}
         <div className="pform__field">
           <span className="pform__label">{t("res.varValue")}</span>
           <Input

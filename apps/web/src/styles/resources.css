@@ -384,3 +384,11 @@
     display: none;
   }
 }
+.resvars__scope {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.resvars__table tr.is-shadowed td {
+  opacity: 0.5;
+}

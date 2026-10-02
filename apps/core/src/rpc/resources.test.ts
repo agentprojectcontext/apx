@@ -156,5 +156,6 @@ test("variables: a project's own value wins for the owner's servers there, and i
   const mine = (await env.client.call("secrets.list", {})).secrets.find((x) => x.name === "NOTES_TOKEN");
   assert.equal(mine?.project_id, project);
   assert.equal(mine?.hint, "6789");
+  assert.deepEqual(mine?.used_in, ["mcp:notes"]);
   await assert.rejects(env.client.call("secrets.set", { name: "X", value: "y", project: "p_nope" }), /not found/);
 });

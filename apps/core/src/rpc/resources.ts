@@ -17,13 +17,11 @@ function usedIn(store: Store, mcp: McpConfig): Map<string, string[]> {
   const refs = (text: string) => [...text.matchAll(/secret:\/\/([a-zA-Z0-9_.-]+)/g)].map((m) => m[1] as string);
   const named = (d: McpDef) => new Set(refs(JSON.stringify([d.env, d.headers, d.args, d.url ?? ""])));
   for (const d of mcp.global()) for (const n of named(d)) add(n, `mcp:${d.name}`);
-  // A project's servers: under "<project>/<name>" for its own values, and under the name for the global ones.
-  for (const p of store.projects.list())
-    for (const d of mcp.project(p.id))
-      for (const n of named(d)) {
-        add(`${p.id}/${n}`, `mcp:${d.name}`);
-        add(n, `mcp:${d.name} (${p.name})`);
-      }
+  // A project's own values ("<project>/<name>") are used by the owner's servers that project keeps on.
+  for (const p of store.projects.list()) {
+    const off = new Set(mcp.offIn(p.id));
+    for (const d of mcp.global()) if (!off.has(d.name)) for (const n of named(d)) add(`${p.id}/${n}`, `mcp:${d.name}`);
+  }
   for (const key of ["providers", "channels"] as const) {
     let entries: unknown;
     try {

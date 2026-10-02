@@ -59,7 +59,8 @@ export const setMcp = (name: string, server: McpDraft | null) =>
 export const listSecrets = () => attempt(async () => (await client.call("secrets.list", {})).secrets);
 
 /** Stores (or with null removes) a variable; its value never comes back to the panel. */
-export const setSecret = (name: string, value: string | null) =>
-  attempt(() => client.call("secrets.set", { name, value }));
+/** `project`: that project's own value, over the global one there. */
+export const setSecret = (name: string, value: string | null, project?: string) =>
+  attempt(() => client.call("secrets.set", { name, value, ...(project ? { project } : {}) }));
 
 export type { McpServerStatus, SecretInfo, SkillInfo };
