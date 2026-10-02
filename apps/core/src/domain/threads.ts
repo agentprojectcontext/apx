@@ -2,6 +2,7 @@
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
 import type { Author, Message, ModelChoice, Part, Thread } from "@apx/protocol";
 import type { Selectable } from "kysely";
+import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -86,14 +87,33 @@ export type LogEntry = { seq: number; run_id: string | undefined; item: unknown 
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
-    list(opts: { project_id?: string | undefined; include_subthreads?: boolean } = {}): Thread[] {
-      const { project_id } = opts;
+    list(
+      opts: { project_id?: string | undefined; include_subthreads?: boolean; engine?: string | undefined } = {},
+    ): Thread[] {
+      const { project_id, engine } = opts;
       return all(
         qb
           .selectFrom("threads")
           .selectAll()
           .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
           .$if(!!project_id, (q) => q.where("project_id", "=", project_id as string))
+          // An engine's chats: those it answered in, and those set to it (their own model) before it did.
+          .$if(!!engine, (q) =>
+            q.where((eb) =>
+              eb.or([
+                eb(
+                  "id",
+                  "in",
+                  eb
+                    .selectFrom("runs")
+                    .select("thread_id")
+                    .where((r) => r.or([r("model", "=", engine as string), r("model", "like", `${engine}/%`)])),
+                ),
+                eb(sql<string>`json_extract(context, '$.model_choice.model')`, "=", engine as string),
+                eb(sql<string>`json_extract(context, '$.model_choice.model')`, "like", `${engine}/%`),
+              ]),
+            ),
+          )
           .orderBy("updated_at", "desc")
           .limit(300),
       ).map(toThread);

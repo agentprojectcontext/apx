@@ -212,7 +212,14 @@ export const appMethods = {
     effect: true,
   },
   "threads.list": {
-    params: z.object({ project_id: Id.optional(), include_subthreads: z.boolean().default(false) }).strict(),
+    params: z
+      .object({
+        project_id: Id.optional(),
+        include_subthreads: z.boolean().default(false),
+        /** Only the chats an engine answered in or is set for ("claude", "codex", "acp:opencode"). */
+        engine: z.string().max(80).optional(),
+      })
+      .strict(),
     result: z.object({ threads: z.array(Thread) }),
     effect: false,
   },
