@@ -4,7 +4,7 @@ import type { Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } f
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
-import { newId, now, qb, type Sql } from "./sql.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export const DEFAULT_COLUMNS: TaskColumn[] = [
   { id: "backlog", label: "Backlog" },
@@ -23,7 +23,7 @@ const tasksQuery = () =>
 
 const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Task => ({
   id: r.id,
-  ...(r.project_id ? { project_id: r.project_id } : {}),
+  ...opt("project_id", r.project_id),
   title: r.title,
   description: r.description,
   status: r.status,
@@ -31,12 +31,12 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Tas
   kind: r.kind as TaskKind,
   priority: r.priority as TaskPriority,
   tags: JSON.parse(r.tags) as string[],
-  ...(r.assignee ? { assignee: r.assignee } : {}),
-  ...(r.parent_id ? { parent_id: r.parent_id } : {}),
+  ...opt("assignee", r.assignee),
+  ...opt("parent_id", r.parent_id),
   thread_id: r.thread_id,
   awaits_owner: Boolean(r.awaits_owner),
-  ...(r.due_at ? { due_at: r.due_at } : {}),
-  ...(r.remind_at ? { remind_at: r.remind_at } : {}),
+  ...opt("due_at", r.due_at),
+  ...opt("remind_at", r.remind_at),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
   ...(r.person_id && r.person_name
     ? {

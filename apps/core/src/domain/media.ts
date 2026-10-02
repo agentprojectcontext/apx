@@ -2,7 +2,7 @@
 // never in the database or in messages; clients fetch them through media.get.
 import type { Selectable } from "kysely";
 import type { MediaTable } from "../db/schema.ts";
-import { newId, now, qb, type Sql } from "./sql.ts";
+import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export type MediaRecord = {
   id: string;
@@ -22,9 +22,9 @@ const toMedia = (r: Selectable<MediaTable>): MediaRecord => ({
   mime: r.mime,
   bytes: r.bytes,
   path: r.path,
-  ...(r.thread_id ? { thread_id: r.thread_id } : {}),
-  ...(r.service ? { service: r.service } : {}),
-  ...(r.prompt ? { prompt: r.prompt } : {}),
+  ...opt("thread_id", r.thread_id),
+  ...opt("service", r.service),
+  ...opt("prompt", r.prompt),
   created_at: r.created_at,
 });
 
