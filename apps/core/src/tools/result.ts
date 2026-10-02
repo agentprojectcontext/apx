@@ -22,12 +22,15 @@ export function cap(text: string, max = RESULT_CAP): string {
 /** What every untrusted envelope carries: finding it in a turn's context means outside content is there. */
 export const UNTRUSTED_MARK = 'trust="untrusted"';
 
+// Tags only APX writes: outside text that carries them is defused.
+const RESERVED_TAGS = "system_note|owner_instruction";
+
 /** Marks text that came from outside (web, other agents, widgets) as data, not instructions. */
 export function untrusted(source: string, attrs: Record<string, string>, body: string): string {
   const a = Object.entries(attrs)
     .map(([k, v]) => ` ${k}="${v.replace(/["<>]/g, "'")}"`)
     .join("");
-  // The body cannot close its own envelope or pose as a note from APX.
-  const safe = body.replace(new RegExp(`<(/?)(${source}|system_note)\\b`, "gi"), "&lt;$1$2");
+  // The body cannot close its own envelope or pose as APX or the owner.
+  const safe = body.replace(new RegExp(`<(/?)(${source}|${RESERVED_TAGS})\\b`, "gi"), "&lt;$1$2");
   return `<${source}${a} ${UNTRUSTED_MARK}>\n${safe}\n</${source}>`;
 }
