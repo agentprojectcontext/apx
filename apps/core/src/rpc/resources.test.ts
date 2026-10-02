@@ -141,3 +141,20 @@ test("variables may use upper case, like the names MCP servers reference", async
   await env.client.call("secrets.set", { name: "GH_TOKEN", value: "ghp_abcdefghijklmnop" });
   assert.ok((await env.client.call("secrets.list", {})).secrets.some((s) => s.name === "GH_TOKEN"));
 });
+
+test("variables: a project's own value wins for the owner's servers there, and is listed with its project", async () => {
+  await env.client.call("mcp.set", {
+    name: "notes",
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://NOTES_TOKEN" } },
+  });
+  const vars = async (p?: string) =>
+    (await env.client.call("mcp.list", p ? { project: p } : {})).servers.find((x) => x.name === "notes")?.vars;
+  assert.deepEqual(await vars(project), [{ name: "NOTES_TOKEN", set: false }]);
+  await env.client.call("secrets.set", { name: "NOTES_TOKEN", value: "acme-notes-0123456789", project });
+  assert.deepEqual(await vars(project), [{ name: "NOTES_TOKEN", set: true }], "set in this project");
+  assert.deepEqual(await vars(), [{ name: "NOTES_TOKEN", set: false }], "not globally");
+  const mine = (await env.client.call("secrets.list", {})).secrets.find((x) => x.name === "NOTES_TOKEN");
+  assert.equal(mine?.project_id, project);
+  assert.equal(mine?.hint, "6789");
+  await assert.rejects(env.client.call("secrets.set", { name: "X", value: "y", project: "p_nope" }), /not found/);
+});

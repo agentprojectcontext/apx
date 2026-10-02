@@ -11,7 +11,7 @@ import type { Harnesses } from "../harness/index.ts";
 import { importFromV1 } from "../import/v1.ts";
 import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
-import type { Secrets } from "../secrets.ts";
+import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import type { Handlers } from "./router.ts";
 
@@ -50,8 +50,9 @@ export function appHandlers(deps: {
       store.settings.set("desktop", JSON.stringify(p));
       return desktopPrefs(store);
     },
-    "secrets.set": ({ name, value }) => {
-      secrets.set(name, value);
+    "secrets.set": ({ name, value, project }) => {
+      if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
+      secrets.set(project ? projectSecretName(project, name) : name, value);
       return { ok: true as const };
     },
     "models.list": async ({ refresh }) => ({ engines: await deps.catalog.list(refresh) }),

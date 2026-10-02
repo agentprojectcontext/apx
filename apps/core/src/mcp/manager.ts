@@ -11,7 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
-import type { Secrets } from "../secrets.ts";
+import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
 import { type McpDef, mcpConfig } from "./config.ts";
@@ -83,22 +83,29 @@ const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.repla
 export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();
-  const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.name}`;
+  const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
   /** `secret://` values are resolved here, at start, and never written anywhere else. */
-  const resolve = (values: Record<string, string>) =>
-    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, deps.secrets.resolve(v) ?? v]));
+  const resolve = (values: Record<string, string>, valuesOf?: string) =>
+    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, deps.secrets.resolveIn(v, valuesOf) ?? v]));
+  /** An owner's server in a project with its own value for one of its variables runs as a copy of its own there. */
+  const inProject = (d: McpDef, projectId: string | undefined): McpDef =>
+    projectId && secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(projectId, n)}`))
+      ? { ...d, values_of: projectId }
+      : d;
 
   /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
   async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
     const client = new Client({ name: "apx", version: "2" });
     const transport = d.url
-      ? new StreamableHTTPClientTransport(new URL(d.url), { requestInit: { headers: resolve(d.headers) } })
+      ? new StreamableHTTPClientTransport(new URL(d.url), {
+          requestInit: { headers: resolve(d.headers, d.project_id) },
+        })
       : new StdioClientTransport({
           command: d.command ?? "",
           args: d.args,
           // Only what the definition gives it, on top of an environment without credentials.
-          env: { ...commandEnv(), ...resolve(d.env) },
+          env: { ...commandEnv(), ...resolve(d.env, d.values_of) },
           ...(d.cwd ? { cwd: d.cwd } : {}),
           stderr: "ignore",
         });
@@ -214,7 +221,13 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
 
   const defsFor = (projectId: string | undefined) => {
     const off = projectId ? new Set(config.offIn(projectId)) : new Set<string>();
-    return [...config.global().filter((d) => !off.has(d.name)), ...(projectId ? config.project(projectId) : [])];
+    return [
+      ...config
+        .global()
+        .filter((d) => !off.has(d.name))
+        .map((d) => inProject(d, projectId)),
+      ...(projectId ? config.project(projectId) : []),
+    ];
   };
 
   return {
@@ -242,7 +255,10 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     },
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
-      const defs = [...config.global(), ...projects.flatMap((p) => config.project(p))];
+      const defs = [
+        ...config.global().map((d) => inProject(d, projectId)),
+        ...projects.flatMap((p) => config.project(p)),
+      ];
       const offHere = new Set(projectId ? config.offIn(projectId) : []);
       return defs.map((d) => {
         const c = conns.get(keyOf(d));
@@ -259,7 +275,10 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
           status: !d.enabled ? "disabled" : !trusted ? "needs-approval" : (live?.status ?? "off"),
           tools: live?.tools.length ?? 0,
           tool_names: live?.tools.map((t) => t.name) ?? [],
-          vars: secretNames(d).map((name) => ({ name, set: deps.secrets.has(`secret://${name}`) })),
+          vars: secretNames(d).map((name) => ({
+            name,
+            set: deps.secrets.resolveIn(`secret://${name}`, projectId) !== undefined,
+          })),
           off_here: d.scope === "global" && offHere.has(d.name),
           ...(live?.error ? { error: live.error } : {}),
         };

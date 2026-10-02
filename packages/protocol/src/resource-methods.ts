@@ -26,6 +26,8 @@ export type SkillInfo = z.infer<typeof SkillInfo>;
 
 export const SecretInfo = z.object({
   name: z.string(),
+  /** A project's own value: it wins over the global one of the same name for that project's MCP servers. */
+  project_id: Id.optional(),
   updated_at: z.string(),
   /** The last four characters, kept only for values long enough that they give nothing away ("••••1a2b"). */
   hint: z.string().optional(),

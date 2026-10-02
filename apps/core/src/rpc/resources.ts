@@ -4,8 +4,8 @@
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
-import type { McpConfig } from "../mcp/config.ts";
-import type { Secrets } from "../secrets.ts";
+import type { McpConfig, McpDef } from "../mcp/config.ts";
+import { type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
 import { allSkills, readSkillFile, setSkillOn, skillFiles } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
@@ -15,8 +15,15 @@ function usedIn(store: Store, mcp: McpConfig): Map<string, string[]> {
   const out = new Map<string, string[]>();
   const add = (name: string, where: string) => out.set(name, [...(out.get(name) ?? []), where]);
   const refs = (text: string) => [...text.matchAll(/secret:\/\/([a-zA-Z0-9_.-]+)/g)].map((m) => m[1] as string);
-  for (const d of mcp.global())
-    for (const n of new Set(refs(JSON.stringify([d.env, d.headers, d.args, d.url ?? ""])))) add(n, `mcp:${d.name}`);
+  const named = (d: McpDef) => new Set(refs(JSON.stringify([d.env, d.headers, d.args, d.url ?? ""])));
+  for (const d of mcp.global()) for (const n of named(d)) add(n, `mcp:${d.name}`);
+  // A project's servers: under "<project>/<name>" for its own values, and under the name for the global ones.
+  for (const p of store.projects.list())
+    for (const d of mcp.project(p.id))
+      for (const n of named(d)) {
+        add(`${p.id}/${n}`, `mcp:${d.name}`);
+        add(n, `mcp:${d.name} (${p.name})`);
+      }
   for (const key of ["providers", "channels"] as const) {
     let entries: unknown;
     try {
@@ -51,6 +58,8 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
       const used = usedIn(store, deps.mcp);
       return {
         secrets: deps.secrets.list().map((s) => {
+          const { project_id, name } = splitSecretName(s.name);
+          if (project_id) return { ...s, name, project_id, used_in: used.get(`${project_id}/${name}`) ?? [] };
           // A service keeps its key under service-<id>: that name says where it is used.
           const service = s.name.startsWith("service-") ? [`service:${s.name.slice(8)}`] : [];
           return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };

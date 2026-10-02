@@ -74,6 +74,8 @@ export const appMethods = {
         name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
         /** null removes it. */
         value: z.string().min(1).max(16_384).nullable(),
+        /** A project's own value, over the global one for that project's MCP servers. */
+        project: Id.optional(),
       })
       .strict(),
     result: z.object({ ok: z.literal(true) }),

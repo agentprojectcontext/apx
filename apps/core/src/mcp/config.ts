@@ -10,6 +10,8 @@ export type McpDef = {
   name: string;
   scope: "global" | "project";
   project_id?: string | undefined;
+  /** An owner's server run for one project with that project's own variables (they win over the global ones). */
+  values_of?: string | undefined;
   command?: string | undefined;
   args: string[];
   env: Record<string, string>;

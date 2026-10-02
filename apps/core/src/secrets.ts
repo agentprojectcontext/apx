@@ -18,6 +18,18 @@ const SECURITY = "/usr/bin/security";
 
 export type Secrets = ReturnType<typeof createSecrets>;
 
+/**
+ * A project's own value for a name: stored apart (a "~" and "/" no public name can hold), it wins over the global one
+ * for that project's MCP servers.
+ */
+export const projectSecretName = (projectId: string, name: string) => `~${projectId}/${name}`;
+
+/** The project and name of a stored key, when it is a project's own. */
+export function splitSecretName(key: string): { project_id?: string; name: string } {
+  const m = /^~([^/]+)\/(.+)$/.exec(key);
+  return m ? { project_id: m[1] as string, name: m[2] as string } : { name: key };
+}
+
 export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS.ProcessEnv = process.env) {
   // The file holds values only for the file backend; with the Keychain it is just the index (names, dates).
   const file = path.join(home, backend === "keychain" ? "secrets.index.json" : "secrets.json");
@@ -74,6 +86,14 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     },
     has(ref: string | undefined): boolean {
       return api.resolve(ref) !== undefined;
+    },
+    /** Like resolve, but a project's own value for a `secret://` name comes first. */
+    resolveIn(ref: string | undefined, projectId: string | undefined): string | undefined {
+      if (projectId && ref?.startsWith("secret://")) {
+        const own = api.resolve(`secret://${projectSecretName(projectId, ref.slice(9))}`);
+        if (own !== undefined) return own;
+      }
+      return api.resolve(ref);
     },
     list(): Array<{ name: string; updated_at: string; hint?: string }> {
       return Object.entries(read()).map(([name, e]) => ({

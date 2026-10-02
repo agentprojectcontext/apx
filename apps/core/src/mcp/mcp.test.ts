@@ -83,6 +83,16 @@ test("the owner's own servers resolve secret:// at start and get no other creden
   assert.ok(!servers.find((s) => s.name === "mine")?.target.includes("s3cret"));
 });
 
+test("a project's own value reaches the owner's server only in that project's chats", async () => {
+  await env.client.call("secrets.set", { name: "notes", value: "acme-only", project });
+  assert.match(await turn("use token"), /token=acme-only leaked=no/);
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "use token" });
+  await env.settle(t.id, 15_000);
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /token=s3cret/);
+  await env.client.call("secrets.set", { name: "notes", value: null, project });
+});
+
 test("changing the server's definition needs a new approval", async () => {
   writeServers({ args: [SERVER, "--changed"] });
   const { servers } = await env.client.call("mcp.list", { project });
