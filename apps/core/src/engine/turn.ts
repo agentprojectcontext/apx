@@ -7,7 +7,7 @@ import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
-import { Canceled, errorMessage } from "../errors.ts";
+import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
@@ -32,7 +32,7 @@ import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { taskBlock } from "./office.ts";
-import { routinePipeline, routineWithCommands } from "./pipeline.ts";
+import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
@@ -102,8 +102,16 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
+  // The post-command runs whatever the outcome, except when the owner canceled or the core is stopping; after a
+  // missed deadline it gets a short limit. It never changes the run's state.
   const end = async (done: RunRecord, skipped = false) => {
-    if (pipe && !(signal.reason instanceof Canceled)) await pipe.after(done, skipped);
+    const why = signal.reason;
+    if (!pipe || why instanceof Canceled || why instanceof Shutdown) return done;
+    try {
+      await pipe.after(done, skipped, why instanceof DeadlineExceeded ? POST_AFTER_DEADLINE_MS : undefined);
+    } catch (err) {
+      deps.log.warn({ run: done.id, err: errorMessage(err, 200) }, "post-command failed");
+    }
     return done;
   };
 

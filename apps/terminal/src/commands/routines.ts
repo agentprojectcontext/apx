@@ -70,6 +70,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
       ...(r.project_id ? { project: r.project_id } : {}),
       schedule: r.schedule,
       prompt: r.prompt,
+      // The commands are not this command's business: absent, the core keeps them.
       enabled: sub === "on",
     });
     console.log(saved.enabled ? `on, next: ${when(saved.next_run_at)}` : "off");

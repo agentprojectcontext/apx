@@ -14,9 +14,11 @@ import type { Display } from "./display.ts";
 
 /** A step runs at most this long (and never past its run's own deadline). */
 export const STEP_TIMEOUT_MS = 120_000;
+/** The post-command's limit when the run already missed its deadline. */
+export const POST_AFTER_DEADLINE_MS = 15_000;
 /** The end of a step's output that is kept: the prompt, the environment and the transcript get at most this. */
 export const STEP_OUTPUT_CHARS = 8000;
-/** Where the owner's prompt takes the pre-command's output; without it, the output goes after the prompt. */
+/** Where the owner's prompt takes the pre-command's output (its first one); without it, after the prompt. */
 const PRE_SLOT = "{{pre_output}}";
 
 export type StepResult = { output: string; exit: number | null; timedOut: boolean };
@@ -29,33 +31,44 @@ export function runStep(
   return new Promise((resolve) => {
     let out = "";
     let timedOut = false;
-    const child = spawn("/bin/sh", ["-c", command], {
-      cwd: o.cwd,
-      env: o.env,
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const keep = (b: Buffer) => {
-      out = (out + b.toString("utf8")).slice(-STEP_OUTPUT_CHARS * 2);
-    };
-    child.stdout.on("data", keep);
-    child.stderr.on("data", keep);
-    // Its own process group: stopping it also stops what it started.
-    const stop = () => {
-      try {
-        if (child.pid) process.kill(-child.pid, "SIGKILL");
-      } catch {}
-    };
-    const timer = setTimeout(() => {
-      timedOut = true;
-      stop();
-    }, o.timeoutMs ?? STEP_TIMEOUT_MS);
-    o.signal.addEventListener("abort", stop, { once: true });
+    let settled = false;
+    // A NUL cannot travel in an environment variable (spawn would throw): it is dropped.
+    const env = Object.fromEntries(Object.entries(o.env).map(([k, v]) => [k, v.replaceAll("\0", "")]));
     const done = (exit: number | null, extra = "") => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       o.signal.removeEventListener("abort", stop);
       resolve({ output: (out + extra).slice(-STEP_OUTPUT_CHARS), exit, timedOut });
     };
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn("/bin/sh", ["-c", command], { cwd: o.cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (err) {
+      resolve({ output: err instanceof Error ? err.message : String(err), exit: null, timedOut: false });
+      return;
+    }
+    const keep = (b: Buffer) => {
+      out = (out + b.toString("utf8")).slice(-STEP_OUTPUT_CHARS * 2);
+    };
+    child.stdout?.on("data", keep);
+    child.stderr?.on("data", keep);
+    // Its own process group: stopping it also stops what it started. Something that left the group (setsid) may
+    // still hold the pipes, so the step ends now instead of waiting for them to close.
+    function stop() {
+      try {
+        if (child.pid) process.kill(-child.pid, "SIGKILL");
+      } catch {}
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      done(null, timedOut ? "\n[stopped: time limit]" : "\n[stopped]");
+    }
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stop();
+    }, o.timeoutMs ?? STEP_TIMEOUT_MS);
+    if (o.signal.aborted) stop();
+    else o.signal.addEventListener("abort", stop, { once: true });
     child.on("error", (err) => done(null, `\n${err.message}`));
     child.on("close", (code) => done(code));
   });
@@ -76,7 +89,9 @@ export function withPreOutput(prompt: string, pre: StepResult): string {
     { exit: String(pre.exit ?? "none"), ...(pre.timedOut ? { timed_out: "yes" } : {}) },
     pre.output || "(no output)",
   );
-  return prompt.includes(PRE_SLOT) ? prompt.split(PRE_SLOT).join(block) : `${prompt}\n\n${block}`;
+  // The first slot only: the output goes into the prompt once, however many times the slot is written.
+  const at = prompt.indexOf(PRE_SLOT);
+  return at < 0 ? `${prompt}\n\n${block}` : `${prompt.slice(0, at)}${block}${prompt.slice(at + PRE_SLOT.length)}`;
 }
 
 const label = (r: StepResult) => (r.timedOut ? "timed out" : r.exit === 0 ? "ok" : `exit ${r.exit ?? "?"}`);
@@ -118,8 +133,8 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
       o.store.routines.modelCalled(o.run.id, call);
       return { call, prompt: (t) => withPreOutput(t, result) };
     },
-    /** Runs the post-command (if any) with what the run produced. */
-    async after(done: RunRecord, skipped: boolean): Promise<void> {
+    /** Runs the post-command (if any) with what the run produced; `limitMs` is shorter after a missed deadline. */
+    async after(done: RunRecord, skipped: boolean, limitMs = STEP_TIMEOUT_MS): Promise<void> {
       if (!routine.post_command) return;
       const text = done.message_id
         ? (o.store.messages.get(done.message_id)?.parts ?? [])
@@ -136,7 +151,7 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
           APX_PRE_OUTPUT: pre?.output ?? "",
           APX_PRE_EXIT: String(pre?.exit ?? ""),
         },
-        AbortSignal.timeout(STEP_TIMEOUT_MS),
+        AbortSignal.timeout(limitMs),
       );
     },
   };

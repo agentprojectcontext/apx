@@ -32,15 +32,16 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
         throw badRequest(`${a.name} belongs to another project; pick one of this project's agents or a global one`);
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");
+      const was = id ? store.routines.get(id) : undefined;
       const draft = {
         name,
         agent_id: agent,
         project_id: project,
         schedule,
         prompt,
-        pre_command,
-        post_command,
-        call_model,
+        pre_command: pre_command ?? was?.pre_command,
+        post_command: post_command ?? was?.post_command,
+        call_model: call_model ?? was?.call_model ?? "always",
         enabled,
         next_run_at: next,
       };

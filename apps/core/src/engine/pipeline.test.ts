@@ -106,3 +106,34 @@ test("steps: calling rules, defused envelopes, a timeout stops the command", asy
   assert.equal(slow.timedOut, true);
   assert.doesNotMatch(slow.output, /late/);
 });
+
+test("a step that leaves its group (setsid) still ends at its limit; a NUL in the output does not break the run", async () => {
+  const t0 = Date.now();
+  const hung = await runStep("setsid sleep 30 & echo started", {
+    cwd: env.home,
+    env: {},
+    signal: new AbortController().signal,
+    timeoutMs: 200,
+  });
+  assert.ok(Date.now() - t0 < 3000, "ended at its limit, not when the orphan does");
+  assert.equal(hung.timedOut, true);
+  const { runs, post } = await runRoutine({ pre: "printf 'a\\0b'", call_model: "never" });
+  assert.equal(runs[0]?.state, "completed");
+  assert.equal(post, "skipped|1|ab|");
+});
+
+test("the output fills the first {{pre_output}} only", () => {
+  const out = withPreOutput("{{pre_output}} and {{pre_output}}", { output: "x", exit: 0, timedOut: false });
+  assert.equal(out.match(/<pre_output/g)?.length, 1);
+  assert.ok(out.endsWith(" and {{pre_output}}"));
+});
+
+test('turning a routine off and on (without its commands in the call) keeps them; "" removes one', async () => {
+  const base = { name: "Keep", agent: "roby", schedule: { kind: "cron", cron: "30 8 * * 1-5" }, prompt: "x" } as const;
+  const r = await env.client.call("routines.set", { ...base, pre_command: "echo hi", call_model: "fails" });
+  const off = await env.client.call("routines.set", { ...base, id: r.id, enabled: false });
+  assert.equal(off.pre_command, "echo hi");
+  assert.equal(off.call_model, "fails");
+  const cleared = await env.client.call("routines.set", { ...base, id: r.id, pre_command: "" });
+  assert.equal(cleared.pre_command, undefined);
+});

@@ -103,9 +103,11 @@ export const officeMethods = {
         project: Id.optional(),
         schedule: Schedule,
         prompt: z.string().trim().min(1).max(20_000),
+        /** On a change, absent keeps what the routine had and "" removes it. */
         pre_command: z.string().trim().max(4000).optional(),
         post_command: z.string().trim().max(4000).optional(),
-        call_model: CallModel.default("always"),
+        /** Absent: what the routine had ("always" for a new one). */
+        call_model: CallModel.optional(),
         enabled: z.boolean().default(true),
       })
       .strict(),
