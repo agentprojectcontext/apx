@@ -102,7 +102,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.legend.failed": "Falló",
   "routines.flow.pre": "antes",
   "routines.flow.post": "después",
-  "routines.flow.message": "mensaje",
+  "routines.flow.message": "Telegram",
   "routines.flow.command": "comando",
   "routines.card.trigger": "Disparador",
   "routines.card.before": "Antes",
@@ -115,15 +115,16 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.activations": "Activaciones",
   "routines.action": "Acción",
   "routines.action.agent": "Agente",
-  "routines.action.agentHint": "Un agente responde el prompt; te avisa si tiene algo para contarte.",
-  "routines.action.message": "Mensaje",
+  "routines.action.agentHint":
+    "El super-agente o un agente del proyecto responde el prompt; te avisa si tiene algo para contarte.",
+  "routines.action.message": "Telegram",
   "routines.action.messageHint":
-    "Te llega el texto tal cual por tu canal (Telegram), sin modelo. {{pre_output}} lleva la salida del comando.",
+    "Te manda un mensaje fijo por Telegram, sin modelo. {{pre_output}} lleva la salida del comando.",
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Solo corre un comando en la carpeta del proyecto. Sin modelo ni aviso.",
   "routines.action.watch": "Vigía",
   "routines.action.watchHint":
-    "Su agente mira tu trabajo — tareas vencidas, compromisos por vencer, proyectos quietos — y solo se lo llama cuando aparece algo nuevo.",
+    "Barre tu trabajo buscando lo que valga la pena: vencidos, compromisos por vencer, proyectos quietos. Solo llama al modelo si hay algo nuevo.",
   "routines.step.watch": "Vigía",
   "routines.step.watchHint": "Qué mirar y cuándo avisarte. Las señales nuevas le llegan como datos.",
   "routines.watchPrompt":

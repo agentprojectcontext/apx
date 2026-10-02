@@ -100,7 +100,7 @@ export const enOffice = {
   "routines.legend.failed": "Failed",
   "routines.flow.pre": "before",
   "routines.flow.post": "after",
-  "routines.flow.message": "message",
+  "routines.flow.message": "Telegram",
   "routines.flow.command": "command",
   "routines.card.trigger": "Trigger",
   "routines.card.before": "Before",
@@ -113,15 +113,16 @@ export const enOffice = {
   "routines.activations": "Activations",
   "routines.action": "Action",
   "routines.action.agent": "Agent",
-  "routines.action.agentHint": "An agent answers the prompt; it tells you when it has something to say.",
-  "routines.action.message": "Message",
+  "routines.action.agentHint":
+    "The super-agent or a project's agent answers the prompt; it tells you when it has something to say.",
+  "routines.action.message": "Telegram",
   "routines.action.messageHint":
-    "The text reaches you as it is on your channel (Telegram), no model. {{pre_output}} carries the command's output.",
+    "Sends you a fixed message on Telegram, no model. {{pre_output}} carries the command's output.",
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Only runs a command in the project's folder. No model, no notice.",
   "routines.action.watch": "Watcher",
   "routines.action.watchHint":
-    "Its agent looks at your work — late tasks, commitments coming due, quiet projects — and is called only when something new shows up.",
+    "Sweeps your work for what is worth a word: late tasks, commitments coming due, quiet projects. Calls the model only when something is new.",
   "routines.step.watch": "Watcher",
   "routines.step.watchHint": "What to watch for and when to tell you. New signals reach it as data.",
   "routines.watchPrompt":

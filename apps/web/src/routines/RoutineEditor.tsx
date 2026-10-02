@@ -40,8 +40,8 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
   // A new watcher starts from a prompt that says what to look for; the owner's own words are never replaced.
   const pickAction = (action: RoutineAction) =>
     set(action === "watch" && !d.prompt.trim() ? { action, prompt: t("routines.watchPrompt") } : { action });
-  // A message or a shell job is signed by the super-agent; an agent routine needs its agent.
-  const agent = d.agent || (d.action !== "agent" ? (secretary(agents)?.id ?? "") : "");
+  // Without a pick, the super-agent: it signs a message or shell job and answers an agent routine.
+  const agent = d.agent || (secretary(agents)?.id ?? "");
   const text = shell ? d.prompt || d.name : d.prompt;
   const ok = Boolean(d.name.trim() && agent && (shell ? d.pre_command.trim() : d.prompt.trim()));
   const save = async () => {
@@ -90,21 +90,23 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
               />
             </Field>
           </div>
-          <Field
-            label={t("routines.action")}
-            hint={t(ACTIONS.find((a) => a.value === d.action)?.hint ?? "routines.action.agentHint")}
-          >
+          <Field label={t("routines.action")}>
             <Select
               label={t("routines.action")}
               value={d.action}
               onValueChange={(v) => v && pickAction(v as RoutineAction)}
-              options={ACTIONS.map((a) => ({ value: a.value, label: t(a.key), icon: <a.icon size={14} /> }))}
+              options={ACTIONS.map((a) => ({
+                value: a.value,
+                label: t(a.key),
+                description: t(a.hint),
+                icon: <a.icon size={14} />,
+              }))}
             />
           </Field>
           {(d.action === "agent" || watch) && (
             <Field label={t("routines.agent")}>
               <AgentSelect
-                value={d.agent || undefined}
+                value={agent || undefined}
                 projectId={d.project}
                 onChange={(id) => id && set({ agent: id })}
               />
