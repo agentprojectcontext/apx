@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+import { after, before, test } from "node:test";
+import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+
+const llm = scriptedLlm(() => say("ok"));
+let env: Awaited<ReturnType<typeof startCore>>;
+const b64 = (s: string | Buffer) => Buffer.from(s).toString("base64");
+// The smallest PNG there is (1×1).
+const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+before(async () => {
+  env = await startCore({ llm });
+});
+after(async () => {
+  await env.core.close();
+  env.cleanup();
+});
+
+test("a text file is read into the turn as outside content and shown with the message", async () => {
+  const { media } = await env.client.call("media.upload", {
+    name: "notes.md",
+    mime: "text/markdown",
+    data: b64("# Plan\nShip on Friday."),
+  });
+  assert.equal(media.kind, "file");
+  const r = await env.client.call("threads.send", { thread: "home", text: "summarize this", attachments: [media.id] });
+  await env.settle("home");
+  const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(input, /summarize this/);
+  assert.match(input, /<attachment name="notes.md" mime="text\/markdown"[^>]*>[\s\S]*Ship on Friday\./);
+  const parts = r.message.parts;
+  assert.deepEqual(parts[1], { type: "file", media_id: media.id, name: "notes.md", mime: "text/markdown", bytes: 22 });
+});
+
+test("an image goes to the model as a reference, and routes as an image turn", async () => {
+  const { media } = await env.client.call("media.upload", { name: "cat.png", mime: "image/png", data: PNG });
+  assert.equal(media.kind, "image");
+  await env.client.call("threads.send", { thread: "home", text: "what is it?", attachments: [media.id] });
+  await env.settle("home");
+  const item = llm.calls.at(-1)?.messages.at(-1) as { images?: Array<{ media_id: string }>; content: string };
+  assert.deepEqual(
+    item.images?.map((i) => i.media_id),
+    [media.id],
+  );
+  assert.match(item.content, /\[image attached: cat\.png/);
+});
+
+test("uploads refuse what a model cannot use: binary as text, unknown types, an empty file", async () => {
+  await assert.rejects(
+    env.client.call("media.upload", { name: "a.txt", mime: "text/plain", data: b64(Buffer.from([0x61, 0, 0x62])) }),
+    /not a text file/,
+  );
+  await assert.rejects(
+    env.client.call("media.upload", { name: "a.exe", mime: "application/x-msdownload", data: b64("MZ") }),
+    /cannot be attached/,
+  );
+  await assert.rejects(env.client.call("media.upload", { name: "e.txt", mime: "text/plain", data: "" }), /empty/);
+  await assert.rejects(
+    env.client.call("threads.send", { thread: "home", text: "x", attachments: ["med_nope"] }),
+    /no attachment/,
+  );
+});
+
+test("a chat's own model is kept on the thread and checked", async () => {
+  const r = await env.client.call("threads.model", {
+    thread: "home",
+    model_choice: { model: "fake/fake-2", router: false },
+  });
+  assert.equal(r.model_choice?.model, "fake/fake-2");
+  assert.equal((await env.client.call("threads.get", { thread: "home" })).thread.model_choice?.model, "fake/fake-2");
+  await assert.rejects(
+    env.client.call("threads.model", { thread: "home", model_choice: { model: "nowhere/x", router: false } }),
+  );
+  await env.client.call("threads.model", { thread: "home", model_choice: null });
+  assert.equal((await env.client.call("threads.get", { thread: "home" })).thread.model_choice, undefined);
+});
+
+test("dictation without a transcription engine says how to set one up", async () => {
+  await assert.rejects(
+    env.client.call("media.transcribe", { data: b64("x"), mime: "audio/webm" }),
+    /Settings › Voices/,
+  );
+});

@@ -35,7 +35,9 @@ export type Origin =
       state: RunState;
     };
 
-export type RunInput = { origin: Origin; text: string };
+/** A file or image the owner attached to the message that started the run. */
+export type Attachment = { media_id: string; kind: "image" | "file"; mime: string; name: string };
+export type RunInput = { origin: Origin; text: string; attachments?: Attachment[] };
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 
 export const TERMINAL: ReadonlySet<RunState> = new Set(["completed", "failed", "canceled"]);

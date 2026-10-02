@@ -2,7 +2,7 @@
 // thread from the durable queue (the runs table), and reports its end to whoever waits for it.
 // See DECISIONS.md#d-009
 import type { RunTrigger, Thread } from "@apx/protocol";
-import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
+import { type Attachment, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { Canceled, DeadlineExceeded, Shutdown } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
@@ -58,6 +58,8 @@ export type Admit = {
   trigger: RunTrigger;
   origin: Origin;
   text: string;
+  /** Files and images the owner attached (the run's input keeps them). */
+  attachments?: Attachment[];
   depth?: number;
 };
 
@@ -156,7 +158,7 @@ export function createEngine(deps: {
       thread_id: a.thread_id,
       agent_id: a.agent_id,
       trigger: a.trigger,
-      input: { origin: a.origin, text: a.text },
+      input: { origin: a.origin, text: a.text, ...(a.attachments?.length ? { attachments: a.attachments } : {}) },
       depth: a.depth ?? 0,
       deadline_at: new Date(Date.now() + RUN_DEADLINE_MS).toISOString(),
     });

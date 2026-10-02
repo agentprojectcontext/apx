@@ -9,8 +9,12 @@ export type ToolCall = {
   [extra: string]: unknown;
 };
 
+/** An image in a user item: a media reference in the log; `data` (base64) is filled in only for the call. */
+export type ChatImage = { media_id: string; mime: string; data?: string };
+
 export type ChatItem =
-  | { role: "system" | "user"; content: string }
+  | { role: "system"; content: string }
+  | { role: "user"; content: string; images?: ChatImage[] }
   | { role: "assistant"; content: string | null; tool_calls?: ToolCall[]; [extra: string]: unknown }
   | { role: "tool"; tool_call_id: string; content: string };
 

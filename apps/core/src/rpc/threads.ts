@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Author } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
-import { publicRun } from "../domain/runs.ts";
+import { type Attachment, publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
@@ -64,6 +64,15 @@ function createThread(store: Store, { kind, agent_id, title, project_id, cwd, wr
   });
 }
 
+/** The owner's attachments as a run keeps them: only files that exist, each once. */
+function attachedFiles(store: Store, ids: string[]): Attachment[] {
+  return [...new Set(ids)].map((id) => {
+    const m = store.media.get(id);
+    if (!m || m.kind === "audio") throw badRequest(`no attachment ${id}`);
+    return { media_id: m.id, kind: m.kind, mime: m.mime, name: m.prompt ?? m.id };
+  });
+}
+
 export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep, "compact">) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -87,10 +96,29 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     steer: boolean,
     admit: Omit<Admit, "thread_id" | "text">,
   ) {
+    const files = admit.attachments ?? [];
     return store.tx(() => {
-      const message = store.messages.add({ thread_id: threadId, author, parts: [{ type: "text", text }] });
+      const message = store.messages.add({
+        thread_id: threadId,
+        author,
+        parts: [
+          { type: "text", text },
+          ...files.map((f) =>
+            f.kind === "image"
+              ? ({ type: "image", media_id: f.media_id, mime: f.mime, alt: f.name } as const)
+              : ({
+                  type: "file",
+                  media_id: f.media_id,
+                  name: f.name,
+                  mime: f.mime,
+                  bytes: store.media.get(f.media_id)?.bytes ?? 0,
+                } as const),
+          ),
+        ],
+      });
       store.threads.patch(threadId, { preview: previewOf(text) });
-      const into = steer ? engine.steer(threadId, text) : undefined;
+      // Attachments need a turn of their own: a steer only carries words.
+      const into = steer && !files.length ? engine.steer(threadId, text) : undefined;
       if (into) return { message, run: publicRun(into), steered: true };
       return { message, run: publicRun(engine.admit({ ...admit, thread_id: threadId, text })) };
     });
@@ -133,7 +161,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
-    "threads.send": ({ thread, text, mode }, ctx) => {
+    "threads.send": ({ thread, text, mode, attachments }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent } = threadAgent(thread);
       if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
@@ -163,6 +191,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         agent_id: agent.id,
         trigger: "user",
         origin: { kind: "user" },
+        ...(attachments?.length ? { attachments: attachedFiles(store, attachments) } : {}),
       });
     },
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),

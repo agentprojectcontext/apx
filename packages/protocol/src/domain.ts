@@ -151,6 +151,8 @@ export const Thread = z.object({
   write: WritePolicy.optional(),
   /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
+  /** The chat's own model, picked in its composer; absent = the agent's. */
+  model_choice: ModelChoice.optional(),
   state: RunState.or(z.literal("idle")),
   preview: z.string().default(""),
   unread: z.number().int().nonnegative().default(0),
@@ -234,6 +236,8 @@ const KnownPart = z.discriminatedUnion("type", [
   }),
   /** Speech APX made; the bytes come from media.get. */
   z.object({ type: z.literal("audio"), media_id: Id, mime: z.string(), transcript: z.string().optional() }),
+  /** A file the owner attached to a message; the bytes come from media.get. */
+  z.object({ type: z.literal("file"), media_id: Id, name: z.string(), mime: z.string(), bytes: z.number().int() }),
   /** What changed in a code thread's folder (uncommitted, per git) when the turn ended. */
   z.object({
     type: z.literal("changes"),

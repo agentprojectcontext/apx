@@ -16,12 +16,14 @@ import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import type { Identity } from "./identity.ts";
 import type { Log } from "./log.ts";
+import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
+import { composerHandlers } from "./rpc/composer.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
@@ -149,6 +151,12 @@ export function coreHandlers(d: HandlerDeps) {
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots),
+    ...composerHandlers({
+      store: d.store,
+      home: d.app.home,
+      services: d.services,
+      checkModel: (ref) => refProblem(ref, d.engines),
+    }),
   };
 }
 

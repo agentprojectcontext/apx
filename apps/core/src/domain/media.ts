@@ -1,4 +1,4 @@
-// Media APX made (generated images, synthesized speech): one row per file. The bytes stay on disk under the home,
+// Media APX made (generated images, synthesized speech) or the owner attached (images, files): one row per file. The bytes stay on disk under the home,
 // never in the database or in messages; clients fetch them through media.get.
 import type { Selectable } from "kysely";
 import type { MediaTable } from "../db/schema.ts";
@@ -6,7 +6,7 @@ import { newId, now, qb, type Sql } from "./sql.ts";
 
 export type MediaRecord = {
   id: string;
-  kind: "image" | "audio";
+  kind: "image" | "audio" | "file";
   mime: string;
   bytes: number;
   path: string;
@@ -18,7 +18,7 @@ export type MediaRecord = {
 
 const toMedia = (r: Selectable<MediaTable>): MediaRecord => ({
   id: r.id,
-  kind: r.kind === "audio" ? "audio" : "image",
+  kind: r.kind === "audio" ? "audio" : r.kind === "file" ? "file" : "image",
   mime: r.mime,
   bytes: r.bytes,
   path: r.path,

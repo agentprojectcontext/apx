@@ -42,6 +42,8 @@ export function createLlm(opts: {
   firstByteMs: number;
   fetchImpl?: typeof fetch;
   retryDelayMs?: number;
+  /** Bytes of an image the log references (base64), read only right before a call. */
+  media?: (id: string) => { mime: string; data: string } | undefined;
 }): Llm {
   const { secrets } = opts;
 
@@ -71,6 +73,18 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const skipped = new Set<string>();
+      // Images travel as references in the log; their bytes join only this call (an image no longer on disk is dropped).
+      const messages = req.messages.map((m) =>
+        m.role === "user" && m.images?.length
+          ? {
+              ...m,
+              images: m.images.flatMap((i) => {
+                const got = opts.media?.(i.media_id);
+                return got ? [{ ...i, mime: got.mime, data: got.data }] : [];
+              }),
+            }
+          : m,
+      );
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         // A local server (Ollama, LM Studio) needs no key.
@@ -86,7 +100,7 @@ export function createLlm(opts: {
               baseUrl: t.provider.base_url,
               key,
               model: t.model,
-              messages: req.messages,
+              messages,
               tools: req.tools,
               signal: req.signal,
               onText: req.onText,

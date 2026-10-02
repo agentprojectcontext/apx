@@ -1,5 +1,6 @@
 // Methods behind the app screens: agents, projects, threads, surfaces.
 import { z } from "zod";
+import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
   CatalogEngine,
@@ -41,6 +42,7 @@ export const appMethods = {
   ...officeMethods,
   ...teamMethods,
   ...resourceMethods,
+  ...composerMethods,
   /**
    * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
@@ -236,6 +238,8 @@ export const appMethods = {
          * at its next step (APX's own loop); when nothing can take it, it queues.
          */
         mode: z.enum(["queue", "interrupt", "steer"]).default("queue"),
+        /** Files and images uploaded with media.upload, shown with the message and read by the agent. */
+        attachments: z.array(Id).max(8).optional(),
       })
       .strict(),
     /** `steered`: the text went into the running turn `run` instead of starting a new one. */

@@ -1,10 +1,20 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
-import type { Author, Message, Part, Thread } from "@apx/protocol";
+import type { Author, Message, ModelChoice, Part, Thread } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
+
+/** The model picked for this chat in its composer, kept in its context. */
+function chatModel(context: string): Pick<Thread, "model_choice"> {
+  try {
+    const c = JSON.parse(context) as ThreadContext;
+    return c.model_choice ? { model_choice: c.model_choice } : {};
+  } catch {
+    return {};
+  }
+}
 
 const toThread = (r: Selectable<ThreadsTable>): Thread => ({
   id: r.id,
@@ -25,6 +35,7 @@ const toThread = (r: Selectable<ThreadsTable>): Thread => ({
         },
       }
     : {}),
+  ...chatModel(r.context),
   state: r.state as Thread["state"],
   preview: r.preview,
   unread: Number(r.unread),
@@ -63,6 +74,8 @@ export type ThreadContext = {
   memory_since?: Record<string, number>;
   /** Started by an outside app (its client id): only that app may read it or write in it. */
   client?: string;
+  /** The model picked for this chat in its composer: tried before the agent's own choice. */
+  model_choice?: ModelChoice;
 };
 
 /** What a thread list shows of the last thing said. */

@@ -18,6 +18,7 @@ import { inherit } from "../tools/policy.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
+import { attachmentsBlock } from "./attachments.ts";
 import { type Audience, audienceOf, contactPrompt, ownerInstruction, SEALED_HARNESSES } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } from "./context.ts";
@@ -199,11 +200,14 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
     turn.audience.kind === "contact" && o.kind === "user"
       ? ownerInstruction(turn.audience.name, turn.input.text)
       : turn.input.text;
+  const files = attachmentsBlock(store, turn.input.attachments ?? []);
+  const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   const input: ChatItem & { role: "user" } = {
     role: "user",
+    ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
     content: turnInput({
       origin: turn.input.origin,
-      text: said,
+      text: files ? `${said}\n\n${files}` : said,
       now: new Date(),
       roster: rosterChanged ? roster.text : undefined,
       memory: recalled.text,
@@ -258,11 +262,12 @@ function systemFor(store: Store, turn: Turn, skills: string): string {
 /** The engines to try, in the router's order; a sealed turn only where no tool of the engine's own can run. */
 async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Promise<Groups> {
   const settings = modelSettings(deps.store);
-  const refs = candidates(turn.agent.model_choice ?? settings.defaultChoice(), settings.router(), {
+  // The chat's own model (picked in its composer) first, then the agent's, then the install default.
+  const chosen = deps.store.threads.context(turn.thread.id).model_choice ?? turn.agent.model_choice;
+  const refs = candidates(chosen ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,
     context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
-    // No input carries images yet (threads.send and channels take text and voice); set it when attachments land.
-    has_image: false,
+    has_image: Boolean(turn.input.attachments?.some((a) => a.kind === "image")),
     channel: turn.thread.channel?.id ?? "app",
     trigger: start.trigger,
     agent_kind: turn.agent.kind,

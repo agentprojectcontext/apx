@@ -33,6 +33,7 @@ import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { createSecrets } from "./secrets.ts";
 import { builtinTools, coreHandlers, extensionStack, knownEngines, listen } from "./server-wiring.ts";
 import { createServices } from "./services/registry.ts";
+import { mediaData } from "./services/uploads.ts";
 import type { Tool } from "./tools/types.ts";
 
 /** `apx2 mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
@@ -69,7 +70,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   let selfUrl = "";
   const providers = providerRegistry(store, config.providers);
-  const llm = opts.llm ?? createLlm({ providers: providers.active, secrets, firstByteMs: config.llmTimeoutMs });
+  const llm =
+    opts.llm ??
+    createLlm({
+      providers: providers.active,
+      secrets,
+      firstByteMs: config.llmTimeoutMs,
+      media: (id) => mediaData(store, id),
+    });
   const harnesses = createHarnesses({
     store,
     llm,

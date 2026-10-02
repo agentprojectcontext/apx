@@ -8,6 +8,7 @@ import {
   sseData,
   type ToolCall,
   type Transport,
+  type TransportRequest,
   type Usage,
 } from "./types.ts";
 
@@ -33,6 +34,26 @@ const finishOf = (reason: string | null | undefined): Finish =>
 const usageOf = (u: Chunk["usage"]): Usage | undefined =>
   u ? { input: u.prompt_tokens ?? 0, output: u.completion_tokens ?? 0 } : undefined;
 
+/** User items with images become content parts (text, then each image as a data URL); the rest go as they are. */
+function wire(items: TransportRequest["messages"]): unknown[] {
+  return items.map((m) => {
+    if (m.role !== "user" || !m.images?.some((i) => i.data)) {
+      if (m.role !== "user" || !m.images) return m;
+      const { images: _i, ...rest } = m;
+      return rest;
+    }
+    return {
+      role: "user",
+      content: [
+        { type: "text", text: m.content },
+        ...m.images.flatMap((i) =>
+          i.data ? [{ type: "image_url", image_url: { url: `data:${i.mime};base64,${i.data}` } }] : [],
+        ),
+      ],
+    };
+  });
+}
+
 export const openaiChat: Transport = async (req) => {
   const stream = Boolean(req.onText);
   const { res, touch, done } = await post(
@@ -41,7 +62,7 @@ export const openaiChat: Transport = async (req) => {
     { authorization: `Bearer ${req.key}` },
     {
       model: req.model,
-      messages: req.messages,
+      messages: wire(req.messages),
       ...(req.tools.length ? { tools: req.tools, tool_choice: "auto" } : {}),
       ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
     },

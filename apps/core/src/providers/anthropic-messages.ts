@@ -15,7 +15,8 @@ import {
 type Block =
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string; input: unknown }
-  | { type: "tool_result"; tool_use_id: string; content: string };
+  | { type: "tool_result"; tool_use_id: string; content: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 type Msg = { role: "user" | "assistant"; content: Block[] };
 
 const MAX_TOKENS = 16_000;
@@ -32,8 +33,12 @@ export function toAnthropic(items: ChatItem[]): { system: string; messages: Msg[
     if (m.role === "system") {
       if (messages.length === 0 && i === system.length) system.push(m.content);
       else push("user", { type: "text", text: `<system_note>\n${m.content}\n</system_note>` });
-    } else if (m.role === "user") push("user", { type: "text", text: m.content });
-    else if (m.role === "tool") push("user", { type: "tool_result", tool_use_id: m.tool_call_id, content: m.content });
+    } else if (m.role === "user") {
+      push("user", { type: "text", text: m.content });
+      for (const img of m.images ?? [])
+        if (img.data) push("user", { type: "image", source: { type: "base64", media_type: img.mime, data: img.data } });
+    } else if (m.role === "tool")
+      push("user", { type: "tool_result", tool_use_id: m.tool_call_id, content: m.content });
     else if (m.role === "assistant") {
       if (m.content) push("assistant", { type: "text", text: m.content });
       for (const c of m.tool_calls ?? []) {

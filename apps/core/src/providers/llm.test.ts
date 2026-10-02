@@ -165,3 +165,40 @@ test("a per-model quota (Gemini's 429) moves on to the same provider's next mode
   assert.deepEqual(seen, ["m1", "m2"]);
   assert.equal(out.model, "pa/m2");
 });
+
+test("images: references in the log, bytes only in the call; OpenAI as image_url parts, Anthropic as image blocks", async () => {
+  let body: { messages: Array<{ role: string; content: unknown }> } | undefined;
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    media: (id) => (id === "med_1" ? { mime: "image/png", data: "AAAA" } : undefined),
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ choices: [{ message: { content: "a cat" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const messages = [
+    {
+      role: "user" as const,
+      content: "what is this?",
+      images: [
+        { media_id: "med_1", mime: "image/png" },
+        { media_id: "gone", mime: "image/png" },
+      ],
+    },
+  ];
+  await llm.complete({ models: ["pa"], messages, tools: [], signal: new AbortController().signal });
+  assert.deepEqual(body?.messages[0]?.content, [
+    { type: "text", text: "what is this?" },
+    { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
+  ]);
+  assert.equal(messages[0]?.images[0] && "data" in messages[0].images[0], false, "the log's item is not changed");
+  const a = toAnthropic([
+    { role: "user", content: "see", images: [{ media_id: "x", mime: "image/png", data: "BBBB" }] },
+  ]);
+  assert.deepEqual(a.messages[0]?.content[1], {
+    type: "image",
+    source: { type: "base64", media_type: "image/png", data: "BBBB" },
+  });
+});
