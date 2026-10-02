@@ -5,7 +5,7 @@ import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "resources";
+export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -62,6 +62,9 @@ export type NavState = {
   listInFront: boolean;
   /** Tab of Resources (global, and inside a project). */
   resourcesTab: ResourceTab;
+  /** The channel open in the channel view, and the contact's chat picked in it. */
+  channelId: string | undefined;
+  channelThread: string | undefined;
 };
 
 const THEME_KEY = "apx.mode";
@@ -88,6 +91,7 @@ function fromHash(): Partial<NavState> {
   const project = h.get("project");
   const tab = h.get("tab");
   const view = h.get("view");
+  const channel = h.get("channel");
   return {
     ...(h.get("thread") ? { threadId: h.get("thread") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
@@ -100,6 +104,7 @@ function fromHash(): Partial<NavState> {
       : {}),
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
+    ...(channel ? { view: "channel" as const, channelId: channel, channelThread: h.get("chat") ?? undefined } : {}),
   };
 }
 
@@ -117,6 +122,8 @@ export const nav = createStore<NavState>({
   phone: false,
   listInFront: false,
   resourcesTab: "skills",
+  channelId: undefined,
+  channelThread: undefined,
   ...fromHash(),
 });
 
@@ -129,7 +136,10 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
   } else if (s.view === "tasks" || s.view === "resources") h.set("view", s.view);
-  else if (s.threadId) h.set("thread", s.threadId);
+  else if (s.view === "channel" && s.channelId) {
+    h.set("channel", s.channelId);
+    if (s.channelThread) h.set("chat", s.channelThread);
+  } else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   const next = `#${h.toString()}`;
   if (window.location.hash !== next) history.replaceState(null, "", next);
@@ -170,6 +180,14 @@ export const go = {
   /** Phone width: back from a chat to the chat list. */
   showList() {
     nav.set({ listInFront: true, panel: null });
+  },
+  /** A channel's contacts and their chats; `thread` picks one. */
+  channel(channelId: string, thread?: string) {
+    nav.set((s) => ({
+      view: "channel",
+      channelId,
+      channelThread: thread ?? (s.channelId === channelId ? s.channelThread : undefined),
+    }));
   },
   app(appId: string) {
     nav.set({ view: "app", appId });

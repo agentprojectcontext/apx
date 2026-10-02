@@ -1,3 +1,4 @@
+import { enChannels } from "./en-channels.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enTeam } from "./en-team.ts";
@@ -6,6 +7,7 @@ import { enTeam } from "./en-team.ts";
 export const en = {
   ...enOffice,
   ...enTeam,
+  ...enChannels,
   ...enResources,
   // Shared words
   "common.agent": "Agent",

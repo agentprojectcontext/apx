@@ -114,7 +114,7 @@ test("the owner writes to the contact themselves: sent as is, kept as the owner'
   assert.match(String(tg.messagesTo(MAG.id).at(-1)?.body.text), /Friday it is/);
   assert.equal(llm.calls.length, calls, "no model call");
   const { messages } = await env.client.call("threads.get", { thread });
-  assert.equal(messages.at(-1)?.author.kind, "user");
+  assert.deepEqual(messages.at(-1)?.author, { kind: "user", direct: true });
   await assert.rejects(env.client.call("channels.send", { thread: "home", text: "x" }), /contact's chat/);
 });
 

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { AppScreen } from "../apps/AppScreen.tsx";
+import { ChannelScreen } from "../channels/ChannelScreen.tsx";
 import { ConfigModal } from "../config/ConfigModal.tsx";
 import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
@@ -46,6 +47,8 @@ export function Shell() {
             <TasksScreen />
           ) : view === "resources" ? (
             <ResourcesScreen />
+          ) : view === "channel" ? (
+            <ChannelScreen />
           ) : (
             <ChatWorkspace layout={layout} />
           )}

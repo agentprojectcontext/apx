@@ -116,3 +116,36 @@ export async function saveNotices(prefs: NoticePrefs): Promise<void> {
     notify(t("error.channels", { error: errText(e) }));
   }
 }
+
+/** What the channel view changes about a contact. */
+export type ContactDraft = {
+  name: string;
+  nickname?: string;
+  relation?: Person["relation"] | null;
+  note?: string;
+  rules?: string;
+  muted?: boolean;
+  perms?: Partial<Person["perms"]>;
+};
+
+export async function saveContact(id: string, draft: ContactDraft): Promise<boolean> {
+  try {
+    const p = await client.call("contacts.set", { id, ...draft });
+    store.set((s) => ({ persons: s.persons.map((x) => (x.id === p.id ? p : x)) }));
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
+}
+
+/** The owner writes to the contact themselves, in that contact's chat. */
+export async function sendDirect(thread: string, text: string): Promise<boolean> {
+  try {
+    await client.call("channels.send", { thread, text });
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
+}

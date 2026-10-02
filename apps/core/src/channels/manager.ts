@@ -308,7 +308,11 @@ export function createChannels(deps: {
       throw new Error("only a contact's chat on a channel can be written to directly");
     const name = audienceOf(store, thread).kind === "contact" ? (store.persons.get(ch.person_id)?.name ?? "them") : "";
     store.tx(() => {
-      store.messages.add({ thread_id: threadId, author: { kind: "user" }, parts: [{ type: "text", text }] });
+      store.messages.add({
+        thread_id: threadId,
+        author: { kind: "user", direct: true },
+        parts: [{ type: "text", text }],
+      });
       store.modelLog.append(threadId, undefined, [
         { role: "user", content: `[Your owner wrote to ${name} directly in this chat:]\n${text}` },
       ]);

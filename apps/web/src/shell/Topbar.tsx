@@ -1,6 +1,7 @@
 import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
 import { Fragment } from "react";
 import logoUrl from "../assets/logo.png";
+import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
 import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
@@ -22,9 +23,12 @@ function useCrumbs(): string[] {
   const projects = useData((s) => s.projects);
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   const app = useData((s) => (appId ? s.surfaces[appId] : undefined));
+  const channelId = useNav((s) => s.channelId);
+  const channelLabel = useChannels((s) => s.channels.find((c) => c.id === channelId)?.label);
   if (view === "app") return [t("nav.apps"), app?.title ?? t("common.app")];
   if (view === "tasks") return [t("nav.tasks")];
   if (view === "resources") return [t("nav.resources")];
+  if (view === "channel") return [t("nav.channels"), channelLabel ?? t("nav.channels")];
   if (view === "project") {
     const tab = t(PROJECT_TABS.find((x) => x.id === projectTab)?.label ?? "project.tab.overview");
     return [t("nav.projects"), findProject(projects, projectId)?.name ?? t("project.fallback"), tab];

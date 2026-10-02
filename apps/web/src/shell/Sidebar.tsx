@@ -1,6 +1,7 @@
 import type { EngineStatus } from "@apx/protocol";
 import { EngineIcon, Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
+import { loadChannels, useChannels } from "../data/channels.ts";
 import { isListed } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -22,6 +23,11 @@ export function Sidebar({ rail }: { rail: boolean }) {
   const threads = useData((s) => s.threads);
   const surfaces = useData((s) => s.surfaces);
   const engines = useData((s) => s.engines);
+  const channels = useChannels((s) => s.channels);
+  const channelId = useNav((s) => s.channelId);
+  useEffect(() => {
+    void loadChannels();
+  }, []);
 
   const unread = useMemo(() => {
     let n = 0;
@@ -51,16 +57,28 @@ export function Sidebar({ rail }: { rail: boolean }) {
       </div>
       <div className="sidebar__scroll">
         <Section rail={rail} title={t("nav.channels")} />
-        {CHANNELS.map((c) => (
-          <NavItem
-            key={c.id}
-            collapsed={rail}
-            disabled
-            icon={<ProjectTile tone={c.tone} icon={c.icon} />}
-            label={c.name}
-            trailing={<span className="sidebar__soon">{t("common.soonLower")}</span>}
-          />
-        ))}
+        {CHANNELS.map((c) => {
+          // A running channel of this type opens its contacts; Telegram without one opens its setup; WhatsApp waits.
+          const live = channels.find((x) => x.type === c.id);
+          const count = live
+            ? Object.values(threads).reduce((n, th) => n + (th.channel?.id === live.id ? th.unread : 0), 0)
+            : 0;
+          return (
+            <NavItem
+              key={c.id}
+              collapsed={rail}
+              disabled={c.id === "whatsapp"}
+              icon={<ProjectTile tone={c.tone} icon={c.icon} />}
+              label={c.name}
+              count={count}
+              active={view === "channel" && Boolean(live) && channelId === live?.id}
+              onClick={() => (live ? go.channel(live.id) : go.config("telegram"))}
+              {...(c.id === "whatsapp"
+                ? { trailing: <span className="sidebar__soon">{t("common.soonLower")}</span> }
+                : {})}
+            />
+          );
+        })}
 
         <ProjectsNav rail={rail} />
 

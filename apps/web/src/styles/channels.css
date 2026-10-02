@@ -1,0 +1,354 @@
+/* A channel with its contacts: list · chat · contact card. */
+.chan {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.chan.has-card {
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
+}
+.chan--empty,
+.chan__pick {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+.chan__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 12px 0;
+  border-right: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
+.chan__head,
+.chan__chathead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chan__titles {
+  flex: 1;
+  min-width: 0;
+}
+.chan__name {
+  overflow: hidden;
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chan__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chan__status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+}
+.chan__status.is-running {
+  background: var(--apx-brand);
+}
+.chan__status.is-error {
+  background: var(--apx-danger);
+}
+.chan__rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.chan__row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--apx-fg);
+  text-align: left;
+}
+.chan__row:hover {
+  background: var(--apx-fill-hover);
+}
+.chan__row.is-selected {
+  background: var(--apx-fill-strong);
+}
+.chan__row.is-muted {
+  opacity: 0.6;
+}
+.chan__avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--apx-violet-soft);
+  color: var(--apx-violet-soft-fg);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__rowmain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.chan__rowtop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chan__rowname {
+  flex: 1;
+  overflow: hidden;
+  font-size: var(--apx-text-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chan__row.is-unread .chan__rowname {
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__rowtime {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+}
+.chan__preview {
+  flex: 1;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chan__unread {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__rel {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+}
+.chan__nobody {
+  padding: 12px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+.chan__foot {
+  margin: 0 -12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+
+/* ── Chat ──────────────────────────────────────────────────────────────────── */
+.chan__chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--apx-surface);
+}
+.chan__chathead {
+  height: var(--shell-header-h);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.chan__back {
+  display: none;
+}
+.chan__msgs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+.chan__bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: flex-start;
+  max-width: min(560px, 80%);
+}
+.chan__bubble.is-out {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.chan__text {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--apx-fill);
+  font-size: var(--apx-text-md);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chan__bubble.is-out .chan__text {
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+}
+.chan__bubble.is-instruction .chan__text {
+  border: 1px dashed var(--apx-border-strong);
+  background: transparent;
+  color: var(--apx-fg-muted);
+}
+.chan__when {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+}
+.chan__note {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  margin: 2px 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.chan__composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 24px 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: 18px;
+  background: var(--apx-surface);
+}
+.chan__composer textarea {
+  border: 0;
+  background: transparent;
+  resize: none;
+}
+.chan__composerbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chan__spacer {
+  flex: 1;
+}
+
+/* ── Contact card ──────────────────────────────────────────────────────────── */
+.chan__card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
+.chan__cardhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--shell-header-h);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--apx-border);
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__cardbody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+}
+.chan__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.chan__pair > * {
+  min-width: 0;
+}
+.chan__select {
+  width: 100%;
+}
+.chan__perms {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chan__cardfoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--apx-border);
+}
+
+/* Narrow: one column at a time — the list, or the chat (with back), or the card over it. */
+@media (max-width: 1279px) {
+  .chan.has-card {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+  .chan__card {
+    position: fixed;
+    top: calc(var(--shell-topbar-h) + 8px);
+    right: 8px;
+    bottom: 8px;
+    z-index: 15;
+    width: min(360px, calc(100vw - 16px));
+    border: 1px solid var(--apx-border);
+    border-radius: 16px;
+    box-shadow: var(--apx-shadow-md);
+  }
+}
+@media (max-width: 767px) {
+  .chan,
+  .chan.has-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chan.has-chat .chan__list,
+  .chan:not(.has-chat) .chan__chat {
+    display: none;
+  }
+  .chan__back {
+    display: inline-grid;
+  }
+  .chan__msgs {
+    padding: 14px;
+  }
+  .chan__composer {
+    margin: 0 10px 10px;
+  }
+}

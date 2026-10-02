@@ -160,7 +160,8 @@ export const Thread = z.object({
 export type Thread = z.infer<typeof Thread>;
 
 export const Author = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("user") }),
+  /** `direct`: the owner wrote to a contact themselves (sent as is), rather than telling the agent what to answer. */
+  z.object({ kind: z.literal("user"), direct: z.boolean().optional() }),
   z.object({ kind: z.literal("agent"), id: Id }),
   z.object({ kind: z.literal("system") }),
   /** Text sent by a widget's sendPrompt(): shown apart from the owner's own messages. */

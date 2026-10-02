@@ -1,6 +1,7 @@
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
 import type { MessageKey } from "./en.ts";
+import { esChannels } from "./es-channels.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esTeam } from "./es-team.ts";
@@ -8,6 +9,7 @@ import { esTeam } from "./es-team.ts";
 export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
   ...esTeam,
+  ...esChannels,
   ...esResources,
   // Palabras compartidas
   "common.agent": "Agente",
