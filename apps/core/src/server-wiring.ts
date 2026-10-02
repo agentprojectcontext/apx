@@ -40,6 +40,7 @@ import { threadHandlers } from "./rpc/threads.ts";
 import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
+import { contactTools } from "./tools/contact.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
@@ -94,6 +95,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...memoryTools(),
     ...mediaTools(),
     ...taskTools(),
+    ...contactTools(store),
     ...extra,
   ];
 }

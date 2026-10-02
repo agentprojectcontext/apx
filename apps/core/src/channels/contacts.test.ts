@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
 const TOKEN = "123456:TEST-contacts";
 const MAG = { id: 2201, name: "Northwind Buyer" };
 
-const llm = scriptedLlm((_req, { said }) => say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`));
+const llm = scriptedLlm((req, { said, afterTool }) => {
+  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
+  if (said.includes("buy oat milk"))
+    return callTool("r1", "pass_request", { kind: "request", summary: "buy oat milk" });
+  if (said.includes("your owner like")) return callTool("n1", "search_owner_notes", { query: "coffee" });
+  return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
+});
+const toolsOf = (i: number) => (llm.calls.at(i)?.tools ?? []).map((t) => t.function.name);
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
@@ -109,4 +116,32 @@ test("the owner writes to the contact themselves: sent as is, kept as the owner'
   const { messages } = await env.client.call("threads.get", { thread });
   assert.equal(messages.at(-1)?.author.kind, "user");
   await assert.rejects(env.client.call("channels.send", { thread: "home", text: "x" }), /contact's chat/);
+});
+
+test("permissions: none by default; requests become a task for the owner; notes are the owner's own only", async () => {
+  const calls = llm.calls.length;
+  tg.message(MAG, "hello again");
+  await until(() => llm.calls.length > calls, "a new turn");
+  assert.deepEqual(toolsOf(-1), [], "a contact's turn has no tools by default");
+
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: true, notes: true } });
+  const before = (await env.client.call("tasks.list", {})).tasks.length;
+  tg.message(MAG, "can you buy oat milk for me?");
+  await until(async () => (await env.client.call("tasks.list", {})).tasks.length > before, "task created");
+  assert.deepEqual(toolsOf(-2).sort(), ["pass_request", "search_owner_notes"]);
+  const task = (await env.client.call("tasks.list", {})).tasks.find((t) => t.title.includes("buy oat milk"));
+  assert.equal(task?.awaits_owner, true, "the owner decides");
+  assert.equal(task?.person_id, person);
+
+  await env.client.call("memory.add", { text: "The owner likes coffee black.", scope: "global" });
+  tg.message(MAG, "what does your owner like to drink?");
+  await until(() => String(llm.calls.at(-1)?.messages.at(-1)?.content).includes("coffee black"), "notes read");
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: false, notes: false } });
+});
+
+test("the owner's own turns never get the contact-only tools", async () => {
+  await env.client.call("threads.send", { thread: "home", text: "hi" });
+  await until(() => llm.calls.at(-1)?.messages.some((m) => String(m.content).includes("hi")) ?? false, "home turn");
+  const names = toolsOf(-1);
+  assert.ok(!names.includes("pass_request") && !names.includes("search_owner_notes"));
 });

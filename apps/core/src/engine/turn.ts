@@ -13,6 +13,7 @@ import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
+import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { inherit } from "../tools/policy.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
@@ -220,7 +221,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   return { history, input, skills };
 }
 
-/** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; none for a contact. */
+/** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
@@ -229,7 +230,17 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // With memory off, the tools that read or write it are not offered.
   const offered =
     memorySettings(deps.store).mode === "off" ? deps.tools.filter((t) => !MEMORY_TOOLS.has(t.name)) : deps.tools;
-  const policy = inherit(turn.agent, callers, sealed ? [] : [...offered, ...mcpTools]);
+  // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never
+  // see the contact-only tools.
+  const forContact =
+    turn.audience.kind === "contact" ? contactToolNames(turn.audience.person?.perms) : new Set<string>();
+  const policy = inherit(
+    turn.agent,
+    callers,
+    sealed
+      ? deps.tools.filter((t) => forContact.has(t.name))
+      : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...mcpTools],
+  );
   const tools = policy.tools.filter(
     (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
   );

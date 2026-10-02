@@ -1,5 +1,6 @@
 // Who an agent is talking to in a thread. The owner gets the full agent; a contact on a channel gets a sealed one:
-// no tools (APX's or the engine's own), no memory, no projects, no other conversations, only this chat.
+// no tools of the engine's own, no memory, no projects, no other conversations, only this chat — plus, when the owner
+// allows it for that person, one of the narrow contact tools (tools/contact.ts).
 // See DECISIONS.md#d-014
 import type { HarnessId, Person, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";

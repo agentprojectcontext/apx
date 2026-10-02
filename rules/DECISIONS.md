@@ -197,3 +197,15 @@ template's text as is into the project (only `parent` changes), so fields APX do
 team with its own lead lands in a project that already has an orchestrator. The Team view draws the tree itself (SVG
 curves, HTML cards, no graph library): the owner chose no new dependency, so the parent is changed from the agent's
 detail with a confirmation rather than by dragging.
+
+<a id="d-022"></a>
+## D-022 — 2026-10-02 — A contact's chat may get one narrow tool per flag, off by default
+D-014 sealed a contact's turn: no tools, no memory. The owner asked that a chat can take requests and appointment
+requests and answer from the owner's notes. Each is a per-person flag (all off by default) that adds exactly one
+narrow tool to that sealed turn and nothing else: `pass_request` only files a task for the owner (`awaits_owner`,
+linked to the person, owed by the owner) and never acts; `search_owner_notes` reads global notes the owner wrote
+(never an agent's, never one saved with outside content). The flag is checked again inside the tool, contacts stay
+rate-limited, and the owner's own turns never see these tools. The owner's rules for a person go last in that
+person's prompt; a silenced person's messages are kept and never reach a model. From the app, the owner's words in a
+contact's chat are an instruction to the agent (`<owner_instruction>`), answered on the channel, or sent as is with
+`channels.send`.
