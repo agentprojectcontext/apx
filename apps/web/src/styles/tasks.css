@@ -191,7 +191,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(420px, calc(100vw - 24px));
+  width: min(560px, calc(100vw - 24px));
   padding: 16px;
   overflow-y: auto;
   border: 1px solid var(--apx-border);
@@ -264,4 +264,95 @@
 }
 .prio-dot.is-low {
   background: var(--apx-border-strong);
+}
+
+/* Task panel: properties as label · value rows, then what it is about and its conversation or history */
+.taskprops {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+}
+.taskprops__label {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.taskprops__value {
+  margin: 0;
+  min-width: 0;
+}
+.taskprops__value > .apx-select,
+.taskprops__value .apx-datewrap,
+.taskprops__value .apx-datefield {
+  width: 100%;
+}
+.taskprops__pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.taskprops__pair > .apx-select {
+  flex: 1;
+  min-width: 160px;
+}
+.taskdetail__status {
+  width: auto;
+  min-width: 150px;
+}
+.taskpanel__comment {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.taskpanel__comment .apx-textarea,
+.taskpanel__comment textarea {
+  width: 100%;
+}
+.taskhistory {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow: auto;
+}
+.taskhistory__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+}
+.taskhistory__you {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg-muted);
+  flex: none;
+}
+.taskhistory__text {
+  flex: 1;
+  min-width: 0;
+}
+.taskhistory__when {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+}
+.taskhistory__empty {
+  margin: 8px 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-subtle);
+}
+@media (max-width: 520px) {
+  .taskprops {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

@@ -1,9 +1,9 @@
 import type { TaskColumn, TaskKind, TaskPriority } from "@apx/protocol";
-import { AgentAvatar, Button, Dialog, Field, Icons, Input, Menu, TagInput, Textarea } from "@apx/ui";
+import { Button, Dialog, Field, Input, TagInput, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
-import { blobOf, realProjectId } from "../data/identity.ts";
+import { realProjectId } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { createTask } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
@@ -174,31 +174,5 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
         </div>
       </div>
     </Dialog>
-  );
-}
-
-export function AssigneePicker(props: {
-  value?: string | undefined;
-  projectId?: string | undefined;
-  onChange: (id: string | undefined) => void;
-}) {
-  const t = useT();
-  const agents = useData((s) => s.agents);
-  const list = Object.values(agents).filter((a) => !a.project_id || a.project_id === props.projectId);
-  const current = props.value ? agents[props.value] : undefined;
-  return (
-    <Menu
-      trigger={
-        <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} animated={false} />}
-          {current?.name ?? t("tasks.nobody")}
-        </Button>
-      }
-      items={[
-        { label: t("tasks.nobody"), onSelect: () => props.onChange(undefined) },
-        { type: "separator" as const },
-        ...list.map((a) => ({ label: a.name, onSelect: () => props.onChange(a.id) })),
-      ]}
-    />
   );
 }
