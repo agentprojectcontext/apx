@@ -73,18 +73,7 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const skipped = new Set<string>();
-      // Images travel as references in the log; their bytes join only this call (an image no longer on disk is dropped).
-      const messages = req.messages.map((m) =>
-        m.role === "user" && m.images?.length
-          ? {
-              ...m,
-              images: m.images.flatMap((i) => {
-                const got = opts.media?.(i.media_id);
-                return got ? [{ ...i, mime: got.mime, data: got.data }] : [];
-              }),
-            }
-          : m,
-      );
+      const messages = withImageBytes(req.messages, opts.media);
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
         // A local server (Ollama, LM Studio) needs no key.
@@ -123,4 +112,32 @@ export function createLlm(opts: {
       throw last ?? new ProviderError("auth", "no usable model provider");
     },
   };
+}
+
+/** Images a call carries at most: the newest ones; older ones stay named in their message's text. */
+const MAX_CALL_IMAGES = 4;
+
+/**
+ * Images travel as references in the log; their bytes join only this call, newest first up to the cap (an image no
+ * longer on disk is dropped).
+ */
+function withImageBytes(
+  messages: ChatItem[],
+  media: ((id: string) => { mime: string; data: string } | undefined) | undefined,
+): ChatItem[] {
+  let room = MAX_CALL_IMAGES;
+  return messages
+    .toReversed()
+    .map((m) => {
+      if (m.role !== "user" || !m.images?.length) return m;
+      const images = m.images.toReversed().flatMap((i) => {
+        if (room <= 0) return [];
+        const got = media?.(i.media_id);
+        if (!got) return [];
+        room--;
+        return [{ ...i, mime: got.mime, data: got.data }];
+      });
+      return { ...m, images: images.toReversed() };
+    })
+    .toReversed();
 }

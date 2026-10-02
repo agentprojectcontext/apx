@@ -3,7 +3,8 @@ import { z } from "zod";
 import { Id, ModelChoice } from "./domain.ts";
 
 /** What can be attached: images the model can look at, and text it can read (PDFs and others are only listed). */
-export const UPLOAD_LIMITS = { imageBytes: 8 * 1024 * 1024, fileBytes: 2 * 1024 * 1024 } as const;
+// 5 MB is the largest image every provider takes (Anthropic's limit).
+export const UPLOAD_LIMITS = { imageBytes: 5 * 1024 * 1024, fileBytes: 2 * 1024 * 1024 } as const;
 
 export const composerMethods = {
   /** Stores a file the owner attaches (base64); it reaches a message through threads.send `attachments`. */
@@ -12,7 +13,7 @@ export const composerMethods = {
       .object({
         name: z.string().trim().min(1).max(200),
         mime: z.string().max(100),
-        /** base64; images up to 8 MB, other files up to 2 MB. */
+        /** base64; images up to 5 MB, other files up to 2 MB. */
         data: z.string().max(Math.ceil((UPLOAD_LIMITS.imageBytes * 4) / 3) + 8),
         thread: Id.optional(),
       })

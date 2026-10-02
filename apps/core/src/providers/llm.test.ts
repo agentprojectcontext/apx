@@ -202,3 +202,32 @@ test("images: references in the log, bytes only in the call; OpenAI as image_url
     source: { type: "base64", media_type: "image/png", data: "BBBB" },
   });
 });
+
+test("a call carries the newest 4 images of the chat; older ones stay references", async () => {
+  let body: { messages: Array<{ role: string; content: unknown }> } | undefined;
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    media: (id) => ({ mime: "image/png", data: id }),
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const img = (id: string) => ({ media_id: id, mime: "image/png" });
+  const messages = [
+    { role: "user" as const, content: "first", images: [img("i1"), img("i2"), img("i3")] },
+    { role: "assistant" as const, content: "seen" },
+    { role: "user" as const, content: "more", images: [img("i4"), img("i5"), img("i6")] },
+  ];
+  await llm.complete({ models: ["pa"], messages, tools: [], signal: new AbortController().signal });
+  const urls = (body?.messages ?? []).flatMap((m) =>
+    Array.isArray(m.content)
+      ? (m.content as Array<{ type: string; image_url?: { url: string } }>).flatMap((p) =>
+          p.type === "image_url" ? [p.image_url?.url.split(",")[1]] : [],
+        )
+      : [],
+  );
+  assert.deepEqual(urls, ["i3", "i4", "i5", "i6"]);
+});

@@ -8,6 +8,9 @@ import type { Dispatch } from "../rpc/router.ts";
 import { type Gate, refuse } from "./guard.ts";
 
 const MAX_BODY = 1024 * 1024;
+/** Methods that carry a file (base64): their own params cap the size, this only bounds the read. */
+const FILE_METHODS: ReadonlySet<string> = new Set(["media.upload", "media.transcribe"]);
+const MAX_FILE_BODY = 16 * 1024 * 1024;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -91,7 +94,7 @@ export function httpHandler(
       }
       let body: unknown;
       try {
-        body = await readJson(req);
+        body = await readJson(req, FILE_METHODS.has(url.pathname.slice(5)) ? MAX_FILE_BODY : MAX_BODY);
       } catch (err) {
         return send(res, 400, { ok: false, error: { code: "bad_request", message: String(err) } });
       }
@@ -168,12 +171,12 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJson(req: IncomingMessage, max: number): Promise<unknown> {
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new Error("body too large");
+    if (size > max) throw new Error("body too large");
     chunks.push(chunk as Buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");

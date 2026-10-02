@@ -290,7 +290,10 @@ async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, histor
   const refs = candidates(chosen ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,
     context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
-    has_image: Boolean(turn.input.attachments?.some((a) => a.kind === "image")),
+    // An image earlier in the chat still travels with each call: the model must be able to see it.
+    has_image:
+      Boolean(turn.input.attachments?.some((a) => a.kind === "image")) ||
+      history.some((m) => m.role === "user" && Boolean(m.images?.length)),
     channel: turn.thread.channel?.id ?? "app",
     trigger: start.trigger,
     agent_kind: turn.agent.kind,

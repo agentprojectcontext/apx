@@ -18,6 +18,16 @@ const TEXT = /^(text\/[a-z0-9.+-]+|application\/(json|xml|x-yaml|yaml|csv|x-ndjs
 /** Files kept and named to the agent, without reading them (it is told it cannot). */
 const OTHER: Record<string, string> = { "application/pdf": "pdf" };
 
+/** The first bytes of each image type. */
+function looksLike(mime: string, b: Buffer): boolean {
+  const hex = b.subarray(0, 12).toString("hex");
+  if (mime === "image/png") return hex.startsWith("89504e470d0a1a0a");
+  if (mime === "image/jpeg") return hex.startsWith("ffd8ff");
+  if (mime === "image/gif") return hex.startsWith("47494638");
+  if (mime === "image/webp") return hex.startsWith("52494646") && b.subarray(8, 12).toString("latin1") === "WEBP";
+  return false;
+}
+
 /** Text a model reads from one attachment at most. */
 export const ATTACHMENT_TEXT_CHARS = 20_000;
 
@@ -37,6 +47,8 @@ export function saveUpload(
   const limit = image ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
   if (a.bytes.length > limit) throw new Error(`${a.name} is over ${Math.round(limit / 1024 / 1024)} MB`);
   if (!a.bytes.length) throw new Error(`${a.name} is empty`);
+  // A model refuses an image whose bytes are not what its type says: catch it here, with a reason the owner reads.
+  if (image && !looksLike(a.mime, a.bytes)) throw new Error(`${a.name} is not a ${image.toUpperCase()} image`);
   // A "text" file with NUL bytes is binary in disguise: it would reach the model as noise.
   if (readable && a.bytes.includes(0)) throw new Error(`${a.name} is not a text file`);
   const dir = path.join(home, "media", "uploads", new Date().toISOString().slice(0, 10));

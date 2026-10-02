@@ -64,11 +64,13 @@ function createThread(store: Store, { kind, agent_id, title, project_id, cwd, wr
   });
 }
 
-/** The owner's attachments as a run keeps them: only files that exist, each once. */
-function attachedFiles(store: Store, ids: string[]): Attachment[] {
+/** The owner's attachments as a run keeps them: files uploaded to this chat (or to none) that exist, each once. */
+function attachedFiles(store: Store, thread: string, ids: string[]): Attachment[] {
   return [...new Set(ids)].map((id) => {
     const m = store.media.get(id);
-    if (!m || m.kind === "audio") throw badRequest(`no attachment ${id}`);
+    // Not media APX made (it has a service) nor another chat's upload.
+    if (!m || m.kind === "audio" || m.service || (m.thread_id && m.thread_id !== thread))
+      throw badRequest(`no attachment ${id}`);
     return { media_id: m.id, kind: m.kind, mime: m.mime, name: m.prompt ?? m.id };
   });
 }
@@ -164,6 +166,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     "threads.send": ({ thread, text, mode, attachments }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent } = threadAgent(thread);
+      if (attachments?.length && (ctx.channel || ctx.actor === "agent"))
+        throw badRequest("only the owner attaches files, from the app");
       if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
       if (mode === "interrupt") engine.interrupt(thread);
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data, and it
@@ -192,7 +196,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         agent_id: agent.id,
         trigger: "user",
         origin: { kind: "user" },
-        ...(attachments?.length ? { attachments: attachedFiles(store, attachments) } : {}),
+        ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
       });
     },
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),

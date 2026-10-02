@@ -6,9 +6,13 @@ import type { Store } from "../domain/store.ts";
 import { ATTACHMENT_TEXT_CHARS, isReadable } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 
+/** A file name as plain text in the prompt: it cannot open a tag or a bracket of its own. */
+const nameOf = (name: string) => name.replace(/[[\]<>\r\n]/g, " ").slice(0, 120);
+
 export function attachmentsBlock(store: Store, files: Attachment[]): string {
   return files
-    .map((f) => {
+    .map((raw) => {
+      const f = { ...raw, name: nameOf(raw.name) };
       if (f.kind === "image") return `[image attached: ${f.name}. If you cannot see it, say so instead of guessing.]`;
       const m = store.media.get(f.media_id);
       if (!m || !isReadable(f.mime)) return `[file attached: ${f.name} (${f.mime}); its contents cannot be read here]`;
@@ -22,7 +26,7 @@ export function attachmentsBlock(store: Store, files: Attachment[]): string {
       const body = cut
         ? `${text.slice(0, ATTACHMENT_TEXT_CHARS)}\n[… ${text.length - ATTACHMENT_TEXT_CHARS} more characters not shown]`
         : text;
-      return untrusted("attachment", { name: f.name.slice(0, 120), mime: f.mime }, body);
+      return untrusted("attachment", { name: f.name, mime: f.mime }, body);
     })
     .join("\n\n");
 }

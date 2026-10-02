@@ -93,3 +93,39 @@ test("a run says how full the chat is: the last call's input, against the model'
   const run = runs.find((x) => x.id === r.run?.id);
   assert.deepEqual(run?.usage, { input: 38_000, output: 20, context: 38_000, window: 200_000 });
 });
+
+test("an image of a few megabytes uploads over HTTP; over 5 MB it is refused with the reason", async () => {
+  const big = Buffer.concat([Buffer.from(PNG, "base64"), Buffer.alloc(3 * 1024 * 1024, 7)]);
+  const { media } = await env.client.call("media.upload", {
+    name: "photo.png",
+    mime: "image/png",
+    data: big.toString("base64"),
+  });
+  assert.equal(media.bytes, big.length);
+  await assert.rejects(
+    env.client.call("media.upload", {
+      name: "huge.png",
+      mime: "image/png",
+      data: Buffer.alloc(5 * 1024 * 1024 + 1).toString("base64"),
+    }),
+    /huge\.png is over 5 MB/,
+  );
+});
+
+test("only this chat's uploads attach: not another chat's, not media APX made, not a mislabeled image", async () => {
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const { media } = await env.client.call("media.upload", {
+    name: "a.txt",
+    mime: "text/plain",
+    data: b64("hi"),
+    thread: other.id,
+  });
+  await assert.rejects(
+    env.client.call("threads.send", { thread: "home", text: "x", attachments: [media.id] }),
+    /no attachment/,
+  );
+  await assert.rejects(
+    env.client.call("media.upload", { name: "fake.png", mime: "image/png", data: b64("not a png") }),
+    /fake\.png is not a PNG image/,
+  );
+});
