@@ -8,6 +8,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
+import { LinkMe, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> = {
   partner: "ch.rel.partner",
@@ -40,6 +41,7 @@ export function ChannelScreen() {
   const picked = useNav((s) => s.channelThread);
   const channels = useChannels((s) => s.channels);
   const persons = useChannels((s) => s.persons);
+  const pairing = useChannels((s) => s.pairing);
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const [query, setQuery] = useState("");
@@ -78,6 +80,12 @@ export function ChannelScreen() {
       `${r.person?.name ?? r.thread.title} ${r.person?.nickname ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
   const current = rows.find((r) => r.thread.id === picked);
+  const waiting = pairing.filter((r) => r.channel === channelId);
+  const linked = ownerOn(persons, channelId ?? "");
+  const ownThread = useMemo(() => {
+    const owner = persons.find((p) => p.role === "owner")?.id;
+    return Object.values(threads).find((th) => th.channel?.id === channelId && th.channel?.person_id === owner)?.id;
+  }, [threads, persons, channelId]);
 
   if (!channel)
     return (
@@ -102,6 +110,9 @@ export function ChannelScreen() {
           onChange={(e) => setQuery(e.currentTarget.value)}
         />
         <ul className="chan__rows">
+          {!query && !linked && <LinkMe channel={channel} />}
+          {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
+          {!query && linked && <OwnerRow channel={channel} ownThread={ownThread} />}
           {shown.map((r) => (
             <ContactRow
               key={r.thread.id}
@@ -110,7 +121,7 @@ export function ChannelScreen() {
               onPick={() => go.channel(channel.id, r.thread.id)}
             />
           ))}
-          {!shown.length && <li className="chan__nobody">{query ? t("res.noMatch") : t("ch.noChats")}</li>}
+          {query && !shown.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
         </ul>
         <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
       </aside>

@@ -2,6 +2,7 @@ import type { Notification } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../common/format.ts";
+import { pairingChannel } from "../data/channels.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
@@ -19,7 +20,11 @@ function openNotice(n: Notification): void {
   if (n.kind !== "input") void readNotifications([n.id]);
   if (n.kind === "task" || n.kind === "due") go.view("tasks");
   else if (n.thread_id) go.inboxThread(n.thread_id);
-  else if (n.kind === "channel") go.channelConfig("telegram");
+  else if (n.kind === "channel" && n.ref?.startsWith("pairing:")) {
+    // Someone waits to be let in: their row, lit, in the channel's own list — where it can be answered.
+    go.channel(pairingChannel(n.ref.slice(8)) ?? "telegram", undefined);
+    go.focus(n.ref);
+  } else if (n.kind === "channel") go.channelConfig("telegram");
 }
 
 /** Topbar bell: what wants the owner (an agent's question, a task waiting, a routine's news, a channel matter). */

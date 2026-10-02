@@ -24,6 +24,9 @@ const store = createStore<State>({
 
 export const useChannels = <T>(select: (s: State) => T): T => useSlice(store, select);
 
+/** The channel a pairing request came on, while it still waits. */
+export const pairingChannel = (code: string) => store.get().pairing.find((r) => r.code === code)?.channel;
+
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function loadChannels(): Promise<void> {

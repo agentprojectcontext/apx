@@ -654,7 +654,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.pairing": "Esperando tu aprobación",
   "tg.pairingEmpty": "No hay nadie esperando.",
   "tg.itsMe": "Este es mi Telegram",
-  "tg.asContact": "Contacto",
   "tg.ignore": "Ignorar",
   "tg.people": "Personas en este bot",
   "tg.role.owner": "vos",

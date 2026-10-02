@@ -670,7 +670,6 @@ export const en = {
   "tg.pairing": "Waiting for your approval",
   "tg.pairingEmpty": "Nobody is waiting.",
   "tg.itsMe": "This is my Telegram",
-  "tg.asContact": "Contact",
   "tg.ignore": "Ignore",
   "tg.people": "People on this bot",
   "tg.role.owner": "you",

@@ -91,6 +91,87 @@
 .chan__row.is-selected {
   background: var(--apx-fill-strong);
 }
+.chan__pending {
+  margin-bottom: 6px;
+  padding-bottom: 8px;
+  border-radius: 12px;
+  background: var(--apx-fill-hover);
+}
+.chan__pendingact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 10px 0 52px;
+}
+.chan__pendingact .apx-input,
+.chan__pendingact input {
+  width: 96px;
+}
+.chan__pendinghint {
+  margin: 6px 10px 0 52px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+}
+.chan__avatar.is-owner {
+  background: var(--apx-accent-soft, var(--apx-fill-strong));
+  color: var(--apx-accent-soft-fg, var(--apx-fg));
+}
+.chan__pending.is-flash {
+  animation: chan-flash 2.4s ease-out;
+}
+@keyframes chan-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 2px var(--apx-accent, var(--apx-fg-muted));
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+.chan__pendingact.is-flat {
+  flex-wrap: nowrap;
+  padding: 0;
+}
+.chan__pendingact.is-flat input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.chan__link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px dashed var(--apx-border);
+  border-radius: 12px;
+}
+.chan__linktitle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+}
+.chan__linksteps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  line-height: 1.6;
+}
+.chan__linkbot {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-accent-fg, var(--apx-fg));
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .chan__row.is-muted {
   opacity: 0.6;
 }

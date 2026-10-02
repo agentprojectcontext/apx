@@ -13,6 +13,7 @@ import {
 } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
+import { PairingRow } from "../channels/StartRows.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import {
   type ChannelDraft,
@@ -311,23 +312,9 @@ function Pairing() {
           {t("tg.pairingEmpty")}
         </EmptyState>
       ) : (
-        <ul className="res__list">
+        <ul className="chan__rows">
           {requests.map((r) => (
-            <li key={r.code} className="res__row">
-              <div className="res__main">
-                <div className="res__name">{r.name}</div>
-                {r.text && <div className="res__desc">“{r.text}”</div>}
-              </div>
-              <Button size="sm" variant="secondary" onClick={() => void respondPairing(r.code, "contact")}>
-                {t("tg.asContact")}
-              </Button>
-              <IconButton
-                size="sm"
-                label={t("tg.ignore")}
-                icon={<Icons.X size={14} />}
-                onClick={() => void respondPairing(r.code, "deny")}
-              />
-            </li>
+            <PairingRow key={r.code} request={r} />
           ))}
         </ul>
       )}

@@ -68,6 +68,8 @@ export type NavState = {
   channelThread: string | undefined;
   /** The engine whose sessions are open (external sessions: "claude", "codex", "acp:opencode"). */
   engineId: string | undefined;
+  /** What a notice or link pointed at, lit once where it shows (see useFlash). */
+  focus: string | undefined;
 };
 
 const THEME_KEY = "apx.mode";
@@ -130,6 +132,7 @@ export const nav = createStore<NavState>({
   channelId: undefined,
   channelThread: undefined,
   engineId: undefined,
+  focus: undefined,
   ...fromHash(),
 });
 
@@ -200,6 +203,10 @@ export const go = {
       channelId,
       channelThread: thread ?? (s.channelId === channelId ? s.channelThread : undefined),
     }));
+  },
+  /** Lights what a notice points at where it shows (see useFlash). */
+  focus(key: string) {
+    nav.set({ focus: key });
   },
   /** An engine's sessions (Claude Code, Codex…) beside the chat; `thread` opens one. */
   engine(engineId: string, thread?: string) {

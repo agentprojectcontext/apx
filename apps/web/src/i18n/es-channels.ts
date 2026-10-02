@@ -4,8 +4,17 @@ import type { MessageKey } from "./en.ts";
 export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.none.title": "Este canal no está configurado",
   "ch.none.body": "Conectalo en Configuración; sus contactos y conversaciones aparecen acá.",
+  "ch.pending": "Quiere hablar — espera tu respuesta",
+  "ch.itsMe": "Soy yo",
+  "ch.acceptContact": "Aceptar como contacto",
+  "ch.itsMeHint": "Escribí el código que te mandó el bot en tu Telegram: así APX sabe que ese chat es tuyo.",
+  "ch.ownerHome": "Tu chat con el bot — tus mensajes van a Home",
+  "ch.ownerOwn": "Tu chat con el bot",
+  "ch.link.title": "Vinculá tu Telegram",
+  "ch.link.step1": "Escribile a {bot} desde tu Telegram",
+  "ch.link.yourBot": "tu bot",
+  "ch.link.step2": "Escribí acá el código de 6 números que te contesta",
   "ch.search": "Buscar contactos",
-  "ch.noChats": "Todavía no hay conversaciones.",
   "ch.foot":
     "Conversaciones con otras personas. Lo que le escribís a {agent} por este canal queda en sus sesiones del Inbox.",
   "ch.answers": "atiende {agent}",
