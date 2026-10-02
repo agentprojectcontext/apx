@@ -50,7 +50,7 @@ export function ImportDialog({
 
   const install = async () => {
     setBusy(true);
-    const r = await installTemplates(projectId, [...picked], top && hang && bringsLead ? top.slug : undefined);
+    const r = await installTemplates(projectId, [...picked], hang && bringsLead ? top?.slug : undefined);
     setBusy(false);
     if (!r) return;
     notify(
@@ -71,7 +71,7 @@ export function ImportDialog({
       description={t("team.import.lead")}
       footer={
         <>
-          {top && bringsLead && chosen.length > 0 && (
+          {top?.slug && bringsLead && chosen.length > 0 && (
             <div className="teamimport__hang">
               <Switch
                 size="sm"
@@ -133,7 +133,7 @@ export function ImportDialog({
                     />
                   ))}
                 </ul>
-                {top && tm.members.some((m) => m.lead && picked.has(m.id)) && (
+                {top?.slug && tm.members.some((m) => m.lead && picked.has(m.id)) && (
                   <p className="teamimport__warn">
                     <Icons.TriangleAlert size={14} />
                     {hang

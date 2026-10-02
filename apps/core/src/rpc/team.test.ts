@@ -95,3 +95,16 @@ test("moving an agent: another agent of the project, never one of its own report
   const root = await env.client.call("agents.update", { agent: of("security"), parent: "" });
   assert.equal(root.parent, undefined, "an empty parent makes it a root");
 });
+
+test("install: a parent that is skipped never adopts a member; the member hangs under hang_under", async () => {
+  // The project's own, unrelated "pm".
+  fs.writeFileSync(path.join(repo, ".apc", "agents", "pm.md"), "---\nname: Someone else\n---\n\nNot the team's.\n");
+  await env.client.call("projects.sync", { project });
+  const r = await env.client.call("agents.install", {
+    project_id: project,
+    templates: ["apx:product-team:pm", "apx:product-team:designer"],
+    hang_under: "boss",
+  });
+  assert.match(r.skipped[0]?.reason ?? "", /already has pm/);
+  assert.equal(r.installed.find((a) => a.slug === "designer")?.parent, "boss");
+});

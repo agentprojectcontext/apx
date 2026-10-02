@@ -8,10 +8,17 @@ import { useNav } from "./nav.ts";
 export function ChatWorkspace({ layout }: { layout: Layout }) {
   const panel = useNav((s) => s.panel);
   const listInFront = useNav((s) => s.listInFront);
+  const threadId = useNav((s) => s.threadId);
   if (layout.compact)
     return (
       <div className="workspace">
-        {listInFront ? <InboxList /> : panel != null ? <SidePanel /> : <ChatView wideHeader={false} compact />}
+        {listInFront || !threadId ? (
+          <InboxList />
+        ) : panel != null ? (
+          <SidePanel />
+        ) : (
+          <ChatView wideHeader={false} compact />
+        )}
       </div>
     );
   return (

@@ -15,6 +15,16 @@ export type TemplateFile = AgentTemplate & { text: string };
 const TEAM_FILE = "TEAM.md";
 /** A template folder is small; a bigger one is not a template folder. */
 const MAX_ENTRIES = 200;
+/** An agent file is a page or two; anything bigger is skipped rather than read on every listing. */
+const MAX_FILE = 64 * 1024;
+
+const small = (file: string) => {
+  try {
+    return fs.lstatSync(file).size <= MAX_FILE;
+  } catch {
+    return false;
+  }
+};
 
 const isDir = (p: string) => {
   try {
@@ -61,7 +71,7 @@ export function readTemplates(roots: TemplateRoot[]): { teams: TeamTemplate[]; f
       if (!isDir(sub) || !SLUG_RE.test(name)) continue;
       const head = readText(path.join(sub, TEAM_FILE));
       const meta = head ? parseFrontmatter(head).fields : {};
-      const members = readAgentDir(sub);
+      const members = readAgentDir(sub).filter((m) => small(path.join(sub, `${m.slug}.md`)));
       if (!members.length) continue;
       const list = treeOrder(members.map((m) => toTemplate(source, name, sub, m, members)));
       teams.push({
@@ -73,7 +83,8 @@ export function readTemplates(roots: TemplateRoot[]): { teams: TeamTemplate[]; f
       });
       files.push(...list);
     }
-    files.push(...readAgentDir(dir).map((a) => toTemplate(source, "-", dir, a, [])));
+    const loose = readAgentDir(dir).filter((a) => small(path.join(dir, `${a.slug}.md`)));
+    files.push(...loose.map((a) => toTemplate(source, "-", dir, a, [])));
   }
   return { teams, files };
 }

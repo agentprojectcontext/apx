@@ -6,7 +6,7 @@ import { threadAgent } from "../data/identity.ts";
 import { retryNow } from "../data/live.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { useNav } from "../shell/nav.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { Transcript } from "./Transcript.tsx";
@@ -61,7 +61,20 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   if (!thread) {
     return (
       <section className="chat chat--empty">
-        <EmptyState size="lg" icon={<Icons.TriangleAlert />} title={t("chat.notFound.title")}>
+        <EmptyState
+          size="lg"
+          icon={<Icons.TriangleAlert />}
+          title={t("chat.notFound.title")}
+          {...(compact
+            ? {
+                action: (
+                  <Button size="sm" variant="secondary" onClick={go.showList}>
+                    {t("chat.toList")}
+                  </Button>
+                ),
+              }
+            : {})}
+        >
           {t("chat.notFound.body")}
         </EmptyState>
       </section>

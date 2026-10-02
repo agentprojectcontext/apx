@@ -9,10 +9,14 @@ import type { NodeInfo } from "./TeamCanvas.tsx";
 
 const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working", "input-required"]);
 
-/** The engine an agent's own model runs on, or "inherit" (the install default). */
+/**
+ * What an agent's own model runs on, for the icon (the whole ref, so "openrouter/anthropic/…" still shows Claude's
+ * mark) and the label (its first segment); "inherit" when it uses the install default.
+ */
 export function engineOf(a: Agent): string {
-  return a.harness ?? a.model_choice?.model?.split(/[/:]/)[0] ?? "inherit";
+  return a.harness ?? a.model_choice?.model ?? "inherit";
 }
+export const engineLabelOf = (engine: string) => engine.split(/[/:]/)[0] ?? engine;
 
 /**
  * What each card shows: live state from runs, counters (chats, open tasks, routines) and the engine; plus the
@@ -63,7 +67,7 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
       return {
         status: status.get(a.id) ?? "idle",
         engine,
-        engineLabel: engine === "inherit" ? t("team.inherit") : engine,
+        engineLabel: engine === "inherit" ? t("team.inherit") : engineLabelOf(engine),
         ...(a.id === leadId ? { lead: leadLabel } : {}),
         stats: [
           { icon: <Icons.MessageSquare />, value: counts.chats.get(a.id) ?? 0, label: t("team.stat.chats") },
