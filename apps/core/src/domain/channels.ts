@@ -268,6 +268,13 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return r ? { ...toPairing(r), conversation: r.conversation } : undefined;
       },
+      /** What became of a code: still open, answered, past its time, or never given. */
+      status(code: string): "pending" | "approved" | "denied" | "expired" | undefined {
+        const r = one(qb.selectFrom("pairing").select(["state", "expires_at"]).where("code", "=", code));
+        if (!r) return undefined;
+        if (r.state === "pending" && r.expires_at <= now()) return "expired";
+        return r.state as "pending" | "approved" | "denied";
+      },
       close(code: string, state: "approved" | "denied"): void {
         run(qb.updateTable("pairing").set({ state }).where("code", "=", code));
       },

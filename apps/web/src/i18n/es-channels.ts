@@ -6,6 +6,15 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.none.body": "Conectalo en Configuración; sus contactos y conversaciones aparecen acá.",
   "ch.pending": "Quiere hablar — espera tu respuesta",
   "ch.itsMe": "Soy yo",
+  "ch.code.approved":
+    'El código {code} ya se aprobó como contacto. Si esa cuenta es tuya, abrí el contacto y elegí "Esta cuenta es mía".',
+  "ch.code.denied": "El código {code} se ignoró. Escribile de nuevo al bot para recibir otro.",
+  "ch.code.expired": "El código {code} venció. Escribile de nuevo al bot para recibir otro.",
+  "ch.claim": "Esta cuenta es mía",
+  "ch.claim.confirm":
+    "Esta cuenta pasa a ser tuya: lo que escribas desde ahí va a tu chat, y el contacto {name} se borra.",
+  "ch.claim.do": "Sí, es mía",
+  "ch.claimed": "Listo: esa cuenta ahora es tuya.",
   "ch.acceptContact": "Aceptar como contacto",
   "ch.itsMeHint": "Escribí el código que te mandó el bot en tu Telegram: así APX sabe que ese chat es tuyo.",
   "ch.ownerHome": "Tu chat con el bot — tus mensajes van a Home",

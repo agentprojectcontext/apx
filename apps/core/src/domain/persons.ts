@@ -146,6 +146,27 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       );
       return toAddress(one(qb.selectFrom("addresses").selectAll().where("id", "=", id)) as Selectable<AddressesTable>);
     },
+    /**
+     * "This account is mine": an address approved as someone else's becomes the owner's. Its chats on that channel
+     * become the owner's own, and the person, left with no address, is removed (their commitments stay as tasks).
+     */
+    giveToOwner(addressId: string): boolean {
+      return tx(() => {
+        const a = one(qb.selectFrom("addresses").selectAll().where("id", "=", addressId));
+        if (!a || a.person_id === OWNER_ID) return false;
+        repo.owner();
+        run(qb.updateTable("addresses").set({ person_id: OWNER_ID }).where("id", "=", addressId));
+        run(
+          qb
+            .updateTable("threads")
+            .set({ person_id: OWNER_ID })
+            .where("channel", "=", a.channel)
+            .where("person_id", "=", a.person_id),
+        );
+        if (!addressesOf(a.person_id).length) repo.remove(a.person_id);
+        return true;
+      });
+    },
     unlink(addressId: string): boolean {
       return run(qb.deleteFrom("addresses").where("id", "=", addressId)) > 0;
     },

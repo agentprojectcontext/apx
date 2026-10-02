@@ -1,11 +1,13 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
+
+import { ErrorCode } from "@apx/protocol";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
 export function channelHandlers(store: Store, channels: Channels) {
@@ -53,13 +55,24 @@ export function channelHandlers(store: Store, channels: Channels) {
       if (id === OWNER_ID) throw badRequest("the owner cannot be removed");
       return { removed: store.persons.remove(id) };
     },
+    "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
 
     "pairing.list": () => ({
       requests: store.channels.pairing.open().map(({ conversation: _c, ...r }) => r),
     }),
     "pairing.respond": ({ code, decision, person, name }) => {
       const req = store.channels.pairing.get(code);
-      if (!req) throw notFound(`pairing code ${code} (wrong or expired)`);
+      if (!req) {
+        // What became of it travels as detail, so a client can say what to do next in the owner's language.
+        const was = store.channels.pairing.status(code);
+        if (was && was !== "pending")
+          throw new CallError({
+            code: ErrorCode.Conflict,
+            message: `pairing code ${code} is ${was}`,
+            detail: { pairing: was },
+          });
+        throw notFound(`pairing code ${code}`);
+      }
       store.notifications.resolve("channel", pairingRef(code));
       if (decision === "deny") {
         store.channels.pairing.close(code, "denied");

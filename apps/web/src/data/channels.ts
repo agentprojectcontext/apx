@@ -1,6 +1,7 @@
 // Channels the owner runs (channels.*), the people on them (contacts.*) and who waits for approval (pairing.*).
 import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person } from "@apx/protocol";
-import { t } from "../i18n/index.ts";
+import { ApxError } from "@apx/protocol/client";
+import { type MessageKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { notify } from "./notices.ts";
@@ -76,13 +77,35 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
   }
 }
 
+/** What to tell the owner when a code was used already or ran out (the core says which in the error's detail). */
+const PAIRING_WAS: Record<string, MessageKey> = {
+  approved: "ch.code.approved",
+  denied: "ch.code.denied",
+  expired: "ch.code.expired",
+};
+
 export async function respondPairing(code: string, decision: "owner" | "contact" | "deny"): Promise<void> {
   try {
     await client.call("pairing.respond", { code, decision });
   } catch (e) {
-    notify(t("error.channels", { error: errText(e) }));
+    const was = e instanceof ApxError ? (e.detail as { pairing?: string } | undefined)?.pairing : undefined;
+    const key = was ? PAIRING_WAS[was] : undefined;
+    notify(key ? t(key, { code }) : t("error.channels", { error: errText(e) }));
   }
   await loadChannels();
+}
+
+/** "This account is mine": an address approved as a contact's becomes the owner's. */
+export async function claimAddress(address: string): Promise<boolean> {
+  try {
+    await client.call("contacts.claim", { address });
+    notify(t("ch.claimed"), "info");
+    await loadChannels();
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
 }
 
 export async function setPersonRole(p: Person, role: "contact" | "blocked"): Promise<void> {

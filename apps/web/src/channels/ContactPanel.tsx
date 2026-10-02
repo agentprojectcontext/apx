@@ -1,7 +1,7 @@
 import { type Person, PersonRelation } from "@apx/protocol";
 import { Button, IconButton, Icons, Input, Menu, Switch, Textarea } from "@apx/ui";
 import { useState } from "react";
-import { saveContact } from "../data/channels.ts";
+import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { RELATION_KEY } from "./ChannelScreen.tsx";
@@ -53,6 +53,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
       </header>
       <div className="chan__cardbody">
+        <ItsMine person={person} onDone={onClose} />
         <div className="chan__pair">
           <div className="pform__field">
             <span className="pform__label">{t("ch.name")}</span>
@@ -132,5 +133,49 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         </Button>
       </footer>
     </aside>
+  );
+}
+
+/**
+ * An address approved as a contact by mistake that is really the owner's: "This account is mine" gives it (and its
+ * chats on that channel) to the owner, after saying what will happen.
+ */
+function ItsMine({ person, onDone }: { person: Person; onDone(): void }) {
+  const t = useT();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const address = person.addresses[0];
+  if (!address) return null;
+  const claim = async () => {
+    setBusy(true);
+    const ok = await claimAddress(address.id);
+    setBusy(false);
+    if (ok) onDone();
+  };
+  return (
+    <div className="chan__mine">
+      {asking ? (
+        <>
+          <p>{t("ch.claim.confirm", { name: person.name })}</p>
+          <div className="chan__mineact">
+            <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button size="sm" loading={busy} onClick={() => void claim()}>
+              {t("ch.claim.do")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.UserRound size={14} />}
+          onClick={() => setAsking(true)}
+        >
+          {t("ch.claim")}
+        </Button>
+      )}
+    </div>
   );
 }

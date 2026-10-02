@@ -14,6 +14,7 @@ import { chunks, toTelegramHtml } from "./telegram-format.ts";
 const TOKEN = "123456:TEST-token";
 const OWNER = { id: 1001, name: "Owner" };
 const ANA = { id: 2002, name: "Ana" };
+const SECOND = { id: 3003, name: "Owner (work phone)" };
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 80)}`);
@@ -143,6 +144,38 @@ test("a contact gets a sealed agent: no tools, no owner context, and a filtered 
   const { threads } = await env.client.call("threads.list", {});
   const t = threads.find((x) => x.kind === "channel" && x.title === "Ana");
   assert.ok(t?.channel?.person_id);
+});
+
+test("an account approved as a contact by mistake becomes the owner's: its chat follows, the contact goes", async () => {
+  tg.message(SECOND, "hello from my other phone");
+  await until(() => tg.messagesTo(SECOND.id).length === 1, "pairing for the second phone");
+  const code = /(\d{6})/.exec(String(tg.messagesTo(SECOND.id)[0]?.body.text))?.[1] ?? "";
+  const { person } = await env.client.call("pairing.respond", { code, decision: "contact" });
+  const address = person?.addresses[0]?.id ?? "";
+
+  // The code is spent: answering it again says what became of it instead of "not found".
+  await assert.rejects(
+    env.client.call("pairing.respond", { code, decision: "owner" }),
+    (e: Error & { detail?: unknown }) => {
+      assert.deepEqual(e.detail, { pairing: "approved" });
+      return true;
+    },
+  );
+
+  assert.deepEqual(await env.client.call("contacts.claim", { address }), { moved: true });
+  const { persons } = await env.client.call("contacts.list", {});
+  assert.ok(!persons.some((p) => p.id === person?.id), "the contact is gone");
+  assert.ok(persons.find((p) => p.role === "owner")?.addresses.some((a) => a.id === address));
+  const { threads } = await env.client.call("threads.list", {});
+  assert.ok(!threads.some((t) => t.channel?.person_id === person?.id), "no chat points at the removed contact");
+
+  tg.message(SECOND, "now I am the owner here");
+  await until(async () => {
+    const home = await env.client.call("threads.get", { thread: "home" });
+    return home.messages.some((m) =>
+      m.parts.some((x) => x.type === "text" && x.text.includes("now I am the owner here")),
+    );
+  }, "the owner's words reach Home");
 });
 
 test("groups are ignored and a redelivered update is handled once", async () => {

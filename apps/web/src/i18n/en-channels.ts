@@ -4,6 +4,15 @@ export const enChannels = {
   "ch.none.body": "Connect it in Settings; its contacts and chats show up here.",
   "ch.pending": "Wants to talk — waiting for you",
   "ch.itsMe": "It's me",
+  "ch.code.approved":
+    'Code {code} was already approved as a contact. If that account is yours, open the contact and choose "This account is mine".',
+  "ch.code.denied": "Code {code} was ignored. Write to the bot again for a new one.",
+  "ch.code.expired": "Code {code} expired. Write to the bot again for a new one.",
+  "ch.claim": "This account is mine",
+  "ch.claim.confirm":
+    "This account becomes yours: what you write from it goes to your chat, and the contact {name} is removed.",
+  "ch.claim.do": "Yes, it's mine",
+  "ch.claimed": "Done: that account is yours now.",
   "ch.acceptContact": "Accept as contact",
   "ch.itsMeHint": "Type the code the bot sent you in your Telegram: that is how APX knows this chat is yours.",
   "ch.ownerHome": "Your chat with the bot — your messages go to Home",

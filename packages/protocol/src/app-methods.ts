@@ -617,6 +617,16 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * "This account is mine": an address approved as a contact's becomes the owner's (their chats on that channel
+   * too); a contact left with no address is removed.
+   */
+  "contacts.claim": {
+    params: z.object({ address: Id }).strict(),
+    result: z.object({ moved: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   "pairing.list": {
     params: z.object({}).strict(),
     result: z.object({ requests: z.array(PairingRequest) }),
