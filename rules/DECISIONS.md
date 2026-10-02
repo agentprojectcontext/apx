@@ -68,7 +68,8 @@ runs run, and a finished delegation wakes its caller even when the caller's turn
 <a id="d-010"></a>
 ## D-010 — 2026-10-01 — Secrets in the macOS Keychain; agent harnesses get a clean environment
 A Codex harness in its read-only sandbox can read any file of the owner, including `~/.apx2`, but not the login
-Keychain (checked with `codex sandbox`). So on macOS secret values live in the Keychain (service `apx2`, written
+Keychain (checked with `codex sandbox`). So on macOS secret values live in the Keychain (service `apx2` for the
+default home and `apx2:<home path>` for any other, so a second home never overwrites the first's values; written
 through `security -i` on stdin so no value reaches argv); `~/.apx2/secrets.index.json` keeps only names and dates.
 Other platforms and tests use `~/.apx2/secrets.json` (0600). Harness processes (Claude Code, Codex) get the
 environment without `APX_*` variables, and the per-run tool token travels in `APX_RUN_TOKEN`, never on argv.

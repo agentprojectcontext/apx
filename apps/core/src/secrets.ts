@@ -1,10 +1,11 @@
 // Secrets by reference. Config and settings hold `secret://<name>` (or `env:<VAR>`); the value is read only by the
 // code that uses it, right when it uses it, and never leaves the core.
-// On macOS values live in the login Keychain (service "apx2"): an agent harness sandboxed to read the disk
+// On macOS values live in the login Keychain (service "apx2", one per home): an agent harness sandboxed to read the disk
 // (Codex read-only) cannot read it. Elsewhere, and in tests, they live in <home>/secrets.json (0600).
 // See DECISIONS.md#d-010
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 export type SecretsBackend = "keychain" | "file";
@@ -13,7 +14,6 @@ type Entry = { value?: string; updated_at: string; hint?: string };
 /** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
 const HINT_MIN = 12;
 
-const SERVICE = "apx2";
 const SECURITY = "/usr/bin/security";
 
 export type Secrets = ReturnType<typeof createSecrets>;
@@ -30,7 +30,14 @@ export function splitSecretName(key: string): { project_id?: string; name: strin
   return m ? { project_id: m[1] as string, name: m[2] as string } : { name: key };
 }
 
+/** The Keychain service of a home: "apx2" for the default one, its own for any other (a test home never overwrites). */
+export function keychainService(home: string, defaultHome = path.join(os.homedir(), ".apx2")): string {
+  const at = path.resolve(home);
+  return at === path.resolve(defaultHome) ? "apx2" : `apx2:${at}`;
+}
+
 export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS.ProcessEnv = process.env) {
+  const SERVICE = keychainService(home);
   // The file holds values only for the file backend; with the Keychain it is just the index (names, dates).
   const file = path.join(home, backend === "keychain" ? "secrets.index.json" : "secrets.json");
   const cache = new Map<string, string | undefined>();

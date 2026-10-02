@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { createSecrets, projectSecretName, splitSecretName } from "./secrets.ts";
+import { createSecrets, keychainService, projectSecretName, splitSecretName } from "./secrets.ts";
 
 test("secrets resolve by reference, list names only, and live in a 0600 file with the file backend", () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-secrets-"));
@@ -43,4 +43,10 @@ test("a project's own value wins over the global one there, and only there", () 
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("each home has its own Keychain service; the default home keeps the plain one", () => {
+  assert.equal(keychainService("/home/u/.apx2", "/home/u/.apx2"), "apx2");
+  assert.equal(keychainService("/home/u/.apx2/", "/home/u/.apx2"), "apx2");
+  assert.equal(keychainService("/tmp/test-home", "/home/u/.apx2"), "apx2:/tmp/test-home");
 });
