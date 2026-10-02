@@ -46,8 +46,13 @@ export function openDisplay(store: Store, message: Message) {
       textTimer = undefined;
       writeText(text);
     },
-    notice(level: "info" | "warn" | "error", code: string, text: string) {
-      upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text });
+    notice(
+      level: "info" | "warn" | "error",
+      code: string,
+      text: string,
+      extra?: { vars?: Record<string, string | number>; detail?: string },
+    ) {
+      upsert((p) => p.type === "notice" && p.code === code, { type: "notice", level, code, text, ...extra });
     },
     setModel(model: string) {
       if (current.model === model) return;

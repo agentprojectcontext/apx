@@ -57,7 +57,9 @@ test("pre-command output reaches the prompt as outside data; the post-command ge
   assert.equal(post, "completed|0|INV-7\nINV-9\n|Two invoices are new.");
   const { messages } = await env.client.call("threads.get", { thread });
   const notices = messages.flatMap((m) => m.parts.flatMap((p) => (p.type === "notice" ? [p.code] : [])));
-  assert.deepEqual(notices, ["routine.pre", "routine.post"]);
+  assert.deepEqual(notices, ["routine.pre.ok", "routine.post.ok"]);
+  const pre = messages.flatMap((m) => m.parts).find((p) => p.type === "notice" && p.code === "routine.pre.ok");
+  assert.equal(pre?.type === "notice" ? pre.detail : undefined, "INV-7\nINV-9");
 });
 
 test("nothing printed and 'if output': the model is not called, the run still ends and runs the post-command", async () => {

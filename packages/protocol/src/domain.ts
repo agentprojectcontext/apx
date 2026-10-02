@@ -272,6 +272,10 @@ const KnownPart = z.discriminatedUnion("type", [
     /** Stable code the UI translates (e.g. "run.interrupted"); `text` is the English fallback. */
     code: z.string(),
     text: z.string(),
+    /** Values for the translated text's {placeholders}. */
+    vars: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+    /** Verbatim output that is never translated (e.g. a routine command's last lines). */
+    detail: z.string().optional(),
   }),
 ]);
 const KNOWN_PARTS: ReadonlySet<string> = new Set(KnownPart.options.map((o) => o.shape.type.value));

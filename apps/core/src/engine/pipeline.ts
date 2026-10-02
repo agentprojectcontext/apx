@@ -115,10 +115,12 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
     fs.mkdirSync(cwd, { recursive: true });
     const r = await runStep(command, { cwd, env: { ...commandEnv(), ...env }, signal });
     const tail = r.output.trim().split("\n").slice(-12).join("\n");
+    const status = r.timedOut ? "timeout" : r.exit === 0 ? "ok" : "failed";
     display.notice(
-      r.exit === 0 && !r.timedOut ? "info" : "warn",
-      code,
-      `${code === "routine.pre" ? "Pre-command" : "Post-command"}: ${label(r)}${tail ? `\n${tail}` : ""}`,
+      status === "ok" ? "info" : "warn",
+      `${code}.${status}`,
+      `${code === "routine.pre" ? "Pre-command" : "Post-command"}: ${label(r)}`,
+      { vars: { exit: r.exit ?? "?" }, ...(tail ? { detail: tail } : {}) },
     );
     return r;
   };

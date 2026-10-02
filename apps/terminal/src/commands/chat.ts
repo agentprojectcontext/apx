@@ -73,7 +73,7 @@ function line(p: Part): string | undefined {
     case "browser":
       return `  ◎ browser ${p.state}: ${p.url}`;
     case "notice":
-      return `  ! ${p.text}`;
+      return `  ! ${p.text}${p.detail ? `\n${p.detail.replace(/^/gm, "    ")}` : ""}`;
     case "changes":
       return `  ± ${p.files.length}${p.more ? `+${p.more}` : ""} uncommitted in ${p.cwd}: ${p.files
         .slice(0, 8)

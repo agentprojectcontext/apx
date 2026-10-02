@@ -6,10 +6,11 @@ export function NoticePart({ part }: { part: Extract<Part, { type: "notice" }> }
   const t = useT();
   const key = `notice.${part.code}`;
   // The core's English text carries details (e.g. the error); the translation is used when it is the plain case.
-  const text = isKey(key) && !part.text.includes(":") ? t(key) : part.text;
+  const text = isKey(key) && (part.vars || !part.text.includes(":")) ? t(key, part.vars) : part.text;
   return (
     <div className={`notice notice--${part.level}`} role={part.level === "error" ? "alert" : "status"}>
       {text}
+      {part.detail && <pre className="notice__detail">{part.detail}</pre>}
     </div>
   );
 }

@@ -109,6 +109,15 @@
   color: var(--apx-danger-soft-fg);
   background: var(--apx-danger-soft);
 }
+.notice__detail {
+  margin: 4px 0 0;
+  font-family: var(--apx-font-mono);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+}
 
 /* ── Input card: an agent waiting for the owner's OK or answer ─────────────── */
 .inputcard {
