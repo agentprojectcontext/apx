@@ -81,6 +81,8 @@ test("a stranger gets a code; the owner approves it as themselves; then their wo
   const info = (await env.client.call("channels.list", {})).channels[0];
   assert.equal(info?.account, "@apx_test_bot");
   assert.equal(info?.token_set, true);
+  // The owner recognizes the stored token without it ever coming back whole.
+  assert.equal(info?.token_hint, "123456:••••oken");
 
   tg.message(OWNER, "hola");
   await until(() => tg.messagesTo(OWNER.id).length === 1, "pairing message");

@@ -3,7 +3,7 @@
 import type { ChannelInfo } from "@apx/protocol";
 import type { Inbound, InboundAction, Presentation } from "../domain/channels.ts";
 
-export type ChannelConfig = Omit<ChannelInfo, "token_set" | "status" | "error" | "account">;
+export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
 export type AdapterCaps = {
   /** Shows "typing…" while the agent works. */

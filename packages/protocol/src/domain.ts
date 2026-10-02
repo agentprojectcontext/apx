@@ -482,6 +482,8 @@ export const ChannelInfo = z.object({
   /** The owner's messages go to the Home chat (one conversation everywhere) or to a chat of this channel. */
   owner_thread: z.enum(["home", "own"]),
   token_set: z.boolean(),
+  /** The stored token, masked for the owner to recognize it: the bot's number and the secret's last four. */
+  token_hint: z.string().optional(),
   status: z.enum(["off", "starting", "running", "error"]),
   error: z.string().optional(),
   /** The account the channel runs as (a bot's @name). */

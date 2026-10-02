@@ -303,12 +303,20 @@ export function createChannels(deps: {
     return next;
   }
 
+  /** "123456789:••••wxyz": enough to tell which bot's token is stored, never enough to use it. */
+  const hintOf = (token: string) => {
+    const colon = token.indexOf(":");
+    return `${colon > 0 ? token.slice(0, colon + 1) : ""}••••${token.slice(-4)}`;
+  };
+
   function info(): ChannelInfo[] {
     return configs().map((c) => {
       const l = live.get(c.id);
+      const token = secrets.resolve(`secret://${tokenName(c.id)}`);
       return {
         ...c,
-        token_set: secrets.has(`secret://${tokenName(c.id)}`),
+        token_set: token !== undefined,
+        ...(token ? { token_hint: hintOf(token) } : {}),
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
