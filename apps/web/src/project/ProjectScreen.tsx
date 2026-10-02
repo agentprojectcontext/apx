@@ -4,6 +4,7 @@ import { findProject, inProject, isListed, type ProjectEntry, projectInitial, pr
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
+import { ResourcesView } from "../resources/ResourcesView.tsx";
 import { RoutinesPane } from "../routines/RoutinesPane.tsx";
 import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
@@ -11,7 +12,6 @@ import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts"
 import { TasksBoard } from "../tasks/TasksBoard.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
-import { ProjectResources } from "./ProjectResources.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
 import { SoonPane } from "./SoonPane.tsx";
 
@@ -125,7 +125,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "memory":
       return <ProjectMemory project={project} />;
     case "resources":
-      return <ProjectResources project={project} />;
+      return <ResourcesView project={project} />;
   }
 }
 

@@ -1,0 +1,189 @@
+import type { McpServerStatus } from "@apx/protocol";
+import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
+import { useEffect, useState } from "react";
+import { projectName } from "../data/identity.ts";
+import { listMcp, setMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
+import { STATUS_KEY } from "./labels.ts";
+
+type TestResult = { ok: boolean; ms: number; tools: string[]; error?: string | undefined };
+
+/**
+ * One MCP server: its state, what it runs, the variables it names (red when missing), its tools, and a test. Inside a
+ * project a global server can be turned off for that project only; a project's server runs once the owner approves it.
+ */
+export function McpDetail({
+  server: s,
+  projectId,
+  onChanged,
+}: {
+  server: McpServerStatus;
+  projectId: string | undefined;
+  onChanged(): Promise<void> | void;
+}) {
+  const t = useT();
+  const projects = useData((st) => st.projects);
+  const [test, setTest] = useState<TestResult>();
+  const [testing, setTesting] = useState(false);
+  const inherited = Boolean(projectId) && s.scope === "global";
+  const tools = test?.tools.length ? test.tools : s.tool_names;
+  const run = async () => {
+    setTesting(true);
+    const r = await testMcp(s);
+    setTesting(false);
+    if (r) setTest(r);
+    await onChanged();
+  };
+
+  return (
+    <article className="resd">
+      <header className="resd__head">
+        <h2 className="resd__name">{s.name}</h2>
+        <Badge>{s.scope === "project" ? t("res.scope.project") : t("res.scope.global")}</Badge>
+        {inherited && <Badge>{t("res.inherited")}</Badge>}
+        <span className="resd__spacer" />
+        {inherited && projectId && (
+          <Switch
+            checked={!s.off_here}
+            label={t("res.onHere")}
+            onCheckedChange={(on) => void toggleMcp(projectId, s.name, on).then(() => onChanged())}
+          />
+        )}
+      </header>
+      <p className={`resd__status is-${s.off_here ? "off" : s.status}`}>
+        <span className="resd__dot" />
+        {s.off_here
+          ? t("res.offHereLong", { name: projectName(projects, projectId) })
+          : test?.ok
+            ? t("res.connected", { n: test.tools.length, ms: test.ms })
+            : t(STATUS_KEY[s.status])}
+        {!s.off_here && s.status === "ready" && !test && s.tools > 0 && ` · ${t("mcp.tools", { n: s.tools })}`}
+      </p>
+      {(test?.error || s.error) && <pre className="resd__error">{test?.error ?? s.error}</pre>}
+      {inherited && (
+        <p className="resd__note">{t("res.mcpInheritedNote", { name: projectName(projects, projectId) })}</p>
+      )}
+
+      {s.status === "needs-approval" && s.project_id && (
+        <div className="resd__callout">
+          <Icons.ShieldAlert size={16} />
+          <div>
+            <strong>{t("res.approveTitle")}</strong>
+            <p>{t("res.approveBody")}</p>
+          </div>
+          <Button size="sm" onClick={() => void trustMcp(s.project_id ?? "", s.name, true).then(() => onChanged())}>
+            {t("mcp.approve")}
+          </Button>
+        </div>
+      )}
+
+      <h3 className="resd__h3">{s.transport === "http" ? t("res.url") : t("res.command")}</h3>
+      <pre className="resd__code">{s.target}</pre>
+
+      <h3 className="resd__h3">{t("res.tab.variables")}</h3>
+      {s.vars.length ? (
+        <div className="resd__chips">
+          {s.vars.map((v) => (
+            <button
+              key={v.name}
+              type="button"
+              className={v.set ? "resd__var" : "resd__var is-missing"}
+              title={v.set ? t("res.varSet") : t("res.varMissing")}
+              onClick={() => go.resourcesTab("variables")}
+            >
+              {`\${var.${v.name}}`}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="resd__muted">{t("res.noVars")}</p>
+      )}
+
+      <h3 className="resd__h3">
+        {t("res.tools")} {tools.length > 0 && <span className="resd__count">{tools.length}</span>}
+      </h3>
+      {tools.length ? (
+        <div className="resd__chips">
+          {tools.map((name) => (
+            <Tag key={name}>{name}</Tag>
+          ))}
+        </div>
+      ) : (
+        <p className="resd__muted">{t("res.toolsUnknown")}</p>
+      )}
+
+      <div className="resd__row">
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.FlaskConical size={14} />}
+          loading={testing}
+          disabled={s.status === "needs-approval"}
+          onClick={() => void run()}
+        >
+          {t("res.test")}
+        </Button>
+        {s.scope === "project" && s.trusted && s.project_id && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void trustMcp(s.project_id ?? "", s.name, false).then(() => onChanged())}
+          >
+            {t("mcp.revoke")}
+          </Button>
+        )}
+        {s.scope === "global" && !projectId && (
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.Trash2 size={14} />}
+            onClick={() => void setMcp(s.name, null).then(() => onChanged())}
+          >
+            {t("res.remove")}
+          </Button>
+        )}
+      </div>
+
+      {!projectId && s.scope === "global" && <AvailableIn server={s.name} onChanged={onChanged} />}
+    </article>
+  );
+}
+
+/** Globally: one switch per project to turn this server off (or back on) there. */
+function AvailableIn({ server, onChanged }: { server: string; onChanged(): Promise<void> | void }) {
+  const t = useT();
+  const projects = useData((s) => s.projects).filter((p) => p.path);
+  const [off, setOff] = useState<Record<string, boolean>>({});
+  const ids = projects.map((p) => p.id).join(",");
+  useEffect(() => {
+    const read = async (id: string) =>
+      [id, (await listMcp(id))?.find((x) => x.name === server && x.scope === "global")?.off_here ?? false] as const;
+    void Promise.all(ids.split(",").filter(Boolean).map(read)).then((pairs) => setOff(Object.fromEntries(pairs)));
+  }, [server, ids]);
+  if (!projects.length) return null;
+  return (
+    <section className="resd__section">
+      <h3 className="resd__h3">{t("res.availableIn")}</h3>
+      <ul className="resd__toggles">
+        {projects.map((p) => (
+          <li key={p.id}>
+            <span>{p.name}</span>
+            <Switch
+              size="sm"
+              checked={!off[p.id]}
+              aria-label={t("res.availableInProject", { name: p.name })}
+              onCheckedChange={(on) =>
+                void toggleMcp(p.id, server, on).then(() => {
+                  setOff((o) => ({ ...o, [p.id]: !on }));
+                  return onChanged();
+                })
+              }
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

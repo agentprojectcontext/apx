@@ -39,6 +39,9 @@ export const CONFIG_SECTIONS = [
 ] as const;
 export type ConfigSection = (typeof CONFIG_SECTIONS)[number];
 
+export const RESOURCE_TABS = ["skills", "mcp", "integrations", "variables", "extensions"] as const;
+export type ResourceTab = (typeof RESOURCE_TABS)[number];
+
 export type NavState = {
   view: View;
   /** Project open in the project view (also scopes its chat list). */
@@ -57,6 +60,8 @@ export type NavState = {
   phone: boolean;
   /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
   listInFront: boolean;
+  /** Tab of Resources (global, and inside a project). */
+  resourcesTab: ResourceTab;
 };
 
 const THEME_KEY = "apx.mode";
@@ -111,6 +116,7 @@ export const nav = createStore<NavState>({
   config: null,
   phone: false,
   listInFront: false,
+  resourcesTab: "skills",
   ...fromHash(),
 });
 
@@ -170,6 +176,17 @@ export const go = {
   },
   view(view: "tasks" | "resources") {
     nav.set({ view });
+  },
+  /** A Resources tab: in the open project's Resources tab when a project is open, else the global screen. */
+  resources(tab: ResourceTab, global = false) {
+    nav.set((s) =>
+      s.view === "project" && !global
+        ? { projectTab: "resources", resourcesTab: tab }
+        : { view: "resources", resourcesTab: tab },
+    );
+  },
+  resourcesTab(tab: ResourceTab) {
+    nav.set({ resourcesTab: tab });
   },
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });

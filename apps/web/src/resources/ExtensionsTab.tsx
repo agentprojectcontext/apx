@@ -1,18 +1,29 @@
 import type { ExtensionInfo } from "@apx/protocol";
 import { Badge, Button, EmptyState, IconButton, Icons, Input, Switch } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
 import { secretary } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { loadRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Extensions: folders that bring skills, MCP servers and routines. Installed off; turning one on approves its files. */
-export function ExtensionsSection() {
+/**
+ * Extensions, last of the Resources tabs: folders that bring skills, MCP servers and routines. Installed off; turning
+ * one on approves its files. "+ Install" opens the folder picker.
+ */
+export function ExtensionsTab({
+  adding,
+  setAdding,
+  onChanged,
+}: {
+  adding: boolean;
+  setAdding(on: boolean): void;
+  onChanged(): void;
+}) {
   const t = useT();
   const [list, setList] = useState<ExtensionInfo[]>();
   const [folder, setFolder] = useState("");
@@ -29,9 +40,13 @@ export function ExtensionsSection() {
     },
     [t],
   );
+  // The parent's callback changes every render; read it through a ref so loading does not re-run with it.
+  const changed = useRef(onChanged);
+  changed.current = onChanged;
   const load = useCallback(async () => {
     const r = await call(() => client.call("extensions.list", {}));
     if (r) setList(r.extensions);
+    changed.current();
   }, [call]);
   useEffect(() => {
     void load();
@@ -42,29 +57,34 @@ export function ExtensionsSection() {
     if (await call(() => client.call("extensions.install", { path: folder.trim() }))) {
       setPreview(undefined);
       setFolder("");
+      setAdding(false);
       await load();
     }
   };
 
   return (
-    <>
-      <SectionHead title={t("config.extensions")} lead={t("ext.lead")} />
-      <SubHead>{t("ext.add")}</SubHead>
-      <div className="tgtoken">
-        <Input
-          aria-label={t("ext.folder")}
-          placeholder={t("ext.folderHint")}
-          value={folder}
-          onChange={(e) => {
-            setFolder(e.currentTarget.value);
-            setPreview(undefined);
-          }}
-          onKeyDown={(e) => e.key === "Enter" && folder.trim() && void inspect()}
-        />
-        <Button size="sm" variant="secondary" disabled={!folder.trim()} onClick={() => void inspect()}>
-          {t("ext.inspect")}
-        </Button>
-      </div>
+    <div className="resext">
+      <p className="resvars__note">{t("ext.lead")}</p>
+      {adding && (
+        <>
+          <SubHead>{t("ext.add")}</SubHead>
+          <div className="tgtoken">
+            <Input
+              aria-label={t("ext.folder")}
+              placeholder={t("ext.folderHint")}
+              value={folder}
+              onChange={(e) => {
+                setFolder(e.currentTarget.value);
+                setPreview(undefined);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && folder.trim() && void inspect()}
+            />
+            <Button size="sm" variant="secondary" disabled={!folder.trim()} onClick={() => void inspect()}>
+              {t("ext.inspect")}
+            </Button>
+          </div>
+        </>
+      )}
       {preview && (
         <div className="pcard">
           <ExtensionSummary e={preview} />
@@ -86,7 +106,7 @@ export function ExtensionsSection() {
       ) : (
         list?.map((e) => <ExtensionCard key={e.id} e={e} call={call} onChanged={load} />)
       )}
-    </>
+    </div>
   );
 }
 

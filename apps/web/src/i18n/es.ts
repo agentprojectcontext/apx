@@ -2,11 +2,13 @@
 
 import type { MessageKey } from "./en.ts";
 import { esOffice } from "./es-office.ts";
+import { esResources } from "./es-resources.ts";
 import { esTeam } from "./es-team.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
   ...esTeam,
+  ...esResources,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",
@@ -592,17 +594,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "memory.edit": "Editar nota",
   "memory.remove": "Quitar nota",
   "error.memory": "Memoria: {error}",
-  "res.skills": "Skills",
-  "res.skillsBefore": "Saberes que los agentes cargan cuando una tarea los necesita: los de este proyecto (",
-  "res.skillsAfter": ") y los tuyos.",
   "res.noSkills": "Todavía no hay skills.",
-  "res.mcp": "Servidores MCP",
-  "res.mcpBefore": "Tools de afuera: los de este proyecto (",
-  "res.mcpAfter": ") corren sólo después de que los aprobás.",
   "res.noMcp": "No hay servidores MCP.",
-  "res.manage": "Administrar",
-  "res.ofProject": "proyecto",
-  "res.global": "global",
   "chat.more": "Más",
   "chat.compact": "Resumir turnos anteriores",
   "chat.compactSkipped": "No se resumió: {reason}",
@@ -784,6 +777,4 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.extensions": "Extensiones",
   "svc.modelWhisperCppHint":
     "El archivo del modelo ggml (ggml-small.bin, ggml-medium.bin…). APX arranca whisper.cpp cuando llega una nota de voz y lo apaga tras 10 minutos sin uso; necesita whisper-cpp y ffmpeg (brew install whisper-cpp ffmpeg).",
-  "resources.extensions": "{on} de {all} encendidas",
-  "resources.manage": "Administrar",
 };

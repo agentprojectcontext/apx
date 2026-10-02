@@ -7,8 +7,7 @@ import { AgentsSection } from "./AgentsSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
-import { ExtensionsSection } from "./ExtensionsSection.tsx";
-import { McpSection } from "./McpSection.tsx";
+import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
@@ -31,8 +30,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
-      { id: "mcp", label: "config.mcp", icon: <Icons.Server /> },
-      { id: "extensions", label: "config.extensions", icon: <Icons.Layers /> },
+      { id: "mcp", label: "config.outsideApps", icon: <Icons.Server /> },
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
@@ -148,7 +146,7 @@ function Body({ section }: { section: ConfigSection }) {
     case "desktop":
       return <DesktopSection />;
     case "extensions":
-      return <ExtensionsSection />;
+      return <ExtensionsMoved />;
     case "advanced":
       return <AdvancedSection />;
   }

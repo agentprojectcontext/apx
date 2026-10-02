@@ -1,10 +1,12 @@
 import { enOffice } from "./en-office.ts";
+import { enResources } from "./en-resources.ts";
 import { enTeam } from "./en-team.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
   ...enOffice,
   ...enTeam,
+  ...enResources,
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",
@@ -589,17 +591,8 @@ export const en = {
   "memory.edit": "Edit note",
   "memory.remove": "Remove note",
   "error.memory": "Memory: {error}",
-  "res.skills": "Skills",
-  "res.skillsBefore": "Know-how agents load when a task needs it: this project's (",
-  "res.skillsAfter": ") and yours.",
   "res.noSkills": "No skills yet.",
-  "res.mcp": "MCP servers",
-  "res.mcpBefore": "Tools from outside: this project's (",
-  "res.mcpAfter": ") run only after you approve them.",
   "res.noMcp": "No MCP servers.",
-  "res.manage": "Manage",
-  "res.ofProject": "project",
-  "res.global": "global",
   "chat.more": "More",
   "chat.compact": "Summarize earlier turns",
   "chat.compactSkipped": "Not summarized: {reason}",
@@ -776,8 +769,6 @@ export const en = {
   "config.extensions": "Extensions",
   "svc.modelWhisperCppHint":
     "The ggml model file (ggml-small.bin, ggml-medium.bin…). APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused; it needs whisper-cpp and ffmpeg (brew install whisper-cpp ffmpeg).",
-  "resources.extensions": "{on} of {all} on",
-  "resources.manage": "Manage",
 } as const;
 
 export type MessageKey = keyof typeof en;
