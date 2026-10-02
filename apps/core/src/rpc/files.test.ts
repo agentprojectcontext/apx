@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +26,8 @@ before(async () => {
   fs.writeFileSync(path.join(outside, "secret.txt"), "not yours");
   fs.symlinkSync(outside, path.join(repo, "escape"));
   fs.symlinkSync(path.join(repo, "docs"), path.join(repo, "docs-link"));
+  fs.symlinkSync(path.join(repo, ".git"), path.join(repo, "gitmeta"));
+  execFileSync("mkfifo", [path.join(repo, "pipe")]);
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
@@ -64,4 +67,12 @@ test("nothing outside the folder: .., absolute paths, links out, .git; and only 
     agent.call("files.read", { project, path: "AGENTS.md" }),
     (e: unknown) => e instanceof ApxError && /reserved to the owner/.test(e.message),
   );
+});
+
+test(".git stays hidden by any name or case; a pipe is not read (and does not hang the core)", async () => {
+  const { entries } = await env.client.call("files.tree", { project });
+  assert.ok(!entries.some((e) => e.name === "gitmeta" || e.name === "pipe"));
+  for (const p of ["gitmeta/config", ".GIT/config", "docs/../.Git/config"])
+    await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the project's folder/, p);
+  await assert.rejects(env.client.call("files.read", { project, path: "pipe" }), /not a file/);
 });
