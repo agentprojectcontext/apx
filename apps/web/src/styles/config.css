@@ -503,6 +503,10 @@
   gap: 8px;
   align-items: center;
 }
+.tgagent {
+  width: auto;
+  min-width: 160px;
+}
 .channels__tabs {
   align-self: flex-start;
   width: auto;

@@ -1,6 +1,5 @@
 import type { ChannelInfo, Person } from "@apx/protocol";
 import {
-  AgentAvatar,
   Badge,
   Button,
   EmptyState,
@@ -13,6 +12,7 @@ import {
   Switch,
 } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import {
   type ChannelDraft,
   loadChannels,
@@ -24,7 +24,6 @@ import {
   unlinkAddress,
   useChannels,
 } from "../data/channels.ts";
-import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
@@ -49,24 +48,6 @@ export function TelegramSection() {
       {channel && <People channelId={channel.id} />}
       {channel && <Deliveries channelId={channel.id} />}
     </>
-  );
-}
-
-function AgentPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const agents = useData((s) => s.agents);
-  const list = Object.values(agents).filter((a) => !a.project_id);
-  const current = agents[value];
-  return (
-    <Menu
-      align="end"
-      trigger={
-        <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} animated={false} />}
-          {current?.name ?? value}
-        </Button>
-      }
-      items={list.map((a) => ({ label: a.name, onSelect: () => onChange(a.id) }))}
-    />
   );
 }
 
@@ -106,7 +87,7 @@ function Setup() {
         <span className="pform__hint">{t("tg.tokenHint")}</span>
       </div>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint")}>
-        <AgentPicker value={agent} onChange={setAgent} />
+        <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>
         <Button disabled={!/^\d+:[\w-]{20,}$/.test(token.trim())} loading={busy} onClick={() => void connect()}>
@@ -162,7 +143,12 @@ function Connected({ channel }: { channel: ChannelInfo }) {
 
       <SubHead>{t("tg.behavior")}</SubHead>
       <SettingRow title={t("tg.agent")} description={t("tg.agentHint")}>
-        <AgentPicker value={channel.agent_id} onChange={(id) => void save({ agent_id: id })} />
+        <AgentSelect
+          size="sm"
+          className="tgagent"
+          value={channel.agent_id}
+          onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
+        />
       </SettingRow>
       <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint")}>
         <SegmentedControl

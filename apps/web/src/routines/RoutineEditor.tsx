@@ -1,10 +1,9 @@
 import type { CallModel, Schedule } from "@apx/protocol";
-import { AgentAvatar, Button, Dialog, Icons, Input, Menu, SegmentedControl, Textarea } from "@apx/ui";
+import { Button, Dialog, Icons, Input, Menu, SegmentedControl, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { aheadLabel } from "../common/format.ts";
-import { blobOf } from "../data/identity.ts";
+import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { type RoutineDraft, saveRoutine } from "../data/routines.ts";
-import { useData } from "../data/state.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 
 /** Ready-made times; any other five-field cron can be typed. */
@@ -28,32 +27,6 @@ export function scheduleText(s: Schedule, t: T): string {
     case "manual":
       return t("routines.manual");
   }
-}
-
-function AgentPicker({
-  value,
-  projectId,
-  onChange,
-}: {
-  value: string;
-  projectId?: string | undefined;
-  onChange: (id: string) => void;
-}) {
-  const t = useT();
-  const agents = useData((s) => s.agents);
-  const list = Object.values(agents).filter((a) => !a.project_id || a.project_id === projectId);
-  const current = agents[value];
-  return (
-    <Menu
-      trigger={
-        <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-          {current && <AgentAvatar name={current.name} blob={blobOf(current)} size={16} animated={false} />}
-          {current?.name ?? t("routines.pickAgent")}
-        </Button>
-      }
-      items={list.map((a) => ({ label: a.name, onSelect: () => onChange(a.id) }))}
-    />
-  );
 }
 
 /** `datetime-local` wants local time without a zone. */
@@ -170,7 +143,7 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
           value={d.name}
           onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
         />
-        <AgentPicker value={d.agent} projectId={d.project} onChange={(agent) => setD({ ...d, agent })} />
+        <AgentSelect value={d.agent} projectId={d.project} onChange={(agent) => agent && setD({ ...d, agent })} />
         <Textarea
           aria-label={t("routines.prompt")}
           placeholder={t("routines.promptHint")}
