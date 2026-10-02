@@ -1,9 +1,11 @@
 // apx2 routines: an agent's scheduled work from the terminal.
-import type { Routine, Schedule } from "@apx/protocol";
+import { CallModel, type Routine, type Schedule } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = `apx2 routines                                   Routines and when they run next
 apx2 routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
+                 [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
+                                                The pre-command's output reaches the prompt at {{pre_output}}
 apx2 routines run <id>                          Run now
 apx2 routines on|off <id>
 apx2 routines rm <id>
@@ -15,6 +17,9 @@ type Opts = {
   cron?: string | undefined;
   every?: string | undefined;
   at?: string | undefined;
+  pre?: string | undefined;
+  post?: string | undefined;
+  call?: string | undefined;
 };
 
 const scheduleOf = (o: Opts): Schedule =>
@@ -35,6 +40,12 @@ const describe = (s: Schedule) =>
         ? `once ${s.at}`
         : "by hand";
 
+const callModel = (v: string): CallModel => {
+  const r = CallModel.safeParse(v);
+  if (!r.success) throw new Error(`--call is one of: ${CallModel.options.join(", ")}`);
+  return r.data;
+};
+
 const when = (iso: string | undefined) => (iso ? new Date(iso).toLocaleString() : "—");
 
 export async function routines(client: ApxClient, [sub, id, ...rest]: string[], opts: Opts): Promise<void> {
@@ -52,6 +63,9 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
       ...(opts.project ? { project: opts.project } : {}),
       schedule: scheduleOf(opts),
       prompt,
+      ...(opts.pre ? { pre_command: opts.pre } : {}),
+      ...(opts.post ? { post_command: opts.post } : {}),
+      ...(opts.call ? { call_model: callModel(opts.call) } : {}),
     });
     console.log(`${r.id}  next: ${when(r.next_run_at)}`);
     return;

@@ -113,6 +113,9 @@ const { values, positionals } = parseArgs({
     due: { type: "string" },
     every: { type: "string" },
     at: { type: "string" },
+    pre: { type: "string" },
+    post: { type: "string" },
+    call: { type: "string" },
     role: { type: "string" },
     router: { type: "boolean" },
     timeout: { type: "string" },
@@ -206,6 +209,9 @@ try {
         cron: values.cron,
         every: values.every,
         at: values.at,
+        pre: values.pre,
+        post: values.post,
+        call: values.call,
       });
       break;
     case "memory":
