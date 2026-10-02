@@ -24,6 +24,10 @@ export function startLive(): void {
   if (started) return;
   started = true;
   void connect();
+  // Agents and projects have no change event: coming back to the window (e.g. from the terminal) reloads them.
+  window.addEventListener("focus", () => {
+    if (data.get().connection === "online") scheduleRefetch();
+  });
 }
 
 /** Offline banner's "Retry": skip the backoff wait. */
