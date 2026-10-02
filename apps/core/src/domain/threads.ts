@@ -26,6 +26,7 @@ const toThread = (r: Selectable<ThreadsTable>): Thread => ({
   ...opt("parent_id", r.parent_id),
   ...opt("session", r.session),
   ...opt("cwd", r.cwd),
+  ...opt("engine", r.engine),
   ...(r.write_policy ? { write: r.write_policy as NonNullable<Thread["write"]> } : {}),
   ...(r.channel
     ? {
@@ -109,6 +110,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
                     .select("thread_id")
                     .where((r) => r.or([r("model", "=", engine as string), r("model", "like", `${engine}/%`)])),
                 ),
+                eb("engine", "=", engine as string),
                 eb(sql<string>`json_extract(context, '$.model_choice.model')`, "=", engine as string),
                 eb(sql<string>`json_extract(context, '$.model_choice.model')`, "like", `${engine}/%`),
               ]),
@@ -157,6 +159,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         cwd?: string | undefined;
         write?: Thread["write"];
         channel?: Thread["channel"];
+        engine?: string | undefined;
         id?: string;
       },
     ): Thread {
@@ -173,6 +176,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
           session: t.session ?? null,
           cwd: t.cwd ?? null,
           write_policy: t.write ?? null,
+          engine: t.engine ?? null,
           channel: t.channel?.id ?? null,
           conversation: t.channel?.conversation ?? null,
           person_id: t.channel?.person_id ?? null,

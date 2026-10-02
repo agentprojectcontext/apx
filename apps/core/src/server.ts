@@ -177,6 +177,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       apc,
       engines: engineIds,
       desktop: opts.desktop ?? systemDesktop,
+      native: config.native,
       // APX's own templates, then the owner's v1 vault (read-only).
       templateRoots: [
         { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },

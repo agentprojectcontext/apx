@@ -367,6 +367,7 @@ export interface ThreadsTable {
   channel: string | null;
   conversation: string | null;
   person_id: string | null;
+  engine: string | null;
 }
 
 export interface Database {

@@ -18,6 +18,8 @@ export type TurnIO = {
   tools: ToolSpec[];
   /** A contact's turn: the engine must not use any tool of its own either. */
   sealed?: boolean;
+  /** An engine session (Thread.engine): the engine's own prompt and the owner's own settings, not an agent's. */
+  direct?: boolean;
   /**
    * The models to try, in order, all run by this harness ("claude/claude-opus-5-5", "gemini/gemini-3.8-flash"; an
    * engine alone means its default model). The router made the list.
@@ -72,6 +74,8 @@ export const modelPart = (ref: string | undefined): string | undefined => (ref ?
  * For an engine with no system-prompt option (Codex, ACP agents): a fresh session gets APX's instructions at the
  * top of its first message; a resumed one already has them.
  */
-export function withInstructions(io: Pick<TurnIO, "system" | "input">, resumed: boolean): string {
-  return resumed ? io.input.content : `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
+export function withInstructions(io: Pick<TurnIO, "system" | "input" | "direct">, resumed: boolean): string {
+  // An engine session speaks to the engine as it is: no agent instructions in front of the owner's words.
+  if (resumed || io.direct) return io.input.content;
+  return `<apx_instructions>\n${io.system}\n</apx_instructions>\n\n${io.input.content}`;
 }

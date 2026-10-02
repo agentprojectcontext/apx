@@ -210,3 +210,16 @@ rate-limited, and the owner's own turns never see these tools. The owner's rules
 person's prompt; a silenced person's messages are kept and never reach a model. From the app, the owner's words in a
 contact's chat are an instruction to the agent (`<owner_instruction>`), answered on the channel, or sent as is with
 `channels.send`.
+
+<a id="d-023"></a>
+## D-023 — 2026-10-02 — An engine session is the engine itself, with the owner's own Claude Code settings
+External sessions (Sessions › Claude Code, Codex, an ACP agent) were an agent (the super-agent) running on that
+engine, so the owner talked to Roby, not to the engine. A thread can now be an engine session (`Thread.engine`): a
+code thread in a project's folder where the engine keeps its own prompt (Claude Code's preset with a one-line APX
+note appended; Codex and ACP agents get no instructions), with none of an agent's notes, roster, skills or framing;
+the super-agent only owns the run. Unlike an agent (isolated: no CLAUDE.md, hooks or plugins), an engine session
+loads the owner's own Claude Code settings (`user`, `project`, `local`) as the CLI would, because it is the owner's
+own tool; MCP stays limited to APX's server and the engine's own edits and commands still go through APX's policy.
+The owner's sessions in `~/.claude` and `~/.codex` (paths injected: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) are listed
+read-only and gone on with as an engine session that resumes the engine's own session id; APX's own runs (framed
+turns, `codex_sdk_ts`, sub-agents) are left out.

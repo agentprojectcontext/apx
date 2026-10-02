@@ -105,11 +105,14 @@ async function attempt(
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
         cwd: io.thread.cwd ?? o.cwd,
-        systemPrompt: { type: "custom", prompt: io.system },
+        // An engine session is Claude Code itself: its own prompt and the owner's CLAUDE.md and settings, as in the
+        // CLI. An APX agent is isolated: its prompt only; the owner's CLAUDE.md, hooks, plugins, MCP servers and
+        // claude.ai connectors/skills are not part of it (this invocation only; the owner's config is untouched).
+        systemPrompt: io.direct
+          ? { type: "preset", preset: "claude_code", append: io.system }
+          : { type: "custom", prompt: io.system },
         ...toolOptions(io, o.counts),
-        // Isolation: the owner's CLAUDE.md, hooks, plugins, MCP servers and claude.ai connectors/skills are not
-        // part of an APX agent. These settings apply to this invocation only; the owner's config is untouched.
-        settingSources: [],
+        settingSources: io.direct ? ["user", "project", "local"] : [],
         strictMcpConfig: true,
         settings: { disableClaudeAiConnectors: true, syncClaudeAiSkills: false, syncClaudeAiPlugins: false },
         mcpServers: { apx: apxServer(io, o.counts) },

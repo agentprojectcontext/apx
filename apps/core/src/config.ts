@@ -31,6 +31,8 @@ export type CoreConfig = {
   webDist: string | undefined;
   /** Local APX v1 daemon, only for the explicit read-only import. */
   v1: { url: string; home: string };
+  /** Where Claude Code and Codex keep the owner's own sessions (read-only, to go on with one in APX). */
+  native: { claude: string; codex: string };
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -90,6 +92,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
     allowedOrigins: list(env.APX_ALLOWED_ORIGINS),
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
+    native: {
+      claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
+      codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
+    },
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
@@ -108,5 +114,6 @@ export function assertSafeBind(config: Pick<CoreConfig, "host" | "token">): void
 export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreConfig {
   // Never the machine's real v1: a test that wants one passes it.
   const v1 = { url: "http://127.0.0.1:9", home: path.join(over.home, "v1") };
-  return { ...loadConfig({}), port: 0, secrets: "file", v1, ...over };
+  const native = { claude: path.join(over.home, "claude-home"), codex: path.join(over.home, "codex-home") };
+  return { ...loadConfig({}), port: 0, secrets: "file", v1, native, ...over };
 }

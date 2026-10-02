@@ -238,6 +238,11 @@ export const appMethods = {
         /** Code threads: a folder inside the project (relative, or absolute under it); default the project's root. */
         cwd: z.string().max(1024).optional(),
         write: WritePolicy.optional(),
+        /** A code thread with an outside engine itself ("claude", "codex", "acp:opencode"): its own prompt, no persona. */
+        engine: z
+          .string()
+          .regex(/^(claude|codex|acp:[a-z0-9][a-z0-9-]*)$/)
+          .optional(),
       })
       .strict(),
     result: Thread,
@@ -624,6 +629,30 @@ export const appMethods = {
   "contacts.claim": {
     params: z.object({ address: Id }).strict(),
     result: z.object({ moved: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * The owner's own Claude Code or Codex sessions on this machine (read from ~/.claude, ~/.codex), newest first;
+   * those APX already goes on with are left out (they are its chats).
+   */
+  "sessions.native": {
+    params: z
+      .object({ engine: z.enum(["claude", "codex"]), limit: z.number().int().min(1).max(300).optional() })
+      .strict(),
+    result: z.object({
+      sessions: z.array(z.object({ id: z.string(), title: z.string(), cwd: z.string(), updated_at: z.string() })),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Goes on with one of those sessions in APX: a chat with that engine itself, in the session's folder, with what was
+   * said there; the engine picks up its own session. Again: the chat it already has.
+   */
+  "sessions.resume": {
+    params: z.object({ engine: z.enum(["claude", "codex"]), id: z.string().min(1).max(120) }).strict(),
+    result: Thread,
     effect: true,
     access: "human",
   },

@@ -36,7 +36,7 @@ export function settingsRepo({ one, run }: Sql) {
   };
 }
 
-export function harnessSessionsRepo({ one, run }: Sql) {
+export function harnessSessionsRepo({ one, all, run }: Sql) {
   const row = (threadId: string, harness: string) =>
     one(
       qb
@@ -47,6 +47,22 @@ export function harnessSessionsRepo({ one, run }: Sql) {
     );
   return {
     get: (threadId: string, harness: string): string | undefined => row(threadId, harness)?.session_id,
+    /** The APX thread that already goes on with an outside session, if one does. */
+    threadOf: (harness: string, sessionId: string): string | undefined =>
+      one(
+        qb
+          .selectFrom("harness_sessions")
+          .select("thread_id")
+          .where("harness", "=", harness)
+          .where("session_id", "=", sessionId),
+      )?.thread_id,
+    /** Every outside session id APX goes on with, for one harness. */
+    sessionIds: (harness: string): Set<string> =>
+      new Set(
+        all(qb.selectFrom("harness_sessions").select("session_id").where("harness", "=", harness)).map(
+          (r) => r.session_id,
+        ),
+      ),
     updatedAt: (threadId: string, harness: string): string | undefined => row(threadId, harness)?.updated_at,
     set(threadId: string, harness: string, sessionId: string): void {
       const at = now();

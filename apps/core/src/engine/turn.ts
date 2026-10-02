@@ -157,8 +157,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: systemFor(store, turn, skills),
+    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills),
     sealed: turn.audience.kind === "contact",
+    direct: Boolean(thread.engine),
     history,
     input,
     tools: tools.map(toSpec),
@@ -226,8 +227,10 @@ function skipModel(
 async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const { store } = deps;
   const { agent, thread } = turn;
-  // A contact's turn knows nothing of the owner's: no notes, no roster, no skills.
-  const sealed = turn.audience.kind === "contact";
+  // A contact's turn knows nothing of the owner's: no notes, no roster, no skills. An engine session is the engine
+  // itself: none of an agent's notes, roster, skills or framing either.
+  const direct = Boolean(thread.engine);
+  const sealed = turn.audience.kind === "contact" || direct;
   const remembers = !sealed && memorySettings(store).mode !== "off";
   const ctxState = store.threads.context(thread.id);
   const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
@@ -261,15 +264,19 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const input: ChatItem & { role: "user" } = {
     role: "user",
     ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
-    content: turnInput({
-      origin: turn.input.origin,
-      text: files ? `${said}\n\n${files}` : said,
-      now: new Date(),
-      roster: rosterChanged ? roster.text : undefined,
-      memory: recalled.text,
-      task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
-      extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
-    }),
+    content: direct
+      ? files
+        ? `${said}\n\n${files}`
+        : said
+      : turnInput({
+          origin: turn.input.origin,
+          text: files ? `${said}\n\n${files}` : said,
+          now: new Date(),
+          roster: rosterChanged ? roster.text : undefined,
+          memory: recalled.text,
+          task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
+          extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
+        }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);
   if (rosterChanged || recalled.shown)
@@ -306,6 +313,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   );
   return { policy, tools };
 }
+
+/** All an engine session adds to the engine's own prompt (Claude Code appends it; the others take nothing). */
+const DIRECT_NOTE =
+  "You are running inside APX, the owner's local assistant app; they talk to you directly in this chat. APX's own tools (mcp__apx__*) are there if useful.";
 
 function systemFor(store: Store, turn: Turn, skills: string): string {
   const lang = store.settings.get("owner_language") ?? "es";

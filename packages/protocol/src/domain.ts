@@ -149,6 +149,11 @@ export const Thread = z.object({
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */
   cwd: z.string().optional(),
   write: WritePolicy.optional(),
+  /**
+   * A session with an outside engine itself ("claude", "codex", "acp:opencode"): the owner talks to that engine with
+   * its own prompt, in `cwd`; no agent persona, notes or roster. Its agent only owns the run.
+   */
+  engine: z.string().optional(),
   /** Channel threads: the conversation on a channel (a Telegram chat…) and the person on the other side. */
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */

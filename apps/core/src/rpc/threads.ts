@@ -37,7 +37,11 @@ function codeFolder(store: Store, projectId: string | undefined, cwd: string | u
 }
 
 /** A new chat or code thread. An outside app gets a plain chat, named after it, that only it can use. */
-function createThread(store: Store, { kind, agent_id, title, project_id, cwd, write }: CreateParams, ctx: CallContext) {
+function createThread(
+  store: Store,
+  { kind, agent_id, title, project_id, cwd, write, engine }: CreateParams,
+  ctx: CallContext,
+) {
   const agent = store.agents.get(agent_id);
   if (!agent) throw notFound(`agent ${agent_id}`);
   const pid = project_id ?? agent.project_id;
@@ -54,13 +58,20 @@ function createThread(store: Store, { kind, agent_id, title, project_id, cwd, wr
       return t;
     });
   }
+  if (engine && kind !== "code") throw badRequest("an engine session is a code thread: it works in a folder");
   const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
-  return store.threads.create({
-    kind,
-    title: title ?? (folder ? `${agent.name} · ${path.basename(folder)}` : agent.name),
-    agent_ids: [agent.id],
-    project_id: pid,
-    ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
+  return store.tx(() => {
+    const t = store.threads.create({
+      kind,
+      title: title ?? (folder ? `${engine ?? agent.name} · ${path.basename(folder)}` : agent.name),
+      agent_ids: [agent.id],
+      project_id: pid,
+      ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
+      ...(engine ? { engine } : {}),
+    });
+    // The engine is the session: it always runs it, never the router.
+    if (engine) store.threads.mergeContext(t.id, { model_choice: { model: engine, router: false } });
+    return engine ? (store.threads.get(t.id) ?? t) : t;
   });
 }
 

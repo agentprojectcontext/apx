@@ -446,4 +446,8 @@ export const MIGRATIONS: readonly string[] = [
   -- its command runs.
   ALTER TABLE routines ADD COLUMN action TEXT NOT NULL DEFAULT 'agent';
   `,
+  `
+  -- A session with an outside engine itself (Claude Code, Codex, an ACP agent): its own prompt, no agent persona.
+  ALTER TABLE threads ADD COLUMN engine TEXT;
+  `,
 ];

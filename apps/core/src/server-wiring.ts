@@ -36,6 +36,7 @@ import { resourceHandlers } from "./rpc/resources.ts";
 import type { Dispatch } from "./rpc/router.ts";
 import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
+import { sessionHandlers } from "./rpc/sessions.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
@@ -123,6 +124,8 @@ type HandlerDeps = {
   templateRoots: Parameters<typeof teamHandlers>[2];
   engines: Parameters<typeof agentHandlers>[2];
   desktop: Parameters<typeof fileHandlers>[1];
+  /** Where Claude Code and Codex keep the owner's own sessions. */
+  native: Parameters<typeof sessionHandlers>[1];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -154,6 +157,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots),
     ...fileHandlers(d.store, d.desktop),
+    ...sessionHandlers(d.store, d.native),
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
