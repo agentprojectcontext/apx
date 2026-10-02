@@ -185,12 +185,7 @@
   color: var(--apx-fg-subtle);
 }
 .apx-msgmeta__agent {
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--apx-brand-soft);
-  color: var(--apx-brand-soft-fg);
-  font-family: var(--apx-font-sans);
-  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-muted);
 }
 .apx-msgmeta__part + .apx-msgmeta__part::before {
   content: "·";

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cx } from "../cx";
 
 export interface MessageMetaProps {
-  /** Agent that answered, shown as a small tag. */
+  /** Agent that answered: plain text, first of the dot-separated parts. */
   agent?: ReactNode;
   /** Engine/model id, e.g. "codex:gpt-6.1". */
   model?: ReactNode;
@@ -17,7 +17,7 @@ export interface MessageMetaProps {
 export function MessageMeta({ agent, model, effort, children, className }: MessageMetaProps) {
   return (
     <div className={cx("apx-msgmeta", className)}>
-      {agent && <span className="apx-msgmeta__agent">{agent}</span>}
+      {agent && <span className="apx-msgmeta__part apx-msgmeta__agent">{agent}</span>}
       {model ? <span className="apx-msgmeta__part">{model}</span> : null}
       {effort ? <span className="apx-msgmeta__part">{effort}</span> : null}
       {children}
