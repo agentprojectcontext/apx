@@ -1,13 +1,40 @@
 import { Bot } from "lucide-react";
 import { type CSSProperties, useId } from "react";
+import { ACP_MARKS, type AcpBrand, type AcpMark } from "../acp-marks";
 import { cx } from "../cx";
 import { ENGINE_MARKS } from "../engine-marks";
 
-export type EngineBrand = keyof typeof ENGINE_MARKS;
+export type EngineBrand = keyof typeof ENGINE_MARKS | AcpBrand;
+
+/** An ACP agent's engine id ("acp:qwen", "qwen-code") → its mark. */
+const ACP_IDS: Record<string, AcpBrand> = {
+  opencode: "opencode",
+  qwen: "qwen",
+  "qwen-code": "qwen",
+  cursor: "cursor",
+  "cursor-agent": "cursor",
+  copilot: "copilot",
+  "github-copilot": "copilot",
+  goose: "goose",
+  kimi: "kimi",
+  auggie: "auggie",
+  augment: "auggie",
+  droid: "droid",
+  "factory-droid": "droid",
+  vibe: "vibe",
+  "mistral-vibe": "vibe",
+  qoder: "qoder",
+  grok: "grok",
+  devin: "devin",
+  amp: "amp",
+  kilo: "kilo",
+  poolside: "poolside",
+};
 
 /**
  * The brand behind an engine or provider id: `claude`, `claude-code`, `anthropic` → claude; `codex` → codex;
- * `gemini`, `acp:gemini`, `google` → gemini; `openai` → openai; `ollama` → ollama. Anything else has no mark.
+ * `gemini`, `acp:gemini`, `google` → gemini; `openai` → openai; `ollama` → ollama; an ACP agent (`acp:opencode`,
+ * `acp:qwen`, `acp:cursor`, `acp:copilot`…) → its own mark. Anything else has no mark.
  */
 export function engineBrand(id: string | undefined): EngineBrand | undefined {
   const k = (id ?? "").toLowerCase();
@@ -16,8 +43,10 @@ export function engineBrand(id: string | undefined): EngineBrand | undefined {
   if (k.includes("gemini") || k === "google") return "gemini";
   if (k.includes("openai") || k.startsWith("gpt")) return "openai";
   if (k.includes("ollama")) return "ollama";
-  return undefined;
+  return ACP_IDS[k.replace(/^acp:/, "").split("/")[0] ?? ""];
 }
+
+const isAcp = (b: EngineBrand): b is AcpBrand => b in ACP_MARKS;
 
 export interface EngineIconProps {
   /** Engine or provider id (`claude`, `codex`, `acp:gemini`, `openai`…). Unknown ids show a neutral bot. */
@@ -44,6 +73,35 @@ export function EngineIcon({ engine, size = 16, tile = false, label, className }
         <Bot size={Math.round(size * (tile ? 0.6 : 0.9))} />
       </span>
     );
+  if (isAcp(brand)) {
+    // One-colour marks in the text colour; on a tile, centred on the neutral round tile.
+    const m: AcpMark = ACP_MARKS[brand];
+    const paths = m.paths.map((p) => (
+      <path
+        key={p.d.slice(0, 24)}
+        d={p.d}
+        fill="currentColor"
+        {...(p.evenodd ? { fillRule: "evenodd" as const } : {})}
+      />
+    ));
+    return (
+      <span className={cx(cls, "apx-engine--acp")} style={box} {...a11y}>
+        <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
+          {tile && <circle className="apx-engine__tile" cx="12" cy="12" r="12" />}
+          <svg
+            x={tile ? 5.5 : 0}
+            y={tile ? 5.5 : 0}
+            width={tile ? 13 : 24}
+            height={tile ? 13 : 24}
+            viewBox={m.viewBox}
+            aria-hidden="true"
+          >
+            {paths}
+          </svg>
+        </svg>
+      </span>
+    );
+  }
   return (
     <span className={cls} style={box} {...a11y}>
       <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
@@ -53,7 +111,7 @@ export function EngineIcon({ engine, size = 16, tile = false, label, className }
   );
 }
 
-function Mark({ brand, tile, gid }: { brand: EngineBrand; tile: boolean; gid: string }) {
+function Mark({ brand, tile, gid }: { brand: keyof typeof ENGINE_MARKS; tile: boolean; gid: string }) {
   switch (brand) {
     case "claude": {
       const m = ENGINE_MARKS.claude;

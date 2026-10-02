@@ -144,3 +144,10 @@
 .apx-engine--none.apx-engine--tile {
   background: var(--apx-fill);
 }
+/* An ACP agent's one-colour mark: the text colour, on the neutral tile when there is one. */
+.apx-engine--acp {
+  color: var(--apx-fg);
+}
+.apx-engine__tile {
+  fill: var(--apx-fill);
+}

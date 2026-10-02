@@ -1,9 +1,9 @@
-import type { Thread } from "@apx/protocol";
-import { Button, EmptyState, EngineIcon, IconButton, Icons, SearchField, Skeleton } from "@apx/ui";
+import type { Result, Thread } from "@apx/protocol";
+import { Button, Dialog, EmptyState, EngineIcon, Field, IconButton, Icons, SearchField, Skeleton } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
-import { createThread } from "../data/actions.ts";
+import { shortWhen } from "../common/format.ts";
+import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { client } from "../data/client.ts";
-import { setThreadModel } from "../data/composer.ts";
 import { secretary, threadAgent } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
@@ -12,10 +12,14 @@ import { ThreadRow } from "../inbox/ThreadRow.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+type Native = Result<"sessions.native">["sessions"][number];
+/** Engines whose own sessions on this machine APX can read and go on with. */
+const NATIVE = new Set(["claude", "codex"]);
 
 /**
- * An outside engine's sessions (Claude Code, Codex, an ACP agent): every chat it answered in or is set to, newest
- * first, opening beside it like the Inbox; "New session" starts a chat that runs on it.
+ * An outside engine's sessions (Claude Code, Codex, an ACP agent), the engine itself: those started in APX, newest
+ * first, and below them the owner's own sessions on this Mac, to go on with here. "New session" asks for the project
+ * it works in.
  */
 export function EngineSessions() {
   const t = useT();
@@ -25,8 +29,10 @@ export function EngineSessions() {
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const [ids, setIds] = useState<string[]>();
+  const [native, setNative] = useState<Native[]>();
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
+  const [resuming, setResuming] = useState<string>();
   const count = Object.keys(threads).length;
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat anywhere may be one of its sessions: read again.
   useEffect(() => {
@@ -39,42 +45,54 @@ export function EngineSessions() {
       live = false;
     };
   }, [engineId, count, t]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one gone on with in APX leaves this list: read again.
+  useEffect(() => {
+    let live = true;
+    setNative(undefined);
+    if (engineId !== "claude" && engineId !== "codex") return;
+    client.call("sessions.native", { engine: engineId, limit: 100 }).then(
+      (r) => live && setNative(r.sessions),
+      () => live && setNative([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [engineId, count]);
 
-  const list = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (ids ?? [])
-      .map((id) => threads[id])
-      .filter((x): x is Thread => Boolean(x))
-      .filter((x) => !q || `${x.title} ${x.preview ?? ""}`.toLowerCase().includes(q))
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  }, [ids, threads, query]);
+  const q = query.trim().toLowerCase();
+  const list = useMemo(
+    () =>
+      (ids ?? [])
+        .map((id) => threads[id])
+        .filter((x): x is Thread => Boolean(x))
+        .filter((x) => !q || `${x.title} ${x.preview ?? ""}`.toLowerCase().includes(q))
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    [ids, threads, q],
+  );
+  const mine = (native ?? []).filter((s) => !q || `${s.title} ${s.cwd}`.toLowerCase().includes(q));
 
-  const start = async () => {
-    const agent = secretary(agents);
-    if (!agent) return;
-    setCreating(true);
+  const resume = async (s: Native) => {
+    if (engineId !== "claude" && engineId !== "codex") return;
+    setResuming(s.id);
     try {
-      const th = await createThread({
-        agentId: agent.id,
-        title: t("engine.newTitle", { engine: engine?.label ?? engineId }),
-      });
-      await setThreadModel(th.id, { model: engineId, router: false });
+      const th = await client.call("sessions.resume", { engine: engineId, id: s.id });
       setIds((cur) => [th.id, ...(cur ?? [])]);
       go.engine(engineId, th.id);
     } catch (e) {
       notify(t("error.load", { error: errText(e) }));
     } finally {
-      setCreating(false);
+      setResuming(undefined);
     }
   };
   const ready = Boolean(engine?.installed && engine.logged_in);
+  const label = engine?.label ?? engineId;
 
   return (
-    <section className="inbox" aria-label={engine?.label ?? engineId}>
+    <section className="inbox" aria-label={label}>
       <div className="inbox__head">
         <div className="inbox__titlerow">
           <EngineIcon engine={engineId} tile size={24} />
-          <h1 className="inbox__title">{engine?.label ?? engineId}</h1>
+          <h1 className="inbox__title">{label}</h1>
           <IconButton
             label={t("engine.settings")}
             icon={<Icons.Settings size={15} />}
@@ -83,8 +101,8 @@ export function EngineSessions() {
           <IconButton
             label={t("engine.new")}
             icon={<Icons.SquarePen size={16} />}
-            disabled={!ready || creating}
-            onClick={() => void start()}
+            disabled={!ready}
+            onClick={() => setCreating(true)}
           />
         </div>
         <SearchField
@@ -100,7 +118,7 @@ export function EngineSessions() {
         ) : !engine?.installed || !engine.logged_in ? (
           <EmptyState
             icon={<Icons.Plug />}
-            title={t(engine?.installed ? "engine.signIn" : "engine.install", { engine: engine?.label ?? engineId })}
+            title={t(engine?.installed ? "engine.signIn" : "engine.install", { engine: label })}
             action={
               <Button size="sm" variant="secondary" onClick={() => go.config("engines")}>
                 {t("engine.settings")}
@@ -109,32 +127,126 @@ export function EngineSessions() {
           >
             {engine?.detail ?? t("engine.notReadyBody")}
           </EmptyState>
-        ) : !list.length ? (
-          <EmptyState
-            icon={<Icons.MessageCircle />}
-            title={query ? t("inbox.noResults") : t("engine.empty", { engine: engine.label })}
-            action={
-              !query && (
-                <Button size="sm" loading={creating} onClick={() => void start()}>
-                  {t("engine.new")}
-                </Button>
-              )
-            }
-          >
-            {query ? t("inbox.noMatch", { query }) : t("engine.emptyBody", { engine: engine.label })}
-          </EmptyState>
         ) : (
-          list.map((th) => (
-            <ThreadRow
-              key={th.id}
-              thread={th}
-              agent={threadAgent(th, agents)}
-              selected={th.id === threadId}
-              onOpen={() => go.engine(engineId, th.id)}
-            />
-          ))
+          <>
+            {list.map((th) => (
+              <ThreadRow
+                key={th.id}
+                thread={th}
+                agent={threadAgent(th, agents)}
+                selected={th.id === threadId}
+                onOpen={() => go.engine(engineId, th.id)}
+              />
+            ))}
+            {!list.length && !mine.length && (
+              <EmptyState
+                icon={<Icons.MessageCircle />}
+                title={query ? t("inbox.noResults") : t("engine.empty", { engine: label })}
+                action={
+                  !query && (
+                    <Button size="sm" onClick={() => setCreating(true)}>
+                      {t("engine.new")}
+                    </Button>
+                  )
+                }
+              >
+                {query ? t("inbox.noMatch", { query }) : t("engine.emptyBody", { engine: label })}
+              </EmptyState>
+            )}
+          </>
+        )}
+        {NATIVE.has(engineId) && (mine.length > 0 || native === undefined) && (
+          <div className="engine__native">
+            <div className="engine__nativehead">
+              <Icons.Monitor size={13} />
+              <span>{t("engine.onMac")}</span>
+              <span className="engine__nativecount">{native ? mine.length : ""}</span>
+            </div>
+            {native === undefined ? (
+              <Skeleton height={48} />
+            ) : (
+              mine.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="engine__session"
+                  disabled={!ready || resuming !== undefined}
+                  title={t("engine.resumeHint", { engine: label })}
+                  onClick={() => void resume(s)}
+                >
+                  <span className="engine__sessiontop">
+                    <span className="engine__sessiontitle">{s.title}</span>
+                    <span className="engine__sessiontime">{shortWhen(s.updated_at)}</span>
+                  </span>
+                  <span className="engine__sessioncwd">
+                    {resuming === s.id ? t("engine.resuming") : s.cwd.split("/").slice(-2).join("/")}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
         )}
       </div>
+      {creating && (
+        <NewSession
+          engineId={engineId}
+          label={label}
+          onClose={() => setCreating(false)}
+          onMade={(id) => setIds((cur) => [id, ...(cur ?? [])])}
+        />
+      )}
     </section>
+  );
+}
+
+/** A new session with the engine itself, in a project's folder. */
+function NewSession(props: { engineId: string; label: string; onClose(): void; onMade(id: string): void }) {
+  const t = useT();
+  const agents = useData((s) => s.agents);
+  const projects = useData((s) => s.projects);
+  const [project, setProject] = useState<string | undefined>(() => projects.find((p) => p.path)?.id);
+  const [busy, setBusy] = useState(false);
+  const folder = projects.find((p) => p.id === project)?.path;
+  const start = async () => {
+    const agent = secretary(agents);
+    if (!agent || !project) return;
+    setBusy(true);
+    try {
+      const th = await client.call("threads.create", {
+        kind: "code",
+        agent_id: agent.id,
+        project_id: project,
+        engine: props.engineId,
+        title: t("engine.newTitle", { engine: props.label }),
+      });
+      props.onMade(th.id);
+      go.engine(props.engineId, th.id);
+      props.onClose();
+    } catch (e) {
+      notify(t("error.load", { error: errText(e) }));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && props.onClose()}
+      title={t("engine.newWith", { engine: props.label })}
+      footer={
+        <>
+          <Button variant="secondary" onClick={props.onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button disabled={!folder} loading={busy} onClick={() => void start()}>
+            {t("engine.start")}
+          </Button>
+        </>
+      }
+    >
+      <Field label={t("engine.project")} hint={folder ?? t("engine.projectHint")}>
+        <ProjectSelect value={project} onChange={setProject} />
+      </Field>
+    </Dialog>
   );
 }

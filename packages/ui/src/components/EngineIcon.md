@@ -4,7 +4,9 @@ category: Identity
 # EngineIcon
 
 The official mark of the app or model behind an engine: Claude (Claude Code, Anthropic), Codex, Gemini, OpenAI and
-Ollama. Used wherever an engine is named: external sessions in the sidebar, the chat header of a code session, the
+Ollama in their colours, and the coding agents that speak the Agent Client Protocol (OpenCode, Qwen Code, Cursor,
+GitHub Copilot, goose, Kimi, Auggie, Factory Droid, Mistral Vibe, Qoder, Grok, Devin, Amp, Kilo, Poolside) as
+one-colour marks from the ACP registry, drawn in the text colour. Used wherever an engine is named: external sessions in the sidebar, the chat header of a code session, the
 engine chip on an agent and the engine picker in the composer. Unknown engines show a neutral bot.
 
 - `engine`: any engine or provider id; `engineBrand(id)` tells which mark it maps to.
@@ -16,4 +18,5 @@ engine chip on an agent and the engine picker in the composer. Unknown engines s
 <EngineIcon engine="claude" tile size={20} />
 <EngineIcon engine="codex" tile size={20} />
 <EngineIcon engine="acp:gemini" size={14} />
+<EngineIcon engine="acp:opencode" tile size={20} />
 ```

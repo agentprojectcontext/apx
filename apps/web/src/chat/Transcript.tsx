@@ -2,6 +2,7 @@ import type { Message as Msg, Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { dayLabel, sameDay } from "../common/format.ts";
+import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
@@ -20,6 +21,8 @@ export function Transcript({ thread }: { thread: Thread }) {
   const lang = useLanguage();
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
   const agents = useData((s) => s.agents);
+  const engineLabel = useEngineLabel(thread.engine);
+  const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
   const showTools = useNav((s) => s.tools);
   const agent = threadAgent(thread, agents);
   const scroller = useRef<HTMLDivElement>(null);
@@ -75,7 +78,10 @@ export function Transcript({ thread }: { thread: Thread }) {
     <div className="chat__scroll" ref={scroller} onScroll={onScroll}>
       <div className="transcript" ref={content}>
         {rows.length === 0 && !working && (
-          <EmptyState icon={<Icons.MessageCircle />} title={t("chat.with", { name: agent?.name ?? thread.title })}>
+          <EmptyState
+            icon={<Icons.MessageCircle />}
+            title={t("chat.with", { name: engineLabel ?? agent?.name ?? thread.title })}
+          >
             {t("chat.startHint")}
           </EmptyState>
         )}
@@ -103,7 +109,13 @@ export function Transcript({ thread }: { thread: Thread }) {
                 {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
               </SystemNote>
             ) : (
-              <AgentTurn message={msg} agent={agents[msg.author.id]} showAvatar={multiAgent} showTools={showTools} />
+              <AgentTurn
+                message={msg}
+                agent={agents[msg.author.id]}
+                showAvatar={multiAgent}
+                showTools={showTools}
+                engine={engine}
+              />
             )}
           </div>
         ))}

@@ -1,5 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
+import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -24,7 +25,9 @@ export function ChatHeader({
   const project = projects.find((p) => p.id === thread.project_id);
   const tools = useNav((s) => s.tools);
   const sub = thread.kind === "a2a" || thread.parent_id != null;
-  const name = sub ? thread.title : (agent?.name ?? thread.title);
+  // An engine session is the engine itself: its name and icon, not the agent that owns the run.
+  const engine = useEngineLabel(thread.engine);
+  const name = sub ? thread.title : (engine ?? agent?.name ?? thread.title);
 
   return (
     <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
@@ -39,18 +42,23 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      <AgentAvatar
-        name={agent?.name ?? name}
-        blob={blobOf(agent)}
-        size={32}
-        status={sub ? undefined : "online"}
-        statusLabel={t("presence.online")}
-      />
+      {thread.engine ? (
+        <EngineIcon engine={thread.engine} tile size={32} />
+      ) : (
+        <AgentAvatar
+          name={agent?.name ?? name}
+          blob={blobOf(agent)}
+          size={32}
+          status={sub ? undefined : "online"}
+          statusLabel={t("presence.online")}
+        />
+      )}
       <div className="chat__titles">
         <div className="chat__title">
           <span className="chat__name">{name}</span>
-          {!sub && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
-          {!sub && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
+          {engine && <Tag kind="role">{t("engine.direct")}</Tag>}
+          {!sub && !engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
+          {!sub && !engine && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
         </div>
         <div className="chat__crumb">
           <ProjectTile tone={projectTone(project?.id ?? DEFAULT_PID)} size={12} />
@@ -69,7 +77,11 @@ export function ChatHeader({
           )}
           {thread.kind === "code" && thread.cwd && (
             <span className="chat__code" title={thread.cwd}>
-              {agent?.harness ? <EngineIcon engine={agent.harness} size={12} /> : <Icons.Code size={12} />}
+              {thread.engine || agent?.harness ? (
+                <EngineIcon engine={thread.engine ?? agent?.harness ?? ""} size={12} />
+              ) : (
+                <Icons.Code size={12} />
+              )}
               <span className="chat__cwd">{thread.cwd}</span>
               <Tag>{t(`write.${thread.write ?? "ask"}`)}</Tag>
             </span>

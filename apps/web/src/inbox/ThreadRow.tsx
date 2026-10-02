@@ -1,5 +1,5 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, ConversationRow, Spinner, Tag } from "@apx/ui";
+import { AgentAvatar, ConversationRow, EngineIcon, Spinner, Tag } from "@apx/ui";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { type T, useT } from "../i18n/index.ts";
@@ -20,9 +20,15 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
     <ConversationRow
       selected={selected}
       onClick={onOpen}
-      avatar={<AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />}
+      avatar={
+        thread.engine ? (
+          <EngineIcon engine={thread.engine} tile size={36} />
+        ) : (
+          <AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />
+        )
+      }
       title={thread.title}
-      titleTag={agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
+      titleTag={!thread.engine && agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
       time={shortWhen(thread.updated_at)}
       unread={thread.unread}
       meta={metaLine(thread, agent, t)}
@@ -37,8 +43,9 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   );
 }
 
-/** Third line: what kind of chat this is, and the agent's role when it has one. */
+/** Third line: what kind of chat this is, and the agent's role when it has one (an engine session: its folder). */
 function metaLine(thread: Thread, agent: Agent | undefined, t: T): string {
+  if (thread.engine) return `${t("engine.direct")} · ${thread.cwd?.split("/").filter(Boolean).at(-1) ?? ""}`;
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "group") return t("thread.group", { n: thread.agent_ids.length });
   const kind = thread.kind === "home" ? t("thread.home") : t("thread.chat");

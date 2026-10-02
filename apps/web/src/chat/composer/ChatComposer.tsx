@@ -1,6 +1,7 @@
 import type { Agent, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu } from "@apx/ui";
 import { useMemo, useRef, useState } from "react";
+import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
 import { cancel, send } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
@@ -26,6 +27,7 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
+  const engine = useEngineLabel(thread.engine);
   const runsById = useData((s) => s.runs);
   const [text, setText] = useState("");
   const files = useRef<HTMLInputElement>(null);
@@ -82,7 +84,9 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
       />
       <Composer
         placeholder={
-          offline ? t("composer.offline") : t("composer.placeholder", { name: agent?.name ?? t("composer.yourAgent") })
+          offline
+            ? t("composer.offline")
+            : t("composer.placeholder", { name: engine ?? agent?.name ?? t("composer.yourAgent") })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
         sendHint={t("composer.sendHint")}

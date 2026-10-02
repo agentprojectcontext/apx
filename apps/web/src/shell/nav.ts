@@ -110,7 +110,10 @@ function fromHash(): Partial<NavState> {
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
     ...(channel ? { view: "channel" as const, channelId: channel, channelThread: h.get("chat") ?? undefined } : {}),
-    ...(h.get("engine") ? { view: "engine" as const, engineId: h.get("engine") ?? undefined } : {}),
+    // An engine's view opens on one of its sessions or on none: never on the chat the app started with.
+    ...(h.get("engine")
+      ? { view: "engine" as const, engineId: h.get("engine") ?? undefined, threadId: h.get("thread") ?? undefined }
+      : {}),
   };
 }
 

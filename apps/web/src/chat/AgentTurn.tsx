@@ -1,5 +1,5 @@
 import type { Agent, Message as Msg, Part } from "@apx/protocol";
-import { AgentAvatar, MarkdownView, Message, MessageMeta } from "@apx/ui";
+import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { AudioPart } from "./parts/AudioPart.tsx";
@@ -23,11 +23,14 @@ export function AgentTurn({
   agent,
   showAvatar,
   showTools,
+  engine,
 }: {
   message: Msg;
   agent?: Agent;
   showAvatar: boolean;
   showTools: boolean;
+  /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
+  engine?: { id: string; label: string } | undefined;
 }) {
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const subs = message.parts.filter((p) => p.type === "subthread");
@@ -38,9 +41,12 @@ export function AgentTurn({
     ...texts.map((p, i) => ({ key: `x:${i}`, part: p })),
     ...rest.map((p, i) => ({ key: cardKey(p, i), part: p })),
   ];
-  const avatar =
-    showAvatar && agent ? <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} /> : undefined;
-  const meta = <MessageMeta agent={agent?.name} model={message.model} />;
+  const avatar = !showAvatar ? undefined : engine ? (
+    <EngineIcon engine={engine.id} size={24} />
+  ) : agent ? (
+    <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} />
+  ) : undefined;
+  const meta = <MessageMeta agent={engine?.label ?? agent?.name} model={message.model} />;
 
   return (
     <div className="turn">

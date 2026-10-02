@@ -103,3 +103,68 @@
   color: var(--apx-warning-soft-fg);
   font-weight: var(--apx-weight-medium);
 }
+
+/* An engine's sessions on this Mac, below those started in APX. */
+.engine__native {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--apx-border);
+}
+.engine__nativehead {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 8px 6px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.engine__nativecount {
+  color: var(--apx-fg-subtle);
+  font-weight: var(--apx-weight-regular, 400);
+}
+.engine__session {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--apx-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.engine__session:hover {
+  background: var(--apx-fill-hover);
+}
+.engine__session:disabled {
+  cursor: progress;
+}
+.engine__sessiontop {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.engine__sessiontitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--apx-text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.engine__sessiontime {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+}
+.engine__sessioncwd {
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono, ui-monospace, monospace);
+  font-size: var(--apx-text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
