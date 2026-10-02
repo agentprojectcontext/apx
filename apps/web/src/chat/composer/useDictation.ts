@@ -9,11 +9,14 @@ export function useDictation(thread: string, onText: (text: string) => void) {
     typeof MediaRecorder === "undefined" || !navigator.mediaDevices ? "unsupported" : "idle",
   );
   const rec = useRef<MediaRecorder | null>(null);
+  // Cleared on unmount: a mic granted after leaving the chat is closed at once.
+  const alive = useRef(true);
   const deliver = useRef(onText);
   deliver.current = onText;
   // Leaving the chat stops the mic (and its light) without transcribing.
   useEffect(
     () => () => {
+      alive.current = false;
       const r = rec.current;
       if (r && r.state !== "inactive") {
         r.ondataavailable = null;
@@ -33,6 +36,10 @@ export function useDictation(thread: string, onText: (text: string) => void) {
       setState("unsupported");
       return;
     }
+    if (!alive.current) {
+      for (const tr of stream.getTracks()) tr.stop();
+      return;
+    }
     const chunks: Blob[] = [];
     const r = new MediaRecorder(stream);
     r.ondataavailable = (e) => chunks.push(e.data);
@@ -40,6 +47,7 @@ export function useDictation(thread: string, onText: (text: string) => void) {
       for (const tr of stream.getTracks()) tr.stop();
       setState("transcribing");
       const text = await transcribe(new Blob(chunks, { type: r.mimeType || "audio/webm" }), thread);
+      if (!alive.current) return;
       setState("idle");
       if (text) deliver.current(text);
     };

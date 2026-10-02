@@ -6,6 +6,7 @@ import { cancel, send } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { isWorking } from "../../data/identity.ts";
 import { choiceLabel, splitRef, useModels } from "../../data/models.ts";
+import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "./AttachChips.tsx";
@@ -43,12 +44,17 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   );
 
   const submit = (value: string) => {
-    if (att.uploading) return;
+    if (att.uploading) return notify(t("composer.stillUploading"), "info");
     const attachments = att.take();
     const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
     if (!words) return;
     setText("");
-    void send(thread.id, words, { attachments, interrupt }).catch(() => {});
+    setInterrupt(false);
+    // A send that fails gives the words and the files back, so nothing the owner wrote is lost.
+    send(thread.id, words, { attachments, interrupt }).catch(() => {
+      setText((cur) => cur || value);
+      att.restore(attachments);
+    });
   };
   const pick = (input: HTMLInputElement | null) => input?.click();
 

@@ -63,7 +63,7 @@ export function QuickChat() {
       <div className="quick__body">
         {thread && load === "ready" ? <Transcript thread={thread} /> : <Skeleton className="quick__skeleton" />}
       </div>
-      {thread && <ChatComposer thread={thread} agent={agent} />}
+      {thread && <ChatComposer key={thread.id} thread={thread} agent={agent} />}
     </section>
   );
 }

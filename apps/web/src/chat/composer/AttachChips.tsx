@@ -17,7 +17,13 @@ export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: 
             <img className="attchip__thumb" src={c.preview} alt="" />
           ) : (
             <span className="attchip__icon">
-              {c.error ? <Icons.TriangleAlert size={14} /> : <Icons.FileText size={14} />}
+              {c.error ? (
+                <Icons.TriangleAlert size={14} />
+              ) : c.image ? (
+                <Icons.Image size={14} />
+              ) : (
+                <Icons.FileText size={14} />
+              )}
             </span>
           )}
           <span className="attchip__name">{c.error ?? c.name}</span>

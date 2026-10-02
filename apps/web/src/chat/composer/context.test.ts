@@ -8,6 +8,11 @@ const run = (id: string, usage?: Run["usage"]) => ({ id, usage }) as Run;
 test("the context figure comes from the newest run that reported one", () => {
   assert.equal(contextOf([]), undefined);
   assert.equal(contextOf([run("a", { input: 9, output: 1 })]), undefined, "no context: no figure");
+  assert.equal(
+    contextOf([run("b", { input: 9, output: 1 }), run("a", { input: 9, output: 1, context: 9 })]),
+    undefined,
+    "the newest run had none: no stale figure",
+  );
   assert.deepEqual(contextOf([run("b"), run("a", { input: 50_000, output: 10, context: 38_400, window: 200_000 })]), {
     used: 38_400,
     window: 200_000,

@@ -1,8 +1,11 @@
 import type { Run } from "@apx/protocol";
 
-/** How full the chat is, from the newest run that said so (runs newest first); undefined while none has. */
+/**
+ * How full the chat is, from the newest finished run (runs newest first). Engines that do not report it (Claude
+ * Code, Codex) leave no figure rather than an older, stale one.
+ */
 export function contextOf(runs: readonly Run[]): { used: number; window?: number } | undefined {
-  const last = runs.find((r) => r.usage?.context);
+  const last = runs.find((r) => r.usage);
   return last?.usage?.context ? { used: last.usage.context, window: last.usage.window } : undefined;
 }
 

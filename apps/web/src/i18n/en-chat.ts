@@ -11,6 +11,7 @@ export const enChat = {
   "composer.attachments": "Attached files",
   "composer.removeFile": "Remove {name}",
   "composer.tooBig": "{name} is over {mb} MB",
+  "composer.stillUploading": "Wait for the files to finish uploading.",
   "composer.attachedOnly": "See the attached files.",
   "composer.dictate": "Dictate",
   "composer.dictateStop": "Stop dictating",

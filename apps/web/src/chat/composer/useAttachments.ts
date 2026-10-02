@@ -49,6 +49,8 @@ export function useAttachments(thread: string) {
         );
         return chip;
       });
+      // The ref moves at once: a drop and a paste in the same tick share the room left.
+      live.current = [...live.current, ...fresh];
       if (fresh.length) setChips((cs) => [...cs, ...fresh]);
     },
     [thread, patch],
@@ -66,11 +68,24 @@ export function useAttachments(thread: string) {
   const take = useCallback((): Attached[] => {
     const ready = live.current.flatMap((c) => (c.media ? [c.media] : []));
     for (const c of live.current) if (c.preview) URL.revokeObjectURL(c.preview);
+    live.current = [];
     setChips([]);
     return ready;
   }, []);
 
+  /** Puts back files a failed send took (already uploaded: they need no new upload). */
+  const restore = useCallback((files: Attached[]) => {
+    const back = files.map((media) => ({
+      key: crypto.randomUUID(),
+      name: media.name,
+      image: media.kind === "image",
+      media,
+    }));
+    live.current = [...back, ...live.current];
+    setChips((cs) => [...back, ...cs]);
+  }, []);
+
   const uploading = chips.some((c) => !c.media && !c.error);
   const ready = chips.some((c) => c.media);
-  return { chips, add, remove, take, uploading, ready };
+  return { chips, add, remove, take, restore, uploading, ready };
 }
