@@ -173,7 +173,10 @@ test("a project can take none of the owner's global skills or servers; its own s
   assert.equal(there.find((s) => s.name === "acme-only")?.on, true, "its own: on");
   const catalog = skillsFor(env.core.store, home, project).map((s) => s.name);
   assert.ok(catalog.includes("acme-only") && !catalog.includes("digest"));
-  assert.ok(skillsFor(env.core.store, home, undefined).some((s) => s.name === "digest"), "still on elsewhere");
+  assert.ok(
+    skillsFor(env.core.store, home, undefined).some((s) => s.name === "digest"),
+    "still on elsewhere",
+  );
 
   await env.client.call("resources.inherit", { project, kind: "mcp", on: false });
   const servers = (await env.client.call("mcp.list", { project })).servers;
