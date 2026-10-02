@@ -137,6 +137,26 @@ export function mcpConfig(store: Store) {
       if (!d.project_id) return;
       store.settings.set(trustKey(d.project_id, d.name), trusted ? d.hash : "");
     },
+    /** Global servers the owner turned off inside a project. */
+    offIn(projectId: string): string[] {
+      try {
+        const all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
+        return Array.isArray(all[projectId]) ? all[projectId] : [];
+      } catch {
+        return [];
+      }
+    },
+    setOn(projectId: string, name: string, on: boolean): void {
+      let all: Record<string, string[]> = {};
+      try {
+        all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
+      } catch {}
+      const list = new Set(all[projectId] ?? []);
+      if (on) list.delete(name);
+      else list.add(name);
+      all[projectId] = [...list];
+      store.settings.set("mcp_off", JSON.stringify(all));
+    },
     /** Adds, replaces or (null) removes one of the owner's global servers. */
     setGlobal(name: string, server: Record<string, unknown> | null): void {
       const all = parse(store.settings.get("mcp_servers"));

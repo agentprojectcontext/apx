@@ -8,7 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 export type SecretsBackend = "keychain" | "file";
-type Entry = { value?: string; updated_at: string };
+type Entry = { value?: string; updated_at: string; hint?: string };
+
+/** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
+const HINT_MIN = 12;
 
 const SERVICE = "apx2";
 const SECURITY = "/usr/bin/security";
@@ -72,8 +75,12 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     has(ref: string | undefined): boolean {
       return api.resolve(ref) !== undefined;
     },
-    list(): Array<{ name: string; updated_at: string }> {
-      return Object.entries(read()).map(([name, e]) => ({ name, updated_at: e.updated_at }));
+    list(): Array<{ name: string; updated_at: string; hint?: string }> {
+      return Object.entries(read()).map(([name, e]) => ({
+        name,
+        updated_at: e.updated_at,
+        ...(e.hint ? { hint: e.hint } : {}),
+      }));
     },
     set(name: string, value: string | null): void {
       const all = read();
@@ -82,7 +89,12 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
         cache.delete(name);
       }
       if (value === null) delete all[name];
-      else all[name] = { ...(backend === "file" ? { value } : {}), updated_at: new Date().toISOString() };
+      else
+        all[name] = {
+          ...(backend === "file" ? { value } : {}),
+          updated_at: new Date().toISOString(),
+          ...(value.length >= HINT_MIN ? { hint: value.slice(-4) } : {}),
+        };
       write(all);
     },
   };

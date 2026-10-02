@@ -29,6 +29,7 @@ import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { notificationHandlers } from "./rpc/notifications.ts";
 import { providerHandlers } from "./rpc/providers.ts";
+import { resourceHandlers } from "./rpc/resources.ts";
 import type { Dispatch } from "./rpc/router.ts";
 import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
@@ -141,6 +142,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...clientHandlers(d.store),
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp),
+    ...resourceHandlers({ store: d.store, home: d.app.home, secrets: d.secrets, mcp: d.mcp.config }),
     ...providerHandlers(d.providers, d.secrets),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),

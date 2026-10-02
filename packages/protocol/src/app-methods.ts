@@ -8,7 +8,6 @@ import {
   Id,
   ImageDefaults,
   Job,
-  McpServerStatus,
   Memory,
   MemoryScope,
   MemorySettings,
@@ -33,11 +32,13 @@ import {
   WritePolicy,
 } from "./domain.ts";
 import { officeMethods } from "./office-methods.ts";
+import { resourceMethods } from "./resource-methods.ts";
 import { teamMethods } from "./team-methods.ts";
 
 export const appMethods = {
   ...officeMethods,
   ...teamMethods,
+  ...resourceMethods,
   /**
    * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
@@ -59,13 +60,6 @@ export const appMethods = {
       services: z.array(z.string()).default([]),
     }),
     effect: true,
-    access: "human",
-  },
-  /** Names of the stored secrets; values never leave the core. */
-  "secrets.list": {
-    params: z.object({}).strict(),
-    result: z.object({ secrets: z.array(z.object({ name: z.string(), updated_at: z.string() })) }),
-    effect: false,
     access: "human",
   },
   "secrets.set": {
@@ -324,43 +318,6 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
-  /** MCP servers: the owner's and each project's, with whether they are approved and running. */
-  "mcp.list": {
-    params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({ servers: z.array(McpServerStatus) }),
-    effect: false,
-    access: "human",
-  },
-  /** Approves (or withdraws) a project's server as its file defines it now; a changed file needs approving again. */
-  "mcp.trust": {
-    params: z.object({ project: Id, server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
-    result: z.object({ server: McpServerStatus }),
-    effect: true,
-    access: "human",
-  },
-  /** Adds, replaces or (null) removes one of the owner's own servers. Env and header values may be secret://. */
-  "mcp.set": {
-    params: z
-      .object({
-        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/),
-        server: z
-          .object({
-            command: z.string().optional(),
-            args: z.array(z.string()).optional(),
-            env: z.record(z.string(), z.string()).optional(),
-            url: z.string().url().optional(),
-            headers: z.record(z.string(), z.string()).optional(),
-            enabled: z.boolean().optional(),
-          })
-          .strict()
-          .refine((s) => !!s.command !== !!s.url, "give either command or url")
-          .nullable(),
-      })
-      .strict(),
-    result: z.object({ servers: z.array(McpServerStatus) }),
-    effect: true,
-    access: "human",
-  },
   /**
    * Tokens and turns by model since a date. `billing`: included = the owner's subscription (Claude Code, Codex, an
    * ACP agent); metered = a provider's API, paid per token.
@@ -376,21 +333,6 @@ export const appMethods = {
           runs: z.number().int(),
           input: z.number().int(),
           output: z.number().int(),
-        }),
-      ),
-    }),
-    effect: false,
-  },
-  /** Skills agents can load: the owner's (APX home `skills/`) and, with `project`, that project's `.apc/skills/`. */
-  "skills.list": {
-    params: z.object({ project: Id.optional() }).strict(),
-    result: z.object({
-      skills: z.array(
-        z.object({
-          name: z.string(),
-          description: z.string(),
-          scope: z.enum(["global", "project"]),
-          project_id: Id.optional(),
         }),
       ),
     }),

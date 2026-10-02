@@ -567,6 +567,12 @@ export const McpServerStatus = z.object({
   trusted: z.boolean(),
   status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error"]),
   tools: z.number().int(),
+  /** Tool names once it has started. */
+  tool_names: z.array(z.string()).default([]),
+  /** Stored secrets its definition names (`secret://NAME`), and whether each has a value. */
+  vars: z.array(z.object({ name: z.string(), set: z.boolean() })).default([]),
+  /** A global server turned off inside the project asked about. */
+  off_here: z.boolean().default(false),
   error: z.string().optional(),
 });
 export type McpServerStatus = z.infer<typeof McpServerStatus>;

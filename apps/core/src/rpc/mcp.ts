@@ -15,6 +15,16 @@ export function mcpHandlers(mcp: Mcp) {
       if (!s) throw new Error("server vanished");
       return { server: s };
     },
+    "mcp.toggle": ({ project, server, on }) => {
+      if (!mcp.find("global", server)) throw badRequest(`no global server ${server}`);
+      mcp.config.setOn(project, server, on);
+      return { servers: mcp.status(project) };
+    },
+    "mcp.test": async ({ scope, server, project }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw badRequest(`no ${scope} server ${server}`);
+      return mcp.test(d);
+    },
     "mcp.set": ({ name, server }) => {
       mcp.config.setGlobal(name, server);
       mcp.drop({ scope: "global", name });

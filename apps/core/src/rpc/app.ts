@@ -13,7 +13,6 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
-import { skillsFor } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
 
 export function appHandlers(deps: {
@@ -46,7 +45,6 @@ export function appHandlers(deps: {
               })
           : undefined,
       }),
-    "secrets.list": () => ({ secrets: secrets.list() }),
     "desktop.get": () => desktopPrefs(store),
     "desktop.set": (p) => {
       store.settings.set("desktop", JSON.stringify(p));
@@ -67,9 +65,6 @@ export function appHandlers(deps: {
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
     },
-    "skills.list": ({ project }) => ({
-      skills: skillsFor(store, deps.home, project).map(({ dir: _d, ...s }) => s),
-    }),
     "projects.list": () => ({ projects: store.projects.list().map(publicProject) }),
     "projects.register": ({ path }) => {
       let r: ReturnType<typeof deps.apc.register>;

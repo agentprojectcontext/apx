@@ -53,8 +53,20 @@ export type McpStatus = {
   trusted: boolean;
   status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error";
   tools: number;
+  tool_names: string[];
+  vars: Array<{ name: string; set: boolean }>;
+  off_here: boolean;
   error?: string;
 };
+
+/** The stored secrets a definition names, in order, once each. */
+const secretNames = (d: McpDef): string[] => [
+  ...new Set(
+    [...Object.values(d.env), ...Object.values(d.headers), ...d.args, d.url ?? ""].flatMap((v) =>
+      [...v.matchAll(/secret:\/\/([a-zA-Z0-9_.-]+)/g)].map((m) => m[1] as string),
+    ),
+  ),
+];
 
 /**
  * When an MCP tool waits for the owner. MCP's defaults: a tool may change things and may be destructive unless it
@@ -190,10 +202,10 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   }, 60_000);
   idle.unref();
 
-  const defsFor = (projectId: string | undefined) => [
-    ...config.global(),
-    ...(projectId ? config.project(projectId) : []),
-  ];
+  const defsFor = (projectId: string | undefined) => {
+    const off = projectId ? new Set(config.offIn(projectId)) : new Set<string>();
+    return [...config.global().filter((d) => !off.has(d.name)), ...(projectId ? config.project(projectId) : [])];
+  };
 
   return {
     config,
@@ -221,6 +233,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
       const defs = [...config.global(), ...projects.flatMap((p) => config.project(p))];
+      const offHere = new Set(projectId ? config.offIn(projectId) : []);
       return defs.map((d) => {
         const c = conns.get(keyOf(d));
         const trusted = config.trusted(d);
@@ -235,9 +248,34 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
           trusted,
           status: !d.enabled ? "disabled" : !trusted ? "needs-approval" : (live?.status ?? "off"),
           tools: live?.tools.length ?? 0,
+          tool_names: live?.tools.map((t) => t.name) ?? [],
+          vars: secretNames(d).map((name) => ({ name, set: deps.secrets.has(`secret://${name}`) })),
+          off_here: d.scope === "global" && offHere.has(d.name),
           ...(live?.error ? { error: live.error } : {}),
         };
       });
+    },
+    /**
+     * Starts a server afresh and waits for its tools. Only a definition the owner approved runs: a project's file is
+     * someone else's command until then.
+     */
+    async test(d: McpDef): Promise<{ ok: boolean; ms: number; tools: string[]; error?: string }> {
+      if (!config.trusted(d)) return { ok: false, ms: 0, tools: [], error: "approve this server before testing it" };
+      const key = keyOf(d);
+      void conns
+        .get(key)
+        ?.client?.close()
+        .catch(() => {});
+      conns.delete(key);
+      const t0 = Date.now();
+      const c = ensure(d);
+      await c.ready;
+      return {
+        ok: c.status === "ready",
+        ms: Date.now() - t0,
+        tools: c.tools.map((t) => t.name),
+        ...(c.error ? { error: c.error } : {}),
+      };
     },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
     drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {
