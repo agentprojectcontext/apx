@@ -11,6 +11,7 @@ import { telegramAdapter } from "./channels/telegram.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import type { CoreConfig } from "./config.ts";
 import { openDb } from "./db/db.ts";
+import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createAttention } from "./engine/attention.ts";
@@ -52,6 +53,8 @@ export type CoreOptions = {
   channelRetryMs?: readonly number[];
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
+  /** Finder and the trash; tests record the calls instead. */
+  desktop?: DesktopOps;
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -173,6 +176,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       app: { harnesses, v1: config.v1, catalog, apc, engines: engineIds, home: config.home },
       apc,
       engines: engineIds,
+      desktop: opts.desktop ?? systemDesktop,
       // APX's own templates, then the owner's v1 vault (read-only).
       templateRoots: [
         { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },

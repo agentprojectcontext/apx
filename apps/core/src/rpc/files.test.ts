@@ -8,12 +8,18 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
+/** What Finder and the trash were asked to do. */
+const desktopCalls: string[] = [];
+const desktop = {
+  reveal: async (abs: string) => void desktopCalls.push(`reveal ${abs}`),
+  trash: async (abs: string) => void desktopCalls.push(`trash ${abs}`),
+};
 let repo = "";
 let outside = "";
 let project = "";
 
 before(async () => {
-  env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  env = await startCore({ llm: scriptedLlm(() => say("ok")), desktop });
   repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-files-repo-")));
   outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-files-out-")));
   fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
@@ -75,4 +81,33 @@ test(".git stays hidden by any name or case; a pipe is not read (and does not ha
   for (const p of ["gitmeta/config", ".GIT/config", "docs/../.Git/config"])
     await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the project's folder/, p);
   await assert.rejects(env.client.call("files.read", { project, path: "pipe" }), /not a file/);
+});
+
+test("media: images, video, audio and PDF are previewed as bytes; other files are not", async () => {
+  const m = await env.client.call("files.media", { project, path: "logo.png" });
+  assert.equal(m.mime, "image/png");
+  assert.equal(Buffer.from(m.data, "base64")[1], 0x50);
+  await assert.rejects(env.client.call("files.media", { project, path: "docs/plan.md" }), /not an image/);
+  await assert.rejects(env.client.call("files.media", { project, path: "escape/secret.txt" }), /outside/);
+});
+
+test("Finder, rename and trash stay inside the folder; the trash never takes the folder itself or .git", async () => {
+  await env.client.call("files.reveal", { project, path: "docs/plan.md" });
+  assert.equal(desktopCalls.at(-1), `reveal ${path.join(repo, "docs", "plan.md")}`);
+
+  fs.writeFileSync(path.join(repo, "draft.txt"), "x");
+  const r = await env.client.call("files.rename", { project, path: "draft.txt", name: "final.txt" });
+  assert.equal(r.path, "final.txt");
+  assert.ok(fs.existsSync(path.join(repo, "final.txt")));
+  await assert.rejects(env.client.call("files.rename", { project, path: "final.txt", name: "AGENTS.md" }), /exists/);
+  await assert.rejects(env.client.call("files.rename", { project, path: "final.txt", name: "../out.txt" }));
+  await assert.rejects(env.client.call("files.rename", { project, path: "final.txt", name: ".git" }), /outside/);
+
+  await env.client.call("files.trash", { project, path: "final.txt" });
+  assert.equal(desktopCalls.at(-1), `trash ${path.join(repo, "final.txt")}`);
+  const before = desktopCalls.length;
+  await assert.rejects(env.client.call("files.trash", { project, path: "/" }), /never moved/);
+  await assert.rejects(env.client.call("files.trash", { project, path: ".git" }), /outside/);
+  await assert.rejects(env.client.call("files.trash", { project, path: "escape/secret.txt" }), /outside/);
+  assert.equal(desktopCalls.length, before, "nothing else reached the trash");
 });

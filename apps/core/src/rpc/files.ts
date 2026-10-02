@@ -2,7 +2,8 @@
 // that point out are left out) and never .git's insides (by any name or case).
 import fs from "node:fs";
 import path from "node:path";
-import { FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
+import { FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
+import type { DesktopOps } from "../desktop.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
@@ -17,7 +18,27 @@ function looksBinary(b: Buffer): boolean {
   return b.subarray(0, 8000).includes(0);
 }
 
-export function fileHandlers(store: Store) {
+/** What the viewer can show, by extension. */
+const MEDIA: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  avif: "image/avif",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  pdf: "application/pdf",
+};
+export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
+
+export function fileHandlers(store: Store, desktop: DesktopOps) {
   /** The project's folder, and `rel` inside it resolved (refused when it, or what a link points to, leaves it). */
   const locate = (project: string, rel: string) => {
     const p = store.projects.get(project);
@@ -69,6 +90,49 @@ export function fileHandlers(store: Store) {
       }
       entries.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1));
       return { entries, truncated: more };
+    },
+    "files.media": ({ project, path: rel }) => {
+      const { abs, rel: clean } = locate(project, rel);
+      const mime = mediaType(clean);
+      if (!mime) throw badRequest(`${rel} is not an image, video, audio or PDF`);
+      let fd: number;
+      try {
+        fd = fs.openSync(abs, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+      } catch {
+        throw notFound(`file ${rel}`);
+      }
+      try {
+        const st = fs.fstatSync(fd);
+        if (!st.isFile()) throw badRequest(`${rel} is not a file`);
+        if (st.size > FILE_MEDIA_LIMIT) throw badRequest(`${rel} is too big to preview; open it from Finder`);
+        const buf = Buffer.alloc(st.size);
+        fs.readSync(fd, buf, 0, st.size, 0);
+        return { mime, data: buf.toString("base64"), bytes: st.size };
+      } finally {
+        fs.closeSync(fd);
+      }
+    },
+    "files.reveal": async ({ project, path: rel }) => {
+      const { abs } = locate(project, rel);
+      if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
+      await desktop.reveal(abs);
+      return { ok: true as const };
+    },
+    "files.rename": ({ project, path: rel, name }) => {
+      const { abs, root, rel: clean } = locate(project, rel);
+      if (!clean) throw badRequest("the project's folder is renamed from Finder");
+      const next = locate(project, path.posix.join(path.posix.dirname(clean), name));
+      if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
+      if (fs.existsSync(next.abs)) throw badRequest(`${name} already exists there`);
+      fs.renameSync(abs, next.abs);
+      return { path: path.relative(root, next.abs).split(path.sep).join("/") };
+    },
+    "files.trash": async ({ project, path: rel }) => {
+      const { abs, rel: clean } = locate(project, rel);
+      if (!clean) throw badRequest("the project's folder itself is never moved to the trash");
+      if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
+      await desktop.trash(abs);
+      return { ok: true as const };
     },
     "files.read": ({ project, path: rel }) => {
       const { abs, rel: clean } = locate(project, rel);

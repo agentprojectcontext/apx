@@ -122,6 +122,7 @@ type HandlerDeps = {
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
   engines: Parameters<typeof agentHandlers>[2];
+  desktop: Parameters<typeof fileHandlers>[1];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -152,7 +153,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots),
-    ...fileHandlers(d.store),
+    ...fileHandlers(d.store, d.desktop),
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
