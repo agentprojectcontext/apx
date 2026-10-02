@@ -108,7 +108,8 @@ export function dueLabel(iso: string, now = new Date()): { text: string; late: b
   const f = fmt();
   const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
   const bare = d.getHours() === 9 && d.getMinutes() === 0;
-  const late = d.getTime() < now.getTime();
+  // A bare date (no time picked) is due all that day: late only from the next one.
+  const late = bare ? days < 0 : d.getTime() < now.getTime();
   if (days === 0) return { text: bare ? t("time.today") : t("time.todayTime", { time: f.time.format(d) }), late };
   if (days === 1) return { text: t("time.tomorrow"), late };
   if (days > 1 && days < 7) return { text: f.weekday.format(d), late };

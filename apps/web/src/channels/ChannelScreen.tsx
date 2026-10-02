@@ -1,6 +1,6 @@
 import type { ChannelInfo, Person, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
@@ -64,6 +64,14 @@ export function ChannelScreen() {
           b.thread.updated_at.localeCompare(a.thread.updated_at),
       );
   }, [threads, persons, channelId]);
+  // A chat with someone not in the list yet (a contact just approved): fetch the contacts again, once per person.
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    const unknown = rows.flatMap((r) => (r.person ? [] : [r.thread.channel?.person_id ?? ""]));
+    if (!unknown.some((id) => id && !asked.current.has(id))) return;
+    for (const id of unknown) asked.current.add(id);
+    void loadChannels();
+  }, [rows]);
   const shown = rows.filter(
     (r) =>
       !query ||

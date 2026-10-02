@@ -127,6 +127,9 @@ export function ChannelConversation(props: {
             onClick={() => void submit()}
           />
         </div>
+        <p className="chan__hint">
+          {mode === "me" ? t("ch.hint.me", { name }) : t("ch.hint.agent", { agent: agentName, name })}
+        </p>
       </div>
     </section>
   );

@@ -21,6 +21,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.iWrite": "Escribo yo",
   "ch.writeAgent": "Decile a {agent} qué contestarle a {name}…",
   "ch.writeMe": "Escribile a {name}…",
+  "ch.hint.agent": "{agent} escribe la respuesta y se la manda a {name}.",
+  "ch.hint.me": "Le llega a {name} tal cual lo escribís.",
   "ch.muted": "silenciado",
   "ch.name": "Nombre",
   "ch.nickname": "Apodo",

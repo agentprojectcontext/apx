@@ -259,6 +259,11 @@
   align-items: center;
   gap: 8px;
 }
+.chan__hint {
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
 .chan__spacer {
   flex: 1;
 }
