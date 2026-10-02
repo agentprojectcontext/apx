@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Author } from "@apx/protocol";
+import { OWNER_ID } from "../domain/persons.ts";
 import { publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -151,8 +152,13 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
             run_id: "",
           },
         });
-      // The owner writing in the app: answers stay in the app (not on the channel the last message came from).
-      store.threads.mergeContext(thread, { reply_to: undefined });
+      // The owner writing in the app: answers stay in the app (not on the channel the last message came from), except in
+      // a contact's chat, where the owner is telling the agent what to answer that contact.
+      const t = store.threads.get(thread);
+      const contact = t?.channel?.person_id && t.channel.person_id !== OWNER_ID ? t.channel : undefined;
+      store.threads.mergeContext(thread, {
+        reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
+      });
       return post(thread, text, { kind: "user" }, mode === "steer", {
         agent_id: agent.id,
         trigger: "user",

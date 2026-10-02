@@ -406,11 +406,44 @@ export const Address = z.object({
   label: z.string().optional(),
 });
 export type Address = z.infer<typeof Address>;
+/** How a contact relates to the owner: it shapes how the agent talks to them. */
+export const PersonRelation = z.enum([
+  "partner",
+  "family",
+  "friend",
+  "coworker",
+  "client",
+  "associate",
+  "provider",
+  "other",
+]);
+export type PersonRelation = z.infer<typeof PersonRelation>;
+/**
+ * What a contact's chat may do besides talking. All off by default: each one gives the sealed turn exactly one
+ * narrow tool (see DECISIONS.md#d-022).
+ */
+export const PersonPerms = z.object({
+  /** Note an appointment they ask for, for the owner to confirm. */
+  appointments: z.boolean().default(false),
+  /** Note a request they make (a purchase, a favor) as a task for the owner. */
+  requests: z.boolean().default(false),
+  /** Answer from the owner's own notes (global ones only, read-only). */
+  notes: z.boolean().default(false),
+});
+export type PersonPerms = z.infer<typeof PersonPerms>;
 export const Person = z.object({
   id: Id,
   name: z.string(),
   role: PersonRole,
+  /** "Who they are", in the owner's words: reaches only the turns that answer this person. */
   note: z.string().optional(),
+  nickname: z.string().optional(),
+  relation: PersonRelation.optional(),
+  /** The owner's rules for answering them; they go last in the prompt. */
+  rules: z.string().optional(),
+  /** Silenced: their messages are kept, never answered. */
+  muted: z.boolean().default(false),
+  perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
   addresses: z.array(Address),
   created_at: z.string(),
 });

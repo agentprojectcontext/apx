@@ -18,6 +18,8 @@ import {
   PairingRequest,
   PendingInput,
   Person,
+  PersonPerms,
+  PersonRelation,
   PersonRole,
   Project,
   ProviderInfo,
@@ -430,6 +432,16 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * The owner writes to a contact themselves, in that contact's chat ("I'll write"): sent as is on the channel and
+   * kept in the chat; the agent reads it with the next message.
+   */
+  "channels.send": {
+    params: z.object({ thread: Id, text: z.string().trim().min(1).max(4000) }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
@@ -559,6 +571,11 @@ export const appMethods = {
         name: z.string().trim().min(1).max(80),
         role: PersonRole.optional(),
         note: z.string().max(500).optional(),
+        nickname: z.string().trim().max(40).optional(),
+        relation: PersonRelation.nullable().optional(),
+        rules: z.string().max(1000).optional(),
+        muted: z.boolean().optional(),
+        perms: PersonPerms.partial().optional(),
       })
       .strict(),
     result: Person,

@@ -7,10 +7,12 @@ import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
+import { untrusted } from "../tools/result.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
@@ -68,6 +70,10 @@ export function createInbound(deps: {
     if (!owner && overLimit(person.id, person.name)) return "ignored";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     const text = m.voice ? await heard(m, thread.id) : m.text;
+    if (!owner && person.muted) {
+      keepQuiet(thread.id, cfg.id, person, text);
+      return "done";
+    }
     if (owner && (await answerPending(thread.id, text, rowId))) return "done";
     await call(
       "threads.send",
@@ -185,6 +191,25 @@ export function createInbound(deps: {
         channel: { id: cfg.id, conversation, person_id: person.id },
       })
     );
+  }
+
+  /**
+   * A silenced contact's message: kept in their chat (and in what the agent will read if the owner unsilences them),
+   * marked unread, never answered.
+   */
+  function keepQuiet(threadId: string, channel: string, person: { id: string; name: string }, text: string): void {
+    store.tx(() => {
+      store.messages.add({
+        thread_id: threadId,
+        author: { kind: "person", id: person.id, name: person.name, channel },
+        parts: [{ type: "text", text }],
+      });
+      store.modelLog.append(threadId, undefined, [
+        { role: "user", content: untrusted("channel_message", { from: person.name, channel, silenced: "yes" }, text) },
+      ]);
+      const t = store.threads.get(threadId);
+      store.threads.patch(threadId, { preview: previewOf(text), unread: (t?.unread ?? 0) + 1 });
+    });
   }
 
   /** The owner's text answers an open question of that thread, when one is waiting for words. */

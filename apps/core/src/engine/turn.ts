@@ -17,7 +17,7 @@ import { inherit } from "../tools/policy.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
-import { type Audience, audienceOf, contactPrompt, SEALED_HARNESSES } from "./audience.ts";
+import { type Audience, audienceOf, contactPrompt, ownerInstruction, SEALED_HARNESSES } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } from "./context.ts";
 import type { Caller, DelegateTo } from "./delegation.ts";
@@ -193,11 +193,16 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           text: turn.input.text.slice(0, 4000),
         })
       : undefined;
+  // In a contact's chat the owner's own words (typed in the app) say what to answer that contact.
+  const said =
+    turn.audience.kind === "contact" && o.kind === "user"
+      ? ownerInstruction(turn.audience.name, turn.input.text)
+      : turn.input.text;
   const input: ChatItem & { role: "user" } = {
     role: "user",
     content: turnInput({
       origin: turn.input.origin,
-      text: turn.input.text,
+      text: said,
       now: new Date(),
       roster: rosterChanged ? roster.text : undefined,
       memory: recalled.text,

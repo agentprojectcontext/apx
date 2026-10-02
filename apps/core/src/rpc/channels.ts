@@ -5,7 +5,7 @@ import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
 export function channelHandlers(store: Store, channels: Channels) {
@@ -18,6 +18,15 @@ export function channelHandlers(store: Store, channels: Channels) {
       const config = channel ? { ...channel, label: channel.label || defaultLabel(channel.type) } : null;
       return { channels: await channels.set(id, config, token) };
     },
+    "channels.send": ({ thread, text }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      try {
+        channels.sendAsOwner(thread, text);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      return { ok: true as const };
+    },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     }),
@@ -28,12 +37,13 @@ export function channelHandlers(store: Store, channels: Channels) {
       store.persons.owner();
       return { persons: store.persons.list() };
     },
-    "contacts.set": ({ id, name, role, note }) => {
+    "contacts.set": ({ id, name, role, ...details }) => {
       if (!id) {
         if (role === "owner") throw badRequest("there is one owner");
-        return store.persons.create({ name, role: role ?? "contact", note });
+        const created = store.persons.create({ name, role: role ?? "contact", note: details.note });
+        return store.persons.update(created.id, details) ?? created;
       }
-      const p = store.persons.update(id, { name, ...(role ? { role } : {}), note });
+      const p = store.persons.update(id, { name, ...(role ? { role } : {}), ...details });
       if (!p) throw notFound(`person ${id}`);
       return p;
     },

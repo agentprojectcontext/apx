@@ -214,6 +214,11 @@ export interface PersonsTable {
   note: string | null;
   created_at: string;
   updated_at: string;
+  nickname: string | null;
+  relation: string | null;
+  rules: string | null;
+  muted: Generated<number>;
+  perms: string | null;
 }
 
 export interface ProjectsTable {

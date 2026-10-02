@@ -410,4 +410,13 @@ export const MIGRATIONS: readonly string[] = [
     revoked_at TEXT
   );
   `,
+  `
+  -- What the owner tells APX about a contact: a nickname, how they relate, rules for answering them (last in the
+  -- prompt), whether they are silenced (stored, never answered) and what their chat may do (JSON flags, all off).
+  ALTER TABLE persons ADD COLUMN nickname TEXT;
+  ALTER TABLE persons ADD COLUMN relation TEXT;
+  ALTER TABLE persons ADD COLUMN rules TEXT;
+  ALTER TABLE persons ADD COLUMN muted INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE persons ADD COLUMN perms TEXT;
+  `,
 ];

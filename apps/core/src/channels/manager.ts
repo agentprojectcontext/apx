@@ -10,6 +10,7 @@ import { noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
@@ -296,9 +297,36 @@ export function createChannels(deps: {
     });
   }
 
+  /**
+   * The owner writing to a contact themselves ("I'll write"): sent as is on the contact's conversation, kept in the
+   * chat as the owner's words, and noted for the agent so its next answer knows what was said.
+   */
+  function sendAsOwner(threadId: string, text: string): void {
+    const thread = store.threads.get(threadId);
+    const ch = thread?.channel;
+    if (!thread || !ch?.person_id || audienceOf(store, thread).kind !== "contact")
+      throw new Error("only a contact's chat on a channel can be written to directly");
+    const name = audienceOf(store, thread).kind === "contact" ? (store.persons.get(ch.person_id)?.name ?? "them") : "";
+    store.tx(() => {
+      store.messages.add({ thread_id: threadId, author: { kind: "user" }, parts: [{ type: "text", text }] });
+      store.modelLog.append(threadId, undefined, [
+        { role: "user", content: `[Your owner wrote to ${name} directly in this chat:]\n${text}` },
+      ]);
+      store.threads.patch(threadId, { preview: previewOf(text) });
+    });
+    delivery.enqueue({
+      channel: ch.id,
+      conversation: ch.conversation,
+      thread_id: threadId,
+      kind: "reply",
+      body: { text },
+    });
+  }
+
   return {
     info,
     notifyOwner,
+    sendAsOwner,
     afterRun,
     /** Adds, changes or removes a channel and (re)starts it. */
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {

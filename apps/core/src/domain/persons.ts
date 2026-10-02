@@ -1,6 +1,6 @@
 // People and their addresses on channels. The owner is the person with role "owner" (one, created on first use);
 // who someone is on a channel is decided only by an exact address match, never by a name.
-import type { Address, Person, PersonRole } from "@apx/protocol";
+import { type Address, type Person, PersonPerms, PersonRelation, type PersonRole } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { AddressesTable, PersonsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -15,17 +15,44 @@ const toAddress = (r: Selectable<AddressesTable>): Address => ({
   ...opt("label", r.label),
 });
 
+/** Stored flags, anything unreadable meaning "off". */
+function permsOf(text: string | null): PersonPerms {
+  try {
+    return PersonPerms.parse(JSON.parse(text ?? "{}"));
+  } catch {
+    return { appointments: false, requests: false, notes: false };
+  }
+}
+
+/** What the owner may change about a person besides name and role. */
+export type PersonDetails = {
+  note?: string | undefined;
+  nickname?: string | undefined;
+  relation?: PersonRelation | null | undefined;
+  rules?: string | undefined;
+  muted?: boolean | undefined;
+  perms?: Partial<PersonPerms> | undefined;
+};
+
 export function personsRepo({ one, all, run }: Sql) {
   const addressesOf = (id: string) =>
     all(qb.selectFrom("addresses").selectAll().where("person_id", "=", id).orderBy("created_at")).map(toAddress);
-  const toPerson = (r: Selectable<PersonsTable>): Person => ({
-    id: r.id,
-    name: r.name,
-    role: r.role as PersonRole,
-    ...opt("note", r.note),
-    addresses: addressesOf(r.id),
-    created_at: r.created_at,
-  });
+  const toPerson = (r: Selectable<PersonsTable>): Person => {
+    const relation = PersonRelation.safeParse(r.relation);
+    return {
+      id: r.id,
+      name: r.name,
+      role: r.role as PersonRole,
+      ...opt("note", r.note),
+      ...opt("nickname", r.nickname),
+      ...(relation.success ? { relation: relation.data } : {}),
+      ...opt("rules", r.rules),
+      muted: r.muted === 1,
+      perms: permsOf(r.perms),
+      addresses: addressesOf(r.id),
+      created_at: r.created_at,
+    };
+  };
   const repo = {
     list(): Person[] {
       return all(
@@ -58,18 +85,26 @@ export function personsRepo({ one, all, run }: Sql) {
       );
       return repo.get(id) as Person;
     },
-    update(id: string, p: { name?: string; role?: PersonRole; note?: string | undefined }): Person | undefined {
+    update(id: string, p: { name?: string; role?: PersonRole } & PersonDetails): Person | undefined {
       const cur = repo.get(id);
       if (!cur) return undefined;
       // The owner's role never changes, and nobody else becomes the owner by an edit.
       const role = cur.role === "owner" ? "owner" : p.role === "owner" ? cur.role : (p.role ?? cur.role);
+      // undefined keeps a field; "" (or null for the relation) clears it.
+      const text = (next: string | undefined, prev: string | undefined) =>
+        next === undefined ? (prev ?? null) : next || null;
       run(
         qb
           .updateTable("persons")
           .set({
             name: p.name ?? cur.name,
             role,
-            note: p.note === undefined ? (cur.note ?? null) : p.note || null,
+            note: text(p.note, cur.note),
+            nickname: text(p.nickname, cur.nickname),
+            relation: p.relation === undefined ? (cur.relation ?? null) : p.relation,
+            rules: text(p.rules, cur.rules),
+            muted: (p.muted ?? cur.muted) ? 1 : 0,
+            perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
             updated_at: now(),
           })
           .where("id", "=", id),
