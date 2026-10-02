@@ -57,6 +57,7 @@ export { Spinner, type SpinnerProps } from "./components/Spinner";
 export { StatusIcon, type StatusIconProps, type StepStatus } from "./components/StatusIcon";
 export { type Step, StepList, type StepListProps } from "./components/StepList";
 export { SubthreadCard, type SubthreadCardProps } from "./components/SubthreadCard";
+export { type Suggestion, SuggestTextarea, type SuggestTextareaProps } from "./components/SuggestTextarea";
 export { Switch, type SwitchProps } from "./components/Switch";
 export { SystemNote, type SystemNoteProps } from "./components/SystemNote";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";

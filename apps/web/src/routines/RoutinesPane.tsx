@@ -1,8 +1,8 @@
 import type { Routine, RoutineRun } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, Dialog, EmptyState, IconButton, Icons, Menu, Switch } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { AgentAvatar, Badge, Button, EmptyState, IconButton, Icons, Menu, Switch } from "@apx/ui";
+import { type ReactNode, useEffect, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
-import { aheadLabel, shortWhen } from "../common/format.ts";
+import { aheadLabel, formatSeconds, shortWhen } from "../common/format.ts";
 import { loadThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID } from "../data/identity.ts";
 import {
@@ -16,14 +16,31 @@ import {
   useRoutines,
 } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
-import { RoutineEditor, scheduleText } from "./RoutineEditor.tsx";
+import { type MessageKey, useT } from "../i18n/index.ts";
+import { RoutineEditor } from "./RoutineEditor.tsx";
+import { scheduleText } from "./Schedule.tsx";
 
-/** A project's routines (the base project shows the global ones). */
+const CALL_KEY: Record<Routine["call_model"], MessageKey> = {
+  always: "routines.call.always",
+  output: "routines.call.output",
+  fails: "routines.call.fails",
+  never: "routines.call.never",
+};
+const ACTION_KEY: Record<Routine["action"], MessageKey> = {
+  agent: "routines.action.agent",
+  message: "routines.action.message",
+  shell: "routines.action.shell",
+};
+
+/**
+ * A project's routines (the base project shows the global ones), one row each: what it does as a flow, its last
+ * activations as bars, when it runs next. A row opens in place: how it is set up, its prompt and its activations.
+ */
 export function RoutinesPane({ projectId }: { projectId: string }) {
   const t = useT();
   const all = useRoutines((s) => s.routines);
   const ready = useRoutines((s) => s.ready);
+  const agents = useData((s) => s.agents);
   const [editing, setEditing] = useState<RoutineDraft>();
   const [open, setOpen] = useState<string>();
   useEffect(() => {
@@ -31,12 +48,12 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
   }, []);
   const global = projectId === DEFAULT_PID;
   const list = all.filter((r) => (global ? !r.project_id : r.project_id === projectId));
-  const current = list.find((r) => r.id === open);
   const blank: RoutineDraft = {
     name: "",
     agent: "",
     ...(global ? {} : { project: projectId }),
     schedule: { kind: "cron", cron: "0 9 * * *" },
+    action: "agent",
     prompt: "",
     pre_command: "",
     post_command: "",
@@ -58,159 +75,273 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
           {t("routines.empty")}
         </EmptyState>
       ) : (
-        <ul className="routines">
+        <section className="rtlist" aria-label={t("routines.title")}>
+          <div className="rtlist__head" aria-hidden="true">
+            <span>{t("routines.col.routine")}</span>
+            <span>{t("routines.col.flow")}</span>
+            <span>{t("routines.col.activations")}</span>
+            <span>{t("routines.col.next")}</span>
+            <span />
+          </div>
           {list.map((r) => (
-            <RoutineRow key={r.id} routine={r} onOpen={() => setOpen(r.id)} onEdit={() => setEditing(draftOf(r))} />
+            <RoutineRow
+              key={r.id}
+              routine={r}
+              agentName={agents[r.agent_id]?.name ?? r.agent_id}
+              open={open === r.id}
+              onToggle={() => setOpen(open === r.id ? undefined : r.id)}
+              onEdit={() => setEditing(draftOf(r))}
+            />
           ))}
-        </ul>
+          <div className="rtlist__legend">
+            <span className="rtbar is-ran" /> {t("routines.legend.ran")}
+            <span className="rtbar is-skipped" /> {t("routines.legend.skipped")}
+            <span className="rtbar is-failed" /> {t("routines.legend.failed")}
+          </div>
+        </section>
       )}
       {editing && <RoutineEditor draft={editing} onClose={() => setEditing(undefined)} />}
-      {current && <RoutineDetail routine={current} onClose={() => setOpen(undefined)} />}
     </div>
   );
 }
 
-function RoutineRow({ routine: r, onOpen, onEdit }: { routine: Routine; onOpen: () => void; onEdit: () => void }) {
-  const t = useT();
-  const agent = useData((s) => s.agents[r.agent_id]);
-  return (
-    <li className="routine">
-      <button type="button" className="routine__main" onClick={onOpen}>
-        <span className="routine__name">{r.name}</span>
-        <span className="taskcard__meta">
-          {agent && <AgentAvatar name={agent.name} blob={blobOf(agent)} size={16} />}
-          <span>{scheduleText(r.schedule, t)}</span>
-          {r.schedule.kind === "cron" && <code className="routine__cron">{r.schedule.cron}</code>}
-          {(r.pre_command || r.post_command) && (
-            <span className="routine__cmds" title={t("routines.withCommands")}>
-              <Icons.Terminal size={12} />
-            </span>
-          )}
-          {r.last && (
-            <>
-              <LastRun run={r.last} />
-              <span>{t("routines.last", { when: shortWhen(r.last.ended_at ?? r.last.started_at) })}</span>
-            </>
-          )}
-          <span className="taskcard__when">
-            {!r.enabled
-              ? t("routines.off")
-              : r.next_run_at
-                ? t("routines.next", { when: aheadLabel(r.next_run_at) })
-                : r.schedule.kind === "manual"
-                  ? ""
-                  : t("routines.noNext")}
-          </span>
-        </span>
-      </button>
-      <Switch
-        size="sm"
-        checked={r.enabled}
-        aria-label={t("routines.enabled")}
-        onCheckedChange={(on) => void saveRoutine({ ...draftOf(r), enabled: on })}
-      />
-      <IconButton
-        size="sm"
-        label={t("routines.runNow")}
-        icon={<Icons.Play size={14} />}
-        onClick={() => void runRoutine(r.id)}
-      />
-      <Menu
-        align="end"
-        trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={14} />} />}
-        items={[
-          { label: t("routines.edit"), icon: <Icons.Pencil size={14} />, onSelect: onEdit },
-          {
-            label: t("routines.remove"),
-            icon: <Icons.Trash2 size={14} />,
-            danger: true,
-            onSelect: () => void removeRoutine(r.id),
-          },
-        ]}
-      />
-    </li>
-  );
-}
+/** The bar of one activation: the action ran, it was skipped (no tokens spent), or it failed. */
+const barOf = (x: RoutineRun, action: Routine["action"]) => {
+  if (x.state === "failed") return "is-failed";
+  if (x.state !== "completed" && x.state !== "canceled") return "is-live";
+  // A message or a shell job never calls a model: it ran when it sent or ran its command.
+  const skipped = action === "agent" ? x.model_called === false : action === "message" && !x.delivered;
+  return skipped ? "is-skipped" : "is-ran";
+};
 
-function LastRun({ run }: { run: RoutineRun }) {
-  const t = useT();
-  if (run.state === "failed")
-    return (
-      <Badge tone="danger" dot>
-        {t("routines.failed")}
-      </Badge>
-    );
-  if (run.state !== "completed" && run.state !== "canceled")
-    return (
-      <Badge tone="info" dot>
-        {t("routines.running")}
-      </Badge>
-    );
-  if (run.model_called === false) return <Badge>{t("routines.noModel")}</Badge>;
-  return <Badge>{run.delivered === false ? t("routines.quiet") : t("routines.told")}</Badge>;
-}
-
-/** A routine: what it asks and its recent runs; a run opens its conversation. */
-function RoutineDetail({ routine: r, onClose }: { routine: Routine; onClose: () => void }) {
-  const t = useT();
+function useRuns(r: Routine) {
   const [runs, setRuns] = useState<RoutineRun[]>();
-  const [shown, setShown] = useState<string>();
   // Read again whenever the latest run starts or ends.
   const latest = `${r.last?.run_id}:${r.last?.state}:${r.last?.delivered}`;
   useEffect(() => {
-    void routineRuns(r.id).then((list) => {
-      if (!latest) return;
-      setRuns(list);
-      setShown((s) => s ?? list[0]?.thread_id);
-    });
+    let live = true;
+    void routineRuns(r.id).then((list) => live && latest && setRuns(list));
+    return () => {
+      live = false;
+    };
   }, [r.id, latest]);
+  return runs;
+}
+
+function RoutineRow(props: {
+  routine: Routine;
+  agentName: string;
+  open: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+}) {
+  const t = useT();
+  const { routine: r } = props;
+  const agent = useData((s) => s.agents[r.agent_id]);
+  const runs = useRuns(r);
+  const flow = [
+    r.pre_command && (r.action === "shell" ? t("routines.flow.command") : t("routines.flow.pre")),
+    r.action === "agent" ? props.agentName : r.action === "message" ? t("routines.flow.message") : undefined,
+    r.post_command && t("routines.flow.post"),
+  ].filter(Boolean);
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()} size="lg" title={r.name}>
-      <div className="taskdetail">
-        <p className="taskdetail__desc">{r.prompt}</p>
-        {(r.pre_command || r.post_command) && <Commands routine={r} runs={runs ?? []} />}
-        <div className="routine__runs">
-          {runs?.map((x) => (
-            <button
-              type="button"
-              key={x.run_id}
-              className={x.thread_id === shown ? "routine__run is-on" : "routine__run"}
-              onClick={() => setShown(x.thread_id)}
-            >
-              <span>{shortWhen(x.started_at)}</span>
-              <LastRun run={x} />
-            </button>
-          ))}
-          {runs?.length === 0 && <span className="pform__hint">{t("routines.noRuns")}</span>}
-        </div>
-        {shown && <RunTranscript threadId={shown} />}
+    <div className={`rtrow${props.open ? " is-open" : ""}${r.enabled ? "" : " is-off"}`}>
+      <div className="rtrow__line">
+        <button type="button" className="rtrow__main" aria-expanded={props.open} onClick={props.onToggle}>
+          {r.action === "agent" && agent ? (
+            <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
+          ) : (
+            <span className="rtrow__icon">
+              {r.action === "message" ? <Icons.Send size={14} /> : <Icons.Terminal size={14} />}
+            </span>
+          )}
+          <span className="rtrow__names">
+            <span className="rtrow__name">{r.name}</span>
+            <span className="rtrow__when">{scheduleText(r.schedule, t)}</span>
+          </span>
+        </button>
+        <span className="rtrow__flow">{flow.join(" → ")}</span>
+        <span className="rtrow__bars" title={t("routines.col.activations")}>
+          {(runs ?? [])
+            .slice(0, 14)
+            .reverse()
+            .map((x) => (
+              <span
+                key={x.run_id}
+                className={`rtbar ${barOf(x, r.action)}`}
+                title={`${shortWhen(x.started_at)} · ${t(barKey(x, r.action))}`}
+              />
+            ))}
+        </span>
+        <span className="rtrow__next">
+          <span>
+            {!r.enabled
+              ? t("routines.off")
+              : r.next_run_at
+                ? aheadLabel(r.next_run_at)
+                : r.schedule.kind === "manual"
+                  ? t("routines.manual")
+                  : t("routines.noNext")}
+          </span>
+          {r.last && <span className="rtrow__last">{t("routines.last", { when: shortWhen(r.last.started_at) })}</span>}
+        </span>
+        <span className="rtrow__actions">
+          <Switch
+            size="sm"
+            checked={r.enabled}
+            aria-label={t("routines.enabled")}
+            onCheckedChange={(on) => void saveRoutine({ ...draftOf(r), enabled: on })}
+          />
+          <IconButton
+            size="sm"
+            label={t("routines.runNow")}
+            icon={<Icons.Play size={14} />}
+            onClick={() => void runRoutine(r.id)}
+          />
+          <Menu
+            align="end"
+            trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={14} />} />}
+            items={[
+              { label: t("routines.edit"), icon: <Icons.Pencil size={14} />, onSelect: props.onEdit },
+              { type: "separator" },
+              {
+                label: t("routines.remove"),
+                icon: <Icons.Trash2 size={14} />,
+                danger: true,
+                onSelect: () => void removeRoutine(r.id),
+              },
+            ]}
+          />
+        </span>
       </div>
-    </Dialog>
+      {props.open && <RoutineDetail routine={r} agentName={props.agentName} runs={runs} onEdit={props.onEdit} />}
+    </div>
   );
 }
 
-/** The routine's commands, and how often its pre-command spared a model call. */
-function Commands({ routine: r, runs }: { routine: Routine; runs: RoutineRun[] }) {
+const BAR_KEY: Record<ReturnType<typeof barOf>, MessageKey> = {
+  "is-failed": "routines.legend.failed",
+  "is-skipped": "routines.legend.skipped",
+  "is-ran": "routines.legend.ran",
+  "is-live": "routines.running",
+};
+const barKey = (x: RoutineRun, action: Routine["action"]): MessageKey => BAR_KEY[barOf(x, action)];
+
+/** How it is set up (trigger · before · action · after), its prompt, and its activations; one opens its run. */
+function RoutineDetail(props: {
+  routine: Routine;
+  agentName: string;
+  runs: RoutineRun[] | undefined;
+  onEdit: () => void;
+}) {
   const t = useT();
-  const judged = runs.filter((x) => x.model_called !== undefined);
+  const { routine: r, runs } = props;
+  const [shown, setShown] = useState<string>();
+  // Only an agent's routine can spare a model call; a message or a shell job never makes one.
+  const judged = r.action === "agent" ? (runs ?? []).filter((x) => x.model_called !== undefined) : [];
   const skipped = judged.filter((x) => x.model_called === false).length;
   return (
-    <div className="routine__pipeline">
-      {r.pre_command && (
-        <div>
-          <span className="pform__label">{t("routines.pre")}</span>
-          <pre className="routine__code">{r.pre_command}</pre>
+    <div className="rtdetail">
+      <div className="rtdetail__cards">
+        <Card icon={<Icons.Clock size={13} />} label={t("routines.card.trigger")} title={scheduleText(r.schedule, t)}>
+          {r.schedule.kind === "cron" && <code>{r.schedule.cron}</code>}
+        </Card>
+        {r.pre_command && r.action !== "shell" && (
+          <Card
+            icon={<Icons.Terminal size={13} />}
+            label={t("routines.card.before")}
+            title={t("routines.card.command")}
+          >
+            <code>{r.pre_command}</code>
+          </Card>
+        )}
+        <Card
+          icon={
+            r.action === "agent" ? (
+              <Icons.Bot size={13} />
+            ) : r.action === "message" ? (
+              <Icons.Send size={13} />
+            ) : (
+              <Icons.Terminal size={13} />
+            )
+          }
+          label={t("routines.card.action", { action: t(ACTION_KEY[r.action]) })}
+          title={
+            r.action === "agent"
+              ? t("routines.card.agentAnswers", { agent: props.agentName })
+              : r.action === "message"
+                ? t("routines.card.messageSent")
+                : t("routines.card.commandRuns")
+          }
+          strong
+        >
+          {r.action === "shell" ? <code>{r.pre_command}</code> : <span className="rtdetail__clip">{r.prompt}</span>}
+          {r.pre_command && r.action !== "shell" && (
+            <Badge>{t("routines.card.cond", { cond: t(CALL_KEY[r.call_model]) })}</Badge>
+          )}
+        </Card>
+        {r.post_command && (
+          <Card icon={<Icons.Terminal size={13} />} label={t("routines.card.after")} title={t("routines.card.command")}>
+            <code>{r.post_command}</code>
+          </Card>
+        )}
+      </div>
+      {r.action !== "shell" && (
+        <div className="rtdetail__prompt">
+          <span className="rtdetail__label">
+            {r.action === "message" ? t("routines.step.message") : t("routines.prompt")}
+          </span>
+          <p>{r.prompt}</p>
         </div>
       )}
-      {r.post_command && (
-        <div>
-          <span className="pform__label">{t("routines.post")}</span>
-          <pre className="routine__code">{r.post_command}</pre>
+      <div className="rtdetail__runs">
+        <div className="rtdetail__runshead">
+          <span className="rtdetail__label">{t("routines.activations")}</span>
+          {judged.length > 0 && (
+            <span className="rtdetail__skipped">{t("routines.skippedOf", { n: skipped, m: judged.length })}</span>
+          )}
+          <span className="board__spacer" />
+          <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={13} />} onClick={props.onEdit}>
+            {t("routines.edit")}
+          </Button>
         </div>
-      )}
-      {judged.length > 0 && (
-        <span className="pform__hint">{t("routines.skippedOf", { n: skipped, m: judged.length })}</span>
-      )}
+        {runs?.length === 0 && <p className="rtdetail__empty">{t("routines.noRuns")}</p>}
+        {runs?.map((x) => (
+          <button
+            key={x.run_id}
+            type="button"
+            className={`rtrun${shown === x.thread_id ? " is-on" : ""}`}
+            onClick={() => setShown(shown === x.thread_id ? undefined : x.thread_id)}
+          >
+            <span className={`rtbar ${barOf(x, r.action)}`} />
+            <span className="rtrun__when">{shortWhen(x.started_at)}</span>
+            <Badge tone={x.state === "failed" ? "danger" : barOf(x, r.action) === "is-skipped" ? "neutral" : "brand"}>
+              {t(barKey(x, r.action))}
+            </Badge>
+            {x.delivered && <Badge tone="info">{t("routines.told")}</Badge>}
+            <span className="board__spacer" />
+            {x.ended_at && (
+              <span className="rtrun__dur">
+                {formatSeconds((Date.parse(x.ended_at) - Date.parse(x.started_at)) / 1000)}
+              </span>
+            )}
+          </button>
+        ))}
+        {shown && <RunTranscript threadId={shown} />}
+      </div>
+    </div>
+  );
+}
+
+function Card(props: { icon: ReactNode; label: string; title: string; strong?: boolean; children?: ReactNode }) {
+  return (
+    <div className={`rtcard${props.strong ? " is-strong" : ""}`}>
+      <span className="rtcard__label">
+        {props.icon}
+        {props.label}
+      </span>
+      <span className="rtcard__title">{props.title}</span>
+      {props.children && <span className="rtcard__body">{props.children}</span>}
     </div>
   );
 }

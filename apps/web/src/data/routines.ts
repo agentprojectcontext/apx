@@ -1,5 +1,5 @@
 // Routines (routines.*): read when their screen opens and after every change; runs show up as normal runs.
-import type { CallModel, Routine, RoutineRun, Schedule } from "@apx/protocol";
+import type { CallModel, Routine, RoutineAction, RoutineRun, Schedule } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -36,6 +36,7 @@ export type RoutineDraft = {
   agent: string;
   project?: string | undefined;
   schedule: Schedule;
+  action: RoutineAction;
   prompt: string;
   /** Shell before the agent (its output reaches the prompt) and after it; empty = none. */
   pre_command: string;
@@ -53,6 +54,7 @@ export async function saveRoutine(d: RoutineDraft): Promise<boolean> {
       agent: d.agent,
       ...(d.project ? { project: d.project } : {}),
       schedule: d.schedule,
+      action: d.action,
       prompt: d.prompt,
       pre_command: d.pre_command.trim(),
       post_command: d.post_command.trim(),
@@ -73,6 +75,7 @@ export const draftOf = (r: Routine): RoutineDraft => ({
   agent: r.agent_id,
   project: r.project_id,
   schedule: r.schedule,
+  action: r.action,
   prompt: r.prompt,
   pre_command: r.pre_command ?? "",
   post_command: r.post_command ?? "",

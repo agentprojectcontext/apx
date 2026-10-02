@@ -1,128 +1,55 @@
-import type { CallModel, Schedule } from "@apx/protocol";
-import { Button, Dialog, Icons, Input, Menu, SegmentedControl, Textarea } from "@apx/ui";
-import { useState } from "react";
-import { aheadLabel } from "../common/format.ts";
+import type { CallModel, RoutineAction } from "@apx/protocol";
+import { Button, Dialog, Field, Icons, Input, SegmentedControl, Select, SuggestTextarea, Switch } from "@apx/ui";
+import { type ReactNode, useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
+import { secretary } from "../data/identity.ts";
 import { type RoutineDraft, saveRoutine } from "../data/routines.ts";
-import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { useData } from "../data/state.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
+import { ScheduleEditor, scheduleText } from "./Schedule.tsx";
+import { postVars, promptVars } from "./vars.ts";
 
-/** Ready-made times; any other five-field cron can be typed. */
-const PRESETS = [
-  { cron: "0 9 * * *", key: "routines.preset.daily" },
-  { cron: "30 8 * * 1-5", key: "routines.preset.weekdays" },
-  { cron: "0 9 * * 1", key: "routines.preset.mondays" },
-  { cron: "0 * * * *", key: "routines.preset.hourly" },
-] as const;
+const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; icon: typeof Icons.Bot }> = [
+  { value: "agent", key: "routines.action.agent", hint: "routines.action.agentHint", icon: Icons.Bot },
+  { value: "message", key: "routines.action.message", hint: "routines.action.messageHint", icon: Icons.Send },
+  { value: "shell", key: "routines.action.shell", hint: "routines.action.shellHint", icon: Icons.Terminal },
+];
 
-export function scheduleText(s: Schedule, t: T): string {
-  switch (s.kind) {
-    case "cron": {
-      const preset = PRESETS.find((p) => p.cron === s.cron);
-      return preset ? t(preset.key) : `cron ${s.cron}`;
-    }
-    case "every":
-      return t("routines.everyN", { n: s.minutes });
-    case "once":
-      return t("routines.onceAt", { when: aheadLabel(s.at) });
-    case "manual":
-      return t("routines.manual");
-  }
-}
+/** "Go on" after the pre-command: always, only if it printed something, only if it failed, never. */
+const CONDITIONS: Array<{ value: CallModel; key: MessageKey }> = [
+  { value: "always", key: "routines.call.always" },
+  { value: "output", key: "routines.call.output" },
+  { value: "fails", key: "routines.call.fails" },
+  { value: "never", key: "routines.call.never" },
+];
 
-/** `datetime-local` wants local time without a zone. */
-const localInput = (iso: string) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-};
-
-function ScheduleEditor({ value, onChange }: { value: Schedule; onChange: (s: Schedule) => void }) {
-  const t = useT();
-  const tomorrow9 = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(9, 0, 0, 0);
-    return d.toISOString();
-  };
-  const kinds: Record<Schedule["kind"], () => Schedule> = {
-    cron: () => ({ kind: "cron", cron: "0 9 * * *" }),
-    every: () => ({ kind: "every", minutes: 60 }),
-    once: () => ({ kind: "once", at: tomorrow9() }),
-    manual: () => ({ kind: "manual" }),
-  };
-  return (
-    <div className="pform">
-      <SegmentedControl
-        size="sm"
-        label={t("routines.when")}
-        value={value.kind}
-        onValueChange={(k) => k !== value.kind && onChange(kinds[k as Schedule["kind"]]())}
-        options={[
-          { value: "cron", label: t("routines.kind.cron") },
-          { value: "every", label: t("routines.kind.every") },
-          { value: "once", label: t("routines.kind.once") },
-          { value: "manual", label: t("routines.kind.manual") },
-        ]}
-      />
-      {value.kind === "cron" && (
-        <div className="tgtoken">
-          <Menu
-            trigger={
-              <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-                {scheduleText(value, t)}
-              </Button>
-            }
-            items={PRESETS.map((p) => ({ label: t(p.key), onSelect: () => onChange({ kind: "cron", cron: p.cron }) }))}
-          />
-          <Input
-            aria-label={t("routines.cron")}
-            value={value.cron}
-            onChange={(e) => onChange({ kind: "cron", cron: e.currentTarget.value })}
-          />
-        </div>
-      )}
-      {value.kind === "cron" && <span className="pform__hint">{t("routines.cronHint")}</span>}
-      {value.kind === "every" && (
-        <div className="tgtoken">
-          <Input
-            type="number"
-            min={5}
-            aria-label={t("routines.minutes")}
-            value={String(value.minutes)}
-            onChange={(e) => onChange({ kind: "every", minutes: Number(e.currentTarget.value) || 0 })}
-          />
-          <span className="pform__hint">{t("routines.minutes")}</span>
-        </div>
-      )}
-      {value.kind === "once" && (
-        <Input
-          type="datetime-local"
-          aria-label={t("routines.kind.once")}
-          value={localInput(value.at)}
-          onChange={(e) => {
-            const d = new Date(e.currentTarget.value);
-            if (!Number.isNaN(d.getTime())) onChange({ kind: "once", at: d.toISOString() });
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
+/**
+ * Creating and editing a routine are the same dialog: on the left what it is (name, action, who, when), on the right
+ * its flow — before, the action, after — with the variables each step can use offered as you type "$" or "{{", and
+ * what will happen in one line.
+ */
 export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose: () => void }) {
   const t = useT();
+  const agents = useData((s) => s.agents);
   const [d, setD] = useState(draft);
   const [saving, setSaving] = useState(false);
-  const ok = d.name.trim() && d.prompt.trim() && d.agent;
+  const set = (p: Partial<RoutineDraft>) => setD((cur) => ({ ...cur, ...p }));
+  const shell = d.action === "shell";
+  // A message or a shell job is signed by the super-agent; an agent routine needs its agent.
+  const agent = d.agent || (d.action !== "agent" ? (secretary(agents)?.id ?? "") : "");
+  const text = shell ? d.prompt || d.name : d.prompt;
+  const ok = Boolean(d.name.trim() && agent && (shell ? d.pre_command.trim() : d.prompt.trim()));
   const save = async () => {
     setSaving(true);
-    const saved = await saveRoutine({ ...d, name: d.name.trim(), prompt: d.prompt.trim() });
+    const saved = await saveRoutine({ ...d, agent, name: d.name.trim(), prompt: text.trim() });
     setSaving(false);
     if (saved) onClose();
   };
+
   return (
     <Dialog
       open
+      size="xl"
       onOpenChange={(o) => !o && onClose()}
       title={d.id ? t("routines.edit") : t("routines.new")}
       footer={
@@ -136,101 +63,161 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
         </>
       }
     >
-      <div className="pform">
-        <Input
-          aria-label={t("routines.name")}
-          placeholder={t("routines.name")}
-          value={d.name}
-          onChange={(e) => setD({ ...d, name: e.currentTarget.value })}
-        />
-        <AgentSelect value={d.agent} projectId={d.project} onChange={(agent) => agent && setD({ ...d, agent })} />
-        <Textarea
-          aria-label={t("routines.prompt")}
-          placeholder={t("routines.promptHint")}
-          rows={4}
-          value={d.prompt}
-          onChange={(e) => setD({ ...d, prompt: e.currentTarget.value })}
-        />
-        <ScheduleEditor value={d.schedule} onChange={(schedule) => setD({ ...d, schedule })} />
-        <PipelineFields draft={d} onChange={(p) => setD({ ...d, ...p })} />
+      <div className="rtedit">
+        <div className="rtedit__form">
+          <div className="taskform__row">
+            <Field label={t("routines.name")}>
+              {(id) => (
+                <Input
+                  id={id}
+                  autoFocus
+                  placeholder={t("routines.namePlaceholder")}
+                  value={d.name}
+                  onChange={(e) => set({ name: e.currentTarget.value })}
+                />
+              )}
+            </Field>
+            <Field label={t("routines.state")}>
+              <Switch
+                checked={d.enabled}
+                label={d.enabled ? t("routines.on") : t("routines.off")}
+                onCheckedChange={(enabled) => set({ enabled })}
+              />
+            </Field>
+          </div>
+          <Field
+            label={t("routines.action")}
+            hint={t(ACTIONS.find((a) => a.value === d.action)?.hint ?? "routines.action.agentHint")}
+          >
+            <Select
+              label={t("routines.action")}
+              value={d.action}
+              onValueChange={(v) => v && set({ action: v as RoutineAction })}
+              options={[
+                ...ACTIONS.map((a) => ({ value: a.value, label: t(a.key), icon: <a.icon size={14} /> })),
+                {
+                  value: "watch",
+                  label: t("routines.action.watch"),
+                  hint: t("common.comingSoonShort"),
+                  icon: <Icons.Eye size={14} />,
+                  disabled: true,
+                },
+              ]}
+            />
+          </Field>
+          {d.action === "agent" && (
+            <Field label={t("routines.agent")}>
+              <AgentSelect
+                value={d.agent || undefined}
+                projectId={d.project}
+                onChange={(id) => id && set({ agent: id })}
+              />
+            </Field>
+          )}
+          <Field label={t("routines.when")}>
+            <ScheduleEditor value={d.schedule} onChange={(schedule) => set({ schedule })} />
+          </Field>
+          {d.pre_command.trim() && !shell && (
+            <Field label={d.action === "message" ? t("routines.sendWhen") : t("routines.callModel")}>
+              <SegmentedControl
+                size="sm"
+                label={t("routines.callModel")}
+                value={d.call_model}
+                onValueChange={(v) => set({ call_model: v as CallModel })}
+                options={CONDITIONS.map((c) => ({ value: c.value, label: t(c.key) }))}
+              />
+            </Field>
+          )}
+        </div>
+
+        <div className="rtedit__flow">
+          <Step
+            n={1}
+            title={shell ? t("routines.step.command") : t("routines.step.before")}
+            hint={t(shell ? "routines.step.commandHint" : "routines.step.beforeHint")}
+          >
+            <SuggestTextarea
+              className="rtedit__code"
+              aria-label={t("routines.pre")}
+              rows={shell ? 4 : 2}
+              placeholder={shell ? "tar czf backup.tgz notes/" : "curl -s https://wttr.in/?format=3"}
+              value={d.pre_command}
+              onValueChange={(pre_command) => set({ pre_command })}
+              suggestions={[]}
+            />
+          </Step>
+          {!shell && (
+            <Step
+              n={2}
+              title={d.action === "message" ? t("routines.step.message") : t("routines.step.agent")}
+              hint={t(d.action === "message" ? "routines.step.messageHint" : "routines.step.agentHint")}
+            >
+              <SuggestTextarea
+                aria-label={t("routines.prompt")}
+                rows={5}
+                placeholder={d.action === "message" ? t("routines.messagePlaceholder") : t("routines.promptHint")}
+                value={d.prompt}
+                onValueChange={(prompt) => set({ prompt })}
+                suggestions={promptVars(t)}
+              />
+            </Step>
+          )}
+          <Step n={shell ? 2 : 3} title={t("routines.step.after")} hint={t("routines.step.afterHint")}>
+            <SuggestTextarea
+              className="rtedit__code"
+              aria-label={t("routines.post")}
+              rows={2}
+              placeholder={'echo "$APX_LLM_OUTPUT" >> report.md'}
+              value={d.post_command}
+              onValueChange={(post_command) => set({ post_command })}
+              suggestions={postVars(t)}
+            />
+          </Step>
+          <p className="rtedit__summary">
+            <Icons.Clock size={13} />
+            {summary(d, t, agents[agent]?.name ?? "")}
+          </p>
+        </div>
       </div>
     </Dialog>
   );
 }
 
-const CALL_MODEL: Array<{ value: CallModel; key: MessageKey }> = [
-  { value: "always", key: "routines.call.always" },
-  { value: "output", key: "routines.call.output" },
-  { value: "fails", key: "routines.call.fails" },
-  { value: "never", key: "routines.call.never" },
-];
-
-/**
- * The commands around the agent: a pre-command whose output the agent reads ({{pre_output}}), when to call the
- * model given that output, and a post-command after. Folded until the routine has one.
- */
-function PipelineFields({ draft: d, onChange }: { draft: RoutineDraft; onChange: (p: Partial<RoutineDraft>) => void }) {
-  const t = useT();
-  const [open, setOpen] = useState(Boolean(d.pre_command || d.post_command));
-  if (!open)
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="pipeline__add"
-        leadingIcon={<Icons.Terminal size={14} />}
-        onClick={() => setOpen(true)}
-      >
-        {t("routines.addCommands")}
-      </Button>
-    );
+function Step({ n, title, hint, children }: { n: number; title: string; hint: string; children: ReactNode }) {
   return (
-    <fieldset className="pipeline">
-      <legend className="pform__label">{t("routines.commands")}</legend>
-      <p className="pform__hint">{t("routines.commandsHint")}</p>
-      <div className="pipeline__step">
-        <span className="pipeline__dot">1</span>
-        <div className="pform__field">
-          <span className="pform__label">{t("routines.pre")}</span>
-          <Textarea
-            className="pipeline__cmd"
-            aria-label={t("routines.pre")}
-            placeholder="gh pr list --state open --json title,url"
-            rows={2}
-            value={d.pre_command}
-            onChange={(e) => onChange({ pre_command: e.currentTarget.value })}
-          />
-          <span className="pform__hint">{t("routines.preHint")}</span>
-        </div>
-      </div>
-      <div className="pipeline__step">
-        <span className="pipeline__dot">2</span>
-        <div className="pform__field">
-          <span className="pform__label">{t("routines.callModel")}</span>
-          <SegmentedControl
-            size="sm"
-            label={t("routines.callModel")}
-            value={d.call_model}
-            onValueChange={(v) => onChange({ call_model: v as CallModel })}
-            options={CALL_MODEL.map((c) => ({ value: c.value, label: t(c.key) }))}
-          />
-        </div>
-      </div>
-      <div className="pipeline__step">
-        <span className="pipeline__dot">3</span>
-        <div className="pform__field">
-          <span className="pform__label">{t("routines.post")}</span>
-          <Textarea
-            className="pipeline__cmd"
-            aria-label={t("routines.post")}
-            placeholder={'echo "$APX_LLM_OUTPUT" >> report.md'}
-            rows={2}
-            value={d.post_command}
-            onChange={(e) => onChange({ post_command: e.currentTarget.value })}
-          />
-          <span className="pform__hint">{t("routines.postHint")}</span>
-        </div>
-      </div>
-    </fieldset>
+    <section className="rtedit__step">
+      <header className="rtedit__stephead">
+        <span className="rtedit__stepn">{n}</span>
+        <span className="rtedit__steptitle">{title}</span>
+        <span className="rtedit__stephint">{hint}</span>
+      </header>
+      {children}
+    </section>
   );
+}
+
+const SUM_COND: Record<CallModel, MessageKey> = {
+  always: "routines.sum.cond.always",
+  output: "routines.sum.cond.output",
+  fails: "routines.sum.cond.fails",
+  never: "routines.sum.cond.never",
+};
+
+/** "Weekdays at 08:30: runs the command, then Roby answers if it printed something, then the after-command." */
+function summary(d: RoutineDraft, t: ReturnType<typeof useT>, agent: string): string {
+  const when = scheduleText(d.schedule, t);
+  const parts: string[] = [];
+  const pre = d.pre_command.trim();
+  if (pre && d.action !== "shell") parts.push(t("routines.sum.pre"));
+  if (d.action === "shell") parts.push(t("routines.sum.shell"));
+  else {
+    const cond = pre ? t(SUM_COND[d.call_model]) : "";
+    parts.push(
+      d.action === "message"
+        ? t("routines.sum.message", { cond })
+        : t("routines.sum.agent", { agent: agent || t("routines.agent"), cond }),
+    );
+  }
+  if (d.post_command.trim()) parts.push(t("routines.sum.post"));
+  return `${when}: ${parts.join(" → ")}`;
 }
