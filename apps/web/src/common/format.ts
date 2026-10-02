@@ -59,6 +59,13 @@ export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string
   return n.toLocaleString(currentLocale(), opts);
 }
 
+/** A file size: "54 B", "12 KB", "3.4 MB". */
+export function formatBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${Math.ceil(b / 1024)} KB`;
+  return `${formatNumber(b / 1024 / 1024, { maximumFractionDigits: 1 })} MB`;
+}
+
 /** Seconds with one decimal: "3.4 s" / "3,4 s". */
 export function formatSeconds(s: number): string {
   return `${formatNumber(s, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;

@@ -1,7 +1,7 @@
 import type { FileEntry, Result } from "@apx/protocol";
 import { EmptyState, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { formatNumber } from "../../common/format.ts";
+import { formatBytes } from "../../common/format.ts";
 import { client } from "../../data/client.ts";
 import type { ProjectEntry } from "../../data/identity.ts";
 import { useT } from "../../i18n/index.ts";
@@ -11,8 +11,6 @@ type Mode = "view" | "source" | "split";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const isMarkdown = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
-const size = (b: number) =>
-  b >= 1024 * 1024 ? `${formatNumber(b / 1024 / 1024, { maximumFractionDigits: 1 })} MB` : `${Math.ceil(b / 1024)} KB`;
 
 /** The project's folder, read-only: a tree on the left (one level loaded at a time), the file on the right. */
 export function FilesPane({ project }: { project: ProjectEntry }) {
@@ -145,7 +143,7 @@ function FileView({ project, path }: { project: string; path: string }) {
     <>
       <header className="files__head">
         <span className="files__path">{path}</span>
-        {file && <span className="files__size">{size(file.bytes)}</span>}
+        {file && <span className="files__size">{formatBytes(file.bytes)}</span>}
         <span className="files__spacer" />
         {md && file?.text != null && (
           <SegmentedControl
