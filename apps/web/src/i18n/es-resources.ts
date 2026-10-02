@@ -101,6 +101,12 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.varOnlyHere": "Solo para {project}",
   "res.varOnlyHereHint":
     "Valor propio de este proyecto: tus servidores MCP lo usan en los chats de este proyecto en lugar del global.",
+  "ext.test": "Probar",
+  "ext.test.sample": "¿Qué tengo hoy en la agenda?",
+  "ext.test.sampleLabel": "Un mensaje de ejemplo",
+  "ext.test.context": "Pedir contexto",
+  "ext.test.server": "Probar",
+  "ext.test.took": "Respondió en {ms} ms:",
   "res.noValue": "Sin valor",
   "res.varReplace": "Reemplazar el valor de {name}",
   "res.varSetValue": "Cargar un valor para {name}",

@@ -392,3 +392,25 @@
 .resvars__table tr.is-shadowed td {
   opacity: 0.5;
 }
+.exttest {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--apx-border);
+}
+.exttest__out {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 200px;
+  overflow: auto;
+}
+.exttest__out.is-error {
+  color: var(--apx-danger);
+}

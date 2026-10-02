@@ -99,6 +99,12 @@ export const enResources = {
   "res.varOnlyHere": "Only for {project}",
   "res.varOnlyHereHint":
     "This project's own value: your MCP servers use it in this project's chats instead of the global one.",
+  "ext.test": "Test",
+  "ext.test.sample": "What is on my calendar today?",
+  "ext.test.sampleLabel": "A sample message",
+  "ext.test.context": "Ask for context",
+  "ext.test.server": "Test",
+  "ext.test.took": "Answered in {ms} ms:",
   "res.noValue": "No value",
   "res.varReplace": "Replace the value of {name}",
   "res.varSetValue": "Set a value for {name}",

@@ -8,6 +8,7 @@ import { notify } from "../data/notices.ts";
 import { loadRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ExtensionTest } from "./ExtensionTest.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -212,6 +213,7 @@ function ExtensionCard({
           </Button>
         </div>
       ))}
+      <ExtensionTest e={e} />
       <div className="pcard__actions">
         <Switch
           size="sm"
