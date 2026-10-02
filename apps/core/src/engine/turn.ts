@@ -32,6 +32,7 @@ import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { taskBlock } from "./office.ts";
+import { routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
@@ -98,13 +99,26 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
+  // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
+  const routine = routineWithCommands(store, run);
+  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
+  const end = async (done: RunRecord, skipped = false) => {
+    if (pipe && !(signal.reason instanceof Canceled)) await pipe.after(done, skipped);
+    return done;
+  };
 
   // Anything failing while the turn is prepared (a plugin, an MCP server) still ends the run with a state.
   let prepared: Awaited<ReturnType<typeof buildContext>> & Awaited<ReturnType<typeof turnTools>>;
   try {
+    if (pipe) {
+      const pre = await pipe.before(signal);
+      signal.throwIfAborted();
+      if (!pre.call) return end(skipModel(store, { run, thread, display }), true);
+      turn.input = { ...turn.input, text: pre.prompt(turn.input.text) };
+    }
     prepared = { ...(await buildContext(deps, turn, run)), ...(await turnTools(deps, turn)) };
   } catch (err) {
-    return failRun(deps, { run, turn, display, signal, err });
+    return end(failRun(deps, { run, turn, display, signal, err }));
   }
   const { history, input, skills, policy, tools } = prepared;
   let harness: HarnessId = "native";
@@ -161,10 +175,18 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       },
     });
     run = await finishRun(store, { run, thread, display, exec, outcome });
-    return run;
   } catch (err) {
-    return failRun(deps, { run, turn, display, signal, err });
+    run = failRun(deps, { run, turn, display, signal, err });
   }
+  return end(run);
+}
+
+/** A routine's run whose pre-command said the model is not needed: done, without a model call. */
+function skipModel(store: Store, t: { run: RunRecord; thread: Thread; display: Display }): RunRecord {
+  t.display.notice("info", "routine.skipped", "The model was not called: the pre-command's result did not ask for it.");
+  const run = store.runs.setState(t.run, "completed");
+  store.threads.patch(t.thread.id, { state: "idle", preview: previewOf("Ran without calling the model.") });
+  return run;
 }
 
 /** The model's view of the thread and this turn's framed input (with notes and the roster when they apply). */

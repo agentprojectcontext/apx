@@ -69,8 +69,14 @@ export const RoutineRun = z.object({
   started_at: z.string(),
   ended_at: z.string().optional(),
   delivered: z.boolean().optional(),
+  /** false: the pre-command's result said not to call the model, so the run spent no tokens. */
+  model_called: z.boolean().optional(),
 });
 export type RoutineRun = z.infer<typeof RoutineRun>;
+
+/** When a routine with a pre-command calls its model: always, only if it printed something, only if it failed, never. */
+export const CallModel = z.enum(["always", "output", "fails", "never"]);
+export type CallModel = z.infer<typeof CallModel>;
 
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
 export const Routine = z.object({
@@ -80,6 +86,11 @@ export const Routine = z.object({
   agent_id: Id,
   schedule: Schedule,
   prompt: z.string(),
+  /** Shell run in the project's folder before the agent; its output reaches the prompt as outside data. */
+  pre_command: z.string().optional(),
+  /** Shell run after the agent, with $APX_LLM_OUTPUT, $APX_STATUS, $APX_SKIPPED and $APX_PRE_OUTPUT. */
+  post_command: z.string().optional(),
+  call_model: CallModel.default("always"),
   enabled: z.boolean(),
   next_run_at: z.string().optional(),
   last_run_at: z.string().optional(),

@@ -1,6 +1,6 @@
 // Routines: work an agent does on a schedule. The row says what and when; each run is a normal run (its state lives
 // in runs) in a conversation of its own, listed in routine_runs.
-import type { Routine, RoutineRun, RunState, Schedule } from "@apx/protocol";
+import type { CallModel, Routine, RoutineRun, RunState, Schedule } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { RoutinesTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -12,6 +12,9 @@ const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): 
   agent_id: r.agent_id,
   schedule: JSON.parse(r.schedule) as Schedule,
   prompt: r.prompt,
+  ...opt("pre_command", r.pre_command),
+  ...opt("post_command", r.post_command),
+  call_model: r.call_model as CallModel,
   enabled: Boolean(r.enabled),
   ...opt("next_run_at", r.next_run_at),
   ...opt("last_run_at", r.last_run_at),
@@ -26,20 +29,30 @@ export type RoutineDraft = {
   project_id?: string | undefined;
   schedule: Schedule;
   prompt: string;
+  pre_command?: string | undefined;
+  post_command?: string | undefined;
+  call_model: CallModel;
   enabled: boolean;
   next_run_at: string | undefined;
 };
+
+const commands = (d: RoutineDraft) => ({
+  pre_command: d.pre_command || null,
+  post_command: d.post_command || null,
+  call_model: d.call_model,
+});
 
 export function routinesRepo({ one, all, run }: Sql) {
   const runsQuery = qb
     .selectFrom("routine_runs as rr")
     .innerJoin("runs as r", "r.id", "rr.run_id")
-    .select(["rr.run_id", "rr.thread_id", "rr.started_at", "rr.delivered", "r.state", "r.ended_at"]);
+    .select(["rr.run_id", "rr.thread_id", "rr.started_at", "rr.delivered", "rr.model_called", "r.state", "r.ended_at"]);
   type RunRow = {
     run_id: string;
     thread_id: string;
     started_at: string;
     delivered: number | null;
+    model_called: number | null;
     state: string;
     ended_at: string | null;
   };
@@ -50,6 +63,7 @@ export function routinesRepo({ one, all, run }: Sql) {
     started_at: r.started_at,
     ...opt("ended_at", r.ended_at),
     ...(r.delivered === null ? {} : { delivered: Boolean(r.delivered) }),
+    ...(r.model_called === null ? {} : { model_called: Boolean(r.model_called) }),
   });
   const lastOf = (id: string) => {
     const r = one(runsQuery.where("rr.routine_id", "=", id).orderBy("rr.started_at", "desc").limit(1));
@@ -79,6 +93,7 @@ export function routinesRepo({ one, all, run }: Sql) {
           agent_id: d.agent_id,
           schedule: JSON.stringify(d.schedule),
           prompt: d.prompt,
+          ...commands(d),
           enabled: d.enabled ? 1 : 0,
           next_run_at: d.next_run_at ?? null,
           created_at: at,
@@ -97,6 +112,7 @@ export function routinesRepo({ one, all, run }: Sql) {
             agent_id: d.agent_id,
             schedule: JSON.stringify(d.schedule),
             prompt: d.prompt,
+            ...commands(d),
             enabled: d.enabled ? 1 : 0,
             next_run_at: d.next_run_at ?? null,
             updated_at: now(),
@@ -143,6 +159,15 @@ export function routinesRepo({ one, all, run }: Sql) {
         qb
           .updateTable("routine_runs")
           .set({ delivered: told ? 1 : 0 })
+          .where("run_id", "=", runId),
+      );
+    },
+    /** Whether a run called its model (false: its pre-command said not to). */
+    modelCalled(runId: string, called: boolean): void {
+      run(
+        qb
+          .updateTable("routine_runs")
+          .set({ model_called: called ? 1 : 0 })
           .where("run_id", "=", runId),
       );
     },

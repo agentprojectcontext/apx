@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Id, Message, Run } from "./domain.ts";
 import {
   ApiClient,
+  CallModel,
   ClientScope,
   ExtensionInfo,
   Notification,
@@ -102,6 +103,9 @@ export const officeMethods = {
         project: Id.optional(),
         schedule: Schedule,
         prompt: z.string().trim().min(1).max(20_000),
+        pre_command: z.string().trim().max(4000).optional(),
+        post_command: z.string().trim().max(4000).optional(),
+        call_model: CallModel.default("always"),
         enabled: z.boolean().default(true),
       })
       .strict(),

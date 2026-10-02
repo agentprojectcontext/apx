@@ -8,7 +8,18 @@ import type { Handlers } from "./router.ts";
 export function routineHandlers(store: Store, scheduler: Scheduler) {
   return {
     "routines.list": ({ project }) => ({ routines: store.routines.list(project) }),
-    "routines.set": ({ id, name, agent, project, schedule, prompt, enabled }) => {
+    "routines.set": ({
+      id,
+      name,
+      agent,
+      project,
+      schedule,
+      prompt,
+      pre_command,
+      post_command,
+      call_model,
+      enabled,
+    }) => {
       try {
         checkSchedule(schedule);
       } catch (err) {
@@ -21,7 +32,18 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
         throw badRequest(`${a.name} belongs to another project; pick one of this project's agents or a global one`);
       const next = enabled ? scheduler.nextFor(schedule) : undefined;
       if (enabled && schedule.kind === "once" && !next) throw badRequest("that moment has passed");
-      const draft = { name, agent_id: agent, project_id: project, schedule, prompt, enabled, next_run_at: next };
+      const draft = {
+        name,
+        agent_id: agent,
+        project_id: project,
+        schedule,
+        prompt,
+        pre_command,
+        post_command,
+        call_model,
+        enabled,
+        next_run_at: next,
+      };
       if (!id) return store.routines.create(draft);
       const r = store.routines.update(id, draft);
       if (!r) throw notFound(`routine ${id}`);

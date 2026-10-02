@@ -240,6 +240,7 @@ export interface RoutineRunsTable {
   thread_id: string;
   started_at: string;
   delivered: number | null;
+  model_called: number | null;
 }
 
 export interface RoutinesTable {
@@ -255,6 +256,9 @@ export interface RoutinesTable {
   last_run_at: string | null;
   created_at: string;
   updated_at: string;
+  pre_command: string | null;
+  post_command: string | null;
+  call_model: Generated<string>;
 }
 
 export interface RunsTable {

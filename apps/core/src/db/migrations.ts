@@ -419,4 +419,12 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE persons ADD COLUMN muted INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE persons ADD COLUMN perms TEXT;
   `,
+  `
+  -- A routine can run the owner's commands around its agent: a pre-command whose output the agent reads, when to call
+  -- the model given that output (always, if output, if it fails, never) and a post-command after.
+  ALTER TABLE routines ADD COLUMN pre_command TEXT;
+  ALTER TABLE routines ADD COLUMN post_command TEXT;
+  ALTER TABLE routines ADD COLUMN call_model TEXT NOT NULL DEFAULT 'always';
+  ALTER TABLE routine_runs ADD COLUMN model_called INTEGER;
+  `,
 ];
