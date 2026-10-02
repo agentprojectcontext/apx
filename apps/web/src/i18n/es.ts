@@ -370,6 +370,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.group.general": "Configuración",
   "config.group.agents": "Agentes",
   "config.channels": "Canales",
+  "channels.ready": "Disponibles",
+  "common.comingSoonShort": "Próximamente",
   "channels.add": "Agregar canal",
   "channels.lead": "Por dónde te hablan a vos y a tus agentes: cada canal tiene su bot y sus contactos.",
   "channels.empty": "Todavía no conectaste ningún canal",
@@ -491,7 +493,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "channel.whatsapp.text":
     "Una cuenta vinculada por QR. No le contesta a nadie hasta que digas quién es, empezando por vos.",
   "channel.telegram.text": "Un bot de Telegram. Solo responde a los chats que apruebes.",
-  "channel.discord.text": "Un bot en tu servidor, con permisos por rol.",
+  "channel.discord.text":
+    "Un bot en tu servidor: por canal elegís si solo lee, responde cuando lo llaman, cuando sirve o siempre.",
   "channel.soonBody":
     "Los canales se conectan en una próxima versión del core. Mientras tanto, escribile a tus agentes desde el Inbox.",
   "advanced.lead": "El core corre en esta computadora y es el único que guarda estado. El panel solo habla con él.",

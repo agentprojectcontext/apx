@@ -1,6 +1,6 @@
 import { Button, EmptyState, Icons, Menu, SegmentedControl } from "@apx/ui";
 import { useEffect } from "react";
-import { KindIcon } from "../channels/KindIcon.tsx";
+import { addChannelItems } from "../channels/KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useT } from "../i18n/index.ts";
@@ -31,14 +31,7 @@ export function ChannelsSection() {
           {t("channels.add")}
         </Button>
       }
-      items={missing.map((k) => ({
-        label: CHANNEL_KINDS[k].soon
-          ? `${t(CHANNEL_KINDS[k].name)} · ${t("common.soonLower")}`
-          : t(CHANNEL_KINDS[k].name),
-        icon: <KindIcon kind={k} />,
-        disabled: CHANNEL_KINDS[k].soon,
-        onSelect: () => go.channelConfig(k),
-      }))}
+      items={addChannelItems(tabs, t, go.channelConfig)}
     />
   );
 

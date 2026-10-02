@@ -1,7 +1,7 @@
 import type { ChannelInfo, EngineStatus } from "@apx/protocol";
 import { EngineIcon, Icons, Menu, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo } from "react";
-import { KindIcon, KindTile } from "../channels/KindIcon.tsx";
+import { addChannelItems, KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { isListed } from "../data/identity.ts";
@@ -24,14 +24,11 @@ function AddChannel({ connected }: { connected: readonly ChannelInfo[] }) {
           <Icons.Plus size={14} />
         </button>
       }
-      items={missing.map((k) => ({
-        label: CHANNEL_KINDS[k].soon
-          ? `${t(CHANNEL_KINDS[k].name)} · ${t("common.soonLower")}`
-          : t(CHANNEL_KINDS[k].name),
-        icon: <KindIcon kind={k} />,
-        disabled: CHANNEL_KINDS[k].soon,
-        onSelect: () => go.channelConfig(k),
-      }))}
+      items={addChannelItems(
+        connected.map((c) => c.type),
+        t,
+        go.channelConfig,
+      )}
     />
   );
 }
