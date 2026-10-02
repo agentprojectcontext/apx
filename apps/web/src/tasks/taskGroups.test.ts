@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Task } from "@apx/protocol";
-import { groupOf, groupTasks } from "./taskGroups.ts";
+import { groupOf, groupTasks, moveTo } from "./taskGroups.ts";
 
 const task = (over: Partial<Task>): Task => ({
   id: "t1",
@@ -46,4 +46,14 @@ test("groups come in a fixed order, without the empty ones, newest activity firs
       ["review", ["a"]],
     ],
   );
+});
+
+test("dropping on a group: its column, waiting for the owner, or done", () => {
+  const cols = [{ id: "backlog" }, { id: "todo" }, { id: "doing" }, { id: "review" }];
+  assert.deepEqual(moveTo("doing", cols), { status: "doing", awaits_owner: false });
+  assert.deepEqual(moveTo("pending", cols), { status: "todo", awaits_owner: false });
+  assert.deepEqual(moveTo("review", cols), { status: "review", awaits_owner: false });
+  assert.deepEqual(moveTo("blocked", cols), { awaits_owner: true });
+  assert.deepEqual(moveTo("closed", cols), { done: true });
+  assert.deepEqual(moveTo("pending", [{ id: "inbox" }, { id: "doing" }]), { status: "inbox", awaits_owner: false });
 });

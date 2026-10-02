@@ -1,15 +1,18 @@
 import type { Run, Task } from "@apx/protocol";
-import { AgentAvatar, Button, EmptyState, Icons, ProjectTile, SegmentedControl, Spinner } from "@apx/ui";
+import { AgentAvatar, Button, ContextMenu, EmptyState, Icons, ProjectTile, SegmentedControl, Spinner } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { dueLabel, shortWhen } from "../common/format.ts";
+import { useLongPressDrag } from "../common/useLongPressDrag.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
+import { kindLabel, PriorityDot } from "./TaskFields.tsx";
 import { NewTask } from "./TaskForms.tsx";
 import { TaskPanel } from "./TaskPanel.tsx";
-import { type GroupId, groupTasks } from "./taskGroups.ts";
+import { dropOn, taskMenu } from "./taskActions.tsx";
+import { GROUP_ORDER, type GroupId, groupTasks } from "./taskGroups.ts";
 
 const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working"]);
 /** How many tasks each group shows globally before "See n more". */
@@ -23,7 +26,14 @@ const GROUP_LABEL: Record<GroupId, MessageKey> = {
   closed: "tasks.group.closed",
 };
 
-type Kind = "all" | "tasks" | "commitments";
+type Kind = "all" | "task" | "commitment" | "errand";
+const FILTERS: readonly Kind[] = ["all", "task", "commitment", "errand"];
+const FILTER_LABEL: Record<Kind, MessageKey> = {
+  all: "tasks.kind.all",
+  task: "tasks.kind.tasks",
+  commitment: "tasks.kind.commitments",
+  errand: "tasks.kind.errands",
+};
 
 /**
  * Tasks as one list grouped by where they stand, not a board: in progress on top, then pending, in review and
@@ -59,17 +69,22 @@ export function TasksList({
       ),
     [all, projectId],
   );
-  const counts = {
+  const counts: Record<Kind, number> = {
     all: scoped.length,
-    tasks: scoped.filter((x) => !x.person_id).length,
-    commitments: scoped.filter((x) => x.person_id).length,
+    task: scoped.filter((x) => x.kind === "task").length,
+    commitment: scoped.filter((x) => x.kind === "commitment").length,
+    errand: scoped.filter((x) => x.kind === "errand").length,
   };
-  const shown = scoped.filter((x) => (kind === "all" ? true : kind === "commitments" ? x.person_id : !x.person_id));
+  const shown = scoped.filter((x) => kind === "all" || x.kind === kind);
   const running = useMemo(
     () => new Set(Object.values(runs).flatMap((r) => (LIVE.has(r.state) ? [r.thread_id] : []))),
     [runs],
   );
-  const groups = groupTasks(shown, running);
+  const columns = useTasks((s) => s.columns);
+  const { drag, bind } = useLongPressDrag<Task>((task, target) => void dropOn(task, target as GroupId, columns));
+  const filled = groupTasks(shown, running);
+  // While dragging every group is a place to drop, empty ones too.
+  const groups = drag ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] }) : filled;
   const current = open ? all[open] : undefined;
 
   return (
@@ -81,11 +96,11 @@ export function TasksList({
             label={t("tasks.show")}
             value={kind}
             onValueChange={(v) => setKind(v as Kind)}
-            options={(["all", "tasks", "commitments"] as const).map((k) => ({
+            options={FILTERS.map((k) => ({
               value: k,
               label: (
                 <span className="resv__tab">
-                  {t(`tasks.kind.${k}`)}
+                  {t(FILTER_LABEL[k])}
                   <span className="resv__count">{counts[k]}</span>
                 </span>
               ),
@@ -104,12 +119,17 @@ export function TasksList({
           </EmptyState>
         ) : (
           groups.map((g) => {
-            const folded = g.id === "closed" && !closedOpen;
+            const folded = g.id === "closed" && !closedOpen && !drag;
             const limit = global && !more.has(g.id) ? GLOBAL_PEEK : Number.POSITIVE_INFINITY;
             const items = folded ? [] : g.items.slice(0, limit);
             const hidden = folded ? 0 : g.items.length - items.length;
             return (
-              <section key={g.id} className={`tasks__group is-${g.id}`} aria-label={t(GROUP_LABEL[g.id])}>
+              <section
+                key={g.id}
+                className={`tasks__group is-${g.id}${drag ? " is-droppable" : ""}${drag?.over === g.id ? " is-over" : ""}`}
+                aria-label={t(GROUP_LABEL[g.id])}
+                data-drop={g.id}
+              >
                 <header className="tasks__grouphead">
                   {g.id === "closed" ? (
                     <button
@@ -138,6 +158,8 @@ export function TasksList({
                       running={running.has(task.thread_id)}
                       showProject={global}
                       selected={task.id === open}
+                      dragging={drag?.item.id === task.id}
+                      drag={bind(task, task.title)}
                       onOpen={() => setOpen(task.id === open ? undefined : task.id)}
                     />
                   ))}
@@ -152,6 +174,12 @@ export function TasksList({
           })
         )}
       </div>
+      {drag && (
+        <div className="taskdrag" style={{ left: drag.x + 12, top: drag.y + 8 }} aria-hidden="true">
+          <Icons.ListChecks size={14} />
+          {drag.label}
+        </div>
+      )}
       {current && <TaskPanel task={current} onClose={() => setOpen(undefined)} />}
       {creating && <NewTask projectId={projectId} onClose={() => setCreating(false)} />}
     </div>
@@ -164,73 +192,86 @@ function TaskRow(props: {
   running: boolean;
   showProject: boolean;
   selected: boolean;
+  dragging: boolean;
+  drag: ReturnType<ReturnType<typeof useLongPressDrag<Task>>["bind"]>;
   onOpen(): void;
 }) {
   const t = useT();
   const { task } = props;
   const agents = useData((s) => s.agents);
+  const columns = useTasks((s) => s.columns);
   const projects = useData((s) => s.projects);
   const who = task.assignee ? agents[task.assignee] : undefined;
   const due = task.due_at ? dueLabel(task.due_at) : undefined;
   const pid = task.project_id ?? DEFAULT_PID;
   return (
     <li>
-      <button
-        type="button"
-        className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}`}
-        aria-current={props.selected || undefined}
-        onClick={props.onOpen}
-      >
-        <span
-          className={`taskrow__glyph is-${props.group}`}
-          title={props.group === "blocked" ? t("tasks.blockedTip") : undefined}
+      <ContextMenu items={taskMenu(task, { t, columns, agents: Object.values(agents), onOpen: props.onOpen })}>
+        <button
+          type="button"
+          className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}`}
+          aria-current={props.selected || undefined}
+          onClick={props.onOpen}
+          {...props.drag}
         >
-          {props.running && props.group === "doing" ? (
-            <Spinner size={12} />
-          ) : props.group === "closed" ? (
-            <Icons.Check size={12} />
-          ) : null}
-        </span>
-        <span className="taskrow__main">
-          <span className="taskrow__title">
-            {task.title}
-            {task.person_id && (
-              <span className="taskrow__commit">
-                <Icons.Calendar size={11} />
-                {t("tasks.commitment")}
+          <span
+            className={`taskrow__glyph is-${props.group}`}
+            title={props.group === "blocked" ? t("tasks.blockedTip") : undefined}
+          >
+            {props.running && props.group === "doing" ? (
+              <Spinner size={12} />
+            ) : props.group === "closed" ? (
+              <Icons.Check size={12} />
+            ) : null}
+          </span>
+          <span className="taskrow__main">
+            <span className="taskrow__title">
+              {task.priority !== "normal" && <PriorityDot priority={task.priority} />}
+              {task.title}
+              {task.kind !== "task" && (
+                <span className={`taskrow__commit is-${task.kind}`}>
+                  {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}
+                  {kindLabel(task.kind, t)}
+                </span>
+              )}
+            </span>
+            {(task.person_id || task.tags.length > 0) && (
+              <span className="taskrow__sub">
+                {task.person_id && <CommitmentMeta task={task} />}
+                {task.tags.slice(0, 3).map((tag) => (
+                  <span key={tag} className="taskrow__tag">
+                    <Icons.Tag size={10} />
+                    {tag}
+                  </span>
+                ))}
               </span>
             )}
           </span>
-          {task.person_id && (
-            <span className="taskrow__sub">
-              <CommitmentMeta task={task} />
+          {props.showProject && (
+            <span className="taskrow__project">
+              <ProjectTile
+                tone={projectTone(pid)}
+                initial={projectName(projects, task.project_id).slice(0, 1)}
+                size={14}
+              />
+              {projectName(projects, task.project_id)}
             </span>
           )}
-        </span>
-        {props.showProject && (
-          <span className="taskrow__project">
-            <ProjectTile
-              tone={projectTone(pid)}
-              initial={projectName(projects, task.project_id).slice(0, 1)}
-              size={14}
-            />
-            {projectName(projects, task.project_id)}
+          <span className="taskrow__who">
+            {who ? (
+              <>
+                <AgentAvatar name={who.name} blob={blobOf(who)} size={18} animated={false} />
+                {who.name}
+              </>
+            ) : (
+              <span className="taskrow__nobody">{t("tasks.nobody")}</span>
+            )}
           </span>
-        )}
-        <span className="taskrow__who">
-          {who ? (
-            <>
-              <AgentAvatar name={who.name} blob={blobOf(who)} size={18} animated={false} />
-              {who.name}
-            </>
-          ) : (
-            <span className="taskrow__nobody">{t("tasks.nobody")}</span>
-          )}
-        </span>
-        <span className={due?.late && task.state === "open" ? "taskrow__when is-late" : "taskrow__when"}>
-          {due ? due.text : shortWhen(task.activity_at)}
-        </span>
-      </button>
+          <span className={due?.late && task.state === "open" ? "taskrow__when is-late" : "taskrow__when"}>
+            {due ? due.text : shortWhen(task.activity_at)}
+          </span>
+        </button>
+      </ContextMenu>
     </li>
   );
 }

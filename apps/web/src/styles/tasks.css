@@ -356,3 +356,66 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Long-press drag: the dragged row fades, groups become drop zones, a label follows the pointer */
+body.is-dragging {
+  user-select: none;
+  cursor: grabbing;
+}
+.taskrow.is-dragging {
+  opacity: 0.4;
+}
+.tasks__group.is-droppable {
+  min-height: 56px;
+  border: 1px dashed var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  transition:
+    border-color var(--apx-duration),
+    background var(--apx-duration);
+}
+.tasks__group.is-over {
+  border-color: var(--apx-accent);
+  background: var(--apx-fill);
+}
+.taskdrag {
+  position: fixed;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  border: 1px solid var(--apx-border);
+  box-shadow: var(--apx-shadow-md);
+  font-size: var(--apx-text-sm);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.taskrow__title .prio-dot {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.taskrow__commit.is-errand {
+  background: var(--apx-warning-soft, var(--apx-fill));
+  color: var(--apx-warning-soft-fg, var(--apx-fg-muted));
+}
+.taskrow__sub {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.taskrow__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+}

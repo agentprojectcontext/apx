@@ -26,3 +26,17 @@ export function groupTasks(tasks: Task[], running: ReadonlySet<string>): Array<{
   }
   return GROUP_ORDER.flatMap((id) => (by.get(id)?.length ? [{ id, items: by.get(id) ?? [] }] : []));
 }
+
+/** What dropping a task on a group does: a column, waiting for the owner, or done. */
+export type GroupMove = { status: string; awaits_owner: false } | { awaits_owner: true } | { done: true };
+
+export function moveTo(group: GroupId, columns: readonly { id: string }[]): GroupMove {
+  if (group === "closed") return { done: true };
+  if (group === "blocked") return { awaits_owner: true };
+  const has = (id: string) => columns.some((c) => c.id === id);
+  if (group === "doing" && has("doing")) return { status: "doing", awaits_owner: false };
+  if (group === "review" && has("review")) return { status: "review", awaits_owner: false };
+  // Pending: "to do" when the board has it, else the first column that is not in progress or review.
+  const pending = has("todo") ? "todo" : columns.find((c) => c.id !== "doing" && c.id !== "review")?.id;
+  return { status: pending ?? columns[0]?.id ?? "todo", awaits_owner: false };
+}
