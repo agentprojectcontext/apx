@@ -6,6 +6,7 @@ import { ConfigModal } from "../config/ConfigModal.tsx";
 import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
+import { EngineSessions } from "../engines/EngineSessions.tsx";
 import { ProjectScreen } from "../project/ProjectScreen.tsx";
 import { ResourcesScreen } from "../project/ResourcesScreen.tsx";
 import { TasksScreen } from "../tasks/TasksScreen.tsx";
@@ -49,6 +50,8 @@ export function Shell() {
             <ResourcesScreen />
           ) : view === "channel" ? (
             <ChannelScreen />
+          ) : view === "engine" ? (
+            <ChatWorkspace layout={layout} list={<EngineSessions />} />
           ) : (
             <ChatWorkspace layout={layout} />
           )}

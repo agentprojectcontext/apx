@@ -6,7 +6,7 @@ import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel";
+export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -66,6 +66,8 @@ export type NavState = {
   /** The channel open in the channel view, and the contact's chat picked in it. */
   channelId: string | undefined;
   channelThread: string | undefined;
+  /** The engine whose sessions are open (external sessions: "claude", "codex", "acp:opencode"). */
+  engineId: string | undefined;
 };
 
 const THEME_KEY = "apx.mode";
@@ -106,6 +108,7 @@ function fromHash(): Partial<NavState> {
     ...(view && VIEWS.includes(view) ? { view: view as View } : {}),
     ...(app ? { view: "app" as const, appId: app } : {}),
     ...(channel ? { view: "channel" as const, channelId: channel, channelThread: h.get("chat") ?? undefined } : {}),
+    ...(h.get("engine") ? { view: "engine" as const, engineId: h.get("engine") ?? undefined } : {}),
   };
 }
 
@@ -126,6 +129,7 @@ export const nav = createStore<NavState>({
   resourcesTab: "skills",
   channelId: undefined,
   channelThread: undefined,
+  engineId: undefined,
   ...fromHash(),
 });
 
@@ -141,6 +145,9 @@ nav.subscribe(() => {
   else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
     if (s.channelThread) h.set("chat", s.channelThread);
+  } else if (s.view === "engine" && s.engineId) {
+    h.set("engine", s.engineId);
+    if (s.threadId) h.set("thread", s.threadId);
   } else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   const next = `#${h.toString()}`;
@@ -152,7 +159,7 @@ window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null
 
 /** Inbox, or a project's Chats tab: the list + chat + side panel layout. */
 export function showsChat(s: Pick<NavState, "view" | "projectTab">): boolean {
-  return s.view === "inbox" || (s.view === "project" && s.projectTab === "chats");
+  return s.view === "inbox" || s.view === "engine" || (s.view === "project" && s.projectTab === "chats");
 }
 
 export function useNav<T>(select: (s: NavState) => T): T {
@@ -192,6 +199,15 @@ export const go = {
       view: "channel",
       channelId,
       channelThread: thread ?? (s.channelId === channelId ? s.channelThread : undefined),
+    }));
+  },
+  /** An engine's sessions (Claude Code, Codex…) beside the chat; `thread` opens one. */
+  engine(engineId: string, thread?: string) {
+    nav.set((s) => ({
+      view: "engine",
+      engineId,
+      threadId: thread ?? (s.view === "engine" && s.engineId === engineId ? s.threadId : undefined),
+      listInFront: !thread,
     }));
   },
   app(appId: string) {

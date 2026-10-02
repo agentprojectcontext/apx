@@ -44,6 +44,7 @@ export function Sidebar({ rail }: { rail: boolean }) {
   const engines = useData((s) => s.engines);
   const channels = useChannels((s) => s.channels);
   const channelId = useNav((s) => s.channelId);
+  const engineId = useNav((s) => s.engineId);
   useEffect(() => {
     void loadChannels();
   }, []);
@@ -105,8 +106,8 @@ export function Sidebar({ rail }: { rail: boolean }) {
               icon={<EngineIcon engine={e.id} tile size={20} />}
               label={e.label}
               trailing={<EngineState engine={e} />}
-              active={false}
-              onClick={() => go.config("engines")}
+              active={view === "engine" && engineId === e.id}
+              onClick={() => go.engine(e.id)}
             />
           ))}
 

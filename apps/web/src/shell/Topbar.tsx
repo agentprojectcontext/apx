@@ -12,7 +12,7 @@ import { RunningIndicator } from "./RunningIndicator.tsx";
 
 const LANGS = Object.keys(LANGUAGES) as Language[];
 
-/** SPEC §1.5: Inbox / project / chat · Projects / project / tab · Apps / app · Tasks · Resources. */
+/** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
   const t = useT();
   const view = useNav((s) => s.view);
@@ -25,10 +25,16 @@ function useCrumbs(): string[] {
   const app = useData((s) => (appId ? s.surfaces[appId] : undefined));
   const channelId = useNav((s) => s.channelId);
   const channelLabel = useChannels((s) => s.channels.find((c) => c.id === channelId)?.label);
+  const engineId = useNav((s) => s.engineId);
+  const engineLabel = useData((s) => s.engines.find((e) => e.id === engineId)?.label);
   if (view === "app") return [t("nav.apps"), app?.title ?? t("common.app")];
   if (view === "tasks") return [t("nav.tasks")];
   if (view === "resources") return [t("nav.resources")];
   if (view === "channel") return [t("nav.channels"), channelLabel ?? t("nav.channels")];
+  if (view === "engine") {
+    const name = engineLabel ?? engineId ?? "";
+    return thread ? [t("nav.externalSessions"), name, thread.title] : [t("nav.externalSessions"), name];
+  }
   if (view === "project") {
     const tab = t(PROJECT_TABS.find((x) => x.id === projectTab)?.label ?? "project.tab.overview");
     return [t("nav.projects"), findProject(projects, projectId)?.name ?? t("project.fallback"), tab];
