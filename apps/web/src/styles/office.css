@@ -128,3 +128,69 @@
   border-color: var(--apx-border-strong);
   background: var(--apx-fill, var(--apx-surface));
 }
+.routine__cron {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.routine__cmds {
+  display: inline-flex;
+  color: var(--apx-fg-subtle);
+}
+.routine__pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.routine__code {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The commands around a routine's agent, as numbered steps */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.pipeline > .pform__hint {
+  margin: -6px 0 0;
+}
+.pipeline__step {
+  display: flex;
+  gap: 10px;
+}
+.pipeline__step .pform__field {
+  flex: 1;
+  min-width: 0;
+}
+.pipeline__dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+textarea.pipeline__cmd {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.pipeline__add {
+  align-self: flex-start;
+}
