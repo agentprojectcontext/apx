@@ -33,6 +33,17 @@ test("one bad field of the desktop prefs falls back alone; a saved value reads b
   assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+K", launch_at_login: false });
 });
 
+test("a list setting drops only the item that does not read, and an unreadable list reads as empty", async () => {
+  const { settings } = env.core.store;
+  const acme = { id: "acme", transport: "openai-chat", base_url: "http://127.0.0.1:9", key: "none", models: ["m1"] };
+  settings.set("providers", JSON.stringify([acme, { ...acme, id: "Not An Id" }, { id: "northwind" }]));
+  const ids = (await env.client.call("providers.list", {})).providers.map((p) => p.id);
+  assert.ok(ids.includes("acme"));
+  assert.ok(!ids.includes("Not An Id") && !ids.includes("northwind"));
+  settings.set("channels", "{not json");
+  assert.deepEqual((await env.client.call("channels.list", {})).channels, []);
+});
+
 test("a default handed out is a copy: changing it never changes the next read", () => {
   const { settings } = env.core.store;
   settings.set("skills_off", "oops");

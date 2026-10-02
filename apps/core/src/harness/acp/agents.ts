@@ -38,21 +38,9 @@ export const KNOWN_ACP_AGENTS: AcpAgent[] = [
 
 /** Known agents plus the owner's own (`acp_agents` setting: [{id, label, command, args, auth?}]). */
 export function acpAgents(store: Store): AcpAgent[] {
-  let extra: AcpAgent[] = [];
-  try {
-    const raw = JSON.parse(store.settings.get("acp_agents") ?? "[]") as unknown;
-    if (Array.isArray(raw))
-      extra = raw.filter(
-        (a): a is AcpAgent =>
-          typeof a?.id === "string" &&
-          /^[a-z0-9][a-z0-9-]*$/.test(a.id) &&
-          typeof a.command === "string" &&
-          Array.isArray(a.args) &&
-          a.args.every((x: unknown) => typeof x === "string"),
-      );
-  } catch {}
   const byId = new Map(KNOWN_ACP_AGENTS.map((a) => [a.id, a]));
-  for (const a of extra) byId.set(a.id, { ...a, label: a.label || a.id });
+  for (const { label, auth, env, ...a } of store.settings.read("acp_agents"))
+    byId.set(a.id, { ...a, label: label || a.id, ...(auth ? { auth } : {}), ...(env ? { env } : {}) });
   return [...byId.values()];
 }
 

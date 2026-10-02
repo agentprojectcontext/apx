@@ -62,15 +62,8 @@ export function createServices(deps: {
   const keyName = (id: string) => `service-${id}`;
   const keyOf = (s: ServiceConfig) => (s.needs_key ? secrets.resolve(`secret://${keyName(s.id)}`) : undefined);
 
-  function all(): ServiceConfig[] {
-    try {
-      const raw = JSON.parse(store.settings.get("services") ?? "[]") as ServiceConfig[];
-      return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
-  }
-  const save = (list: ServiceConfig[]) => store.settings.set("services", JSON.stringify(list));
+  const all = (): ServiceConfig[] => store.settings.read("services");
+  const save = (list: ServiceConfig[]) => store.settings.write("services", list);
   const ofKind = (kind: ServiceKind) => all().filter((s) => s.kind === kind);
 
   async function check(s: ServiceConfig): Promise<boolean> {

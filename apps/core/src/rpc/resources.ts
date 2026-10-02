@@ -22,21 +22,9 @@ function usedIn(store: Store, mcp: McpConfig): Map<string, string[]> {
     const off = new Set(mcp.offIn(p.id));
     for (const d of mcp.global()) if (!off.has(d.name)) for (const n of named(d)) add(`${p.id}/${n}`, `mcp:${d.name}`);
   }
-  for (const key of ["providers", "channels"] as const) {
-    let entries: unknown;
-    try {
-      entries = JSON.parse(store.settings.get(key) ?? "null");
-    } catch {}
-    const list = Array.isArray(entries)
-      ? entries
-      : entries && typeof entries === "object"
-        ? Object.entries(entries)
-        : [];
-    for (const e of list) {
-      const id = Array.isArray(e) ? String(e[0]) : String((e as { id?: unknown }).id ?? key);
-      for (const n of new Set(refs(JSON.stringify(e)))) add(n, `${key.slice(0, -1)}:${id}`);
-    }
-  }
+  for (const key of ["providers", "channels"] as const)
+    for (const e of store.settings.read(key))
+      for (const n of new Set(refs(JSON.stringify(e)))) add(n, `${key.slice(0, -1)}:${e.id}`);
   return out;
 }
 

@@ -1,6 +1,6 @@
 // The model APIs our own loop can call: the built-in ones (config) plus what the owner adds or changes in the app
 // (settings). Read on every use, so a change applies to the next call without a restart.
-import type { ProviderConfig, ProviderTransport } from "../config.ts";
+import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
 
 /** A provider as the owner set it; `removed` hides a built-in one. */
@@ -13,17 +13,9 @@ export type ProviderEntry = ProviderConfig & {
 };
 
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
-const TRANSPORTS = new Set<ProviderTransport>(["openai-chat", "anthropic-messages"]);
 
 export function providerRegistry(store: Store, builtIn: ProviderConfig[]) {
-  const own = (): ProviderEntry[] => {
-    try {
-      const raw = JSON.parse(store.settings.get("providers") ?? "[]") as ProviderEntry[];
-      return Array.isArray(raw) ? raw.filter((p) => ID.test(p.id) && (p.removed || TRANSPORTS.has(p.transport))) : [];
-    } catch {
-      return [];
-    }
-  };
+  const own = (): ProviderEntry[] => store.settings.read("providers");
   /** Built-ins first, each replaced by the owner's version of it; then the owner's new ones. */
   const all = (): Array<ProviderEntry & { builtin: boolean }> => {
     const mine = new Map(own().map((p) => [p.id, p]));
@@ -46,7 +38,7 @@ export function providerRegistry(store: Store, builtIn: ProviderConfig[]) {
         : builtin
           ? [...rest, { ...(builtIn.find((b) => b.id === id) as ProviderConfig), removed: true }]
           : rest;
-      store.settings.set("providers", JSON.stringify(next));
+      store.settings.write("providers", next);
     },
   };
 }

@@ -66,13 +66,7 @@ export function createChannels(deps: {
   const changing = new Map<string, Promise<unknown>>();
   let stopped = false;
 
-  function configs(): ChannelConfig[] {
-    try {
-      return JSON.parse(store.settings.get("channels") ?? "[]") as ChannelConfig[];
-    } catch {
-      return [];
-    }
-  }
+  const configs = (): ChannelConfig[] => store.settings.read("channels");
 
   const delivery = createDelivery({
     store,
@@ -364,7 +358,7 @@ export function createChannels(deps: {
       await serially(id, async () => {
         if (token) secrets.set(tokenName(id), token);
         const rest = configs().filter((c) => c.id !== id);
-        store.settings.set("channels", JSON.stringify(config ? [...rest, { ...config, id }] : rest));
+        store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
         if (!config) secrets.set(tokenName(id), null);
         await stopOne(id);
         const next = configs().find((c) => c.id === id);

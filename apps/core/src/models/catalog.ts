@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { CatalogEngine as CatalogEngineSchema } from "@apx/protocol";
 import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
@@ -33,6 +34,18 @@ export type CatalogEngine = {
   models: CatalogModel[];
   fetched_at?: string;
 };
+
+/** An engine's last fetched model list, kept per engine (`catalog:<id>`); none when unset or unreadable. */
+export function cachedCatalog(store: Store, id: string): CatalogEngine | undefined {
+  const raw = store.settings.get(`catalog:${id}`);
+  if (!raw) return undefined;
+  try {
+    const r = CatalogEngineSchema.safeParse(JSON.parse(raw));
+    return r.success ? r.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // Ids that name non-chat models (speech, embeddings, images…); they stay listed but are not offered for agents.
 const NOT_CHAT = /(embed|tts|audio|speech|transcri|whisper|image|imagen|veo|dall-e|moderation|aqa|realtime)/i;
@@ -145,10 +158,7 @@ export function createCatalog(deps: {
   const { store, secrets } = deps;
   const inflight = new Map<string, Promise<CatalogEngine>>();
 
-  const cached = (id: string): CatalogEngine | undefined => {
-    const raw = store.settings.get(`catalog:${id}`);
-    return raw ? (JSON.parse(raw) as CatalogEngine) : undefined;
-  };
+  const cached = (id: string) => cachedCatalog(store, id);
 
   async function load(base: Omit<CatalogEngine, "models" | "available">, list: () => Promise<CatalogModel[]>) {
     try {

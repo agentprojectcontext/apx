@@ -7,6 +7,7 @@ import type { EngineStatus, HarnessId } from "@apx/protocol";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { unauthorized } from "../errors.ts";
+import { cachedCatalog } from "../models/catalog.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
@@ -89,19 +90,15 @@ export function createHarnesses(deps: {
     for (const a of acpAgents(store)) {
       if (!(await which(a.command))) continue;
       const id = acpEngine(a);
-      let seen: { available?: boolean; detail?: string } = {};
-      try {
-        seen = JSON.parse(store.settings.get(`catalog:${id}`) ?? "{}");
-      } catch {}
+      const seen = cachedCatalog(store, id);
       out.push({
         id,
         label: a.label,
         installed: true,
-        logged_in: seen.available === true,
-        detail:
-          seen.available === undefined
-            ? "ACP · sign-in is checked when its models are listed"
-            : `ACP${seen.detail ? ` · ${seen.detail}` : ""}`,
+        logged_in: seen?.available === true,
+        detail: !seen
+          ? "ACP · sign-in is checked when its models are listed"
+          : `ACP${seen.detail ? ` · ${seen.detail}` : ""}`,
         default: defaultEngine === id,
       });
     }
