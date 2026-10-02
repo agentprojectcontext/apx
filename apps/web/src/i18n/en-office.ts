@@ -84,6 +84,7 @@ export const enOffice = {
   "routines.last": "Last {when}",
   "routines.skippedOf": "{n} of {m} runs without calling the model",
   "routines.withCommands": "With commands",
+  "notice.routine.skipped": "The model was not called; the pre-command's result did not ask for it.",
   "routines.noRuns": "It has not run yet.",
   "error.attention": "Notices: {error}",
   "attention.label": "For you",

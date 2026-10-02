@@ -191,7 +191,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
 /** A routine's run whose pre-command said the model is not needed: done, without a model call. */
 function skipModel(store: Store, t: { run: RunRecord; thread: Thread; display: Display }): RunRecord {
-  t.display.notice("info", "routine.skipped", "The model was not called: the pre-command's result did not ask for it.");
+  t.display.notice("info", "routine.skipped", "The model was not called; the pre-command's result did not ask for it.");
   const run = store.runs.setState(t.run, "completed");
   store.threads.patch(t.thread.id, { state: "idle", preview: previewOf("Ran without calling the model.") });
   return run;

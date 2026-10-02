@@ -86,6 +86,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.last": "Última {when}",
   "routines.skippedOf": "{n} de {m} corridas sin llamar al modelo",
   "routines.withCommands": "Con comandos",
+  "notice.routine.skipped": "No se llamó al modelo; el resultado del comando previo no lo pedía.",
   "routines.noRuns": "Todavía no corrió.",
   "error.attention": "Avisos: {error}",
   "attention.label": "Para vos",
