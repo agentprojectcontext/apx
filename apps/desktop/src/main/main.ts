@@ -13,8 +13,32 @@ const DIST = import.meta.dirname;
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
+// One APX at a time: opening it again brings the running one forward.
+const single = app.requestSingleInstanceLock();
+if (!single) app.quit();
+
+let quitting = false;
+app.on("before-quit", () => {
+  quitting = true;
+});
+
 app.whenReady().then(() => {
+  if (!single) return;
   const win = new BaseWindow({ width: 1480, height: 920, minWidth: 980, minHeight: 600, title: "APX" });
+  const openMain = () => {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  };
+  // Closing the window hides it — its browser tabs and the core link stay alive; the Dock, the menu-bar icon or
+  // opening APX again bring it back, and Quit ends it.
+  win.on("close", (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    win.hide();
+  });
+  app.on("activate", openMain);
+  app.on("second-instance", openMain);
   const host = new BrowserHost();
   blockAppOrigins([CORE_URL, WEB_URL]);
 
@@ -54,8 +78,7 @@ app.whenReady().then(() => {
     layout();
   };
   host.onAttention = (message) => {
-    win.show();
-    win.focus();
+    openMain();
     if (Notification.isSupported()) new Notification({ title: "APX", body: message }).show();
   };
   win.on("resize", layout);
@@ -86,13 +109,13 @@ app.whenReady().then(() => {
     preload: path.join(DIST, "panel-preload.cjs"),
     partition: "persist:apx-ui",
     assets: DIST,
+    openMain,
   });
 
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
     quick.hide();
-    win.show();
-    win.focus();
+    openMain();
     if (typeof threadId === "string") panel.webContents.send("nav:thread", threadId);
   });
   ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs) => {

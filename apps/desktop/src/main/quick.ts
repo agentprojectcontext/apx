@@ -1,14 +1,27 @@
 // The menu-bar icon and its quick chat: a small window under the icon (or centered, from the global shortcut) with
 // the super-agent's chat. It hides when it loses focus, like any menu-bar app.
 import path from "node:path";
-import { app, BrowserWindow, globalShortcut, screen, Tray } from "electron";
+import { app, BrowserWindow, globalShortcut, Menu, screen, Tray } from "electron";
 
 const WIDTH = 400;
 const HEIGHT = 600;
 
 export type DesktopPrefs = { shortcut: string; launchAtLogin: boolean };
 
-export function createQuick(opts: { url: () => string; preload: string; partition: string; assets: string }) {
+/** The menu-bar icon's right-click menu, in the system's language (the main process has no panel i18n). */
+const MENU = {
+  en: { open: "Open APX", quick: "Quick chat", quit: "Quit APX" },
+  es: { open: "Abrir APX", quick: "Chat rápido", quit: "Salir de APX" },
+};
+
+export function createQuick(opts: {
+  url: () => string;
+  preload: string;
+  partition: string;
+  assets: string;
+  /** Brings the main window back (it hides when closed). */
+  openMain: () => void;
+}) {
   let win: BrowserWindow | undefined;
   let tray: Tray | undefined;
   let shortcut: string | undefined;
@@ -34,7 +47,8 @@ export function createQuick(opts: { url: () => string; preload: string; partitio
         backgroundThrottling: false,
       },
     });
-    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // Without skipTransformProcessType, macOS turns the whole app into a menu-bar-only one: no Dock icon.
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     win.on("blur", () => {
       if (!win?.webContents.isDevToolsOpened()) win?.hide();
     });
@@ -68,6 +82,15 @@ export function createQuick(opts: { url: () => string; preload: string; partitio
       tray = new Tray(path.join(opts.assets, "trayTemplate.png"));
       tray.setToolTip("APX");
       tray.on("click", () => toggle(true));
+      const text = app.getLocale().startsWith("es") ? MENU.es : MENU.en;
+      const menu = Menu.buildFromTemplate([
+        { label: text.open, click: () => opts.openMain() },
+        { label: text.quick, click: () => toggle(true) },
+        { type: "separator" },
+        { label: text.quit, role: "quit" },
+      ]);
+      // Left click keeps opening the quick chat; the menu is on the right click.
+      tray.on("right-click", () => tray?.popUpContextMenu(menu));
       // Load it once now so the first open is instant.
       window();
     },
