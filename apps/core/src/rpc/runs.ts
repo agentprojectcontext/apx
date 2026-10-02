@@ -11,6 +11,14 @@ export function runHandlers(store: Store, engine: Engine) {
   return {
     "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),
     "runs.respond": ({ input, decision, text }) => publicInput(engine.respond(input, { decision, text })),
+    "runs.list": ({ agent, limit, before }) => {
+      const runs = store.runs.byAgent(agent, limit, before);
+      const threads = [...new Set(runs.map((r) => r.thread_id))].flatMap((id) => {
+        const th = store.threads.get(id);
+        return th ? [{ id, title: th.title, kind: th.kind }] : [];
+      });
+      return { runs: runs.map(publicRun), threads };
+    },
     "runs.get": ({ run }) => {
       const r = store.runs.get(run);
       if (!r) throw notFound(`run ${run}`);

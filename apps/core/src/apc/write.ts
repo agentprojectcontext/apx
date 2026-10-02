@@ -13,6 +13,7 @@ export type AgentFileFields = {
   description?: string | undefined;
   parent?: string | undefined;
   icon?: string | undefined;
+  area?: string | undefined;
   aliases?: string[] | undefined;
 };
 
@@ -118,6 +119,7 @@ export function updateAgentFile(root: string, slug: string, fields: AgentFileFie
     description: fields.description,
     parent: fields.parent,
     icon: fields.icon,
+    area: fields.area,
     aliases: fields.aliases,
   });
   writeAtomic(file, join(next, prompt ?? body));

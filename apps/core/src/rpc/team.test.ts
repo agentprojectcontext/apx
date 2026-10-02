@@ -108,3 +108,30 @@ test("install: a parent that is skipped never adopts a member; the member hangs 
   assert.match(r.skipped[0]?.reason ?? "", /already has pm/);
   assert.equal(r.installed.find((a) => a.slug === "designer")?.parent, "boss");
 });
+
+test("an agent's prompt, area and description are read and edited; its activity lists its runs", async () => {
+  await env.client.call("agents.update", { agent: "scout", description: "Finds sources", area: "research" });
+  const local = await env.client.call("agents.get", { agent: "scout" });
+  assert.equal(local.agent.description, "Finds sources", "a global agent keeps its description");
+  assert.equal(local.agent.area, "research");
+  await env.client.call("agents.update", { agent: "scout", prompt: "Search carefully." });
+  assert.equal((await env.client.call("agents.get", { agent: "scout" })).prompt, "Search carefully.");
+
+  const boss = (await env.client.call("agents.list", {})).agents.find(
+    (a) => a.slug === "boss" && a.project_id === project,
+  );
+  assert.ok(boss);
+  await env.client.call("agents.update", { agent: boss.id, area: "leadership" });
+  const file = fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8");
+  assert.match(file, /^area: leadership$/m, "a project agent's area goes to its file");
+  assert.equal((await env.client.call("agents.get", { agent: boss.id })).prompt.trim(), "Lead.");
+
+  const th = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
+  await env.client.call("threads.send", { thread: th.id, text: "hello" });
+  await env.settle(th.id);
+  const { runs, threads } = await env.client.call("runs.list", { agent: "scout" });
+  assert.equal(runs[0]?.thread_id, th.id);
+  assert.equal(runs[0]?.agent_id, "scout");
+  assert.ok(threads.some((t) => t.id === th.id));
+  await assert.rejects(env.client.call("agents.get", { agent: "nobody" }), /not found/);
+});

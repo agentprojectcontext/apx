@@ -190,6 +190,8 @@ export function agentsRepo({ one, all, run }: Sql) {
             prompt: a.prompt ?? "",
             created_at: now(),
             model_choice: a.model_choice ? JSON.stringify(a.model_choice) : null,
+            description: a.description ?? null,
+            extra: extraOf(a),
           })
           .onConflict((c) =>
             c.column("id").doUpdateSet((eb) => ({
@@ -201,12 +203,25 @@ export function agentsRepo({ one, all, run }: Sql) {
               browser_profile: eb.ref("excluded.browser_profile"),
               prompt: eb.ref("excluded.prompt"),
               model_choice: eb.ref("excluded.model_choice"),
+              description: eb.ref("excluded.description"),
+              extra: eb.ref("excluded.extra"),
             })),
           ),
       );
     },
   };
   return repo;
+}
+
+/** The policy fields kept in `extra` (what an agent's file writes as tools, autonomy, skills and area). */
+function extraOf(a: Pick<Agent, "tools" | "autonomy" | "skills" | "area">): string | null {
+  const e = {
+    ...(a.tools?.length ? { tools: a.tools } : {}),
+    ...(a.autonomy ? { autonomy: a.autonomy } : {}),
+    ...(a.skills?.length ? { skills: a.skills } : {}),
+    ...(a.area ? { area: a.area } : {}),
+  };
+  return Object.keys(e).length ? JSON.stringify(e) : null;
 }
 
 /** What clients see: the prompt stays in the core. */

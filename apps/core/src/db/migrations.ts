@@ -437,4 +437,8 @@ export const MIGRATIONS: readonly string[] = [
   UPDATE tasks SET kind = 'commitment' WHERE person_id IS NOT NULL;
   CREATE INDEX tasks_remind ON tasks(state, remind_at);
   `,
+  `
+  -- An agent's activity (its runs, newest first) is read by agent.
+  CREATE INDEX runs_agent ON runs(agent_id, created_at);
+  `,
 ];

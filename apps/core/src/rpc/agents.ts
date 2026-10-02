@@ -64,6 +64,11 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
 
   return {
     "agents.list": () => ({ agents: store.agents.list().map(publicAgent) }),
+    "agents.get": ({ agent }) => {
+      const a = store.agents.get(agent);
+      if (!a) throw notFound(`agent ${agent}`);
+      return { agent: publicAgent(a), prompt: a.prompt };
+    },
 
     "agents.create": (p) => {
       checkChoice(p.model_choice);
@@ -103,7 +108,14 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       const model_choice = p.model_choice;
       checkChoice(model_choice);
       checkParent(cur, p.parent);
-      const definition = { name: p.name, role: p.role, description: p.description, parent: p.parent, icon: p.blob };
+      const definition = {
+        name: p.name,
+        role: p.role,
+        description: p.description,
+        parent: p.parent,
+        icon: p.blob,
+        area: p.area,
+      };
       const edits =
         Object.values(definition).some((v) => v !== undefined) || p.prompt !== undefined || p.slug !== undefined;
       if (edits && cur.source === "apc" && cur.project_id && cur.slug) {
@@ -121,6 +133,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
           ...rest,
           ...(p.name ? { name: p.name } : {}),
           ...(p.role !== undefined ? { role: p.role } : {}),
+          ...(p.description !== undefined ? { description: p.description } : {}),
+          ...(p.area !== undefined ? { area: p.area || undefined } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.blob ? { blob: p.blob } : {}),
         });

@@ -119,6 +119,13 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** One agent with its prompt (the system prompt the owner writes; lists leave it out). */
+  "agents.get": {
+    params: z.object({ agent: Id }).strict(),
+    result: z.object({ agent: Agent, prompt: z.string() }),
+    effect: false,
+    access: "human",
+  },
   "agents.update": {
     params: z
       .object({
@@ -130,6 +137,8 @@ export const appMethods = {
         name: z.string().min(1).max(80).optional(),
         role: z.string().max(200).optional(),
         description: z.string().max(2000).optional(),
+        /** The team area it belongs to (shown as a pill on the team chart). */
+        area: z.string().trim().max(60).optional(),
         prompt: z.string().max(100_000).optional(),
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
@@ -622,6 +631,18 @@ export const appMethods = {
       .strict(),
     result: z.object({ person: Person.optional() }),
     effect: true,
+    access: "human",
+  },
+  /** An agent's runs, newest first (its activity), with the title and kind of each run's thread. */
+  "runs.list": {
+    params: z
+      .object({ agent: Id, limit: z.number().int().min(1).max(100).default(30), before: z.string().max(40).optional() })
+      .strict(),
+    result: z.object({
+      runs: z.array(Run),
+      threads: z.array(z.object({ id: Id, title: z.string(), kind: z.string() })),
+    }),
+    effect: false,
     access: "human",
   },
   "runs.get": {

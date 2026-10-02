@@ -93,6 +93,18 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         qb.selectFrom("runs").selectAll().where("thread_id", "=", threadId).orderBy("created_at", "desc").limit(limit),
       ).map(toRun);
     },
+    /** An agent's runs, newest first; `before` pages back by creation time. */
+    byAgent(agentId: string, limit: number, before?: string): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("agent_id", "=", agentId)
+          .$if(before !== undefined, (q) => q.where("created_at", "<", before as string))
+          .orderBy("created_at", "desc")
+          .limit(limit),
+      ).map(toRun);
+    },
     create(r: {
       thread_id: string;
       agent_id: string;
