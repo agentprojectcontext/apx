@@ -18,17 +18,11 @@ export type Skill = {
 
 /** Skills the owner turned off: "*" everywhere, or per project id. Kept in settings, never in the skill's folder. */
 type OffList = Record<string, string[]>;
-const OFF_KEY = "skills_off";
 /** In a project's list: it does not take the owner's global skills at all (its own ones still count). */
 export const NO_GLOBALS = "~globals";
 
 export function skillsOff(store: Store): OffList {
-  try {
-    const v = JSON.parse(store.settings.get(OFF_KEY) ?? "{}") as unknown;
-    return v && typeof v === "object" ? (v as OffList) : {};
-  } catch {
-    return {};
-  }
+  return store.settings.read("skills_off");
 }
 
 export function setSkillOn(store: Store, name: string, projectId: string | undefined, on: boolean): void {
@@ -38,7 +32,7 @@ export function setSkillOn(store: Store, name: string, projectId: string | undef
   if (on) list.delete(name);
   else list.add(name);
   all[key] = [...list];
-  store.settings.set(OFF_KEY, JSON.stringify(all));
+  store.settings.write("skills_off", all);
 }
 
 /** Whether a skill is on in a project (or, without one, everywhere). */

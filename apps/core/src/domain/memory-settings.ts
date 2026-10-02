@@ -6,10 +6,7 @@ import type { Store } from "./store.ts";
 const DEFAULTS: MemorySettings = { mode: "notes", auto_compact: true };
 
 export function memorySettings(store: Store): MemorySettings {
-  let saved: Partial<MemorySettings> = {};
-  try {
-    saved = JSON.parse(store.settings.get("memory") ?? "{}") as Partial<MemorySettings>;
-  } catch {}
+  const saved = store.settings.read("memory");
   const aux = store.settings.get("model_aux");
   const parsed = Schema.safeParse({ ...DEFAULTS, ...saved, ...(aux ? { aux_model: aux } : {}) });
   return parsed.success ? parsed.data : DEFAULTS;
@@ -17,7 +14,7 @@ export function memorySettings(store: Store): MemorySettings {
 
 export function saveMemorySettings(store: Store, s: MemorySettings): MemorySettings {
   const { aux_model, ...rest } = s;
-  store.settings.set("memory", JSON.stringify(rest));
+  store.settings.write("memory", rest);
   store.settings.set("model_aux", aux_model ?? "");
   return memorySettings(store);
 }

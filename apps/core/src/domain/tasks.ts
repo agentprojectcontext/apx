@@ -17,12 +17,7 @@ export const DEFAULT_COLUMNS: TaskColumn[] = [
 
 /** The board's columns: the owner's, or the default ones when none are saved (or they do not read). */
 export function columnsOf(store: Store): TaskColumn[] {
-  try {
-    const saved = JSON.parse(store.settings.get("task_columns") ?? "null") as TaskColumn[] | null;
-    return Array.isArray(saved) && saved.length ? saved : DEFAULT_COLUMNS;
-  } catch {
-    return DEFAULT_COLUMNS;
-  }
+  return store.settings.read("task_columns");
 }
 
 /**

@@ -143,33 +143,20 @@ export function mcpConfig(store: Store) {
     },
     /** Global servers the owner turned off inside a project (all of them when it takes none). */
     offIn(projectId: string): string[] {
-      try {
-        const all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
-        const list = Array.isArray(all[projectId]) ? all[projectId] : [];
-        return list.includes(NO_GLOBALS) ? cfg.global().map((d) => d.name) : list;
-      } catch {
-        return [];
-      }
+      const list = store.settings.read("mcp_off")[projectId] ?? [];
+      return list.includes(NO_GLOBALS) ? cfg.global().map((d) => d.name) : list;
     },
     /** Whether a project takes the owner's global servers at all. */
     takesGlobals(projectId: string): boolean {
-      try {
-        const all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
-        return !all[projectId]?.includes(NO_GLOBALS);
-      } catch {
-        return true;
-      }
+      return !store.settings.read("mcp_off")[projectId]?.includes(NO_GLOBALS);
     },
     setOn(projectId: string, name: string, on: boolean): void {
-      let all: Record<string, string[]> = {};
-      try {
-        all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
-      } catch {}
+      const all = store.settings.read("mcp_off");
       const list = new Set(all[projectId] ?? []);
       if (on) list.delete(name);
       else list.add(name);
       all[projectId] = [...list];
-      store.settings.set("mcp_off", JSON.stringify(all));
+      store.settings.write("mcp_off", all);
     },
     /** Adds, replaces or (null) removes one of the owner's global servers. */
     setGlobal(name: string, server: Record<string, unknown> | null): void {

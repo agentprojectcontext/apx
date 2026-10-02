@@ -1,19 +1,37 @@
 // Small key/value settings, external harness session ids per thread, and stored idempotent responses.
+import { type Entry, SETTINGS, type SettingKey, type SettingValue } from "./setting-keys.ts";
 import { now, qb, type Sql } from "./sql.ts";
 
 export function settingsRepo({ one, run }: Sql) {
   const key = (k: string) => `setting:${k}`;
+  const get = (k: string): string | undefined =>
+    one(qb.selectFrom("meta").select("value").where("key", "=", key(k)))?.value;
+  const set = (k: string, value: string): void => {
+    run(
+      qb
+        .insertInto("meta")
+        .values({ key: key(k), value })
+        .onConflict((c) => c.column("key").doUpdateSet({ value })),
+    );
+  };
   return {
-    get(k: string): string | undefined {
-      return one(qb.selectFrom("meta").select("value").where("key", "=", key(k)))?.value;
+    /** A plain-text setting, or one whose key is built per item (see `read` for the JSON ones). */
+    get,
+    set,
+    /** A JSON setting through its schema: unset, unreadable or invalid gives its fallback (a fresh copy). */
+    read<K extends SettingKey>(k: K): SettingValue<K> {
+      const { schema, fallback } = SETTINGS[k] as Entry<SettingValue<K>>;
+      const raw = get(k);
+      if (raw !== undefined) {
+        try {
+          const v = schema.safeParse(JSON.parse(raw));
+          if (v.success) return v.data;
+        } catch {}
+      }
+      return structuredClone(fallback);
     },
-    set(k: string, value: string): void {
-      run(
-        qb
-          .insertInto("meta")
-          .values({ key: key(k), value })
-          .onConflict((c) => c.column("key").doUpdateSet({ value })),
-      );
+    write<K extends SettingKey>(k: K, value: SettingValue<K>): void {
+      set(k, JSON.stringify(value));
     },
   };
 }

@@ -101,14 +101,7 @@ export function createServices(deps: {
   }
 
   function imageDefaults(): ImageDefaults {
-    try {
-      return {
-        ...BASE_DEFAULTS,
-        ...(JSON.parse(store.settings.get("image_defaults") ?? "{}") as Partial<ImageDefaults>),
-      };
-    } catch {
-      return BASE_DEFAULTS;
-    }
+    return { ...BASE_DEFAULTS, ...store.settings.read("image_defaults") };
   }
 
   /** The services to try for one request: the one asked for, or every enabled one of the kind in order. */
@@ -159,7 +152,7 @@ export function createServices(deps: {
     has: (id: string) => all().some((s) => s.id === id),
     imageDefaults,
     setImageDefaults(d: ImageDefaults): ImageDefaults {
-      store.settings.set("image_defaults", JSON.stringify(d));
+      store.settings.write("image_defaults", d);
       return imageDefaults();
     },
     set(id: string, s: ServiceSettings | null, apiKey?: string): void {

@@ -15,24 +15,21 @@ export type TurnFeatures = {
   agent_kind: AgentRecord["kind"];
 };
 
-const EMPTY_ROUTER: RouterConfig = { rules: [], chain: [] };
-
 export function modelSettings(store: Store) {
   return {
     /** The install default. Before one was saved, the engine picked in Settings → Engines and models, with the router behind it. */
     defaultChoice(): ModelChoice {
-      const raw = store.settings.get("model_default");
-      if (raw) return JSON.parse(raw) as ModelChoice;
+      const saved = store.settings.read("model_default");
+      if (saved) return saved;
       const legacy = store.settings.get("default_harness");
       return legacy && legacy !== "native" ? { model: legacy, router: true } : { router: true };
     },
     router(): RouterConfig {
-      const raw = store.settings.get("model_router");
-      return raw ? (JSON.parse(raw) as RouterConfig) : EMPTY_ROUTER;
+      return store.settings.read("model_router");
     },
     save(p: { default?: ModelChoice | undefined; router?: RouterConfig | undefined }): void {
-      if (p.default) store.settings.set("model_default", JSON.stringify(p.default));
-      if (p.router) store.settings.set("model_router", JSON.stringify(p.router));
+      if (p.default) store.settings.write("model_default", p.default);
+      if (p.router) store.settings.write("model_router", p.router);
     },
   };
 }

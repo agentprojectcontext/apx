@@ -47,7 +47,7 @@ export function appHandlers(deps: {
       }),
     "desktop.get": () => desktopPrefs(store),
     "desktop.set": (p) => {
-      store.settings.set("desktop", JSON.stringify(p));
+      store.settings.write("desktop", p);
       return desktopPrefs(store);
     },
     "secrets.set": ({ name, value, project }) => {
@@ -134,14 +134,4 @@ export function appHandlers(deps: {
 }
 
 /** The quick chat opens with Option+Space unless the owner picked another shortcut. */
-function desktopPrefs(store: Store): { shortcut: string; launch_at_login: boolean } {
-  try {
-    const p = JSON.parse(store.settings.get("desktop") ?? "{}") as { shortcut?: unknown; launch_at_login?: unknown };
-    return {
-      shortcut: typeof p.shortcut === "string" ? p.shortcut : "Alt+Space",
-      launch_at_login: p.launch_at_login === true,
-    };
-  } catch {
-    return { shortcut: "Alt+Space", launch_at_login: false };
-  }
-}
+const desktopPrefs = (store: Store) => store.settings.read("desktop");
