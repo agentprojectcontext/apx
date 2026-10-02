@@ -51,6 +51,66 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/core/src/domain/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/transport/**", "**/rpc/**", "**/channels/**"],
+                    "message": "domain never imports transport, rpc or channels (AGENTS.md rule 4)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/core/src/rpc/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/transport/**"],
+                    "message": "rpc never imports transport (AGENTS.md rule 4: transport \u2192 rpc \u2192 domain)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/apps/**", "@apx/core", "@apx/web", "@apx/desktop", "@apx/terminal"],
+                    "message": "packages never import apps (AGENTS.md rule 4)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "assist": {

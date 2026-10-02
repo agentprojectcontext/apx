@@ -23,15 +23,14 @@ messages or spends money on the owner's behalf).
 | Gate | Command | Enforces |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
-| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions |
+| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths) |
 | All | `pnpm preflight` | The four above; run before every push |
 
-Convention-only today (review must catch them): dependency direction inside core (rule 4), no a2a side path
-(rule 2), untrusted content handling (rule 10), secrets by reference (rule 11), no tests reading source (rule 13).
-**Planned gate:** a Biome `noRestrictedImports` / dependency-cruiser rule for rule 4 once `domain/` exists, and a
-CI workflow running `preflight`.
+Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
+secrets by reference (rule 11), no tests reading source (rule 13).
+**Planned gate:** a CI workflow running `preflight`.
 
 No lint ratchets outstanding: every package, `packages/ui` included, gets the full rule set (the former `packages/ui`
 override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).

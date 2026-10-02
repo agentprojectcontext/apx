@@ -64,7 +64,7 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 3. **Apps hold no domain logic.** terminal/web/desktop/mobile call the protocol; logic lives in `apps/core`.
    `[review]`
 4. **Dependency direction** inside core: `transport → rpc → domain`; `domain` never imports `transport`, `rpc`
-   or `channels`. `packages/*` never import `apps/*`. `[review]` (lint gate planned — see GUARDRAILS_PROFILE).
+   or `channels`; `rpc` never imports `transport`. `packages/*` never import `apps/*`. `[gate]` lint.
 5. **Erasable TypeScript only** (`erasableSyntaxOnly`): no `enum`, `namespace` or parameter properties. Enums are
    `as const` objects + derived type. `[gate]` typecheck.
 6. **Config and paths are injected**, never read at import time. The store must refuse the real home under a
