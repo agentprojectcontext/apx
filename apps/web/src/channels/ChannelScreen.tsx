@@ -1,11 +1,12 @@
 import type { ChannelInfo, Person, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
+import { go, nav, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { LinkMe, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
@@ -86,6 +87,9 @@ export function ChannelScreen() {
     const owner = persons.find((p) => p.role === "owner")?.id;
     return Object.values(threads).find((th) => th.channel?.id === channelId && th.channel?.person_id === owner)?.id;
   }, [threads, persons, channelId]);
+  // The owner's own chat on this channel: Home (one conversation everywhere) or this channel's chat of theirs.
+  const ownerTarget = channel?.owner_thread === "home" ? "home" : ownThread;
+  const ownerOpen = linked && Boolean(picked) && picked === ownerTarget;
 
   if (!channel)
     return (
@@ -98,7 +102,7 @@ export function ChannelScreen() {
 
   return (
     <section
-      className={`chan${current ? " has-chat" : ""}${current && card ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen ? " has-chat" : ""}${current && card && !ownerOpen ? " has-card" : ""}`}
       aria-label={channel.label}
     >
       <aside className="chan__list">
@@ -112,7 +116,7 @@ export function ChannelScreen() {
         <ul className="chan__rows">
           {!query && !linked && <LinkMe channel={channel} />}
           {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
-          {!query && linked && <OwnerRow channel={channel} ownThread={ownThread} />}
+          {!query && linked && <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />}
           {shown.map((r) => (
             <ContactRow
               key={r.thread.id}
@@ -125,7 +129,9 @@ export function ChannelScreen() {
         </ul>
         <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
       </aside>
-      {current ? (
+      {ownerOpen && ownerTarget ? (
+        <OwnerChat threadId={ownerTarget} />
+      ) : current ? (
         <>
           <ChannelConversation
             thread={current.thread}
@@ -147,6 +153,19 @@ export function ChannelScreen() {
         </div>
       )}
     </section>
+  );
+}
+
+/** The owner's chat, opened right here (the same chat as in the Inbox), so the channel stays in view. */
+function OwnerChat({ threadId }: { threadId: string }) {
+  const shown = useNav((s) => s.threadId);
+  useEffect(() => {
+    if (shown !== threadId) nav.set({ threadId });
+  }, [shown, threadId]);
+  return (
+    <div className="chan__owner">
+      <ChatView wideHeader={false} />
+    </div>
   );
 }
 

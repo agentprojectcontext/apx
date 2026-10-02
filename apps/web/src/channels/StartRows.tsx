@@ -86,16 +86,29 @@ export function PairingRow({ request }: { request: PairingRequest }) {
   );
 }
 
-/** The owner's own chat with the bot: where their messages land (Home, or this channel's own chat). */
-export function OwnerRow({ channel, ownThread }: { channel: ChannelInfo; ownThread: string | undefined }) {
+/**
+ * The owner's own chat with the bot, opened beside the list: Home (one conversation everywhere) or, with "Own chat",
+ * this channel's chat of theirs once they have written to the bot.
+ */
+export function OwnerRow({
+  channel,
+  target,
+  selected,
+}: {
+  channel: ChannelInfo;
+  target: string | undefined;
+  selected: boolean;
+}) {
   const t = useT();
-  const toHome = channel.owner_thread === "home" || !ownThread;
+  const toHome = channel.owner_thread === "home";
   return (
     <li>
       <button
         type="button"
-        className="chan__row"
-        onClick={() => (toHome ? go.thread("home") : go.channel(channel.id, ownThread))}
+        className={`chan__row${selected ? " is-selected" : ""}`}
+        aria-current={selected || undefined}
+        disabled={!target}
+        onClick={() => target && go.channel(channel.id, target)}
       >
         <span className="chan__avatar is-owner">
           <Icons.UserRound size={15} />
@@ -104,7 +117,9 @@ export function OwnerRow({ channel, ownThread }: { channel: ChannelInfo; ownThre
           <span className="chan__rowtop">
             <span className="chan__rowname">{t("ch.you")}</span>
           </span>
-          <span className="chan__preview">{t(toHome ? "ch.ownerHome" : "ch.ownerOwn")}</span>
+          <span className="chan__preview">
+            {t(toHome ? "ch.ownerHome" : target ? "ch.ownerOwn" : "ch.ownerOwnNone")}
+          </span>
         </span>
       </button>
     </li>

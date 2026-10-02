@@ -17,6 +17,7 @@ export const enChannels = {
   "ch.itsMeHint": "Type the code the bot sent you in your Telegram: that is how APX knows this chat is yours.",
   "ch.ownerHome": "Your chat with the bot — your messages go to Home",
   "ch.ownerOwn": "Your chat with the bot",
+  "ch.ownerOwnNone": "Your own chat starts when you write to the bot",
   "ch.link.title": "Link your Telegram",
   "ch.link.step1": "Write to {bot} from your own Telegram",
   "ch.link.yourBot": "your bot",

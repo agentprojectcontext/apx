@@ -19,6 +19,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.itsMeHint": "Escribí el código que te mandó el bot en tu Telegram: así APX sabe que ese chat es tuyo.",
   "ch.ownerHome": "Tu chat con el bot — tus mensajes van a Home",
   "ch.ownerOwn": "Tu chat con el bot",
+  "ch.ownerOwnNone": "Tu chat propio empieza cuando le escribas al bot",
   "ch.link.title": "Vinculá tu Telegram",
   "ch.link.step1": "Escribile a {bot} desde tu Telegram",
   "ch.link.yourBot": "tu bot",
