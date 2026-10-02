@@ -109,7 +109,7 @@ test("steps: calling rules, defused envelopes, a timeout stops the command", asy
 
 test("a step that leaves its group (setsid) still ends at its limit; a NUL in the output does not break the run", async () => {
   const t0 = Date.now();
-  const hung = await runStep("setsid sleep 30 & echo started", {
+  const hung = await runStep("perl -MPOSIX -e 'POSIX::setsid(); sleep 30' & echo started", {
     cwd: env.home,
     env: {},
     signal: new AbortController().signal,
