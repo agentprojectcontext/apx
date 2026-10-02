@@ -186,3 +186,14 @@ A factory that returns a table of closures (`createCore`, `threadHandlers`, a Re
 composition root may stay inline. Stylesheets follow the same ~800-line cap: one sheet per area, imported in a fixed
 order because that order is the cascade (`apps/web/src/main.tsx`; `packages/ui/src/styles/components.css` lists its
 sheets and the build inlines them in that order into the single `dist/styles.css`).
+
+<a id="d-021"></a>
+## D-021 — 2026-10-02 — Agent templates are plain APC folders; installing copies the file
+A template folder holds `<slug>.md` agent files in the `.apc/agents/` format; a sub-folder with `TEAM.md` is a team
+whose members report to each other through `parent:`. APX ships its own under `examples/agents/` and also reads the
+owner's v1 vault (`<v1 home>/agents`), never writing there and never following symlinks. Installing writes the
+template's text as is into the project (only `parent` changes), so fields APX does not model yet (`area`, `tools`,
+`skills`) survive; a slug the project already has is skipped, never overwritten. `hang_under` keeps one tree when a
+team with its own lead lands in a project that already has an orchestrator. The Team view draws the tree itself (SVG
+curves, HTML cards, no graph library): the owner chose no new dependency, so the parent is changed from the agent's
+detail with a confirmation rather than by dragging.

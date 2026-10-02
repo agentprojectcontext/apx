@@ -5,3 +5,4 @@ export * from "./events.ts";
 export * from "./frames.ts";
 export * from "./methods.ts";
 export * from "./office.ts";
+export * from "./team-methods.ts";

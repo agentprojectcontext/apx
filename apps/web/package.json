@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test": "node --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "@apx/protocol": "workspace:*",

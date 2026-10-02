@@ -48,7 +48,7 @@ export type ApcAgent = {
  * Reads a project file, refusing symlinks: a repo must not be able to pull any other file of the machine into an
  * agent's prompt.
  */
-const readText = (file: string): string | undefined => {
+export const readText = (file: string): string | undefined => {
   try {
     if (fs.lstatSync(file).isSymbolicLink()) return undefined;
     return fs.readFileSync(file, "utf8");
@@ -100,7 +100,11 @@ export function readProject(root: string): ApcProject {
 }
 
 export function readAgents(root: string): ApcAgent[] {
-  const dir = path.join(path.resolve(root), ".apc", "agents");
+  return readAgentDir(path.join(path.resolve(root), ".apc", "agents"));
+}
+
+/** Every `<slug>.md` agent file directly inside a folder (no symlinks). Also reads template folders. */
+export function readAgentDir(dir: string): ApcAgent[] {
   let files: string[] = [];
   try {
     if (fs.lstatSync(dir).isSymbolicLink()) return [];

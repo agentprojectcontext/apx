@@ -1,5 +1,5 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Button, EmptyState, IconButton, Icons, SegmentedControl } from "@apx/ui";
+import { AgentAvatar, Button, EmptyState, Icons, SegmentedControl } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
@@ -9,20 +9,28 @@ import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
 import { go } from "../shell/nav.ts";
 import { teamOf } from "./ProjectOverview.tsx";
+import { AgentDetail } from "./team/AgentDetail.tsx";
+import { ImportDialog } from "./team/ImportDialog.tsx";
+import { TeamCanvas } from "./team/TeamCanvas.tsx";
+import { useTeamInfo } from "./team/useTeamInfo.tsx";
 
 // Who sits on top of the hierarchy, in order: an orchestrator, then a CEO, then any "lead".
 const LEADS = [/orchestr|orquest/i, /\bceo\b|chief executive/i, /\blead\b/i];
 
-/** Team: the project's agents as a hierarchy (lead on top) or a list, with model and browser profile. */
+/** Team: the project's agents as an org chart (lead on top) or a list; import, details and models. */
 export function ProjectTeam({ project }: { project: ProjectEntry }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const [mode, setMode] = useState("tree");
+  const [selected, setSelected] = useState<string>();
+  const [importing, setImporting] = useState(false);
   const team = useMemo(() => teamOf(agents, project.id), [agents, project.id]);
   const lead =
     team.find((a) => a.kind === "secretary") ??
+    team.find((a) => !a.parent && LEADS.some((re) => re.test(`${a.role} ${a.id}`))) ??
     LEADS.map((re) => team.find((a) => re.test(`${a.role} ${a.id}`))).find(Boolean);
-  const rest = team.filter((a) => a !== lead);
+  const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
+  const current = team.find((a) => a.id === selected);
 
   return (
     <div className="team">
@@ -53,6 +61,16 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
             { value: "list", label: t("team.list") },
           ]}
         />
+        {!project.isDefault && (
+          <Button
+            variant="secondary"
+            size="sm"
+            leadingIcon={<Icons.Download size={14} />}
+            onClick={() => setImporting(true)}
+          >
+            {t("team.import")}
+          </Button>
+        )}
         <Button
           variant="secondary"
           size="sm"
@@ -74,63 +92,33 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
           ))}
         </ul>
       ) : (
-        <>
-          {lead && (
-            <div className="team__top">
-              <div className="team__leadcard">
-                <AgentCard agent={lead} lead projectId={project.id} />
-              </div>
-              {rest.length > 0 && <span className="team__connector" />}
-            </div>
+        <div className={current ? "team__board has-detail" : "team__board"}>
+          <TeamCanvas
+            agents={team}
+            leadId={lead?.id}
+            info={info}
+            live={live}
+            selected={selected}
+            onOpen={(a) => setSelected(a.id === selected ? undefined : a.id)}
+            onChat={(a) => void startChat(a, project.id)}
+          />
+          {current && (
+            <AgentDetail
+              agent={current}
+              team={team}
+              onClose={() => setSelected(undefined)}
+              onChat={() => void startChat(current, project.id)}
+            />
           )}
-          {rest.length > 0 && (
-            <div className={lead ? "team__grid has-lead" : "team__grid"}>
-              {rest.map((a) => (
-                <AgentCard key={a.id} agent={a} projectId={project.id} />
-              ))}
-            </div>
-          )}
-        </>
+        </div>
       )}
+      {importing && <ImportDialog projectId={project.id} top={lead} team={team} onClose={() => setImporting(false)} />}
     </div>
   );
 }
 
 function leadLabel(agent: Agent, t: T): string {
   return agent.kind === "secretary" ? t("agent.super") : t("team.orchestrator");
-}
-
-function AgentCard({ agent, lead = false, projectId }: { agent: Agent; lead?: boolean; projectId: string }) {
-  const t = useT();
-  return (
-    <div className="agentcard">
-      <div className="agentcard__top">
-        <AgentAvatar name={agent.name} blob={blobOf(agent)} size={32} animated={false} />
-        <span className="agentcard__names">
-          <span className="agentcard__name">
-            {agent.name}
-            {lead && <span className="agentcard__lead">{leadLabel(agent, t)}</span>}
-          </span>
-          <span className="agentcard__slug">{agent.id}</span>
-        </span>
-        <IconButton
-          size="sm"
-          variant="secondary"
-          label={t("team.chatWith", { name: agent.name })}
-          icon={<Icons.MessageCircle size={14} />}
-          onClick={() => void startChat(agent, projectId)}
-        />
-      </div>
-      <span className="agentcard__role">{agent.role || t("team.noRole")}</span>
-      <div className="agentcard__foot">
-        <AgentModelPicker agent={agent} chip />
-        <span className="chip" title={t("team.browserProfile")}>
-          <Icons.Globe size={11} />
-          {t(PROFILE_KEY[agent.browser_profile])}
-        </span>
-      </div>
-    </div>
-  );
 }
 
 function AgentRow({ agent, lead, projectId }: { agent: Agent; lead: boolean; projectId: string }) {

@@ -47,6 +47,15 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       ...(next ? { model_choice: next } : {}),
     });
   };
+  /** A parent is another agent of the same project, and never one of the agent's own reports (no loops). */
+  const checkParent = (cur: AgentRecord, parent: string | undefined) => {
+    if (!parent) return;
+    const team = store.agents.list().filter((a) => a.project_id === cur.project_id && a.slug);
+    const bySlug = new Map(team.map((a) => [a.slug as string, a]));
+    if (parent === cur.slug || !bySlug.has(parent)) throw badRequest(`${parent} is not another agent of this project`);
+    for (let p: string | undefined = parent, hops = 0; p && hops <= team.length; p = bySlug.get(p)?.parent, hops++)
+      if (p === cur.slug) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
+  };
   const fresh = (id: string) => {
     const a = store.agents.get(id);
     if (!a) throw notFound(`agent ${id}`);
@@ -93,6 +102,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       if (!cur) throw notFound(`agent ${p.agent}`);
       const model_choice = p.model_choice;
       checkChoice(model_choice);
+      checkParent(cur, p.parent);
       const definition = { name: p.name, role: p.role, description: p.description, parent: p.parent, icon: p.blob };
       const edits =
         Object.values(definition).some((v) => v !== undefined) || p.prompt !== undefined || p.slug !== undefined;

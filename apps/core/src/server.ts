@@ -162,6 +162,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       app: { harnesses, v1: config.v1, catalog, apc, engines: engineIds, home: config.home },
       apc,
       engines: engineIds,
+      // APX's own templates, then the owner's v1 vault (read-only).
+      templateRoots: [
+        { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },
+        { source: "v1", dir: path.join(config.v1.home, "agents") },
+      ],
     }),
     store.idempotency,
   );

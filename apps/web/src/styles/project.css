@@ -270,7 +270,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: var(--shell-team-max-w);
   margin: 0 auto;
   padding: 24px;
   box-sizing: border-box;
@@ -301,48 +300,6 @@
 .team__note code {
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
-}
-.team__top {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.team__leadcard {
-  width: min(300px, 100%);
-}
-.team__connector {
-  width: 1px;
-  height: 22px;
-  background: var(--apx-border-strong);
-}
-.team__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-.team__grid.has-lead {
-  margin-top: -20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--apx-border-strong);
-}
-.agentcard {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-surface);
-}
-.agentcard:hover {
-  border-color: var(--apx-border-strong);
-}
-.agentcard__top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
 }
 .agentcard__names {
   flex: 1;
@@ -376,20 +333,6 @@
   color: var(--apx-brand-soft-fg);
   font-size: 10px;
   font-weight: var(--apx-weight-regular);
-}
-.agentcard__role {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.agentcard__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
 }
 .chip {
   display: inline-flex;

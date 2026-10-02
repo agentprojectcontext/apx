@@ -1,0 +1,45 @@
+// UI strings, Spanish (voseo): the Team screen.
+import type { MessageKey } from "./en.ts";
+
+export const esTeam: Partial<Record<MessageKey, string>> = {
+  "team.import": "Importar",
+  "team.view.open": "Ver",
+  "team.waiting": "Espera tu respuesta",
+  "team.zoom": "Zoom",
+  "team.zoomOut": "Alejar",
+  "team.zoomIn": "Acercar",
+  "team.fit": "Ajustar al ancho",
+  "team.inherit": "hereda",
+  "team.stat.chats": "Chats",
+  "team.stat.tasks": "Tareas abiertas",
+  "team.stat.routines": "Rutinas",
+  "team.parent": "Reporta a",
+  "team.parent.none": "Nadie (arriba del equipo)",
+  "team.parent.global": "Los agentes globales no reportan a nadie.",
+  "team.parent.confirmTitle": "¿Cambiar a quién reporta?",
+  "team.parent.confirm": "Cambiar",
+  "team.parent.confirmBody": "{name} va a reportar a {to} en vez de a {from}. APX lo escribe en {file}.",
+  "team.area": "Área",
+  "team.engine": "Modelo",
+  "team.file": "Archivo",
+  "team.import.title": "Importar agentes",
+  "team.import.lead":
+    "Equipos y agentes sueltos de APX y de tu bóveda de v1 (solo lectura). Se escriben en .apc/agents/ de este proyecto.",
+  "team.import.teams": "Equipos",
+  "team.import.singles": "Agentes sueltos",
+  "team.import.fromV1": "bóveda v1",
+  "team.import.selectAll": "Elegir todos",
+  "team.import.clear": "Limpiar",
+  "team.import.preview": "Ver {name}",
+  "team.import.taken": "Ya está en este proyecto",
+  "team.import.install": "Instalar {n}",
+  "team.import.hang": "Colgar el nuevo líder de {name}",
+  "team.import.warnHang":
+    "Este proyecto ya tiene a {top}: el líder del equipo va a reportar a {top} y sigue habiendo un solo árbol.",
+  "team.import.warnRoots":
+    "Este proyecto ya tiene a {top}: el líder del equipo queda sin padre y el proyecto pasa a tener dos árboles. Nadie pierde su lugar.",
+  "team.import.empty": "No hay plantillas. Sumá carpetas en examples/agents/ o en tu bóveda de v1.",
+  "team.import.done": "Se instalaron {n} agentes.",
+  "team.import.doneSkipped": "Se instalaron {n} agentes; {skipped} quedaron afuera (ya estaban en el proyecto).",
+  "team.import.error": "No se pudo importar: {error}",
+};

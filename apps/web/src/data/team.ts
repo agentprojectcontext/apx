@@ -1,0 +1,49 @@
+// Team screen writes: who an agent reports to, and installing agent templates into a project.
+import type { AgentTemplate, TeamTemplate } from "@apx/protocol";
+import { t } from "../i18n/index.ts";
+import { client } from "./client.ts";
+import { notify } from "./notices.ts";
+import { data } from "./state.ts";
+
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** `parent` is a slug of the same project; "" makes the agent report to nobody (a root). */
+export async function setAgentParent(agent: string, parent: string): Promise<boolean> {
+  try {
+    const next = await client.call("agents.update", { agent, parent });
+    data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
+  }
+}
+
+export async function loadTemplates(): Promise<{ teams: TeamTemplate[]; singles: AgentTemplate[] } | undefined> {
+  try {
+    return await client.call("agents.templates", {});
+  } catch (e) {
+    notify(t("team.import.error", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+/** Installs and adds the new agents to the panel; returns how many were installed and skipped. */
+export async function installTemplates(
+  projectId: string,
+  templates: string[],
+  hangUnder: string | undefined,
+): Promise<{ installed: number; skipped: Array<{ template: string; reason: string }> } | undefined> {
+  try {
+    const r = await client.call("agents.install", {
+      project_id: projectId,
+      templates,
+      ...(hangUnder ? { hang_under: hangUnder } : {}),
+    });
+    data.set((s) => ({ agents: { ...s.agents, ...Object.fromEntries(r.installed.map((a) => [a.id, a])) } }));
+    return { installed: r.installed.length, skipped: r.skipped };
+  } catch (e) {
+    notify(t("team.import.error", { error: errText(e) }));
+    return undefined;
+  }
+}

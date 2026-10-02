@@ -8,6 +8,7 @@ import "./styles/inbox-views.css";
 import "./styles/quick.css";
 import "./styles/nav.css";
 import "./styles/project.css";
+import "./styles/team.css";
 import "./styles/office.css";
 import "./styles/config.css";
 import "./styles/models.css";

@@ -5,6 +5,7 @@ export { ActionGroup, type ActionGroupProps, type ActionItem } from "./component
 export { ActivityPill, type ActivityPillProps } from "./components/ActivityPill";
 export { AgentAvatar, type AgentAvatarProps } from "./components/AgentAvatar";
 export { AgentChip, type AgentChipProps } from "./components/AgentChip";
+export { AgentNode, type AgentNodeProps, type AgentNodeStat } from "./components/AgentNode";
 export { type ApxLook, type ApxMode, ApxProvider, type ApxProviderProps, useApx } from "./components/ApxProvider";
 export { Avatar, type AvatarProps } from "./components/Avatar";
 export { AvatarStack, type AvatarStackProps } from "./components/AvatarStack";

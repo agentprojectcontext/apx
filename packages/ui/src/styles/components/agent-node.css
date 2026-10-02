@@ -1,0 +1,221 @@
+/* ── AgentNode ─────────────────────────────────────────────────────────────── */
+.apx-agentnode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: 14px;
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-sm);
+  transition:
+    border-color var(--apx-duration) var(--apx-ease),
+    box-shadow var(--apx-duration) var(--apx-ease),
+    opacity var(--apx-duration) var(--apx-ease),
+    transform var(--apx-duration) var(--apx-ease);
+}
+.apx-agentnode:hover {
+  border-color: var(--apx-border-strong, var(--apx-fg-subtle));
+  box-shadow: var(--apx-shadow-md);
+  transform: translateY(-1px);
+}
+.apx-agentnode.is-selected {
+  border-color: var(--apx-brand);
+  box-shadow:
+    0 0 0 3px var(--apx-brand-soft),
+    var(--apx-shadow-md);
+}
+.apx-agentnode.is-dimmed {
+  opacity: 0.45;
+}
+.apx-agentnode.is-lead {
+  background: linear-gradient(180deg, var(--apx-brand-soft) 0, var(--apx-surface) 64px);
+}
+/* The whole card opens the agent; the buttons inside sit above this layer. */
+.apx-agentnode__hit {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+.apx-agentnode__hit:focus-visible {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: 2px;
+}
+.apx-agentnode__top,
+.apx-agentnode__role,
+.apx-agentnode__desc,
+.apx-agentnode__stats {
+  pointer-events: none;
+}
+.apx-agentnode__top {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.apx-agentnode__avatar {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+}
+.apx-agentnode.is-running .apx-agentnode__avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--apx-brand);
+  animation: apx-agentnode-pulse 1.6s var(--apx-ease) infinite;
+}
+.apx-agentnode__wait {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--apx-surface);
+  border-radius: 50%;
+  background: var(--apx-warning);
+}
+.apx-agentnode__names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.apx-agentnode__name {
+  overflow: hidden;
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.apx-agentnode__slug {
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.apx-agentnode__role {
+  display: flex;
+  min-width: 0;
+}
+.apx-agentnode__chip,
+.apx-agentnode__lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: var(--apx-radius-pill);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.apx-agentnode__chip {
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.apx-agentnode__lead {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg, var(--apx-brand));
+  font-weight: var(--apx-weight-medium);
+}
+.apx-agentnode__desc {
+  display: -webkit-box;
+  flex: none;
+  margin: 0;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.apx-agentnode__stats {
+  display: flex;
+  gap: 12px;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.apx-agentnode__stats li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.apx-agentnode__stats svg {
+  width: var(--apx-icon-xs);
+  height: var(--apx-icon-xs);
+}
+.apx-agentnode__foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--apx-border);
+}
+.apx-agentnode__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.apx-agentnode__act:hover {
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+}
+.apx-agentnode__act.is-chat {
+  color: var(--apx-brand);
+}
+.apx-agentnode__engine {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 96px;
+  margin-left: auto;
+  overflow: hidden;
+  padding: 2px 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+@keyframes apx-agentnode-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apx-agentnode,
+  .apx-agentnode.is-running .apx-agentnode__avatar::after {
+    animation: none;
+    transition: none;
+  }
+}

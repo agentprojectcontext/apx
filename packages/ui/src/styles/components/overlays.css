@@ -94,6 +94,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
   padding: var(--apx-space-5);
   border-radius: var(--apx-radius-xl);
   background: var(--apx-surface-raised);
@@ -104,6 +105,11 @@
   font-size: var(--apx-text-md);
   line-height: var(--apx-leading);
   outline: 0;
+}
+/* Head and footer stay put; a long body scrolls inside the dialog instead of off the screen. */
+.apx-dialog:not(.apx-dialog--bare) {
+  display: flex;
+  flex-direction: column;
 }
 .apx-dialog--sm {
   max-width: 380px;
@@ -175,10 +181,16 @@
   color: var(--apx-fg-muted);
 }
 .apx-dialog__body {
-  margin-top: var(--apx-space-4);
+  min-height: 0;
+  margin: var(--apx-space-4) -4px 0;
+  padding: 0 4px;
+  overflow-y: auto;
 }
 .apx-dialog__footer {
   display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--apx-space-2);
   margin-top: var(--apx-space-5);

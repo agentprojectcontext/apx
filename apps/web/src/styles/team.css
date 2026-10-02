@@ -1,0 +1,421 @@
+/* Team screen: the org-chart canvas, the agent detail beside it and the import dialog. */
+
+/* ── Board: canvas + detail ───────────────────────────────────────────────── */
+.team__board {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 420px;
+  gap: 16px;
+}
+.teamcanvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+  /* Dotted paper: quiet enough to read as background in both modes. */
+  background-color: var(--apx-bg);
+  background-image: radial-gradient(var(--apx-border-strong) 1px, transparent 1px);
+  background-size: 20px 20px;
+  overflow: hidden;
+}
+.teamcanvas__scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.teamcanvas__sizer {
+  position: relative;
+  margin: 0 auto;
+}
+.teamcanvas__stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.teamcanvas__edges {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.teamcanvas__node {
+  position: absolute;
+}
+
+/* Area tones: the curve and its pill share one. tone--1 is "no area". */
+.teamcanvas .tone--1 {
+  --tone: var(--apx-fg-subtle);
+  --tone-soft: var(--apx-fill);
+  --tone-fg: var(--apx-fg-muted);
+}
+.teamcanvas .tone-0 {
+  --tone: var(--apx-violet);
+  --tone-soft: var(--apx-violet-soft);
+  --tone-fg: var(--apx-violet-soft-fg);
+}
+.teamcanvas .tone-1 {
+  --tone: var(--apx-info);
+  --tone-soft: var(--apx-info-soft);
+  --tone-fg: var(--apx-info-soft-fg);
+}
+.teamcanvas .tone-2 {
+  --tone: var(--apx-brand);
+  --tone-soft: var(--apx-brand-soft);
+  --tone-fg: var(--apx-brand-soft-fg);
+}
+.teamcanvas .tone-3 {
+  --tone: var(--apx-warning);
+  --tone-soft: var(--apx-warning-soft);
+  --tone-fg: var(--apx-warning-soft-fg);
+}
+.teamcanvas .tone-4 {
+  --tone: var(--apx-danger);
+  --tone-soft: var(--apx-danger-soft);
+  --tone-fg: var(--apx-danger-soft-fg);
+}
+.teamcanvas .tone-5 {
+  --tone: var(--apx-fg-muted);
+  --tone-soft: var(--apx-fill-strong);
+  --tone-fg: var(--apx-fg);
+}
+
+.teamcanvas__line {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 2 5;
+  opacity: 0.55;
+  transition:
+    opacity var(--apx-duration) var(--apx-ease),
+    stroke-width var(--apx-duration) var(--apx-ease);
+}
+.teamcanvas__edge.is-lit .teamcanvas__line {
+  stroke-dasharray: none;
+  stroke-width: 2;
+  opacity: 0.95;
+}
+.teamcanvas__edge.is-dim .teamcanvas__line {
+  opacity: 0.15;
+}
+/* A delegation in flight: the curve turns solid and flows towards the agent being asked. */
+.teamcanvas__edge.is-live .teamcanvas__line {
+  stroke-dasharray: 8 6;
+  stroke-width: 2;
+  opacity: 1;
+  animation: teamcanvas-flow 0.9s linear infinite;
+}
+.teamcanvas__pulse {
+  fill: var(--tone);
+  filter: drop-shadow(0 0 4px var(--tone));
+}
+@keyframes teamcanvas-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .teamcanvas__edge.is-live .teamcanvas__line {
+    animation: none;
+  }
+  .teamcanvas__pulse {
+    display: none;
+  }
+}
+
+.teamcanvas__pill {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+  border-radius: var(--apx-radius-pill);
+  background: var(--tone-soft);
+  color: var(--tone-fg);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.teamcanvas__zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-surface);
+  box-shadow: var(--apx-shadow-sm);
+}
+.teamcanvas__zoom .apx-iconbtn {
+  border-radius: var(--apx-radius-pill);
+}
+.teamcanvas__zoomval {
+  min-width: 40px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ── Agent detail ──────────────────────────────────────────────────────────── */
+.teamdetail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+  width: 320px;
+  align-self: flex-start;
+  padding: 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+  background: var(--apx-surface);
+}
+.teamdetail__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.teamdetail__names {
+  flex: 1;
+  min-width: 0;
+}
+.teamdetail__name {
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+}
+.teamdetail__slug,
+.teamdetail__mono {
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.teamdetail__role {
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.teamdetail__desc {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.teamdetail__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 4px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--apx-border);
+  font-size: var(--apx-text-sm);
+}
+.teamdetail__facts dt {
+  color: var(--apx-fg-subtle);
+}
+.teamdetail__facts dd {
+  min-width: 0;
+  margin: 0;
+}
+.teamdetail__engine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.teamdetail__muted {
+  color: var(--apx-fg-subtle);
+}
+.teamdetail__confirm {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+}
+/* Narrow: the detail drops below the canvas instead of squeezing it. */
+@media (max-width: 1039px) {
+  .team__board.has-detail {
+    flex-direction: column;
+  }
+  .team__board.has-detail .teamcanvas {
+    min-height: 420px;
+  }
+  .teamdetail {
+    width: auto;
+    align-self: stretch;
+  }
+}
+
+/* ── Import dialog ─────────────────────────────────────────────────────────── */
+.teamimport {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.teamimport__loading {
+  display: grid;
+  gap: 12px;
+}
+.teamimport__label {
+  margin: 8px 0 0;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.teamimport__team {
+  padding: 14px 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: 12px;
+}
+.teamimport__teamhead {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--apx-fg-muted);
+}
+.teamimport__teamtitles {
+  flex: 1;
+  min-width: 0;
+}
+.teamimport__teamname {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-fg);
+  font-weight: var(--apx-weight-semibold);
+}
+.teamimport__teamdesc {
+  margin: 2px 0 0;
+  font-size: var(--apx-text-sm);
+}
+.teamimport__members {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.teamimport__member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: var(--apx-text-sm);
+}
+.teamimport__member.is-taken {
+  color: var(--apx-fg-subtle);
+}
+.teamimport__eye {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg-subtle);
+}
+.teamimport__eye:hover,
+.teamimport__eye[aria-expanded="true"] {
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+}
+.teamimport__slug,
+.teamimport__cardname code {
+  padding: 1px 6px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+}
+.teamimport__leadtag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-xs);
+}
+.teamimport__muted {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.teamimport__preview {
+  flex-basis: 100%;
+  margin: 0 0 4px 64px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.teamimport__warn {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--apx-warning-soft);
+  color: var(--apx-warning-soft-fg);
+  font-size: var(--apx-text-xs);
+}
+.teamimport__warn svg {
+  flex: none;
+  margin-top: 1px;
+}
+.teamimport__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.teamimport__card {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.teamimport__card.is-on {
+  border-color: var(--apx-brand);
+  background: var(--apx-brand-soft);
+}
+.teamimport__card.is-taken {
+  opacity: 0.55;
+  cursor: default;
+}
+.teamimport__cardbody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.teamimport__cardname {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.teamimport__carddesc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.teamimport__hang {
+  margin-right: auto;
+}
+@media (max-width: 559px) {
+  .teamimport__hang {
+    flex-basis: 100%;
+  }
+}

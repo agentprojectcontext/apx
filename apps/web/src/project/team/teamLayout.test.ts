@@ -1,0 +1,51 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { branchOf, layoutTeam, NODE } from "./teamLayout.ts";
+
+const m = (id: string, parent?: string, area?: string) => ({ id, slug: id, parent, area, name: id });
+
+test("a parent sits centred over its children; agents without a parent hang under the lead", () => {
+  const l = layoutTeam([m("lead"), m("a", "lead"), m("b"), m("c", "a")], "lead");
+  const at = Object.fromEntries(l.nodes.map((n) => [n.id, n]));
+  assert.equal(at.lead?.depth, 0);
+  assert.equal(at.b?.depth, 1, "no parent: under the lead");
+  assert.equal(at.c?.depth, 2);
+  const kids = [at.a, at.b].map((n) => (n?.x ?? 0) + NODE.w / 2);
+  assert.equal((at.lead?.x ?? 0) + NODE.w / 2, (Math.min(...kids) + Math.max(...kids)) / 2);
+  assert.equal(l.edges.length, 3);
+});
+
+test("siblings are grouped by area with one pill per group; no area, no pill", () => {
+  const l = layoutTeam(
+    [m("lead"), m("x", "lead", "sports"), m("y", "lead", "product"), m("z", "lead", "product"), m("w", "lead")],
+    "lead",
+  );
+  assert.deepEqual(
+    l.pills.map((p) => [p.area, p.count]),
+    [
+      ["product", 2],
+      ["sports", 1],
+    ],
+  );
+  const order = l.nodes
+    .filter((n) => n.depth === 1)
+    .sort((a, b) => a.x - b.x)
+    .map((n) => n.id);
+  assert.deepEqual(order, ["y", "z", "x", "w"], "areas first, alphabetically; no area last");
+});
+
+test("a loop in parent: is broken instead of hanging the layout; nodes never overlap", () => {
+  const l = layoutTeam([m("a", "b"), m("b", "a"), m("c", "a")]);
+  assert.equal(l.nodes.length, 3);
+  const rows = new Map<number, number[]>();
+  for (const n of l.nodes) rows.set(n.depth, [...(rows.get(n.depth) ?? []), n.x]);
+  for (const xs of rows.values()) {
+    xs.sort((p, q) => p - q);
+    for (let i = 1; i < xs.length; i++) assert.ok((xs[i] ?? 0) - (xs[i - 1] ?? 0) >= NODE.w);
+  }
+});
+
+test("the branch of a node: its way up and its children", () => {
+  const l = layoutTeam([m("lead"), m("a", "lead"), m("b", "lead"), m("c", "a")], "lead");
+  assert.deepEqual([...branchOf(l, "a")].sort(), ["a", "c", "lead"]);
+});

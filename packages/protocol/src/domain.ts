@@ -96,6 +96,8 @@ export const Agent = z.object({
   slug: z.string().optional(),
   /** Slug of the agent it reports to, inside the same project. */
   parent: z.string().optional(),
+  /** Group it belongs to in the team view ("product", "sports"). From `area:`. */
+  area: z.string().optional(),
   description: z.string().optional(),
   /** "apc" = defined by a file in the project; "local" = defined in APX itself. */
   source: z.enum(["apc", "local"]).default("local"),

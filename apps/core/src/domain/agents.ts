@@ -25,9 +25,9 @@ const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
   prompt: r.prompt,
 });
 
-/** `tools:` and `autonomy:` as the agent's file wrote them; unknown autonomy values mean the default. */
-function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills"> {
-  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown } = {};
+/** `tools:`, `autonomy:`, `skills:` and `area:` as the agent's file wrote them; unknown autonomy values mean the default. */
+function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills" | "area"> {
+  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown; area?: unknown } = {};
   try {
     e = extra ? JSON.parse(extra) : {};
   } catch {}
@@ -38,6 +38,7 @@ function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "ski
     ...(tools.length ? { tools } : {}),
     ...(autonomy.success ? { autonomy: autonomy.data } : {}),
     ...(skills.length ? { skills } : {}),
+    ...(typeof e.area === "string" && e.area.trim() ? { area: e.area.trim().slice(0, 40) } : {}),
   };
 }
 

@@ -2,9 +2,11 @@
 
 import type { MessageKey } from "./en.ts";
 import { esOffice } from "./es-office.ts";
+import { esTeam } from "./es-team.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
+  ...esTeam,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",

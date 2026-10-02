@@ -106,5 +106,7 @@ export function assertSafeBind(config: Pick<CoreConfig, "host" | "token">): void
 
 /** Config for tests and embedders: defaults plus overrides, no environment. */
 export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreConfig {
-  return { ...loadConfig({}), port: 0, secrets: "file", ...over };
+  // Never the machine's real v1: a test that wants one passes it.
+  const v1 = { url: "http://127.0.0.1:9", home: path.join(over.home, "v1") };
+  return { ...loadConfig({}), port: 0, secrets: "file", v1, ...over };
 }

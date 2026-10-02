@@ -34,6 +34,7 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
+import { teamHandlers } from "./rpc/team.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
@@ -113,6 +114,7 @@ type HandlerDeps = {
   secrets: Parameters<typeof providerHandlers>[1];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
+  templateRoots: Parameters<typeof teamHandlers>[2];
   engines: Parameters<typeof agentHandlers>[2];
 };
 
@@ -142,6 +144,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...providerHandlers(d.providers, d.secrets),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
+    ...teamHandlers(d.store, d.apc, d.templateRoots),
   };
 }
 
