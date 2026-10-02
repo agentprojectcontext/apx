@@ -113,8 +113,8 @@
   font-size: var(--apx-text-2xs);
 }
 .chan__avatar.is-owner {
-  background: var(--apx-accent-soft, var(--apx-fill-strong));
-  color: var(--apx-accent-soft-fg, var(--apx-fg));
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
 }
 .chan__pending.is-flash {
   animation: chan-flash 2.4s ease-out;
@@ -167,9 +167,11 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--apx-accent-fg, var(--apx-fg));
+  color: var(--apx-fg);
   font: inherit;
+  text-align: left;
   text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
 }
 .chan__row.is-muted {
