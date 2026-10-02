@@ -5,6 +5,8 @@ export const enChat = {
   "composer.yourAgent": "your agent",
   "composer.attach": "Attach",
   "composer.stop": "Stop",
+  "composer.sendHint":
+    "Enter: send (if it is working, stops it and answers this) · Ctrl/⌘+Enter: queue it for when it ends · Shift+Enter: new line",
   "composer.send": "Send",
   "composer.attachFile": "File",
   "composer.attachImage": "Image",
@@ -16,8 +18,6 @@ export const enChat = {
   "composer.dictate": "Dictate",
   "composer.dictateStop": "Stop dictating",
   "composer.dictationFailed": "Could not dictate: {error}",
-  "composer.interrupt": "Interrupts",
-  "composer.interruptHint": "On: your next message stops what the agent is doing. Off: it joins the current turn.",
   "composer.auto": "Auto",
   "composer.modelOfChat": "Model of this chat",
   "composer.agentModel": "The agent's model",

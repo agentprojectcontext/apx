@@ -19,15 +19,15 @@ import { useFileDrop } from "./useFileDrop.ts";
 const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /**
- * The chat's composer, left to right: + (file, image), the chat's model, "Interrupts", then how full the chat is
- * (opens Usage), the mic (dictates into the field) and send. Files also arrive dragged or pasted.
+ * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
+ * the mic (dictates into the field) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
+ * Files also arrive dragged or pasted.
  */
 export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
   const runsById = useData((s) => s.runs);
   const [text, setText] = useState("");
-  const [interrupt, setInterrupt] = useState(false);
   const files = useRef<HTMLInputElement>(null);
   const images = useRef<HTMLInputElement>(null);
   const att = useAttachments(thread.id);
@@ -43,15 +43,14 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
     [runsById, thread.id],
   );
 
-  const submit = (value: string) => {
+  const submit = (value: string, { queue }: { queue: boolean }) => {
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
     const attachments = att.take();
     const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
     if (!words) return;
     setText("");
-    setInterrupt(false);
     // A send that fails gives the words and the files back, so nothing the owner wrote is lost.
-    send(thread.id, words, { attachments, interrupt }).catch(() => {
+    send(thread.id, words, { attachments, queue }).catch(() => {
       setText((cur) => cur || value);
       att.restore(attachments);
     });
@@ -86,6 +85,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
           offline ? t("composer.offline") : t("composer.placeholder", { name: agent?.name ?? t("composer.yourAgent") })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
+        sendHint={t("composer.sendHint")}
         value={text}
         onValueChange={setText}
         ready={att.ready && !att.uploading}
@@ -114,18 +114,6 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
               trigger={<IconButton size="sm" label={t("composer.attach")} icon={<Icons.Plus size={16} />} />}
             />
             <ChatModel thread={thread} agent={agent} />
-            {busy && (
-              <button
-                type="button"
-                className={`composer__toggle${interrupt ? " is-on" : ""}`}
-                aria-pressed={interrupt}
-                title={t("composer.interruptHint")}
-                onClick={() => setInterrupt((x) => !x)}
-              >
-                <Icons.Hand size={12} />
-                <span className="composer__togglelabel">{t("composer.interrupt")}</span>
-              </button>
-            )}
             <span className="composer__spacer" />
             <ContextChip context={contextOf(runs)} spent={spentOf(runs)} />
             {mic.state !== "unsupported" && (

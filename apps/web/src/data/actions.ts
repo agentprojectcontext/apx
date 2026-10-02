@@ -79,13 +79,13 @@ export async function refetchLoaded(): Promise<void> {
 }
 
 /**
- * Sends the owner's text, with any attached files. While the agent works, it goes into the running turn (steer) when
- * that turn can take it, or stops it first (`interrupt`).
+ * Sends the owner's text, with any attached files. While the agent works it stops the running turn and answers
+ * this (`interrupt`), or waits for that turn to end (`queue`).
  */
 export async function send(
   threadId: string,
   text: string,
-  opts: { attachments?: Attached[]; interrupt?: boolean } = {},
+  opts: { attachments?: Attached[]; queue?: boolean } = {},
 ): Promise<void> {
   const files = opts.attachments ?? [];
   const list = data.get().messages[threadId] ?? [];
@@ -106,7 +106,7 @@ export async function send(
     const r = await client.call("threads.send", {
       thread: threadId,
       text,
-      mode: busy ? (opts.interrupt ? "interrupt" : "steer") : "queue",
+      mode: busy && !opts.queue ? "interrupt" : "queue",
       ...(files.length ? { attachments: files.map((f) => f.id) } : {}),
     });
     data.set((s) => {

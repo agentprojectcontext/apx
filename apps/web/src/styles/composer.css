@@ -36,27 +36,6 @@
   flex: 99;
 }
 
-.composer__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-pill);
-  background: none;
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-xs);
-  cursor: pointer;
-}
-.composer__toggle:hover {
-  background: var(--apx-fill-hover);
-}
-.composer__toggle.is-on {
-  border-color: var(--apx-danger);
-  color: var(--apx-danger);
-}
-
 .composer__mic.is-recording {
   color: var(--apx-danger);
   animation: composer-rec 1.2s ease-in-out infinite;
@@ -207,9 +186,6 @@
 }
 
 @media (max-width: 640px) {
-  .composer__togglelabel {
-    display: none;
-  }
   .composer__model {
     max-width: 120px;
   }

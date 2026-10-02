@@ -19,8 +19,10 @@ export interface ComposerProps {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
-  /** Enter sends, Shift+Enter adds a line. */
-  onSubmit?: (value: string) => void;
+  /** Enter sends, Shift+Enter adds a line; Ctrl/⌘+Enter sends with `queue` (wait for the running turn). */
+  onSubmit?: (value: string, opts: { queue: boolean }) => void;
+  /** Tooltip on the send button (its shortcuts). */
+  sendHint?: string;
   /** Called by the mic button (shown while the field is empty). Omit it to keep a (disabled) send button there. */
   onVoice?: () => void;
   /** Something besides text can be sent (attachments): send works with an empty field. */
@@ -49,6 +51,7 @@ export function Composer({
   defaultValue = "",
   onValueChange,
   onSubmit,
+  sendHint,
   onVoice,
   ready = false,
   onAttach,
@@ -67,15 +70,15 @@ export function Composer({
     onValueChange?.(v);
   };
   const canSend = Boolean(text.trim()) || ready;
-  const submit = () => {
+  const submit = (queue = false) => {
     if (!canSend) return;
-    onSubmit?.(text);
+    onSubmit?.(text, { queue });
     if (value == null) setInner("");
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      submit();
+      submit(e.ctrlKey || e.metaKey);
     }
   };
   const boxed = toolbar != null;
@@ -93,7 +96,8 @@ export function Composer({
       type="button"
       className="apx-composer__send"
       aria-label={l.send}
-      onClick={submit}
+      title={sendHint}
+      onClick={() => submit()}
       disabled={disabled || !canSend}
     >
       <ArrowUp size={16} strokeWidth={2.5} />

@@ -7,6 +7,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.yourAgent": "tu agente",
   "composer.attach": "Adjuntar",
   "composer.stop": "Detener",
+  "composer.sendHint":
+    "Enter: enviar (si está trabajando, lo corta y responde esto) · Ctrl/⌘+Enter: en cola, cuando termine · Shift+Enter: nueva línea",
   "composer.send": "Enviar",
   "composer.attachFile": "Archivo",
   "composer.attachImage": "Imagen",
@@ -18,9 +20,6 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.dictate": "Dictar",
   "composer.dictateStop": "Terminar de dictar",
   "composer.dictationFailed": "No se pudo dictar: {error}",
-  "composer.interrupt": "Interrumpe",
-  "composer.interruptHint":
-    "Activado: tu próximo mensaje corta lo que está haciendo el agente. Apagado: se suma al turno en curso.",
   "composer.auto": "Auto",
   "composer.modelOfChat": "Modelo de este chat",
   "composer.agentModel": "El modelo del agente",
