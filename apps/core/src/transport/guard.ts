@@ -16,11 +16,19 @@ export function originsFor(coreUrl: string, extra: readonly string[] = []): Set<
   return set;
 }
 
-/** undefined = allowed; otherwise the reason to refuse. */
-export function refuse(req: IncomingMessage, gate: Gate, tokenFromQuery?: string | null): string | undefined {
+/**
+ * undefined = allowed; otherwise the reason to refuse. `knownClient`: the request carries a valid client token, which
+ * stands in for the core's token (the app still acts as a model, within its scopes).
+ */
+export function refuse(
+  req: IncomingMessage,
+  gate: Gate,
+  tokenFromQuery?: string | null,
+  knownClient = false,
+): string | undefined {
   const origin = req.headers.origin;
   if (origin && !gate.allowedOrigins.has(origin)) return `origin ${origin} is not allowed`;
-  if (gate.token) {
+  if (gate.token && !knownClient) {
     const auth = req.headers.authorization;
     if (auth !== `Bearer ${gate.token}` && tokenFromQuery !== gate.token) return "missing or bad token";
   }

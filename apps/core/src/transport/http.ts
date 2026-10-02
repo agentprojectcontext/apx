@@ -83,7 +83,9 @@ export function httpHandler(
       );
     }
     if (req.method === "POST" && url.pathname.startsWith("/rpc/")) {
-      const why = refuse(req, gate);
+      const clientToken = header(req, "x-apx-client");
+      const client = clientToken ? clientOf?.(clientToken) : undefined;
+      const why = refuse(req, gate, null, Boolean(client));
       if (why) return send(res, 403, { ok: false, error: { code: "unauthorized", message: why } });
       // A JSON content type forces a CORS preflight, so a foreign page cannot post a "simple" request here.
       if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) {
@@ -99,8 +101,6 @@ export function httpHandler(
         return send(res, 400, { ok: false, error: { code: "bad_request", message: String(err) } });
       }
       const idem = header(req, "idempotency-key");
-      const clientToken = header(req, "x-apx-client");
-      const client = clientToken ? clientOf?.(clientToken) : undefined;
       if (clientToken && !client)
         return send(res, 401, {
           ok: false,
