@@ -72,6 +72,7 @@ export function SkillDetail({
         />
       </header>
       {skill.description && <p className="resd__desc">{skill.description}</p>}
+      {projectId && skill.off_everywhere && <p className="resd__note">{t("res.skillOffEverywhere")}</p>}
       {inherited && (
         <p className="resd__note">{t("res.skillInheritedNote", { name: projectName(projects, projectId) })}</p>
       )}
