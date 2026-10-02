@@ -42,7 +42,11 @@ export async function runMcp(client: ApxClient, agent: string, chat = false): Pr
   const register = server.registerTool.bind(server) as unknown as Register;
 
   // The owner's controls are not tools: the core refuses them to agent clients; listing them would only mislead.
-  for (const method of (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => methodAccess(m) !== "human")) {
+  // Neither are the browser's, for an app whose token has no browser scope.
+  const methods = (await mayBrowse(client, chat))
+    ? (Object.keys(browserMethods) as BrowserMethod[]).filter((m) => methodAccess(m) !== "human")
+    : [];
+  for (const method of methods) {
     const def = browserMethods[method];
     const shape = { ...def.params.shape } as Record<string, unknown>;
     delete shape.by; // identity is the MCP client's, not something the model picks
@@ -63,4 +67,16 @@ export async function runMcp(client: ApxClient, agent: string, chat = false): Pr
   }
 
   await server.connect(new StdioServerTransport());
+}
+
+/** Without a client token the core decides per call; with one, a refused probe means its scopes leave the browser out. */
+async function mayBrowse(client: ApxClient, withToken: boolean): Promise<boolean> {
+  if (!withToken) return true;
+  try {
+    await client.call("browser.tabs", {});
+    return true;
+  } catch (err) {
+    // Unavailable (no desktop app running) still means the scope allows it.
+    return !(err instanceof ApxError && err.code === "unauthorized");
+  }
 }
