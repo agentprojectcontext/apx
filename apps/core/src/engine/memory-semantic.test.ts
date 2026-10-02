@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
+import { relatedCut } from "../domain/memories.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** A fake Ollama: words about pets point one way, about coffee another, anything else a third. */
@@ -103,4 +104,13 @@ test("with memory off, the turn gets no notes and no memory tools", async () => 
   assert.doesNotMatch(String(call?.messages.at(-1)?.content), /\[memory/);
   assert.ok(!call?.tools.some((x) => ["remember", "recall", "forget"].includes(x.function.name)));
   assert.ok(embedCalls > 0);
+});
+
+test("with few notes and an engine that rates everything alike, only the close note comes back", () => {
+  // Unrelated text at 0.6, the related note at 0.95: a fixed floor alone would bring both.
+  assert.equal(relatedCut([0.95, 0.6]), 0.95 - 0.1);
+  assert.equal(relatedCut([0.3]), 0.35, "the floor still holds");
+  // Ten notes around 0.5 and one at 0.58: the median lifts the cut over the crowd.
+  const crowd = [0.58, ...Array.from({ length: 10 }, (_, i) => 0.5 - i * 0.001)];
+  assert.ok(relatedCut(crowd) > 0.5 && relatedCut(crowd) <= 0.58);
 });

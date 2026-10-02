@@ -140,6 +140,21 @@ const fromBlob = (b: Uint8Array) => new Float32Array(b.buffer.slice(b.byteOffset
 
 /** Notes this close to a query (cosine) are related; below it a match is noise. */
 const MIN_SIMILARITY = 0.35;
+/** A related note stands this close to the best one… */
+const NEAR_BEST = 0.1;
+/** …and, among several notes, this far above the usual level of the rest. */
+const ABOVE_TYPICAL = 0.05;
+
+/**
+ * The score a note needs to count, from all the scores (best first). Many engines rate unrelated text well above the
+ * floor, so with a handful of notes every one of them would match: the cut also follows the best one and, with
+ * enough notes to tell, the median.
+ */
+export function relatedCut(scores: number[]): number {
+  const best = scores[0] ?? 0;
+  const median = scores.length >= 5 ? (scores[Math.floor(scores.length / 2)] ?? 0) : 0;
+  return Math.max(MIN_SIMILARITY, best - NEAR_BEST, median + ABOVE_TYPICAL);
+}
 
 export function memoriesRepo({ one, all, run }: Sql) {
   const repo = {
@@ -241,10 +256,12 @@ export function memoriesRepo({ one, all, run }: Sql) {
           .where("embedding_model", "=", o.model)
           .where("embedding", "is not", null),
       );
-      return rows
+      const scored = rows
         .map((r) => ({ r, s: cosine(o.vector, fromBlob(r.embedding as Uint8Array)) }))
-        .filter((x) => x.s >= MIN_SIMILARITY)
-        .sort((a, b) => b.s - a.s)
+        .sort((a, b) => b.s - a.s);
+      const cut = relatedCut(scored.map((x) => x.s));
+      return scored
+        .filter((x) => x.s >= cut)
         .slice(0, o.limit)
         .map((x) => toMemory(x.r));
     },
