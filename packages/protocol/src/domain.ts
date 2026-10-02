@@ -300,6 +300,15 @@ export const Message = z.object({
 });
 export type Message = z.infer<typeof Message>;
 
+/** Tokens of a run; `context` is the last model call's input (how full the chat is), `window` that model's limit. */
+export const RunUsage = z.object({
+  input: z.number().int(),
+  output: z.number().int(),
+  context: z.number().int().optional(),
+  window: z.number().int().optional(),
+});
+export type RunUsage = z.infer<typeof RunUsage>;
+
 /** What started a run. Everything enters through threads.send; this only says from where. */
 export const RunTrigger = z.enum(["user", "a2a", "a2a_result", "surface", "channel", "routine", "system"]);
 export type RunTrigger = z.infer<typeof RunTrigger>;
@@ -324,7 +333,7 @@ export const Run = z.object({
   /** What it is doing right now ("Opened github.com"); absent when idle or finished. */
   activity: z.string().optional(),
   /** Tokens reported by the provider for the whole run, when it reports them. */
-  usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
+  usage: RunUsage.optional(),
 });
 export type Run = z.infer<typeof Run>;
 
@@ -343,7 +352,7 @@ export const Job = z.object({
   agent_id: Id.optional(),
   trigger: RunTrigger,
   model: z.string().optional(),
-  usage: z.object({ input: z.number().int(), output: z.number().int() }).optional(),
+  usage: RunUsage.optional(),
   tool_calls: z.number().int().nonnegative(),
   activity: z.string().optional(),
   /** Terminal jobs: where the command runs, how it exited, and whether it was started in the background. */

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
-const llm = scriptedLlm(() => say("ok"));
+const llm = scriptedLlm((_req, { said }) =>
+  said.includes("how full")
+    ? { ...say("ok"), model: "pa/claude-sonnet-4", usage: { input: 38_000, output: 20 } }
+    : say("ok"),
+);
 let env: Awaited<ReturnType<typeof startCore>>;
 const b64 = (s: string | Buffer) => Buffer.from(s).toString("base64");
 // The smallest PNG there is (1×1).
@@ -80,4 +84,12 @@ test("dictation without a transcription engine says how to set one up", async ()
     env.client.call("media.transcribe", { data: b64("x"), mime: "audio/webm" }),
     /Settings › Voices/,
   );
+});
+
+test("a run says how full the chat is: the last call's input, against the model's window", async () => {
+  const r = await env.client.call("threads.send", { thread: "home", text: "how full is it?" });
+  await env.settle("home");
+  const { runs } = await env.client.call("threads.get", { thread: "home" });
+  const run = runs.find((x) => x.id === r.run?.id);
+  assert.deepEqual(run?.usage, { input: 38_000, output: 20, context: 38_000, window: 200_000 });
 });

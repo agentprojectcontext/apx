@@ -12,6 +12,7 @@ import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
+import { contextWindow } from "../providers/windows.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { inherit } from "../tools/policy.ts";
@@ -363,7 +364,9 @@ async function finishRun(
   const empty = t.exec.toolsRan ? "Finished without a message." : "The model gave no answer.";
   if (text) display.finalText(text);
   else display.notice("info", "run.empty", empty);
-  let run = store.runs.patch(t.run, { model: outcome.model, ...(outcome.usage ? { usage: outcome.usage } : {}) });
+  const window = outcome.usage?.context ? contextWindow(outcome.model) : undefined;
+  const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
+  let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
   run = store.runs.setState(run, "completed");
   store.threads.patch(thread.id, {
     state: "idle",

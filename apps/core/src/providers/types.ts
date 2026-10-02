@@ -25,7 +25,8 @@ export type ToolSpec = { type: "function"; function: { name: string; description
 /** Why the model stopped. `length` means the answer was cut and is not complete. */
 export type Finish = "stop" | "tool_calls" | "length" | "other";
 
-export type Usage = { input: number; output: number };
+/** `context`: the input of the last call alone, how much of the window the chat fills now. */
+export type Usage = { input: number; output: number; context?: number };
 
 export type Completion = { message: AssistantItem; model: string; finish: Finish; usage?: Usage };
 

@@ -47,6 +47,7 @@ export function nativeHarness(llm: Llm): Harness {
         model = c.model;
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
+        if (c.usage?.input) usage.context = c.usage.input;
         push(c.message);
         if (c.message.content) text = prefix + c.message.content;
         return c;
