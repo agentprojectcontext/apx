@@ -159,3 +159,30 @@ test("variables: a project's own value wins for the owner's servers there, and i
   assert.deepEqual(mine?.used_in, ["mcp:notes"]);
   await assert.rejects(env.client.call("secrets.set", { name: "X", value: "y", project: "p_nope" }), /not found/);
 });
+
+test("a project can take none of the owner's global skills or servers; its own still count", async () => {
+  skill(path.join(repo, ".apc", "skills"), "acme-only", "Acme's own way.");
+  skill(path.join(home, "skills"), "digest", "A weekly digest.");
+  assert.deepEqual(await env.client.call("resources.inheritance", { project }), { skills: true, mcp: true });
+  await env.client.call("mcp.set", { name: "inherit-probe", server: { command: process.execPath, args: [SERVER] } });
+
+  const r = await env.client.call("resources.inherit", { project, kind: "skills", on: false });
+  assert.deepEqual(r, { skills: false, mcp: true });
+  const there = (await env.client.call("skills.list", { project })).skills;
+  assert.equal(there.find((s) => s.name === "digest")?.on, false, "global: off here");
+  assert.equal(there.find((s) => s.name === "acme-only")?.on, true, "its own: on");
+  const catalog = skillsFor(env.core.store, home, project).map((s) => s.name);
+  assert.ok(catalog.includes("acme-only") && !catalog.includes("digest"));
+  assert.ok(skillsFor(env.core.store, home, undefined).some((s) => s.name === "digest"), "still on elsewhere");
+
+  await env.client.call("resources.inherit", { project, kind: "mcp", on: false });
+  const servers = (await env.client.call("mcp.list", { project })).servers;
+  assert.equal(servers.find((s) => s.name === "inherit-probe")?.off_here, true, "global server off here");
+
+  assert.deepEqual(await env.client.call("resources.inherit", { project, kind: "skills", on: true }), {
+    skills: true,
+    mcp: false,
+  });
+  await env.client.call("resources.inherit", { project, kind: "mcp", on: true });
+  await env.client.call("mcp.set", { name: "inherit-probe", server: null });
+});

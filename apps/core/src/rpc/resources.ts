@@ -7,7 +7,7 @@ import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
 import { type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
-import { allSkills, readSkillFile, setSkillOn, skillFiles } from "../skills/skills.ts";
+import { allSkills, NO_GLOBALS, readSkillFile, setSkillOn, skillFiles, skillsOff } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
 
 /** Where each stored secret is named: the owner's MCP servers, providers, channels, and services' own keys. */
@@ -41,7 +41,7 @@ function usedIn(store: Store, mcp: McpConfig): Map<string, string[]> {
 }
 
 export function resourceHandlers(deps: { store: Store; home: string; secrets: Secrets; mcp: McpConfig }) {
-  const { store, home } = deps;
+  const { store, home, mcp } = deps;
   const find = (name: string, project: string | undefined) => {
     const s = allSkills(store, home, project).find((x) => x.name === name);
     if (!s) throw notFound(`skill ${name}`);
@@ -50,6 +50,10 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
   const rootOf = (project: string | undefined) => {
     const p = project ? store.projects.get(project) : undefined;
     return p?.path && p.present ? p.path : undefined;
+  };
+  const inheritance = (project: string) => {
+    if (!store.projects.get(project)) throw notFound(`project ${project}`);
+    return { skills: !skillsOff(store)[project]?.includes(NO_GLOBALS), mcp: mcp.takesGlobals(project) };
   };
   return {
     "secrets.list": () => {
@@ -96,6 +100,13 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
       );
       if (!saved) throw badRequest("the skill was written but could not be read back (check its frontmatter)");
       return { skill: skillInfo(store, saved, project) };
+    },
+    "resources.inheritance": ({ project }) => inheritance(project),
+    "resources.inherit": ({ project, kind, on }) => {
+      if (!store.projects.get(project)) throw notFound(`project ${project}`);
+      if (kind === "skills") setSkillOn(store, NO_GLOBALS, project, on);
+      else mcp.setOn(project, NO_GLOBALS, on);
+      return inheritance(project);
     },
     "skills.toggle": ({ name, project, on }) => {
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);

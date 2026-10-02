@@ -19,6 +19,8 @@ export type Skill = {
 /** Skills the owner turned off: "*" everywhere, or per project id. Kept in settings, never in the skill's folder. */
 type OffList = Record<string, string[]>;
 const OFF_KEY = "skills_off";
+/** In a project's list: it does not take the owner's global skills at all (its own ones still count). */
+export const NO_GLOBALS = "~globals";
 
 export function skillsOff(store: Store): OffList {
   try {
@@ -40,8 +42,14 @@ export function setSkillOn(store: Store, name: string, projectId: string | undef
 }
 
 /** Whether a skill is on in a project (or, without one, everywhere). */
-export function skillOn(off: OffList, name: string, projectId: string | undefined): boolean {
+export function skillOn(
+  off: OffList,
+  name: string,
+  projectId: string | undefined,
+  scope: Skill["scope"] = "global",
+): boolean {
   if (off["*"]?.includes(name)) return false;
+  if (projectId && scope === "global" && off[projectId]?.includes(NO_GLOBALS)) return false;
   return !(projectId && off[projectId]?.includes(name));
 }
 
@@ -91,7 +99,7 @@ const isLink = (p: string) => {
 /** Skills an agent of this project may load: everything found, minus what the owner turned off. */
 export function skillsFor(store: Store, home: string, projectId: string | undefined): Skill[] {
   const off = skillsOff(store);
-  return allSkills(store, home, projectId).filter((s) => skillOn(off, s.name, projectId));
+  return allSkills(store, home, projectId).filter((s) => skillOn(off, s.name, projectId, s.scope));
 }
 
 /** Every skill visible from a project (or globally): a project's own, then the owner's, then extensions'. */

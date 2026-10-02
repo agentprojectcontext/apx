@@ -6,7 +6,7 @@ import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { writeAtomic } from "../paths.ts";
-import { type Skill, skillOn, skillsOff } from "./skills.ts";
+import { NO_GLOBALS, type Skill, skillOn, skillsOff } from "./skills.ts";
 
 const tilde = (p: string) => {
   const home = os.homedir();
@@ -16,14 +16,17 @@ const tilde = (p: string) => {
 /** What the panel shows about a skill, in the context it was asked from. */
 export function skillInfo(store: Store, s: Skill, projectId: string | undefined): SkillInfo {
   const off = skillsOff(store);
-  const offIn = s.scope === "global" ? Object.keys(off).filter((k) => k !== "*" && off[k]?.includes(s.name)) : [];
+  const offIn =
+    s.scope === "global"
+      ? Object.keys(off).filter((k) => k !== "*" && (off[k]?.includes(s.name) || off[k]?.includes(NO_GLOBALS)))
+      : [];
   return {
     name: s.name,
     description: s.description,
     scope: s.scope,
     ...(s.project_id ? { project_id: s.project_id } : {}),
     source: s.source,
-    on: skillOn(off, s.name, projectId),
+    on: skillOn(off, s.name, projectId, s.scope),
     off_in: offIn,
     off_everywhere: Boolean(off["*"]?.includes(s.name)),
     editable: s.source !== "extension",

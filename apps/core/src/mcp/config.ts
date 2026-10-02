@@ -1,10 +1,12 @@
 // Which MCP servers an agent may use: the owner's global ones (settings) and a project's own (`.apc/mcps.json`).
 // A project file can name any command, so its servers start only once the owner approved that exact definition.
+
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
 import { extSecret } from "../extensions/extensions.ts";
+import { NO_GLOBALS } from "../skills/skills.ts";
 
 export type McpDef = {
   name: string;
@@ -113,7 +115,7 @@ function extensionDefs(store: Store): McpDef[] {
 
 export function mcpConfig(store: Store) {
   const trustKey = (project: string, name: string) => `mcp_trust:${project}:${name}`;
-  return {
+  const cfg = {
     global(): McpDef[] {
       return [
         ...Object.entries(parse(store.settings.get("mcp_servers"))).flatMap(([n, r]) => {
@@ -139,13 +141,23 @@ export function mcpConfig(store: Store) {
       if (!d.project_id) return;
       store.settings.set(trustKey(d.project_id, d.name), trusted ? d.hash : "");
     },
-    /** Global servers the owner turned off inside a project. */
+    /** Global servers the owner turned off inside a project (all of them when it takes none). */
     offIn(projectId: string): string[] {
       try {
         const all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
-        return Array.isArray(all[projectId]) ? all[projectId] : [];
+        const list = Array.isArray(all[projectId]) ? all[projectId] : [];
+        return list.includes(NO_GLOBALS) ? cfg.global().map((d) => d.name) : list;
       } catch {
         return [];
+      }
+    },
+    /** Whether a project takes the owner's global servers at all. */
+    takesGlobals(projectId: string): boolean {
+      try {
+        const all = JSON.parse(store.settings.get("mcp_off") ?? "{}") as Record<string, string[]>;
+        return !all[projectId]?.includes(NO_GLOBALS);
+      } catch {
+        return true;
       }
     },
     setOn(projectId: string, name: string, on: boolean): void {
@@ -167,6 +179,7 @@ export function mcpConfig(store: Store) {
       store.settings.set("mcp_servers", JSON.stringify({ mcpServers: all }));
     },
   };
+  return cfg;
 }
 
 export type McpConfig = ReturnType<typeof mcpConfig>;

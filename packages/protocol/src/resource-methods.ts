@@ -83,6 +83,20 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
+  /** Whether a project takes the owner's global skills and MCP servers (each can still be turned off one by one). */
+  "resources.inheritance": {
+    params: z.object({ project: Id }).strict(),
+    result: z.object({ skills: z.boolean(), mcp: z.boolean() }),
+    effect: false,
+    access: "human",
+  },
+  /** A project takes the owner's global skills (or MCP servers), or none of them: only its own count there. */
+  "resources.inherit": {
+    params: z.object({ project: Id, kind: z.enum(["skills", "mcp"]), on: z.boolean() }).strict(),
+    result: z.object({ skills: z.boolean(), mcp: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** MCP servers: the owner's and each project's, with whether they are approved, running and on here. */
   "mcp.list": {
     params: z.object({ project: Id.optional() }).strict(),
