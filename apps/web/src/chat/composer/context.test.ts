@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Run } from "@apx/protocol";
-import { contextOf, tokens } from "./context.ts";
+import { contextOf, spentOf, tokens } from "./context.ts";
 
 const run = (id: string, usage?: Run["usage"]) => ({ id, usage }) as Run;
 
@@ -23,4 +23,9 @@ test("token counts are short: 950, 38k, 1.0M", () => {
   assert.equal(tokens(950), "950");
   assert.equal(tokens(38_400), "38k");
   assert.equal(tokens(1_048_576), "1.0M");
+});
+
+test("what a chat spent adds every run that reported tokens", () => {
+  assert.equal(spentOf([run("a")]), undefined);
+  assert.equal(spentOf([run("b", { input: 1200, output: 300 }), run("a"), run("c", { input: 2, output: 3 })]), 1505);
 });

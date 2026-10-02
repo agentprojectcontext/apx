@@ -96,6 +96,10 @@
   background: var(--apx-fill-hover);
   color: var(--apx-fg);
 }
+.ctxchip.is-open {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
 .ctxchip__track {
   fill: none;
   stroke: var(--apx-border);

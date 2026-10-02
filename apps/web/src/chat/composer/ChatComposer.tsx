@@ -11,7 +11,7 @@ import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
-import { contextOf } from "./context.ts";
+import { contextOf, spentOf } from "./context.ts";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
@@ -127,7 +127,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
               </button>
             )}
             <span className="composer__spacer" />
-            <ContextChip context={contextOf(runs)} />
+            <ContextChip context={contextOf(runs)} spent={spentOf(runs)} />
             {mic.state !== "unsupported" && (
               <IconButton
                 size="sm"
