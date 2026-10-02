@@ -32,17 +32,15 @@ async function runRoutine(o: { pre: string; call_model: "always" | "output" | "f
   const started = await env.client.call("routines.run", { routine: r.id });
   await env.settle(started.thread_id);
   const post = path.join(env.home, "work", "post.txt");
-  // The post-command runs before the run hands the routine back.
+  // The post-command has exited once the run is handed back (delivered set); its file can exist, empty, before.
   const end = Date.now() + 4000;
-  while (!fs.existsSync(post) && Date.now() < end) await new Promise((res) => setTimeout(res, 25));
-  const out = fs.readFileSync(post, "utf8");
-  fs.rmSync(post);
-  // The file can appear before the step exits; the run is handed back (delivered set) only after.
   let runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
   while (runs[0]?.delivered === undefined && Date.now() < end) {
     await new Promise((res) => setTimeout(res, 25));
     runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
   }
+  const out = fs.readFileSync(post, "utf8");
+  fs.rmSync(post);
   return {
     runs,
     post: out,
