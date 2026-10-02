@@ -30,6 +30,31 @@ export function projectsRepo({ one, all, run }: Sql) {
       const r = one(qb.selectFrom("projects").selectAll().where("id", "=", id));
       return r ? toProject(r) : undefined;
     },
+    /** When each project last moved: its newest task change or chat message. */
+    lastActivity(): Map<string, string> {
+      const latest = new Map<string, string>();
+      const keep = (rows: Array<{ project_id: string | null; at: string | null }>) => {
+        for (const r of rows)
+          if (r.project_id && r.at && r.at > (latest.get(r.project_id) ?? "")) latest.set(r.project_id, r.at);
+      };
+      keep(
+        all(
+          qb
+            .selectFrom("tasks")
+            .select((eb) => ["project_id", eb.fn.max("activity_at").as("at")])
+            .groupBy("project_id"),
+        ),
+      );
+      keep(
+        all(
+          qb
+            .selectFrom("threads")
+            .select((eb) => ["project_id", eb.fn.max("updated_at").as("at")])
+            .groupBy("project_id"),
+        ),
+      );
+      return latest;
+    },
     byPath(p: string): ProjectRecord | undefined {
       const r = one(qb.selectFrom("projects").selectAll().where("path", "=", p));
       return r ? toProject(r) : undefined;

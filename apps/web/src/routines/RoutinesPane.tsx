@@ -30,7 +30,10 @@ const ACTION_KEY: Record<Routine["action"], MessageKey> = {
   agent: "routines.action.agent",
   message: "routines.action.message",
   shell: "routines.action.shell",
+  watch: "routines.action.watch",
 };
+/** An agent answers (agent) or watches (watch): both have one, and both can spare a model call. */
+const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch";
 
 /**
  * A project's routines (the base project shows the global ones), one row each: what it does as a flow, its last
@@ -110,7 +113,7 @@ const barOf = (x: RoutineRun, action: Routine["action"]) => {
   if (x.state === "failed") return "is-failed";
   if (x.state !== "completed" && x.state !== "canceled") return "is-live";
   // A message or a shell job never calls a model: it ran when it sent or ran its command.
-  const skipped = action === "agent" ? x.model_called === false : action === "message" && !x.delivered;
+  const skipped = hasAgent(action) ? x.model_called === false : action === "message" && !x.delivered;
   return skipped ? "is-skipped" : "is-ran";
 };
 
@@ -141,14 +144,20 @@ function RoutineRow(props: {
   const runs = useRuns(r);
   const flow = [
     r.pre_command && (r.action === "shell" ? t("routines.flow.command") : t("routines.flow.pre")),
-    r.action === "agent" ? props.agentName : r.action === "message" ? t("routines.flow.message") : undefined,
+    r.action === "agent"
+      ? props.agentName
+      : r.action === "watch"
+        ? t("routines.flow.watch", { agent: props.agentName })
+        : r.action === "message"
+          ? t("routines.flow.message")
+          : undefined,
     r.post_command && t("routines.flow.post"),
   ].filter(Boolean);
   return (
     <div className={`rtrow${props.open ? " is-open" : ""}${r.enabled ? "" : " is-off"}`}>
       <div className="rtrow__line">
         <button type="button" className="rtrow__main" aria-expanded={props.open} onClick={props.onToggle}>
-          {r.action === "agent" && agent ? (
+          {hasAgent(r.action) && agent ? (
             <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
           ) : (
             <span className="rtrow__icon">
@@ -238,7 +247,7 @@ function RoutineDetail(props: {
   const { routine: r, runs } = props;
   const [shown, setShown] = useState<string>();
   // Only an agent's routine can spare a model call; a message or a shell job never makes one.
-  const judged = r.action === "agent" ? (runs ?? []).filter((x) => x.model_called !== undefined) : [];
+  const judged = hasAgent(r.action) ? (runs ?? []).filter((x) => x.model_called !== undefined) : [];
   const skipped = judged.filter((x) => x.model_called === false).length;
   return (
     <div className="rtdetail">
@@ -259,6 +268,8 @@ function RoutineDetail(props: {
           icon={
             r.action === "agent" ? (
               <Icons.Bot size={13} />
+            ) : r.action === "watch" ? (
+              <Icons.Eye size={13} />
             ) : r.action === "message" ? (
               <Icons.Send size={13} />
             ) : (
@@ -269,14 +280,16 @@ function RoutineDetail(props: {
           title={
             r.action === "agent"
               ? t("routines.card.agentAnswers", { agent: props.agentName })
-              : r.action === "message"
-                ? t("routines.card.messageSent")
-                : t("routines.card.commandRuns")
+              : r.action === "watch"
+                ? t("routines.card.watches", { agent: props.agentName })
+                : r.action === "message"
+                  ? t("routines.card.messageSent")
+                  : t("routines.card.commandRuns")
           }
           strong
         >
           {r.action === "shell" ? <code>{r.pre_command}</code> : <span className="rtdetail__clip">{r.prompt}</span>}
-          {r.pre_command && r.action !== "shell" && (
+          {r.pre_command && r.action !== "shell" && r.action !== "watch" && (
             <Badge>{t("routines.card.cond", { cond: t(CALL_KEY[r.call_model]) })}</Badge>
           )}
         </Card>

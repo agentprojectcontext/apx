@@ -120,6 +120,15 @@ export const enOffice = {
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Only runs a command in the project's folder. No model, no notice.",
   "routines.action.watch": "Watcher",
+  "routines.action.watchHint":
+    "Its agent looks at your work — late tasks, commitments coming due, quiet projects — and is called only when something new shows up.",
+  "routines.step.watch": "Watcher",
+  "routines.step.watchHint": "What to watch for and when to tell you. New signals reach it as data.",
+  "routines.watchPrompt":
+    "Look at these signals from my work and decide whether anything is worth interrupting me for right now. If so, tell me in one line the most important thing and a suggestion. If not, answer only SKIP.",
+  "routines.flow.watch": "{agent} watches",
+  "routines.card.watches": "{agent} watches your work",
+  "routines.sum.watch": "{agent} looks at your work and tells you if something new matters",
   "routines.agent": "Agent",
   "routines.state": "State",
   "routines.on": "On",
@@ -152,6 +161,7 @@ export const enOffice = {
   "routines.sum.cond.fails": " if the command failed",
   "routines.sum.cond.never": " (never)",
   "notice.routine.shell": "Ran the command.",
+  "notice.routine.watch.quiet": "Nothing new to watch: the model was not called.",
   "routines.card.command": "Command",
   "routines.lead": "Work an agent does on its own on a schedule. You hear back only when there is something to say.",
   "routines.new": "New routine",

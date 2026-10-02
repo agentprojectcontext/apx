@@ -1,6 +1,6 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import path from "node:path";
-import type { HarnessId, MethodName, Params, Result, Thread } from "@apx/protocol";
+import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
@@ -125,7 +125,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         return end(
           pre.message !== undefined
             ? sendAsIs(store, { run, thread, display, text: pre.message })
-            : skipModel(store, { run, thread, display, shell: routine?.action === "shell" }),
+            : skipModel(store, { run, thread, display, action: routine?.action }),
           true,
         );
       turn.input = { ...turn.input, text: pre.prompt(turn.input.text) };
@@ -204,8 +204,13 @@ function sendAsIs(store: Store, t: { run: RunRecord; thread: Thread; display: Di
 }
 
 /** A routine's run whose pre-command said the model is not needed (or a shell routine): done, without a model call. */
-function skipModel(store: Store, t: { run: RunRecord; thread: Thread; display: Display; shell?: boolean }): RunRecord {
-  if (t.shell) t.display.notice("info", "routine.shell", "Ran the command.");
+function skipModel(
+  store: Store,
+  t: { run: RunRecord; thread: Thread; display: Display; action?: Routine["action"] | undefined },
+): RunRecord {
+  if (t.action === "shell") t.display.notice("info", "routine.shell", "Ran the command.");
+  else if (t.action === "watch")
+    t.display.notice("info", "routine.watch.quiet", "Nothing new to watch: the model was not called.");
   else
     t.display.notice(
       "info",

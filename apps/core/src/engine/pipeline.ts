@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { CallModel, Routine } from "@apx/protocol";
 import type { RunRecord } from "../domain/runs.ts";
+import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import { untrusted } from "../tools/result.ts";
@@ -131,6 +132,26 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
     return r;
   };
 
+  /** A watch: its agent is called only with signals not told lately; they reach it as data, not instructions. */
+  const watch = (result: StepResult | undefined) => {
+    const now = new Date();
+    const key = `watch_seen:${routine.id}`;
+    let seen: Record<string, string> = {};
+    try {
+      seen = JSON.parse(o.store.settings.get(key) ?? "{}") as Record<string, string>;
+    } catch {}
+    const all = watchSignals(o.store, { projectId: routine.project_id, now });
+    const next = freshSignals(all, seen, now);
+    o.store.settings.set(key, JSON.stringify(next.seen));
+    o.store.routines.modelCalled(o.run.id, next.fresh.length > 0);
+    if (!next.fresh.length) return { call: false, prompt: (t: string) => t };
+    const block = untrusted("signals", { count: String(next.fresh.length) }, signalLines(next.fresh));
+    return {
+      call: true,
+      prompt: (t: string) => `${result ? withPreOutput(t, result) : t}\n\n${block}`,
+    };
+  };
+
   return {
     /**
      * Runs the pre-command (if any) and says what comes next: the model (an agent routine), a message to send as it is
@@ -139,6 +160,7 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
     async before(signal: AbortSignal): Promise<{ call: boolean; message?: string; prompt: (text: string) => string }> {
       if (routine.pre_command) pre = await step("routine.pre", routine.pre_command, {}, signal);
       const result = pre;
+      if (routine.action === "watch") return watch(result);
       const goOn = result ? callsModel(routine.call_model, result) : true;
       if (routine.action !== "agent") {
         o.store.routines.modelCalled(o.run.id, false);

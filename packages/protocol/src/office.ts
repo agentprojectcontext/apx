@@ -93,7 +93,9 @@ export type CallModel = z.infer<typeof CallModel>;
  * What a routine does: its agent answers the prompt; or the prompt itself is sent to the owner as it is (a message,
  * `{{pre_output}}` filled with the pre-command's output, no model); or only its pre-command runs (a shell job).
  */
-export const RoutineAction = z.enum(["agent", "message", "shell"]);
+/** Its agent answers the prompt; a message is sent as written; only its command runs; or its agent watches the owner's
+ * work (late tasks, commitments, quiet projects) and is called only when something new shows up. */
+export const RoutineAction = z.enum(["agent", "message", "shell", "watch"]);
 export type RoutineAction = z.infer<typeof RoutineAction>;
 
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */

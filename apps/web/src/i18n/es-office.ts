@@ -122,6 +122,15 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Solo corre un comando en la carpeta del proyecto. Sin modelo ni aviso.",
   "routines.action.watch": "Vigía",
+  "routines.action.watchHint":
+    "Su agente mira tu trabajo — tareas vencidas, compromisos por vencer, proyectos quietos — y solo se lo llama cuando aparece algo nuevo.",
+  "routines.step.watch": "Vigía",
+  "routines.step.watchHint": "Qué mirar y cuándo avisarte. Las señales nuevas le llegan como datos.",
+  "routines.watchPrompt":
+    "Mirá estas señales de mi trabajo y decidí si algo vale la pena para interrumpirme ahora. Si sí, decime en una línea lo más importante y una sugerencia. Si no, respondé solo SKIP.",
+  "routines.flow.watch": "{agent} vigila",
+  "routines.card.watches": "{agent} vigila tu trabajo",
+  "routines.sum.watch": "{agent} mira tu trabajo y te avisa si algo nuevo importa",
   "routines.agent": "Agente",
   "routines.state": "Estado",
   "routines.on": "Activa",
@@ -154,6 +163,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.sum.cond.fails": " si el comando falló",
   "routines.sum.cond.never": " (nunca)",
   "notice.routine.shell": "Corrió el comando.",
+  "notice.routine.watch.quiet": "Nada nuevo que vigilar: no se llamó al modelo.",
   "routines.card.command": "Comando",
   "routines.lead": "Trabajo que un agente hace solo, con horario. Te avisa solo cuando hay algo para contarte.",
   "routines.new": "Nueva rutina",

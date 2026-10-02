@@ -13,6 +13,7 @@ const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; 
   { value: "agent", key: "routines.action.agent", hint: "routines.action.agentHint", icon: Icons.Bot },
   { value: "message", key: "routines.action.message", hint: "routines.action.messageHint", icon: Icons.Send },
   { value: "shell", key: "routines.action.shell", hint: "routines.action.shellHint", icon: Icons.Terminal },
+  { value: "watch", key: "routines.action.watch", hint: "routines.action.watchHint", icon: Icons.Eye },
 ];
 
 /** "Go on" after the pre-command: always, only if it printed something, only if it failed, never. */
@@ -35,6 +36,10 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
   const [saving, setSaving] = useState(false);
   const set = (p: Partial<RoutineDraft>) => setD((cur) => ({ ...cur, ...p }));
   const shell = d.action === "shell";
+  const watch = d.action === "watch";
+  // A new watcher starts from a prompt that says what to look for; the owner's own words are never replaced.
+  const pickAction = (action: RoutineAction) =>
+    set(action === "watch" && !d.prompt.trim() ? { action, prompt: t("routines.watchPrompt") } : { action });
   // A message or a shell job is signed by the super-agent; an agent routine needs its agent.
   const agent = d.agent || (d.action !== "agent" ? (secretary(agents)?.id ?? "") : "");
   const text = shell ? d.prompt || d.name : d.prompt;
@@ -92,20 +97,11 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
             <Select
               label={t("routines.action")}
               value={d.action}
-              onValueChange={(v) => v && set({ action: v as RoutineAction })}
-              options={[
-                ...ACTIONS.map((a) => ({ value: a.value, label: t(a.key), icon: <a.icon size={14} /> })),
-                {
-                  value: "watch",
-                  label: t("routines.action.watch"),
-                  hint: t("common.comingSoonShort"),
-                  icon: <Icons.Eye size={14} />,
-                  disabled: true,
-                },
-              ]}
+              onValueChange={(v) => v && pickAction(v as RoutineAction)}
+              options={ACTIONS.map((a) => ({ value: a.value, label: t(a.key), icon: <a.icon size={14} /> }))}
             />
           </Field>
-          {d.action === "agent" && (
+          {(d.action === "agent" || watch) && (
             <Field label={t("routines.agent")}>
               <AgentSelect
                 value={d.agent || undefined}
@@ -117,7 +113,7 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
           <Field label={t("routines.when")}>
             <ScheduleEditor value={d.schedule} onChange={(schedule) => set({ schedule })} />
           </Field>
-          {d.pre_command.trim() && !shell && (
+          {d.pre_command.trim() && !shell && !watch && (
             <Field label={d.action === "message" ? t("routines.sendWhen") : t("routines.callModel")}>
               <SegmentedControl
                 size="sm"
@@ -147,11 +143,7 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
             />
           </Step>
           {!shell && (
-            <Step
-              n={2}
-              title={d.action === "message" ? t("routines.step.message") : t("routines.step.agent")}
-              hint={t(d.action === "message" ? "routines.step.messageHint" : "routines.step.agentHint")}
-            >
+            <Step n={2} title={t(STEP_KEY[d.action].title)} hint={t(STEP_KEY[d.action].hint)}>
               <SuggestTextarea
                 aria-label={t("routines.prompt")}
                 rows={5}
@@ -196,6 +188,13 @@ function Step({ n, title, hint, children }: { n: number; title: string; hint: st
   );
 }
 
+const STEP_KEY: Record<RoutineAction, { title: MessageKey; hint: MessageKey }> = {
+  agent: { title: "routines.step.agent", hint: "routines.step.agentHint" },
+  message: { title: "routines.step.message", hint: "routines.step.messageHint" },
+  shell: { title: "routines.step.command", hint: "routines.step.commandHint" },
+  watch: { title: "routines.step.watch", hint: "routines.step.watchHint" },
+};
+
 const SUM_COND: Record<CallModel, MessageKey> = {
   always: "routines.sum.cond.always",
   output: "routines.sum.cond.output",
@@ -210,6 +209,7 @@ function summary(d: RoutineDraft, t: ReturnType<typeof useT>, agent: string): st
   const pre = d.pre_command.trim();
   if (pre && d.action !== "shell") parts.push(t("routines.sum.pre"));
   if (d.action === "shell") parts.push(t("routines.sum.shell"));
+  else if (d.action === "watch") parts.push(t("routines.sum.watch", { agent: agent || t("routines.agent") }));
   else {
     const cond = pre ? t(SUM_COND[d.call_model]) : "";
     parts.push(
