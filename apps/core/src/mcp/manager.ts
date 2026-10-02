@@ -89,7 +89,8 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   const resolve = (values: Record<string, string>) =>
     Object.fromEntries(Object.entries(values).map(([k, v]) => [k, deps.secrets.resolve(v) ?? v]));
 
-  async function open(d: McpDef, c: Conn): Promise<void> {
+  /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
+  async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
     const client = new Client({ name: "apx", version: "2" });
     const transport = d.url
       ? new StreamableHTTPClientTransport(new URL(d.url), { requestInit: { headers: resolve(d.headers) } })
@@ -110,22 +111,31 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         }),
       ]);
       const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
+      return { client, tools: tools as McpTool[] };
+    } catch (err) {
+      await client.close().catch(() => {});
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function open(d: McpDef, c: Conn): Promise<void> {
+    try {
+      const { client, tools } = await connect(d);
       // Replaced or dropped while starting: this process is nobody's now.
       if (conns.get(c.key) !== c) {
         await client.close().catch(() => {});
         return;
       }
       c.client = client;
-      c.tools = tools as McpTool[];
+      c.tools = tools;
       c.status = "ready";
     } catch (err) {
       c.status = "error";
       c.failedAt = Date.now();
       c.error = errorMessage(err);
-      await client.close().catch(() => {});
       deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -256,26 +266,22 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       });
     },
     /**
-     * Starts a server afresh and waits for its tools. Only a definition the owner approved runs: a project's file is
-     * someone else's command until then.
+     * Starts a separate copy of a server and waits for its tools; the connection agents use is left alone. Only a
+     * definition the owner approved runs: a project's file is someone else's command until then.
      */
     async test(d: McpDef): Promise<{ ok: boolean; ms: number; tools: string[]; error?: string }> {
       if (!config.trusted(d)) return { ok: false, ms: 0, tools: [], error: "approve this server before testing it" };
-      const key = keyOf(d);
-      void conns
-        .get(key)
-        ?.client?.close()
-        .catch(() => {});
-      conns.delete(key);
       const t0 = Date.now();
-      const c = ensure(d);
-      await c.ready;
-      return {
-        ok: c.status === "ready",
-        ms: Date.now() - t0,
-        tools: c.tools.map((t) => t.name),
-        ...(c.error ? { error: c.error } : {}),
-      };
+      try {
+        const { client, tools } = await connect(d);
+        await client.close().catch(() => {});
+        // A server that failed earlier is worth starting again for agents now that it answers.
+        const live = conns.get(keyOf(d));
+        if (live?.status === "error") conns.delete(keyOf(d));
+        return { ok: true, ms: Date.now() - t0, tools: tools.map((t) => t.name) };
+      } catch (err) {
+        return { ok: false, ms: Date.now() - t0, tools: [], error: errorMessage(err) };
+      }
     },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
     drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {

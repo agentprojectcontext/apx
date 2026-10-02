@@ -64,7 +64,11 @@ export function SkillDetail({
         <Switch
           checked={skill.on}
           label={t("res.active")}
-          onCheckedChange={(on) => void toggleSkill(skill.name, on, projectId).then(() => onChanged())}
+          // Off everywhere wins: a project cannot turn it back on for itself (the global view can).
+          disabled={Boolean(projectId) && skill.off_everywhere}
+          onCheckedChange={(on) =>
+            void toggleSkill(skill.name, on, projectId ?? skill.project_id).then(() => onChanged())
+          }
         />
       </header>
       {skill.description && <p className="resd__desc">{skill.description}</p>}

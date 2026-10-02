@@ -1,9 +1,10 @@
 // MCP servers: listing, the owner's approval of a project's server, and the owner's own servers.
-import { badRequest } from "../errors.ts";
+import type { Store } from "../domain/store.ts";
+import { badRequest, notFound } from "../errors.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
-export function mcpHandlers(mcp: Mcp) {
+export function mcpHandlers(mcp: Mcp, store: Store) {
   return {
     "mcp.list": ({ project }) => ({ servers: mcp.status(project) }),
     "mcp.trust": ({ project, server, trusted }) => {
@@ -16,6 +17,7 @@ export function mcpHandlers(mcp: Mcp) {
       return { server: s };
     },
     "mcp.toggle": ({ project, server, on }) => {
+      if (!store.projects.get(project)) throw notFound(`project ${project}`);
       if (!mcp.find("global", server)) throw badRequest(`no global server ${server}`);
       mcp.config.setOn(project, server, on);
       return { servers: mcp.status(project) };

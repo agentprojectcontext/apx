@@ -16,6 +16,8 @@ export const SkillInfo = z.object({
   on: z.boolean(),
   /** Projects where the owner turned this global skill off. */
   off_in: z.array(Id).default([]),
+  /** Turned off everywhere: a project cannot turn it back on for itself. */
+  off_everywhere: z.boolean().default(false),
   editable: z.boolean(),
   /** Where its SKILL.md lives, home shortened to ~. */
   path: z.string(),
@@ -124,8 +126,8 @@ export const resourceMethods = {
     access: "human",
   },
   /**
-   * Starts a server afresh and lists its tools: how long it took, or why it failed. A project's server is tested only
-   * once the owner approved it (testing runs its command).
+   * Starts a separate copy of a server and lists its tools: how long it took, or why it failed. The live connection
+   * agents use is left alone. A project's server is tested only once the owner approved it (testing runs its command).
    */
   "mcp.test": {
     params: z

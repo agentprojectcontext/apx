@@ -106,3 +106,38 @@ test("mcp: a global server off in one project, a test run, and no test before a 
   assert.equal(refused.ok, false);
   assert.match(refused.error ?? "", /approve/);
 });
+
+test("a skill whose folder and name differ is edited in its own folder", async () => {
+  fs.mkdirSync(path.join(home, "skills", "foo"), { recursive: true });
+  fs.writeFileSync(path.join(home, "skills", "foo", "SKILL.md"), "---\nname: bar\ndescription: Old.\n---\n\nx\n");
+  const r = await env.client.call("skills.save", {
+    name: "bar",
+    target: "global",
+    content: "---\nname: baz\ndescription: Renamed.\n---\n\ny\n",
+  });
+  assert.equal(r.skill.name, "baz", "found again after its name changed");
+  assert.match(fs.readFileSync(path.join(home, "skills", "foo", "SKILL.md"), "utf8"), /Renamed/);
+  assert.ok(!fs.existsSync(path.join(home, "skills", "bar")), "no stray folder named after the frontmatter");
+});
+
+test("a planted temp-file symlink cannot redirect a skill write", async () => {
+  const dir = path.join(repo, ".apc", "skills", "safe");
+  fs.mkdirSync(dir, { recursive: true });
+  const outside = path.join(os.tmpdir(), `apx2-outside-${process.pid}.txt`);
+  fs.writeFileSync(outside, "untouched");
+  for (let i = 0; i < 5; i++) fs.symlinkSync(outside, path.join(dir, `SKILL.md.tmp-${process.pid + i}`));
+  await env.client.call("skills.save", {
+    name: "safe",
+    target: "project",
+    project,
+    content: "---\nname: safe\ndescription: s.\n---\n",
+  });
+  assert.equal(fs.readFileSync(outside, "utf8"), "untouched");
+  assert.ok(!fs.lstatSync(path.join(dir, "SKILL.md")).isSymbolicLink());
+  fs.rmSync(outside, { force: true });
+});
+
+test("variables may use upper case, like the names MCP servers reference", async () => {
+  await env.client.call("secrets.set", { name: "GH_TOKEN", value: "ghp_abcdefghijklmnop" });
+  assert.ok((await env.client.call("secrets.list", {})).secrets.some((s) => s.name === "GH_TOKEN"));
+});

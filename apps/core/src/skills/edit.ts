@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
+import { writeAtomic } from "../paths.ts";
 import { type Skill, skillOn, skillsOff } from "./skills.ts";
 
 const tilde = (p: string) => {
@@ -24,6 +25,7 @@ export function skillInfo(store: Store, s: Skill, projectId: string | undefined)
     source: s.source,
     on: skillOn(off, s.name, projectId),
     off_in: offIn,
+    off_everywhere: Boolean(off["*"]?.includes(s.name)),
     editable: s.source !== "extension",
     path: tilde(path.join(s.dir, "SKILL.md")),
   };
@@ -37,37 +39,31 @@ const isLink = (p: string) => {
   }
 };
 
-function atomicWrite(file: string, text: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
-}
-
 /**
- * Writes SKILL.md for `name`: into the project's `.apc/skills/<name>/` (refusing any symlink on the way) or the
- * owner's `<home>/skills/<name>/` (which may be a link the owner made; the write goes to its target).
+ * Writes SKILL.md in folder `folder`: the project's `.apc/skills/<folder>/` (refusing any symlink on the way) or the
+ * owner's `<home>/skills/<folder>/` (which may be a link the owner made; the write goes to its target). The folder,
+ * not the frontmatter `name`, says which skill it is: the two may differ.
  */
 export function writeSkill(o: {
   home: string;
   projectRoot?: string | undefined;
-  name: string;
+  folder: string;
   target: "global" | "project";
   content: string;
 }): string {
   if (o.target === "project") {
     if (!o.projectRoot) throw new Error("a project skill needs a project whose folder is on disk");
-    const parts = [".apc", "skills", o.name, "SKILL.md"];
+    const parts = [".apc", "skills", o.folder, "SKILL.md"];
     for (let i = 1; i <= parts.length; i++) {
       const p = path.join(o.projectRoot, ...parts.slice(0, i));
       if (isLink(p)) throw new Error(`refusing to write through a symlink: ${parts.slice(0, i).join("/")}`);
     }
     const file = path.join(o.projectRoot, ...parts);
-    atomicWrite(file, o.content);
+    writeAtomic(file, o.content);
     return path.dirname(file);
   }
-  const dir = path.join(o.home, "skills", o.name);
+  const dir = path.join(o.home, "skills", o.folder);
   const real = fs.existsSync(dir) ? fs.realpathSync(dir) : dir;
-  atomicWrite(path.join(real, "SKILL.md"), o.content);
+  writeAtomic(path.join(real, "SKILL.md"), o.content);
   return dir;
 }

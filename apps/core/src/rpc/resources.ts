@@ -1,6 +1,7 @@
 // Resources: skills (list, read, edit, on/off) and variables (stored secrets: hint and where each is used). MCP
 // servers are in rpc/mcp.ts.
 
+import path from "node:path";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig } from "../mcp/config.ts";
@@ -75,14 +76,22 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
         throw badRequest(`${name} comes from an extension; save it as a copy in a project or under another name`);
       if (target === "project" && !rootOf(project))
         throw badRequest("a project skill needs a project whose folder is on disk");
+      // An existing skill is edited (or copied) in its own folder; a new one gets a folder named after it.
+      const folder = current ? path.basename(current.dir) : name;
       try {
-        writeSkill({ home, projectRoot: rootOf(project), name, target, content });
+        writeSkill({ home, projectRoot: rootOf(project), folder, target, content });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
-      return { skill: skillInfo(store, find(name, project), project) };
+      // Found again by folder: the save may have changed the name in its frontmatter.
+      const saved = allSkills(store, home, project).find(
+        (x) => path.basename(x.dir) === folder && x.scope === target && x.source !== "extension",
+      );
+      if (!saved) throw badRequest("the skill was written but could not be read back (check its frontmatter)");
+      return { skill: skillInfo(store, saved, project) };
     },
     "skills.toggle": ({ name, project, on }) => {
+      if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       find(name, project);
       setSkillOn(store, name, project, on);
       return { ok: true as const };

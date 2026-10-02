@@ -43,7 +43,13 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     skills: skills?.length,
     mcp: servers?.length,
     integrations: 0,
-    variables: secrets?.length,
+    // The table also lists names a server uses but nobody stored: count those too.
+    variables:
+      secrets &&
+      new Set([
+        ...secrets.map((x) => x.name),
+        ...(servers ?? []).flatMap((srv) => srv.vars.filter((v) => !v.set).map((v) => v.name)),
+      ]).size,
     extensions: extensions?.length,
   };
   const def = TABS.find((x) => x.id === tab) ?? (TABS[0] as (typeof TABS)[number]);

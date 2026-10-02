@@ -5,7 +5,7 @@ import { useT } from "../i18n/index.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 
 type Row = { name: string; hint?: string | undefined; stored: boolean; usedIn: string[] };
-const NAME = /^[a-z0-9][a-z0-9_.-]{0,63}$/;
+const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 
 /**
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
@@ -174,7 +174,7 @@ function VariableDialog({ row, onClose, onSaved }: { row: Row | undefined; onClo
             value={name}
             disabled={Boolean(row)}
             placeholder="github-token"
-            onChange={(e) => setName(e.currentTarget.value.toLowerCase())}
+            onChange={(e) => setName(e.currentTarget.value)}
           />
           <span className="pform__hint">{t("res.varNameHint")}</span>
         </div>

@@ -3,6 +3,7 @@
 // removing an agent moves its file to .apc/agents/.archived/.
 import fs from "node:fs";
 import path from "node:path";
+import { writeAtomic } from "../paths.ts";
 import { listField, parseFrontmatter } from "./frontmatter.ts";
 import { SLUG_RE } from "./read.ts";
 
@@ -74,19 +75,12 @@ function split(text: string): { front: string[]; body: string } {
 
 const join = (front: string[], body: string) => `---\n${front.join("\n")}\n---\n\n${body.trim()}\n`;
 
-function atomicWrite(file: string, text: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.tmp-${process.pid}`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
-}
-
 export function writeNewAgent(root: string, slug: string, fields: AgentFileFields, prompt: string): void {
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}" (lowercase letters, digits, - and _)`);
   const file = agentFile(root, slug);
   guard(root, file);
   if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
-  atomicWrite(
+  writeAtomic(
     file,
     join(
       setFields([], {
@@ -111,7 +105,7 @@ export function writeAgentFromTemplate(root: string, slug: string, text: string,
   guard(root, file);
   if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
   const { front, body } = split(text);
-  atomicWrite(file, join(setFields(front, { parent }), body));
+  writeAtomic(file, join(setFields(front, { parent }), body));
 }
 
 export function updateAgentFile(root: string, slug: string, fields: AgentFileFields, prompt?: string): void {
@@ -126,7 +120,7 @@ export function updateAgentFile(root: string, slug: string, fields: AgentFileFie
     icon: fields.icon,
     aliases: fields.aliases,
   });
-  atomicWrite(file, join(next, prompt ?? body));
+  writeAtomic(file, join(next, prompt ?? body));
 }
 
 /** Renames the file and adds the old slug to its `aliases`, so references written elsewhere still resolve. */

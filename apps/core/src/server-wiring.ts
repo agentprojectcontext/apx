@@ -141,7 +141,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
     ...extensionHandlers(d.extensions, d.mcp),
-    ...mcpHandlers(d.mcp),
+    ...mcpHandlers(d.mcp, d.store),
     ...resourceHandlers({ store: d.store, home: d.app.home, secrets: d.secrets, mcp: d.mcp.config }),
     ...providerHandlers(d.providers, d.secrets),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),

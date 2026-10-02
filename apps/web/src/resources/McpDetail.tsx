@@ -1,5 +1,5 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
+import { Badge, Button, Dialog, Icons, Switch, Tag } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { listMcp, setMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
@@ -27,6 +27,7 @@ export function McpDetail({
   const projects = useData((st) => st.projects);
   const [test, setTest] = useState<TestResult>();
   const [testing, setTesting] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const inherited = Boolean(projectId) && s.scope === "global";
   const tools = test?.tools.length ? test.tools : s.tool_names;
   const run = async () => {
@@ -135,18 +136,38 @@ export function McpDetail({
           </Button>
         )}
         {s.scope === "global" && !projectId && (
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<Icons.Trash2 size={14} />}
-            onClick={() => void setMcp(s.name, null).then(() => onChanged())}
-          >
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={() => setRemoving(true)}>
             {t("res.remove")}
           </Button>
         )}
       </div>
 
       {!projectId && s.scope === "global" && <AvailableIn server={s.name} onChanged={onChanged} />}
+      {removing && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setRemoving(false)}
+          title={t("res.mcpRemoveTitle", { name: s.name })}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setRemoving(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setRemoving(false);
+                  void setMcp(s.name, null).then(() => onChanged());
+                }}
+              >
+                {t("res.remove")}
+              </Button>
+            </>
+          }
+        >
+          <p className="resd__note">{t("res.mcpRemoveBody")}</p>
+        </Dialog>
+      )}
     </article>
   );
 }
@@ -175,7 +196,8 @@ function AvailableIn({ server, onChanged }: { server: string; onChanged(): Promi
               checked={!off[p.id]}
               aria-label={t("res.availableInProject", { name: p.name })}
               onCheckedChange={(on) =>
-                void toggleMcp(p.id, server, on).then(() => {
+                void toggleMcp(p.id, server, on).then((r) => {
+                  if (!r) return;
                   setOff((o) => ({ ...o, [p.id]: !on }));
                   return onChanged();
                 })

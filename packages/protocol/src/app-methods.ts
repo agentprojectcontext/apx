@@ -65,7 +65,8 @@ export const appMethods = {
   "secrets.set": {
     params: z
       .object({
-        name: z.string().regex(/^[a-z0-9][a-z0-9_.-]{0,63}$/),
+        /** The same shape `secret://NAME` references accept (an MCP env var name like GH_TOKEN works as is). */
+        name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/),
         /** null removes it. */
         value: z.string().min(1).max(16_384).nullable(),
       })
