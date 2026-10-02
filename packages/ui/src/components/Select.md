@@ -4,7 +4,8 @@ category: Forms
 # Select
 
 One choice from a list, as a field-looking trigger and a menu-looking list (Base UI Select: keyboard, typeahead).
-Options take an `icon` (avatar, tile, dot), a muted `hint` and a `group` (listed under a label, in first-seen order).
+Options take an `icon` (avatar, tile, dot), a muted `hint`, a `description` (a line under the label in the list, saying
+what the choice does) and a `group` (listed under a label, in first-seen order).
 `label` is the accessible name; wrap it in `Field` for a visible one.
 
 ```tsx

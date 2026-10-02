@@ -11,6 +11,8 @@ export interface SelectOption {
   icon?: ReactNode;
   /** Muted text after the label (a project name, a count). */
   hint?: string;
+  /** A line under the label in the list, saying what the choice does (the field shows the label only). */
+  description?: string;
   /** Options with the same group are listed under it, in the order they first appear. */
   group?: string;
   disabled?: boolean;
@@ -46,7 +48,14 @@ export function Select({
   const item = (o: SelectOption) => (
     <BaseSelect.Item key={o.value} value={o.value} disabled={o.disabled} className="apx-menu__item apx-select__item">
       {o.icon && <span className="apx-select__icon">{o.icon}</span>}
-      <BaseSelect.ItemText className="apx-menu__text">{o.label}</BaseSelect.ItemText>
+      {o.description ? (
+        <span className="apx-select__lines">
+          <BaseSelect.ItemText className="apx-menu__text">{o.label}</BaseSelect.ItemText>
+          <span className="apx-select__desc">{o.description}</span>
+        </span>
+      ) : (
+        <BaseSelect.ItemText className="apx-menu__text">{o.label}</BaseSelect.ItemText>
+      )}
       {o.hint && <span className="apx-select__hint">{o.hint}</span>}
       <BaseSelect.ItemIndicator className="apx-select__check">
         <Check size={14} />

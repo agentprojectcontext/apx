@@ -1,6 +1,11 @@
-import { type KeyboardEvent, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "../cx";
+import { useApx } from "./ApxProvider";
 import { Textarea, type TextareaProps } from "./Textarea";
+
+/** The list's height at most (its CSS max-height): below the field when it fits there, above otherwise. */
+const LIST_MAX = 220;
 
 export interface Suggestion {
   /** What is written in place of the word being typed ("$APX_LLM_OUTPUT", "{{pre_output}}"). */
@@ -38,6 +43,8 @@ export function SuggestTextarea({
   ...rest
 }: SuggestTextareaProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const { portalRef } = useApx();
+  const [place, setPlace] = useState<CSSProperties>();
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(0);
   const [closed, setClosed] = useState(false);
@@ -74,6 +81,30 @@ export function SuggestTextarea({
     }
     onKeyDown?.(e);
   };
+  const shown = matches.length > 0;
+  // The list floats over everything (a dialog's scroll area would clip it): fixed, under or above the field.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const update = () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (!r) return;
+      const below = window.innerHeight - r.bottom;
+      const up = below < LIST_MAX + 8 && r.top > below;
+      setPlace({
+        position: "fixed",
+        left: r.left + 8,
+        width: Math.max(r.width - 16, 160),
+        ...(up ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }),
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [shown]);
   const track = (el: HTMLTextAreaElement) => {
     setCaret(el.selectionStart ?? 0);
     setClosed(false);
@@ -97,28 +128,31 @@ export function SuggestTextarea({
         onClick={(e) => track(e.currentTarget)}
         onBlur={() => setClosed(true)}
       />
-      {matches.length > 0 && (
-        <ul className="apx-suggest__list">
-          {matches.map((s, i) => (
-            <li key={s.insert}>
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-current={i === active || undefined}
-                className={cx("apx-suggest__item", i === active && "is-active")}
-                // Chosen before the textarea loses focus.
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  pick(s);
-                }}
-              >
-                <code>{s.insert}</code>
-                {s.hint && <span>{s.hint}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {shown &&
+        place &&
+        createPortal(
+          <ul className="apx-suggest__list" style={place}>
+            {matches.map((s, i) => (
+              <li key={s.insert}>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-current={i === active || undefined}
+                  className={cx("apx-suggest__item", i === active && "is-active")}
+                  // Chosen before the textarea loses focus.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pick(s);
+                  }}
+                >
+                  <code>{s.insert}</code>
+                  {s.hint && <span>{s.hint}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>,
+          portalRef.current ?? document.body,
+        )}
     </div>
   );
 }

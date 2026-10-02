@@ -68,6 +68,33 @@
 .apx-select__item[data-selected] {
   font-weight: var(--apx-weight-medium);
 }
+/* An option with a description: two lines, as tall as they need, no wider than the field (or 340px). */
+.apx-select__item:has(.apx-select__lines) {
+  align-items: flex-start;
+  height: auto;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.apx-select__item:has(.apx-select__lines) .apx-select__icon {
+  margin-top: 2px;
+}
+.apx-select__popup:has(.apx-select__lines) {
+  max-width: max(var(--anchor-width, 340px), 340px);
+}
+.apx-select__lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.apx-select__desc {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular, 400);
+  line-height: 1.35;
+  white-space: normal;
+}
 .apx-select__hint {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
@@ -289,12 +316,9 @@
 .apx-suggest .apx-textarea {
   width: 100%;
 }
+/* Placed by the component (fixed, in the portal) so a dialog's scroll area never clips it. */
 .apx-suggest__list {
-  position: absolute;
   z-index: 20;
-  left: 8px;
-  right: 8px;
-  top: calc(100% - 4px);
   margin: 0;
   padding: 4px;
   list-style: none;
