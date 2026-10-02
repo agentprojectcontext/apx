@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Author } from "@apx/protocol";
-import { publicInput } from "../domain/inputs.ts";
 import { publicRun } from "../domain/runs.ts";
-import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
@@ -14,6 +12,7 @@ import type { CallContext } from "./context.ts";
 
 type SendMode = "queue" | "interrupt" | "steer";
 type ChannelSender = NonNullable<CallContext["channel"]>;
+type CreateParams = Parameters<Handlers["threads.create"]>[0];
 
 import type { Handlers } from "./router.ts";
 
@@ -36,6 +35,34 @@ function codeFolder(store: Store, projectId: string | undefined, cwd: string | u
   return dir;
 }
 
+/** A new chat or code thread. An outside app gets a plain chat, named after it, that only it can use. */
+function createThread(store: Store, { kind, agent_id, title, project_id, cwd, write }: CreateParams, ctx: CallContext) {
+  const agent = store.agents.get(agent_id);
+  if (!agent) throw notFound(`agent ${agent_id}`);
+  const pid = project_id ?? agent.project_id;
+  if (ctx.client) {
+    const own = ctx.client.id;
+    return store.tx(() => {
+      const t = store.threads.create({
+        kind: "loose",
+        title: `${ctx.client?.name}: ${title ?? agent.name}`.slice(0, 120),
+        agent_ids: [agent.id],
+        project_id: pid,
+      });
+      store.threads.mergeContext(t.id, { client: own });
+      return t;
+    });
+  }
+  const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
+  return store.threads.create({
+    kind,
+    title: title ?? (folder ? `${agent.name} · ${path.basename(folder)}` : agent.name),
+    agent_ids: [agent.id],
+    project_id: pid,
+    ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
+  });
+}
+
 export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep, "compact">) {
   const threadAgent = (threadId: string) => {
     const thread = store.threads.get(threadId);
@@ -45,13 +72,13 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     return { thread, agent };
   };
 
-  /** Words into a thread: the message, the preview, then the running turn (steer) or a new run. */
   /** An outside app reads and writes only in the chats it started. */
   function ownClientThread(threadId: string, ctx: CallContext): void {
     if (ctx.client && store.threads.context(threadId).client !== ctx.client.id)
       throw unauthorized(`${ctx.client.name} can only use the chats it started`);
   }
 
+  /** Words into a thread: the message, the preview, then the running turn (steer) or a new run. */
   function post(
     threadId: string,
     text: string,
@@ -104,33 +131,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       ownClientThread(thread, ctx);
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
-    "threads.create": ({ kind, agent_id, title, project_id, cwd, write }, ctx) => {
-      const agent = store.agents.get(agent_id);
-      if (!agent) throw notFound(`agent ${agent_id}`);
-      const pid = project_id ?? agent.project_id;
-      // An outside app gets a plain chat, named after it, that only it can use.
-      if (ctx.client) {
-        const own = ctx.client.id;
-        return store.tx(() => {
-          const t = store.threads.create({
-            kind: "loose",
-            title: `${ctx.client?.name}: ${title ?? agent.name}`.slice(0, 120),
-            agent_ids: [agent.id],
-            project_id: pid,
-          });
-          store.threads.mergeContext(t.id, { client: own });
-          return t;
-        });
-      }
-      const folder = kind === "code" ? codeFolder(store, pid, cwd) : undefined;
-      return store.threads.create({
-        kind,
-        title: title ?? (folder ? `${agent.name} · ${path.basename(folder)}` : agent.name),
-        agent_ids: [agent.id],
-        project_id: pid,
-        ...(folder ? { cwd: folder, write: write ?? "ask" } : {}),
-      });
-    },
+    "threads.create": (params, ctx) => createThread(store, params, ctx),
     "threads.send": ({ thread, text, mode }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent } = threadAgent(thread);
@@ -176,40 +177,6 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         store.notifications.readThread(thread);
       });
       return { ok: true as const };
-    },
-    "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),
-    "runs.respond": ({ input, decision, text }) => publicInput(engine.respond(input, { decision, text })),
-    "runs.get": ({ run }) => {
-      const r = store.runs.get(run);
-      if (!r) throw notFound(`run ${run}`);
-      return publicRun(r);
-    },
-    "runs.wait": async ({ run, timeout_s }) => {
-      const r = await engine.wait(run, timeout_s * 1000);
-      if (!r) throw notFound(`run ${run}`);
-      return publicRun(r);
-    },
-    /** A widget's sendPrompt(): an input on the thread that owns the widget, marked as coming from it. */
-    "surfaces.prompt": ({ surface, text }) => {
-      const s = store.surfaces.get(surface);
-      if (!s) throw notFound(`surface ${surface}`);
-      const threadId = s.thread_id ?? HOME_THREAD_ID;
-      const { agent } = threadAgent(threadId);
-      return store.tx(() => {
-        store.messages.add({
-          thread_id: threadId,
-          author: { kind: "surface", id: s.id, title: s.title },
-          parts: [{ type: "text", text }],
-        });
-        const run = engine.admit({
-          thread_id: threadId,
-          agent_id: agent.id,
-          trigger: "surface",
-          origin: { kind: "surface", id: s.id, title: s.title },
-          text,
-        });
-        return { thread: threadId, run: publicRun(run) };
-      });
     },
   } satisfies Partial<Handlers>;
 }

@@ -1,0 +1,63 @@
+/* ── Quick chat (desktop menu-bar window) ─────────────────────────────────── */
+.quick {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--apx-surface);
+}
+.quick__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--apx-border);
+  -webkit-app-region: drag;
+}
+.quick__head button {
+  -webkit-app-region: no-drag;
+}
+.quick__titles {
+  flex: 1;
+  min-width: 0;
+}
+.quick__name {
+  font-size: 14px;
+  font-weight: var(--apx-weight-semibold);
+}
+.quick__sub {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.quick__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.quick__skeleton {
+  margin: 16px;
+  height: 120px;
+}
+.quick .chat__scroll {
+  flex: 1;
+}
+
+.imagepart--loading {
+  display: block;
+  width: 256px;
+  height: 256px;
+  border-radius: var(--apx-radius-lg);
+}
+.audiopart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.audiopart audio {
+  width: min(360px, 100%);
+}
+.audiopart__text {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}

@@ -1,0 +1,159 @@
+/* ── Inbox views: tree (1b) and activity (1c) ──────────────────────────────── */
+.inbox__views {
+  display: flex;
+  width: 100%;
+}
+.inbox__views .apx-segmented__item {
+  flex: 1;
+  justify-content: center;
+}
+.tree__project {
+  padding: 6px 4px 10px;
+}
+.tree__projecthead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-subtle);
+}
+.tree__agent {
+  padding: 2px 0 6px;
+}
+.tree__agenthead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.tree__agentname {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+}
+.tree__agentmeta {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.tree__sessions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 17px;
+  padding-left: 10px;
+  border-left: 1px solid var(--apx-border);
+}
+.tree__session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  text-align: left;
+  font-size: var(--apx-text-sm);
+  cursor: pointer;
+}
+.tree__session:hover,
+.activity__row:hover {
+  background: var(--apx-fill-hover);
+}
+.tree__session.is-selected,
+.activity__row.is-selected {
+  background: var(--apx-row-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--apx-row-selected-border);
+}
+.tree__sessiontitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree__when {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.tree__unread {
+  flex: none;
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+  text-align: center;
+}
+.tree__waiting {
+  color: var(--apx-warning-soft-fg);
+}
+.tree__more {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  cursor: pointer;
+}
+.activity__group {
+  padding: 6px 4px 8px;
+}
+.activity__label {
+  padding: 6px 8px;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-subtle);
+}
+.activity__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.activity__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.activity__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.activity__text,
+.activity__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.activity__side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}

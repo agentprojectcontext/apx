@@ -1,5 +1,11 @@
 import "@apx/ui/styles.css";
 import "./app.css";
+import "./styles/inbox.css";
+import "./styles/chat.css";
+import "./styles/side-panel.css";
+import "./styles/chat-tools.css";
+import "./styles/inbox-views.css";
+import "./styles/quick.css";
 import "./styles/nav.css";
 import "./styles/project.css";
 import "./styles/office.css";

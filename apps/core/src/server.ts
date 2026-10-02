@@ -2,11 +2,8 @@
 // Only wiring lives here. Tests call createCore directly (with a temp home and fakes).
 
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import http from "node:http";
-import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { BROWSER_CAP, type HarnessId } from "@apx/protocol";
+import type { HarnessId } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { createChannels } from "./channels/manager.ts";
@@ -17,16 +14,11 @@ import { openDb } from "./db/db.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createAttention } from "./engine/attention.ts";
-import { audienceOf } from "./engine/audience.ts";
 import { createEngine } from "./engine/engine.ts";
-import { createHooks } from "./engine/hooks.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
-import { createExtensions } from "./extensions/extensions.ts";
-import { createPlugins } from "./extensions/plugins.ts";
-import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createLog } from "./log.ts";
@@ -36,63 +28,30 @@ import { createNodeBroker } from "./nodes/broker.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
-import { agentHandlers } from "./rpc/agents.ts";
-import { appHandlers } from "./rpc/app.ts";
-import { browserHandlers } from "./rpc/browser.ts";
-import { channelHandlers } from "./rpc/channels.ts";
-import { clientHandlers } from "./rpc/clients.ts";
-import { extensionHandlers } from "./rpc/extensions.ts";
 import { internalCaller } from "./rpc/internal.ts";
-import { jobHandlers } from "./rpc/jobs.ts";
-import { mcpHandlers } from "./rpc/mcp.ts";
-import { mediaHandlers } from "./rpc/media.ts";
-import { memoryHandlers } from "./rpc/memory.ts";
-import { notificationHandlers } from "./rpc/notifications.ts";
-import { providerHandlers } from "./rpc/providers.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
-import { routineHandlers } from "./rpc/routines.ts";
-import { systemHandlers } from "./rpc/system.ts";
-import { taskHandlers } from "./rpc/tasks.ts";
-import { threadHandlers } from "./rpc/threads.ts";
 import { createSecrets } from "./secrets.ts";
+import { builtinTools, coreHandlers, extensionStack, knownEngines, listen } from "./server-wiring.ts";
 import { createServices } from "./services/registry.ts";
-import { agentTools } from "./tools/agents.ts";
-import { browserTools } from "./tools/browser.ts";
-import { mediaTools } from "./tools/media.ts";
-import { memoryTools } from "./tools/memory.ts";
-import { ownerTools } from "./tools/owner.ts";
-import { shellTools } from "./tools/shell.ts";
-import { skillTools } from "./tools/skills.ts";
-import { surfaceTools } from "./tools/surfaces.ts";
-import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
-import { type Gate, originsFor } from "./transport/guard.ts";
-import { httpHandler } from "./transport/http.ts";
-import { attachWs } from "./transport/ws.ts";
-
-/** The panel built by `pnpm --filter @apx/web build`, when present next to the core in the workspace. */
-function workspaceWebDist(): string | undefined {
-  const dist = path.resolve(import.meta.dirname, "../../web/dist");
-  return fs.existsSync(path.join(dist, "index.html")) ? dist : undefined;
-}
 
 /** `apx2 mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
 
-export async function createCore(
-  config: CoreConfig,
-  opts: {
-    quiet?: boolean;
-    llm?: Llm;
-    harnesses?: Partial<Record<HarnessId, Harness>>;
-    /** Tests add tools of their own next to the built-in ones. */
-    extraTools?: Tool[];
-    /** Channel adapters by type; tests use a fake one instead of Telegram. */
-    channelAdapters?: Record<string, AdapterFactory>;
-    /** The scheduler's clock; tests move it to make routines due. */
-    clock?: () => Date;
-  } = {},
-) {
+/** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */
+export type CoreOptions = {
+  quiet?: boolean;
+  llm?: Llm;
+  harnesses?: Partial<Record<HarnessId, Harness>>;
+  /** Tests add tools of their own next to the built-in ones. */
+  extraTools?: Tool[];
+  /** Channel adapters by type; tests use a fake one instead of Telegram. */
+  channelAdapters?: Record<string, AdapterFactory>;
+  /** The scheduler's clock; tests move it to make routines due. */
+  clock?: () => Date;
+};
+
+export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const log = createLog("core", opts.quiet);
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
@@ -123,32 +82,13 @@ export async function createCore(
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
   const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home });
-  const harnessEngines = () => ["claude", "codex", ...acpAgents(store).map(acpEngine)];
-  const engineIds = {
-    harness: { has: (id: string) => harnessEngines().includes(id) },
-    providers: { has: providers.has },
-  };
-  const apc = createApcSync({
-    store,
-    log,
-    // Live: an ACP agent or a provider added later is recognized without a restart.
-    engines: { has: (id) => harnessEngines().includes(id) || providers.has(id) },
-  });
+  const engineIds = knownEngines(store, providers);
+  // Live: an ACP agent or a provider added later is recognized without a restart.
+  const apc = createApcSync({ store, log, engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) } });
   apc.sync();
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
-  const tools = [
-    ...agentTools(store),
-    ...browserTools(),
-    ...surfaceTools(),
-    ...ownerTools(store),
-    ...shellTools(store, config.home, () => listening),
-    ...skillTools(store, config.home),
-    ...memoryTools(),
-    ...mediaTools(),
-    ...taskTools(),
-    ...(opts.extraTools ?? []),
-  ];
+  const tools = builtinTools(store, config.home, () => listening, opts.extraTools);
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
   let routed: Dispatch | undefined;
@@ -161,22 +101,7 @@ export async function createCore(
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
   const mcp = createMcp({ store, secrets, log });
-  const hooks = createHooks();
-  const plugins = createPlugins({
-    home: config.home,
-    secrets,
-    bus,
-    hooks,
-    log,
-    approved: (id) => extensions.approved(id),
-    sealed: (threadId) => {
-      const t = store.threads.get(threadId);
-      return Boolean(t && audienceOf(store, t).kind === "contact");
-    },
-  });
-  const extensions = createExtensions({ store, secrets, home: config.home, plugins });
-  const changed = extensions.verify();
-  if (changed.length) log.warn({ extensions: changed }, "extensions changed on disk were turned off");
+  const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
   const memory = createMemoryIndex({ store, services, log });
@@ -219,72 +144,32 @@ export async function createCore(
   });
 
   const dispatch = createRouter(
-    {
-      ...systemHandlers(identity, () => ({
-        protocol: { status: "ok" },
-        browser: broker.withCap(BROWSER_CAP)
-          ? { status: "ok", detail: broker.withCap(BROWSER_CAP)?.name ?? "" }
-          : { status: "off", detail: "no desktop node connected" },
-        agent: { status: "ok", detail: llm.label() },
-      })),
-      ...browserHandlers(broker),
-      ...threadHandlers(store, engine, upkeep),
-      ...jobHandlers(store, engine),
-      ...memoryHandlers(store, memory),
-      ...channelHandlers(store, channels),
-      ...mediaHandlers(services),
-      ...taskHandlers(store, engine),
-      ...routineHandlers(store, scheduler),
-      ...notificationHandlers(store),
-      ...clientHandlers(store),
-      ...extensionHandlers(extensions, mcp),
-      ...mcpHandlers(mcp),
-      ...providerHandlers(providers, secrets),
-      ...appHandlers({
-        store,
-        harnesses,
-        secrets,
-        v1: config.v1,
-        catalog,
-        apc,
-        engines: engineIds,
-        home: config.home,
-        services,
-      }),
-      ...agentHandlers(store, apc, engineIds),
-    },
+    coreHandlers({
+      store,
+      identity,
+      broker,
+      llmLabel: () => llm.label(),
+      engine,
+      upkeep,
+      memory,
+      channels,
+      services,
+      scheduler,
+      extensions,
+      mcp,
+      providers,
+      secrets,
+      app: { harnesses, v1: config.v1, catalog, apc, engines: engineIds, home: config.home },
+      apc,
+      engines: engineIds,
+    }),
     store.idempotency,
   );
   routed = dispatch;
 
-  const gate: Gate = {
-    allowedOrigins: originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins),
-    token: config.token,
-  };
-  const server = http.createServer(
-    httpHandler(
-      dispatch,
-      log,
-      gate,
-      config.webDist ?? workspaceWebDist(),
-      {
-        artifact: (t) => {
-          const s = store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: s.html } : undefined;
-        },
-      },
-      (token) => store.clients.byToken(token),
-    ),
-  );
-  const wss = attachWs(server, { dispatch, identity, log, broker, bus, gate });
-
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(config.port, config.host, resolve);
-  });
-  const { port } = server.address() as AddressInfo;
-  listening = port;
-  const url = `http://${config.host}:${port}`;
+  const transport = await listen(config, { dispatch, store, log, identity, broker, bus });
+  listening = transport.port;
+  const url = transport.url;
   selfUrl = url;
   engine.start();
   await channels.start();
@@ -313,10 +198,7 @@ export async function createCore(
       await upkeep.stop();
       await mcp.close();
       apc.close();
-      for (const client of wss.clients) client.terminate();
-      await new Promise<void>((resolve) => wss.close(() => resolve()));
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await transport.close();
       db.close();
     },
   };

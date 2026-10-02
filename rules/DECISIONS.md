@@ -177,3 +177,12 @@ lets it call only its scopes' methods (`SCOPE_METHODS`). With `chat` it starts p
 write, and its text reaches the agent as another app's message (untrusted). This limits what a model-driven app may do
 even when its own prompt is hijacked; it is not a defence against a hostile local process, which can skip the token on
 loopback (see D-016's known limit).
+
+<a id="d-020"></a>
+## D-020 — 2026-10-02 — Rule 16 applies to factories and stylesheets too
+A factory that returns a table of closures (`createCore`, `threadHandlers`, a React dialog) counts as one function: past
+~150 lines it is split into named helpers that take their dependencies explicitly (`server-wiring.ts`: `builtinTools`,
+`coreHandlers`, `extensionStack`, `listen`; `rpc/runs.ts` beside `rpc/threads.ts`). The returned object literal of a
+composition root may stay inline. Stylesheets follow the same ~800-line cap: one sheet per area, imported in a fixed
+order because that order is the cascade (`apps/web/src/main.tsx`; `packages/ui/src/styles/components.css` lists its
+sheets and the build inlines them in that order into the single `dist/styles.css`).

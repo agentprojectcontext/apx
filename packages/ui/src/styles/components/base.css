@@ -1,0 +1,73 @@
+/* APX component styles. Every value comes from a --apx-* token (tokens.css);
+ * the only look-specific rules live at the bottom, under "Look accents". */
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+.apx {
+  font-family: var(--apx-font-sans);
+  font-size: var(--apx-text-md);
+  line-height: var(--apx-leading);
+  color: var(--apx-fg);
+  -webkit-font-smoothing: antialiased;
+}
+.apx *,
+.apx *::before,
+.apx *::after {
+  box-sizing: border-box;
+}
+.apx-fill {
+  background: var(--apx-bg);
+  min-height: 100%;
+}
+.apx-portal {
+  position: relative;
+  z-index: 50;
+}
+.apx :where(button) {
+  font: inherit;
+  color: inherit;
+}
+.apx :where(button:not(:disabled)) {
+  cursor: pointer;
+}
+.apx :focus-visible {
+  outline: 2px solid var(--apx-ring);
+  outline-offset: 2px;
+}
+
+/* Tone helper: sets --apx-tone-* for any component that takes a `tone`. */
+.apx-tone--neutral {
+  --apx-tone: var(--apx-fg-muted);
+  --apx-tone-soft: var(--apx-fill-strong);
+  --apx-tone-soft-fg: var(--apx-fg-muted);
+  --apx-tone-solid-fg: var(--apx-bg);
+}
+.apx-tone--brand {
+  --apx-tone: var(--apx-brand);
+  --apx-tone-soft: var(--apx-brand-soft);
+  --apx-tone-soft-fg: var(--apx-brand-soft-fg);
+  --apx-tone-solid-fg: #fff;
+}
+.apx-tone--violet {
+  --apx-tone: var(--apx-violet);
+  --apx-tone-soft: var(--apx-violet-soft);
+  --apx-tone-soft-fg: var(--apx-violet-soft-fg);
+  --apx-tone-solid-fg: #fff;
+}
+.apx-tone--info {
+  --apx-tone: var(--apx-info);
+  --apx-tone-soft: var(--apx-info-soft);
+  --apx-tone-soft-fg: var(--apx-info-soft-fg);
+  --apx-tone-solid-fg: #fff;
+}
+.apx-tone--warning {
+  --apx-tone: var(--apx-warning);
+  --apx-tone-soft: var(--apx-warning-soft);
+  --apx-tone-soft-fg: var(--apx-warning-soft-fg);
+  --apx-tone-solid-fg: #fff;
+}
+.apx-tone--danger {
+  --apx-tone: var(--apx-danger);
+  --apx-tone-soft: var(--apx-danger-soft);
+  --apx-tone-soft-fg: var(--apx-danger-soft-fg);
+  --apx-tone-solid-fg: #fff;
+}

@@ -1,0 +1,296 @@
+/* Chat header tools: wrench toggle (brand-soft when on) and the panel switcher (fill-strong when open). */
+.chat__toolsbtn.is-on {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.chat__toolsdiv {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--apx-border);
+}
+.panelswitch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.panelswitch__btn {
+  color: var(--apx-fg-muted);
+}
+.panelswitch__btn.is-on {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+.panelswitch__menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+}
+.panelswitch__menu:hover {
+  background: var(--apx-fill-hover);
+}
+.panelswitch__menu.is-on {
+  background: var(--apx-fill-strong);
+  color: var(--apx-fg);
+}
+
+/* Composer toolbar */
+.composer__model {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--apx-radius-pill);
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-xs);
+}
+/* Outgrows the Composer's own spacer so "Consumo" sits next to the send button. */
+.composer__spacer {
+  flex: 99;
+}
+.composer__usage {
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-pill);
+  background: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.composer__usage:hover {
+  background: var(--apx-fill-hover);
+}
+
+/* ── App screen ────────────────────────────────────────────────────────────── */
+.appscreen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--apx-surface);
+}
+.appscreen__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px 0 10px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.appscreen__tile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--apx-violet-soft);
+  color: var(--apx-violet-soft-fg);
+}
+.appscreen__titles {
+  flex: 1;
+  min-width: 0;
+}
+.appscreen__title {
+  font-size: var(--apx-text-md);
+  font-weight: var(--apx-weight-semibold);
+}
+.appscreen__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appscreen__body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+}
+
+/* System notices in a turn (interrupted, fallback engine, no answer): quiet, never styled as the agent's words. */
+.notice {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--apx-fg-muted);
+  padding: 6px 10px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+}
+.notice--warn {
+  color: var(--apx-info-soft-fg);
+  background: var(--apx-info-soft);
+}
+.notice--error {
+  color: var(--apx-danger-soft-fg);
+  background: var(--apx-danger-soft);
+}
+
+/* ── Input card: an agent waiting for the owner's OK or answer ─────────────── */
+.inputcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+}
+.inputcard.is-pending {
+  border-color: var(--apx-warning-soft-fg);
+  box-shadow: 0 0 0 3px var(--apx-warning-soft);
+}
+.inputcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-warning-soft-fg);
+}
+.inputcard__title {
+  flex: 1;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.inputcard__state {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.inputcard__prompt,
+.inputcard__answer {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+}
+.inputcard__answer {
+  color: var(--apx-fg-muted);
+}
+.inputcard__detail {
+  display: block;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.inputcard__actions,
+.inputcard__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inputcard__reply {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.inputcard__input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
+
+/* ── Code threads: folder in the header, uncommitted changes card ─────────── */
+.chat__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: 6px;
+  color: var(--apx-fg-muted);
+}
+.chat__cwd {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+}
+.changes {
+  max-width: 560px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+}
+.changes__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.changes__cwd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: right;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.changes__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.changes__file {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+.changes__status {
+  width: 18px;
+  color: var(--apx-fg-subtle);
+}
+.changes__status.is-new {
+  color: var(--apx-brand-soft-fg);
+}
+.changes__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.changes__stat .is-add {
+  color: var(--apx-brand-soft-fg);
+}
+.changes__stat .is-del {
+  color: var(--apx-danger-soft-fg);
+}
+.changes__more {
+  color: var(--apx-fg-subtle);
+}

@@ -23,6 +23,10 @@ await build({
 
 execFileSync("node_modules/.bin/tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], { stdio: "inherit" });
 
-const css = ["tokens.css", "components.css"].map((f) => readFileSync(`src/styles/${f}`, "utf8")).join("\n");
+// components.css only lists the per-area sheets; inline them in that order so dist/ stays one file.
+const sheets = [...readFileSync("src/styles/components.css", "utf8").matchAll(/@import "\.\/(.+?)";/g)].map(
+  (m) => m[1],
+);
+const css = ["tokens.css", ...sheets].map((f) => readFileSync(`src/styles/${f}`, "utf8")).join("\n");
 writeFileSync("dist/styles.css", css);
 console.log("built dist/ (index.js, index.d.ts, styles.css)");

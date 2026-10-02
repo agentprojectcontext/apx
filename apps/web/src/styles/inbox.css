@@ -1,0 +1,105 @@
+/* ── Inbox list ────────────────────────────────────────────────────────────── */
+.inbox {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--shell-list-w);
+  border-right: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+  overflow: hidden;
+}
+.inbox__head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 10px;
+}
+.inbox__titlerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inbox__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+}
+.inbox__group + .inbox__group {
+  margin-top: 6px;
+}
+.inbox__grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+  cursor: pointer;
+}
+.inbox__grouphead:hover {
+  background: var(--apx-fill-hover);
+}
+.inbox__groupname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inbox__groupcount {
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-subtle);
+}
+.inbox__grouprun {
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-brand);
+  white-space: nowrap;
+}
+.inbox__groupspacer {
+  flex: 1;
+}
+.inbox__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px;
+}
+.inbox__skelrow {
+  display: flex;
+  gap: 12px;
+}
+.inbox__skeltext {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.threadrow__preview {
+  display: inline;
+}
+.threadrow__spin {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: var(--apx-brand);
+}
+.threadrow__waiting {
+  color: var(--apx-warning-soft-fg);
+  font-weight: var(--apx-weight-medium);
+}
