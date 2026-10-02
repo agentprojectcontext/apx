@@ -25,6 +25,7 @@ import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
+import { fileHandlers } from "./rpc/files.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
@@ -151,6 +152,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots),
+    ...fileHandlers(d.store),
     ...composerHandlers({
       store: d.store,
       home: d.app.home,

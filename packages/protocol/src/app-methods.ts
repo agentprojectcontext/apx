@@ -33,6 +33,7 @@ import {
   Thread,
   WritePolicy,
 } from "./domain.ts";
+import { filesMethods } from "./files-methods.ts";
 import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
 import { teamMethods } from "./team-methods.ts";
@@ -42,6 +43,7 @@ export const appMethods = {
   ...teamMethods,
   ...resourceMethods,
   ...composerMethods,
+  ...filesMethods,
   /**
    * Read-only import from a local APX v1: registers the project folders it knows (their .apc/ is read from disk)
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
