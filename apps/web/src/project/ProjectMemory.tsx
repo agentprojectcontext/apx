@@ -10,7 +10,7 @@ import {
   SegmentedControl,
   Textarea,
 } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
 import { blobOf, type ProjectEntry } from "../data/identity.ts";
@@ -125,6 +125,11 @@ function AddNote({
   const t = useT();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const field = useRef<HTMLTextAreaElement>(null);
+  // Opening the editor puts the cursor in it, so the keyboard does not lose its place.
+  useEffect(() => {
+    if (open) field.current?.focus();
+  }, [open]);
   const [busy, setBusy] = useState(false);
   const add = async () => {
     setBusy(true);
@@ -154,6 +159,7 @@ function AddNote({
   return (
     <div className="memory__add">
       <Textarea
+        ref={field}
         aria-label={t("memory.addLabel")}
         rows={3}
         value={text}

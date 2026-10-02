@@ -54,13 +54,19 @@ function Folder(props: { project: string; dir: string; depth: number; picked?: s
   const [more, setMore] = useState(false);
   const [error, setError] = useState<string>();
   useEffect(() => {
+    // A late answer for another folder or project is dropped.
+    let live = true;
     client.call("files.tree", { project: props.project, dir: props.dir }).then(
       (r) => {
+        if (!live) return;
         setEntries(r.entries);
         setMore(r.truncated);
       },
-      (e: unknown) => setError(errText(e)),
+      (e: unknown) => live && setError(errText(e)),
     );
+    return () => {
+      live = false;
+    };
   }, [props.project, props.dir]);
   if (error) return <p className="files__error">{error}</p>;
   if (!entries) return <Skeleton height={18} className="files__loading" />;
@@ -126,7 +132,14 @@ function FileView({ project, path }: { project: string; path: string }) {
   const md = isMarkdown(path);
   const [mode, setMode] = useState<Mode>(md ? "view" : "source");
   useEffect(() => {
-    client.call("files.read", { project, path }).then(setFile, (e: unknown) => setError(errText(e)));
+    let live = true;
+    client.call("files.read", { project, path }).then(
+      (f) => live && setFile(f),
+      (e: unknown) => live && setError(errText(e)),
+    );
+    return () => {
+      live = false;
+    };
   }, [project, path]);
   return (
     <>

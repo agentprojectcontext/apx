@@ -108,7 +108,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "routines":
       return <RoutinesPane projectId={project.id} />;
     case "files":
-      return <FilesPane project={project} />;
+      return <FilesPane key={project.id} project={project} />;
     case "memory":
       return <ProjectMemory project={project} />;
     case "resources":
