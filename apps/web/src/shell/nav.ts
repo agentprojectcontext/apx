@@ -1,5 +1,6 @@
 // UI navigation state (what is open), separate from data. Plain store so any component can navigate.
 import type { ApxMode } from "@apx/ui";
+import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
@@ -30,9 +31,7 @@ export const CONFIG_SECTIONS = [
   "memory",
   "voices",
   "images",
-  "whatsapp",
-  "telegram",
-  "discord",
+  "channels",
   "browser",
   "desktop",
   "advanced",
@@ -56,6 +55,8 @@ export type NavState = {
   tools: boolean;
   /** Config modal section, or null when closed. */
   config: ConfigSection | null;
+  /** The channel kind shown in Config › Channels (connected or being set up). */
+  configChannel: ChannelKind | undefined;
   /** "Open on your phone" dialog. */
   phone: boolean;
   /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
@@ -119,6 +120,7 @@ export const nav = createStore<NavState>({
   mode: initialMode(),
   tools: true,
   config: null,
+  configChannel: undefined,
   phone: false,
   listInFront: false,
   resourcesTab: "skills",
@@ -211,6 +213,10 @@ export const go = {
   },
   config(section: ConfigSection | null = "account") {
     nav.set({ config: section });
+  },
+  /** Config › Channels on one kind: its settings, or its setup when it is not connected yet. */
+  channelConfig(kind: ChannelKind) {
+    nav.set({ config: "channels", configChannel: kind });
   },
   phone(open: boolean) {
     nav.set({ phone: open });

@@ -1,9 +1,11 @@
-import { Badge, Button, EmptyState, Icons, Input, ProjectTile, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
+import { Badge, Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { KindTile } from "../channels/KindIcon.tsx";
+import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
 import { loadHealth } from "../data/engines.ts";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
-import { isLanguage, LANGUAGE_NAMES, LANGUAGES, type MessageKey, useLanguage, useT } from "../i18n/index.ts";
+import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
@@ -120,35 +122,17 @@ export function AppearanceSection() {
   );
 }
 
-const CHANNEL_COPY = {
-  whatsapp: {
-    name: "channel.whatsapp.name",
-    tone: "brand",
-    icon: <Icons.MessageCircle />,
-    text: "channel.whatsapp.text",
-  },
-  telegram: { name: "channel.telegram.name", tone: "info", icon: <Icons.Send />, text: "channel.telegram.text" },
-  discord: { name: "channel.discord.name", tone: "violet", icon: <Icons.Users />, text: "channel.discord.text" },
-} as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; icon: unknown }>;
-
-/** Channels: not wired to the core yet. */
-export function ChannelSection({ channel }: { channel: keyof typeof CHANNEL_COPY }) {
+/** A channel kind that cannot be connected yet. */
+export function ChannelSoon({ channel }: { channel: ChannelKind }) {
   const t = useT();
-  const c = CHANNEL_COPY[channel];
-  const name = t(c.name);
+  const name = t(CHANNEL_KINDS[channel].name);
   return (
-    <>
-      <div className="channelcfg">
-        <ProjectTile tone={c.tone} icon={c.icon} size={40} />
-        <div className="channelcfg__text">
-          <h2 className="config__title">{name}</h2>
-          <p className="config__lead">{t(c.text)}</p>
-        </div>
-      </div>
+    <div className="channelcfg">
+      <KindTile kind={channel} size={40} />
       <EmptyState variant="dashed" icon={<Icons.Clock />} title={t("common.comingSoon", { name })}>
         {t("channel.soonBody")}
       </EmptyState>
-    </>
+    </div>
   );
 }
 

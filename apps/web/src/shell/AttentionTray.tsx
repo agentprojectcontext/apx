@@ -19,7 +19,7 @@ function openNotice(n: Notification): void {
   if (n.kind !== "input") void readNotifications([n.id]);
   if (n.kind === "task" || n.kind === "due") go.view("tasks");
   else if (n.thread_id) go.inboxThread(n.thread_id);
-  else if (n.kind === "channel") go.config("telegram");
+  else if (n.kind === "channel") go.channelConfig("telegram");
 }
 
 /** Topbar bell: what wants the owner (an agent's question, a task waiting, a routine's news, a channel matter). */

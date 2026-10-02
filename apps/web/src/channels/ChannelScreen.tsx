@@ -157,7 +157,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
         size="sm"
         label={t("ch.settings")}
         icon={<Icons.Settings size={14} />}
-        onClick={() => go.config("telegram")}
+        onClick={() => go.channelConfig("telegram")}
       />
     </header>
   );

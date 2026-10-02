@@ -503,6 +503,10 @@
   gap: 8px;
   align-items: center;
 }
+.channels__tabs {
+  align-self: flex-start;
+  width: auto;
+}
 .tgquiet {
   display: flex;
   flex-wrap: wrap;

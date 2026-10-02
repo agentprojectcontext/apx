@@ -27,13 +27,12 @@ import {
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { SectionHead, SubHead } from "./SectionHead.tsx";
+import { SubHead } from "./SectionHead.tsx";
 
 const CHANNEL_ID = "telegram";
 
 /** Telegram: connect a bot, choose who answers, approve who may write, see what was sent. */
 export function TelegramSection() {
-  const t = useT();
   const channels = useChannels((s) => s.channels);
   const ready = useChannels((s) => s.ready);
   useEffect(() => {
@@ -44,7 +43,6 @@ export function TelegramSection() {
   const channel = channels.find((c) => c.type === "telegram");
   return (
     <>
-      <SectionHead title={t("channel.telegram.name")} lead={t("tg.lead")} />
       {ready && (channel ? <Connected channel={channel} /> : <Setup />)}
       {channel && <Pairing />}
       {channel && <Notices />}

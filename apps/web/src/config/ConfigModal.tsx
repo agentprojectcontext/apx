@@ -5,14 +5,14 @@ import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
+import { ChannelsSection } from "./ChannelsSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
-import { AccountSection, AdvancedSection, AppearanceSection, ChannelSection } from "./OtherSections.tsx";
+import { AccountSection, AdvancedSection, AppearanceSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
-import { TelegramSection } from "./TelegramSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -34,14 +34,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
-    ],
-  },
-  {
-    label: "config.group.channels",
-    items: [
-      { id: "whatsapp", label: "channel.whatsapp.name", icon: <Icons.MessageCircle />, soon: true },
-      { id: "telegram", label: "channel.telegram.name", icon: <Icons.Send /> },
-      { id: "discord", label: "channel.discord.name", icon: <Icons.Users />, soon: true },
+      { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
     ],
   },
   {
@@ -136,11 +129,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <ServicesSection kind="speech" />;
     case "images":
       return <ServicesSection kind="image" />;
-    case "telegram":
-      return <TelegramSection />;
-    case "whatsapp":
-    case "discord":
-      return <ChannelSection channel={section} />;
+    case "channels":
+      return <ChannelsSection />;
     case "browser":
       return <BrowserSection />;
     case "desktop":

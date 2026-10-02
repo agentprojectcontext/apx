@@ -1,6 +1,8 @@
-import type { EngineStatus } from "@apx/protocol";
-import { EngineIcon, Icons, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
+import type { ChannelInfo, EngineStatus } from "@apx/protocol";
+import { EngineIcon, Icons, Menu, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo } from "react";
+import { KindIcon, KindTile } from "../channels/KindIcon.tsx";
+import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { isListed } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -9,10 +11,30 @@ import { AccountRow } from "./AccountRow.tsx";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 
-const CHANNELS = [
-  { id: "whatsapp", name: "WhatsApp", tone: "brand", icon: <Icons.MessageCircle /> },
-  { id: "telegram", name: "Telegram", tone: "info", icon: <Icons.Send /> },
-] as const;
+/** "+" next to Channels: the kinds not connected yet (the ones still coming are shown, disabled). */
+function AddChannel({ connected }: { connected: readonly ChannelInfo[] }) {
+  const t = useT();
+  const missing = CHANNEL_KIND_IDS.filter((k) => !connected.some((c) => c.type === k));
+  if (!missing.length) return null;
+  return (
+    <Menu
+      align="start"
+      trigger={
+        <button type="button" className="sidebar__add" aria-label={t("channels.add")} title={t("channels.add")}>
+          <Icons.Plus size={14} />
+        </button>
+      }
+      items={missing.map((k) => ({
+        label: CHANNEL_KINDS[k].soon
+          ? `${t(CHANNEL_KINDS[k].name)} · ${t("common.soonLower")}`
+          : t(CHANNEL_KINDS[k].name),
+        icon: <KindIcon kind={k} />,
+        disabled: CHANNEL_KINDS[k].soon,
+        onSelect: () => go.channelConfig(k),
+      }))}
+    />
+  );
+}
 
 /** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
 export function Sidebar({ rail }: { rail: boolean }) {
@@ -56,26 +78,19 @@ export function Sidebar({ rail }: { rail: boolean }) {
         />
       </div>
       <div className="sidebar__scroll">
-        <Section rail={rail} title={t("nav.channels")} />
-        {CHANNELS.map((c) => {
-          // A running channel of this type opens its contacts; Telegram without one opens its setup; WhatsApp waits.
-          const live = channels.find((x) => x.type === c.id);
-          const count = live
-            ? Object.values(threads).reduce((n, th) => n + (th.channel?.id === live.id ? th.unread : 0), 0)
-            : 0;
+        <Section rail={rail} title={t("nav.channels")} action={<AddChannel connected={channels} />} />
+        {channels.map((live) => {
+          const kind = isChannelKind(live.type) ? live.type : undefined;
+          const count = Object.values(threads).reduce((n, th) => n + (th.channel?.id === live.id ? th.unread : 0), 0);
           return (
             <NavItem
-              key={c.id}
+              key={live.id}
               collapsed={rail}
-              disabled={c.id === "whatsapp"}
-              icon={<ProjectTile tone={c.tone} icon={c.icon} />}
-              label={c.name}
+              icon={kind ? <KindTile kind={kind} /> : undefined}
+              label={live.label ?? (kind ? t(CHANNEL_KINDS[kind].name) : live.id)}
               count={count}
-              active={view === "channel" && Boolean(live) && channelId === live?.id}
-              onClick={() => (live ? go.channel(live.id) : go.config("telegram"))}
-              {...(c.id === "whatsapp"
-                ? { trailing: <span className="sidebar__soon">{t("common.soonLower")}</span> }
-                : {})}
+              active={view === "channel" && channelId === live.id}
+              onClick={() => go.channel(live.id)}
             />
           );
         })}
