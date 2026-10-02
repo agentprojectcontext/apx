@@ -19,7 +19,6 @@ import {
   PairingRequest,
   PendingInput,
   Person,
-  PersonPerms,
   PersonRelation,
   PersonRole,
   Project,
@@ -579,7 +578,12 @@ export const appMethods = {
         relation: PersonRelation.nullable().optional(),
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
-        perms: PersonPerms.partial().optional(),
+        // Only the flags sent change (PersonPerms' defaults would reset the others).
+        perms: z
+          .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })
+          .partial()
+          .strict()
+          .optional(),
       })
       .strict(),
     result: Person,

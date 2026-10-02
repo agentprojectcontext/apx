@@ -148,6 +148,24 @@ test("permissions: none by default; requests become a task for the owner; notes 
   await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: false, notes: false } });
 });
 
+test("a contact cannot flood the owner: past 5 requests waiting, pass_request refuses", async () => {
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { notes: true } });
+  const p = await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: true } });
+  assert.deepEqual(p.perms, { appointments: false, requests: true, notes: true }, "only the flags sent change");
+  const open = async () =>
+    (await env.client.call("tasks.list", {})).tasks.filter((t) => t.person_id === person && t.awaits_owner).length;
+  for (let i = await open(); i < 5; i++) {
+    const t = await env.client.call("tasks.create", { title: `Request ${i}`, person, owed_by: "owner" });
+    await env.client.call("tasks.update", { task: t.id, awaits_owner: true });
+  }
+  const sent = tg.messagesTo(MAG.id).length;
+  tg.message(MAG, "please buy oat milk again");
+  await until(() => tg.messagesTo(MAG.id).length > sent, "answer");
+  assert.equal(await open(), 5, "no sixth task");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /requests waiting/);
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: false, notes: false } });
+});
+
 test("the owner's own turns never get the contact-only tools", async () => {
   await env.client.call("threads.send", { thread: "home", text: "hi" });
   await until(() => llm.calls.at(-1)?.messages.some((m) => String(m.content).includes("hi")) ?? false, "home turn");

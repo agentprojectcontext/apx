@@ -67,13 +67,14 @@ export function createInbound(deps: {
     }
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
-    if (!owner && overLimit(person.id, person.name)) return "ignored";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
-    const text = m.voice ? await heard(m, thread.id) : m.text;
+    // A silenced contact costs nothing: no transcription, no model call, no rate-limit notice to the owner.
     if (!owner && person.muted) {
-      keepQuiet(thread.id, cfg.id, person, text);
+      keepQuiet(thread.id, cfg.id, person, m.voice ? `${m.text ? `${m.text}\n` : ""}[voice note]` : m.text);
       return "done";
     }
+    if (!owner && overLimit(person.id, person.name)) return "ignored";
+    const text = m.voice ? await heard(m, thread.id) : m.text;
     if (owner && (await answerPending(thread.id, text, rowId))) return "done";
     await call(
       "threads.send",

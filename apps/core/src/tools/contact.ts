@@ -6,6 +6,9 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool } from "./types.ts";
 
+/** Requests one contact may leave waiting for the owner at a time: their chat cannot flood the owner's tasks. */
+const OPEN_REQUESTS_PER_PERSON = 5;
+
 export const CONTACT_TOOLS: ReadonlySet<string> = new Set(["pass_request", "search_owner_notes"]);
 
 /** Which of them a contact's turn gets, from that person's flags. */
@@ -28,7 +31,7 @@ export function contactTools(store: Store): Tool[] {
         when: z.string().trim().max(80).optional().describe("for an appointment: the day and time they ask for"),
         details: z.string().trim().max(1000).optional(),
       }),
-      // Only a task for the owner, who decides; contacts are rate-limited upstream.
+      // Only a task for the owner, who decides; capped per person and contacts are rate-limited upstream.
       effect: "local",
       confirm: "never",
       deadlineMs: 10_000,
@@ -40,6 +43,13 @@ export function contactTools(store: Store): Tool[] {
         // The flag is checked again here: the tool list is built per turn, the owner may have just turned it off.
         const allowed = a.kind === "appointment" ? person.perms.appointments : person.perms.requests;
         if (!allowed) throw new Error(`your owner does not take ${a.kind}s from ${person.name} here`);
+        const waiting = store.tasks
+          .list({ person: person.id, state: "open", limit: 50 })
+          .filter((t) => t.awaits_owner).length;
+        if (waiting >= OPEN_REQUESTS_PER_PERSON)
+          throw new Error(
+            `${person.name} already has ${waiting} requests waiting for your owner; say they will be looked at`,
+          );
         const label = a.kind === "appointment" ? "Appointment" : "Request";
         const task = await ctx.call("tasks.create", {
           title: `${label} from ${person.name}: ${a.summary}`.slice(0, 200),
