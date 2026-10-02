@@ -1,0 +1,148 @@
+/* ── Project files: tree and read-only viewer ─────────────────────────────── */
+.files {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+}
+.files--empty {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 24px;
+}
+.files__tree {
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 6px;
+  border-right: 1px solid var(--apx-border);
+}
+.files__root {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 8px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-semibold);
+}
+.files__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.files__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  padding-right: 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.files__row:hover {
+  background: var(--apx-fill-hover);
+}
+.files__row.is-on {
+  background: var(--apx-fill);
+  font-weight: var(--apx-weight-semibold);
+}
+.files__row svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.files__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.files__more,
+.files__error {
+  padding: 6px 10px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  list-style: none;
+}
+.files__error {
+  color: var(--apx-danger);
+}
+.files__loading {
+  margin: 4px 10px;
+}
+.files__view {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.files__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.files__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.files__size {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.files__spacer {
+  flex: 1;
+}
+.files__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+}
+.files__body.is-split {
+  grid-template-columns: 1fr 1fr;
+}
+.files__source {
+  margin: 0;
+  padding: 16px;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.files__body.is-split .files__source {
+  border-right: 1px solid var(--apx-border);
+}
+.files__md {
+  min-width: 0;
+  padding: 16px 24px;
+}
+
+@media (max-width: 760px) {
+  .files {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(140px, 40%) 1fr;
+  }
+  .files__tree {
+    border-right: 0;
+    border-bottom: 1px solid var(--apx-border);
+  }
+  .files__body.is-split {
+    grid-template-columns: 1fr;
+  }
+}

@@ -14,6 +14,7 @@ import "./styles/resources.css";
 import "./styles/tasks.css";
 import "./styles/channels.css";
 import "./styles/office.css";
+import "./styles/files.css";
 import "./styles/config.css";
 import "./styles/models.css";
 import { StrictMode } from "react";

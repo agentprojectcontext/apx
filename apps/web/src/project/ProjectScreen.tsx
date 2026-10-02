@@ -10,10 +10,10 @@ import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
 import { ProjectTasks } from "../tasks/TasksList.tsx";
+import { FilesPane } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
-import { SoonPane } from "./SoonPane.tsx";
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
 export function ProjectScreen({ layout }: { layout: Layout }) {
@@ -96,7 +96,6 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
 }
 
 function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: ProjectTab; layout: Layout }) {
-  const t = useT();
   switch (tab) {
     case "overview":
       return <ProjectOverview project={project} />;
@@ -109,19 +108,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "routines":
       return <RoutinesPane projectId={project.id} />;
     case "files":
-      return (
-        <SoonPane icon={<Icons.Folder />} title={t("project.tab.files")}>
-          {project.path ? (
-            <>
-              {t("project.files.treeBefore")}
-              <code className="soon__code">{project.path}</code>
-              {t("project.files.treeAfter")}
-            </>
-          ) : (
-            t("project.files.base")
-          )}
-        </SoonPane>
-      );
+      return <FilesPane project={project} />;
     case "memory":
       return <ProjectMemory project={project} />;
     case "resources":

@@ -1,5 +1,6 @@
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
+import { enFiles } from "./en-files.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enTeam } from "./en-team.ts";
@@ -10,6 +11,7 @@ export const en = {
   ...enTeam,
   ...enChannels,
   ...enChat,
+  ...enFiles,
   ...enResources,
   // Shared words
   "common.agent": "Agent",
@@ -291,9 +293,6 @@ export const en = {
   "project.tab.files": "Files",
   "project.tab.memory": "Memory",
   "project.tab.resources": "Resources",
-  "project.files.treeBefore": "The tree of ",
-  "project.files.treeAfter": " and what agents create in the chats.",
-  "project.files.base": "What agents create in this space's chats.",
   "overview.now": "Now",
   "overview.nothingRunning": "Nothing running in this project.",
   "overview.team": "Team",

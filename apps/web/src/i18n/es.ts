@@ -3,6 +3,7 @@
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
+import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esTeam } from "./es-team.ts";
@@ -12,6 +13,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esTeam,
   ...esChannels,
   ...esChat,
+  ...esFiles,
   ...esResources,
   // Palabras compartidas
   "common.agent": "Agente",
@@ -294,9 +296,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.tab.files": "Archivos",
   "project.tab.memory": "Memoria",
   "project.tab.resources": "Recursos",
-  "project.files.treeBefore": "El árbol de ",
-  "project.files.treeAfter": " y lo que los agentes crean en los chats.",
-  "project.files.base": "Lo que los agentes crean en los chats de este espacio.",
   "overview.now": "Ahora",
   "overview.nothingRunning": "Nada corriendo en este proyecto.",
   "overview.team": "Equipo",
