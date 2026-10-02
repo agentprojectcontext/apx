@@ -97,8 +97,6 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
         onChange={(e) => setQuery(e.currentTarget.value)}
       />
 
-      {filter !== "agents" && <AddNote scope={filter} projectId={project.id} onAdded={load} />}
-
       {notes && !notes.length ? (
         <EmptyState variant="dashed" size="sm" icon={<Icons.Brain />}>
           {query ? t("memory.noMatch") : t(`memory.empty.${filter}`)}
@@ -110,6 +108,7 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
           ))}
         </ul>
       )}
+      {filter !== "agents" && <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />}
     </div>
   );
 }
@@ -124,6 +123,7 @@ function AddNote({
   onAdded: () => void;
 }) {
   const t = useT();
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const add = async () => {
@@ -131,24 +131,43 @@ function AddNote({
     try {
       await client.call("memory.add", { text, scope, ...(scope === "project" ? { project: projectId } : {}) });
       setText("");
+      setOpen(false);
       onAdded();
     } catch (e) {
       notify(t("error.memory", { error: errText(e) }));
     }
     setBusy(false);
   };
+  // A button at the end of the list; the editor opens in place.
+  if (!open)
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="memory__addbtn"
+        leadingIcon={<Icons.Plus size={14} />}
+        onClick={() => setOpen(true)}
+      >
+        {t("memory.add")}
+      </Button>
+    );
   return (
     <div className="memory__add">
       <Textarea
         aria-label={t("memory.addLabel")}
-        rows={2}
+        rows={3}
         value={text}
         placeholder={t(`memory.addPlaceholder.${scope}`)}
         onChange={(e) => setText(e.currentTarget.value)}
       />
-      <Button size="sm" disabled={!text.trim()} loading={busy} onClick={() => void add()}>
-        {t("memory.add")}
-      </Button>
+      <div className="memory__editbar">
+        <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
+          {t("common.cancel")}
+        </Button>
+        <Button size="sm" disabled={!text.trim()} loading={busy} onClick={() => void add()}>
+          {t("memory.add")}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -458,11 +458,11 @@
 }
 .memory__add {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: flex-end;
 }
-.memory__add > :first-child {
-  flex: 1;
+.memory__addbtn {
+  align-self: flex-start;
 }
 .memory__list,
 .res__list {
