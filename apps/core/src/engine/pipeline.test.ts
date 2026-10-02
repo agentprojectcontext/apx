@@ -37,8 +37,14 @@ async function runRoutine(o: { pre: string; call_model: "always" | "output" | "f
   while (!fs.existsSync(post) && Date.now() < end) await new Promise((res) => setTimeout(res, 25));
   const out = fs.readFileSync(post, "utf8");
   fs.rmSync(post);
+  // The file can appear before the step exits; the run is handed back (delivered set) only after.
+  let runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  while (runs[0]?.delivered === undefined && Date.now() < end) {
+    await new Promise((res) => setTimeout(res, 25));
+    runs = (await env.client.call("routines.runs", { routine: r.id })).runs;
+  }
   return {
-    runs: (await env.client.call("routines.runs", { routine: r.id })).runs,
+    runs,
     post: out,
     thread: started.thread_id,
   };
