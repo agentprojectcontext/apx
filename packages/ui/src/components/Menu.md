@@ -3,7 +3,7 @@ category: Actions
 ---
 # Menu
 
-Dropdown / overflow menu driven by an `items` array: `{ label, icon, shortcut, danger, disabled, onSelect }`, `{ type: "separator" }`, `{ type: "label", label }`.
+Dropdown / overflow menu driven by an `items` array: `{ label, icon, shortcut, danger, disabled, checked, onSelect }`, `{ type: "separator" }`, `{ type: "label", label }`, `{ type: "submenu", label, icon, items }`. `ContextMenu` takes the same items.
 
 - Trigger is any single element, usually `<IconButton icon={<Icons.Ellipsis />} />`.
 - Put destructive items last, after a separator, with `danger`.

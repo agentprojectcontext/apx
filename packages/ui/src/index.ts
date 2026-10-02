@@ -15,12 +15,25 @@ export { Button, type ButtonProps } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
 export { Checkbox, type CheckboxProps } from "./components/Checkbox";
 export { Composer, type ComposerProps } from "./components/Composer";
+export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
 export { ConversationRow, type ConversationRowProps } from "./components/ConversationRow";
+export {
+  Calendar,
+  type CalendarProps,
+  type DateLabels,
+  DatePicker,
+  type DatePickerProps,
+  DateRangePicker,
+  type DateRangePickerProps,
+  type DayString,
+  dayString,
+} from "./components/DatePicker";
 export { DayDivider, type DayDividerProps } from "./components/DayDivider";
 export { Dialog, type DialogProps } from "./components/Dialog";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
 export { type EngineBrand, EngineIcon, type EngineIconProps, engineBrand } from "./components/EngineIcon";
 export { EntityCard, type EntityCardProps } from "./components/EntityCard";
+export { Field, type FieldProps } from "./components/Field";
 export { IconButton, type IconButtonProps } from "./components/IconButton";
 export { Input, type InputProps } from "./components/Input";
 export { Kbd, type KbdProps } from "./components/Kbd";
@@ -37,6 +50,7 @@ export { ProjectTile, type ProjectTileProps, type TileTone } from "./components/
 export { SearchField, type SearchFieldProps } from "./components/SearchField";
 export { SectionLabel, type SectionLabelProps } from "./components/SectionLabel";
 export { SegmentedControl, type SegmentedControlProps, type SegmentedOption } from "./components/SegmentedControl";
+export { Select, type SelectOption, type SelectProps } from "./components/Select";
 export { SettingRow, type SettingRowProps } from "./components/SettingRow";
 export { Skeleton, type SkeletonProps } from "./components/Skeleton";
 export { Spinner, type SpinnerProps } from "./components/Spinner";
@@ -47,6 +61,7 @@ export { Switch, type SwitchProps } from "./components/Switch";
 export { SystemNote, type SystemNoteProps } from "./components/SystemNote";
 export { type TabItem, Tabs, type TabsProps } from "./components/Tabs";
 export { Tag, type TagProps } from "./components/Tag";
+export { TagInput, type TagInputProps } from "./components/TagInput";
 export { Textarea, type TextareaProps } from "./components/Textarea";
 export { Tooltip, type TooltipProps } from "./components/Tooltip";
 export { VoiceNote, type VoiceNoteProps } from "./components/VoiceNote";

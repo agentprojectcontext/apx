@@ -1,21 +1,10 @@
 import { Menu as BaseMenu } from "@base-ui/react/menu";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { cx } from "../cx";
-import { keyed } from "../keys";
 import { useApx } from "./ApxProvider";
+import { MenuEntries, type MenuEntry } from "./menuEntries";
 
-export type MenuEntry =
-  | {
-      type?: "item";
-      label: ReactNode;
-      icon?: ReactNode;
-      shortcut?: string;
-      danger?: boolean;
-      disabled?: boolean;
-      onSelect?: () => void;
-    }
-  | { type: "separator" }
-  | { type: "label"; label: ReactNode };
+export type { MenuEntry };
 
 export interface MenuProps {
   /** The element that opens the menu (usually an IconButton with a ⋯ icon). */
@@ -37,27 +26,7 @@ export function Menu({ trigger, items, side = "bottom", align = "start", default
       <BaseMenu.Portal container={portalRef}>
         <BaseMenu.Positioner side={side} align={align} sideOffset={6}>
           <BaseMenu.Popup className={cx("apx-menu", className)}>
-            {keyed(items, (it) => (it.type === "separator" ? "" : it.label)).map(({ item: it, key }) => {
-              if (it.type === "separator") return <BaseMenu.Separator key={key} className="apx-menu__sep" />;
-              if (it.type === "label")
-                return (
-                  <div key={key} className="apx-menu__label">
-                    {it.label}
-                  </div>
-                );
-              return (
-                <BaseMenu.Item
-                  key={key}
-                  className={cx("apx-menu__item", it.danger && "is-danger")}
-                  disabled={it.disabled}
-                  onClick={it.onSelect}
-                >
-                  <span className="apx-menu__icon">{it.icon}</span>
-                  <span className="apx-menu__text">{it.label}</span>
-                  {it.shortcut && <span className="apx-menu__shortcut">{it.shortcut}</span>}
-                </BaseMenu.Item>
-              );
-            })}
+            <MenuEntries items={items} portal={portalRef} />
           </BaseMenu.Popup>
         </BaseMenu.Positioner>
       </BaseMenu.Portal>
