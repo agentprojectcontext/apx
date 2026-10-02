@@ -33,7 +33,21 @@ export const KNOWN_ACP_AGENTS: AcpAgent[] = [
   },
   { id: "qwen", label: "Qwen Code", command: "qwen", args: ["--acp", "--approval-mode", "default"] },
   { id: "cursor", label: "Cursor", command: "cursor-agent", args: ["acp"], auth: "cursor_login" },
-  { id: "gemini-cli", label: "Gemini CLI", command: "gemini", args: ["--experimental-acp"] },
+  { id: "gemini-cli", label: "Gemini CLI", command: "gemini", args: ["--acp"] },
+  // From the ACP registry (agentclientprotocol.com/registry): each shows up once its CLI is installed.
+  { id: "copilot", label: "GitHub Copilot", command: "copilot", args: ["--acp"] },
+  { id: "goose", label: "goose", command: "goose", args: ["acp"] },
+  { id: "kimi", label: "Kimi CLI", command: "kimi", args: ["acp"] },
+  { id: "auggie", label: "Auggie", command: "auggie", args: ["--acp"] },
+  { id: "droid", label: "Factory Droid", command: "droid", args: ["exec", "--output-format", "acp-daemon"] },
+  { id: "vibe", label: "Mistral Vibe", command: "vibe-acp", args: [] },
+  { id: "qoder", label: "Qoder", command: "qodercli", args: ["--acp"] },
+  { id: "grok", label: "Grok", command: "grok", args: ["agent", "stdio"] },
+  { id: "devin", label: "Devin", command: "devin", args: ["acp"] },
+  { id: "amp", label: "Amp", command: "amp-acp", args: [] },
+  { id: "kilo", label: "Kilo", command: "kilo", args: ["acp"] },
+  { id: "cline", label: "Cline", command: "cline", args: ["--acp"] },
+  { id: "codebuddy", label: "CodeBuddy", command: "codebuddy", args: ["--acp"] },
 ];
 
 /** Known agents plus the owner's own (`acp_agents` setting: [{id, label, command, args, auth?}]). */
