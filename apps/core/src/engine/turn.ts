@@ -77,7 +77,7 @@ export type ToolCall = <M extends MethodName>(
   as: { run: RunRecord; callId: string },
 ) => Promise<Result<M>>;
 
-const MEMORY_TOOLS = new Set(["remember", "recall", "forget"]);
+const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 
 type Turn = { agent: AgentRecord; thread: Thread; input: NonNullable<RunRecord["input"]>; audience: Audience };
 type Groups = Array<{ harness: HarnessId; refs: string[] }>;
@@ -242,7 +242,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     turn.agent,
     callers,
     sealed
-      ? deps.tools.filter((t) => forContact.has(t.name))
+      ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...mcpTools],
   );
   const tools = policy.tools.filter(

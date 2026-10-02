@@ -59,13 +59,13 @@ function apxServer(io: TurnIO, counts: Counts) {
 }
 
 /**
- * Which of Claude Code's own tools may run. A contact's turn: none. Outside code threads only the web tools and
+ * Which of Claude Code's own tools may run. A contact's turn: none (only ours, already cut to that contact's flags). Outside code threads only the web tools and
  * ours. In a code thread every built-in tool (reads included: they may reach outside the folder) asks our policy
  * through canUseTool.
  */
 function toolOptions(io: TurnIO, counts: Counts) {
   const ours = io.tools.map((s) => `mcp__apx__${s.function.name}`);
-  if (io.sealed) return { tools: [], allowedTools: [], permissionMode: "dontAsk" as const };
+  if (io.sealed) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
   if (io.thread.kind !== "code")
     return { tools: CLAUDE_BUILTINS, allowedTools: [...CLAUDE_BUILTINS, ...ours], permissionMode: "dontAsk" as const };
   return {

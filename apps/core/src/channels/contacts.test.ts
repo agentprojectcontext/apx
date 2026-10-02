@@ -166,6 +166,18 @@ test("a contact cannot flood the owner: past 5 requests waiting, pass_request re
   await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { requests: false, notes: false } });
 });
 
+test("with memory off a contact's chat cannot read the owner's notes either", async () => {
+  const was = await env.client.call("memory.settings", {});
+  await env.client.call("memory.set_settings", { mode: "off", auto_compact: was.auto_compact });
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { notes: true } });
+  const sent = tg.messagesTo(MAG.id).length;
+  tg.message(MAG, "anything new today?");
+  await until(() => tg.messagesTo(MAG.id).length > sent, "answer");
+  assert.deepEqual(toolsOf(-1), []);
+  await env.client.call("contacts.set", { id: person, name: MAG.name, perms: { notes: false } });
+  await env.client.call("memory.set_settings", { mode: was.mode, auto_compact: was.auto_compact });
+});
+
 test("the owner's own turns never get the contact-only tools", async () => {
   await env.client.call("threads.send", { thread: "home", text: "hi" });
   await until(() => llm.calls.at(-1)?.messages.some((m) => String(m.content).includes("hi")) ?? false, "home turn");

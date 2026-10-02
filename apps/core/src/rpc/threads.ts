@@ -187,7 +187,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       store.threads.mergeContext(thread, {
         reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
       });
-      return post(thread, text, { kind: "user" }, mode === "steer", {
+      // In a contact's chat the words need their own turn to be framed as what to answer: they never steer.
+      return post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
         agent_id: agent.id,
         trigger: "user",
         origin: { kind: "user" },

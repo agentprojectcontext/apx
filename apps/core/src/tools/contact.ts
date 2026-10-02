@@ -75,9 +75,9 @@ export function contactTools(store: Store): Tool[] {
       async run(a, ctx) {
         const personId = ctx.thread.channel?.person_id;
         if (!personId || !store.persons.get(personId)?.perms.notes) throw new Error("not allowed in this chat");
-        const { memories } = await ctx.call("memory.list", { query: a.query, scope: "global", limit: 8 });
+        const { memories } = await ctx.call("memory.list", { query: a.query, scope: "global", limit: 40 });
         // The owner's own words only: never what an agent saved, and never a note saved with outside content.
-        const mine = memories.filter((m) => m.source === "owner" && !m.tainted);
+        const mine = memories.filter((m) => m.source === "owner" && !m.tainted).slice(0, 8);
         return mine.length ? mine.map((m) => `- ${m.text.replace(/\s+/g, " ")}`).join("\n") : "no notes match.";
       },
     }),
