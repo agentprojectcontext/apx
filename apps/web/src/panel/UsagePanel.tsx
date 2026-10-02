@@ -1,6 +1,7 @@
 import type { Message, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
+import { contextOf } from "../chat/composer/context.ts";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -69,8 +70,19 @@ export function UsagePanel() {
         : t("usage.noTokens"),
     ],
   ];
+  const context = contextOf(runs);
   return (
     <div className="usage">
+      {context?.window && (
+        <div className="usage__context">
+          <div className="usage__contexttext">
+            {t("usage.context", { used: formatNumber(context.used), window: formatNumber(context.window) })}
+          </div>
+          <div className="usage__bar" aria-hidden="true">
+            <span style={{ width: `${Math.min(100, (context.used / context.window) * 100)}%` }} />
+          </div>
+        </div>
+      )}
       <dl className="usage__kv">
         {rows.map(([k, v]) => (
           <div key={k} className="usage__row">

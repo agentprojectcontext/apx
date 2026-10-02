@@ -1,6 +1,6 @@
 import type { ModelChoice, ModelRef } from "@apx/protocol";
 import { Icons, Popover } from "@apx/ui";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { choiceLabel, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelList } from "./ModelList.tsx";
@@ -9,7 +9,14 @@ import { ModelList } from "./ModelList.tsx";
  * The select-like button a picker opens from (a plain element: the Popover merges its trigger props into it).
  * Warns when its ref is not in the catalog.
  */
-function trigger(o: { text: string; label: string; warnText: string; warn?: boolean; className?: string }) {
+function trigger(o: {
+  text: string;
+  label: string;
+  warnText: string;
+  warn?: boolean;
+  className?: string;
+  icon?: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -17,7 +24,7 @@ function trigger(o: { text: string; label: string; warnText: string; warn?: bool
       aria-label={o.label}
       title={o.warn ? o.warnText : o.text}
     >
-      {o.warn && <Icons.TriangleAlert size={12} className="selectbtn__warn" />}
+      {o.warn ? <Icons.TriangleAlert size={12} className="selectbtn__warn" /> : o.icon}
       <span className="selectbtn__text">{o.text}</span>
       <Icons.ChevronDown size={12} />
     </button>
@@ -68,6 +75,11 @@ export function ModelChoicePicker(props: {
   text?: string;
   /** Trigger class: a select button by default, a chip on team cards. */
   className?: string;
+  /** Before the trigger text (the engine's mark in the composer). */
+  icon?: ReactNode;
+  /** The first option, when null means something else than the router (a chat: "the agent's model"). */
+  none?: { title: string; desc: string };
+  align?: "start" | "end";
 }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
@@ -85,7 +97,7 @@ export function ModelChoicePicker(props: {
       open={open}
       onOpenChange={setOpen}
       width={380}
-      align="end"
+      align={props.align ?? "end"}
       label={props.label}
       trigger={trigger({
         text,
@@ -93,10 +105,16 @@ export function ModelChoicePicker(props: {
         warn,
         warnText: t("models.notInCatalog"),
         className: props.className,
+        icon: props.icon,
       })}
     >
       <div className="mchoice">
-        <Mode selected={!own} title={t("models.router")} desc={t("models.routerOnlyDesc")} onPick={() => pick(null)} />
+        <Mode
+          selected={!own}
+          title={props.none?.title ?? t("models.router")}
+          desc={props.none?.desc ?? t("models.routerOnlyDesc")}
+          onPick={() => pick(null)}
+        />
         <div className="mchoice__label">{t("models.ownModel")}</div>
         <ModelList value={own} onPick={(model) => pick({ model, router: true })} />
       </div>

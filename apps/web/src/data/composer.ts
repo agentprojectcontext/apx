@@ -1,0 +1,91 @@
+// The composer's calls: attaching files, dictating into the field and the chat's own model.
+import { type ModelChoice, UPLOAD_LIMITS } from "@apx/protocol";
+import { t } from "../i18n/index.ts";
+import { client } from "./client.ts";
+import { notify } from "./notices.ts";
+import { data } from "./state.ts";
+
+/** A file stored by the core, ready to go with the next message. */
+export type Attached = { id: string; kind: "image" | "file"; name: string; mime: string; bytes: number };
+
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Browsers leave `type` empty for many text files; the extension says what they are.
+const BY_EXT: Record<string, string> = {
+  md: "text/markdown",
+  txt: "text/plain",
+  log: "text/plain",
+  csv: "text/csv",
+  json: "application/json",
+  yaml: "application/yaml",
+  yml: "application/yaml",
+  xml: "application/xml",
+  html: "text/html",
+  ts: "text/plain",
+  tsx: "text/plain",
+  js: "text/plain",
+  py: "text/plain",
+  sh: "text/plain",
+  sql: "text/plain",
+  pdf: "application/pdf",
+};
+
+export function mimeOf(file: { name: string; type: string }): string {
+  if (file.type) return file.type;
+  return BY_EXT[file.name.split(".").at(-1)?.toLowerCase() ?? ""] ?? "application/octet-stream";
+}
+
+export function isImage(mime: string): boolean {
+  return mime.startsWith("image/");
+}
+
+/** Over the size the core takes for its kind: the message to show, or undefined when it fits. */
+export function tooBig(file: { name: string; size: number; type: string }): string | undefined {
+  const limit = isImage(mimeOf(file)) ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
+  return file.size > limit ? t("composer.tooBig", { name: file.name, mb: Math.round(limit / 1024 / 1024) }) : undefined;
+}
+
+async function base64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let out = "";
+  // In slices: String.fromCharCode over megabytes at once overflows the stack.
+  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(out);
+}
+
+/** Uploads one file; throws the core's reason (wrong type, too big, empty) for the chip to show. */
+export async function upload(file: File, thread: string): Promise<Attached> {
+  const big = tooBig(file);
+  if (big) throw new Error(big);
+  const { media } = await client.call("media.upload", {
+    name: file.name,
+    mime: mimeOf(file),
+    data: await base64(file),
+    thread,
+  });
+  return { id: media.id, kind: media.kind, name: media.name, mime: media.mime, bytes: media.bytes };
+}
+
+/** Speech to text for the field; undefined (with a notice) when it could not be heard. */
+export async function transcribe(audio: Blob, thread: string): Promise<string | undefined> {
+  try {
+    const r = await client.call("media.transcribe", { data: await base64(audio), mime: audio.type, thread });
+    return r.text.trim();
+  } catch (e) {
+    notify(t("composer.dictationFailed", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+/** The chat's own model; null goes back to the agent's. */
+export async function setThreadModel(thread: string, choice: ModelChoice | null): Promise<void> {
+  try {
+    const r = await client.call("threads.model", { thread, model_choice: choice });
+    data.set((s) => {
+      const cur = s.threads[thread];
+      return cur ? { threads: { ...s.threads, [thread]: { ...cur, model_choice: r.model_choice } } } : {};
+    });
+  } catch (e) {
+    notify(t("error.changeModel", { error: errText(e) }));
+  }
+}

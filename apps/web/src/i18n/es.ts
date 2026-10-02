@@ -2,6 +2,7 @@
 
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
+import { esChat } from "./es-chat.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esTeam } from "./es-team.ts";
@@ -10,6 +11,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
   ...esTeam,
   ...esChannels,
+  ...esChat,
   ...esResources,
   // Palabras compartidas
   "common.agent": "Agente",
@@ -195,14 +197,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.theAgent": "El agente",
   "chat.agentWorking": "{name} está trabajando…",
   "chat.agentWaiting": "{name} te espera",
-  "composer.offline": "Sin conexión con el core…",
-  "composer.placeholder": "Escribile a {name}…",
-  "composer.yourAgent": "tu agente",
-  "composer.modelTitle": "Modelo de la última respuesta",
-  "composer.attach": "Adjuntar",
-  "composer.stop": "Detener",
-  "composer.send": "Enviar",
-  "composer.voice": "Voz",
   "tools.working": "Trabajando · acción {n}",
   "tools.summary": "Acciones 1–{n} de {n}",
   "tools.failed.one": "falló",
@@ -252,25 +246,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "panel.current": "Panel: {name}",
   "panel.terminalSoon": "La terminal llega con las sesiones de código.",
   "panel.filesSoon": "Acá vas a ver los archivos que cambió el agente en esta sesión.",
-  "usage.empty": "Sin consumo todavía",
-  "usage.emptyBody": "Cuando el agente responda, ves acá sus corridas y tiempos.",
-  "usage.billing": "Costo",
-  "usage.billing.included": "incluido en tu suscripción",
-  "usage.billing.metered": "se paga por token (API)",
-  "usage.model": "Modelo",
-  "usage.runs": "Corridas",
-  "usage.runsFailed": " · {n} fallaron",
-  "usage.agentTime": "Tiempo de agente",
-  "usage.tokens": "Tokens",
-  "usage.tokensValue": "{input} entrada · {output} salida",
-  "usage.noTokens": "sin datos del proveedor",
-  "usage.recent": "Últimas corridas",
-  "usage.state.submitted": "En cola",
-  "usage.state.working": "Trabajando",
-  "usage.state.waiting": "Te espera",
-  "usage.state.completed": "Lista",
-  "usage.state.failed": "Falló",
-  "usage.state.canceled": "Cancelada",
 
   // Navegador
   "browser.live": "En vivo",

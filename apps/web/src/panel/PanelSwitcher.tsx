@@ -4,13 +4,14 @@ import { go, useNav } from "../shell/nav.ts";
 import { PANELS, panelDef } from "./panels.tsx";
 
 /** Chat header control that picks the side panel: inline icons when wide, one dropdown when narrow. */
-export function PanelSwitcher({ wide }: { wide: boolean }) {
+export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skipUsage?: boolean }) {
   const t = useT();
   const panel = useNav((s) => s.panel);
+  const shown = skipUsage ? PANELS.filter((p) => p.id !== "usage") : PANELS;
   if (wide) {
     return (
       <div className="panelswitch">
-        {PANELS.map((p) => (
+        {shown.map((p) => (
           <IconButton
             key={p.id}
             size="sm"
@@ -28,7 +29,7 @@ export function PanelSwitcher({ wide }: { wide: boolean }) {
     <Menu
       align="end"
       items={[
-        ...PANELS.map((p) => ({
+        ...shown.map((p) => ({
           label: t(p.label),
           icon: p.icon(14),
           onSelect: () => go.panel(p.id),

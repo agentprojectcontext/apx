@@ -1,0 +1,212 @@
+/* ── Chat composer: toolbar, attachments, context chip ────────────────────── */
+.chat__composer.is-dropping .apx-composer {
+  outline: 2px dashed var(--apx-accent);
+  outline-offset: 2px;
+}
+
+.composer__model {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-pill);
+  background: none;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.composer__model:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.composer__model.is-own {
+  color: var(--apx-fg);
+}
+.composer__model .selectbtn__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Outgrows the Composer's own spacer so the context chip sits next to the mic and send. */
+.composer__spacer {
+  flex: 99;
+}
+
+.composer__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: none;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.composer__toggle:hover {
+  background: var(--apx-fill-hover);
+}
+.composer__toggle.is-on {
+  border-color: var(--apx-danger);
+  color: var(--apx-danger);
+}
+
+.composer__mic.is-recording {
+  color: var(--apx-danger);
+  animation: composer-rec 1.2s ease-in-out infinite;
+}
+.composer__mic.is-transcribing svg {
+  animation: composer-spin 1s linear infinite;
+}
+@keyframes composer-rec {
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes composer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* "38k / 200k" with its ring */
+.ctxchip {
+  display: inline-flex;
+  flex: none;
+  white-space: nowrap;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--apx-radius-pill);
+  background: none;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.ctxchip:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.ctxchip__track {
+  fill: none;
+  stroke: var(--apx-border);
+  stroke-width: 2.5;
+}
+.ctxchip__fill {
+  fill: none;
+  stroke: var(--apx-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.ctxchip.is-full .ctxchip__fill {
+  stroke: var(--apx-warning);
+}
+
+/* Attachments waiting above the field */
+.attchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 8px 0;
+  list-style: none;
+}
+.attchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  height: 36px;
+  padding: 0 2px 0 4px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  font-size: var(--apx-text-xs);
+}
+.attchip.is-loading {
+  color: var(--apx-fg-muted);
+}
+.attchip.is-error {
+  border-color: var(--apx-danger);
+  color: var(--apx-danger);
+}
+.attchip__thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.attchip__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--apx-fill);
+}
+.attchip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attchip__spin {
+  flex: none;
+  animation: composer-spin 1s linear infinite;
+}
+
+/* Files in a sent message */
+.transcript__files {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+.transcript__files .imagepart img {
+  max-width: 220px;
+  max-height: 160px;
+}
+.filepart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.filepart:hover {
+  background: var(--apx-fill-hover);
+}
+.filepart__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filepart__size {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+
+@media (max-width: 640px) {
+  .composer__togglelabel {
+    display: none;
+  }
+  .composer__model {
+    max-width: 120px;
+  }
+}

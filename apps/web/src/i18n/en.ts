@@ -1,4 +1,5 @@
 import { enChannels } from "./en-channels.ts";
+import { enChat } from "./en-chat.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enTeam } from "./en-team.ts";
@@ -8,6 +9,7 @@ export const en = {
   ...enOffice,
   ...enTeam,
   ...enChannels,
+  ...enChat,
   ...enResources,
   // Shared words
   "common.agent": "Agent",
@@ -192,14 +194,6 @@ export const en = {
   "chat.theAgent": "The agent",
   "chat.agentWorking": "{name} is working…",
   "chat.agentWaiting": "{name} is waiting for you",
-  "composer.offline": "No connection to the core…",
-  "composer.placeholder": "Message {name}…",
-  "composer.yourAgent": "your agent",
-  "composer.modelTitle": "Model of the last reply",
-  "composer.attach": "Attach",
-  "composer.stop": "Stop",
-  "composer.send": "Send",
-  "composer.voice": "Voice",
   "tools.working": "Working · action {n}",
   "tools.summary": "Actions 1–{n} of {n}",
   "tools.failed.one": "failed",
@@ -249,25 +243,6 @@ export const en = {
   "panel.current": "Panel: {name}",
   "panel.terminalSoon": "The terminal arrives with code sessions.",
   "panel.filesSoon": "Here you'll see the files the agent changed in this session.",
-  "usage.empty": "No usage yet",
-  "usage.emptyBody": "When the agent answers, you'll see its runs and times here.",
-  "usage.billing": "Billing",
-  "usage.billing.included": "included in your subscription",
-  "usage.billing.metered": "paid per token (API)",
-  "usage.model": "Model",
-  "usage.runs": "Runs",
-  "usage.runsFailed": " · {n} failed",
-  "usage.agentTime": "Agent time",
-  "usage.tokens": "Tokens",
-  "usage.tokensValue": "{input} in · {output} out",
-  "usage.noTokens": "no data from the provider",
-  "usage.recent": "Latest runs",
-  "usage.state.submitted": "Queued",
-  "usage.state.working": "Working",
-  "usage.state.waiting": "Waiting for you",
-  "usage.state.completed": "Done",
-  "usage.state.failed": "Failed",
-  "usage.state.canceled": "Canceled",
 
   // Browser
   "browser.live": "Live",

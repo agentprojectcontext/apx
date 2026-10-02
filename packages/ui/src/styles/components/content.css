@@ -161,6 +161,10 @@
   background: var(--apx-accent);
   color: var(--apx-accent-fg);
 }
+.apx-composer__send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .apx-composer__send:hover:not(:disabled) {
   background: var(--apx-accent-hover);
 }

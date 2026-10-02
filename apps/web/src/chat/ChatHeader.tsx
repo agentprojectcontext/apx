@@ -98,7 +98,8 @@ export function ChatHeader({
           />
         )}
         <span className="chat__toolsdiv" />
-        <PanelSwitcher wide={wide} />
+        {/* Usage opens from the composer's context chip; read-only chats have no composer, so it stays here. */}
+        <PanelSwitcher wide={wide} skipUsage={!sub} />
       </div>
     </header>
   );

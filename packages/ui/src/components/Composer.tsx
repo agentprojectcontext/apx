@@ -21,8 +21,10 @@ export interface ComposerProps {
   onValueChange?: (value: string) => void;
   /** Enter sends, Shift+Enter adds a line. */
   onSubmit?: (value: string) => void;
-  /** Called by the mic button (shown while the field is empty). */
+  /** Called by the mic button (shown while the field is empty). Omit it to keep a (disabled) send button there. */
   onVoice?: () => void;
+  /** Something besides text can be sent (attachments): send works with an empty field. */
+  ready?: boolean;
   /** Called by the + button (attach files, insert skill). Omit to hide it. */
   onAttach?: () => void;
   /** Row of controls under the text (model picker, send mode). Present = the tall "box" layout. */
@@ -48,6 +50,7 @@ export function Composer({
   onValueChange,
   onSubmit,
   onVoice,
+  ready = false,
   onAttach,
   toolbar,
   header,
@@ -63,8 +66,9 @@ export function Composer({
     setInner(v);
     onValueChange?.(v);
   };
+  const canSend = Boolean(text.trim()) || ready;
   const submit = () => {
-    if (!text.trim()) return;
+    if (!canSend) return;
     onSubmit?.(text);
     if (value == null) setInner("");
   };
@@ -84,8 +88,14 @@ export function Composer({
     <button type="button" className="apx-composer__send" aria-label={l.stop} onClick={onStop}>
       <Square size={12} fill="currentColor" />
     </button>
-  ) : text.trim() ? (
-    <button type="button" className="apx-composer__send" aria-label={l.send} onClick={submit} disabled={disabled}>
+  ) : canSend || !onVoice ? (
+    <button
+      type="button"
+      className="apx-composer__send"
+      aria-label={l.send}
+      onClick={submit}
+      disabled={disabled || !canSend}
+    >
       <ArrowUp size={16} strokeWidth={2.5} />
     </button>
   ) : (

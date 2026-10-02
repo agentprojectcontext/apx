@@ -1,7 +1,8 @@
 // Every write the panel makes. Components call these; they never call the client directly.
-import type { Message, Thread } from "@apx/protocol";
+import type { Message, Part, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
+import type { Attached } from "./composer.ts";
 import { loadEngines } from "./engines.ts";
 import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
@@ -77,8 +78,16 @@ export async function refetchLoaded(): Promise<void> {
   await Promise.all(ids.map((id) => loadThread(id)));
 }
 
-/** Sends the owner's text. While the agent works, it goes into the running turn (steer) when that turn can take it. */
-export async function send(threadId: string, text: string): Promise<void> {
+/**
+ * Sends the owner's text, with any attached files. While the agent works, it goes into the running turn (steer) when
+ * that turn can take it, or stops it first (`interrupt`).
+ */
+export async function send(
+  threadId: string,
+  text: string,
+  opts: { attachments?: Attached[]; interrupt?: boolean } = {},
+): Promise<void> {
+  const files = opts.attachments ?? [];
   const list = data.get().messages[threadId] ?? [];
   const busy = data.get().threads[threadId]?.state === "working";
   const local: Message = {
@@ -86,7 +95,7 @@ export async function send(threadId: string, text: string): Promise<void> {
     thread_id: threadId,
     seq: (list[list.length - 1]?.seq ?? 0) + 0.5,
     author: { kind: "user" },
-    parts: [{ type: "text", text }],
+    parts: [{ type: "text", text }, ...files.map(attachedPart)],
     created_at: new Date().toISOString(),
   };
   data.set((s) => ({
@@ -94,7 +103,12 @@ export async function send(threadId: string, text: string): Promise<void> {
     threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
   }));
   try {
-    const r = await client.call("threads.send", { thread: threadId, text, mode: busy ? "steer" : "queue" });
+    const r = await client.call("threads.send", {
+      thread: threadId,
+      text,
+      mode: busy ? (opts.interrupt ? "interrupt" : "steer") : "queue",
+      ...(files.length ? { attachments: files.map((f) => f.id) } : {}),
+    });
     data.set((s) => {
       const without = (s.messages[threadId] ?? []).filter((m) => m.id !== local.id);
       return {
@@ -221,6 +235,12 @@ export async function browserControl(tab: string, mode: "user" | "idle" | "done"
 export async function screenshot(tab: string): Promise<string> {
   const r = await client.call("browser.screenshot", { tab });
   return `data:${r.mime};base64,${r.data}`;
+}
+
+function attachedPart(f: Attached): Part {
+  return f.kind === "image"
+    ? { type: "image", media_id: f.id, mime: f.mime, alt: f.name }
+    : { type: "file", media_id: f.id, name: f.name, mime: f.mime, bytes: f.bytes };
 }
 
 function patchThread(threads: Record<string, Thread>, id: string, patch: Partial<Thread>): Record<string, Thread> {

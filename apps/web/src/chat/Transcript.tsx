@@ -7,6 +7,8 @@ import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
+import { FilePart } from "./parts/FilePart.tsx";
+import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
 
 const EMPTY: Msg[] = [];
@@ -83,6 +85,7 @@ export function Transcript({ thread }: { thread: Thread }) {
             {msg.author.kind === "user" ? (
               <Message from="user" className={msg.id.startsWith("local_") ? "is-pending" : undefined}>
                 <p className="transcript__usertext">{textOf(msg)}</p>
+                <UserFiles message={msg} />
               </Message>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
@@ -134,6 +137,23 @@ function SystemMessage({ message }: { message: Msg }) {
         <NoticePart key={i} part={p} />
       ))}
     </>
+  );
+}
+
+/** What the owner attached to a message: images as thumbnails, other files as named chips. */
+function UserFiles({ message }: { message: Msg }) {
+  const files = message.parts.filter((p) => p.type === "image" || p.type === "file");
+  if (!files.length) return null;
+  return (
+    <div className="transcript__files">
+      {files.map((p) =>
+        p.type === "image" ? (
+          <ImagePart key={p.media_id ?? p.url} part={p} />
+        ) : p.type === "file" ? (
+          <FilePart key={p.media_id} part={p} />
+        ) : null,
+      )}
+    </div>
   );
 }
 

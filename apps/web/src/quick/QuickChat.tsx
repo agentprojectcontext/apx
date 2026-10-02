@@ -1,6 +1,6 @@
 import { AgentAvatar, IconButton, Icons, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { ChatComposer } from "../chat/ChatComposer.tsx";
+import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
 import { createThread, loadThread, markRead } from "../data/actions.ts";
 import { blobOf, threadAgent } from "../data/identity.ts";

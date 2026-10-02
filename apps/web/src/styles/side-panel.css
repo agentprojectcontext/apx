@@ -196,6 +196,26 @@
   gap: 14px;
   padding: 16px;
 }
+.usage__context {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.usage__contexttext {
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg);
+}
+.usage__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.usage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-accent);
+}
 .usage__kv {
   margin: 0;
 }
