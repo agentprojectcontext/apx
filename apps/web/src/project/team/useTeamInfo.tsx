@@ -38,8 +38,8 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
 
   const counts = useMemo(() => {
     const chats = new Map<string, number>();
+    // Conversations only: a task's or a routine's thread is counted as that task or routine.
     for (const th of Object.values(threads))
-      // Conversations only: a task's or a routine's thread is counted as that task or routine.
       if (!th.parent_id && th.kind !== "a2a" && th.kind !== "task" && th.kind !== "routine")
         for (const id of th.agent_ids) chats.set(id, (chats.get(id) ?? 0) + 1);
     const open = new Map<string, number>();

@@ -61,7 +61,7 @@ export function AgentEditor({ agent, onClose }: { agent: Agent; onClose: () => v
           <Button variant="secondary" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button loading={saving} disabled={!d || !d.name.trim() || !changed.length} onClick={() => void save()}>
+          <Button loading={saving} disabled={!d?.name.trim() || !changed.length} onClick={() => void save()}>
             {t("common.save")}
           </Button>
         </>
