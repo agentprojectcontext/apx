@@ -22,7 +22,9 @@ export function codexHarness(opts: {
       try {
         const codex = new Codex({
           codexPathOverride: codexPath,
-          config: { mcp_servers: { apx: gate.command } },
+          // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate
+          // asks the owner itself when a tool needs it.
+          config: { mcp_servers: { apx: { ...gate.command, default_tools_approval_mode: "approve" } } },
           env: harnessEnv(),
         });
         // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto", and then its
