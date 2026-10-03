@@ -22,6 +22,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 
+// A newer panel replaced this page's lazy parts (an update, a rebuild): load it again instead of a blank screen. Not
+// twice in a few seconds: a panel that keeps failing shows its error.
+window.addEventListener("vite:preloadError", (e) => {
+  const key = "apx.preloadReload";
+  try {
+    if (Date.now() - Number(sessionStorage.getItem(key) ?? 0) < 10_000) return;
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {
+    return;
+  }
+  e.preventDefault();
+  window.location.reload();
+});
+
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
 createRoot(root).render(
