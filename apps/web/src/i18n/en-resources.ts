@@ -112,9 +112,9 @@ export const enResources = {
   "res.pairNewVar": "New variable…",
   "res.integrations.title": "Integrations are coming",
   "res.integrations.body":
-    "An integration is an account you connect once (Obsidian, GitHub, a calendar) that brings its MCP servers, variables and skill together, and that you assign to each project. Until then, use MCP and Variables.",
+    "An integration is an account you connect once that brings its MCP servers, variables and skill together. Until then, use MCP and Variables.",
   "res.varsNote":
-    "MCP servers, providers and channels name them as secret://NAME. On a Mac they live in the Keychain, never in a file an agent could read (elsewhere, in APX's home with 0600, a folder agents cannot open). Agents use them by name and never see a value; only you can, with the eye.",
+    "MCP servers, providers and channels use them as secret://NAME. They are stored out of agents' reach; agents use them by name and never see a value. Only you can, with the eye.",
   "res.noVariables": "No variables yet.",
   "res.varName": "Name",
   "res.varScope": "Scope",
@@ -158,7 +158,7 @@ export const enResources = {
   "res.noOwnMcp": "No servers of its own yet (.apc/mcps.json).",
   "ext.guide.title": "How is an extension made?",
   "ext.guide.what":
-    "An extension is a folder that brings several things in one piece: skills, MCP servers, the variables they need and routine templates. Installing it adds all of it at once; turning it off takes all of it away. Nothing in it runs until you turn it on.",
+    "An extension is a folder with skills, MCP servers, their variables and routine templates. It installs and turns off as one piece; nothing runs until you turn it on.",
   "ext.guide.folder": "The folder",
   "ext.guide.parts": "What it can bring",
   "ext.guide.skills": "Skills",
@@ -167,7 +167,7 @@ export const enResources = {
   "ext.guide.mcpBody":
     "a command (npx, uvx, ./a-script) or a URL; secret://name means a variable of the extension itself.",
   "ext.guide.secrets": "Variables",
-  "ext.guide.secretsBody": "what you type once (a token, an API key); kept in the Keychain.",
+  "ext.guide.secretsBody": "what you type once (a token, an API key); stored securely.",
   "ext.guide.routines": "Routines",
   "ext.guide.routinesBody": "templates you add to Routines; you pick the agent.",
   "ext.guide.plugin": "Plugin (optional)",
@@ -187,7 +187,7 @@ export const enResources = {
   "int.connectNew": "Connect a new one",
   "int.emptyTitle": "Nothing connected yet",
   "int.emptyBody":
-    "An integration is an account you connect once (GitHub, Notion, Slack…): it brings its MCP server and the variables it needs, and you choose the projects that use it.",
+    "An integration is an account you connect once: it brings its MCP server and variables, and you choose the projects that use it.",
   "int.noneHere": "No integration is connected yet. Connect them in Resources, outside a project.",
   "int.everywhere": "Every project",
   "int.inSome": "{n} of {total} projects",
@@ -205,7 +205,7 @@ export const enResources = {
   "int.accountTitle": "{name}: a new token",
   "int.connect": "Connect",
   "int.whereToGet": "Where to get it",
-  "int.formNote": "Tokens and keys go to the Keychain; agents use them through its server and never see them.",
+  "int.formNote": "Tokens and keys are stored securely; agents use them through its server and never see them.",
   "int.desc.github": "Repositories, issues and pull requests.",
   "int.desc.notion": "Pages and databases of your workspace.",
   "int.desc.slack": "Channels, messages and threads of your workspace.",

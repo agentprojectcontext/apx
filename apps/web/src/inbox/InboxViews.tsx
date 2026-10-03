@@ -1,7 +1,10 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, Icons, ProjectTile, Spinner, Tag } from "@apx/ui";
+import { AgentAvatar, EngineIcon, Icons, ProjectTile, Spinner, Tooltip } from "@apx/ui";
 import { useState } from "react";
+import { KindIcon } from "../channels/KindIcon.tsx";
+import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
+import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, DEFAULT_PID, isWorking, projectInitial, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -30,6 +33,9 @@ const BUCKET: Record<TimeBucket, MessageKey> = {
 export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: string | undefined }) {
   const t = useT();
   const agents = useData((s) => s.agents);
+  const threads = useData((s) => s.threads);
+  const engines = useData((s) => s.engines);
+  const engineLabel = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   return (
     <>
@@ -44,19 +50,34 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
             <span>{tree.name}</span>
           </div>
           {tree.agents.map((b) => {
-            const agent = agents[b.agentId];
+            const agent = b.engine ? undefined : agents[b.agentId];
             const key = `${tree.key}:${b.agentId}`;
             const all = open[key] ?? false;
             const shown = all ? b.threads : b.threads.slice(0, PER_AGENT);
+            // The super-agent's name opens Home (the chat in common); another agent's, its latest chat; an
+            // engine's, its sessions.
+            const openBranch = () =>
+              b.engine
+                ? go.engine(b.engine)
+                : agent?.kind === "secretary" && threads.home
+                  ? go.thread("home")
+                  : b.threads[0] && go.thread(b.threads[0].id);
             return (
               <div key={key} className="tree__agent">
-                <div className="tree__agenthead">
-                  <AgentAvatar name={agent?.name ?? b.agentId} blob={blobOf(agent)} size={20} animated={false} />
-                  <span className="tree__agentname">{agent?.name ?? b.agentId}</span>
-                  <span className="tree__agentmeta">
-                    {t(agent?.kind === "secretary" ? "agent.super" : "common.agent")} · {b.threads.length}
+                <button type="button" className="tree__agenthead" onClick={openBranch}>
+                  {b.engine ? (
+                    <EngineIcon engine={b.engine} tile size={20} />
+                  ) : (
+                    <AgentAvatar name={agent?.name ?? b.agentId} blob={blobOf(agent)} size={20} animated={false} />
+                  )}
+                  <span className="tree__agentname">
+                    {b.engine ? engineLabel(b.engine) : (agent?.name ?? b.agentId)}
                   </span>
-                </div>
+                  <span className="tree__agentmeta">
+                    {t(b.engine ? "nav.externalSession" : agent?.kind === "secretary" ? "agent.super" : "common.agent")}{" "}
+                    · {b.threads.length}
+                  </span>
+                </button>
                 <div className="tree__sessions">
                   {shown.map((th) => (
                     <SessionRow key={th.id} thread={th} agent={agent} selected={th.id === selected} />
@@ -90,8 +111,9 @@ function SessionRow({ thread, agent, selected }: { thread: Thread; agent: Agent 
     >
       {isWorking(thread.state) && <Spinner size={12} />}
       {thread.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
+      <ChannelMark thread={thread} />
       <span className="tree__sessiontitle">{chatLabel(thread, agent, t("chat.new"))}</span>
-      {thread.kind === "code" && <Tag>{t("thread.code")}</Tag>}
+      <CodeMark thread={thread} />
       {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
       <span className="tree__when">{shortWhen(thread.updated_at)}</span>
     </button>
@@ -117,7 +139,11 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
                 className={th.id === selected ? "activity__row is-selected" : "activity__row"}
                 onClick={() => go.thread(th.id)}
               >
-                <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                {th.engine ? (
+                  <EngineIcon engine={th.engine} tile size={28} />
+                ) : (
+                  <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                )}
                 <span className="activity__body">
                   <span className="activity__title">
                     {isWorking(th.state) && <Spinner size={12} />}
@@ -126,8 +152,8 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
                   </span>
                   <span className="activity__meta">
                     <ProjectTile tone={projectTone(th.project_id ?? DEFAULT_PID)} size={10} />
-                    {projectName(projects, th.project_id)} · {agent?.name ?? "—"}
-                    {th.kind === "code" ? ` · ${t("thread.code")}` : ""}
+                    {projectName(projects, th.project_id)} · <Where thread={th} agent={agent} />
+                    <CodeMark thread={th} />
                   </span>
                 </span>
                 <span className="activity__side">
@@ -140,5 +166,39 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
         </div>
       ))}
     </>
+  );
+}
+
+/** A chat that came in on a channel: that channel's logo before its name. */
+function ChannelMark({ thread }: { thread: Thread }) {
+  const via = thread.channel?.id ?? "";
+  return isChannelKind(via) ? <KindIcon kind={via} size={12} /> : null;
+}
+
+/** Who a chat is with, for its context line: the channel it runs on, the engine, or the agent. */
+function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
+  const t = useT();
+  const engine = useEngineLabel(thread.engine);
+  const via = thread.channel?.id ?? "";
+  if (isChannelKind(via))
+    return (
+      <span className="activity__via">
+        <KindIcon kind={via} size={10} /> {t("chat.viaChannel", { channel: t(CHANNEL_KINDS[via].name) })}
+      </span>
+    );
+  return <>{engine ?? agent?.name ?? "—"}</>;
+}
+
+/** A coding session (the agent works inside a folder: reads, edits, runs): a folder mark that says where. */
+function CodeMark({ thread }: { thread: Thread }) {
+  const t = useT();
+  if (thread.kind !== "code") return null;
+  const folder = thread.cwd?.split("/").filter(Boolean).at(-1) ?? "";
+  return (
+    <Tooltip content={t("thread.codeHint", { folder })}>
+      <span className="tree__code" role="img" aria-label={t("thread.code")}>
+        <Icons.FolderCode size={12} />
+      </span>
+    </Tooltip>
   );
 }

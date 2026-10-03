@@ -170,11 +170,10 @@ export const enOffice = {
   "routines.remove": "Remove",
   "routines.save": "Save",
   "routines.emptyTitle": "No routines yet",
-  "routines.empty": "A morning summary, a weekly check of the repo, a reminder: say what to do and when.",
+  "routines.empty": "Say what an agent should do and how often.",
   "routines.name": "Name",
   "routines.prompt": "What to do",
-  "routines.promptHint":
-    "What the agent should do each time (for example: check new issues and tell me which need me).",
+  "routines.promptHint": "What the agent should do each time.",
   "routines.pickAgent": "Pick an agent",
   "routines.when": "When",
   "routines.kind.cron": "On a schedule",
@@ -276,7 +275,7 @@ export const enOffice = {
   "error.clients": "Outside apps: {error}",
   "clients.title": "Outside apps",
   "clients.lead":
-    "Give Claude Code, Codex or another app its own token: it can ask your agents (chat) or use the APX browser (browser). It always acts as a model, never as you, and its text reaches agents as outside data.",
+    "Give another app its own token: it can talk to your agents (chat) or use the APX browser (browser). It acts as a model, never as you, and its text reaches agents as outside data.",
   "clients.name": "App name",
   "clients.namePlaceholder": "Claude Code",
   "clients.scope.chat": "Chat with agents",

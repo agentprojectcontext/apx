@@ -172,11 +172,10 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.remove": "Borrar",
   "routines.save": "Guardar",
   "routines.emptyTitle": "Todavía no hay rutinas",
-  "routines.empty": "Un resumen a la mañana, revisar el repo cada semana, un recordatorio: decí qué hacer y cuándo.",
+  "routines.empty": "Decí qué tiene que hacer un agente y cada cuánto.",
   "routines.name": "Nombre",
   "routines.prompt": "Qué hacer",
-  "routines.promptHint":
-    "Qué tiene que hacer el agente cada vez (por ejemplo: revisá los issues nuevos y decime cuáles me necesitan).",
+  "routines.promptHint": "Qué tiene que hacer el agente cada vez.",
   "routines.pickAgent": "Elegí un agente",
   "routines.when": "Cuándo",
   "routines.kind.cron": "Con horario",
@@ -278,7 +277,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "error.clients": "Apps externas: {error}",
   "clients.title": "Apps externas",
   "clients.lead":
-    "Dale a Claude Code, Codex u otra app su propio token: puede preguntarle a tus agentes (chat) o usar el navegador de APX (navegador). Siempre actúa como un modelo, nunca como vos, y lo que escribe les llega a los agentes como dato externo.",
+    "Dale a otra app su propio token: puede hablar con tus agentes (chat) o usar el navegador de APX (navegador). Actúa como un modelo, nunca como vos, y lo que escribe les llega a los agentes como dato externo.",
   "clients.name": "Nombre de la app",
   "clients.namePlaceholder": "Claude Code",
   "clients.scope.chat": "Chatear con agentes",

@@ -24,7 +24,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.phoneNone": "Todavía no está vinculado: hasta entonces, lo que le escribas a la línea es de un desconocido.",
   "ch.phoneAdd": "Agregar mi número",
   "ch.phoneAddHint":
-    "Con código de país, como +54 9 11 1234-5678. O escribile a la línea desde tu teléfono y tocá «Es mi número» en la lista de espera.",
+    "Con código de país. O escribile a la línea desde tu teléfono y tocá «Es mi número» en la lista de espera.",
   "ch.phoneAddButton": "Guardar",
   "ch.phoneRemove": "Quitar",
   "ch.waPhoneHome": "Tu teléfono — tus mensajes van a Home",

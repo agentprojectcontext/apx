@@ -115,9 +115,9 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.pairNewVar": "Crear nueva variable…",
   "res.integrations.title": "Las integraciones están en camino",
   "res.integrations.body":
-    "Una integración es una cuenta que conectás una vez (Obsidian, GitHub, un calendario) y que trae juntos sus MCP, variables y skill, para asignarla a cada proyecto. Mientras tanto, usá MCP y Variables.",
+    "Una integración es una cuenta que conectás una vez y que trae juntos sus MCP, variables y skill. Mientras tanto, usá MCP y Variables.",
   "res.varsNote":
-    "Los MCP, proveedores y canales las nombran como secret://NOMBRE. En la Mac viven en el Llavero, nunca en un archivo que un agente pueda leer (en otros sistemas, en el home de APX con 0600, una carpeta que los agentes no pueden abrir). Los agentes las usan por nombre y nunca ven el valor; solo vos, con el ojo.",
+    "Los MCP, proveedores y canales las usan como secret://NOMBRE. Se guardan fuera del alcance de los agentes, que las usan por nombre sin ver el valor. Solo vos lo ves, con el ojo.",
   "res.noVariables": "Todavía no hay variables.",
   "res.varName": "Nombre",
   "res.varScope": "Ámbito",
@@ -162,7 +162,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.noOwnMcp": "Todavía no tiene servidores propios (.apc/mcps.json).",
   "ext.guide.title": "¿Cómo se hace una extensión?",
   "ext.guide.what":
-    "Una extensión es una carpeta que trae varias cosas juntas: skills, servidores MCP, las variables que necesitan y plantillas de rutinas. Instalarla suma todo de una vez; apagarla lo saca todo junto. Nada de lo que trae corre hasta que la prendés.",
+    "Una extensión es una carpeta con skills, servidores MCP, sus variables y plantillas de rutinas. Se instala y se apaga todo junto; nada corre hasta que la prendés.",
   "ext.guide.folder": "La carpeta",
   "ext.guide.parts": "Qué puede traer",
   "ext.guide.skills": "Skills",
@@ -171,7 +171,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "ext.guide.mcpBody":
     "un comando (npx, uvx, ./un-script) o una URL; secret://nombre es una variable de la propia extensión.",
   "ext.guide.secrets": "Variables",
-  "ext.guide.secretsBody": "lo que escribís una vez (un token, una API key); queda en el Llavero.",
+  "ext.guide.secretsBody": "lo que escribís una vez (un token, una API key); se guarda de forma segura.",
   "ext.guide.routines": "Rutinas",
   "ext.guide.routinesBody": "plantillas que sumás a Rutinas; vos elegís el agente.",
   "ext.guide.plugin": "Plugin (opcional)",
@@ -191,7 +191,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.connectNew": "Conectar nueva",
   "int.emptyTitle": "Todavía no conectaste nada",
   "int.emptyBody":
-    "Una integración es una cuenta que conectás una vez (GitHub, Notion, Slack…): trae su servidor MCP y las variables que necesita, y elegís qué proyectos la usan.",
+    "Una integración es una cuenta que conectás una vez: trae su servidor MCP y sus variables, y elegís qué proyectos la usan.",
   "int.noneHere": "Todavía no hay integraciones conectadas. Se conectan en Recursos, fuera de un proyecto.",
   "int.everywhere": "Todos los proyectos",
   "int.inSome": "{n} de {total} proyectos",
@@ -209,7 +209,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.accountTitle": "{name}: un token nuevo",
   "int.connect": "Conectar",
   "int.whereToGet": "Dónde lo consigo",
-  "int.formNote": "Los tokens y claves van al Llavero; los agentes los usan a través de su servidor y nunca los ven.",
+  "int.formNote":
+    "Los tokens y claves se guardan de forma segura; los agentes los usan a través de su servidor y nunca los ven.",
   "int.desc.github": "Repositorios, issues y pull requests.",
   "int.desc.notion": "Páginas y bases de datos de tu workspace.",
   "int.desc.slack": "Canales, mensajes e hilos de tu workspace.",

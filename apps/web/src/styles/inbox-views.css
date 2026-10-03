@@ -26,7 +26,29 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 4px 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tree__agenthead:hover {
+  background: var(--apx-fill);
+}
+.tree__code {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.activity__via {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .tree__agentname {
   font-size: var(--apx-text-sm);

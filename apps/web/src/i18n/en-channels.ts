@@ -22,7 +22,7 @@ export const enChannels = {
   "ch.phoneNone": "Not linked yet: until then, what you write to the line is a stranger's.",
   "ch.phoneAdd": "Add my number",
   "ch.phoneAddHint":
-    "With the country code, like +1 555 010 0000. Or write to the line from your phone and tap “It's my number” on the waiting list.",
+    "With the country code. Or write to the line from your phone and tap “It's my number” on the waiting list.",
   "ch.phoneAddButton": "Save",
   "ch.phoneRemove": "Remove",
   "ch.waPhoneHome": "Your phone — your messages go to Home",

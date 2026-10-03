@@ -53,7 +53,8 @@ export function groupByProject(
   return out;
 }
 
-export type AgentBranch = { agentId: string; threads: Thread[] };
+/** One branch of the tree: an agent's chats, or (`engine`) an engine's own sessions, wherever they were started. */
+export type AgentBranch = { agentId: string; engine?: string | undefined; threads: Thread[] };
 export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
 
 /** Inbox organisation "b" (tree): project → agent → chats; busiest-recent first at every level. */
@@ -72,10 +73,11 @@ export function groupByAgent(
       tree = { key, project, name: project?.name ?? DEFAULT_PROJECT, agents: [] };
       trees.set(key, tree);
     }
-    const agentId = t.agent_ids[0] ?? "";
+    // A Claude Code or Codex session belongs to that engine, not to the agent that holds the thread.
+    const agentId = t.engine ? `engine:${t.engine}` : (t.agent_ids[0] ?? "");
     let branch = tree.agents.find((a) => a.agentId === agentId);
     if (!branch) {
-      branch = { agentId, threads: [] };
+      branch = { agentId, ...(t.engine ? { engine: t.engine } : {}), threads: [] };
       tree.agents.push(branch);
     }
     branch.threads.push(t);

@@ -79,7 +79,7 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
   transcription: [
     {
       id: "whispercpp",
-      label: "whisper.cpp (this Mac)",
+      label: "whisper.cpp (local)",
       dialect: "whisper-cpp",
       base_url: "http://127.0.0.1",
       needs_key: false,
@@ -88,7 +88,7 @@ const PRESETS: Record<ServiceKind, Preset[]> = {
     },
     {
       id: "whisper",
-      label: "Whisper (this Mac)",
+      label: "Whisper (local)",
       dialect: "whisper-local",
       base_url: "http://127.0.0.1:18765",
       needs_key: false,
