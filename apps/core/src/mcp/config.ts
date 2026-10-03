@@ -22,6 +22,8 @@ export type McpDef = {
   enabled: boolean;
   /** Folder a stdio server starts in (the project's). */
   cwd?: string | undefined;
+  /** One the owner added in APX (not a project's file nor an extension's): the owner can edit it. */
+  own?: boolean | undefined;
   /** Stable fingerprint of what would run: an approval is for this exact definition. */
   hash: string;
 };
@@ -120,7 +122,7 @@ export function mcpConfig(store: Store) {
       return [
         ...Object.entries(parse(store.settings.get("mcp_servers"))).flatMap(([n, r]) => {
           const d = toDef(n, r, { scope: "global" });
-          return d ? [d] : [];
+          return d ? [{ ...d, own: true }] : [];
         }),
         ...extensionDefs(store),
       ];

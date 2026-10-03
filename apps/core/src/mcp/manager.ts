@@ -57,11 +57,14 @@ export type McpStatus = {
   error?: string;
 };
 
+/** A stored secret named in a value, whole or inside text. */
+const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
+
 /** The stored secrets a definition names, in order, once each. */
 const secretNames = (d: McpDef): string[] => [
   ...new Set(
     [...Object.values(d.env), ...Object.values(d.headers), ...d.args, d.url ?? ""].flatMap((v) =>
-      [...v.matchAll(/secret:\/\/([a-zA-Z0-9_.-]+)/g)].map((m) => m[1] as string),
+      [...v.matchAll(SECRET_REF)].map((m) => m[1] as string),
     ),
   ),
 ];
@@ -83,9 +86,14 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   const conns = new Map<string, Conn>();
   const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
-  /** `secret://` values are resolved here, at start, and never written anywhere else. */
+  /**
+   * `secret://NAME` is resolved here, at start, and never written anywhere else: a whole value, or inside text
+   * ("Bearer secret://API_KEY"). A name with no value stays as written.
+   */
+  const resolveText = (v: string, valuesOf?: string) =>
+    deps.secrets.resolveIn(v, valuesOf) ?? v.replace(SECRET_REF, (ref) => deps.secrets.resolveIn(ref, valuesOf) ?? ref);
   const resolve = (values: Record<string, string>, valuesOf?: string) =>
-    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, deps.secrets.resolveIn(v, valuesOf) ?? v]));
+    Object.fromEntries(Object.entries(values).map(([k, v]) => [k, resolveText(v, valuesOf)]));
   /** An owner's server in a project with its own value for one of its variables runs as a copy of its own there. */
   const inProject = (d: McpDef, projectId: string | undefined): McpDef =>
     projectId && secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(projectId, n)}`))
@@ -107,7 +115,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         })
       : new StdioClientTransport({
           command: d.command ?? "",
-          args: d.args,
+          args: d.args.map((a) => resolveText(a, d.values_of)),
           // Only what the definition gives it, on top of an environment without credentials.
           env: { ...commandEnv(), ...resolve(d.env, d.values_of) },
           ...(d.cwd ? { cwd: d.cwd } : {}),
@@ -284,6 +292,17 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
             set: deps.secrets.resolveIn(`secret://${name}`, projectId) !== undefined,
           })),
           off_here: d.scope === "global" && offHere.has(d.name),
+          ...(d.own
+            ? {
+                definition: {
+                  ...(d.command ? { command: d.command } : {}),
+                  args: d.args,
+                  env: d.env,
+                  ...(d.url ? { url: d.url } : {}),
+                  headers: d.headers,
+                },
+              }
+            : {}),
           ...(live?.error ? { error: live.error } : {}),
         };
       });

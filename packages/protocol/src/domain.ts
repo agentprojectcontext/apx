@@ -644,6 +644,19 @@ export const McpServerStatus = z.object({
   vars: z.array(z.object({ name: z.string(), set: z.boolean() })).default([]),
   /** A global server turned off inside the project asked about. */
   off_here: z.boolean().default(false),
+  /**
+   * One the owner added in APX, as it is defined (values hold secret:// references, never the secrets), to edit it.
+   * Absent for a project's file and an extension's servers.
+   */
+  definition: z
+    .object({
+      command: z.string().optional(),
+      args: z.array(z.string()),
+      env: z.record(z.string(), z.string()),
+      url: z.string().optional(),
+      headers: z.record(z.string(), z.string()),
+    })
+    .optional(),
   error: z.string().optional(),
 });
 export type McpServerStatus = z.infer<typeof McpServerStatus>;

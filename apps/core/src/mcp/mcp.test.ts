@@ -83,6 +83,27 @@ test("the owner's own servers resolve secret:// at start and get no other creden
   assert.ok(!servers.find((s) => s.name === "mine")?.target.includes("s3cret"));
 });
 
+test("a secret inside text is resolved too, and the owner's server comes back as defined to be edited", async () => {
+  await env.client.call("mcp.set", {
+    name: "mine",
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "Bearer secret://notes" } },
+  });
+  assert.match(await turn("use token"), /token=Bearer s3cret leaked=no/);
+  const { servers } = await env.client.call("mcp.list", {});
+  const mine = servers.find((s) => s.name === "mine");
+  assert.deepEqual(mine?.definition?.env, { NOTES_TOKEN: "Bearer secret://notes" }, "the reference, not the value");
+  assert.deepEqual(mine?.vars, [{ name: "notes", set: true }]);
+  assert.equal(
+    servers.find((s) => s.name === "notes")?.definition,
+    undefined,
+    "a project's file is edited in the project",
+  );
+  await env.client.call("mcp.set", {
+    name: "mine",
+    server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
+  });
+});
+
 test("a project's own value reaches the owner's server only in that project's chats", async () => {
   await env.client.call("secrets.set", { name: "notes", value: "acme-only", project });
   assert.match(await turn("use token"), /token=acme-only leaked=no/);
