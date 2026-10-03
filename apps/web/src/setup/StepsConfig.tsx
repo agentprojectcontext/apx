@@ -1,11 +1,28 @@
-import { Badge, Button, EngineIcon, IconButton, Icons, Input, ProjectTile, Switch } from "@apx/ui";
+import type { CatalogEngine } from "@apx/protocol";
+import {
+  Badge,
+  Button,
+  EngineIcon,
+  IconButton,
+  Icons,
+  Input,
+  ProjectTile,
+  Select,
+  type SelectOption,
+  Spinner,
+  Switch,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
-import { saveChannel, useChannels } from "../data/channels.ts";
+import { KindTile } from "../channels/KindIcon.tsx";
+import type { ChannelKind } from "../channels/kinds.ts";
+import { QrCode } from "../common/QrCode.tsx";
+import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { loadEngines } from "../data/engines.ts";
+import { loadCatalog, splitRef, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { loadProviders, saveProvider, useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
-import { useData } from "../data/state.ts";
+import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { Draft, StepProps } from "./draft.ts";
 import { StepHead } from "./StepsIntro.tsx";
@@ -26,9 +43,11 @@ export function EnginesStep({ draft: d, set }: StepProps) {
   const t = useT();
   const cli = useData((s) => s.engines);
   const providers = useProviders((s) => s.list);
+  const catalog = useModels((s) => s.catalog);
   useEffect(() => {
     void loadProviders();
     void loadEngines(true);
+    void loadCatalog();
   }, []);
   const engines: Engine[] = [
     ...cli
@@ -49,9 +68,13 @@ export function EnginesStep({ draft: d, set }: StepProps) {
       installed: true,
     })),
   ];
-  const label = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
+  // A chain entry is an engine alone (its own default model) or one of its models ("gemini/gemini-3.6-flash").
+  const uses = (id: string) => d.chain.some((r) => splitRef(r).engine === id);
   const toggle = (id: string, on: boolean) =>
-    set({ chain: on ? [...d.chain.filter((x) => x !== id), id] : d.chain.filter((x) => x !== id) });
+    set({ chain: on ? [...d.chain, id] : d.chain.filter((r) => splitRef(r).engine !== id) });
+  const replace = (i: number, ref: string) =>
+    set({ chain: d.chain.map((r, j) => (j === i ? ref : r)).filter((r, j, all) => all.indexOf(r) === j) });
+  const drop = (i: number) => set({ chain: d.chain.filter((_, j) => j !== i) });
   const up = (i: number) => {
     if (i < 1) return;
     const c = [...d.chain];
@@ -70,7 +93,7 @@ export function EnginesStep({ draft: d, set }: StepProps) {
       </StepHead>
       <div className="wiz__engines">
         {engines.map((e) => (
-          <EngineCard key={e.id} engine={e} on={d.chain.includes(e.id)} onToggle={(on) => toggle(e.id, on)} />
+          <EngineCard key={e.id} engine={e} on={uses(e.id)} onToggle={(on) => toggle(e.id, on)} />
         ))}
       </div>
       <div className="wiz__card wiz__chain">
@@ -79,11 +102,18 @@ export function EnginesStep({ draft: d, set }: StepProps) {
           <span>{t("setup.engines.chainHint")}</span>
         </div>
         {d.chain.length === 0 && <p className="wiz__unset">{t("setup.engines.chainEmpty")}</p>}
-        {d.chain.map((id, i) => (
-          <div key={id} className="wiz__link">
+        {d.chain.map((ref, i) => (
+          <div key={ref} className="wiz__link">
             <span className="wiz__linkn">#{i + 1}</span>
-            <EngineIcon engine={id} size={14} />
-            <span className="wiz__linkname">{label(id)}</span>
+            <EngineIcon engine={splitRef(ref).engine} size={14} />
+            <Select
+              size="sm"
+              className="wiz__linkmodel"
+              label={t("setup.engines.model")}
+              value={ref}
+              options={modelOptions(ref, catalog, (engine) => t("models.engineDefault", { engine }))}
+              onValueChange={(v) => v && v !== ref && replace(i, v)}
+            />
             {i === 0 && <Badge tone="brand">{t("setup.engines.default")}</Badge>}
             <span className="wiz__spacer" />
             <IconButton
@@ -93,11 +123,35 @@ export function EnginesStep({ draft: d, set }: StepProps) {
               disabled={i === 0}
               onClick={() => up(i)}
             />
+            <IconButton
+              size="sm"
+              label={t("setup.engines.drop")}
+              icon={<Icons.X size={13} />}
+              onClick={() => drop(i)}
+            />
           </div>
         ))}
       </div>
     </>
   );
+}
+
+/** The models one chain entry can be: its engine's own default, then each chat model the engine offers. */
+function modelOptions(
+  ref: string,
+  catalog: readonly CatalogEngine[],
+  ownDefault: (engine: string) => string,
+): SelectOption[] {
+  const { engine } = splitRef(ref);
+  const e = catalog.find((x) => x.id === engine);
+  const options: SelectOption[] = [
+    { value: engine, label: ownDefault(e?.label ?? engine) },
+    ...(e?.models ?? [])
+      .filter((m) => m.chat)
+      .map((m) => ({ value: `${engine}/${m.id}`, label: m.name, ...(m.name !== m.id ? { hint: m.id } : {}) })),
+  ];
+  // A model the catalog does not list (yet) stays choosable as it is.
+  return options.some((o) => o.value === ref) ? options : [...options, { value: ref, label: ref }];
 }
 
 function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; onToggle(on: boolean): void }) {
@@ -231,21 +285,55 @@ export function MemoryStep({ draft: d, set }: StepProps) {
   );
 }
 
-const SOON: Array<{ name: string; line: MessageKey; body: MessageKey; icon: typeof Icons.Send }> = [
-  { name: "WHATSAPP", line: "setup.channels.whatsapp", body: "setup.channels.whatsappBody", icon: Icons.MessageCircle },
-  { name: "SLACK", line: "setup.channels.slack", body: "setup.channels.slackBody", icon: Icons.Hash },
-  { name: "DISCORD", line: "setup.channels.discord", body: "setup.channels.discordBody", icon: Icons.Users },
+const SOON: Array<{ kind: ChannelKind; line: MessageKey; body: MessageKey }> = [
+  { kind: "slack", line: "setup.channels.slack", body: "setup.channels.slackBody" },
+  { kind: "discord", line: "setup.channels.discord", body: "setup.channels.discordBody" },
 ];
 
-/** Telegram works now (a token and it is up); the rest are coming. */
+/** Telegram (a token and it is up) and WhatsApp (a QR from the phone) work now; the rest are coming. */
 export function ChannelsStep({ name }: { name: string }) {
+  const t = useT();
+  return (
+    <>
+      <StepHead
+        kicker="setup.channels.kicker"
+        title={t("setup.channels.title")}
+        end={t("setup.channels.titleGreen")}
+        green
+      >
+        {t("setup.channels.body", { name })}
+      </StepHead>
+      <div className="wiz__engines">
+        <TelegramCard />
+        <WhatsAppCard />
+        {SOON.map((c) => (
+          <div key={c.kind} className="wiz__engine is-soon">
+            <div className="wiz__enginehead">
+              <KindTile kind={c.kind} size={34} />
+              <span className="wiz__enginetitles">
+                <b className="is-mono">{c.kind.toUpperCase()}</b>
+                <span>{t(c.line)}</span>
+              </span>
+              <Badge>{t("setup.channels.soon")}</Badge>
+            </div>
+            <p className="wiz__enginebody">{t(c.body)}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+const secretaryOf = (agents: DataState["agents"]) => Object.values(agents).find((a) => a.kind === "secretary");
+
+function TelegramCard() {
   const t = useT();
   const agents = useData((s) => s.agents);
   const telegram = useChannels((s) => s.channels.find((c) => c.id === "telegram"));
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
-  const boss = Object.values(agents).find((a) => a.kind === "secretary");
   const connect = async () => {
+    const boss = secretaryOf(agents);
     if (!boss) return;
     setBusy(true);
     const ok = await saveChannel(
@@ -260,69 +348,116 @@ export function ChannelsStep({ name }: { name: string }) {
     }
   };
   return (
-    <>
-      <StepHead
-        kicker="setup.channels.kicker"
-        title={t("setup.channels.title")}
-        end={t("setup.channels.titleGreen")}
-        green
-      >
-        {t("setup.channels.body", { name })}
-      </StepHead>
-      <div className="wiz__engines">
-        <div className={`wiz__engine${telegram?.token_set ? " is-on" : ""}`}>
-          <div className="wiz__enginehead">
-            <ProjectTile tone="info" icon={<Icons.Send />} size={34} />
-            <span className="wiz__enginetitles">
-              <b className="is-mono">TELEGRAM</b>
-              <span>{t("setup.channels.telegram")}</span>
-            </span>
-            {telegram?.token_set && (
-              <Badge tone="brand" dot>
-                {telegram.account ?? t("setup.channels.connected")}
-              </Badge>
-            )}
-          </div>
-          <p className="wiz__enginebody">{t("setup.channels.telegramBody")}</p>
-          {!telegram?.token_set && (
-            <>
-              <div className="wiz__keyrow">
-                <Input
-                  type="password"
-                  autoComplete="off"
-                  aria-label={t("setup.channels.token")}
-                  placeholder="123456789:AA…"
-                  value={token}
-                  onChange={(e) => setToken(e.currentTarget.value)}
-                />
-                <Button
-                  size="sm"
-                  loading={busy}
-                  disabled={!/^\d+:[\w-]{20,}$/.test(token.trim())}
-                  onClick={() => void connect()}
-                >
-                  {t("setup.channels.connect")}
-                </Button>
-              </div>
-              <span className="wiz__hintline">{t("setup.channels.tokenHint")}</span>
-            </>
-          )}
-        </div>
-        {SOON.map((c) => (
-          <div key={c.name} className="wiz__engine is-soon">
-            <div className="wiz__enginehead">
-              <ProjectTile tone="violet" icon={<c.icon />} size={34} />
-              <span className="wiz__enginetitles">
-                <b className="is-mono">{c.name}</b>
-                <span>{t(c.line)}</span>
-              </span>
-              <Badge>{t("setup.channels.soon")}</Badge>
-            </div>
-            <p className="wiz__enginebody">{t(c.body)}</p>
-          </div>
-        ))}
+    <div className={`wiz__engine${telegram?.token_set ? " is-on" : ""}`}>
+      <div className="wiz__enginehead">
+        <KindTile kind="telegram" size={34} />
+        <span className="wiz__enginetitles">
+          <b className="is-mono">TELEGRAM</b>
+          <span>{t("setup.channels.telegram")}</span>
+        </span>
+        {telegram?.token_set && (
+          <Badge tone="brand" dot>
+            {telegram.account ?? t("setup.channels.connected")}
+          </Badge>
+        )}
       </div>
-    </>
+      <p className="wiz__enginebody">{t("setup.channels.telegramBody")}</p>
+      {!telegram?.token_set && (
+        <>
+          <div className="wiz__keyrow">
+            <Input
+              type="password"
+              autoComplete="off"
+              aria-label={t("setup.channels.token")}
+              placeholder="123456789:AA…"
+              value={token}
+              onChange={(e) => setToken(e.currentTarget.value)}
+            />
+            <Button
+              size="sm"
+              loading={busy}
+              disabled={!/^\d+:[\w-]{20,}$/.test(token.trim())}
+              onClick={() => void connect()}
+            >
+              {t("setup.channels.connect")}
+            </Button>
+          </div>
+          <span className="wiz__hintline">{t("setup.channels.tokenHint")}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** WhatsApp, linked from here: a QR to scan with the phone, then where to link the owner's own phone. */
+function WhatsAppCard() {
+  const t = useT();
+  const agents = useData((s) => s.agents);
+  const wa = useChannels((s) => s.channels.find((c) => c.id === "whatsapp"));
+  const [selfOwner, setSelfOwner] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const running = wa?.status === "running";
+  // While linking the QR changes every few seconds: read it often.
+  useEffect(() => {
+    if (!wa || running) return;
+    const id = setInterval(() => void loadChannels(), 1500);
+    return () => clearInterval(id);
+  }, [wa, running]);
+  const link = async () => {
+    const boss = secretaryOf(agents);
+    if (!boss) return;
+    setBusy(true);
+    await saveChannel("whatsapp", {
+      agent_id: boss.id,
+      enabled: true,
+      strangers: "ask",
+      concurrency: "queue",
+      owner_thread: "home",
+      self_owner: wa?.self_owner ?? selfOwner,
+    });
+    setBusy(false);
+  };
+  return (
+    <div className={`wiz__engine${running ? " is-on" : ""}`}>
+      <div className="wiz__enginehead">
+        <KindTile kind="whatsapp" size={34} />
+        <span className="wiz__enginetitles">
+          <b className="is-mono">WHATSAPP</b>
+          <span>{t("setup.channels.whatsapp")}</span>
+        </span>
+        {running && (
+          <Badge tone="brand" dot>
+            {wa.account ?? t("setup.channels.connected")}
+          </Badge>
+        )}
+      </div>
+      <p className="wiz__enginebody">{t("setup.channels.whatsappBody")}</p>
+      {running ? (
+        !wa.self_owner && <span className="wiz__hintline">{t("setup.channels.waPhone")}</span>
+      ) : wa?.qr ? (
+        <div className="wiz__qr">
+          <QrCode value={wa.qr} label={t("wa.scan")} size={180} />
+          <span className="wiz__hintline">{t("wa.step2")}</span>
+        </div>
+      ) : wa?.status === "starting" ? (
+        <span className="wiz__hintline">
+          <Spinner size={12} /> {t("wa.connecting")}
+        </span>
+      ) : (
+        <>
+          {wa?.error && <span className="wiz__hintline is-error">{wa.error}</span>}
+          <div className="wiz__inline">
+            <Switch size="sm" checked={selfOwner} onCheckedChange={setSelfOwner} aria-label={t("ch.selfOwner")} />
+            <span>{t("ch.selfOwner")}</span>
+          </div>
+          <div>
+            <Button size="sm" loading={busy} leadingIcon={<Icons.QrCode size={14} />} onClick={() => void link()}>
+              {wa ? t("wa.relink") : t("wa.link")}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

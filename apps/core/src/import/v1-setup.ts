@@ -21,6 +21,7 @@ import {
   v1SkillCount,
   v1Telegram,
   v1Vars,
+  v1WhatsApp,
 } from "./v1-data.ts";
 
 export const V1_GROUPS = [
@@ -58,6 +59,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
   const projects = v1Projects(home);
   const all = spaces(home);
   const tg = v1Telegram(home);
+  const wa = v1WhatsApp(home);
   const memory =
     v1Notes(path.join(home, "memory.md")).length +
     projects.reduce((n, p) => n + v1Notes(path.join(p.storage, "memory.md")).length, 0);
@@ -71,7 +73,11 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     { id: "keys", count: v1KeyCount(home) },
     { id: "vars", count: v1Vars(home).length },
     { id: "memory", count: memory },
-    { id: "channels", count: tg ? 1 : 0, ...(tg ? { detail: String(tg.contacts.length) } : {}) },
+    {
+      id: "channels",
+      count: (tg ? 1 : 0) + (wa ? 1 : 0),
+      ...(tg || wa ? { detail: String((tg?.contacts.length ?? 0) + (wa?.contacts.length ?? 0)) } : {}),
+    },
     { id: "tasks", count: all.reduce((n, s) => n + v1OpenTasks(s.storage).length, 0) },
     { id: "commitments", count: all.reduce((n, s) => n + v1OpenCommitments(s.storage).length, 0) },
     { id: "routines", count: all.reduce((n, s) => n + v1Routines(s.storage).length, 0) },
@@ -159,32 +165,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     return n;
   });
   run("channels", () => {
-    const tg = v1Telegram(home);
-    if (!tg || !secretary) return 0;
-    store.tx(() => {
-      if (tg.ownerId) store.persons.link(OWNER_ID, { channel: "telegram", external_id: tg.ownerId, label: "Telegram" });
-      for (const c of tg.contacts)
-        if (!store.persons.byAddress("telegram", c.id)) {
-          const p = store.persons.create({ name: c.name, role: "contact" });
-          store.persons.link(p.id, { channel: "telegram", external_id: c.id, label: c.name });
-        }
-    });
-    // A bot v2 already runs is the owner's current one: it stays.
-    if (!deps.channels.info().some((c) => c.id === "telegram" && c.token_set))
-      void deps.channels.set(
-        "telegram",
-        {
-          type: "telegram",
-          label: "Telegram",
-          agent_id: secretary.id,
-          enabled: true,
-          strangers: "pair",
-          concurrency: "queue",
-          owner_thread: "home",
-        },
-        tg.token,
-      );
-    return 1 + tg.contacts.length;
+    if (!secretary) return 0;
+    return importTelegram(deps, secretary.id) + importWhatsApp(deps, secretary.id);
   });
   const personFor = (name: string) => {
     const known = store.persons.list().find((p) => p.name.toLowerCase() === name.toLowerCase());
@@ -299,3 +281,75 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
 
 /** Whether v1's folder is there at all (a config.json). */
 export const hasV1 = (home: string) => fs.existsSync(path.join(home, "config.json"));
+
+/** v1's Telegram bot, the owner's chat on it and its contacts; a bot v2 already runs is the owner's current one. */
+function importTelegram(deps: V1ImportDeps, agentId: string): number {
+  const { store } = deps;
+  const tg = v1Telegram(deps.v1Home);
+  if (!tg) return 0;
+  store.tx(() => {
+    if (tg.ownerId) store.persons.link(OWNER_ID, { channel: "telegram", external_id: tg.ownerId, label: "Telegram" });
+    for (const c of tg.contacts)
+      if (!store.persons.byAddress("telegram", c.id)) {
+        const p = store.persons.create({ name: c.name, role: "contact" });
+        store.persons.link(p.id, { channel: "telegram", external_id: c.id, label: c.name });
+      }
+  });
+  if (!deps.channels.info().some((c) => c.id === "telegram" && c.token_set))
+    void deps.channels.set(
+      "telegram",
+      {
+        type: "telegram",
+        label: "Telegram",
+        agent_id: agentId,
+        enabled: true,
+        strangers: "pair",
+        concurrency: "queue",
+        owner_thread: "home",
+      },
+      tg.token,
+    );
+  return 1 + tg.contacts.length;
+}
+
+/**
+ * v1's WhatsApp: whose phone the line is, where the owner writes from, and every contact with who they are and what
+ * their chat may do. The device itself is linked again with a QR: v1's credentials stay v1's (one device used by
+ * two apps at once is cut off by WhatsApp).
+ */
+function importWhatsApp(deps: V1ImportDeps, agentId: string): number {
+  const { store } = deps;
+  const wa = v1WhatsApp(deps.v1Home);
+  if (!wa) return 0;
+  const label = "WhatsApp";
+  store.tx(() => {
+    store.persons.owner();
+    for (const a of wa.owner) store.persons.link(OWNER_ID, { channel: "whatsapp", external_id: a, label });
+    for (const c of wa.contacts) {
+      if (c.addresses.some((a) => store.persons.byAddress("whatsapp", a))) continue;
+      const p = store.persons.create({ name: c.name, role: "contact" });
+      store.persons.update(p.id, {
+        ...(c.nickname ? { nickname: c.nickname } : {}),
+        ...(c.relation ? { relation: c.relation } : {}),
+        ...(c.note ? { note: c.note } : {}),
+        ...(c.rules ? { rules: c.rules } : {}),
+        muted: c.muted,
+        perms: { requests: c.requests, notes: c.notes },
+      });
+      for (const a of c.addresses) store.persons.link(p.id, { channel: "whatsapp", external_id: a, label: c.name });
+    }
+  });
+  // v1 never answered a stranger: the owner hears who wrote and decides.
+  if (!deps.channels.info().some((c) => c.id === "whatsapp"))
+    void deps.channels.set("whatsapp", {
+      type: "whatsapp",
+      label,
+      agent_id: agentId,
+      enabled: true,
+      strangers: "ask",
+      concurrency: "queue",
+      owner_thread: "home",
+      self_owner: wa.selfOwner,
+    });
+  return 1 + wa.contacts.length;
+}

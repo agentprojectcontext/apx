@@ -18,13 +18,15 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await name.fill("Robina");
   await wizard.getByRole("button", { name: "Continuar" }).click();
 
-  // Engines: the fake model is already the chain's first.
+  // Engines: the fake model is already the chain's first, and each entry says which of its engine's models it is.
   await expect(wizard.getByText("custom/fake-1").first()).toBeVisible();
+  await expect(wizard.getByRole("combobox", { name: "Modelo" }).first()).toBeVisible();
   await wizard.getByRole("button", { name: "Continuar" }).click();
   // Memory: as it comes.
   await wizard.getByRole("button", { name: "Continuar" }).click();
 
-  // Channels: the emulated Telegram bot.
+  // Channels: WhatsApp links from here too (it is linked in 10-whatsapp); the emulated Telegram bot.
+  await expect(wizard.getByRole("button", { name: "Vincular" })).toBeVisible();
   const { token, repo } = await world.info();
   await wizard.getByRole("textbox", { name: "Token del bot" }).fill(token);
   await wizard.getByRole("button", { name: "Conectar" }).click();

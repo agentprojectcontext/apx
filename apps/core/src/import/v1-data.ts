@@ -2,6 +2,7 @@
 // Read-only: nothing here writes to v1's folder. Secrets are read only to be stored in v2's own secret store.
 import fs from "node:fs";
 import path from "node:path";
+import type { PersonRelation } from "@apx/protocol";
 
 const readJson = (file: string): unknown => {
   try {
@@ -235,6 +236,87 @@ export function v1Telegram(home: string): V1Telegram | undefined {
       return id && name && id !== String(owner) && o.role !== "owner" ? [{ id, name: name.slice(0, 80) }] : [];
     }),
   };
+}
+
+export type V1WhatsAppContact = {
+  name: string;
+  /** Every address v1 knew for them (their number and private ids), as WhatsApp ids. */
+  addresses: string[];
+  nickname?: string;
+  relation?: PersonRelation;
+  note?: string;
+  rules?: string;
+  /** v1 never answered them (a guest, or answers turned off for them). */
+  muted: boolean;
+  requests: boolean;
+  notes: boolean;
+};
+export type V1WhatsApp = {
+  /** The line is the owner's own phone. */
+  selfOwner: boolean;
+  /** Where the owner writes from (their phone's number and private ids). */
+  owner: string[];
+  contacts: V1WhatsAppContact[];
+};
+
+const RELATION: Record<string, PersonRelation> = {
+  partner: "partner",
+  family: "family",
+  child: "family",
+  friend: "friend",
+  colleague: "coworker",
+  business_partner: "associate",
+  client: "client",
+  supplier: "provider",
+  acquaintance: "other",
+  other: "other",
+};
+
+/** A WhatsApp id as v2 keys it: `user@domain`, without the device suffix; anything else is dropped. */
+const waId = (v: unknown): string | undefined => {
+  const s = str(v)?.toLowerCase();
+  const m = s ? /^(\d+)(?::\d+)?@(s\.whatsapp\.net|lid)$/.exec(s) : null;
+  return m ? `${m[1]}@${m[2]}` : undefined;
+};
+
+/** v1's WhatsApp: whether the line was the owner's phone, the owner's addresses and the roster with who each one is. */
+export function v1WhatsApp(home: string): V1WhatsApp | undefined {
+  const wa = obj(v1Config(home).whatsapp);
+  if (!Object.keys(wa).length) return undefined;
+  const selfOwner = wa.self_is_owner === true;
+  const owner = [
+    ...new Set(
+      [wa.owner_jid, ...list(wa.owner_alts), ...(selfOwner ? [wa.self_jid] : [])].flatMap((a) => waId(a) ?? []),
+    ),
+  ];
+  const contacts = list(wa.contacts).flatMap((c): V1WhatsAppContact[] => {
+    const o = obj(c);
+    const name = str(o.name) ?? str(o.nickname);
+    const addresses = [...new Set([o.jid, ...list(o.alts)].flatMap((a) => waId(a) ?? []))].filter(
+      (a) => !owner.includes(a),
+    );
+    if (!name || !addresses.length || o.role === "owner") return [];
+    const caps = obj(o.capabilities);
+    const facts = str(o.facts);
+    const rules = [str(o.rules), facts ? `What you may tell them: ${facts}` : undefined].filter(Boolean).join("\n\n");
+    const relation = RELATION[String(o.relationship ?? "")];
+    const nickname = str(o.nickname);
+    const note = str(o.bio);
+    return [
+      {
+        name: name.slice(0, 80),
+        addresses,
+        ...(nickname ? { nickname: nickname.slice(0, 40) } : {}),
+        ...(relation ? { relation } : {}),
+        ...(note ? { note: note.slice(0, 500) } : {}),
+        ...(rules ? { rules: rules.slice(0, 1000) } : {}),
+        muted: o.role === "guest" || o.auto_reply === false,
+        requests: caps.errands === true,
+        notes: caps.facts === true,
+      },
+    ];
+  });
+  return { selfOwner, owner, contacts };
 }
 
 /** v1's variables (~/.apx/vars.json): names and values, for v2's secret store. */

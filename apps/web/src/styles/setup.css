@@ -438,7 +438,25 @@ input.wiz__name {
   font-size: 13px;
 }
 .wiz__hintline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.wiz__hintline.is-error {
+  color: var(--apx-danger);
+}
+.wiz__qr {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wiz__inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-fg-muted);
   font-size: 12px;
 }
 .wiz__chain {
@@ -475,6 +493,10 @@ input.wiz__name {
 .wiz__linkname {
   font-family: var(--apx-font-mono);
   font-size: 12px;
+}
+.wiz__linkmodel {
+  min-width: 0;
+  max-width: 280px;
 }
 .wiz__default {
   color: var(--apx-fg-subtle);
