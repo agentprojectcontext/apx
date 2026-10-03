@@ -52,9 +52,9 @@ export type McpDraft = {
   enabled?: boolean;
 };
 
-/** Adds or replaces one of the owner's servers; null removes it. */
-export const setMcp = (name: string, server: McpDraft | null) =>
-  attempt(async () => (await client.call("mcp.set", { name, server })).servers);
+/** Adds or replaces one of the owner's servers (or, with `project`, one in its .apc/mcps.json); null removes it. */
+export const setMcp = (name: string, server: McpDraft | null, project?: string) =>
+  attempt(async () => (await client.call("mcp.set", { name, server, ...(project ? { project } : {}) })).servers);
 
 export const listSecrets = () => attempt(async () => (await client.call("secrets.list", {})).secrets);
 

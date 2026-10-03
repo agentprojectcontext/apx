@@ -37,6 +37,12 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   await expect(page.getByRole("button", { name: /^Vos Tu teléfono/ })).toBeVisible();
   await expect(page.getByText("Vinculá tu teléfono")).toBeHidden();
 
+  // The owner's chat on the channel opens a side panel like any chat.
+  await page.getByRole("button", { name: /^Vos Tu teléfono/ }).click();
+  await page.getByRole("button", { name: /Abrir panel lateral|Panel:/ }).click();
+  await page.getByRole("menuitem", { name: "Archivos" }).click();
+  await expect(page.getByRole("complementary", { name: "Panel lateral" })).toBeVisible();
+
   await world.whatsapp.message(ME, "Remind me to call the bank");
   await until(async () =>
     (await world.whatsapp.sentTo(ME.phone)).some((t) => t.includes("Got it: Remind me to call the bank")),

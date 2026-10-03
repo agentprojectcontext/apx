@@ -1,5 +1,5 @@
 import type { ExtensionInfo } from "@apx/protocol";
-import { Badge, Button, EmptyState, IconButton, Icons, Input, Switch } from "@apx/ui";
+import { Badge, Button, Dialog, EmptyState, IconButton, Icons, Input, Switch } from "@apx/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
@@ -177,6 +177,7 @@ function ExtensionCard({
 }) {
   const t = useT();
   const agents = useData((s) => s.agents);
+  const [editing, setEditing] = useState(false);
   const run = async (fn: () => Promise<unknown>) => {
     await call(fn);
     await onChanged();
@@ -196,15 +197,11 @@ function ExtensionCard({
   return (
     <div className={e.enabled ? "pcard extcard" : "pcard extcard is-off"}>
       <ExtensionSummary e={e} />
-      {e.secrets.map((s) => (
-        <SecretRow
-          key={s.name}
-          label={s.label}
-          set={s.set}
-          url={s.url}
-          onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
-        />
-      ))}
+      {e.secrets.some((s) => !s.set) && (
+        <Badge tone="warning" dot>
+          {t("ext.missingSecrets", { n: e.secrets.filter((s) => !s.set).length })}
+        </Badge>
+      )}
       {e.routines.map((r) => (
         <div key={r.name} className="tgtoken">
           <Icons.Clock size={14} />
@@ -224,6 +221,9 @@ function ExtensionCard({
           onCheckedChange={(on) => void run(() => client.call("extensions.enable", { id: e.id, enabled: on }))}
         />
         <span className="pcard__spacer" />
+        <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setEditing(true)}>
+          {t("res.edit")}
+        </Button>
         <IconButton
           size="sm"
           label={t("ext.remove")}
@@ -231,6 +231,43 @@ function ExtensionCard({
           onClick={() => void run(() => client.call("extensions.remove", { id: e.id }))}
         />
       </div>
+      {editing && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setEditing(false)}
+          title={t("res.editMcp", { name: e.name })}
+          footer={
+            <Button variant="secondary" onClick={() => setEditing(false)}>
+              {t("common.close")}
+            </Button>
+          }
+        >
+          <div className="pform">
+            {e.secrets.length > 0 && <span className="pform__label">{t("ext.secrets")}</span>}
+            {e.secrets.map((s) => (
+              <SecretRow
+                key={s.name}
+                label={s.label}
+                set={s.set}
+                url={s.url}
+                onSave={(value) => run(() => client.call("extensions.set_secret", { id: e.id, name: s.name, value }))}
+              />
+            ))}
+            <span className="pform__label">{t("ext.reload")}</span>
+            <p className="pform__hint">{t("ext.reloadHint", { folder: e.source })}</p>
+            <div>
+              <Button
+                size="sm"
+                variant="secondary"
+                leadingIcon={<Icons.RefreshCw size={14} />}
+                onClick={() => void run(() => client.call("extensions.install", { path: e.source }))}
+              >
+                {t("ext.reloadButton")}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

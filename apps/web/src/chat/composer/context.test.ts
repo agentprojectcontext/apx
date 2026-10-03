@@ -27,5 +27,9 @@ test("token counts are short: 950, 38k, 1.0M", () => {
 
 test("what a chat spent adds every run that reported tokens", () => {
   assert.equal(spentOf([run("a")]), undefined);
-  assert.equal(spentOf([run("b", { input: 1200, output: 300 }), run("a"), run("c", { input: 2, output: 3 })]), 1505);
+  assert.deepEqual(
+    spentOf([run("b", { input: 1200, output: 300 }), run("a"), run("c", { input: 2, output: 3 })]),
+    { input: 1202, output: 303 },
+    "read and written apart",
+  );
 });

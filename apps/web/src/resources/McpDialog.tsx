@@ -43,7 +43,7 @@ export function McpDialog(props: {
       kind === "command" ? { command: parts[0] ?? "", args: parts.slice(1), env: extra } : { url, headers: extra };
     // An edit keeps whether it was turned off.
     if (props.server && !props.server.enabled) server.enabled = false;
-    const r = await setMcp(name, server);
+    const r = await setMcp(name, server, props.server?.scope === "project" ? props.server.project_id : undefined);
     setBusy(false);
     if (r) props.onSaved(name);
   };
@@ -53,7 +53,9 @@ export function McpDialog(props: {
       size="lg"
       onOpenChange={(o) => !o && props.onClose()}
       title={props.server ? t("res.editMcp", { name: props.server.name }) : t("res.newMcp")}
-      description={props.server ? undefined : t("res.newMcp.lead")}
+      description={
+        props.server?.scope === "project" ? t("res.editProjectMcp") : props.server ? undefined : t("res.newMcp.lead")
+      }
       footer={
         <>
           <Button variant="secondary" onClick={props.onClose}>
@@ -111,6 +113,7 @@ export function McpDialog(props: {
         <div className="pform__field">
           <span className="pform__label">{kind === "command" ? t("res.env") : t("res.headers")}</span>
           <PairsEditor
+            vars={props.server?.scope !== "project"}
             keys={kind === "command" ? "env" : "headers"}
             label={kind === "command" ? t("res.env") : t("res.headers")}
             pairs={pairs}

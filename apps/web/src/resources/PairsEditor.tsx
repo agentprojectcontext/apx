@@ -2,6 +2,7 @@ import { Button, IconButton, Icons, Input, Popover, SearchField } from "@apx/ui"
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
+import { VarField, type VarFieldHandle } from "./VarField.tsx";
 import { toVarName, VariableDialog } from "./VariablesTab.tsx";
 
 export type Pair = { key: string; value: string };
@@ -20,25 +21,14 @@ export function PairsEditor(props: {
   /** `env`: keys become upper case with underscores; `headers`: keys as typed (`Authorization`). */
   keys: "env" | "headers";
   label: string;
+  /** false: no variables (a project's file never holds the owner's secrets). */
+  vars?: boolean;
 }) {
   const t = useT();
   const { pairs, onChange } = props;
   const rows = pairs.length ? pairs : [{ key: "", value: "" }];
-  const values = useRef<Array<HTMLInputElement | null>>([]);
+  const fields = useRef<Array<VarFieldHandle | null>>([]);
   const set = (i: number, p: Partial<Pair>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
-  /** A variable goes where the cursor was in the value (or replaces what was selected), next to any text. */
-  const insert = (i: number, name: string) => {
-    const input = values.current[i];
-    const value = rows[i]?.value ?? "";
-    const from = input?.selectionStart ?? value.length;
-    const to = input?.selectionEnd ?? from;
-    const ref = `secret://${name}`;
-    set(i, { value: value.slice(0, from) + ref + value.slice(to) });
-    requestAnimationFrame(() => {
-      input?.focus();
-      input?.setSelectionRange(from + ref.length, from + ref.length);
-    });
-  };
   return (
     <fieldset className="pairs" aria-label={props.label}>
       {rows.map((r, i) => (
@@ -53,17 +43,27 @@ export function PairsEditor(props: {
               set(i, { key: props.keys === "env" ? toVarName(e.currentTarget.value) : e.currentTarget.value })
             }
           />
-          <Input
-            ref={(el) => {
-              values.current[i] = el;
-            }}
-            aria-label={t("res.pairValue")}
-            className={`pairs__value${/^secret:\/\/[\w.-]+$/.test(r.value) ? " is-var" : ""}`}
-            value={r.value}
-            placeholder={t("res.pairValueHint")}
-            onChange={(e) => set(i, { value: e.currentTarget.value })}
-          />
-          <VarPicker onPick={(name) => insert(i, name)} />
+          {props.vars === false ? (
+            <Input
+              aria-label={t("res.pairValue")}
+              className="pairs__value"
+              value={r.value}
+              placeholder={t("res.pairValuePlain")}
+              onChange={(e) => set(i, { value: e.currentTarget.value })}
+            />
+          ) : (
+            <VarField
+              ref={(h) => {
+                fields.current[i] = h;
+              }}
+              label={t("res.pairValue")}
+              removeLabel={t("res.pairRemoveVar")}
+              placeholder={t("res.pairValueHint")}
+              value={r.value}
+              onChange={(value) => set(i, { value })}
+            />
+          )}
+          {props.vars !== false && <VarPicker onPick={(name) => fields.current[i]?.insert(name)} />}
           <IconButton
             size="sm"
             label={t("res.pairRemove")}

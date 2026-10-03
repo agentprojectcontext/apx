@@ -80,7 +80,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
             },
           ]
         : []),
-      ...(s.definition && !projectId
+      ...(s.definition && (s.scope === "project" || !projectId)
         ? [
             { type: "separator" as const },
             { label: t("res.remove"), icon: <Icons.Trash2 size={14} />, danger: true, onSelect: () => setRemoving(s) },
@@ -208,7 +208,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
                 onClick={() => {
                   const { name } = removing;
                   setRemoving(undefined);
-                  void setMcp(name, null).then(changed);
+                  void setMcp(name, null, removing.scope === "project" ? removing.project_id : undefined).then(changed);
                 }}
               >
                 {t("res.remove")}
@@ -216,7 +216,9 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
             </>
           }
         >
-          <p className="resd__note">{t("res.mcpRemoveBody")}</p>
+          <p className="resd__note">
+            {removing.scope === "project" ? t("res.mcpRemoveProjectBody") : t("res.mcpRemoveBody")}
+          </p>
         </Dialog>
       )}
       {newServer}

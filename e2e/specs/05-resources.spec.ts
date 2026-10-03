@@ -42,7 +42,9 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await expect(create.getByRole("textbox", { name: "Nombre" })).toHaveValue("NORTHWIND_TOKEN");
   await create.getByLabel("Valor").fill("nw-mcp-secret");
   await create.getByRole("button", { name: "Guardar" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Valor" })).toHaveValue("secret://NORTHWIND_TOKEN");
+  // A variable shows as a chip with its name only.
+  const first = dialog.getByRole("textbox", { name: "Valor" }).first();
+  await expect(first).toHaveText("NORTHWIND_TOKEN×");
 
   // A variable goes where the cursor is, next to text.
   await dialog.getByRole("button", { name: "Agregar fila" }).click();
@@ -50,14 +52,32 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await dialog.getByRole("textbox", { name: "Valor" }).nth(1).fill("Bearer ");
   await dialog.getByRole("button", { name: "Usar una variable" }).nth(1).click();
   await page.getByRole("option", { name: "NORTHWIND_API" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveValue("Bearer secret://NORTHWIND_API");
+  await expect(dialog.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveText("Bearer NORTHWIND_API×");
+  // A third row's variable is taken out with its ×.
+  await dialog.getByRole("button", { name: "Agregar fila" }).click();
+  await dialog.getByRole("textbox", { name: "Clave" }).nth(2).fill("SPARE");
+  await dialog.getByRole("button", { name: "Usar una variable" }).nth(2).click();
+  await page.getByRole("option", { name: "NORTHWIND_API" }).click();
+  await dialog.getByRole("button", { name: "Quitar NORTHWIND_API" }).nth(1).click();
+  await expect(dialog.getByRole("textbox", { name: "Valor" }).nth(2)).toHaveText("");
 
   await dialog.getByRole("button", { name: "Crear" }).click();
   await expect(dialog).toBeHidden();
   // The definition names its variables; the value stays in the secret store.
   const servers = (
-    await rpc<{ servers: Array<{ name: string; vars: Array<{ name: string; set: boolean }> }> }>("mcp.list")
+    await rpc<{
+      servers: Array<{
+        name: string;
+        vars: Array<{ name: string; set: boolean }>;
+        definition?: { env: Record<string, string> };
+      }>;
+    }>("mcp.list")
   ).servers;
+  expect(servers.find((s) => s.name === "northwind")?.definition?.env).toEqual({
+    API_TOKEN: "secret://NORTHWIND_TOKEN",
+    AUTH_HEADER: "Bearer secret://NORTHWIND_API",
+    SPARE: "",
+  });
   expect(servers.find((s) => s.name === "northwind")?.vars).toEqual(
     expect.arrayContaining([
       { name: "NORTHWIND_TOKEN", set: true },
@@ -71,7 +91,7 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Editar" }).click();
   const edit = page.getByRole("dialog", { name: "Editar northwind" });
-  await expect(edit.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveValue("Bearer secret://NORTHWIND_API");
+  await expect(edit.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveText("Bearer NORTHWIND_API×");
   await edit.getByRole("button", { name: "Cancelar" }).click();
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Quitar" }).click();

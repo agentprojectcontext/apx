@@ -150,7 +150,7 @@ export function McpDetail({
             {t("res.edit")}
           </Button>
         )}
-        {s.definition && !projectId && (
+        {s.definition && (s.scope === "project" || !projectId) && (
           <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={onRemove}>
             {t("res.remove")}
           </Button>

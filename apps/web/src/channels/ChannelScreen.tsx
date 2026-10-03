@@ -6,6 +6,7 @@ import { shortWhen } from "../common/format.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { SidePanel } from "../panel/SidePanel.tsx";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
@@ -165,12 +166,14 @@ export function ChannelScreen() {
 /** The owner's chat, opened right here (the same chat as in the Inbox), so the channel stays in view. */
 function OwnerChat({ threadId }: { threadId: string }) {
   const shown = useNav((s) => s.threadId);
+  const panel = useNav((s) => s.panel);
   useEffect(() => {
     if (shown !== threadId) nav.set({ threadId });
   }, [shown, threadId]);
   return (
     <div className="chan__owner">
       <ChatView wideHeader={false} />
+      {panel != null && <SidePanel />}
     </div>
   );
 }

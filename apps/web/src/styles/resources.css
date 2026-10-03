@@ -413,8 +413,64 @@
   align-items: center;
   gap: 6px;
 }
-.pairs__value.is-var input {
+/* A value with variables as chips: looks like a field, one line, scrolls sideways when long. */
+.varfield {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: var(--apx-control-h-md);
+  padding: 0 12px;
+  overflow-x: auto;
+  border: 1px solid var(--apx-input-border);
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-input-bg);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-md);
+  white-space: pre;
+  outline: 0;
+  scrollbar-width: none;
+}
+.varfield:focus {
+  border-color: var(--apx-border-strong);
+  box-shadow: 0 0 0 3px var(--apx-ring);
+  background: var(--apx-surface);
+}
+.varfield:empty::before {
+  content: attr(data-placeholder);
+  color: var(--apx-fg-subtle);
+  pointer-events: none;
+}
+.varchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 1px 2px 1px 7px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-brand-soft);
   color: var(--apx-brand-soft-fg);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  line-height: 18px;
+  user-select: none;
+}
+.varchip__x {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.varchip__x:hover {
+  background: color-mix(in srgb, currentColor 18%, transparent);
 }
 .varpick {
   display: flex;

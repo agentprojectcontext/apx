@@ -62,6 +62,8 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
   const projects = useMemo(() => all.filter((p) => p.path), [all]);
   const [list, setList] = useState<Integration[]>();
   const [picked, setPicked] = useState<string>();
+  /** "Edit" from the list's menu: the detail opens with its form (a new number opens it again). */
+  const [editing, setEditing] = useState(0);
   const load = useCallback(async () => {
     try {
       setList((await client.call("integrations.list", {})).integrations);
@@ -171,6 +173,14 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
                 key={i.id}
                 items={[
                   { label: t("res.open"), icon: <Icons.PanelRight size={14} />, onSelect: () => setPicked(i.id) },
+                  {
+                    label: t("res.edit"),
+                    icon: <Icons.Pencil size={14} />,
+                    onSelect: () => {
+                      setPicked(i.id);
+                      setEditing(Date.now());
+                    },
+                  },
                   { type: "separator" },
                   {
                     label: t("int.disconnect"),
@@ -202,7 +212,16 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
           </>
         }
         detail={
-          current ? <IntegrationDetail i={current} projects={projects} onToggle={toggle} onChanged={load} /> : undefined
+          current ? (
+            <IntegrationDetail
+              key={`${current.id}:${editing}`}
+              i={current}
+              projects={projects}
+              onToggle={toggle}
+              onChanged={load}
+              editing={editing > 0}
+            />
+          ) : undefined
         }
         empty={
           <EmptyState variant="dashed" icon={<Icons.Plug />} title={t("int.emptyTitle")}>
@@ -225,15 +244,17 @@ function IntegrationDetail({
   projects,
   onToggle,
   onChanged,
+  editing = false,
 }: {
   i: Integration;
   projects: Array<{ id: string; name: string }>;
   onToggle(id: string, project: string, on: boolean): Promise<void>;
   onChanged(): Promise<void>;
+  editing?: boolean;
 }) {
   const t = useT();
   const [mode, setMode] = useState<"all" | "chosen">(i.off_in.length ? "chosen" : "all");
-  const [account, setAccount] = useState(false);
+  const [account, setAccount] = useState(editing);
   const [busy, setBusy] = useState(false);
   useEffect(() => setMode(i.off_in.length ? "chosen" : "all"), [i.off_in.length]);
   const everywhere = async () => {
@@ -261,8 +282,8 @@ function IntegrationDetail({
             {t("int.connectedAs")} · {where(i, projects.length, t)}
           </span>
         </span>
-        <Button size="sm" variant="secondary" onClick={() => setAccount(true)}>
-          {t("int.account")}
+        <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setAccount(true)}>
+          {t("res.edit")}
         </Button>
         <Button size="sm" variant="ghost" loading={busy} onClick={() => void disconnect()}>
           {t("int.disconnect")}
@@ -314,7 +335,7 @@ function IntegrationDetail({
       {account && (
         <ConnectForm
           i={i}
-          title={t("int.accountTitle", { name: i.label })}
+          title={t("res.editMcp", { name: i.label })}
           onClose={() => setAccount(false)}
           onDone={async () => {
             setAccount(false);
@@ -386,9 +407,12 @@ function ConnectForm({
   onDone(): Promise<void>;
 }) {
   const t = useT();
-  const [values, setValues] = useState<Record<string, string>>({});
+  // Editing a connected one: plain fields start as they are; a secret left empty keeps the stored one.
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(i.fields.flatMap((f) => (f.value ? [[f.name, f.value]] : []))),
+  );
   const [busy, setBusy] = useState(false);
-  const ok = i.fields.every((f) => values[f.name]?.trim());
+  const ok = i.fields.every((f) => values[f.name]?.trim() || (i.connected && f.set));
   const save = async () => {
     setBusy(true);
     try {
@@ -411,7 +435,7 @@ function ConnectForm({
             {t("common.cancel")}
           </Button>
           <Button disabled={!ok} loading={busy} onClick={() => void save()}>
-            {t("int.connect")}
+            {i.connected ? t("common.save") : t("int.connect")}
           </Button>
         </>
       }
@@ -435,7 +459,7 @@ function ConnectForm({
                 id={id}
                 type={f.secret ? "password" : "text"}
                 autoComplete="off"
-                placeholder={f.placeholder}
+                placeholder={i.connected && f.set ? t("int.keepSecret") : f.placeholder}
                 value={values[f.name] ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.currentTarget.value }))}
               />
