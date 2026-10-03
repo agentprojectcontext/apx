@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import type { HarnessId } from "@apx/protocol";
+import { type HarnessId, TabInfo } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { createChannels } from "./channels/manager.ts";
@@ -85,8 +85,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const broker = createNodeBroker();
   broker.onEvent((_node, event) => {
-    if (event.type === "tabs.changed")
-      bus.emit({ type: "browser.tabs", tabs: (event.payload as { tabs: unknown[] }).tabs ?? [] });
+    if (event.type !== "tabs.changed") return;
+    // A node's tabs are checked here, once: operators trust what the core pushes.
+    const raw = (event.payload as { tabs?: unknown[] }).tabs ?? [];
+    const tabs = raw.flatMap((t) => {
+      const r = TabInfo.safeParse(t);
+      return r.success ? [r.data] : [];
+    });
+    bus.emit({ type: "browser.tabs", tabs });
   });
 
   let selfUrl = "";

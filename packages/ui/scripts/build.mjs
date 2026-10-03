@@ -1,7 +1,7 @@
 // Build @apx/ui: ESM bundle (deps external) + .d.ts tree + one stylesheet.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { build } from "esbuild";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
@@ -20,6 +20,9 @@ await build({
   external: [...Object.keys(pkg.peerDependencies ?? {}), ...Object.keys(pkg.dependencies ?? {}), "react/jsx-runtime"],
   logLevel: "warning",
 });
+
+// Blob bodies are named by `new URL("./bodies/…", import.meta.url)`: the same path from src/blobs and from dist.
+cpSync("src/blobs/bodies", "dist/bodies", { recursive: true });
 
 execFileSync("node_modules/.bin/tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], { stdio: "inherit" });
 

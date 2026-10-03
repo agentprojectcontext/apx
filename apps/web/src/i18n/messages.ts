@@ -1,11 +1,22 @@
-// Languages the panel speaks. English is the source; a missing translation falls back to it key by key.
-import { en, type MessageKey } from "./en.ts";
-import { es } from "./es.ts";
+// Languages the panel speaks. English is the source; each language is its own chunk, loaded when chosen, so the
+// panel downloads and keeps only the one on screen. Every language holds every key (messages.test.ts).
+import type { MessageKey } from "./en.ts";
 
-export { en, type MessageKey };
+export type { MessageKey };
 
-export const LANGUAGES = { en, es } as const;
-export type Language = keyof typeof LANGUAGES;
+export type Language = "en" | "es";
+export type Messages = Partial<Record<MessageKey, string>>;
+
+export const LANGUAGES: readonly Language[] = ["en", "es"];
+
+const LOADERS: Record<Language, () => Promise<Messages>> = {
+  en: () => import("./en.ts").then((m) => m.en),
+  es: () => import("./es.ts").then((m) => m.es),
+};
+
+export function loadMessages(lang: Language): Promise<Messages> {
+  return LOADERS[lang]();
+}
 
 /** Each language named in itself, for the pickers. */
 export const LANGUAGE_NAMES: Record<Language, string> = { en: "English", es: "Español" };
@@ -14,7 +25,7 @@ export const LANGUAGE_NAMES: Record<Language, string> = { en: "English", es: "Es
 export const LOCALES: Record<Language, string> = { en: "en-US", es: "es-AR" };
 
 export function isLanguage(v: unknown): v is Language {
-  return typeof v === "string" && Object.hasOwn(LANGUAGES, v);
+  return typeof v === "string" && (LANGUAGES as readonly string[]).includes(v);
 }
 
 export function defaultLanguage(): Language {

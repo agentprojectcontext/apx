@@ -1,15 +1,11 @@
 // Client SDK used by terminal, web, desktop, mobile and nodes. Uses only web-standard
 // fetch/WebSocket so the same file runs in Node 24, browsers, Electron and React Native.
-import {
-  type Actor,
-  type ApxErrorShape,
-  type ClientRole,
-  type EventFrame,
-  PROTOCOL_VERSION,
-  ServerFrame,
-  type WelcomeFrame,
-} from "./frames.ts";
-import { type MethodName, methods, type Params, type Result } from "./methods.ts";
+// It holds no zod: the core validates params and results, so a browser never downloads the schema registry.
+import { PROTOCOL_VERSION } from "./constants.ts";
+import type { Actor, ApxErrorShape, ClientRole, EventFrame, ServerFrame, WelcomeFrame } from "./frames.ts";
+import type { MethodName, Params, Result } from "./methods.ts";
+
+export { ErrorCode, PERSON_RELATIONS, PROTOCOL_VERSION, UPLOAD_LIMITS } from "./constants.ts";
 
 export class ApxError extends Error {
   readonly code: ApxErrorShape["code"];
@@ -78,8 +74,8 @@ export class ApxClient {
     if (this.#opts.token) headers.authorization = `Bearer ${this.#opts.token}`;
     if (this.#opts.actor === "agent") headers["x-apx-actor"] = "agent";
     if (this.#opts.clientToken) headers["x-apx-client"] = this.#opts.clientToken;
-    const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
-    if (key) headers["idempotency-key"] = key;
+    // Every call carries a key: the core uses it only for methods with effects, so the client needs no registry.
+    headers["idempotency-key"] = idem ?? crypto.randomUUID();
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
       method: "POST",
       headers,
@@ -90,7 +86,7 @@ export class ApxClient {
     if (!body.ok || body.error) {
       throw new ApxError(body.error ?? { code: "internal", message: `HTTP ${res.status}` });
     }
-    return methods[method].result.parse(body.result) as Result<M>;
+    return body.result as Result<M>;
   }
 
   /** Opens a live socket (hello → welcome), then req/res + events over one connection. */
@@ -107,6 +103,18 @@ export class ApxClient {
       actor: this.#opts.actor,
     });
     return socket;
+  }
+}
+
+const FRAME_TYPES = new Set(["welcome", "req", "res", "event"]);
+
+/** The frame's kind is checked, not its whole shape: the core is the side that validates. */
+function parseFrame(data: string): ServerFrame | undefined {
+  try {
+    const f = JSON.parse(data) as { t?: unknown };
+    return f && typeof f === "object" && FRAME_TYPES.has(f.t as string) ? (f as ServerFrame) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -143,9 +151,8 @@ export class ApxSocket {
         this.#failAll(new Error("socket closed"));
       });
       ws.addEventListener("message", (msg) => {
-        const frame = ServerFrame.safeParse(JSON.parse(String(msg.data)));
-        if (!frame.success) return;
-        const f = frame.data;
+        const f = parseFrame(String(msg.data));
+        if (!f) return;
         if (f.t === "welcome") {
           clearTimeout(timer);
           this.welcome = f;
@@ -179,10 +186,9 @@ export class ApxSocket {
         clientDeadline(method, params, this.timeoutMs),
       );
       this.#pending.set(id, { resolve, reject, timer });
-      const key = idem ?? (methods[method].effect ? crypto.randomUUID() : undefined);
-      ws.send(JSON.stringify({ t: "req", id, method, params, idem: key }));
+      ws.send(JSON.stringify({ t: "req", id, method, params, idem: idem ?? crypto.randomUUID() }));
     });
-    return methods[method].result.parse(raw) as Result<M>;
+    return raw as Result<M>;
   }
 
   /** Node role: answer requests the core sends to this client (e.g. browser.* for a "browser" node). */

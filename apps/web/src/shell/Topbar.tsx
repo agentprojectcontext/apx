@@ -5,13 +5,11 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
-import { LANGUAGE_NAMES, LANGUAGES, type Language, useLanguage, useT } from "../i18n/index.ts";
+import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { go, PROJECT_TABS, useNav } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill } from "./UpdatePill.tsx";
-
-const LANGS = Object.keys(LANGUAGES) as Language[];
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
@@ -55,7 +53,7 @@ export function Topbar() {
   const folded = usePrefs((s) => s.sidebarCollapsed);
   const languageItems = [
     { type: "label" as const, label: t("language.label") },
-    ...LANGS.map((l) => ({
+    ...LANGUAGES.map((l) => ({
       label: LANGUAGE_NAMES[l],
       icon: l === lang ? <Icons.Check /> : <span />,
       onSelect: () => setPrefs({ language: l }),

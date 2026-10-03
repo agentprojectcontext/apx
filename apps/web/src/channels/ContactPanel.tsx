@@ -1,4 +1,5 @@
-import { type Person, PersonRelation } from "@apx/protocol";
+import type { Person } from "@apx/protocol";
+import { PERSON_RELATIONS } from "@apx/protocol/client";
 import { Button, IconButton, Icons, Input, Menu, Switch, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
@@ -76,7 +77,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
           <span className="pform__label">{t("ch.relation")}</span>
           <Menu
             align="start"
-            items={PersonRelation.options.map((r) => ({
+            items={PERSON_RELATIONS.map((r) => ({
               label: t(RELATION_KEY[r]),
               icon: r === d.relation ? <Icons.Check /> : <span />,
               onSelect: () => setD({ ...d, relation: r }),

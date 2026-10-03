@@ -21,6 +21,7 @@ import "./styles/models.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { startI18n } from "./i18n/index.ts";
 
 // A newer panel replaced this page's lazy parts (an update, a rebuild): load it again instead of a blank screen. Not
 // twice in a few seconds: a panel that keeps failing shows its error.
@@ -38,8 +39,11 @@ window.addEventListener("vite:preloadError", (e) => {
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+// The language's texts arrive first (one small chunk): the panel never flashes keys or another language.
+void startI18n().then(() =>
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  ),
 );

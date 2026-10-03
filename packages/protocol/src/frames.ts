@@ -1,25 +1,9 @@
 // Wire frames. Every transport (WS, HTTP /rpc, node link) carries exactly these shapes.
 // Isomorphic: no Node-only imports in this package — it runs in browsers, Electron and React Native too.
 import { z } from "zod";
+import { ErrorCode } from "./constants.ts";
 
-export const PROTOCOL_VERSION = 1;
-
-export const ErrorCode = {
-  BadRequest: "bad_request",
-  NotFound: "not_found",
-  UnknownMethod: "unknown_method",
-  Unauthorized: "unauthorized",
-  Unavailable: "unavailable",
-  Timeout: "timeout",
-  /** The user took control of the resource (e.g. a browser tab); retry later or ask. */
-  PausedByUser: "paused_by_user",
-  /** The action would type into a password/OTP/card field: hand off to the human. */
-  CredentialField: "credential_field",
-  /** The state moved on (answered already, expired): re-read before acting. */
-  Conflict: "conflict",
-  Internal: "internal",
-} as const;
-export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+export { ErrorCode, PROTOCOL_VERSION } from "./constants.ts";
 
 export const ApxErrorShape = z.object({
   code: z.enum(Object.values(ErrorCode) as [ErrorCode, ...ErrorCode[]]),

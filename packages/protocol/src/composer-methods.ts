@@ -1,10 +1,7 @@
 // Methods behind the composer: attachments, dictation and the chat's own model.
 import { z } from "zod";
+import { UPLOAD_LIMITS } from "./constants.ts";
 import { Id, ModelChoice } from "./domain.ts";
-
-/** What can be attached: images the model can look at, and text it can read (PDFs and others are only listed). */
-// 5 MB is the largest image every provider takes (Anthropic's limit).
-export const UPLOAD_LIMITS = { imageBytes: 5 * 1024 * 1024, fileBytes: 2 * 1024 * 1024 } as const;
 
 export const composerMethods = {
   /** Stores a file the owner attaches (base64); it reaches a message through threads.send `attachments`. */

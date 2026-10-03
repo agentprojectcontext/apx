@@ -106,4 +106,18 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.unmute": "Quitar silencio",
   "ch.saved": "Contacto guardado.",
   "ch.youToAgent": "Vos → {agent}",
+  // Brand names read the same in every language.
+  "channel.slack.name": "Slack",
+  "channel.signal.name": "Signal",
+  "channel.imessage.name": "iMessage",
+  "channel.matrix.name": "Matrix",
+  "channel.teams.name": "Microsoft Teams",
+  "channel.googlechat.name": "Google Chat",
+  "channel.mattermost.name": "Mattermost",
+  "channel.email.name": "Email",
+  "channel.sms.name": "SMS",
+  "channel.line.name": "LINE",
+  "channel.whatsapp.name": "WhatsApp",
+  "channel.telegram.name": "Telegram",
+  "channel.discord.name": "Discord",
 };

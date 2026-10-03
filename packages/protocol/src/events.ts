@@ -1,5 +1,6 @@
 // What the core pushes to connected clients.
 import { z } from "zod";
+import { TabInfo } from "./browser.ts";
 import { Id, Job, Message, Part, Run, SurfaceSummary, Thread } from "./domain.ts";
 import { Notification, Task } from "./office.ts";
 
@@ -21,6 +22,6 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("task.updated"), task: Task }),
   z.object({ type: z.literal("notification.updated"), notification: Notification }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
-  z.object({ type: z.literal("browser.tabs"), tabs: z.array(z.unknown()) }),
+  z.object({ type: z.literal("browser.tabs"), tabs: z.array(TabInfo) }),
 ]);
 export type CoreEvent = z.infer<typeof CoreEvent>;

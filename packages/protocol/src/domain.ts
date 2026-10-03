@@ -1,5 +1,6 @@
 // Domain shapes every client renders. Run states follow A2A task states so an A2A adapter stays thin.
 import { z } from "zod";
+import { PERSON_RELATIONS } from "./constants.ts";
 
 export const Id = z.string().min(1).max(128);
 
@@ -449,16 +450,7 @@ export const Address = z.object({
 });
 export type Address = z.infer<typeof Address>;
 /** How a contact relates to the owner: it shapes how the agent talks to them. */
-export const PersonRelation = z.enum([
-  "partner",
-  "family",
-  "friend",
-  "coworker",
-  "client",
-  "associate",
-  "provider",
-  "other",
-]);
+export const PersonRelation = z.enum(PERSON_RELATIONS);
 export type PersonRelation = z.infer<typeof PersonRelation>;
 /**
  * What a contact's chat may do besides talking. All off by default: each one gives the sealed turn exactly one

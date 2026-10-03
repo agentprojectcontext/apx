@@ -1,5 +1,6 @@
 // The composer's calls: attaching files, dictating into the field and the chat's own model.
-import { type ModelChoice, UPLOAD_LIMITS } from "@apx/protocol";
+import type { ModelChoice } from "@apx/protocol";
+import { UPLOAD_LIMITS } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";

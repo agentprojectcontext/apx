@@ -1,5 +1,5 @@
 // Live link to the core: one socket, events folded into the store, refetch on reconnect or seq gap.
-import { CoreEvent, type EventFrame, TabInfo } from "@apx/protocol";
+import type { CoreEvent, EventFrame } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
@@ -91,8 +91,9 @@ function onFrame(frame: EventFrame): void {
   lastSeq.set(frame.stream, frame.seq);
   if (prev != null && frame.seq !== prev + 1) scheduleRefetch();
   if (frame.stream !== "core") return;
-  const parsed = CoreEvent.safeParse(frame.payload);
-  if (parsed.success) apply(parsed.data);
+  // The core built and validated the event; an unknown type (a newer core) falls through apply's switch.
+  const ev = frame.payload as CoreEvent | undefined;
+  if (ev && typeof ev === "object" && typeof ev.type === "string") apply(ev);
 }
 
 function scheduleRefetch(): void {
@@ -159,13 +160,9 @@ function apply(ev: CoreEvent): void {
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));
       return;
-    case "browser.tabs": {
-      const tabs = ev.tabs.flatMap((t) => {
-        const r = TabInfo.safeParse(t);
-        return r.success ? [r.data] : [];
-      });
-      data.set({ tabs });
+    case "browser.tabs":
+      // The core checks a node's tabs before pushing them.
+      data.set({ tabs: ev.tabs });
       return;
-    }
   }
 }

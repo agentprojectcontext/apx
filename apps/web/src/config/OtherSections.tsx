@@ -112,7 +112,7 @@ export function AppearanceSection() {
           label={t("language.label")}
           value={lang}
           onValueChange={(v) => isLanguage(v) && setPrefs({ language: v })}
-          options={(Object.keys(LANGUAGES) as (keyof typeof LANGUAGES)[]).map((l) => ({
+          options={LANGUAGES.map((l) => ({
             value: l,
             label: LANGUAGE_NAMES[l],
           }))}
