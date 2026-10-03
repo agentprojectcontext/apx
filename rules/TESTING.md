@@ -51,8 +51,9 @@ OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"),
 (`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`). Specs act as the
 outside world through its control API (`world.telegram(...)`, `world.sentTo(chat)`). Specs run in file order on
 one core, like one owner from the first-run setup on. Any console error or 5xx response fails the test. Specs
-are written in Spanish, as the owner uses the panel. WhatsApp, Slack and Discord have no adapter in v2 yet, so
-there is nothing to emulate for them.
+are written in Spanish, as the owner uses the panel. WhatsApp is emulated inside the sandbox's core: it starts
+with `--import e2e/baileys-hook.ts`, which resolves the library to an in-memory phone (`e2e/fake-baileys.ts`, driven
+through `world.whatsapp`), so the real adapter runs with no test path in the product.
 
 ## 5b. Lightness
 ```bash
