@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 // The whole app against its own core (e2e/env.ts): a temp home, a fake model and an emulated Telegram. One worker,
 // files in order: they share that core, as one owner would, from the first-run setup on.
 const port = Number(process.env.E2E_PORT ?? 7460);
+// A machine with another Chromium than the one this Playwright pins (a container, a distro package) names it here.
+const executablePath = process.env.E2E_CHROMIUM || undefined;
 
 export default defineConfig({
   testDir: "e2e/specs",
@@ -19,6 +21,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    launchOptions: { executablePath },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "es-AR" } }],
   webServer: {
