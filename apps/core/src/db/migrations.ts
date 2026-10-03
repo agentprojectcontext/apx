@@ -450,4 +450,15 @@ export const MIGRATIONS: readonly string[] = [
   -- A session with an outside engine itself (Claude Code, Codex, an ACP agent): its own prompt, no agent persona.
   ALTER TABLE threads ADD COLUMN engine TEXT;
   `,
+  `
+  -- A direct chat belongs to whoever owns its address now: chats left on a contact that was removed, or whose account
+  -- was later linked as the owner's, follow the address.
+  UPDATE threads SET person_id = (
+    SELECT a.person_id FROM addresses a WHERE a.channel = threads.channel AND a.external_id = threads.conversation
+  )
+  WHERE person_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM addresses a
+    WHERE a.channel = threads.channel AND a.external_id = threads.conversation AND a.person_id <> threads.person_id
+  );
+  `,
 ];

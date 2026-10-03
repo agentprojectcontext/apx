@@ -130,9 +130,20 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       );
       return r ? repo.get(r.person_id) : undefined;
     },
-    /** Links an address to a person; an address belongs to one person only (relinking moves it). */
+    /**
+     * Links an address to a person; an address belongs to one person only (relinking moves it, and its chat with it:
+     * whoever writes from there is that person now, the owner included).
+     */
     link(personId: string, a: { channel: string; external_id: string; label?: string | undefined }): Address {
       run(qb.deleteFrom("addresses").where("channel", "=", a.channel).where("external_id", "=", a.external_id));
+      run(
+        qb
+          .updateTable("threads")
+          .set({ person_id: personId })
+          .where("channel", "=", a.channel)
+          .where("conversation", "=", a.external_id)
+          .where("person_id", "is not", null),
+      );
       const id = newId("adr");
       run(
         qb.insertInto("addresses").values({

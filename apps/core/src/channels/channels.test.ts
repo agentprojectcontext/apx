@@ -178,6 +178,25 @@ test("an account approved as a contact by mistake becomes the owner's: its chat 
   }, "the owner's words reach Home");
 });
 
+test("a removed contact who links the account again as the owner's gets the old chat as their own", async () => {
+  const THIRD = { id: 4004, name: "Owner (tablet)" };
+  tg.message(THIRD, "hi there");
+  await until(() => tg.messagesTo(THIRD.id).length === 1, "pairing for the tablet");
+  let code = /(\d{6})/.exec(String(tg.messagesTo(THIRD.id)[0]?.body.text))?.[1] ?? "";
+  const { person } = await env.client.call("pairing.respond", { code, decision: "contact", name: "Tablet" });
+  tg.message(THIRD, "hello as a contact");
+  await until(() => tg.messagesTo(THIRD.id).length === 2, "the contact's reply");
+  await env.client.call("contacts.remove", { id: person?.id ?? "" });
+
+  tg.message(THIRD, "it is me");
+  await until(() => tg.messagesTo(THIRD.id).length === 3, "a new code");
+  code = /(\d{6})/.exec(String(tg.messagesTo(THIRD.id)[2]?.body.text))?.[1] ?? "";
+  await env.client.call("pairing.respond", { code, decision: "owner" });
+  const { threads } = await env.client.call("threads.list", {});
+  const chat = threads.find((t) => t.channel?.conversation === String(THIRD.id));
+  assert.equal(chat?.channel?.person_id, "owner");
+});
+
 test("groups are ignored and a redelivered update is handled once", async () => {
   const before = tg.messagesTo(-500).length;
   tg.message(OWNER, "in a group", { id: -500, type: "group" });
