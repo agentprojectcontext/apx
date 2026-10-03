@@ -14,7 +14,20 @@ step(["--filter", "@apx/ui", "build"]);
 step(["--filter", "@apx/web", "build"]);
 step(["--filter", "@apx/desktop", "build"]);
 
-const core = spawn(process.execPath, ["apps/core/src/main.ts"], { cwd: root, stdio: "inherit" });
+// The core asks to be started again after it updated itself (exit code 75: the new code is on disk).
+const RESTART_CODE = 75;
+let core = startCore();
+function startCore() {
+  const child = spawn(process.execPath, ["apps/core/src/main.ts"], {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env, APX_SUPERVISED: "1" },
+  });
+  child.on("exit", (code) => {
+    if (code === RESTART_CODE) core = startCore();
+  });
+  return child;
+}
 await new Promise((r) => setTimeout(r, 1500));
 const electron = devBundle() ?? path.join(root, "apps/desktop/node_modules/.bin/electron");
 const desktop = spawn(electron, ["."], {

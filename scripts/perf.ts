@@ -74,6 +74,7 @@ const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/cor
     APX_HOME: path.join(home, "apx"),
     APX_PORT: String(port),
     APX_SECRETS: "file",
+    APX_UPDATES: "off",
     APX_V1_HOME: path.join(home, "no-v1"),
     CLAUDE_CONFIG_DIR: path.join(home, "claude"),
     CODEX_HOME: path.join(home, "codex"),

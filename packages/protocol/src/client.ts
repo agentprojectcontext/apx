@@ -29,6 +29,9 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   if (method === "system.import_v1") return 60_000;
+  // An update installs dependencies and builds the panel; a check fetches from the remote.
+  if (method === "system.update") return 25 * 60_000;
+  if (method === "system.updates") return 120_000;
   // A tool called by an external harness can run as long as the longest tool (ask_owner waits up to 16 min).
   if (method === "harness.call") return 17 * 60_000;
   // Listing models may start each agent CLI to ask it.

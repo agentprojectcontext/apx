@@ -9,6 +9,7 @@ import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { loadTasks, taskChanged, tasksLoaded } from "./tasks.ts";
+import { loadUpdates, notePanel } from "./updates.ts";
 
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
 
@@ -48,8 +49,9 @@ async function connect(): Promise<void> {
   let s: ApxSocket | undefined;
   try {
     // The health probe fails fast when the core is down; the socket alone can wait for its full timeout.
-    const [sock] = await Promise.all([client.connect(), client.call("system.health", {})]);
+    const [sock, health] = await Promise.all([client.connect(), client.call("system.health", {})]);
     s = sock;
+    notePanel(health);
     if (gen !== generation) return s.close();
     socket = s;
     lastSeq.clear();
@@ -58,6 +60,7 @@ async function connect(): Promise<void> {
     await bootstrap();
     await refetchLoaded();
     void loadNotifications();
+    void loadUpdates();
     if (tasksLoaded()) void loadTasks();
     routineRunChanged();
     data.set({ connection: "online", error: undefined });

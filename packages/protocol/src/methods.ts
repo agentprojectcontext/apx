@@ -19,6 +19,8 @@ export const Health = z.object({
   started_at: z.string(),
   uptime_s: z.number(),
   subsystems: z.record(z.string(), SubsystemStatus),
+  /** The panel build the core serves now (its entry file): a panel showing another one is out of date. */
+  panel: z.string().optional(),
 });
 export type Health = z.infer<typeof Health>;
 

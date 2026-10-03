@@ -9,6 +9,7 @@ import { LANGUAGE_NAMES, LANGUAGES, type Language, useLanguage, useT } from "../
 import { AttentionTray } from "./AttentionTray.tsx";
 import { go, PROJECT_TABS, useNav } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
+import { UpdatePill } from "./UpdatePill.tsx";
 
 const LANGS = Object.keys(LANGUAGES) as Language[];
 
@@ -85,6 +86,7 @@ export function Topbar() {
         <Kbd keys={["⌘", "K"]} />
       </button>
       <span className="topbar__spacer" />
+      <UpdatePill />
       <RunningIndicator />
       <AttentionTray />
       <div className="topbar__extras">

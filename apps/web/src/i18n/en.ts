@@ -130,6 +130,17 @@ export const en = {
   // Topbar, sidebar, account
   "topbar.location": "Location",
   "topbar.search": "Search or jump to…",
+  "update.pill": "Update · {n}",
+  "update.reload": "New panel · Reload",
+  "update.title": "A newer APX is out",
+  "update.lead": "{n} changes on main that this APX does not have yet:",
+  "update.check": "Check again",
+  "update.now": "Update now",
+  "update.updating":
+    "Updating: bringing the changes in, installing and building the panel. This can take a few minutes.",
+  "update.restarting": "Restarting APX with the new version…",
+  "update.done": "Updated. Restart APX to use the new version.",
+  "update.failed": "The update stopped and nothing changed in what runs now. What happened:",
   "palette.title": "Search",
   "palette.places": "Go to",
   "palette.chats": "Chats",

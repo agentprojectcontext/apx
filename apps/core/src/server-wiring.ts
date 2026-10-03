@@ -39,7 +39,7 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
-import { systemHandlers } from "./rpc/system.ts";
+import { systemHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { threadHandlers } from "./rpc/threads.ts";
@@ -58,6 +58,7 @@ import type { Tool } from "./tools/types.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
+import type { Updates } from "./updates.ts";
 
 /** Engine ids a thread or agent may name: the CLI harnesses, every ACP agent, every configured provider. */
 export function knownEngines(store: Store, providers: { has: (id: string) => boolean }) {
@@ -128,12 +129,16 @@ type HandlerDeps = {
   desktop: Parameters<typeof fileHandlers>[1];
   /** Where Claude Code and Codex keep the owner's own sessions. */
   native: Parameters<typeof sessionHandlers>[1];
+  updates: Updates;
+  /** The panel build being served (its entry file). */
+  panel: () => string | undefined;
 };
 
 /** The handler table the router serves: one entry per protocol method. */
 export function coreHandlers(d: HandlerDeps) {
   return {
-    ...systemHandlers(d.identity, () => ({
+    ...updateHandlers(d.updates),
+    ...systemHandlers(d.identity, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
         ? { status: "ok", detail: d.broker.withCap(BROWSER_CAP)?.name ?? "" }
@@ -184,6 +189,24 @@ function workspaceWebDist(): string | undefined {
   return fs.existsSync(path.join(dist, "index.html")) ? dist : undefined;
 }
 
+/** The panel folder the core serves: the configured one, or the workspace build. */
+export const servedPanel = (config: CoreConfig) => config.webDist ?? workspaceWebDist();
+
+let entryCache: { at: number; entry: string | undefined } | undefined;
+/** The served panel's entry script (hashed per build), read again only when index.html changes. */
+export function panelEntry(dist: string | undefined): string | undefined {
+  if (!dist) return undefined;
+  try {
+    const file = path.join(dist, "index.html");
+    const at = fs.statSync(file).mtimeMs;
+    if (entryCache?.at !== at)
+      entryCache = { at, entry: /src="[^"]*\/(index-[\w-]+\.js)"/.exec(fs.readFileSync(file, "utf8"))?.[1] };
+    return entryCache.entry;
+  } catch {
+    return undefined;
+  }
+}
+
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
@@ -198,7 +221,7 @@ export async function listen(
       d.dispatch,
       d.log,
       gate,
-      config.webDist ?? workspaceWebDist(),
+      servedPanel(config),
       {
         artifact: (t) => {
           const s = d.store.surfaces.byShareToken(t);

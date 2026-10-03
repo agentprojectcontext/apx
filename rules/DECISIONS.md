@@ -248,3 +248,15 @@ their phone number or their private id (`@lid`): the phone number wins when What
 memory only, shown to the owner through `channels.list`, and dropped once spent; the credentials folder is 0700 and
 deleted when the channel is removed. The library loads with the first WhatsApp channel (it costs ~45 MB) and its
 install scripts are not run.
+
+<a id="d-026"></a>
+## D-026 — 2026-10-03 — Updates follow main of the checkout APX runs from
+APX runs from its source checkout today (no packaged build, no release feed yet), so "a newer APX" means commits on
+`main` this checkout does not have. The core asks git every 6 hours (first a minute after it starts; `APX_UPDATES=off`
+stops it) and keeps the answer in memory; the panel shows a pill only while there is one, with the commit subjects
+as "what's new". Updating is the owner's click: `git pull --ff-only` (never a merge or a reset of the owner's work),
+`pnpm install --frozen-lockfile`, `pnpm build:web`; any failure stops before the next step and what runs now is
+untouched. A supervisor restarts the core with the new code when it exits with code 75 (`pnpm app` does; it sets
+`APX_SUPERVISED=1`); without one the owner is asked to restart. The panel knows its own build by its entry file and
+reloads when the core serves another one. When packaged releases exist this becomes a signed feed plus
+electron-updater (plan §12), behind the same two methods.

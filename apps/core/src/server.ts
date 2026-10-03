@@ -33,10 +33,19 @@ import { providerRegistry } from "./providers/registry.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { createSecrets } from "./secrets.ts";
-import { builtinTools, coreHandlers, extensionStack, knownEngines, listen } from "./server-wiring.ts";
+import {
+  builtinTools,
+  coreHandlers,
+  extensionStack,
+  knownEngines,
+  listen,
+  panelEntry,
+  servedPanel,
+} from "./server-wiring.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import type { Tool } from "./tools/types.ts";
+import { createUpdates, type Runner } from "./updates.ts";
 
 /** `apx2 mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
@@ -56,6 +65,10 @@ export type CoreOptions = {
   clock?: () => Date;
   /** Finder and the trash; tests record the calls instead. */
   desktop?: DesktopOps;
+  /** Runs the update's commands (git, pnpm); tests answer them. */
+  updateRunner?: Runner;
+  /** Closes the core and asks its supervisor to start it again (after an update). */
+  restart?: () => void;
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -164,6 +177,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.clock ? { now: opts.clock } : {}),
   });
 
+  const updates = createUpdates({
+    root: path.resolve(import.meta.dirname, "../../.."),
+    log,
+    enabled: config.updates,
+    supervised: config.supervised,
+    ...(opts.updateRunner ? { run: opts.updateRunner } : {}),
+    ...(opts.restart ? { restart: opts.restart } : {}),
+  });
+
   const dispatch = createRouter(
     coreHandlers({
       store,
@@ -185,6 +207,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       engines: engineIds,
       desktop: opts.desktop ?? systemDesktop,
       native: config.native,
+      updates,
+      panel: () => panelEntry(servedPanel(config)),
       // APX's own templates, then the owner's v1 vault (read-only).
       templateRoots: [
         { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },
@@ -202,6 +226,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   engine.start();
   await channels.start();
   scheduler.start();
+  updates.start();
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {
@@ -217,6 +242,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     async close() {
+      updates.stop();
       scheduler.stop();
       attention.stop();
       plugins.close();

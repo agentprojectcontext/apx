@@ -112,6 +112,30 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** Whether a newer APX is out (for a checkout: commits on main it does not have); `check` asks now. */
+  "system.updates": {
+    params: z.object({ check: z.boolean().default(false) }).strict(),
+    result: z.object({
+      source: z.enum(["git", "none"]),
+      behind: z.number().int(),
+      latest: z.string().optional(),
+      changes: z.array(z.string()),
+      checked_at: z.string().optional(),
+      error: z.string().optional(),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Brings the newer APX in (pull fast-forward only, install, build the panel). `restart`: the core starts again with it
+   * now; otherwise the owner restarts APX.
+   */
+  "system.update": {
+    params: z.object({}).strict(),
+    result: z.object({ ok: z.boolean(), restart: z.boolean(), log: z.string() }),
+    effect: true,
+    access: "human",
+  },
   "system.import_v1": {
     params: z
       .object({
