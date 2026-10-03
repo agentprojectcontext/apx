@@ -2,6 +2,7 @@
 // `pnpm app`: builds the panel and the desktop shell, starts the core (which serves the panel) and opens the app.
 // Ctrl+C stops both.
 import { spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -15,7 +16,7 @@ step(["--filter", "@apx/desktop", "build"]);
 
 const core = spawn(process.execPath, ["apps/core/src/main.ts"], { cwd: root, stdio: "inherit" });
 await new Promise((r) => setTimeout(r, 1500));
-const electron = path.join(root, "apps/desktop/node_modules/.bin/electron");
+const electron = devBundle() ?? path.join(root, "apps/desktop/node_modules/.bin/electron");
 const desktop = spawn(electron, ["."], {
   cwd: path.join(root, "apps/desktop"),
   stdio: "inherit",
@@ -31,3 +32,61 @@ desktop.on("exit", () => {
 });
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
+
+/**
+ * macOS names the app (menu bar, Dock, ⌘-Tab) and draws its icon from the bundle that runs. Electron's own bundle says
+ * "Electron", so a copy named APX with APX's icon runs instead: an APFS clone (no space), rebuilt when Electron
+ * changes. Elsewhere, or if anything fails, Electron runs as it is.
+ */
+function devBundle(): string | undefined {
+  if (process.platform !== "darwin") return undefined;
+  try {
+    const desktop = path.join(root, "apps/desktop");
+    const source = path.join(path.dirname(electronPackage(desktop)), "dist", "Electron.app");
+    const app = path.join(desktop, ".dev", "APX.app");
+    const stamp = path.join(desktop, ".dev", "electron-version");
+    const version = fs.readFileSync(path.join(source, "Contents", "Info.plist"), "utf8");
+    if (!fs.existsSync(app) || fs.readFileSync(stamp, "utf8") !== version) {
+      fs.rmSync(path.dirname(app), { recursive: true, force: true });
+      fs.mkdirSync(path.dirname(app), { recursive: true });
+      const cloned = spawnSync("cp", ["-Rc", source, app]).status === 0;
+      if (!cloned && spawnSync("cp", ["-R", source, app]).status !== 0) return undefined;
+      const plist = path.join(app, "Contents", "Info.plist");
+      for (const [key, value] of [
+        ["CFBundleName", "APX"],
+        ["CFBundleDisplayName", "APX"],
+      ])
+        spawnSync("plutil", ["-replace", key, "-string", value, plist]);
+      const icns = makeIcns(path.join(desktop, "assets", "icon.png"), path.join(desktop, ".dev"));
+      if (icns) fs.copyFileSync(icns, path.join(app, "Contents", "Resources", "electron.icns"));
+      fs.writeFileSync(stamp, version);
+    }
+    return path.join(app, "Contents", "MacOS", "Electron");
+  } catch {
+    return undefined;
+  }
+}
+
+/** The electron package's folder, as installed for the desktop app. */
+function electronPackage(desktop: string): string {
+  return fs.realpathSync(path.join(desktop, "node_modules", "electron", "package.json"));
+}
+
+/** A .icns from the APX logo (sips + iconutil, both part of macOS). */
+function makeIcns(png: string, dir: string): string | undefined {
+  const set = path.join(dir, "APX.iconset");
+  fs.mkdirSync(set, { recursive: true });
+  for (const size of [16, 32, 128, 256, 512]) {
+    spawnSync("sips", ["-z", String(size), String(size), png, "--out", path.join(set, `icon_${size}x${size}.png`)]);
+    spawnSync("sips", [
+      "-z",
+      String(size * 2),
+      String(size * 2),
+      png,
+      "--out",
+      path.join(set, `icon_${size}x${size}@2x.png`),
+    ]);
+  }
+  const out = path.join(dir, "APX.icns");
+  return spawnSync("iconutil", ["-c", "icns", set, "-o", out]).status === 0 ? out : undefined;
+}

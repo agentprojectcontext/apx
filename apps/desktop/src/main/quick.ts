@@ -4,6 +4,8 @@ import path from "node:path";
 import { app, BrowserWindow, globalShortcut, Menu, screen, Tray } from "electron";
 
 const WIDTH = 400;
+/** How long a click on the menu-bar icon waits to see whether it is a double click. */
+const DOUBLE_CLICK_MS = 250;
 const HEIGHT = 600;
 
 export type DesktopPrefs = { shortcut: string; launchAtLogin: boolean };
@@ -81,7 +83,18 @@ export function createQuick(opts: {
     start(): void {
       tray = new Tray(path.join(opts.assets, "trayTemplate.png"));
       tray.setToolTip("APX");
-      tray.on("click", () => toggle(true));
+      // One click opens the quick chat; a double click opens APX. The click waits a moment so a double click does
+      // not flash the quick chat first.
+      let pending: ReturnType<typeof setTimeout> | undefined;
+      tray.on("click", () => {
+        clearTimeout(pending);
+        pending = setTimeout(() => toggle(true), DOUBLE_CLICK_MS);
+      });
+      tray.on("double-click", () => {
+        clearTimeout(pending);
+        win?.hide();
+        opts.openMain();
+      });
       const text = app.getLocale().startsWith("es") ? MENU.es : MENU.en;
       const menu = Menu.buildFromTemplate([
         { label: text.open, click: () => opts.openMain() },

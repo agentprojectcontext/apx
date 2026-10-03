@@ -11,6 +11,7 @@ _design/
 .scratch/
 
 # local-only
+apps/desktop/.dev/
 .env
 .env.*
 !.env.example

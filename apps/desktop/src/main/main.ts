@@ -13,6 +13,11 @@ const DIST = import.meta.dirname;
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
+// The app is APX (menus, notifications, About), keeping the data folder it always had (its browser sessions and
+// imported cookies live there).
+app.setPath("userData", path.join(app.getPath("appData"), "@apx", "desktop"));
+app.setName("APX");
+
 // One APX at a time: opening it again brings the running one forward.
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
@@ -24,6 +29,8 @@ app.on("before-quit", () => {
 
 app.whenReady().then(() => {
   if (!single) return;
+  // Run straight from Electron (not the APX bundle `pnpm app` makes), the Dock still shows APX's face.
+  app.dock?.setIcon(path.join(DIST, "icon.png"));
   const win = new BaseWindow({ width: 1480, height: 920, minWidth: 980, minHeight: 600, title: "APX" });
   const openMain = () => {
     if (win.isMinimized()) win.restore();
