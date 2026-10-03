@@ -1,13 +1,15 @@
 import type { ChannelInfo, EngineStatus } from "@apx/protocol";
-import { EngineIcon, Icons, Menu, NavItem, ProjectTile, SectionLabel } from "@apx/ui";
+import { EngineIcon, Icons, Menu, NavItem, ProjectTile, ResizeHandle, SectionLabel } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { addChannelItems, KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { isListed } from "../data/identity.ts";
+import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { AccountRow } from "./AccountRow.tsx";
+import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 
@@ -34,7 +36,7 @@ function AddChannel({ connected }: { connected: readonly ChannelInfo[] }) {
 }
 
 /** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
-export function Sidebar({ rail }: { rail: boolean }) {
+export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
   const appId = useNav((s) => s.appId);
@@ -58,6 +60,17 @@ export function Sidebar({ rail }: { rail: boolean }) {
 
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
+      {!rail && (
+        <ResizeHandle
+          className="sidebar__resize"
+          width={width}
+          min={LAYOUT.sidebarMinW}
+          max={LAYOUT.sidebarMaxW}
+          onResize={(w) => setPrefs({ sidebarW: w })}
+          onReset={() => setPrefs({ sidebarW: 0 })}
+          label={t("nav.resize")}
+        />
+      )}
       <div className="sidebar__top">
         <NavItem
           collapsed={rail}

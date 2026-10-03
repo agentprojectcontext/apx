@@ -29,7 +29,8 @@ export function Shell() {
   const threadId = useNav((s) => s.threadId);
   const transcript = usePrefs((s) => s.transcriptWidth);
   const panelOpen = chat && panel != null;
-  const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript);
+  const own = usePrefs((s) => s);
+  const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, own);
   useShortcuts();
   useDesktopBridge();
 
@@ -38,7 +39,7 @@ export function Shell() {
       <Topbar />
       <OfflineBanner />
       <div className="shell__body">
-        <Sidebar rail={layout.rail} />
+        <Sidebar rail={layout.rail} width={layout.sidebarW} />
         <main className="shell__main">
           {view === "app" ? (
             <AppScreen />

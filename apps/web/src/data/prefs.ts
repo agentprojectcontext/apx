@@ -18,6 +18,11 @@ export type Prefs = {
   projectsFolded: boolean;
   /** How the Inbox lists chats: project → agent → chats, by time, or by project. */
   inboxView: InboxView;
+  /** Columns the owner resized (px; 0 = the default) or folded away. */
+  sidebarW: number;
+  sidebarCollapsed: boolean;
+  listW: number;
+  listCollapsed: boolean;
 };
 
 export type InboxView = "tree" | "activity" | "chats";
@@ -32,6 +37,10 @@ const DEFAULTS: Prefs = {
   language: defaultLanguage(),
   projectsFolded: false,
   inboxView: "tree",
+  sidebarW: 0,
+  sidebarCollapsed: false,
+  listW: 0,
+  listCollapsed: false,
 };
 
 function load(): Prefs {
@@ -46,6 +55,10 @@ function load(): Prefs {
       language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
       projectsFolded: raw.projectsFolded === true,
       inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
+      sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
+      sidebarCollapsed: raw.sidebarCollapsed === true,
+      listW: typeof raw.listW === "number" ? raw.listW : 0,
+      listCollapsed: raw.listCollapsed === true,
     };
   } catch {
     return DEFAULTS;

@@ -57,6 +57,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
   return (
     <>
       <MasterDetail
+        resizeKey="mcp"
         listLabel={t("res.tab.mcp")}
         backLabel={t("res.tab.mcp")}
         onBack={() => setPicked(undefined)}

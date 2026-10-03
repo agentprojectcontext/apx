@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import logoUrl from "../assets/logo.png";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
-import { setPrefs } from "../data/prefs.ts";
+import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { LANGUAGE_NAMES, LANGUAGES, type Language, useLanguage, useT } from "../i18n/index.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
@@ -51,6 +51,7 @@ export function Topbar() {
   const agents = useData((s) => s.agents);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
+  const folded = usePrefs((s) => s.sidebarCollapsed);
   const languageItems = [
     { type: "label" as const, label: t("language.label") },
     ...LANGS.map((l) => ({
@@ -62,6 +63,12 @@ export function Topbar() {
   return (
     <header className="topbar">
       <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
+      <IconButton
+        size="sm"
+        label={folded ? t("nav.expand") : t("nav.collapse")}
+        icon={folded ? <Icons.PanelLeftOpen size={15} /> : <Icons.PanelLeftClose size={15} />}
+        onClick={() => setPrefs({ sidebarCollapsed: !folded })}
+      />
       <nav className="topbar__crumbs" aria-label={t("topbar.location")}>
         {crumbs.map((c, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs are positional

@@ -1,7 +1,8 @@
 /* ── MasterDetail / PickRow ───────────────────────────────────────────────── */
 .apx-mdetail {
   display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  position: relative;
+  grid-template-columns: var(--apx-mdetail-list, 340px) minmax(0, 1fr);
   min-height: 0;
   flex: 1;
 }
@@ -130,6 +131,50 @@
   }
   .apx-mdetail.has-detail .apx-mdetail__list,
   .apx-mdetail:not(.has-detail) .apx-mdetail__detail {
+    display: none;
+  }
+}
+
+/* ResizeHandle: a thin hit area over a column's edge; a line shows on hover, focus and while dragging. */
+.apx-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: 0;
+}
+.apx-resize--right {
+  right: -5px;
+}
+.apx-resize--left {
+  left: -5px;
+}
+.apx-resize::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: transparent;
+  content: "";
+  transition: background 0.15s;
+}
+.apx-resize:hover::after,
+.apx-resize:focus-visible::after,
+.apx-resize:active::after {
+  width: 2px;
+  left: 3.5px;
+  background: var(--apx-brand);
+}
+.apx-resize.apx-mdetail__resize {
+  right: auto;
+  left: calc(var(--apx-mdetail-list, 340px) - 5px);
+}
+@media (max-width: 1039px) {
+  .apx-mdetail__resize {
     display: none;
   }
 }

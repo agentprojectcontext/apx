@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
 import { InboxList } from "../inbox/InboxList.tsx";
 import { SidePanel } from "../panel/SidePanel.tsx";
+import { ListColumn } from "./ListColumn.tsx";
 import type { Layout } from "./layout.ts";
 import { useNav } from "./nav.ts";
 
@@ -18,7 +19,7 @@ export function ChatWorkspace({ layout, list = <InboxList /> }: { layout: Layout
     );
   return (
     <div className="workspace">
-      {layout.listW > 0 && list}
+      {layout.listW > 0 && <ListColumn width={layout.listW}>{list}</ListColumn>}
       <ChatView wideHeader={layout.wideHeader} />
       {panel != null && <SidePanel />}
     </div>

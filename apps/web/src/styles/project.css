@@ -6,6 +6,22 @@
   min-height: 0;
   display: flex;
 }
+/* The chat list's column: its edge resizes it; folded, a strip that opens it again. */
+.listcol {
+  position: relative;
+  display: flex;
+  flex: none;
+  min-height: 0;
+}
+.listcol.is-folded {
+  justify-content: center;
+  width: 32px;
+  padding-top: 10px;
+  border-right: 1px solid var(--apx-border);
+}
+.apx-resize.listcol__resize {
+  right: -4px;
+}
 
 /* ── Project ───────────────────────────────────────────────────────────────── */
 .project {

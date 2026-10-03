@@ -47,6 +47,7 @@ export { NavItem, type NavItemProps } from "./components/NavItem";
 export { PickRow, type PickRowProps } from "./components/PickRow";
 export { Popover, type PopoverProps } from "./components/Popover";
 export { ProjectTile, type ProjectTileProps, type TileTone } from "./components/ProjectTile";
+export { ResizeHandle, type ResizeHandleProps } from "./components/ResizeHandle";
 export { SearchField, type SearchFieldProps } from "./components/SearchField";
 export { SectionLabel, type SectionLabelProps } from "./components/SectionLabel";
 export { SegmentedControl, type SegmentedControlProps, type SegmentedOption } from "./components/SegmentedControl";

@@ -336,6 +336,7 @@
 
 /* ── Sidebar ───────────────────────────────────────────────────────────────── */
 .sidebar {
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -697,4 +698,9 @@
   white-space: pre-wrap;
   word-break: break-word;
   text-align: left;
+}
+
+/* The sidebar's edge to drag (inside it: the sidebar clips what overflows). */
+.apx-resize.sidebar__resize {
+  right: 0;
 }

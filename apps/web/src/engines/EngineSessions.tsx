@@ -9,6 +9,7 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ThreadRow } from "../inbox/ThreadRow.tsx";
+import { FoldList } from "../shell/ListColumn.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -93,6 +94,7 @@ export function EngineSessions() {
         <div className="inbox__titlerow">
           <EngineIcon engine={engineId} tile size={24} />
           <h1 className="inbox__title">{label}</h1>
+          <FoldList />
           <IconButton
             label={t("engine.settings")}
             icon={<Icons.Settings size={15} />}

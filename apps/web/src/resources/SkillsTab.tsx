@@ -58,6 +58,7 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
   return (
     <>
       <MasterDetail
+        resizeKey="skills"
         listLabel={t("res.tab.skills")}
         backLabel={t("res.tab.skills")}
         onBack={() => setPicked(undefined)}
