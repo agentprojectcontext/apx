@@ -68,5 +68,16 @@ export function writeFixtures(dir: string) {
       },
     ),
   );
-  return { home, v1, claude, codex, repo };
+  // Claude Code and Codex as this sandbox's only CLIs: installed, signed out. The machine's own are never found.
+  const bin = path.join(dir, "bin");
+  write(
+    path.join(bin, "claude"),
+    `#!/bin/sh\ncase "$1" in --version) echo "2.0.0 (Claude Code)";; auth) echo '{"loggedIn":false}';; esac\n`,
+  );
+  write(
+    path.join(bin, "codex"),
+    `#!/bin/sh\ncase "$1" in --version) echo "codex-cli 0.1.0";; login) echo "Not logged in";; esac\n`,
+  );
+  for (const f of ["claude", "codex"]) fs.chmodSync(path.join(bin, f), 0o755);
+  return { home, v1, claude, codex, repo, bin };
 }

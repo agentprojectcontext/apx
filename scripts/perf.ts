@@ -68,7 +68,8 @@ const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/cor
   cwd: root,
   stdio: ["ignore", "ignore", "pipe"],
   env: {
-    PATH: process.env.PATH ?? "",
+    // No agent CLIs: the numbers are the core's own, whatever this machine has installed.
+    PATH: [path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
     HOME: process.env.HOME ?? os.homedir(),
     APX_HOME: path.join(home, "apx"),
     APX_PORT: String(port),

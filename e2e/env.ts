@@ -29,7 +29,8 @@ const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/cor
   cwd: root,
   stdio: ["ignore", "pipe", "pipe"],
   env: {
-    PATH: process.env.PATH ?? "",
+    // Only the sandbox's own CLIs, node and the system: none of the machine's agents (claude, codex, opencode…).
+    PATH: [fx.bin, path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
     HOME: process.env.HOME ?? os.homedir(),
     APX_HOME: fx.home,
     APX_PORT: String(E2E.port),
