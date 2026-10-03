@@ -2,7 +2,7 @@ import type { MessageKey } from "../i18n/index.ts";
 
 /**
  * The kinds of channel APX knows, in the order they are offered; `soon` ones cannot be connected yet. The list follows
- * what openclaw and hermes connect to (see plan/04-diseno.md#canales).
+ * what openclaw and hermes connect to (see plan/archivo/04-diseno.md#canales).
  */
 export const CHANNEL_KINDS = {
   telegram: { name: "channel.telegram.name", text: "channel.telegram.text", tone: "info", soon: false },

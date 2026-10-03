@@ -15,7 +15,7 @@ over at any moment. v2 is a ground-up rewrite of APX with one rule: **one way to
 | Places where a conversation lives | 10 | **1** — thread + run + steps |
 | API surface | ~378 endpoints | **~90** typed methods; the CLI only speaks the protocol |
 
-The full survey and the staged plan are in [`plan/03-relevo-y-plan-motor.md`](plan/03-relevo-y-plan-motor.md)
+The full survey and the staged plan are in [`plan/archivo/03-relevo-y-plan-motor.md`](plan/archivo/03-relevo-y-plan-motor.md)
 (Spanish).
 
 ## Layout

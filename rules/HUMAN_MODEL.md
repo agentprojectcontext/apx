@@ -43,7 +43,7 @@ gets the types. There is no other way into a handler.
 - `packages/surfaces` ← web/desktop/mobile hosts and core store (F3).
 - `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
   aggregate over SQLite)`; `nodes/` routes capability calls to the desktop. Planned: `channels/`, `office/`,
-  `memory/` (see `plan/03-relevo-y-plan-motor.md` §6).
+  `memory/` (see `plan/archivo/03-relevo-y-plan-motor.md` §6).
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
 ## 4. State and persistence
