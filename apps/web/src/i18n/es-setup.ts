@@ -138,6 +138,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.done.ready": "está listo.",
   "setup.done.body": "Tu crew queda en {home} y en el .apc/ de cada proyecto. Todo se cambia después desde Config.",
   "setup.done.copy": "Copiar",
+  "setup.done.takeOver": "Que apx sea esta versión",
+  "setup.done.takeOverBody":
+    "Mientras v1 esté instalada, el comando apx es el de v1 (esta responde a apx2). Cuando dejes de usar v1, corré estas dos líneas: v1 sale del PATH y apx pasa a ser v2. Tus archivos de v1 quedan en ~/.apx.",
   "setup.preview.engines": "MOTORES",
   "setup.preview.memory": "MEMORIA",
   "setup.preview.channels": "CANALES",

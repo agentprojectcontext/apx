@@ -398,7 +398,11 @@ export function ProjectStep({ draft: d, set }: StepProps) {
 export function DoneStep({ name }: { name: string }) {
   const t = useT();
   const home = useSetup((s) => s.status?.v1?.home);
+  const terminal = useSetup((s) => s.status?.terminal);
   const command = "apx2 status";
+  // With v1 still installed, `apx` is v1's: two commands make it this one (the owner runs them).
+  const takeOver =
+    home && terminal ? `pnpm remove -g @agentprojectcontext/apx\npnpm --dir "${terminal}" link --global` : "";
   const copy = () => void navigator.clipboard.writeText(command).catch(() => {});
   return (
     <div className="wiz__done">
@@ -412,6 +416,21 @@ export function DoneStep({ name }: { name: string }) {
           {t("setup.done.copy")}
         </button>
       </span>
+      {takeOver && (
+        <div className="wiz__card wiz__takeover">
+          <b>{t("setup.done.takeOver")}</b>
+          <span>{t("setup.done.takeOverBody")}</span>
+          <pre>{takeOver}</pre>
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.Copy size={14} />}
+            onClick={() => void navigator.clipboard.writeText(takeOver).catch(() => {})}
+          >
+            {t("setup.done.copy")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

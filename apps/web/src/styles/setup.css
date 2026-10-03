@@ -607,3 +607,26 @@ input.wiz__name {
     display: none;
   }
 }
+.wiz__takeover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 640px;
+  padding: 16px;
+  font-size: 13px;
+}
+.wiz__takeover span {
+  color: var(--apx-fg-muted);
+  line-height: 1.5;
+}
+.wiz__takeover pre {
+  align-self: stretch;
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}

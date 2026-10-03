@@ -7,6 +7,8 @@ import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
 import type { Handlers } from "./router.ts";
 
 const DONE_KEY = "setup_done";
+/** This checkout's command (apps/terminal): where `pnpm link --global` makes `apx` this APX. */
+const TERMINAL = path.resolve(import.meta.dirname, "../../../terminal");
 
 const readJson = (file: string): Record<string, unknown> | undefined => {
   try {
@@ -47,6 +49,7 @@ export function setupHandlers(deps: V1ImportDeps) {
       // Anything the owner already said means this install is in use: the setup does not open on its own then.
       fresh: !store.messages.anyFromOwner(),
       v1: findV1(v1Home),
+      ...(fs.existsSync(TERMINAL) ? { terminal: TERMINAL } : {}),
     }),
     "setup.finish": () => {
       store.settings.set(DONE_KEY, "1");

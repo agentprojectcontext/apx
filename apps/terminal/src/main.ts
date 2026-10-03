@@ -14,7 +14,7 @@ import { routines } from "./commands/routines.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
 
-const HELP = `apx2 — APX v2 terminal
+const HELP = `apx — APX v2 terminal (also apx2)
 
 Usage:
   apx2 status [--json]     Is the core up, and is it running my code?

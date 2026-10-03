@@ -80,6 +80,8 @@ export const appMethods = {
           projects: z.number().int(),
         })
         .nullable(),
+      /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
+      terminal: z.string().optional(),
     }),
     effect: false,
     access: "human",

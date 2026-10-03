@@ -137,6 +137,9 @@ export const enSetup = {
   "setup.done.body":
     "Your crew lives in {home} and in each project's .apc/. Everything can be changed later in Settings.",
   "setup.done.copy": "Copy",
+  "setup.done.takeOver": "Make apx this version",
+  "setup.done.takeOverBody":
+    "While v1 is installed, the apx command is v1's (this one answers to apx2). When you stop using v1, run these two lines: v1 leaves the PATH and apx becomes v2. Your v1 files stay in ~/.apx.",
   "setup.preview.engines": "ENGINES",
   "setup.preview.memory": "MEMORY",
   "setup.preview.channels": "CHANNELS",
