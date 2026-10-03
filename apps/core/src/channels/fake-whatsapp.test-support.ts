@@ -12,6 +12,8 @@ export type Person = { phone: string; name: string; lid?: string };
 
 export function fakeWhatsApp() {
   let dir = "";
+  /** The platform the device presents itself as (the second field of `browser`). */
+  let platform = "";
   let sock: (WaSocket & { emit(event: string, arg: unknown): void }) | undefined;
   let seq = 0;
   let qrs = 0;
@@ -60,14 +62,24 @@ export function fakeWhatsApp() {
   const deliver = (m: WaMessage) => sock?.emit("messages.upsert", { type: "notify", messages: [m] });
 
   const lib: WaLib = {
-    makeWASocket() {
+    makeWASocket(opts) {
+      platform = String((opts.browser as string[] | undefined)?.[1] ?? "");
       sock = makeSocket();
       setTimeout(() => (fs.existsSync(creds()) ? open() : sock?.emit("connection.update", { qr: `QR-${++qrs}` })), 5);
       return sock;
     },
     async useMultiFileAuthState(d) {
       dir = d;
-      return { state: {}, saveCreds: () => {} };
+      // Writing the credentials takes a moment, as on a real disk: a reconnect that does not wait finds none.
+      const saveCreds = () =>
+        new Promise<void>((resolve) =>
+          setTimeout(() => {
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(creds(), "{}");
+            resolve();
+          }, 30),
+        );
+      return { state: {}, saveCreds };
     },
     async downloadMediaMessage(m) {
       return Buffer.from((m.message as WaContent & { bytes?: string })?.bytes ?? "", "base64");
@@ -84,10 +96,19 @@ export function fakeWhatsApp() {
     get dir() {
       return dir;
     },
-    /** The owner scans the QR: credentials are written and WhatsApp asks for the restart that comes up linked. */
+    /**
+     * The owner scans the QR: the new credentials are handed over to be saved and WhatsApp at once asks for the restart
+     * that comes up linked. A device that presents itself as the native desktop app is refused, as the phone does.
+     */
     scan() {
-      fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(creds(), "{}");
+      if (/^desktop$/i.test(platform)) {
+        sock?.emit("connection.update", {
+          connection: "close",
+          lastDisconnect: { error: { message: "pairing refused", output: { statusCode: REASON.loggedOut } } },
+        });
+        return;
+      }
+      sock?.emit("creds.update", {});
       sock?.emit("connection.update", {
         connection: "close",
         lastDisconnect: { error: { message: "restart required", output: { statusCode: REASON.restartRequired } } },

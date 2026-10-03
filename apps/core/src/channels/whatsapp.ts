@@ -16,6 +16,7 @@ export type WaLib = {
   useMultiFileAuthState(dir: string): Promise<{ state: unknown; saveCreds: () => Promise<void> | void }>;
   downloadMediaMessage(msg: WaMessage, type: "buffer", opts: Record<string, unknown>): Promise<Buffer>;
   fetchLatestBaileysVersion?(): Promise<{ version: number[] }>;
+  Browsers?: { macOS(name: string): [string, string, string] };
   DisconnectReason: { loggedOut: number; restartRequired: number; timedOut: number };
 };
 export type WaSocket = {
@@ -56,6 +57,8 @@ const loadBaileys = async () => (await import("@whiskeysockets/baileys")) as unk
 /** Voice notes up to this size are downloaded for transcription. */
 const MAX_VOICE_BYTES = 10 * 1024 * 1024;
 const BACKOFF_MS = [2_000, 5_000, 15_000, 30_000, 60_000];
+/** Rounds of QR codes (about a minute each) before linking waits for the owner to press Link again. */
+const QR_ROUNDS = 4;
 /** Our own sends come back as echoes within seconds; this only has to outlive that, bounded. */
 const ECHOES = 500;
 // WhatsApp's own service numbers (verification codes, product tips): never someone writing.
@@ -117,11 +120,24 @@ export function toWhatsApp(md: string): string {
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, "$1 ($2)");
 }
 
-/** A pino-shaped logger that only lets warnings through (the library is chatty). */
+/** What the library logs, as one line: its message and the fields that say why (errors, codes). */
+const line = (a: unknown[]) =>
+  a
+    .map((x) => (typeof x === "string" ? x : JSON.stringify(x, (_k, v) => (v instanceof Error ? v.message : v))))
+    .join(" ")
+    .slice(0, 400);
+/** Linking and connection steps the library reports at info level: worth keeping, the rest of its info is noise. */
+const LINKING = /pair|qr|login|connect|stream|logout|restart|regist/i;
+
+/** A pino-shaped logger: warnings and errors, plus the library's linking steps (they explain a failed link). */
 function quiet(log: Log | undefined) {
   const noop = () => {};
-  const warn = (...a: unknown[]) => log?.warn({ wa: String(a.map(String).join(" ")).slice(0, 300) }, "whatsapp");
-  const self: Record<string, unknown> = { level: "warn", trace: noop, debug: noop, info: noop, warn, error: warn };
+  const warn = (...a: unknown[]) => log?.warn({ wa: line(a) }, "whatsapp");
+  const info = (...a: unknown[]) => {
+    const text = line(a);
+    if (LINKING.test(text)) log?.info({ wa: text }, "whatsapp");
+  };
+  const self: Record<string, unknown> = { level: "info", trace: noop, debug: noop, info, warn, error: warn };
   self.fatal = warn;
   self.child = () => self;
   return self;
@@ -135,7 +151,10 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
   let me: { pn: string; lid: string } | undefined;
   let stopped = false;
   let attempts = 0;
+  let qrRounds = 0;
   let retry: ReturnType<typeof setTimeout> | undefined;
+  /** Credentials being written: a reconnect reads them back, so it waits for the last write. */
+  let saving: Promise<unknown> = Promise.resolve();
   /** Ids of what we sent: their echoes are not the owner typing. */
   const ownSends = new Set<string>();
   /** The numbered options last offered in each conversation (WhatsApp has no buttons). */
@@ -162,13 +181,17 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
       auth: state,
       ...(version ? { version } : {}),
       logger: quiet(log),
-      browser: ["APX", "Desktop", "2.0"],
+      // A web companion on macOS, as WhatsApp Web is. The second field picks the platform the phone links: anything
+      // but a browser name (e.g. "Desktop", the native app) makes the phone start linking and then refuse it.
+      browser: lib.Browsers?.macOS("APX") ?? ["Mac OS", "APX", "14.4.1"],
       // The phone stays the one that is online: announcing ourselves would mute its notifications.
       markOnlineOnConnect: false,
       syncFullHistory: false,
     });
     sock = s;
-    s.ev.on("creds.update", (() => void saveCreds()) as (arg: never) => void);
+    s.ev.on("creds.update", (() => {
+      saving = saving.then(saveCreds, saveCreds);
+    }) as (arg: never) => void);
     s.ev.on("connection.update", ((u: ConnectionUpdate) => onConnection(s, u)) as (arg: never) => void);
     s.ev.on("messages.upsert", ((up: { type: string; messages: WaMessage[] }) => {
       if (up.type !== "notify" || s !== sock) return;
@@ -182,6 +205,7 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
     if (u.connection === "open") {
       io.qr?.(undefined);
       attempts = 0;
+      qrRounds = 0;
       me = { pn: normalJid(s.user?.id), lid: normalJid(s.user?.lid) };
       io.status("running");
       io.identified?.({ account: `+${digitsOf(me.pn)}`, owner: me.pn });
@@ -200,6 +224,13 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
     }
     // After a scan WhatsApp asks for a restart: the linked session comes up on the next connection.
     if (code === lib.DisconnectReason.restartRequired) {
+      log?.info({ channel: "whatsapp" }, "whatsapp linked: reconnecting with the new credentials");
+      void saving.then(connect, connect);
+      return;
+    }
+    log?.warn({ code, why: why.slice(0, 200) }, "whatsapp connection closed");
+    // Nobody scanned yet: a fresh round of codes, a few times, then wait for the owner.
+    if (!hasCreds() && code === lib.DisconnectReason.timedOut && ++qrRounds < QR_ROUNDS) {
       void connect();
       return;
     }
@@ -287,6 +318,7 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
     async start(adapterIO) {
       io = adapterIO;
       stopped = false;
+      qrRounds = 0;
       try {
         lib = await (opts.lib ?? loadBaileys)();
       } catch (err) {

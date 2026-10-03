@@ -18,7 +18,7 @@ step(["--filter", "@apx/desktop", "build"]);
 const RESTART_CODE = 75;
 let core = startCore();
 function startCore() {
-  const child = spawn(process.execPath, ["apps/core/src/main.ts"], {
+  const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "apps/core/src/main.ts"], {
     cwd: root,
     stdio: "inherit",
     env: { ...process.env, APX_SUPERVISED: "1" },

@@ -54,6 +54,33 @@ test("linking: a QR waits in the app, and once scanned the number is the owner's
   assert.equal((fs.statSync(wa.dir).mode & 0o777).toString(8), "700", "the credentials folder is private");
 });
 
+test("codes keep coming for a few rounds while nobody scans, then linking waits for the owner", async () => {
+  const fake = fakeWhatsApp();
+  const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
+  const adapter = whatsappAdapter({ dir, lib: async () => fake.lib });
+  const codes: string[] = [];
+  const states: string[] = [];
+  const ac = new AbortController();
+  await adapter.start({
+    receive: () => {},
+    action: () => {},
+    status: (s, e) => states.push(`${s}:${e ?? ""}`),
+    qr: (c) => c && codes.push(c),
+    signal: ac.signal,
+  });
+  for (let i = 0; i < 3; i++) {
+    await until(() => codes.length === i + 1, `code ${i + 1}`);
+    fake.expire();
+  }
+  await until(() => codes.length === 4, "a fourth round");
+  assert.deepEqual(states, [], "still linking");
+  fake.expire();
+  await until(() => states.length === 1, "gave up");
+  assert.match(states[0] ?? "", /^error:.*press Link/);
+  await adapter.stop();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test("the owner talks in 'Message yourself'; the answer comes back there once, its echo never starts a turn", async () => {
   const calls = llm.calls.length;
   wa.fromOwner("what is on today?");

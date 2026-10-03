@@ -1,8 +1,11 @@
 import qrcode from "qrcode-generator";
 import { useMemo } from "react";
 
-/** A QR code drawn as SVG squares (dark on light, with its quiet zone), from the text it carries. */
-export function QrCode({ value, size = 220, label }: { value: string; size?: number; label: string }) {
+/**
+ * A QR code drawn as SVG squares (dark on light, with its quiet zone), from the text it carries. Every module gets the
+ * same whole number of pixels: uneven modules are what a phone camera struggles with.
+ */
+export function QrCode({ value, size = 260, label }: { value: string; size?: number; label: string }) {
   const { n, path } = useMemo(() => {
     const qr = qrcode(0, "M");
     qr.addData(value);
@@ -13,13 +16,14 @@ export function QrCode({ value, size = 220, label }: { value: string; size?: num
       for (let c = 0; c < count; c++) if (qr.isDark(r, c)) d += `M${c + 4} ${r + 4}h1v1h-1z`;
     return { n: count + 8, path: d };
   }, [value]);
+  const px = Math.max(3, Math.floor(size / n)) * n;
   return (
     <svg
       className="qrcode"
       role="img"
       aria-label={label}
-      width={size}
-      height={size}
+      width={px}
+      height={px}
       viewBox={`0 0 ${n} ${n}`}
       shapeRendering="crispEdges"
     >
