@@ -41,10 +41,14 @@ export function SkillsPart({ part, projectId }: { part: SkillsPart; projectId: s
     ...considered.map((name) => ({ name, kind: "considered" as const })),
   ];
   if (!chips.length) return null;
+  // No engine: the owner named the skill with "/name".
+  const title = part.engine
+    ? t("skills.trace.title", { engine: part.engine })
+    : t("skills.trace.asked", { name: part.loaded[0] ?? "" });
   return (
     <div className="turn__skills">
-      <Tooltip content={t("skills.trace.title", { engine: part.engine })}>
-        <span className="turn__skillsicon" role="img" aria-label={t("skills.trace.title", { engine: part.engine })}>
+      <Tooltip content={title}>
+        <span className="turn__skillsicon" role="img" aria-label={title}>
           <Icons.Sparkles size={11} />
         </span>
       </Tooltip>

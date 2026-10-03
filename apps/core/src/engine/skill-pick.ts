@@ -27,6 +27,19 @@ type Known = { vector: Float32Array; floor: Floor };
 const descOf = (s: Skill) => s.description.slice(0, 600);
 const keyOf = (s: Skill) => `${s.name}\n${descOf(s)}`;
 
+/** The skill the owner named with "/name": its body goes in whole; the chat shows it loaded, with no engine. */
+export function askedPick(skill: Skill): SkillPick | undefined {
+  try {
+    const body = parseFrontmatter(readSkillFile(skill)).body;
+    return {
+      block: skillsBlock([{ name: skill.name, body }], []),
+      part: { type: "skills", engine: "", loaded: [skill.name], hinted: [], scored: [] },
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 export function createSkillPicker(deps: { store: Store; services: Services; log: Log }) {
   const { services, log } = deps;
   /** Per engine: the baseline prompts' vectors and each skill's (by name and description). */

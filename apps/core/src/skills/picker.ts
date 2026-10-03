@@ -45,6 +45,16 @@ export const BASELINE = [
   "hold on, I will send you the details",
 ] as const;
 
+/**
+ * "/name rest…" where name is one of these skills: the owner asked for it by name (the chat's / menu, a channel
+ * command). It goes in whole whatever the engine says, and with no engine at all.
+ */
+export function askedSkill<S extends { name: string }>(text: string, skills: S[]): S | undefined {
+  const m = /^\/([a-zA-Z0-9][a-zA-Z0-9_.-]{0,63})(?:@\w+)?(?:\s|$)/.exec(text.trimStart());
+  const name = m?.[1]?.toLowerCase();
+  return name ? skills.find((s) => s.name.toLowerCase() === name) : undefined;
+}
+
 export type Floor = { mu: number; sd: number };
 export type Scored = { name: string; sim: number; rel: number };
 

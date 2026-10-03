@@ -190,3 +190,43 @@
     max-width: 120px;
   }
 }
+
+/* "/" menu: commands, then skills, over the composer. */
+.slash {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  border: 1px solid var(--apx-border);
+  box-shadow: var(--apx-shadow-md);
+}
+.slash__row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, max-content) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: calc(var(--apx-radius-md) - 4px);
+  cursor: default;
+  font-size: var(--apx-text-sm);
+}
+.slash__row.is-active {
+  background: var(--apx-fill);
+}
+.slash__icon {
+  display: inline-flex;
+  color: var(--apx-fg-muted);
+}
+.slash__name {
+  font-family: var(--apx-font-mono);
+  color: var(--apx-fg);
+  white-space: nowrap;
+}
+.slash__desc {
+  color: var(--apx-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

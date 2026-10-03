@@ -33,6 +33,12 @@ export interface ComposerProps {
   toolbar?: ReactNode;
   /** Strip above the field (context usage, tool count, attachments). */
   header?: ReactNode;
+  /** Floats over the box, anchored to its top (a "/" command menu, suggestions). */
+  popup?: ReactNode;
+  /** Sees each key in the field first; return true when it handled it (Enter then does not send). */
+  onInputKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => boolean;
+  /** ARIA wiring for a popup list the field drives: its id while `expanded`, and the row in focus. */
+  inputAria?: { controls?: string; expanded?: boolean; activedescendant?: string };
   /** Agent is answering: the send button becomes stop. */
   busy?: boolean;
   onStop?: () => void;
@@ -57,6 +63,9 @@ export function Composer({
   onAttach,
   toolbar,
   header,
+  popup,
+  onInputKeyDown,
+  inputAria,
   busy = false,
   onStop,
   disabled,
@@ -76,6 +85,7 @@ export function Composer({
     if (value == null) setInner("");
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (onInputKeyDown?.(e)) return;
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       submit(e.ctrlKey || e.metaKey);
@@ -122,6 +132,7 @@ export function Composer({
         className,
       )}
     >
+      {popup && <div className="apx-composer__popup">{popup}</div>}
       {header && <div className="apx-composer__header">{header}</div>}
       <div className="apx-composer__row">
         {!boxed && attach}
@@ -134,6 +145,9 @@ export function Composer({
           onChange={(e) => set(e.target.value)}
           onKeyDown={onKey}
           disabled={disabled}
+          aria-autocomplete={inputAria ? "list" : undefined}
+          aria-controls={inputAria?.expanded ? inputAria.controls : undefined}
+          aria-activedescendant={inputAria?.activedescendant}
         />
         {!boxed && primary}
       </div>

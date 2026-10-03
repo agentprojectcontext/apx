@@ -13,6 +13,7 @@ import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
 import { contextOf, spentOf } from "./context.ts";
+import { useSlashMenu } from "./SlashMenu.tsx";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
@@ -22,6 +23,7 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
  * the mic (dictates into the field) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
+ * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted.
  */
 export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
@@ -37,6 +39,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   const over = useFileDrop(box, att.add);
   const mic = useDictation(thread.id, (words) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words)));
   const busy = isWorking(thread.state);
+  const slash = useSlashMenu({ thread, agent, text, setText, busy });
   const runs = useMemo(
     () =>
       Object.values(runsById)
@@ -98,6 +101,9 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
         onStop={() => void cancel(thread.id)}
         onSubmit={submit}
         header={att.chips.length ? <AttachChips chips={att.chips} onRemove={att.remove} /> : undefined}
+        popup={slash.popup}
+        onInputKeyDown={slash.onKey}
+        inputAria={slash.aria}
         toolbar={
           <>
             <Menu

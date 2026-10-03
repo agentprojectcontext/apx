@@ -13,6 +13,7 @@ import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { contextWindow } from "../providers/windows.ts";
+import { askedSkill } from "../skills/picker.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { inherit } from "../tools/policy.ts";
@@ -37,7 +38,7 @@ import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
-import type { SkillPicker } from "./skill-pick.ts";
+import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
 
@@ -243,8 +244,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
   const available = sealed ? [] : agentSkills(agent, skillsFor(store, deps.home, thread.project_id));
-  // Weighed while notes are recalled: both wait on the embedding engine.
-  const picking = deps.skills?.pick(turn.input.text, available);
+  // A skill named with "/name" goes in as asked; otherwise skills are weighed while notes are recalled (both wait on
+  // the embedding engine).
+  const asked = askedSkill(turn.input.text, available);
+  const picking = asked ? Promise.resolve(askedPick(asked)) : deps.skills?.pick(turn.input.text, available);
   const recalled = remembers
     ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
     : {};

@@ -86,6 +86,17 @@
 .apx-composer.is-disabled {
   opacity: 0.6;
 }
+.apx-composer {
+  position: relative;
+}
+/* A popup over the box (the "/" menu): its bottom sits on the box's top edge. */
+.apx-composer__popup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+}
 .apx-composer__header {
   display: flex;
   align-items: center;

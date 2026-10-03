@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
-import { choose } from "../skills/picker.ts";
+import { askedSkill, choose } from "../skills/picker.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /** A fake Ollama: images point one way, golf another; anything else (the bland baseline) a third, each a bit apart. */
@@ -37,6 +37,15 @@ const skill = (name: string, description: string, body: string) =>
   });
 const skillsPart = (messages: Message[]) =>
   messages.flatMap((m) => m.parts).find((p): p is Extract<typeof p, { type: "skills" }> => p.type === "skills");
+
+/** The last turn's input as the model read it (other calls, like a chat's title, are skipped). */
+const turnInput = () =>
+  String(
+    llm.calls
+      .map((c) => c.messages.at(-1)?.content)
+      .filter((c) => String(c).startsWith("[context:"))
+      .at(-1),
+  );
 
 before(async () => {
   await new Promise<void>((r) => ollama.listen(0, "127.0.0.1", r));
@@ -90,6 +99,33 @@ test("a short message, or the picker turned off, adds nothing", async () => {
   const last = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(last, /un gato/);
   assert.doesNotMatch(last, /skills matched/);
+});
+
+test("a skill named with /name goes in whole, picker or not; an unknown name is just text", async () => {
+  // The picker is off since the test above: "/" needs no engine.
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "/golf-tee mañana a las 9" });
+  const { messages } = await env.settle(t.id);
+  const input = turnInput();
+  assert.match(input, /Loaded: golf-tee\nOpen the club's booking page/);
+  assert.match(input, /\/golf-tee mañana a las 9/, "the owner's words stay as written");
+  const part = skillsPart(messages);
+  assert.deepEqual(part?.loaded, ["golf-tee"]);
+  assert.equal(part?.engine, "");
+
+  await env.client.call("threads.send", { thread: t.id, text: "/nada que ver" });
+  await env.settle(t.id);
+  assert.match(turnInput(), /\/nada que ver/);
+  assert.doesNotMatch(turnInput(), /Loaded:/);
+});
+
+test("askedSkill reads only a leading /name that is a skill", () => {
+  const list = [{ name: "golf-tee" }, { name: "PDF" }];
+  assert.equal(askedSkill("/golf-tee", list)?.name, "golf-tee");
+  assert.equal(askedSkill("  /pdf leé esto", list)?.name, "PDF");
+  assert.equal(askedSkill("/golf-tee@ApxBot hola", list)?.name, "golf-tee");
+  assert.equal(askedSkill("usá /golf-tee", list), undefined);
+  assert.equal(askedSkill("/golf-teetime", list), undefined);
 });
 
 test("only a clear winner is loaded; close ones are named; unrelated ones never count", () => {

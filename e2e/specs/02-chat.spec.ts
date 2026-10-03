@@ -67,3 +67,38 @@ test("a message picks its skills by meaning: chips over the answer, a card per s
     await rpc("services.set", { id: "e2e-embed", service: null });
   }
 });
+
+test("the / menu: commands and skills, a skill named loads whole, /new opens a fresh chat", async ({ page }) => {
+  // image-gen stays from the test above; with no embedding engine now, only "/" can bring it in.
+  await open(page);
+  const box = page.getByRole("textbox", { name: /^Escribile a/ });
+  await box.fill("/");
+  const menu = page.getByRole("listbox", { name: "Comandos y skills" });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("option", { name: /\/compact/ })).toBeVisible();
+  await expect(menu.getByRole("option", { name: /\/image-gen/ })).toBeVisible();
+
+  await box.fill("/ima");
+  await expect(menu.getByRole("option")).toHaveCount(1);
+  await box.press("Enter");
+  await expect(box).toHaveValue("/image-gen ");
+  await expect(menu).toBeHidden();
+  await box.pressSequentially("dibujá un perro");
+  await box.press("Enter");
+  await expect(page.getByText("Got it: /image-gen dibujá un perro")).toBeVisible();
+  await expect(page.getByRole("button", { name: "image-gen", exact: true }).last()).toBeVisible();
+
+  // Esc closes the menu; the text stays as typed.
+  await box.fill("/comp");
+  await expect(menu).toBeVisible();
+  await box.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(box).toHaveValue("/comp");
+
+  const count = (await rpc<{ threads: unknown[] }>("threads.list")).threads.length;
+  await box.fill("/new");
+  await box.press("Enter");
+  await expect(page.getByRole("textbox", { name: /^Escribile a/ })).toHaveValue("");
+  await expect(page.getByText("Got it: /image-gen dibujá un perro")).toBeHidden();
+  expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBe(count + 1);
+});
