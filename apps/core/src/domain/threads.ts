@@ -98,24 +98,8 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
           .selectAll()
           .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
           .$if(!!project_id, (q) => q.where("project_id", "=", project_id as string))
-          // An engine's chats: those it answered in, and those set to it (their own model) before it did.
-          .$if(!!engine, (q) =>
-            q.where((eb) =>
-              eb.or([
-                eb(
-                  "id",
-                  "in",
-                  eb
-                    .selectFrom("runs")
-                    .select("thread_id")
-                    .where((r) => r.or([r("model", "=", engine as string), r("model", "like", `${engine}/%`)])),
-                ),
-                eb("engine", "=", engine as string),
-                eb(sql<string>`json_extract(context, '$.model_choice.model')`, "=", engine as string),
-                eb(sql<string>`json_extract(context, '$.model_choice.model')`, "like", `${engine}/%`),
-              ]),
-            ),
-          )
+          // An engine's sessions: the engine itself, never an agent's chat that happens to run on its model.
+          .$if(!!engine, (q) => q.where("engine", "=", engine as string))
           .orderBy("updated_at", "desc")
           .limit(300),
       ).map(toThread);
