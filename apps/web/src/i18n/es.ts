@@ -144,6 +144,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.restarting": "Reiniciando APX con la versión nueva…",
   "update.done": "Listo. Reiniciá APX para usar la versión nueva.",
   "update.failed": "La actualización se frenó y lo que corre ahora no cambió. Qué pasó:",
+  "board.title": "Tablero",
+  "board.empty":
+    "Los widgets fijados a este proyecto aparecen acá, en vivo. Pedile uno a un agente (“un widget con las ventas del mes, fijado”); lo mantiene al día por su nombre.",
+  "board.unpin": "Sacar del tablero",
+  "overview.appsOnly": "Apps",
   "palette.title": "Buscar",
   "palette.places": "Ir a",
   "palette.chats": "Chats",

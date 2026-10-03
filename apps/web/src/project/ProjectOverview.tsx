@@ -6,6 +6,7 @@ import { blobOf, inProject, isListed, isWorking, type ProjectEntry, threadAgent 
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { ProjectBoard } from "./ProjectBoard.tsx";
 
 /** Overview: what runs now, the team, counts and the latest chats. All real data; nothing sampled. */
 export function ProjectOverview({ project }: { project: ProjectEntry }) {
@@ -26,12 +27,14 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
   const team = useMemo(() => teamOf(agents, pid), [agents, pid]);
   const unread = chats.reduce((n, t) => n + t.unread, 0);
   const apps = useMemo(
-    () => Object.values(surfaces).filter((s) => (s.app || s.pinned) && inProject(s, pid)),
+    // Pinned widgets live on the board above; this lists the apps.
+    () => Object.values(surfaces).filter((s) => s.app && inProject(s, pid)),
     [surfaces, pid],
   );
 
   return (
     <div className="overview">
+      <ProjectBoard projectId={pid} />
       <div className="overview__col">
         <section className="overview__block">
           <h2 className="overview__h">{t("overview.now")}</h2>
@@ -96,7 +99,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
 
         {apps.length > 0 && (
           <section className="overview__block">
-            <h2 className="overview__h">{t("overview.apps")}</h2>
+            <h2 className="overview__h">{t("overview.appsOnly")}</h2>
             {apps.map((s) => (
               <button
                 key={s.id}

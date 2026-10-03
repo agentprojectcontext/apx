@@ -1,4 +1,4 @@
-// show_widget: the agent creates or updates a widget; the owner can pin it to the sidebar or open it as an app.
+// show_widget: the agent creates or updates a widget; pinned, it lives on its project's board; it can also be an app.
 import { z } from "zod";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -7,7 +7,7 @@ export function surfaceTools(): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "Show a visual widget in the chat: self-contained HTML (inline CSS/JS/SVG, no external requests). Use the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand for the theme. The same name updates the existing widget. pin=true keeps it in the sidebar; app=true lists it as a fullscreen app. window.apx.sendPrompt(text) sends a message back to this chat.",
+        "Show a visual widget in the chat: self-contained HTML (inline CSS/JS/SVG, no external requests). Use the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand for the theme. The same name updates the existing widget (keep a board current by updating it, never by making a new one). pin=true puts it on this project's board (its overview) and in the sidebar; app=true lists it as a fullscreen app. window.apx.sendPrompt(text) sends a message back to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
@@ -38,9 +38,10 @@ export function surfaceTools(): Tool[] {
           version: surface.version,
           title: surface.title,
         });
-        const where = [surface.pinned ? "pinned to the sidebar" : "", surface.app ? "listed as an app" : ""].filter(
-          Boolean,
-        );
+        const where = [
+          surface.pinned ? "pinned to the project's board" : "",
+          surface.app ? "listed as an app" : "",
+        ].filter(Boolean);
         return `widget "${surface.name}" v${surface.version} shown${where.length ? `, ${where.join(", ")}` : ""}.`;
       },
     }),

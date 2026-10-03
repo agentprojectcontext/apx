@@ -141,6 +141,11 @@ export const en = {
   "update.restarting": "Restarting APX with the new version…",
   "update.done": "Updated. Restart APX to use the new version.",
   "update.failed": "The update stopped and nothing changed in what runs now. What happened:",
+  "board.title": "Board",
+  "board.empty":
+    "Widgets pinned to this project show here, live. Ask an agent for one (“a widget with this month's sales, pinned”); it keeps it up to date by its name.",
+  "board.unpin": "Take off the board",
+  "overview.appsOnly": "Apps",
   "palette.title": "Search",
   "palette.places": "Go to",
   "palette.chats": "Chats",

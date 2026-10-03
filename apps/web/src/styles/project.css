@@ -571,3 +571,27 @@
 .resources__ext {
   margin-bottom: 20px;
 }
+
+/* The project's board: pinned widgets across the whole overview, as many columns as fit. */
+.board {
+  grid-column: 1 / -1;
+}
+.board__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.board__tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.board__tile .widgets__head {
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
