@@ -22,6 +22,32 @@ function v1Value(config: unknown, dotted: string): string | undefined {
   return typeof cur === "string" && cur ? cur : undefined;
 }
 
+/** v1's model API keys into v2's secrets, once each (a name v2 already has stays); the names copied. */
+export function importKeys(home: string, secrets: Secrets): string[] {
+  const keys: string[] = [];
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
+    for (const [from, name] of Object.entries(V1_KEYS)) {
+      const value = v1Value(config, from);
+      if (value && !secrets.has(`secret://${name}`)) {
+        secrets.set(name, value);
+        keys.push(name);
+      }
+    }
+  } catch {}
+  return keys;
+}
+
+/** How many of v1's model API keys v2 can take. */
+export function v1KeyCount(home: string): number {
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
+    return Object.keys(V1_KEYS).filter((from) => v1Value(config, from)).length;
+  } catch {
+    return 0;
+  }
+}
+
 const SKILL_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 
 /** Anything already at that name, a broken link included, is the owner's and stays. */
@@ -169,19 +195,7 @@ export async function importFromV1(
     } catch {}
   }
   const skills = opts.skills ? importSkills(path.join(opts.home, "skills"), path.join(opts.v2Home, "skills")) : [];
-  const keys: string[] = [];
-  if (opts.keys) {
-    try {
-      const config = JSON.parse(fs.readFileSync(path.join(opts.home, "config.json"), "utf8")) as unknown;
-      for (const [from, name] of Object.entries(V1_KEYS)) {
-        const value = v1Value(config, from);
-        if (value && !secrets.has(`secret://${name}`)) {
-          secrets.set(name, value);
-          keys.push(name);
-        }
-      }
-    } catch {}
-  }
+  const keys = opts.keys ? importKeys(opts.home, secrets) : [];
   let token = "";
   try {
     token = fs.readFileSync(path.join(opts.home, "daemon.token"), "utf8").trim();

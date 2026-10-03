@@ -259,6 +259,18 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one(qb.selectFrom("messages").selectAll().where("id", "=", id));
       return r ? toMessage(r) : undefined;
     },
+    /** Whether the owner ever wrote anything (an install in use, not a new one). */
+    anyFromOwner(): boolean {
+      return Boolean(
+        one(
+          qb
+            .selectFrom("messages")
+            .select("id")
+            .where(sql<string>`json_extract(author, '$.kind')`, "=", "user")
+            .limit(1),
+        ),
+      );
+    },
     add(m: { thread_id: string; author: Author; parts: Part[]; run_id?: string; model?: string }): Message {
       const seqRow = one(
         qb

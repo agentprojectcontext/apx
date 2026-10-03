@@ -2,7 +2,7 @@
 // the active tab's native view is positioned over that slot. Tab views are siblings of the panel, so a
 // panel reload never kills tabs.
 import path from "node:path";
-import { app, BaseWindow, ipcMain, Notification, WebContentsView } from "electron";
+import { app, BaseWindow, dialog, ipcMain, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -129,6 +129,12 @@ app.whenReady().then(() => {
     if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
     const error = quick.apply({ shortcut: prefs.shortcut, launchAtLogin: prefs.launchAtLogin === true });
     if (error && Notification.isSupported()) new Notification({ title: "APX", body: error }).show();
+  });
+  // The owner picks a folder (a project's) with the system's own dialog; only the panel may ask.
+  ipcMain.handle("panel:pick-folder", async (e) => {
+    if (e.sender !== panel.webContents) return undefined;
+    const r = await dialog.showOpenDialog(win, { properties: ["openDirectory", "createDirectory"] });
+    return r.canceled ? undefined : r.filePaths[0];
   });
   ipcMain.on("desktop:attention", (e, unread: unknown) => {
     if (e.sender !== panel.webContents || typeof unread !== "number") return;

@@ -16,6 +16,8 @@ declare global {
       applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean }): void;
       /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */
       setAttention?(unread: number): void;
+      /** The system's folder dialog; undefined when the owner cancels. */
+      pickFolder?(): Promise<string | undefined>;
     };
   }
 }

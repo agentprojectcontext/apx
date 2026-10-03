@@ -1,6 +1,8 @@
 // The app's settings and catalog: projects, surfaces, models and the router, skills, secrets, desktop prefs and the
 // v1 import. (Agents live in rpc/agents.ts.)
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
@@ -67,10 +69,11 @@ export function appHandlers(deps: {
       return { default: models.defaultChoice(), router: models.router() };
     },
     "projects.list": () => ({ projects: store.projects.list().map(publicProject) }),
-    "projects.register": ({ path }) => {
+    "projects.register": ({ path: dir, init }) => {
       let r: ReturnType<typeof deps.apc.register>;
       try {
-        r = deps.apc.register(path);
+        if (init) initProject(dir);
+        r = deps.apc.register(dir);
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
@@ -135,3 +138,12 @@ export function appHandlers(deps: {
 
 /** The quick chat opens with Option+Space unless the owner picked another shortcut. */
 const desktopPrefs = (store: Store) => store.settings.read("desktop");
+
+/** Makes a plain folder an APC project, writing only what is missing: AGENTS.md (named after it) and .apc/. */
+function initProject(dir: string): void {
+  const abs = path.resolve(dir);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return;
+  const agents = path.join(abs, "AGENTS.md");
+  if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${path.basename(abs)}\n`);
+  fs.mkdirSync(path.join(abs, ".apc"), { recursive: true });
+}

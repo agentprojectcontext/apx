@@ -1,0 +1,52 @@
+// The first-run setup: whether it is done, whether this install is new, and what APX v1 left on this machine.
+import fs from "node:fs";
+import path from "node:path";
+import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
+import type { Handlers } from "./router.ts";
+
+const DONE_KEY = "setup_done";
+
+const readJson = (file: string): Record<string, unknown> | undefined => {
+  try {
+    const v = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+/** APX v1 on this machine: its folder has a config.json. Only names and counts come back, never its settings. */
+export function findV1(home: string) {
+  const config = readJson(path.join(home, "config.json"));
+  if (!config) return null;
+  const version = str(readJson(path.join(home, "update-check.json"))?.current);
+  const identity = readJson(path.join(home, "identity.json"));
+  const agent = str(identity?.agent_name);
+  const owner = str(identity?.owner_name);
+  return {
+    home,
+    projects: Array.isArray(config.projects) ? config.projects.length : 0,
+    ...(version ? { version } : {}),
+    ...(agent ? { agent_name: agent } : {}),
+    ...(owner ? { owner_name: owner } : {}),
+  };
+}
+
+export function setupHandlers(deps: V1ImportDeps) {
+  const { store, v1Home } = deps;
+  return {
+    "setup.v1_scan": () => ({ groups: scanV1(v1Home) }),
+    "setup.import_v1": ({ groups }) => importV1(deps, groups),
+    "setup.status": () => ({
+      done: store.settings.get(DONE_KEY) === "1",
+      // Anything the owner already said means this install is in use: the setup does not open on its own then.
+      fresh: !store.messages.anyFromOwner(),
+      v1: findV1(v1Home),
+    }),
+    "setup.finish": () => {
+      store.settings.set(DONE_KEY, "1");
+      return { done: true as const };
+    },
+  } satisfies Partial<Handlers>;
+}

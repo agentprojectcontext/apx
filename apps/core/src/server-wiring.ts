@@ -37,6 +37,7 @@ import type { Dispatch } from "./rpc/router.ts";
 import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
+import { setupHandlers } from "./rpc/setup.ts";
 import { systemHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
@@ -158,6 +159,14 @@ export function coreHandlers(d: HandlerDeps) {
     ...teamHandlers(d.store, d.apc, d.templateRoots),
     ...fileHandlers(d.store, d.desktop),
     ...sessionHandlers(d.store, d.native),
+    ...setupHandlers({
+      store: d.store,
+      apc: d.apc,
+      secrets: d.secrets,
+      channels: d.channels,
+      v1Home: d.app.v1.home,
+      v2Home: d.app.home,
+    }),
     ...composerHandlers({
       store: d.store,
       home: d.app.home,

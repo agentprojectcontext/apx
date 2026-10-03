@@ -38,6 +38,19 @@ import { officeMethods } from "./office-methods.ts";
 import { resourceMethods } from "./resource-methods.ts";
 import { teamMethods } from "./team-methods.ts";
 
+/** The parts of APX v1 the setup can bring in. */
+const V1Group = z.enum([
+  "projects",
+  "skills",
+  "keys",
+  "vars",
+  "memory",
+  "channels",
+  "tasks",
+  "commitments",
+  "routines",
+]);
+
 export const appMethods = {
   ...officeMethods,
   ...teamMethods,
@@ -49,6 +62,54 @@ export const appMethods = {
    * and, when asked, copies once into v2's own home: its model API keys (`keys`), its skills (`skills`), and its image
    * engines and voices (`services`).
    */
+  /**
+   * Where the owner is in the first-run setup: done or not, whether this install is new (nothing said in it yet) and
+   * the APX v1 found on this machine, if any (counts only).
+   */
+  "setup.status": {
+    params: z.object({}).strict(),
+    result: z.object({
+      done: z.boolean(),
+      fresh: z.boolean(),
+      v1: z
+        .object({
+          home: z.string(),
+          version: z.string().optional(),
+          agent_name: z.string().optional(),
+          owner_name: z.string().optional(),
+          projects: z.number().int(),
+        })
+        .nullable(),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /** What APX v1 has, per group: how many (and, for projects, their agents; for channels, their contacts). */
+  "setup.v1_scan": {
+    params: z.object({}).strict(),
+    result: z.object({
+      groups: z.array(z.object({ id: V1Group, count: z.number().int(), detail: z.string().optional() })),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Brings the chosen v1 groups into v2, reading v1's folder only. Routines come in off (v1 may still run them); a
+   * Telegram bot v2 already has stays.
+   */
+  "setup.import_v1": {
+    params: z.object({ groups: z.array(V1Group).min(1) }).strict(),
+    result: z.object({ imported: z.record(z.string(), z.number().int()), errors: z.array(z.string()) }),
+    effect: true,
+    access: "human",
+  },
+  /** The setup is over: it does not open again by itself. */
+  "setup.finish": {
+    params: z.object({}).strict(),
+    result: z.object({ done: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   "system.import_v1": {
     params: z
       .object({
@@ -200,7 +261,13 @@ export const appMethods = {
   },
   /** Registers a folder as a project and reads its AGENTS.md and .apc/ (never writes them). */
   "projects.register": {
-    params: z.object({ path: z.string().min(1).max(1024) }).strict(),
+    params: z
+      .object({
+        path: z.string().min(1).max(1024),
+        /** A plain folder becomes a project: an AGENTS.md naming it and an empty .apc/ are written there. */
+        init: z.boolean().default(false),
+      })
+      .strict(),
     result: z.object({ project: Project, agents: z.number().int() }),
     effect: true,
     access: "human",

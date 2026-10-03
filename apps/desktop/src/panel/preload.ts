@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     }),
   applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean }) => ipcRenderer.send("desktop:prefs", prefs),
   setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
+  pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
 });
