@@ -46,7 +46,10 @@ pnpm e2e                           # builds the panel, then every spec in e2e/sp
 pnpm exec playwright test e2e/specs/06-telegram.spec.ts --headed    # one spec, watching
 E2E_KEEP=1 node e2e/env.ts         # the sandbox by hand (core :7460, control :7461); its folder stays after
 E2E_CHROMIUM=/path/to/chrome pnpm e2e   # a Chromium other than the one Playwright pins (container, distro build)
+pnpm e2e:desktop                   # the Electron app (e2e/desktop) against the same sandbox; Linux: xvfb-run -a …
 ```
+The desktop specs launch the real app with a temp `HOME` (its data folder never touches the owner's), the panel
+served by the sandbox's core, and check the window, the browser it lends to the core as a node, and the quick chat.
 `e2e/env.ts` is a whole APX apart from the owner's: a temp home and port, `APX_SECRETS=file`, a fake
 OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API
 (`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`). Specs act as the

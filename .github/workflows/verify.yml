@@ -35,6 +35,11 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: End to end (Playwright, sandboxed core)
         run: pnpm e2e
+      - name: Desktop end to end (Electron under a virtual display)
+        run: |
+          node apps/desktop/node_modules/electron/install.js
+          pnpm --filter @apx/desktop build
+          xvfb-run -a pnpm exec playwright test --project desktop
       - name: Lightness budgets
         run: node --no-warnings scripts/perf.ts
       - name: Keep the reports

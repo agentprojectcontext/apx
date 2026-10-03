@@ -18,7 +18,8 @@
     "preflight": "pnpm check:private && pnpm check:schema && pnpm lint && pnpm typecheck && pnpm test",
     "app": "node scripts/app.ts",
     "build:web": "pnpm --filter @apx/ui build && pnpm --filter @apx/web build",
-    "e2e": "pnpm build:web && playwright test",
+    "e2e": "pnpm build:web && playwright test --project chromium",
+    "e2e:desktop": "pnpm build:web && pnpm --filter @apx/desktop build && playwright test --project desktop",
     "perf": "pnpm build:web && node --no-warnings scripts/perf.ts",
     "verify": "pnpm preflight && pnpm e2e && node --no-warnings scripts/perf.ts"
   },

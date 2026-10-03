@@ -7,7 +7,7 @@ const port = Number(process.env.E2E_PORT ?? 7460);
 const executablePath = process.env.E2E_CHROMIUM || undefined;
 
 export default defineConfig({
-  testDir: "e2e/specs",
+  testDir: "e2e",
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
@@ -23,7 +23,11 @@ export default defineConfig({
     screenshot: "only-on-failure",
     launchOptions: { executablePath },
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "es-AR" } }],
+  projects: [
+    { name: "chromium", testDir: "e2e/specs", use: { ...devices["Desktop Chrome"], locale: "es-AR" } },
+    // The Electron app itself (`pnpm e2e:desktop`; on Linux under a display such as xvfb-run).
+    { name: "desktop", testDir: "e2e/desktop", timeout: 60_000 },
+  ],
   webServer: {
     command: "node --no-warnings e2e/env.ts",
     url: `http://127.0.0.1:${port}/health`,
