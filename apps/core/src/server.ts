@@ -127,7 +127,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     secrets,
     bus,
     log,
-    factories: opts.channelAdapters ?? { telegram: telegramAdapter },
+    factories: opts.channelAdapters ?? {
+      telegram: (c, token) => telegramAdapter(c, token, config.telegramApi ?? "https://api.telegram.org"),
+    },
     ...(opts.channelRetryMs ? { retryMs: opts.channelRetryMs } : {}),
     call: internal,
     services,
