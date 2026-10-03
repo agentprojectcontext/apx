@@ -1,33 +1,17 @@
-import { Icons, type MenuEntry, ProjectTile } from "@apx/ui";
+import { ChannelIcon, type MenuEntry, ProjectTile } from "@apx/ui";
 import type { T } from "../i18n/index.ts";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, type ChannelKind } from "./kinds.ts";
 
-const ICONS = {
-  telegram: Icons.Send,
-  whatsapp: Icons.MessageCircle,
-  discord: Icons.Users,
-  slack: Icons.Hash,
-  signal: Icons.Shield,
-  imessage: Icons.MessagesSquare,
-  matrix: Icons.Grid2x2,
-  teams: Icons.Building2,
-  googlechat: Icons.MessagesSquare,
-  mattermost: Icons.Hash,
-  email: Icons.Mail,
-  sms: Icons.Smartphone,
-  line: Icons.AtSign,
-} as const;
-
-/** A channel kind's tile (Telegram blue, WhatsApp green, Discord violet). */
-export function KindTile({ kind, size }: { kind: ChannelKind; size?: number }) {
-  const Icon = ICONS[kind];
-  return <ProjectTile tone={CHANNEL_KINDS[kind].tone} icon={<Icon />} {...(size ? { size } : {})} />;
+/** A channel kind's tile: its official mark on a neutral tile. */
+export function KindTile({ kind, size = 20 }: { kind: ChannelKind; size?: number }) {
+  return (
+    <ProjectTile tone="neutral" icon={<ChannelIcon channel={kind} size={Math.round(size * 0.68)} />} size={size} />
+  );
 }
 
-/** A channel kind's bare icon, for menus. */
+/** A channel kind's bare mark, for menus and tags. */
 export function KindIcon({ kind, size = 14 }: { kind: ChannelKind; size?: number }) {
-  const Icon = ICONS[kind];
-  return <Icon size={size} />;
+  return <ChannelIcon channel={kind} size={size} />;
 }
 
 /** "Add channel": the kinds not connected yet, those that work first and the coming ones under "Coming soon". */

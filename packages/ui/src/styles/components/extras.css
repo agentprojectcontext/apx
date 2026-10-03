@@ -124,6 +124,18 @@
   flex: none;
 }
 
+/* ── ChannelIcon ──────────────────────────────────────────────────────────── */
+.apx-chanicon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  line-height: 0;
+  color: var(--apx-fg);
+}
+.apx-chanicon--none {
+  color: var(--apx-fg-muted);
+}
+
 /* ── EngineIcon ────────────────────────────────────────────────────────────── */
 .apx-engine {
   display: inline-grid;

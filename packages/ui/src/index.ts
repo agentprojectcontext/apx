@@ -13,6 +13,7 @@ export { Badge, type BadgeProps } from "./components/Badge";
 export { type BrowserTabItem, BrowserTabs, type BrowserTabsProps } from "./components/BrowserTabs";
 export { Button, type ButtonProps } from "./components/Button";
 export { Card, type CardProps } from "./components/Card";
+export { ChannelIcon, type ChannelIconProps } from "./components/ChannelIcon";
 export { Checkbox, type CheckboxProps } from "./components/Checkbox";
 export { Composer, type ComposerProps } from "./components/Composer";
 export { ContextMenu, type ContextMenuProps } from "./components/ContextMenu";
