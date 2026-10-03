@@ -119,6 +119,20 @@
   padding: 0 24px 18px;
   box-sizing: border-box;
 }
+/* Narrow (the menu-bar quick chat, a phone): little margin around, and a bubble keeps a gutter only on the side it
+   does not grow from, as phone messengers do. */
+@media (max-width: 640px) {
+  .transcript {
+    padding: 14px 10px 10px;
+  }
+  .apx-msg__col,
+  .turn .apx-msg__col {
+    max-width: 88%;
+  }
+  .chat__composer {
+    padding: 0 10px 10px;
+  }
+}
 .chat__readonly {
   flex: none;
   display: flex;
