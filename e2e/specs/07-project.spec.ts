@@ -1,6 +1,6 @@
 // A project's views: the team chart of the imported project, the files of the one added in the setup, and the owner's
 // own Claude Code and Codex sessions on "this Mac".
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
 
 test("the imported project shows its team", async ({ page }) => {
   await open(page);
@@ -35,4 +35,17 @@ test("the owner's Claude Code and Codex sessions are listed", async ({ page }) =
   await expect(page.getByText("Refactor the cart module")).toBeVisible();
   await page.getByRole("button", { name: "Codex", exact: true }).click();
   await expect(page.getByText("Add a footer")).toBeVisible();
+});
+
+test("a plain folder becomes a project from the sidebar and opens", async ({ page }) => {
+  const { dir } = await world.info();
+  await open(page);
+  await page.getByRole("button", { name: "Nuevo proyecto" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Carpeta" }).fill(`${dir}/work/globex`);
+  await dialog.getByRole("button", { name: "Sumar" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("heading", { name: "globex" })).toBeVisible();
+  await page.getByRole("tab", { name: "Archivos" }).click();
+  await expect(page.getByRole("button", { name: "AGENTS.md" })).toBeVisible();
 });

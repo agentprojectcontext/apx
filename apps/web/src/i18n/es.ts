@@ -156,7 +156,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.tasks": "Tareas",
   "nav.channels": "Canales",
   "nav.projects": "Proyectos",
-  "nav.newProjectSoon": "Nuevo proyecto (pronto)",
+  "nav.newProject": "Nuevo proyecto",
+  "project.new.title": "Sumar un proyecto",
+  "project.new.body":
+    "Un repo o carpeta de trabajo que tus agentes leen y editan. A una carpeta común se le escribe un AGENTS.md con su nombre.",
+  "project.new.path": "Carpeta",
+  "project.new.add": "Sumar",
   "nav.baseProject": "Proyecto base",
   "nav.externalSessions": "Sesiones externas",
   "nav.apps": "Apps",

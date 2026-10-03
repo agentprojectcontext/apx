@@ -22,6 +22,8 @@ export function writeFixtures(dir: string) {
   write(path.join(repo, "AGENTS.md"), "# Acme\n\nThe Acme storefront.\n");
   write(path.join(repo, "README.md"), "# Acme\n\nA small shop.\n");
   write(path.join(repo, "src", "index.ts"), "export const hello = () => 'hi';\n");
+  // A plain folder (no AGENTS.md): added from the sidebar later.
+  write(path.join(dir, "work", "globex", "notes.txt"), "Globex notes.\n");
 
   // APX v1, as it leaves its folder.
   write(path.join(legacy, "AGENTS.md"), "# Northwind\n");

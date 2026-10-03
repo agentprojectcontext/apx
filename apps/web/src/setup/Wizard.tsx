@@ -124,9 +124,9 @@ export function Wizard() {
       return true;
     }
     if (step === "project" && d.projectChoice === "folder" && d.path.trim()) {
-      const name = await addProject(d.path.trim());
-      if (!name) return false;
-      notify(t("setup.project.added", { name }), "info");
+      const project = await addProject(d.path.trim());
+      if (!project) return false;
+      notify(t("setup.project.added", { name: project.name }), "info");
     }
     return true;
   };

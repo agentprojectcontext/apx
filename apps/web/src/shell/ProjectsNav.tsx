@@ -12,6 +12,7 @@ import {
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { NewProjectDialog } from "./NewProjectDialog.tsx";
 import { go, useNav } from "./nav.ts";
 
 /** Projects shown before the rest folds into "N more". */
@@ -29,6 +30,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
   const projects = useData((s) => s.projects);
   const threads = useData((s) => s.threads);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   // The rail has no section header to unfold with, so it always lists them.
   const hidden = folded && !rail;
 
@@ -82,9 +84,9 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
     <button
       type="button"
       className="sidebar__add"
-      aria-label={t("nav.newProjectSoon")}
-      title={t("common.soon")}
-      disabled
+      aria-label={t("nav.newProject")}
+      title={t("nav.newProject")}
+      onClick={() => setAdding(true)}
     >
       <Icons.Plus size={14} />
     </button>
@@ -135,6 +137,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
           <div className="morelist">{rest.map((p) => item(p, () => setMoreOpen(false)))}</div>
         </Popover>
       )}
+      {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
     </>
   );
 }

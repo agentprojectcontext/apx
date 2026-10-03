@@ -704,3 +704,13 @@
 .apx-resize.sidebar__resize {
   right: 0;
 }
+
+/* New project dialog: the folder path with the desktop app's picker beside it. */
+.newproject__row {
+  display: flex;
+  gap: 8px;
+}
+.newproject__row > :first-child {
+  flex: 1;
+  min-width: 0;
+}

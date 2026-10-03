@@ -55,10 +55,10 @@ export async function importV1(groups: Params<"setup.import_v1">["groups"]) {
   }
 }
 
-/** A folder becomes a project (a plain one gets an AGENTS.md); its name, or nothing when it failed. */
-export async function addProject(path: string): Promise<string | undefined> {
+/** A folder becomes a project (a plain one gets an AGENTS.md); the project, or nothing when it failed. */
+export async function addProject(path: string): Promise<{ id: string; name: string } | undefined> {
   try {
-    return (await client.call("projects.register", { path, init: true })).project.name;
+    return (await client.call("projects.register", { path, init: true })).project;
   } catch (e) {
     notify(t("error.change", { error: errText(e) }));
     return undefined;
