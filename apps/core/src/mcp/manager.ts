@@ -3,9 +3,7 @@
 
 import { createHash } from "node:crypto";
 import type { Thread } from "@apx/protocol";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
@@ -96,6 +94,12 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
 
   /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
   async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
+    // Loaded with the first server: a core with none never loads the MCP client.
+    const [{ Client }, { StdioClientTransport }, { StreamableHTTPClientTransport }] = await Promise.all([
+      import("@modelcontextprotocol/sdk/client/index.js"),
+      import("@modelcontextprotocol/sdk/client/stdio.js"),
+      import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
+    ]);
     const client = new Client({ name: "apx", version: "2" });
     const transport = d.url
       ? new StreamableHTTPClientTransport(new URL(d.url), {

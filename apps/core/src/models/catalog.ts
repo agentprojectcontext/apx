@@ -8,7 +8,6 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { CatalogEngine as CatalogEngineSchema } from "@apx/protocol";
 import type { ProviderConfig } from "../config.ts";
 import type { Store } from "../domain/store.ts";
@@ -78,6 +77,8 @@ async function claudeModels(): Promise<CatalogModel[]> {
   const idle = (async function* () {
     await new Promise<void>((resolve) => ac.signal.addEventListener("abort", () => resolve(), { once: true }));
   })();
+  // Loaded here, not at startup: the SDK is large and only this question needs it.
+  const { query } = await import("@anthropic-ai/claude-agent-sdk");
   const q = query({
     prompt: idle as AsyncIterable<never>,
     options: { abortController: ac, pathToClaudeCodeExecutable: bin, settingSources: [], env: harnessEnv() },

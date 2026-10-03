@@ -1,7 +1,6 @@
 // Claude Code as a harness: the turn runs in the owner's own `claude` (their login, their machine) through the
 // Agent SDK. APX keeps identity and tools: the system prompt is ours and every APX tool call comes back through
 // `io.execute`. See DECISIONS.md#d-007
-import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { errorMessage } from "../errors.ts";
 import { harnessEnv } from "./env.ts";
@@ -42,9 +41,17 @@ function subjectOf(input: Record<string, unknown>): string {
 }
 
 type Counts = { apx: number; builtins: number; permissions: number };
+type Sdk = typeof import("@anthropic-ai/claude-agent-sdk");
+
+// The SDK is a large module: loaded on the first Claude turn, so a core that never runs one never pays for it.
+let sdkLoad: Promise<Sdk> | undefined;
+const loadSdk = () => {
+  sdkLoad ??= import("@anthropic-ai/claude-agent-sdk");
+  return sdkLoad;
+};
 
 /** APX's tools as an in-process MCP server: every call comes back through io.execute (cards, policy, steps). */
-function apxServer(io: TurnIO, counts: Counts) {
+function apxServer({ createSdkMcpServer, tool }: Sdk, io: TurnIO, counts: Counts) {
   return createSdkMcpServer({
     name: "apx",
     version: "0.1.0",
@@ -99,7 +106,8 @@ async function attempt(
   let model = o.chosen ?? "default";
   let sessionId = o.resume;
   try {
-    const q = query({
+    const sdk = await loadSdk();
+    const q = sdk.query({
       prompt: io.input.content,
       options: {
         abortController: ac,
@@ -115,7 +123,7 @@ async function attempt(
         settingSources: io.direct ? ["user", "project", "local"] : [],
         strictMcpConfig: true,
         settings: { disableClaudeAiConnectors: true, syncClaudeAiSkills: false, syncClaudeAiPlugins: false },
-        mcpServers: { apx: apxServer(io, o.counts) },
+        mcpServers: { apx: apxServer(sdk, io, o.counts) },
         includePartialMessages: true,
         ...(o.resume ? { resume: o.resume } : {}),
         ...(o.chosen ? { model: o.chosen } : {}),
