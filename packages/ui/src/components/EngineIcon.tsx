@@ -89,10 +89,10 @@ export function EngineIcon({ engine, size = 16, tile = false, label, className }
         <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
           {tile && <circle className="apx-engine__tile" cx="12" cy="12" r="12" />}
           <svg
-            x={tile ? 5.5 : 0}
-            y={tile ? 5.5 : 0}
-            width={tile ? 13 : 24}
-            height={tile ? 13 : 24}
+            x={tile ? 4 : 0}
+            y={tile ? 4 : 0}
+            width={tile ? 16 : 24}
+            height={tile ? 16 : 24}
             viewBox={m.viewBox}
             aria-hidden="true"
           >

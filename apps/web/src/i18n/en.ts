@@ -252,6 +252,7 @@ export const en = {
   "chat.agentWorking": "{name} is working…",
   "chat.agentWaiting": "{name} is waiting for you",
   "tools.working": "Working · action {n}",
+  "tools.waiting": "Waiting for you · action {n}",
   "tools.summary": "Actions 1–{n} of {n}",
   "tools.failed.one": "failed",
   "tools.failed.other": "failed",

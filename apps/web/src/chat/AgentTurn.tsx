@@ -2,6 +2,7 @@ import type { Agent, Message as Msg, Part } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
 import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
@@ -33,6 +34,7 @@ export function AgentTurn({
   engine?: { id: string; label: string } | undefined;
 }) {
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
+  const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
   const subs = message.parts.filter((p) => p.type === "subthread");
   const texts = message.parts.filter((p) => p.type === "text" && p.text.trim());
   const rest = message.parts.filter((p) => p.type !== "text" && p.type !== "tool" && p.type !== "subthread");
@@ -50,7 +52,7 @@ export function AgentTurn({
 
   return (
     <div className="turn">
-      {tools.length > 0 && <ToolGroup parts={tools} />}
+      {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {blocks.map(({ key, part }, i) => (
         <Message
           key={key}
