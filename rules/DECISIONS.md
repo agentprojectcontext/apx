@@ -223,3 +223,13 @@ own tool; MCP stays limited to APX's server and the engine's own edits and comma
 The owner's sessions in `~/.claude` and `~/.codex` (paths injected: `CLAUDE_CONFIG_DIR`, `CODEX_HOME`) are listed
 read-only and gone on with as an engine session that resumes the engine's own session id; APX's own runs (framed
 turns, `codex_sdk_ts`, sub-agents) are left out.
+
+<a id="d-024"></a>
+## D-024 — 2026-10-02 — v2 lives in ~/.apx/v2, beside v1's files
+v2 will be "APX" in the same folder v1 uses, so its state moved from `~/.apx2` to `~/.apx/v2`: one product folder,
+and v1's files around it (`config.json`, `messages.db`, `skills/`…) are never written by v2 while v1 is in use. The
+move happens once when the core starts, before the store opens, and only when the new folder does not exist and the
+owner did not set `APX_HOME` (a rename on the same disk: all or nothing). This is a one-off move of where state
+lives, not a compatibility shim, and there is no `doctor` yet to host it. The default home keeps the Keychain service
+`apx2`, so its secrets are still found. The command stays `apx2` until the owner finishes the setup wizard; then v2
+takes `apx` and v1 leaves the PATH.

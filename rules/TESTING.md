@@ -32,7 +32,7 @@ node apps/terminal/src/main.ts ping hola    # proves the WS path
 curl -s 127.0.0.1:7440/health               # raw HTTP
 pnpm --filter @apx/web dev                  # open http://127.0.0.1:7441 — badge shows the core's code_sha
 ```
-While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.apx2` stays clean.
+While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.apx/v2` stays clean.
 
 ## 5. All at once
 ```bash

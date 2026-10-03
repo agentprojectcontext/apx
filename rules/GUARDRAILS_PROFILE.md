@@ -10,7 +10,7 @@ messages or spends money on the owner's behalf).
 | Package manager | pnpm 11 workspaces (`apps/*`, `packages/*`), one lockfile |
 | Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron, F1), mobile (Expo, F7) |
 | Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames |
-| Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
+| Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx/v2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
 | Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); device pairing planned |
 | Agentic surfaces | own tool loop (OpenAI-compatible, Gemini by default), browser tools via the desktop node, widgets (sandboxed iframes), delegation between agents (a2a sub-threads) |
 | Tests | `node:test` (core, protocol, terminal) |

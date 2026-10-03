@@ -189,5 +189,5 @@ export async function usage(client: ApxClient, [days]: string[]): Promise<void> 
 export async function skills(client: ApxClient, [project]: string[]): Promise<void> {
   const r = await client.call("skills.list", project ? { project } : {});
   for (const s of r.skills) console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.description.slice(0, 90)}`);
-  if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx2/skills or .apc/skills)");
+  if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .apc/skills)");
 }

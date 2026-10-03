@@ -3,6 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import type { SecretsBackend } from "./secrets.ts";
 
+/**
+ * Where v2 keeps its state: inside the APX folder, apart from v1's files (which stay as they are until the owner
+ * moves on). See DECISIONS.md#d-024
+ */
+export const defaultHome = () => path.join(os.homedir(), ".apx", "v2");
+/** Where v2 lived before it moved into ~/.apx (moved once, at start: see home.ts). */
+export const legacyHome = () => path.join(os.homedir(), ".apx2");
+
 export type ProviderTransport = "openai-chat" | "anthropic-messages";
 
 /** A model API. `key` is a reference (secret://name or env:VAR), never the value. */
@@ -87,7 +95,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
   const config: CoreConfig = {
     host: env.APX_HOST ?? "127.0.0.1",
     port: Number(env.APX_PORT ?? 7440),
-    home: env.APX_HOME ?? path.join(os.homedir(), ".apx2"),
+    home: env.APX_HOME ?? defaultHome(),
     token: env.APX_TOKEN || undefined,
     allowedOrigins: list(env.APX_ALLOWED_ORIGINS),
     webDist: env.APX_WEB_DIST || undefined,

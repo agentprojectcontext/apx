@@ -129,4 +129,4 @@ permanently only after the cause is proven.
 - **Architecture check:** compare with [`HUMAN_MODEL.md`](HUMAN_MODEL.md) (system map) and
   `plan/01-arquitectura-v2.md` §2; update both when a module, process or boundary changes.
 - **Release check:** not yet deploy-sensitive (nothing ships before F1). When it is: v2 must never touch v1's
-  port or home (`~/.apx`); v2 uses `7440` and `~/.apx2` until the cut-over.
+  port or home (`~/.apx`); v2 uses `7440` and `~/.apx/v2` (v1's files in `~/.apx` untouched) until the cut-over.

@@ -48,10 +48,10 @@ gets the types. There is no other way into a handler.
 
 ## 4. State and persistence
 
-`~/.apx2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
+`~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
 `model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, depth,
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
-idempotency. `~/.apx2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx2/home-id` is the
+idempotency. `~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
 

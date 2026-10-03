@@ -1,15 +1,15 @@
 // One SQLite file per install (WAL). Refuses the real home under a test runner.
-import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { defaultHome, legacyHome } from "../config.ts";
 import { MIGRATIONS } from "./migrations.ts";
 
 export type Db = DatabaseSync;
 
 export function openDb(home: string, env: NodeJS.ProcessEnv = process.env): Db {
-  const realHome = path.join(os.homedir(), ".apx2");
-  if (env.NODE_TEST_CONTEXT && path.resolve(home) === realHome) {
-    throw new Error("refusing to open the real ~/.apx2 from a test run; pass a temp home");
+  const at = path.resolve(home);
+  if (env.NODE_TEST_CONTEXT && (at === defaultHome() || at === legacyHome())) {
+    throw new Error(`refusing to open the real ${at} from a test run; pass a temp home`);
   }
   const db = new DatabaseSync(path.join(home, "apx.db"));
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");

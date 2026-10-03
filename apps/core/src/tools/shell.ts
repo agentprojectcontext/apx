@@ -104,7 +104,8 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         // Links resolved: a symlink inside the project must not run the command somewhere else.
         if (!insideReal(base, a.cwd ?? ".")) return `refused: ${a.cwd} is outside the project folder`;
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
-        if (a.command.includes(home) || /\.apx2\b/.test(a.command)) return "refused: APX's own folder is off limits";
+        if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
+          return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
         else if (!fs.existsSync(cwd)) return `no folder ${a.cwd} in the project`;
         const r = await ctx.runCommand({

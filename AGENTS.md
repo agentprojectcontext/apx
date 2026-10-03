@@ -27,7 +27,7 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 ```bash
 pnpm install
 pnpm app                                   # build panel + desktop, start the core (serves the panel) and open the app
-pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx2 (override APX_HOME/APX_PORT)
+pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx/v2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
 pnpm preflight                             # check:private + lint + typecheck + test — must be green before push
@@ -35,7 +35,8 @@ pnpm preflight                             # check:private + lint + typecheck + 
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a
   saved file restarts it. Always confirm with `apx2 status` that `code_sha` is the commit you expect.
-- v2 runs **beside** v1: port `7440`, home `~/.apx2`, binary `apx2`. Never point v2 at `~/.apx`.
+- v2 runs **beside** v1: port `7440`, home `~/.apx/v2` (inside v1's folder, never touching v1's files), binary `apx2` until
+  the owner moves on. Never write to v1's files in `~/.apx`.
 
 ## Repo map
 

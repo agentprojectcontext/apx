@@ -5,8 +5,8 @@
 // See DECISIONS.md#d-010
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { defaultHome } from "./config.ts";
 
 export type SecretsBackend = "keychain" | "file";
 type Entry = { value?: string; updated_at: string; hint?: string };
@@ -30,10 +30,13 @@ export function splitSecretName(key: string): { project_id?: string; name: strin
   return m ? { project_id: m[1] as string, name: m[2] as string } : { name: key };
 }
 
-/** The Keychain service of a home: "apx2" for the default one, its own for any other (a test home never overwrites). */
-export function keychainService(home: string, defaultHome = path.join(os.homedir(), ".apx2")): string {
+/**
+ * The Keychain service of a home: "apx2" for the default one (as before it moved into ~/.apx, so its secrets stay
+ * found), its own for any other (a test home never overwrites).
+ */
+export function keychainService(home: string, main = defaultHome()): string {
   const at = path.resolve(home);
-  return at === path.resolve(defaultHome) ? "apx2" : `apx2:${at}`;
+  return at === path.resolve(main) ? "apx2" : `apx2:${at}`;
 }
 
 export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS.ProcessEnv = process.env) {
