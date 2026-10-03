@@ -102,7 +102,9 @@ export function inCatalog(ref: ModelRef, catalog: readonly CatalogEngine[]): boo
 /** A ref as people read it: an engine alone is "<Engine> default", a model stays its ref; its effort after a dot. */
 export function refLabel(ref: ModelRef, catalog: readonly CatalogEngine[]): string {
   const { engine, model, effort } = splitRef(ref);
-  const label = model ? baseRef(ref) : t("models.engineDefault", { engine: catalog.find((x) => x.id === engine)?.label ?? engine });
+  const label = model
+    ? baseRef(ref)
+    : t("models.engineDefault", { engine: catalog.find((x) => x.id === engine)?.label ?? engine });
   return effort ? `${label} · ${effort}` : label;
 }
 

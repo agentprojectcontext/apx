@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
+import { RefSelect } from "../config/models/RefSelect.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { loadEngines } from "../data/engines.ts";
 import { loadCatalog, splitRef, useModels } from "../data/models.ts";
@@ -25,7 +26,6 @@ import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { Draft, StepProps } from "./draft.ts";
-import { RefSelect } from "../config/models/RefSelect.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 type Engine = {

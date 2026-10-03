@@ -428,3 +428,33 @@
 .agentcfg__row .selectbtn {
   max-width: 240px;
 }
+
+/* A chain entry: its model, and how hard it reasons when the model takes it. */
+.refselect {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.refselect__model {
+  min-width: 0;
+  max-width: 300px;
+}
+.refselect__effort {
+  flex: none;
+  width: 150px;
+}
+.mlist__effort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px 2px;
+  border-top: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.mlist__effort .apx-select {
+  width: 160px;
+}
