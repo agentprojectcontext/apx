@@ -34,6 +34,9 @@ export const world = {
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },
+  /** The answers Telegram showed as they were written (drafts), to a chat. */
+  draftsTo: async (chat: number) =>
+    ((await (await fetch(`${control}/tg/drafts?chat=${chat}`)).json()) as { drafts: Array<{ text?: string }> }).drafts,
   sentTo: async (chat: number) =>
     ((await (await fetch(`${control}/tg/sent?chat=${chat}`)).json()) as { sent: Array<{ text?: string }> }).sent,
   /** The owner's phone on WhatsApp: scan the QR, write in "Message yourself", someone else writing. */

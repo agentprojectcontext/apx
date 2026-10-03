@@ -82,6 +82,10 @@ const control = http.createServer((req, res) => {
       const chat = new URL(req.url, "http://x").searchParams.get("chat");
       return json(200, { sent: chat ? tg.messagesTo(Number(chat)).map((s) => s.body) : tg.sent });
     }
+    if (req.url?.startsWith("/tg/drafts")) {
+      const chat = new URL(req.url, "http://x").searchParams.get("chat");
+      return json(200, { drafts: tg.draftsTo(Number(chat)).map((s) => s.body) });
+    }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
     json(404, { error: "no such control" });
   });

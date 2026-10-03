@@ -63,6 +63,8 @@ export function createChannels(deps: {
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
+  /** Per run: the answer's draft on the channel (its id, when it was last sent, a pending update). */
+  const drafting = new Map<string, { id: number; at: number; timer: ReturnType<typeof setTimeout> | undefined }>();
   const announced = new Set<string>();
   const escalations = new Map<string, ReturnType<typeof setTimeout>>();
   /** Settings changes of one channel apply one after another (two quick saves never leave two pollers). */
@@ -195,6 +197,40 @@ export function createChannels(deps: {
   function stopTyping(runId: string): void {
     clearInterval(typing.get(runId));
     typing.delete(runId);
+    const d = drafting.get(runId);
+    if (d) clearTimeout(d.timer);
+    drafting.delete(runId);
+  }
+
+  /**
+   * The owner sees the answer as it is written, where the channel shows drafts: at most one update per DRAFT_EVERY_MS
+   * (the first at once, the last when writing pauses). A contact's answer is filtered before it goes out, so it is
+   * never drafted.
+   */
+  function onText(threadId: string, messageId: string): void {
+    const to = replyTo(threadId);
+    const l = to ? live.get(to.channel) : undefined;
+    if (!to || !l?.adapter.caps.drafts || !l.adapter.draft) return;
+    const msg = store.messages.get(messageId);
+    const runId = msg?.run_id;
+    if (!runId || msg.author.kind !== "agent") return;
+    const thread = store.threads.get(threadId);
+    if (!thread || audienceOf(store, thread).kind !== "owner") return;
+    const d = drafting.get(runId) ?? { at: 0, timer: undefined, id: draftId(messageId) };
+    drafting.set(runId, d);
+    const push = () => {
+      d.timer = undefined;
+      d.at = Date.now();
+      const text = (store.messages.get(messageId)?.parts ?? [])
+        .map((p) => (p.type === "text" ? p.text : ""))
+        .join("\n")
+        .trim();
+      void l.adapter.draft?.(to.conversation, d.id, text).catch(() => {});
+    };
+    const wait = d.at + DRAFT_EVERY_MS - Date.now();
+    if (wait <= 0) push();
+    else d.timer ??= setTimeout(push, wait);
+    d.timer?.unref?.();
   }
 
   function startTyping(runId: string, threadId: string): void {
@@ -232,6 +268,8 @@ export function createChannels(deps: {
     if (e.type === "run.updated") {
       if (e.run.state === "working" && e.run.trigger !== "surface") startTyping(e.run.id, e.run.thread_id);
       else if (e.run.state !== "working") stopTyping(e.run.id);
+    } else if (e.type === "message.part" && e.part.type === "text") {
+      onText(e.thread_id, e.message_id);
     } else if (e.type === "message.part" && e.part.type === "input" && e.part.state === "pending") {
       onInput(e.part, e.thread_id);
     } else if (e.type === "message.created" && e.message.author.kind === "system") {
@@ -449,6 +487,8 @@ export function createChannels(deps: {
       stopped = true;
       delivery.stop();
       for (const iv of typing.values()) clearInterval(iv);
+      for (const d of drafting.values()) clearTimeout(d.timer);
+      drafting.clear();
       for (const t of escalations.values()) clearTimeout(t);
       typing.clear();
       await Promise.allSettled([...live.keys()].map(stopOne));
@@ -457,6 +497,15 @@ export function createChannels(deps: {
 }
 
 export type Channels = ReturnType<typeof createChannels>;
+
+const DRAFT_EVERY_MS = 900;
+
+/** A positive 31-bit number per answer (Telegram's draft_id): the same message always gets the same one. */
+function draftId(messageId: string): number {
+  let h = 0;
+  for (const c of messageId) h = (Math.imul(h, 31) + (c.codePointAt(0) ?? 0)) | 0;
+  return h & 0x7fffffff || 1;
+}
 
 const AVATAR_TTL_MS = 24 * 3600_000;
 

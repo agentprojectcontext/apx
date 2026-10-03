@@ -10,6 +10,8 @@ export type AdapterCaps = {
   typing: boolean;
   /** Inline buttons (approve / deny, options). */
   buttons: boolean;
+  /** Shows the answer as it is written (a draft the final message replaces). */
+  drafts?: boolean;
   /**
    * The channel is the owner's own account (WhatsApp on their own phone): a stranger never gets a pairing code from
    * it; their request is only listed for the owner to approve.
@@ -67,6 +69,8 @@ export interface ChannelAdapter {
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;
+  /** The answer so far, shown as a draft under one id per answer; the final message is sent with `send`. */
+  draft?(conversation: string, draftId: number, text: string): Promise<void>;
   /** The profile picture someone shows on the platform (none when hidden or not set). */
   avatar?(externalId: string): Promise<{ mime: string; data: Buffer } | undefined>;
 }

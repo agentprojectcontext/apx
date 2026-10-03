@@ -113,6 +113,9 @@ export async function fakeTelegram(token: string) {
     polls: () => getUpdatesCalls,
     /** Update ids not confirmed yet by the bot. */
     queued: () => updates.map((u) => u.update_id),
+    draftsTo(chat: number) {
+      return sent.filter((s) => s.method === "sendMessageDraft" && String(s.body.chat_id) === String(chat));
+    },
     messagesTo(chat: number) {
       return sent.filter((s) => s.method === "sendMessage" && String(s.body.chat_id) === String(chat));
     },
