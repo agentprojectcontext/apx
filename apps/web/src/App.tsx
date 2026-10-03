@@ -2,8 +2,10 @@ import { ApxProvider } from "@apx/ui";
 import { type CSSProperties, useEffect } from "react";
 import { startLive } from "./data/live.ts";
 import { usePrefs } from "./data/prefs.ts";
+import { loadSetup, useSetup } from "./data/setup.ts";
 import { useLanguage } from "./i18n/index.ts";
 import { QuickChat } from "./quick/QuickChat.tsx";
+import { Wizard } from "./setup/Wizard.tsx";
 import { useNav } from "./shell/nav.ts";
 import { Shell } from "./shell/Shell.tsx";
 
@@ -18,13 +20,18 @@ export function App() {
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);
   const lang = useLanguage();
+  const setup = useSetup((s) => s.open);
   useEffect(() => startLive(), []);
+  useEffect(() => {
+    if (!QUICK) void loadSetup();
+  }, []);
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
       {QUICK ? <QuickChat /> : <Shell />}
+      {!QUICK && setup && <Wizard />}
     </ApxProvider>
   );
 }

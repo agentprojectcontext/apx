@@ -6,12 +6,14 @@ import { esChat } from "./es-chat.ts";
 import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
+import { esSetup } from "./es-setup.ts";
 import { esTeam } from "./es-team.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
   ...esTeam,
   ...esChannels,
+  ...esSetup,
   ...esChat,
   ...esFiles,
   ...esResources,

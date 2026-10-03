@@ -1,5 +1,6 @@
 import { Icons, Menu, type MenuEntry } from "@apx/ui";
 import { initialsOf, usePrefs } from "../data/prefs.ts";
+import { openSetup } from "../data/setup.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 
@@ -24,6 +25,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
       onSelect: () => go.config("appearance"),
     },
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
+    { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
     { type: "separator" },
     { label: t("config.title"), icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },
   ];

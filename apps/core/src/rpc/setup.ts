@@ -1,6 +1,8 @@
 // The first-run setup: whether it is done, whether this install is new, and what APX v1 left on this machine.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { v1Projects } from "../import/v1-data.ts";
 import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
 import type { Handlers } from "./router.ts";
 
@@ -24,9 +26,11 @@ export function findV1(home: string) {
   const identity = readJson(path.join(home, "identity.json"));
   const agent = str(identity?.agent_name);
   const owner = str(identity?.owner_name);
+  const user = os.homedir();
   return {
-    home,
-    projects: Array.isArray(config.projects) ? config.projects.length : 0,
+    // Shown to the owner as they know it: ~/.apx.
+    home: home.startsWith(user) ? `~${home.slice(user.length)}` : home,
+    projects: v1Projects(home).length,
     ...(version ? { version } : {}),
     ...(agent ? { agent_name: agent } : {}),
     ...(owner ? { owner_name: owner } : {}),

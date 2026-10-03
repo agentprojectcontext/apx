@@ -98,7 +98,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
   assert.equal(s.fresh, true);
   assert.deepEqual(
     { version: s.v1?.version, agent: s.v1?.agent_name, projects: s.v1?.projects },
-    { version: "1.123.1", agent: "Roby", projects: 2 },
+    { version: "1.123.1", agent: "Roby", projects: 1 },
   );
   const { groups } = await env.client.call("setup.v1_scan", {});
   const count = Object.fromEntries(groups.map((g) => [g.id, g.count]));
