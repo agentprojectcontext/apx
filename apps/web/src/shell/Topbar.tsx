@@ -79,7 +79,7 @@ export function Topbar() {
         ))}
       </nav>
       <span className="topbar__spacer" />
-      <button type="button" className="topbar__search" title={t("topbar.searchSoon")} disabled>
+      <button type="button" className="topbar__search" onClick={() => go.palette(true)}>
         <Icons.Search size={14} />
         <span className="topbar__search-label">{t("topbar.search")}</span>
         <Kbd keys={["⌘", "K"]} />

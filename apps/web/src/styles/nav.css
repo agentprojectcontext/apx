@@ -714,3 +714,83 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ⌘K palette: the box, then results grouped by kind; the active row follows arrows and the pointer. */
+.palette.apx-dialog {
+  top: 14vh;
+  flex-direction: column;
+  max-height: 70vh;
+  transform: translateX(-50%);
+}
+.palette__box {
+  display: flex;
+  flex: none;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+}
+.palette__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-md);
+}
+.palette__list {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+}
+.palette__group {
+  padding: 10px 8px 4px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.palette__item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: var(--apx-radius-sm);
+  cursor: pointer;
+}
+.palette__item.is-on {
+  background: var(--apx-fill);
+}
+.palette__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  color: var(--apx-fg-muted);
+}
+.palette__title {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.palette__detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.palette__empty {
+  padding: 24px 8px;
+  color: var(--apx-fg-muted);
+  text-align: center;
+}

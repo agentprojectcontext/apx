@@ -59,6 +59,8 @@ export type NavState = {
   configChannel: ChannelKind | undefined;
   /** "Open on your phone" dialog. */
   phone: boolean;
+  /** The ⌘K palette is open. */
+  palette: boolean;
   /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
   listInFront: boolean;
   /** Tab of Resources (global, and inside a project). */
@@ -130,6 +132,7 @@ export const nav = createStore<NavState>({
   config: null,
   configChannel: undefined,
   phone: false,
+  palette: false,
   listInFront: false,
   resourcesTab: "skills",
   channelId: undefined,
@@ -243,6 +246,9 @@ export const go = {
   /** Config › Channels on one kind: its settings, or its setup when it is not connected yet. */
   channelConfig(kind: ChannelKind) {
     nav.set({ config: "channels", configChannel: kind });
+  },
+  palette(open: boolean) {
+    nav.set({ palette: open });
   },
   phone(open: boolean) {
     nav.set({ phone: open });

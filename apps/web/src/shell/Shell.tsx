@@ -22,6 +22,7 @@ const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m)
 const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
+const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
@@ -35,6 +36,7 @@ export function Shell() {
   const panelOpen = chat && panel != null;
   const own = usePrefs((s) => s);
   const config = useNav((s) => s.config != null);
+  const palette = useNav((s) => s.palette);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, own);
   useShortcuts();
   useDesktopBridge();
@@ -70,18 +72,26 @@ export function Shell() {
           <ConfigModal />
         </Suspense>
       )}
+      {palette && (
+        <Suspense fallback={null}>
+          <CommandPalette />
+        </Suspense>
+      )}
       <PhoneDialog />
       <Toasts />
     </div>
   );
 }
 
-/** ⌘, opens Config; ⌘J jumps to the super-agent's chat. */
+/** ⌘K searches, ⌘, opens Config, ⌘J jumps to the super-agent's chat. */
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
-      if (e.key === ",") {
+      if (e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        go.palette(true);
+      } else if (e.key === ",") {
         e.preventDefault();
         go.config();
       } else if (e.key === "j" || e.key === "J") {
