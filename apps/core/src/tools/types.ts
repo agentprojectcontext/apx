@@ -29,6 +29,11 @@ export type ToolContext = {
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */
   call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
+  /**
+   * The same, for the owner: only a tool that always needs the owner's OK has it, and only once they approved this
+   * call (an owner-only method, like copying their browser's session, runs as their own act).
+   */
+  callAsOwner?<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
   /** Hands a task to another agent (a new session, or one to continue): the one a2a path. */
   delegate(
     to: { agent?: AgentRecord | undefined; session?: string | undefined },

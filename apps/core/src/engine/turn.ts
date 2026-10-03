@@ -76,7 +76,8 @@ export type TurnDeps = {
 export type ToolCall = <M extends MethodName>(
   method: M,
   params: Params<M>,
-  as: { run: RunRecord; callId: string },
+  /** `owner`: the call acts for the owner, who just approved this very tool call (see ToolContext.callAsOwner). */
+  as: { run: RunRecord; callId: string; owner?: boolean },
 ) => Promise<Result<M>>;
 
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);

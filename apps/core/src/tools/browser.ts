@@ -154,6 +154,46 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      name: "browser_use_my_login",
+      description:
+        "When a site asks to log in and the owner is likely already logged in there in their own browser (Chrome, Brave, Arc, Edge, Zen, Firefox): ask to copy that site's session cookies into your browser profile, then reload the tab. The owner approves it every time. Try this before browser_handoff for sites like Gmail, GitHub or Notion.",
+      args: z.object({
+        domain: z
+          .string()
+          .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i)
+          .describe("the site's main domain, like google.com or github.com"),
+      }),
+      effect: "local",
+      confirm: "always",
+      deadlineMs: 150_000,
+      title: (a) => `Used your session on ${String(a.domain)}`,
+      async run(a, ctx) {
+        const asOwner = ctx.callAsOwner;
+        if (!asOwner) return "not run: the owner did not approve it";
+        const profile = profileFor(ctx.agent);
+        if (profile === "incognito")
+          return "refused: your browser profile is incognito; ask the owner to log in instead";
+        const site = a.domain.toLowerCase().replace(/^\./, "");
+        // The browser where the owner has the most of this site's cookies is where they are logged in.
+        let best: { source: string; browser: string; domains: string[]; count: number } | undefined;
+        for (const s of (await asOwner("browser.cookie_sources", {})).sources) {
+          const found = (await asOwner("browser.cookie_domains", { source: s.id, filter: site })).domains.filter(
+            (d) => d.domain.replace(/^\./, "") === site || d.domain.endsWith(`.${site}`),
+          );
+          const count = found.reduce((n, d) => n + d.count, 0);
+          if (count > (best?.count ?? 0))
+            best = { source: s.id, browser: `${s.browser} (${s.profile})`, domains: found.map((d) => d.domain), count };
+        }
+        if (!best) return `no session for ${site} in the owner's browsers; use browser_handoff so they log in`;
+        const r = await asOwner("browser.import_cookies", {
+          source: best.source,
+          domains: best.domains.slice(0, 50),
+          profile: profile as "shared" | `agent:${string}`,
+        });
+        return `copied ${r.imported} cookies for ${site} from ${best.browser}. Reload the tab (browser_navigate to the same URL) and take a new snapshot.`;
+      },
+    }),
+    defineTool({
       name: "browser_handoff",
       description:
         "Hand the tab to the owner for login, password, 2FA or captcha, and wait until they finish (up to 5 min). Never ask for passwords in chat.",

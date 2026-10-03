@@ -110,7 +110,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     internal(
       method,
       params,
-      { actor: "agent", agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id } },
+      {
+        actor: as.owner ? "human" : "agent",
+        agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id },
+      },
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
   const mcp = createMcp({ store, secrets, log });

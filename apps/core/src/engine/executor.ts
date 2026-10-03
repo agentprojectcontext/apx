@@ -89,7 +89,11 @@ export function createExecutor(o: {
   untrusted: boolean;
   /** The harness running the turn reaches tools over a deadline-bound call (Claude Code, Codex). */
   external: () => boolean;
-  call<M extends MethodName>(method: M, params: Params<M>, as: { run: RunRecord; callId: string }): Promise<Result<M>>;
+  call<M extends MethodName>(
+    method: M,
+    params: Params<M>,
+    as: { run: RunRecord; callId: string; owner?: boolean },
+  ): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
   jobs: Jobs;
   /** APX's own port: a command that reaches it always asks. */
@@ -197,6 +201,10 @@ export function createExecutor(o: {
       untrusted: () => untrusted,
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
+      // Only after the owner's OK on a tool that always asks for it (the confirmation above ran for this call).
+      ...(level === "always"
+        ? { callAsOwner: (method, params) => o.call(method, params, { run, callId, owner: true }) }
+        : {}),
       delegate: o.delegate,
       askOwner: (prompt, options) =>
         o.inputs.ask({
