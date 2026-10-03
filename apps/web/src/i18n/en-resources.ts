@@ -87,7 +87,7 @@ export const enResources = {
   "res.integrations.body":
     "An integration is an account you connect once (Obsidian, GitHub, a calendar) that brings its MCP servers, variables and skill together, and that you assign to each project. Until then, use MCP and Variables.",
   "res.varsNote":
-    "MCP servers, providers and channels name them as secret://NAME. Stored in the system keychain (or APX's home with 0600), never in a repo. The panel never sees a value: long ones show their last four characters.",
+    "MCP servers, providers and channels name them as secret://NAME. On a Mac they live in the Keychain, never in a file an agent could read (elsewhere, in APX's home with 0600, a folder agents cannot open). Agents use them by name and never see a value; only you can, with the eye.",
   "res.noVariables": "No variables yet.",
   "res.varName": "Name",
   "res.varScope": "Scope",
@@ -109,6 +109,8 @@ export const enResources = {
   "res.varReplace": "Replace the value of {name}",
   "res.varSetValue": "Set a value for {name}",
   "res.varRemove": "Remove {name}",
+  "res.varShow": "Show the value of {name}",
+  "res.varHide": "Hide the value of {name}",
   "res.varRemoveTitle": "Remove {name}?",
   "res.varRemoveBody": "The value is deleted; nothing uses it now.",
   "res.varRemoveUsed": "{where} use it: they will stop working until it has a value again.",

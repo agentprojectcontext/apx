@@ -88,6 +88,26 @@
   background: var(--apx-accent);
   color: var(--apx-accent-fg);
 }
+/* Under the header's line: the scope to filter by, or (in a project) what it inherits. */
+.resv__under {
+  flex: none;
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.resv__under:empty {
+  display: none;
+}
+.resv__under .resv__scopes {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.resv__under .resv__chip {
+  flex: none;
+}
+.resv__under .resv__inherit {
+  margin: 0;
+}
 .resv__body {
   display: flex;
   flex: 1;
@@ -433,4 +453,14 @@
 }
 .resv__group.is-off .apx-pickrow {
   opacity: 0.5;
+}
+.resvars__reveal {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.resvars__shown {
+  font-family: var(--apx-font-mono);
+  user-select: all;
+  overflow-wrap: anywhere;
 }

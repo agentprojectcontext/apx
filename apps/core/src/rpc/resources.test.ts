@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { skillsFor } from "../skills/skills.ts";
 
@@ -188,4 +189,12 @@ test("a project can take none of the owner's global skills or servers; its own s
   });
   await env.client.call("resources.inherit", { project, kind: "mcp", on: true });
   await env.client.call("mcp.set", { name: "inherit-probe", server: null });
+});
+
+test("the owner can see a variable's value; an agent client cannot", async () => {
+  await env.client.call("secrets.set", { name: "NORTHWIND_TOKEN", value: "nw-123456" });
+  assert.deepEqual(await env.client.call("secrets.reveal", { name: "NORTHWIND_TOKEN" }), { value: "nw-123456" });
+  const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+  await assert.rejects(agent.call("secrets.reveal", { name: "NORTHWIND_TOKEN" }));
+  await assert.rejects(env.client.call("secrets.reveal", { name: "NOT_THERE" }));
 });

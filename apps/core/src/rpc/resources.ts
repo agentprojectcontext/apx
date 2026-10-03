@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
-import { type Secrets, splitSecretName } from "../secrets.ts";
+import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
 import { allSkills, NO_GLOBALS, readSkillFile, setSkillOn, skillFiles, skillsOff } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
@@ -55,6 +55,11 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
           return { ...s, used_in: [...(used.get(s.name) ?? []), ...service] };
         }),
       };
+    },
+    "secrets.reveal": ({ name, project }) => {
+      const value = deps.secrets.resolve(`secret://${project ? projectSecretName(project, name) : name}`);
+      if (value === undefined) throw notFound(`variable ${name}`);
+      return { value };
     },
     "skills.list": ({ project }) => ({
       skills: allSkills(store, home, project).map((s) => skillInfo(store, s, project)),

@@ -45,6 +45,16 @@ export const resourceMethods = {
     access: "human",
   },
   /**
+   * One variable's value, for the owner's eyes only (the eye in Resources › Variables): never an agent's, never in a
+   * prompt or a log.
+   */
+  "secrets.reveal": {
+    params: z.object({ name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/), project: Id.optional() }).strict(),
+    result: z.object({ value: z.string() }),
+    effect: false,
+    access: "human",
+  },
+  /**
    * Skills agents can load: the owner's (APX home `skills/`), a project's `.apc/skills/` with `project`, and enabled
    * extensions'. Skills the owner turned off are listed with `on: false`; agents do not see them.
    */

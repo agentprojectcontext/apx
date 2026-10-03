@@ -1,6 +1,8 @@
 import { Badge, Button, Checkbox, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { client } from "../data/client.ts";
 import { projectName } from "../data/identity.ts";
+import { notify } from "../data/notices.ts";
 import { setSecret } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -21,7 +23,7 @@ const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
  * to the panel; long ones show their last four characters. A name a server uses but nobody stored shows "No value".
  */
-export function VariablesTab({ projectId, query, adding, setAdding, res }: TabProps) {
+export function VariablesTab({ projectId, query, scope, adding, setAdding, res }: TabProps) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const [editing, setEditing] = useState<Row>();
@@ -29,6 +31,8 @@ export function VariablesTab({ projectId, query, adding, setAdding, res }: TabPr
   // In a project: the global values and this project's own; globally: every value, each with its project.
   const stored: Row[] = (res.data.secrets ?? [])
     .filter((s) => !projectId || !s.project_id || s.project_id === projectId)
+    // The global screen's scope chips: every value, only the global ones, or one project's own.
+    .filter((s) => projectId || scope === "all" || (scope === "global" ? !s.project_id : s.project_id === scope))
     .map((s) => ({ name: s.name, project: s.project_id, hint: s.hint, stored: true, usedIn: s.used_in }));
   const own = new Set(stored.filter((r) => r.project).map((r) => r.name));
   const missing = new Map<string, string[]>();
@@ -77,7 +81,7 @@ export function VariablesTab({ projectId, query, adding, setAdding, res }: TabPr
                   </span>
                 </td>
                 <td className="resvars__value">
-                  {r.stored ? `••••••••${r.hint ?? ""}` : <span className="resvars__missing">{t("res.noValue")}</span>}
+                  {r.stored ? <Reveal row={r} /> : <span className="resvars__missing">{t("res.noValue")}</span>}
                 </td>
                 <td className="resvars__used">{r.usedIn.join(", ") || "—"}</td>
                 <td className="resvars__actions">
@@ -226,5 +230,42 @@ function VariableDialog(props: {
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/** How long a value stays shown after the eye is pressed. */
+const SHOWN_MS = 20_000;
+
+/** A stored value: hidden (its last four characters) until the eye shows it for a moment. */
+function Reveal({ row }: { row: Row }) {
+  const t = useT();
+  const [value, setValue] = useState<string>();
+  useEffect(() => {
+    if (value === undefined) return;
+    const hide = setTimeout(() => setValue(undefined), SHOWN_MS);
+    return () => clearTimeout(hide);
+  }, [value]);
+  const toggle = async () => {
+    if (value !== undefined) return setValue(undefined);
+    try {
+      const r = await client.call("secrets.reveal", {
+        name: row.name,
+        ...(row.project ? { project: row.project } : {}),
+      });
+      setValue(r.value);
+    } catch (e) {
+      notify(t("error.load", { error: e instanceof Error ? e.message : String(e) }));
+    }
+  };
+  return (
+    <span className="resvars__reveal">
+      <span className={value !== undefined ? "resvars__shown" : undefined}>{value ?? `••••••••${row.hint ?? ""}`}</span>
+      <IconButton
+        size="sm"
+        label={value !== undefined ? t("res.varHide", { name: row.name }) : t("res.varShow", { name: row.name })}
+        icon={value !== undefined ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}
+        onClick={() => void toggle()}
+      />
+    </span>
   );
 }

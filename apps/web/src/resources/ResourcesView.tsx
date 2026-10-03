@@ -106,11 +106,12 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
             </Button>
           )}
         </div>
+      </header>
+      <div className="resv__under">
         {projectId ? (
           <p className="resv__inherit">{t("res.inherit", { name: projectName(projects, projectId) })}</p>
         ) : (
-          tab !== "extensions" &&
-          tab !== "variables" && (
+          tab !== "extensions" && (
             <fieldset className="resv__scopes">
               <legend className="resv__scopelabel">{t("res.scope")}</legend>
               {[
@@ -131,7 +132,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
             </fieldset>
           )
         )}
-      </header>
+      </div>
       <div className="resv__body">{body}</div>
     </section>
   );

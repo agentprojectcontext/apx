@@ -89,7 +89,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.integrations.body":
     "Una integración es una cuenta que conectás una vez (Obsidian, GitHub, un calendario) y que trae juntos sus MCP, variables y skill, para asignarla a cada proyecto. Mientras tanto, usá MCP y Variables.",
   "res.varsNote":
-    "Los MCP, proveedores y canales las nombran como secret://NOMBRE. Se guardan en el llavero del sistema (o en el home de APX con 0600), nunca en un repo. El panel nunca ve el valor: las largas muestran sus últimos 4 caracteres.",
+    "Los MCP, proveedores y canales las nombran como secret://NOMBRE. En la Mac viven en el Llavero, nunca en un archivo que un agente pueda leer (en otros sistemas, en el home de APX con 0600, una carpeta que los agentes no pueden abrir). Los agentes las usan por nombre y nunca ven el valor; solo vos, con el ojo.",
   "res.noVariables": "Todavía no hay variables.",
   "res.varName": "Nombre",
   "res.varScope": "Ámbito",
@@ -111,6 +111,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.varReplace": "Reemplazar el valor de {name}",
   "res.varSetValue": "Cargar un valor para {name}",
   "res.varRemove": "Quitar {name}",
+  "res.varShow": "Ver el valor de {name}",
+  "res.varHide": "Ocultar el valor de {name}",
   "res.varRemoveTitle": "¿Quitar {name}?",
   "res.varRemoveBody": "El valor se borra; nada lo usa ahora.",
   "res.varRemoveUsed": "Lo usan {where}: dejan de andar hasta que vuelva a tener valor.",
