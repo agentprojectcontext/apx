@@ -1,15 +1,8 @@
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
-import { AppScreen } from "../apps/AppScreen.tsx";
-import { ChannelScreen } from "../channels/ChannelScreen.tsx";
-import { ConfigModal } from "../config/ConfigModal.tsx";
+import { lazy, Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
-import { EngineSessions } from "../engines/EngineSessions.tsx";
-import { ProjectScreen } from "../project/ProjectScreen.tsx";
-import { ResourcesScreen } from "../project/ResourcesScreen.tsx";
-import { TasksScreen } from "../tasks/TasksScreen.tsx";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
 import { go, showsChat, useNav } from "./nav.ts";
@@ -19,6 +12,17 @@ import { Sidebar } from "./Sidebar.tsx";
 import { Toasts } from "./Toasts.tsx";
 import { Topbar } from "./Topbar.tsx";
 import { useViewportWidth } from "./useViewportWidth.ts";
+
+// Loaded when first opened: the chat is what the panel opens on, the rest waits for its first visit.
+const AppScreen = lazy(() => import("../apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
+const ChannelScreen = lazy(() => import("../channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen })));
+const ConfigModal = lazy(() => import("../config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
+const EngineSessions = lazy(() => import("../engines/EngineSessions.tsx").then((m) => ({ default: m.EngineSessions })));
+const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })));
+const ResourcesScreen = lazy(() =>
+  import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
+);
+const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
 export function Shell() {
@@ -30,6 +34,7 @@ export function Shell() {
   const transcript = usePrefs((s) => s.transcriptWidth);
   const panelOpen = chat && panel != null;
   const own = usePrefs((s) => s);
+  const config = useNav((s) => s.config != null);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, own);
   useShortcuts();
   useDesktopBridge();
@@ -41,24 +46,30 @@ export function Shell() {
       <div className="shell__body">
         <Sidebar rail={layout.rail} width={layout.sidebarW} />
         <main className="shell__main">
-          {view === "app" ? (
-            <AppScreen />
-          ) : view === "project" ? (
-            <ProjectScreen layout={layout} />
-          ) : view === "tasks" ? (
-            <TasksScreen />
-          ) : view === "resources" ? (
-            <ResourcesScreen />
-          ) : view === "channel" ? (
-            <ChannelScreen />
-          ) : view === "engine" ? (
-            <ChatWorkspace layout={layout} list={<EngineSessions />} />
-          ) : (
-            <ChatWorkspace layout={layout} />
-          )}
+          <Suspense fallback={null}>
+            {view === "app" ? (
+              <AppScreen />
+            ) : view === "project" ? (
+              <ProjectScreen layout={layout} />
+            ) : view === "tasks" ? (
+              <TasksScreen />
+            ) : view === "resources" ? (
+              <ResourcesScreen />
+            ) : view === "channel" ? (
+              <ChannelScreen />
+            ) : view === "engine" ? (
+              <ChatWorkspace layout={layout} list={<EngineSessions />} />
+            ) : (
+              <ChatWorkspace layout={layout} />
+            )}
+          </Suspense>
         </main>
       </div>
-      <ConfigModal />
+      {config && (
+        <Suspense fallback={null}>
+          <ConfigModal />
+        </Suspense>
+      )}
       <PhoneDialog />
       <Toasts />
     </div>

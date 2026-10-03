@@ -1,13 +1,14 @@
 import { ApxProvider } from "@apx/ui";
-import { type CSSProperties, useEffect } from "react";
+import { type CSSProperties, lazy, Suspense, useEffect } from "react";
 import { startLive } from "./data/live.ts";
 import { usePrefs } from "./data/prefs.ts";
 import { loadSetup, useSetup } from "./data/setup.ts";
 import { useLanguage } from "./i18n/index.ts";
 import { QuickChat } from "./quick/QuickChat.tsx";
-import { Wizard } from "./setup/Wizard.tsx";
 import { useNav } from "./shell/nav.ts";
 import { Shell } from "./shell/Shell.tsx";
+
+const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m.Wizard })));
 
 /** The desktop app's menu-bar window loads the panel with ?quick: only the quick chat. */
 const QUICK = new URLSearchParams(window.location.search).has("quick");
@@ -31,7 +32,11 @@ export function App() {
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
       {QUICK ? <QuickChat /> : <Shell />}
-      {!QUICK && setup && <Wizard />}
+      {!QUICK && setup && (
+        <Suspense fallback={null}>
+          <Wizard />
+        </Suspense>
+      )}
     </ApxProvider>
   );
 }
