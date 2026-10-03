@@ -116,7 +116,7 @@ export function AgentNode({
         {engine && (
           <span className="apx-agentnode__engine" title={engineLabel ?? engine}>
             <EngineIcon engine={engine} size={12} />
-            {engineLabel ?? engine}
+            <span className="apx-agentnode__enginelabel">{engineLabel ?? engine}</span>
           </span>
         )}
       </footer>

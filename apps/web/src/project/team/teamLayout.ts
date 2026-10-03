@@ -9,7 +9,7 @@ export type TeamMember = {
   name: string;
 };
 
-export const NODE = { w: 232, h: 184, gapX: 28, gapY: 88 } as const;
+export const NODE = { w: 244, h: 184, gapX: 28, gapY: 88 } as const;
 /** Past this many direct reports with no team of their own, they are laid out in bands by area, like v1. */
 const BAND_AT = 4;
 /** A band holds at most this many columns of cards; an area with 3 or more people uses 2 columns. */

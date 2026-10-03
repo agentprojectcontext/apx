@@ -5,7 +5,9 @@
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  min-width: 0;
   height: 100%;
+  overflow: hidden;
   padding: 12px 12px 10px;
   border: 1px solid var(--apx-border);
   border-radius: 14px;
@@ -45,7 +47,7 @@
 }
 .apx-agentnode__hit:focus-visible {
   outline: 2px solid var(--apx-brand);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 .apx-agentnode__top,
 .apx-agentnode__role,
@@ -120,7 +122,9 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* Text only: a block that can end in an ellipsis (an inline-flex one cannot). */
 .apx-agentnode__chip {
+  display: inline-block;
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
 }
@@ -159,16 +163,19 @@
   width: var(--apx-icon-xs);
   height: var(--apx-icon-xs);
 }
+/* Long labels (other languages, engine names) shrink the engine pill, never push past the card. */
 .apx-agentnode__foot {
   position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
   padding-top: 8px;
   border-top: 1px solid var(--apx-border);
 }
 .apx-agentnode__act {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 5px;
   height: 24px;
@@ -189,7 +196,9 @@
 .apx-agentnode__engine {
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 5px;
+  min-width: 0;
   max-width: 96px;
   margin-left: auto;
   overflow: hidden;
@@ -200,6 +209,14 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.apx-agentnode__engine > svg {
+  flex: none;
+}
+.apx-agentnode__enginelabel {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 @keyframes apx-agentnode-pulse {
