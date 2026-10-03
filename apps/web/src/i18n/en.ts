@@ -911,6 +911,26 @@ export const en = {
   "im.onlyMac": "Only on a Mac",
   "im.onlyMacBody":
     "iMessage lives in the Messages app of a Mac signed in to the account. This core runs on another system.",
+  "config.devices": "Devices",
+  "devices.lead":
+    "Your phone or another computer, paired with a QR: each talks to this core with a key of its own, and removing one stops only that one.",
+  "devices.pair": "Pair a device",
+  "devices.scan": "Scan this code with the APX app",
+  "devices.scanHint":
+    "Open APX on your phone, choose “Pair with a computer” and scan the code. It works once, for 10 minutes.",
+  "devices.code": "Or type the code:",
+  "devices.localOnly": "Your phone cannot reach this core yet",
+  "devices.localOnlyBody":
+    "It listens only on this computer. Start it with APX_HOST=0.0.0.0 and an APX_TOKEN to reach it on your network or through Tailscale, then pair again.",
+  "devices.paired": "Paired devices",
+  "devices.none": "No device paired yet.",
+  "devices.lastSeen": "seen {when}",
+  "devices.remove": "Remove {name}",
+  "devices.platform.ios": "iPhone",
+  "devices.platform.android": "Android",
+  "devices.platform.desktop": "Computer",
+  "devices.platform.other": "Device",
+  "error.devices": "Could not change the devices: {error}",
 } as const;
 
 export type MessageKey = keyof typeof en;

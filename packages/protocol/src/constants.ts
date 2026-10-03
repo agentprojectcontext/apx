@@ -35,3 +35,9 @@ export const PERSON_RELATIONS = [
   "provider",
   "other",
 ] as const;
+
+/** What a pairing QR carries: the core's addresses a device may reach, and the one-time code. */
+export function pairingLink(p: { code: string; urls: readonly string[] }): string {
+  const q = new URLSearchParams([["c", p.code], ...p.urls.map((u) => ["u", u] as [string, string])]);
+  return `apx://pair?${q.toString()}`;
+}

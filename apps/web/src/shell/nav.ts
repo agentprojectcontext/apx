@@ -34,6 +34,7 @@ export const CONFIG_SECTIONS = [
   "channels",
   "browser",
   "desktop",
+  "devices",
   "advanced",
 ] as const;
 export type ConfigSection = (typeof CONFIG_SECTIONS)[number];

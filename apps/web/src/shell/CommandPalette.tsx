@@ -18,6 +18,7 @@ const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
   channels: "config.channels",
   browser: "config.browser",
   desktop: "config.desktop",
+  devices: "config.devices",
   advanced: "config.advanced",
 };
 const MAX_PER_GROUP = 6;

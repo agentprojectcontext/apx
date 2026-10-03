@@ -665,3 +665,14 @@
 .extcard {
   margin-bottom: 12px;
 }
+.devices__code {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-lg);
+  letter-spacing: 0.12em;
+}
+.devices__url {
+  display: block;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}

@@ -489,4 +489,17 @@ export const MIGRATIONS: readonly string[] = [
         WHERE json_extract(p.value, '$.type') = 'text'));
   END;
   `,
+  `
+  -- The owner's own devices (a phone, another computer), paired with a one-time code: each has a token of its own,
+  -- of which only the sha256 is kept, revocable without touching the others.
+  CREATE TABLE devices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT,
+    revoked_at TEXT
+  );
+  `,
 ];

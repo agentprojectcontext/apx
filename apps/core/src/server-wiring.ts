@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import os from "node:os";
 import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
 import type { Bus } from "./bus.ts";
@@ -24,6 +25,7 @@ import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
+import { deviceHandlers } from "./rpc/devices.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
@@ -134,6 +136,8 @@ type HandlerDeps = {
   updates: Updates;
   /** The panel build being served (its entry file). */
   panel: () => string | undefined;
+  /** The addresses a paired device may reach this core on. */
+  addresses: () => string[];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -158,6 +162,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...routineHandlers(d.store, d.scheduler),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
+    ...deviceHandlers(d.store, { addresses: d.addresses }),
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp, d.store),
     ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),
@@ -209,6 +214,19 @@ export function panelEntry(dist: string | undefined): string | undefined {
   }
 }
 
+/**
+ * Where a device on the network may reach this core: none while it listens only on this computer; each of the machine's
+ * network addresses (LAN, Tailscale) when it listens on all of them.
+ */
+export function reachableAt(host: string, port: number): string[] {
+  if (LOOPBACK_HOSTS.has(host)) return [];
+  if (host !== "0.0.0.0" && host !== "::") return [`http://${host.includes(":") ? `[${host}]` : host}:${port}`];
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .flatMap((a) => (a && !a.internal && a.family === "IPv4" ? [`http://${a.address}:${port}`] : []));
+}
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
+
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
@@ -217,6 +235,7 @@ export async function listen(
   const gate: Gate = {
     allowedOrigins: originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins),
     token: config.token,
+    device: (token) => Boolean(d.store.devices.byToken(token)),
   };
   const server = http.createServer(
     httpHandler(

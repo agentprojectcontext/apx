@@ -5,6 +5,7 @@ import type { Db } from "../db/db.ts";
 import { agentsRepo } from "./agents.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
+import { devicesRepo } from "./devices.ts";
 import { extensionsRepo } from "./extensions.ts";
 import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
@@ -43,6 +44,7 @@ export function createStore(db: Db, bus: Bus) {
     notifications: notificationsRepo(q, bus),
     extensions: extensionsRepo(q),
     clients: clientsRepo(q),
+    devices: devicesRepo(q),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),
     idempotency: idempotencyRepo(q),

@@ -7,6 +7,7 @@ import { AgentsSection } from "./AgentsSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
 import { ChannelsSection } from "./ChannelsSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
+import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
@@ -42,6 +43,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     items: [
       { id: "browser", label: "config.browser", icon: <Icons.Globe /> },
       { id: "desktop", label: "config.desktop", icon: <Icons.Monitor /> },
+      { id: "devices", label: "config.devices", icon: <Icons.Smartphone /> },
       { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
     ],
   },
@@ -135,6 +137,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <BrowserSection />;
     case "desktop":
       return <DesktopSection />;
+    case "devices":
+      return <DevicesSection />;
     case "extensions":
       return <ExtensionsMoved />;
     case "advanced":

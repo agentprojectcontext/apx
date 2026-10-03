@@ -2,6 +2,7 @@ export * from "./app-methods.ts";
 export * from "./browser.ts";
 export * from "./composer-methods.ts";
 export * from "./constants.ts";
+export * from "./device-methods.ts";
 export * from "./domain.ts";
 export * from "./events.ts";
 export * from "./files-methods.ts";

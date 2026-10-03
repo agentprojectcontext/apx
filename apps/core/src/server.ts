@@ -44,6 +44,7 @@ import {
   knownEngines,
   listen,
   panelEntry,
+  reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
 import { createServices } from "./services/registry.ts";
@@ -221,6 +222,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      addresses: () => reachableAt(config.host, listening),
       store,
       identity,
       broker,

@@ -297,3 +297,13 @@ agent (servers' and workspaces' channels are ignored), so pairing, contacts, the
 Telegram. A Slack app needs two tokens (the bot's `xoxb-…` to talk, the app's `xapp-…` to open the socket); they are
 stored as one secret ("xoxb-… xapp-…") so a channel keeps one token, as every other. Slack acknowledges an envelope
 only after it is stored; Discord does not redeliver a message sent while the socket was down (a known gap).
+
+<a id="d-030"></a>
+## D-030 — 2026-10-03 — Devices pair with a one-time code and keep a key of their own
+A phone (or another computer) reaches the core through the same protocol as the panel. It does not get the core's
+token: the panel asks for a one-time code (8 characters without look-alikes, 10 minutes, kept in memory), shown as a
+QR with the addresses the core listens on (`apx://pair?c=…&u=…`); the device trades it in `devices.pair`, the one
+method callable without a token (`open` in the registry), for a key of its own (`apxd_…`, only its sha256 stored).
+That key passes the gate like the core's token, as the owner, and is revoked alone. Five wrong codes void every
+pending one and pause pairing for five minutes. A core listening only on loopback lists no address: the panel says to
+start it with `APX_HOST` and `APX_TOKEN` (or reach it through Tailscale) first.

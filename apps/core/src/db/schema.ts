@@ -53,6 +53,16 @@ export interface ChannelInboxTable {
   created_at: string;
 }
 
+export interface DevicesTable {
+  id: string;
+  name: string;
+  platform: string;
+  token_hash: string;
+  created_at: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+}
+
 export interface ExtensionsTable {
   id: string;
   manifest: string;
@@ -380,6 +390,7 @@ export interface Database {
   agents: AgentsTable;
   api_clients: ApiClientsTable;
   channel_inbox: ChannelInboxTable;
+  devices: DevicesTable;
   extensions: ExtensionsTable;
   harness_sessions: HarnessSessionsTable;
   idempotency: IdempotencyTable;

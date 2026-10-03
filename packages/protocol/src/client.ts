@@ -5,7 +5,7 @@ import { PROTOCOL_VERSION } from "./constants.ts";
 import type { Actor, ApxErrorShape, ClientRole, EventFrame, ServerFrame, WelcomeFrame } from "./frames.ts";
 import type { MethodName, Params, Result } from "./methods.ts";
 
-export { ErrorCode, PERSON_RELATIONS, PROTOCOL_VERSION, UPLOAD_LIMITS } from "./constants.ts";
+export { ErrorCode, PERSON_RELATIONS, PROTOCOL_VERSION, pairingLink, UPLOAD_LIMITS } from "./constants.ts";
 
 export class ApxError extends Error {
   readonly code: ApxErrorShape["code"];

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import type { ClientScope } from "@apx/protocol";
+import { type ClientScope, methodOpen } from "@apx/protocol";
 import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
@@ -85,7 +85,7 @@ export function httpHandler(
     if (req.method === "POST" && url.pathname.startsWith("/rpc/")) {
       const clientToken = header(req, "x-apx-client");
       const client = clientToken ? clientOf?.(clientToken) : undefined;
-      const why = refuse(req, gate, null, Boolean(client));
+      const why = refuse(req, gate, null, Boolean(client), methodOpen(url.pathname.slice(5)));
       if (why) return send(res, 403, { ok: false, error: { code: "unauthorized", message: why } });
       // A JSON content type forces a CORS preflight, so a foreign page cannot post a "simple" request here.
       if (!String(req.headers["content-type"] ?? "").startsWith("application/json")) {

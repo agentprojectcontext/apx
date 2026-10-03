@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
 import { browserMethods } from "./browser.ts";
+import { deviceMethods } from "./device-methods.ts";
 
 export const SubsystemStatus = z.object({
   status: z.enum(["ok", "degraded", "down", "off"]),
@@ -35,6 +36,8 @@ export type MethodDef = {
   access?: "human";
   /** false → its result is never kept for a retried request (it holds something shown once, like a token). */
   replay?: false;
+  /** true → callable without the core's token (still from an allowed origin): pairing a device, whose code is the key. */
+  open?: true;
 };
 
 export const methods = {
@@ -50,6 +53,7 @@ export const methods = {
   },
   ...browserMethods,
   ...appMethods,
+  ...deviceMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;
@@ -67,6 +71,11 @@ export const SCOPE_METHODS: Record<"chat" | "browser", readonly MethodName[]> = 
   chat: ["agents.list", "threads.create", "threads.get", "threads.send"],
   browser: (Object.keys(browserMethods) as MethodName[]).filter((m) => methodAccess(m) !== "human"),
 };
+
+/** Whether a method may be called without the core's token (see MethodDef.open). */
+export function methodOpen(name: string): boolean {
+  return isMethodName(name) && (methods[name] as MethodDef).open === true;
+}
 
 export function methodAccess(name: MethodName): "any" | "human" {
   return (methods[name] as MethodDef).access ?? "any";

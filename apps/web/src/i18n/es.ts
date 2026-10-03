@@ -913,4 +913,24 @@ export const es: Partial<Record<MessageKey, string>> = {
   "im.onlyMac": "Solo en una Mac",
   "im.onlyMacBody":
     "iMessage vive en la app Mensajes de una Mac con la cuenta iniciada. Este core corre en otro sistema.",
+  "config.devices": "Dispositivos",
+  "devices.lead":
+    "Tu teléfono u otra computadora, vinculados con un QR: cada uno habla con este core con su propia llave, y quitar uno corta solo a ese.",
+  "devices.pair": "Vincular un dispositivo",
+  "devices.scan": "Escaneá este código con la app de APX",
+  "devices.scanHint":
+    "Abrí APX en tu teléfono, elegí “Vincular con una computadora” y escaneá el código. Sirve una vez, por 10 minutos.",
+  "devices.code": "O escribí el código:",
+  "devices.localOnly": "Tu teléfono todavía no llega a este core",
+  "devices.localOnlyBody":
+    "Solo escucha en esta computadora. Arrancalo con APX_HOST=0.0.0.0 y un APX_TOKEN para llegar por tu red o por Tailscale, y vinculá de nuevo.",
+  "devices.paired": "Dispositivos vinculados",
+  "devices.none": "Todavía no hay dispositivos vinculados.",
+  "devices.lastSeen": "visto {when}",
+  "devices.remove": "Quitar {name}",
+  "devices.platform.ios": "iPhone",
+  "devices.platform.android": "Android",
+  "devices.platform.desktop": "Computadora",
+  "devices.platform.other": "Dispositivo",
+  "error.devices": "No se pudieron cambiar los dispositivos: {error}",
 };
