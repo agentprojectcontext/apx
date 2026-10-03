@@ -1,5 +1,5 @@
 // ⌘K: one box to jump anywhere — a project, a task, a place of the app — by keyboard, accents or not.
-import { expect, open, test } from "./kit.ts";
+import { expect, open, rpc, test, until } from "./kit.ts";
 
 test("⌘K finds a project, a task and a settings section, and Enter goes there", async ({ page }) => {
   await open(page);
@@ -23,4 +23,22 @@ test("⌘K finds a project, a task and a settings section, and Enter goes there"
   await box.fill("canales configuracion");
   await page.getByRole("option", { name: /Canales/ }).click();
   await expect(page.getByRole("dialog", { name: "Configuración" })).toBeVisible();
+});
+
+test("⌘K finds words inside messages, accents aside, and opens the chat at that message", async ({ page }) => {
+  const thread = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Zoología" });
+  await rpc("threads.send", { thread: thread.id, text: "Anotá que el ornitorrinco come camarones" });
+  await until(async () => (await rpc<{ hits: unknown[] }>("threads.search", { query: "ornitorrinco" })).hits.length);
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+k");
+  const box = page.getByRole("combobox", { name: "Buscar" }).or(page.getByRole("textbox", { name: "Buscar" }));
+  await box.fill("ORNITO camaron");
+  const hit = page.getByRole("option", { name: /el ornitorrinco come camarones.*Zoología/ }).first();
+  await expect(hit).toBeVisible();
+  await expect(page.getByText("En los mensajes")).toBeVisible();
+  await hit.click();
+  await expect(box).toBeHidden();
+  const row = page.locator(".transcript__row", { hasText: "el ornitorrinco come camarones" }).first();
+  await expect(row).toBeVisible();
+  await expect(row).toHaveClass(/is-flash/);
 });

@@ -150,6 +150,7 @@ export const en = {
   "palette.projects": "Projects",
   "palette.agents": "Agents",
   "palette.tasks": "Open tasks",
+  "palette.messages": "In messages",
   "palette.settings": "Settings",
   "palette.untitled": "Untitled chat",
   "palette.none": "Nothing matches.",

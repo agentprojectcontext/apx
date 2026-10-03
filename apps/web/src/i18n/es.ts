@@ -154,6 +154,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "palette.projects": "Proyectos",
   "palette.agents": "Agentes",
   "palette.tasks": "Tareas abiertas",
+  "palette.messages": "En los mensajes",
   "palette.settings": "Configuración",
   "palette.untitled": "Chat sin título",
   "palette.none": "Nada coincide.",

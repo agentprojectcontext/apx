@@ -461,4 +461,32 @@ export const MIGRATIONS: readonly string[] = [
     WHERE a.channel = threads.channel AND a.external_id = threads.conversation AND a.person_id <> threads.person_id
   );
   `,
+  `
+  -- Words of every message, for search: only its text parts, kept by triggers; the text itself stays in messages.
+  -- messages_n gives each message a stable number for the index (an implicit rowid may change on VACUUM).
+  CREATE TABLE messages_n (n INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE);
+  CREATE VIRTUAL TABLE messages_fts USING fts5(
+    text, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2'
+  );
+  INSERT INTO messages_n(id) SELECT id FROM messages ORDER BY created_at;
+  INSERT INTO messages_fts(rowid, text)
+    SELECT x.n, (SELECT group_concat(json_extract(p.value, '$.text'), ' ') FROM json_each(m.parts) p
+      WHERE json_extract(p.value, '$.type') = 'text')
+    FROM messages m JOIN messages_n x ON x.id = m.id;
+  CREATE TRIGGER messages_fts_ai AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_n(id) VALUES (new.id);
+    INSERT INTO messages_fts(rowid, text) VALUES (last_insert_rowid(), (SELECT group_concat(json_extract(p.value, '$.text'), ' ')
+      FROM json_each(new.parts) p WHERE json_extract(p.value, '$.type') = 'text'));
+  END;
+  CREATE TRIGGER messages_fts_ad AFTER DELETE ON messages BEGIN
+    DELETE FROM messages_fts WHERE rowid = (SELECT n FROM messages_n WHERE id = old.id);
+    DELETE FROM messages_n WHERE id = old.id;
+  END;
+  CREATE TRIGGER messages_fts_au AFTER UPDATE OF parts ON messages BEGIN
+    DELETE FROM messages_fts WHERE rowid = (SELECT n FROM messages_n WHERE id = old.id);
+    INSERT INTO messages_fts(rowid, text) VALUES ((SELECT n FROM messages_n WHERE id = new.id),
+      (SELECT group_concat(json_extract(p.value, '$.text'), ' ') FROM json_each(new.parts) p
+        WHERE json_extract(p.value, '$.type') = 'text'));
+  END;
+  `,
 ];

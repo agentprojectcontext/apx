@@ -80,6 +80,20 @@
 .transcript__row > .apx-msg {
   margin-top: 0;
 }
+/* The message a search result opened, lit for a moment. */
+.transcript__row.is-flash {
+  border-radius: var(--apx-radius-md);
+  animation: msg-flash 2.4s ease-out;
+}
+@keyframes msg-flash {
+  0%,
+  40% {
+    background: var(--apx-fill);
+  }
+  100% {
+    background: transparent;
+  }
+}
 .transcript__usertext {
   white-space: pre-wrap;
 }

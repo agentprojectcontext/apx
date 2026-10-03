@@ -217,6 +217,16 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       store.threads.mergeContext(thread, { voice_replies: on });
       return { on };
     },
+    "threads.search": ({ query, limit }) => ({
+      hits: store.messages.search(query, limit).map(({ message: m, snippet }) => ({
+        thread_id: m.thread_id,
+        message_id: m.id,
+        seq: m.seq,
+        author: m.author,
+        snippet,
+        created_at: m.created_at,
+      })),
+    }),
     "threads.compact": async ({ thread }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return upkeep.compact(thread);

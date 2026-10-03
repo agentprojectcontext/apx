@@ -228,8 +228,61 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
   return repo;
 }
 
+/**
+ * What a search box typed, as a safe FTS5 query: every word must be there, each also as the start of a longer word
+ * ("fact" finds "factura"). Quotes keep operators out.
+ */
+export function messageQuery(text: string): string | undefined {
+  const words = [
+    ...new Set(
+      text
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLowerCase()
+        .match(/[\p{L}\p{N}]+/gu) ?? [],
+    ),
+  ].slice(0, 8);
+  return words.length ? words.map((w) => `"${w}"*`).join(" ") : undefined;
+}
+
+/** A piece of a message's text around the first word searched for, for a result row. */
+export function snippetOf(text: string, query: string, width = 140): string {
+  const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  // Folding keeps one char per char only after combining marks go; positions are found on a per-char fold.
+  const folded = [...text].map((c) => fold(c) || c).join("");
+  const words = fold(query).match(/[\p{L}\p{N}]+/gu) ?? [];
+  const at = Math.min(...words.map((w) => folded.indexOf(w)).filter((i) => i >= 0), Number.POSITIVE_INFINITY);
+  const flat = (s: string) => s.replace(/\s+/g, " ").trim();
+  if (!Number.isFinite(at) || text.length <= width) return flat(text.slice(0, width));
+  const start = Math.max(0, at - Math.floor(width / 3));
+  const piece = flat([...text].slice(start, start + width).join(""));
+  return `${start > 0 ? "…" : ""}${piece}${start + width < [...text].length ? "…" : ""}`;
+}
+
+export type MessageHit = { message: Message; snippet: string };
+
 export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
+    /** Messages whose text has every word of `query`, best match first, newest among equals. */
+    search(query: string, limit = 30): MessageHit[] {
+      const match = messageQuery(query);
+      if (!match) return [];
+      const rows = all(
+        qb
+          .selectFrom("messages_fts")
+          .innerJoin("messages_n", "messages_n.n", "messages_fts.rowid")
+          .innerJoin("messages", "messages.id", "messages_n.id")
+          .selectAll("messages")
+          .where(sql<boolean>`messages_fts MATCH ${match}`)
+          .orderBy(sql`bm25(messages_fts)`)
+          .orderBy("messages.created_at", "desc")
+          .limit(limit),
+      );
+      return rows.map(toMessage).map((message) => ({
+        message,
+        snippet: snippetOf(message.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" "), query),
+      }));
+    },
     list(threadId: string, limit = 200): Message[] {
       const newest = qb
         .selectFrom("messages")

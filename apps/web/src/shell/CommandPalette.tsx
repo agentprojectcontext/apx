@@ -1,4 +1,4 @@
-import type { Task } from "@apx/protocol";
+import type { Task, Thread } from "@apx/protocol";
 import { AgentAvatar, Dialog, Icons, Kbd, ProjectTile } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../data/client.ts";
@@ -21,6 +21,18 @@ const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
   advanced: "config.advanced",
 };
 const MAX_PER_GROUP = 6;
+/** Words in messages are looked up in the core once typing pauses, from this many characters on. */
+const SEARCH_MIN = 2;
+const SEARCH_WAIT_MS = 180;
+
+type Hit = { thread_id: string; message_id: string; snippet: string };
+
+/** Opens a chat where it lives (an engine's session beside its engine), pointing at one message. */
+function openAt(thread: Thread | undefined, threadId: string, messageId: string): void {
+  if (thread?.engine) go.engine(thread.engine, threadId);
+  else go.thread(threadId);
+  go.focus(`msg:${messageId}`);
+}
 
 /** Lowercase, without accents: "Acción" matches "accion". */
 const fold = (s: string) =>
@@ -35,8 +47,8 @@ const matches = (text: string, words: string[]) => {
 };
 
 /**
- * ⌘K: one box to jump anywhere — chats, projects, agents, open tasks, and the places of the app (Tasks, Resources,
- * each Settings section). Arrows move, Enter opens, Esc closes.
+ * ⌘K: one box to jump anywhere — chats, projects, agents, open tasks, the places of the app (Tasks, Resources,
+ * each Settings section) and what was said in the messages. Arrows move, Enter opens, Esc closes.
  */
 export function CommandPalette() {
   const t = useT();
@@ -47,6 +59,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [hits, setHits] = useState<Hit[]>([]);
   const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,6 +71,23 @@ export function CommandPalette() {
       .then((r) => setTasks(r.tasks))
       .catch(() => setTasks([]));
   }, [open]);
+
+  // What the messages say: asked once typing pauses; an older answer arriving late is dropped.
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < SEARCH_MIN) return setHits([]);
+    let live = true;
+    const timer = setTimeout(() => {
+      void client
+        .call("threads.search", { query: q, limit: MAX_PER_GROUP * 2 })
+        .then((r) => live && setHits(r.hits))
+        .catch(() => live && setHits([]));
+    }, SEARCH_WAIT_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [open, query]);
 
   const items = useMemo((): Item[] => {
     const words = fold(query).split(/\s+/).filter(Boolean);
@@ -128,13 +158,26 @@ export function CommandPalette() {
       icon: <Icons.CircleDashed size={15} />,
       run: close(() => go.thread(task.thread_id)),
     }));
+    const messageItems: Item[] = hits.slice(0, MAX_PER_GROUP).map((h) => {
+      const th = threads[h.thread_id];
+      return {
+        key: `m:${h.message_id}`,
+        group: "palette.messages",
+        title: h.snippet,
+        detail: th?.title || t("palette.untitled"),
+        icon: <Icons.MessageCircle size={15} />,
+        run: close(() => openAt(th, h.thread_id, h.message_id)),
+      };
+    });
     const groups = [chats, projectItems, agentItems, taskItems, places];
     // With nothing typed: the latest chats and the places; with words: what matches, a few per group.
     if (!words.length) return [...chats.slice(0, 5), ...places];
-    return groups.flatMap((g) =>
-      g.filter((i) => matches(`${i.title} ${i.detail ?? ""}`, words)).slice(0, MAX_PER_GROUP),
-    );
-  }, [query, threads, projects, agents, tasks, t]);
+    // The core already matched the messages (words and their starts): they are listed as they came.
+    return [
+      ...groups.flatMap((g) => g.filter((i) => matches(`${i.title} ${i.detail ?? ""}`, words)).slice(0, MAX_PER_GROUP)),
+      ...messageItems,
+    ];
+  }, [query, threads, projects, agents, tasks, hits, t]);
 
   useEffect(() => {
     list.current?.querySelector(".palette__item.is-on")?.scrollIntoView({ block: "nearest" });

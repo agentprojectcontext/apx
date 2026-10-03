@@ -3,6 +3,7 @@ import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
+  Author,
   CatalogEngine,
   ChannelInfo,
   ChannelStrangers,
@@ -847,6 +848,26 @@ export const appMethods = {
     access: "human",
   },
   /** The owner saw the thread: its unread count and its notices (not pending questions) are cleared. */
+  /** Messages whose text has every word typed (each also as a prefix), best first: for the search box. */
+  "threads.search": {
+    params: z
+      .object({ query: z.string().min(1).max(200), limit: z.number().int().min(1).max(50).default(20) })
+      .strict(),
+    result: z.object({
+      hits: z.array(
+        z.object({
+          thread_id: Id,
+          message_id: Id,
+          seq: z.number().int(),
+          author: Author,
+          snippet: z.string(),
+          created_at: z.string(),
+        }),
+      ),
+    }),
+    effect: false,
+    access: "human",
+  },
   "threads.read": {
     params: z.object({ thread: Id }).strict(),
     result: z.object({ ok: z.literal(true) }),

@@ -6,7 +6,7 @@ import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
-import { useNav } from "../shell/nav.ts";
+import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
@@ -68,6 +68,20 @@ export function Transcript({ thread }: { thread: Thread }) {
     return () => ro.disconnect();
   }, []);
 
+  // A search result points at one message ("msg:<id>"): scroll to it once it is loaded, and light it for a moment.
+  const focus = useNav((s) => s.focus);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: tried again as the thread's messages arrive
+  useEffect(() => {
+    if (!focus?.startsWith("msg:")) return;
+    const row = content.current?.querySelector<HTMLElement>(`[data-msg="${CSS.escape(focus.slice(4))}"]`);
+    if (!row) return;
+    stick.current = false;
+    nav.set({ focus: undefined });
+    row.scrollIntoView({ block: "center" });
+    row.classList.add("is-flash");
+    row.addEventListener("animationend", () => row.classList.remove("is-flash"), { once: true });
+  }, [focus, rows]);
+
   const onScroll = () => {
     const el = scroller.current;
     if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
@@ -86,7 +100,7 @@ export function Transcript({ thread }: { thread: Thread }) {
           </EmptyState>
         )}
         {rows.map(({ key, day, msg }) => (
-          <div key={key} className="transcript__row">
+          <div key={key} className="transcript__row" data-msg={key}>
             {day && <DayDivider label={day} />}
             {msg.author.kind === "user" ? (
               <Message from="user" className={msg.id.startsWith("local_") ? "is-pending" : undefined}>

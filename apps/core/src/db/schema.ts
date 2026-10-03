@@ -135,6 +135,11 @@ export interface MessagesTable {
   created_at: string;
 }
 
+export interface MessagesNTable {
+  n: Generated<number>;
+  id: string;
+}
+
 export interface MetaTable {
   key: string;
   value: string;
@@ -382,6 +387,7 @@ export interface Database {
   media: MediaTable;
   memories: MemoriesTable;
   messages: MessagesTable;
+  messages_n: MessagesNTable;
   meta: MetaTable;
   model_log: ModelLogTable;
   notifications: NotificationsTable;
