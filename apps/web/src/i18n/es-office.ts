@@ -102,7 +102,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.legend.failed": "Falló",
   "routines.flow.pre": "antes",
   "routines.flow.post": "después",
-  "routines.flow.message": "Telegram",
+  "routines.flow.message": "Mensaje",
   "routines.flow.command": "comando",
   "routines.card.trigger": "Disparador",
   "routines.card.before": "Antes",
@@ -117,9 +117,9 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "routines.action.agent": "Agente",
   "routines.action.agentHint":
     "El super-agente o un agente del proyecto responde el prompt; te avisa si tiene algo para contarte.",
-  "routines.action.message": "Telegram",
+  "routines.action.message": "Mensaje",
   "routines.action.messageHint":
-    "Te manda un mensaje fijo por Telegram, sin modelo. {{pre_output}} lleva la salida del comando.",
+    "Te manda un mensaje fijo por tu canal (Telegram, WhatsApp), sin modelo. {{pre_output}} lleva la salida del comando.",
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Solo corre un comando en la carpeta del proyecto. Sin modelo ni aviso.",
   "routines.action.watch": "Vigía",

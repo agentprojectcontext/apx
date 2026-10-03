@@ -11,8 +11,8 @@ export type AdapterCaps = {
   /** Inline buttons (approve / deny, options). */
   buttons: boolean;
   /**
-   * The channel is the owner's own account (WhatsApp): a stranger never gets an answer, not even a pairing code; their
-   * request is only listed for the owner to approve.
+   * The channel is the owner's own account (WhatsApp on their own phone): a stranger never gets a pairing code from
+   * it; their request is only listed for the owner to approve.
    */
   ownAccount?: boolean;
 };

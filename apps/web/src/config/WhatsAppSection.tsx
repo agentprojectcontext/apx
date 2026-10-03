@@ -1,20 +1,22 @@
 import type { ChannelInfo } from "@apx/protocol";
-import { Badge, Button, Icons, SettingRow, Spinner, Switch } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { Badge, Button, EmptyState, IconButton, Icons, SettingRow, Spinner, Switch } from "@apx/ui";
+import { useEffect, useMemo, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
+import { PhoneForm, phoneOf } from "../channels/PhoneForm.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { QrCode } from "../common/QrCode.tsx";
-import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../data/channels.ts";
+import { type ChannelDraft, loadChannels, saveChannel, unlinkAddress, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
+import { SubHead } from "./SectionHead.tsx";
 
 const CHANNEL_ID = "whatsapp";
 const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "queue", owner_thread: "home" } as const;
 
 /**
- * WhatsApp: the owner's own number, linked like WhatsApp Web with a QR. The owner writes to their agent in "Message
- * yourself"; others are answered only once approved.
+ * WhatsApp, linked like WhatsApp Web with a QR: a line of its own the owner writes to from their phone, or the owner's
+ * own number (they write in "Message yourself"). Others are answered only once approved.
  */
 export function WhatsAppSection() {
   const channels = useChannels((s) => s.channels);
@@ -32,6 +34,7 @@ export function WhatsAppSection() {
       {ready && (channel ? <Linked channel={channel} /> : <Setup />)}
       {channel?.status === "running" && (
         <>
+          {!channel.self_owner && <OwnerPhone channel={channel} />}
           <Pairing channelId={channel.id} itsMe={false} />
           <Notices />
           <People channelId={channel.id} />
@@ -58,17 +61,21 @@ function Setup() {
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
   const [agent, setAgent] = useState(secretary?.id ?? "roby");
+  const [selfOwner, setSelfOwner] = useState(false);
   const [busy, setBusy] = useState(false);
   const link = async () => {
     setBusy(true);
-    await saveChannel(CHANNEL_ID, { agent_id: agent, ...DEFAULTS });
+    await saveChannel(CHANNEL_ID, { agent_id: agent, ...DEFAULTS, self_owner: selfOwner });
     setBusy(false);
   };
   return (
     <div className="tgsetup">
       <Steps />
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint")}>
+      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "WhatsApp" })}>
         <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
+      </SettingRow>
+      <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
+        <Switch size="sm" checked={selfOwner} onCheckedChange={setSelfOwner} aria-label={t("ch.selfOwner")} />
       </SettingRow>
       <div>
         <Button loading={busy} leadingIcon={<Icons.QrCode size={14} />} onClick={() => void link()}>
@@ -87,6 +94,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    self_owner: channel.self_owner,
   };
   const save = (patch: Partial<ChannelDraft>) => saveChannel(channel.id, { ...draft, ...patch });
   const running = channel.status === "running";
@@ -136,6 +144,16 @@ function Linked({ channel }: { channel: ChannelInfo }) {
           </div>
         )}
       </div>
+      {running && (
+        <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
+          <Switch
+            size="sm"
+            checked={channel.self_owner === true}
+            onCheckedChange={(on) => void save({ self_owner: on })}
+            aria-label={t("ch.selfOwner")}
+          />
+        </SettingRow>
+      )}
       {running && <Behavior channel={channel} save={save} />}
       <div className="tgremove">
         <Button
@@ -147,6 +165,43 @@ function Linked({ channel }: { channel: ChannelInfo }) {
           {t("wa.remove")}
         </Button>
       </div>
+    </>
+  );
+}
+
+/** On a line of its own, the owner's phone: the numbers that are theirs, and one typed by hand. */
+function OwnerPhone({ channel }: { channel: ChannelInfo }) {
+  const t = useT();
+  const owner = useChannels((s) => s.persons.find((p) => p.role === "owner"));
+  const mine = useMemo(() => owner?.addresses.filter((a) => a.channel === channel.id), [owner, channel.id]);
+  return (
+    <>
+      <SubHead>{t("ch.phone")}</SubHead>
+      {mine?.length ? (
+        <ul className="res__list">
+          {mine.map((a) => (
+            <li key={a.id} className="res__row">
+              <Icons.Smartphone size={14} className="res__icon" />
+              <div className="res__main">
+                <div className="res__name">{phoneOf(a.external_id)}</div>
+              </div>
+              <IconButton
+                size="sm"
+                label={t("ch.phoneRemove")}
+                icon={<Icons.X size={14} />}
+                onClick={() => void unlinkAddress(a.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState variant="dashed" size="sm" icon={<Icons.Smartphone />}>
+          {t("ch.phoneNone")}
+        </EmptyState>
+      )}
+      <SettingRow title={t("ch.phoneAdd")} description={t("ch.phoneAddHint")}>
+        <PhoneForm channelId={channel.id} />
+      </SettingRow>
     </>
   );
 }

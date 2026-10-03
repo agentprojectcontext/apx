@@ -143,7 +143,13 @@ function quiet(log: Log | undefined) {
   return self;
 }
 
-export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Promise<WaLib> }): ChannelAdapter {
+export function whatsappAdapter(opts: {
+  dir: string;
+  /** The linked number is the owner's own phone: "Message yourself" is the owner talking. */
+  selfOwner?: boolean;
+  log?: Log;
+  lib?: () => Promise<WaLib>;
+}): ChannelAdapter {
   const { dir, log } = opts;
   let lib: WaLib | undefined;
   let sock: WaSocket | undefined;
@@ -252,8 +258,9 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
     if (!content || ignorable(jid) || !m.key.id) return;
     const group = jid.endsWith("@g.us");
     if (m.key.fromMe) {
-      // Our own send coming back, or the owner typing to someone else on their phone: neither is for the agent.
-      if (ownSends.delete(m.key.id) || !isSelf(jid)) return;
+      // Our own send coming back, or someone typing on the linked phone to another chat: neither is for the agent.
+      // "Message yourself" is the owner only when the line is the owner's own phone.
+      if (ownSends.delete(m.key.id) || !isSelf(jid) || !opts.selfOwner) return;
     }
     const alt = normalJid(m.key.remoteJidAlt);
     // One person, one address: their phone number when WhatsApp tells it, their private id otherwise.
@@ -314,7 +321,7 @@ export function whatsappAdapter(opts: { dir: string; log?: Log; lib?: () => Prom
         : { audio: f.data, mimetype: f.mime };
 
   return {
-    caps: { typing: true, buttons: false, ownAccount: true },
+    caps: { typing: true, buttons: false, ownAccount: Boolean(opts.selfOwner) },
     async start(adapterIO) {
       io = adapterIO;
       stopped = false;

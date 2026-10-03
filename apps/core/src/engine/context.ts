@@ -103,6 +103,8 @@ export function turnInput(opts: {
   task?: string | undefined;
   /** What an extension's plugin adds, already framed as outside data. */
   extension?: string | undefined;
+  /** People on channels waiting for the owner's OK (codes and numbers only). */
+  waiting?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
   const head = [
@@ -111,6 +113,7 @@ export function turnInput(opts: {
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.task ? `[task]\n${opts.task}` : "",
     opts.extension ? `[extension context]\n${opts.extension}` : "",
+    opts.waiting ? `[waiting]\n${opts.waiting}` : "",
   ].filter(Boolean);
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }

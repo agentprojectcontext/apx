@@ -247,7 +247,7 @@ folder is deleted and a human links again), only live messages (`notify`) are re
 their phone number or their private id (`@lid`): the phone number wins when WhatsApp gives it. The QR is held in
 memory only, shown to the owner through `channels.list`, and dropped once spent; the credentials folder is 0700 and
 deleted when the channel is removed. The library loads with the first WhatsApp channel (it costs ~45 MB) and its
-install scripts are not run.
+install scripts are not run. Amended by [D-027](#d-027): the owner's own number is now a choice, not the default.
 
 <a id="d-026"></a>
 ## D-026 — 2026-10-03 — Updates follow main of the checkout APX runs from
@@ -260,3 +260,18 @@ untouched. A supervisor restarts the core with the new code when it exits with c
 `APX_SUPERVISED=1`); without one the owner is asked to restart. The panel knows its own build by its entry file and
 reloads when the core serves another one. When packaged releases exist this becomes a signed feed plus
 electron-updater (plan §12), behind the same two methods.
+
+<a id="d-027"></a>
+## D-027 — 2026-10-03 — A WhatsApp line is nobody until the owner says it is their phone; strangers can be asked about
+Most owners link a line of its own that the agent answers on and write to it from their own phone (v1 learned this the
+hard way: treating the line as its owner made the real owner a stranger on it). So `self_owner` is off by default: the
+line's "Message yourself" is ignored, and the owner's phone is linked like any address: by writing to the line and
+pressing "It's my number" on the request (WhatsApp shows the number, so no code is needed), or by typing the number
+(`contacts.address`). Turned on, D-025 applies as it was. Strangers get one of four treatments per channel: `pair` (a
+code; on the owner's own number only listed), `ask` (the owner gets a notice with who wrote, their number and their
+first message, with buttons; once let in, that first message is answered), `answer` (a new contact at once: sealed,
+tool-free, rate-limited) or `ignore`. The owner can also decide by telling the agent: owner turns of the channel's
+agent see who waits by request code, channel and number only (never the name or text a stranger chose, so the turn
+stays trusted), and `answer_contact_request` lets someone in only through `pairing.respond` as the owner, after the
+owner approves that call; ignoring needs no approval.
+

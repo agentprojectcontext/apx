@@ -25,7 +25,7 @@ import {
   unlinkAddress,
   useChannels,
 } from "../data/channels.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 export const STATUS: Record<ChannelInfo["status"], "brand" | "neutral" | "warning" | "danger"> = {
@@ -33,6 +33,17 @@ export const STATUS: Record<ChannelInfo["status"], "brand" | "neutral" | "warnin
   starting: "neutral",
   off: "neutral",
   error: "danger",
+};
+
+/** On the owner's own WhatsApp number a stranger never gets a code from it: "pair" only lists them. */
+const listsOnly = (c: ChannelInfo) => c.type === "whatsapp" && c.self_owner === true;
+const strangerMode = (c: ChannelInfo) => (c.strangers === "pair" && listsOnly(c) ? "list" : c.strangers);
+const STRANGER_HINT: Record<ReturnType<typeof strangerMode>, MessageKey> = {
+  pair: "ch.strangersHint.pair",
+  list: "ch.strangersHint.list",
+  ask: "ch.strangersHint.ask",
+  answer: "ch.strangersHint.answer",
+  ignore: "ch.strangersHint.ignore",
 };
 
 /** Who answers on the channel and how: the agent, where the owner's words go, overlapping messages, strangers. */
@@ -47,7 +58,7 @@ export function Behavior({
   return (
     <>
       <SubHead>{t("tg.behavior")}</SubHead>
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint")}>
+      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: channel.label })}>
         <AgentSelect
           size="sm"
           className="tgagent"
@@ -55,7 +66,7 @@ export function Behavior({
           onChange={(id) => id && id !== channel.agent_id && void save({ agent_id: id })}
         />
       </SettingRow>
-      <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint")}>
+      <SettingRow title={t("tg.ownerThread")} description={t("tg.ownerThreadHint", { channel: channel.label })}>
         <SegmentedControl
           size="sm"
           label={t("tg.ownerThread")}
@@ -80,14 +91,16 @@ export function Behavior({
           ]}
         />
       </SettingRow>
-      <SettingRow title={t("tg.strangers")} description={t("tg.strangersHint")}>
+      <SettingRow title={t("tg.strangers")} description={t(STRANGER_HINT[strangerMode(channel)])}>
         <SegmentedControl
           size="sm"
           label={t("tg.strangers")}
           value={channel.strangers}
           onValueChange={(v) => void save({ strangers: v as ChannelDraft["strangers"] })}
           options={[
-            { value: "pair", label: t("tg.strangers.pair") },
+            { value: "pair", label: t(listsOnly(channel) ? "ch.strangers.list" : "tg.strangers.pair") },
+            { value: "ask", label: t("ch.strangers.ask") },
+            { value: "answer", label: t("ch.strangers.answer") },
             { value: "ignore", label: t("tg.strangers.ignore") },
           ]}
         />
@@ -143,11 +156,12 @@ export function Pairing({ channelId, itsMe }: { channelId: string; itsMe: boolea
 export function People({ channelId }: { channelId: string }) {
   const t = useT();
   const all = useChannels((s) => s.persons);
+  const label = useChannels((s) => s.channels.find((c) => c.id === channelId)?.label ?? channelId);
   const persons = all.filter((p) => p.addresses.some((a) => a.channel === channelId));
   if (!persons.length) return null;
   return (
     <>
-      <SubHead>{t("tg.people")}</SubHead>
+      <SubHead>{t("tg.people", { channel: label })}</SubHead>
       <ul className="res__list">
         {persons.map((p) => (
           <PersonRow key={p.id} person={p} channelId={channelId} />

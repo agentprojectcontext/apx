@@ -16,6 +16,7 @@ import { contextWindow } from "../providers/windows.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { inherit } from "../tools/policy.ts";
+import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
@@ -277,6 +278,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           memory: recalled.text,
           task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
           extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
+          waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
         }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);

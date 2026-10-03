@@ -263,10 +263,16 @@ export function createChannels(deps: {
         },
         identified: ({ account, owner }) => {
           l.account = account;
-          // A linked device is the owner's own account: whoever writes from it is the owner.
-          if (owner && store.persons.byAddress(config.id, owner)?.role !== "owner") {
+          if (!owner) return;
+          // The owner's own phone: whoever writes from it is the owner. A line of its own is nobody: the owner is
+          // the phone they write to it from.
+          const holder = store.persons.byAddress(config.id, owner);
+          if (config.self_owner && holder?.role !== "owner") {
             store.persons.owner();
             store.persons.link(OWNER_ID, { channel: config.id, external_id: owner, label: config.label });
+          } else if (!config.self_owner && holder?.role === "owner") {
+            const a = holder.addresses.find((x) => x.channel === config.id && x.external_id === owner);
+            if (a) store.persons.unlink(a.id);
           }
         },
         signal: ac.signal,
@@ -368,6 +374,7 @@ export function createChannels(deps: {
     info,
     notifyOwner,
     sendAsOwner,
+    approved: inbound.approved,
     afterRun,
     /** Adds, changes or removes a channel and (re)starts it. */
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {

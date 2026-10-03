@@ -59,6 +59,7 @@ export type ChannelDraft = {
   strangers: ChannelInfo["strangers"];
   concurrency: ChannelInfo["concurrency"];
   owner_thread: ChannelInfo["owner_thread"];
+  self_owner?: boolean | undefined;
 };
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */
@@ -94,6 +95,19 @@ export async function respondPairing(code: string, decision: "owner" | "contact"
     notify(key ? t(key, { code }) : t("error.channels", { error: errText(e) }));
   }
   await loadChannels();
+}
+
+/** The owner's own address on a channel, typed by hand (their phone number on WhatsApp). */
+export async function addOwnerAddress(channel: string, address: string): Promise<boolean> {
+  try {
+    await client.call("contacts.address", { channel, address });
+    notify(t("ch.claimed"), "info");
+    await loadChannels();
+    return true;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
+  }
 }
 
 /** "This account is mine": an address approved as a contact's becomes the owner's. */

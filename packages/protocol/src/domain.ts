@@ -472,6 +472,9 @@ export const Person = z.object({
 });
 export type Person = z.infer<typeof Person>;
 
+export const ChannelStrangers = z.enum(["pair", "ask", "answer", "ignore"]);
+export type ChannelStrangers = z.infer<typeof ChannelStrangers>;
+
 /** A channel instance as the owner configured it, and how it is doing. */
 export const ChannelInfo = z.object({
   id: z.string(),
@@ -480,12 +483,20 @@ export const ChannelInfo = z.object({
   enabled: z.boolean(),
   /** The agent that answers on it. */
   agent_id: Id,
-  /** What a stranger's first message gets: a pairing code the owner approves, or nothing. */
-  strangers: z.enum(["pair", "ignore"]),
+  /**
+   * What a stranger's first message gets: a pairing code the owner approves (on the owner's own number: only listed),
+   * a notice asking the owner first, an answer right away as a new contact, or nothing.
+   */
+  strangers: ChannelStrangers,
   /** A new message while the agent is working: wait for it, stop it, or (APX's own loop) slip into it. */
   concurrency: z.enum(["queue", "interrupt", "steer"]),
   /** The owner's messages go to the Home chat (one conversation everywhere) or to a chat of this channel. */
   owner_thread: z.enum(["home", "own"]),
+  /**
+   * WhatsApp: the linked number is the owner's own phone, so "Message yourself" is the owner talking. Off: a line of
+   * its own the agent answers on, and the owner writes to it from their phone (linked with a code or by number).
+   */
+  self_owner: z.boolean().optional(),
   token_set: z.boolean(),
   /** The stored token, masked for the owner to recognize it: the bot's number and the secret's last four. */
   token_hint: z.string().optional(),

@@ -27,7 +27,10 @@ before(async () => {
   wa = fakeWhatsApp();
   env = await startCore({
     llm,
-    channelAdapters: { whatsapp: () => whatsappAdapter({ dir: `${envDir()}/wa`, lib: async () => wa.lib }) },
+    channelAdapters: {
+      whatsapp: (c) =>
+        whatsappAdapter({ dir: `${envDir()}/wa`, selfOwner: c.self_owner === true, lib: async () => wa.lib }),
+    },
   });
 });
 after(async () => {
@@ -37,8 +40,11 @@ after(async () => {
 // The credentials live in the core's own temp home.
 const envDir = () => env.home;
 
-test("linking: a QR waits in the app, and once scanned the number is the owner's own address", async () => {
-  await env.client.call("channels.set", { id: "whatsapp", channel: { type: "whatsapp", agent_id: "roby" } });
+test("linking the owner's own phone: a QR waits in the app, and once scanned the number is the owner's address", async () => {
+  await env.client.call("channels.set", {
+    id: "whatsapp",
+    channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+  });
   await until(async () => Boolean((await channel())?.qr), "a QR to scan");
   const waiting = await channel();
   assert.equal(waiting?.status, "starting");
@@ -134,7 +140,10 @@ test("logged out from the phone: the channel says so and keeps no dead credentia
 });
 
 test("removing the channel unlinks the device and drops its folder", async () => {
-  await env.client.call("channels.set", { id: "whatsapp", channel: { type: "whatsapp", agent_id: "roby" } });
+  await env.client.call("channels.set", {
+    id: "whatsapp",
+    channel: { type: "whatsapp", agent_id: "roby", self_owner: true },
+  });
   await until(async () => Boolean((await channel())?.qr), "a new QR");
   wa.scan();
   await until(async () => (await channel())?.status === "running", "linked again");
@@ -147,7 +156,7 @@ test("removing the channel unlinks the device and drops its folder", async () =>
 test("adapter: options go out numbered, a number back presses that option; Markdown reads as WhatsApp", async () => {
   const fake = fakeWhatsApp();
   const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
-  const adapter = whatsappAdapter({ dir, lib: async () => fake.lib });
+  const adapter = whatsappAdapter({ dir, selfOwner: true, lib: async () => fake.lib });
   const actions: string[] = [];
   const ac = new AbortController();
   const io: AdapterIO = {

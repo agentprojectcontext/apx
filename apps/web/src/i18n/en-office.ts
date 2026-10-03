@@ -100,7 +100,7 @@ export const enOffice = {
   "routines.legend.failed": "Failed",
   "routines.flow.pre": "before",
   "routines.flow.post": "after",
-  "routines.flow.message": "Telegram",
+  "routines.flow.message": "Message",
   "routines.flow.command": "command",
   "routines.card.trigger": "Trigger",
   "routines.card.before": "Before",
@@ -115,9 +115,9 @@ export const enOffice = {
   "routines.action.agent": "Agent",
   "routines.action.agentHint":
     "The super-agent or a project's agent answers the prompt; it tells you when it has something to say.",
-  "routines.action.message": "Telegram",
+  "routines.action.message": "Message",
   "routines.action.messageHint":
-    "Sends you a fixed message on Telegram, no model. {{pre_output}} carries the command's output.",
+    "Sends you a fixed message on your channel (Telegram, WhatsApp), no model. {{pre_output}} carries the command's output.",
   "routines.action.shell": "Shell",
   "routines.action.shellHint": "Only runs a command in the project's folder. No model, no notice.",
   "routines.action.watch": "Watcher",

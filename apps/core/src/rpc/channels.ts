@@ -3,6 +3,7 @@
 import { ErrorCode } from "@apx/protocol";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
+import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
@@ -56,6 +57,16 @@ export function channelHandlers(store: Store, channels: Channels) {
       return { removed: store.persons.remove(id) };
     },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
+    "contacts.address": ({ channel, address, person }) => {
+      const cfg = channels.info().find((c) => c.id === channel);
+      if (!cfg) throw notFound(`channel ${channel}`);
+      const external = typedAddress(cfg.type, address);
+      if (!external) throw badRequest(`"${address}" is not a ${cfg.label} address`);
+      const who = person ? store.persons.get(person) : store.persons.owner();
+      if (!who) throw notFound(`person ${person}`);
+      store.tx(() => store.persons.link(who.id, { channel, external_id: external, label: cfg.label }));
+      return store.persons.get(who.id) as NonNullable<ReturnType<typeof store.persons.get>>;
+    },
 
     "pairing.list": () => ({
       requests: store.channels.pairing.open().map(({ conversation: _c, ...r }) => r),
@@ -92,10 +103,21 @@ export function channelHandlers(store: Store, channels: Channels) {
         store.channels.pairing.close(code, "approved");
         return who.id;
       });
+      channels.approved(req);
       return { person: store.persons.get(id) };
     },
   } satisfies Partial<Handlers>;
 }
 
 const LABELS: Record<string, string> = { telegram: "Telegram", whatsapp: "WhatsApp" };
+
+/** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
+function typedAddress(type: string, typed: string): string | undefined {
+  if (type === "whatsapp") {
+    if (typed.includes("@")) return normalJid(typed) || undefined;
+    const digits = typed.replace(/\D/g, "");
+    return digits.length >= 8 && digits.length <= 15 ? `${digits}@s.whatsapp.net` : undefined;
+  }
+  return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
+}
 const defaultLabel = (type: string) => LABELS[type] ?? type;

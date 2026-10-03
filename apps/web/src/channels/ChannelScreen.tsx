@@ -9,7 +9,9 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
-import { LinkMe, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
+import { KindTile } from "./KindIcon.tsx";
+import { isChannelKind } from "./kinds.ts";
+import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> = {
   partner: "ch.rel.partner",
@@ -48,8 +50,11 @@ export function ChannelScreen() {
   const [query, setQuery] = useState("");
   // The card sits beside the chat on wide screens; on narrow ones it covers it, so it starts closed there.
   const [card, setCard] = useState(() => window.innerWidth >= 1280);
+  // Someone new may write while this list is open: it is read again every few seconds, as the settings do.
   useEffect(() => {
     void loadChannels();
+    const id = setInterval(() => void loadChannels(), 5000);
+    return () => clearInterval(id);
   }, []);
   const channel = channels.find((c) => c.id === channelId);
 
@@ -115,6 +120,7 @@ export function ChannelScreen() {
         />
         <ul className="chan__rows">
           {!query && !linked && channel.type === "telegram" && <LinkMe channel={channel} />}
+          {!query && !linked && channel.type === "whatsapp" && !channel.self_owner && <LinkPhone channel={channel} />}
           {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
           {!query && linked && <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />}
           {shown.map((r) => (
@@ -174,7 +180,11 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
   const agents = useData((s) => s.agents);
   return (
     <header className="chan__head">
-      <ProjectTile tone="info" icon={<Icons.Send />} size={32} />
+      {isChannelKind(channel.type) ? (
+        <KindTile kind={channel.type} size={32} />
+      ) : (
+        <ProjectTile tone="info" icon={<Icons.Send />} size={32} />
+      )}
       <div className="chan__titles">
         <div className="chan__name">{channel.label}</div>
         <div className="chan__meta">
@@ -187,7 +197,7 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
         size="sm"
         label={t("ch.settings")}
         icon={<Icons.Settings size={14} />}
-        onClick={() => go.channelConfig("telegram")}
+        onClick={() => go.channelConfig(isChannelKind(channel.type) ? channel.type : "telegram")}
       />
     </header>
   );

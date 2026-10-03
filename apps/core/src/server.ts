@@ -143,7 +143,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     log,
     factories: opts.channelAdapters ?? {
       telegram: (c, token) => telegramAdapter(c, token, config.telegramApi ?? "https://api.telegram.org"),
-      whatsapp: (c) => whatsappAdapter({ dir: path.join(config.home, "channels", c.id), log }),
+      whatsapp: (c) =>
+        whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
     },
     ...(opts.channelRetryMs ? { retryMs: opts.channelRetryMs } : {}),
     call: internal,

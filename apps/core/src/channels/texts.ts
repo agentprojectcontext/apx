@@ -2,12 +2,16 @@
 import type { Store } from "../domain/store.ts";
 
 const es = {
-  pairing: (name: string, agent: string, code: string) =>
-    `Hola ${name}. Soy ${agent}, un asistente. Todavía no conozco este chat: hay que aprobarlo con el código ${code}. Si sos mi dueño, en APX › Telegram tocá "Soy yo" y escribilo.`,
+  pairing: (name: string, agent: string, code: string, label: string) =>
+    `Hola ${name}. Soy ${agent}, un asistente. Todavía no conozco este chat: hay que aprobarlo con el código ${code}. Si sos mi dueño, en APX › ${label} tocá "Soy yo" y escribilo.`,
   pairingOwner: (name: string, label: string, code: string) =>
     `${name} quiere hablar por ${label}. Código ${code}. Aprobalo acá o en APX › Canales.`,
   pairingApp: (name: string, label: string, code: string) =>
     `${name} quiere hablar por ${label} (código ${code}). Aprobalo en la lista de ${label}.`,
+  askOwner: (name: string, label: string, text: string) =>
+    `${name} te escribió por ${label}${text ? `: «${text}»` : "."} ¿Le contesto?`,
+  answering: (name: string, label: string) => `${name} te escribió por ${label}: le contesto como contacto nuevo.`,
+  answer: "Contestarle",
   approved: "Aprobado.",
   denied: "Rechazado.",
   answered: (a: string) => `Respondido: ${a}`,
@@ -32,12 +36,15 @@ const es = {
 };
 
 const en: typeof es = {
-  pairing: (name, agent, code) =>
-    `Hi ${name}. I'm ${agent}, an assistant. I don't know this chat yet: it has to be approved with the code ${code}. If you are my owner, tap "It's me" in APX › Telegram and type it.`,
+  pairing: (name, agent, code, label) =>
+    `Hi ${name}. I'm ${agent}, an assistant. I don't know this chat yet: it has to be approved with the code ${code}. If you are my owner, tap "It's me" in APX › ${label} and type it.`,
   pairingOwner: (name, label, code) =>
     `${name} wants to talk on ${label}. Code ${code}. Approve it here or in APX › Channels.`,
   pairingApp: (name, label, code) =>
     `${name} wants to talk on ${label} (code ${code}). Approve it in the ${label} list.`,
+  askOwner: (name, label, text) => `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} Shall I answer?`,
+  answering: (name, label) => `${name} wrote to you on ${label}: I'm answering them as a new contact.`,
+  answer: "Answer them",
   approved: "Approved.",
   denied: "Denied.",
   answered: (a) => `Answered: ${a}`,

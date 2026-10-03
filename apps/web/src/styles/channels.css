@@ -241,6 +241,12 @@
 .chan__row.is-unread .chan__rowname {
   font-weight: var(--apx-weight-semibold);
 }
+.chan__rowphone {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-2xs);
+}
 .chan__rowtime {
   flex: none;
   color: var(--apx-fg-subtle);

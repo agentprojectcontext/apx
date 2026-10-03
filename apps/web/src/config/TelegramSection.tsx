@@ -67,7 +67,7 @@ function Setup() {
         />
         <span className="pform__hint">{t("tg.tokenHint")}</span>
       </div>
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint")}>
+      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "Telegram" })}>
         <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>

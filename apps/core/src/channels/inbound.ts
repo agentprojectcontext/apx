@@ -63,10 +63,7 @@ export function createInbound(deps: {
     const cfg = deps.configs().find((c) => c.id === channel);
     if (!cfg) return "ignored";
     const person = store.persons.byAddress(cfg.id, m.sender.id);
-    if (!person) {
-      stranger(cfg, m);
-      return "ignored";
-    }
+    if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
@@ -133,34 +130,49 @@ export function createInbound(deps: {
     return true;
   }
 
-  function stranger(cfg: ChannelConfig, m: Inbound): void {
-    if (cfg.strangers !== "pair") return;
+  /** Someone with no address on file, handled as the channel says: a code, a question to the owner, an answer, nothing. */
+  async function stranger(cfg: ChannelConfig, m: Inbound, rowId: string): Promise<"done" | "ignored"> {
+    if (cfg.strangers === "ignore") return "ignored";
+    const t = channelTexts(store);
+    const name = m.sender.name.slice(0, 80);
+    if (cfg.strangers === "answer") {
+      store.tx(() => {
+        const p = store.persons.create({ name, role: "contact" });
+        store.persons.link(p.id, { channel: cfg.id, external_id: m.sender.id, label: name });
+      });
+      deps.attention({ kind: "channel", title: name, body: t.answering(shown(cfg, name, m.sender.id), cfg.label) });
+      return route(cfg.id, rowId, m);
+    }
     const { request, fresh } = store.channels.pairing.request({
       channel: cfg.id,
       external_id: m.sender.id,
       conversation: m.conversation,
-      name: m.sender.name.slice(0, 80),
+      name,
       text: m.text,
     });
-    // One code per sender until it expires: a stranger writing again gets no new message. On the owner's own account
-    // (WhatsApp) the request is only listed: the owner's friends must not get a code from their number.
-    if (!fresh || deps.ownAccount(cfg.id)) return;
-    const t = channelTexts(store);
+    // One request per sender until it expires: writing again sends nothing new.
+    if (!fresh) return "ignored";
+    const decide = (label: string) => [
+      { id: buttonId.pairing(request.code, "contact"), label },
+      { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
+    ];
+    if (cfg.strangers === "ask") {
+      const text = t.askOwner(shown(cfg, request.name, m.sender.id), cfg.label, (m.text || "").slice(0, 300));
+      deps.notifyOwner({ text, buttons: decide(t.answer) }, "pairing");
+      deps.attention({ kind: "channel", title: request.name, body: text, ref: pairingRef(request.code) });
+      return "ignored";
+    }
+    // On the owner's own number the request is only listed: the owner's friends must not get a code from it.
+    if (deps.ownAccount(cfg.id)) return "ignored";
     const agent = store.agents.get(cfg.agent_id)?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,
       conversation: m.conversation,
       kind: "pairing",
-      body: { text: t.pairing(request.name, agent, request.code) },
+      body: { text: t.pairing(request.name, agent, request.code, cfg.label) },
     });
     deps.notifyOwner(
-      {
-        text: t.pairingOwner(request.name, cfg.label, request.code),
-        buttons: [
-          { id: buttonId.pairing(request.code, "contact"), label: t.asContact },
-          { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
-        ],
-      },
+      { text: t.pairingOwner(request.name, cfg.label, request.code), buttons: decide(t.asContact) },
       "pairing",
     );
     deps.attention({
@@ -169,6 +181,7 @@ export function createInbound(deps: {
       body: t.pairingApp(request.name, cfg.label, request.code),
       ref: pairingRef(request.code),
     });
+    return "ignored";
   }
 
   function ownerThread(cfg: ChannelConfig, conversation: string): Thread {
@@ -260,11 +273,38 @@ export function createInbound(deps: {
   return {
     receive,
     action,
+    /**
+     * A request the owner approved after being asked: its first message is handled now, as if it had just arrived from
+     * the person it turned out to be.
+     */
+    approved(req: {
+      code: string;
+      channel: string;
+      external_id: string;
+      conversation: string;
+      name: string;
+      text?: string | undefined;
+    }): void {
+      if (deps.configs().find((c) => c.id === req.channel)?.strangers !== "ask" || !req.text) return;
+      receive(req.channel, {
+        external_id: `pairing:${req.code}`,
+        conversation: req.conversation,
+        sender: { id: req.external_id, name: req.name },
+        text: req.text,
+        private: true,
+      });
+    },
     /** Boot: messages stored but not handled before a restart. */
     resume(): void {
       for (const row of store.channels.inbox.pending()) void process(row);
     },
   };
+}
+
+/** A name with its phone number when the channel has one (a stranger picks their own name; the number is theirs). */
+function shown(cfg: ChannelConfig, name: string, externalId: string): string {
+  const phone = cfg.type === "whatsapp" ? /^(\d{6,})@s\.whatsapp\.net$/.exec(externalId)?.[1] : undefined;
+  return phone ? `${name} (+${phone})` : name;
 }
 
 /** The tray notice of a pairing request, closed when the owner answers it. */

@@ -1,5 +1,7 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
+import { KindIcon } from "../channels/KindIcon.tsx";
+import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
@@ -28,6 +30,8 @@ export function ChatHeader({
   // An engine session is the engine itself: its name and icon, not the agent that owns the run.
   const engine = useEngineLabel(thread.engine);
   const name = sub ? thread.title : (engine ?? agent?.name ?? thread.title);
+  const via = thread.channel?.id ?? "";
+  const channelLabel = isChannelKind(via) ? t(CHANNEL_KINDS[via].name) : via;
 
   return (
     <header className={compact ? "chat__header chat__header--compact" : "chat__header"}>
@@ -72,7 +76,8 @@ export function ChatHeader({
           {sub && <Tag>{t("thread.a2a")}</Tag>}
           {thread.channel && (
             <Tag>
-              <Icons.Send size={11} /> {t("chat.viaChannel")}
+              {isChannelKind(via) ? <KindIcon kind={via} size={11} /> : <Icons.Send size={11} />}{" "}
+              {t("chat.viaChannel", { channel: channelLabel })}
             </Tag>
           )}
           {thread.kind === "code" && thread.cwd && (

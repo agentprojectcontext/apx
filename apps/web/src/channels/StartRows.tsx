@@ -7,6 +7,7 @@ import { respondPairing, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { initials } from "./ChannelScreen.tsx";
+import { PhoneForm, phoneOf } from "./PhoneForm.tsx";
 
 /**
  * Someone who wrote and waits to be let in, first in the list with what they said. "It's me" asks for the code the
@@ -21,7 +22,11 @@ export function PairingRow({ request }: { request: PairingRequest }) {
   // Before the owner's own chat is linked, the likely writer is the owner; after, a new person. On the owner's own
   // number (WhatsApp) it is never the owner.
   const linked = useChannels((s) => ownerOn(s.persons, request.channel));
-  const ownNumber = useChannels((s) => s.channels.find((c) => c.id === request.channel)?.type === "whatsapp");
+  const channel = useChannels((s) => s.channels.find((c) => c.id === request.channel));
+  // WhatsApp shows the number, so the owner can tell their own phone at a glance; on their own number it is never them.
+  const whatsapp = channel?.type === "whatsapp";
+  const ownNumber = whatsapp && channel?.self_owner === true;
+  const itsMe = () => (whatsapp ? void answer(request.code, "owner") : setMine(true));
   const answer = async (c: string, decision: "owner" | "contact" | "deny") => {
     setBusy(true);
     await respondPairing(c, decision);
@@ -34,6 +39,7 @@ export function PairingRow({ request }: { request: PairingRequest }) {
         <span className="chan__rowmain">
           <span className="chan__rowtop">
             <span className="chan__rowname">{request.name}</span>
+            {whatsapp && <span className="chan__rowphone">{phoneOf(request.external_id)}</span>}
             <span className="chan__rowtime">{shortWhen(request.created_at)}</span>
           </span>
           {request.text && <span className="chan__preview">“{request.text}”</span>}
@@ -61,8 +67,8 @@ export function PairingRow({ request }: { request: PairingRequest }) {
       ) : (
         <div className="chan__pendingact">
           {!linked && !ownNumber && (
-            <Button size="sm" onClick={() => setMine(true)}>
-              {t("ch.itsMe")}
+            <Button size="sm" loading={busy && whatsapp} onClick={itsMe}>
+              {t(whatsapp ? "ch.itsMyNumber" : "ch.itsMe")}
             </Button>
           )}
           <Button
@@ -77,8 +83,8 @@ export function PairingRow({ request }: { request: PairingRequest }) {
             {t("tg.ignore")}
           </Button>
           {linked && !ownNumber && (
-            <Button size="sm" variant="ghost" onClick={() => setMine(true)}>
-              {t("ch.itsMe")}
+            <Button size="sm" variant="ghost" disabled={busy} onClick={itsMe}>
+              {t(whatsapp ? "ch.itsMyNumber" : "ch.itsMe")}
             </Button>
           )}
         </div>
@@ -119,9 +125,7 @@ export function OwnerRow({
           <span className="chan__rowtop">
             <span className="chan__rowname">{t("ch.you")}</span>
           </span>
-          <span className="chan__preview">
-            {t((channel.type === "whatsapp" ? OWNER_WA : OWNER_BOT)[toHome ? "home" : target ? "own" : "none"])}
-          </span>
+          <span className="chan__preview">{t(ownerLine(channel)[toHome ? "home" : target ? "own" : "none"])}</span>
         </span>
       </button>
     </li>
@@ -130,8 +134,33 @@ export function OwnerRow({
 
 type OwnerLine = Record<"home" | "own" | "none", MessageKey>;
 const OWNER_BOT: OwnerLine = { home: "ch.ownerHome", own: "ch.ownerOwn", none: "ch.ownerOwnNone" };
-/** On WhatsApp the owner writes in "Message yourself": there is no bot. */
+/** On the owner's own WhatsApp number they write in "Message yourself"; to a line of its own, from their phone. */
 const OWNER_WA: OwnerLine = { home: "ch.waOwnerHome", own: "ch.waOwnerOwn", none: "ch.waOwnerOwnNone" };
+const OWNER_LINE: OwnerLine = { home: "ch.waPhoneHome", own: "ch.waPhoneOwn", none: "ch.waPhoneOwnNone" };
+const ownerLine = (c: ChannelInfo) => (c.type !== "whatsapp" ? OWNER_BOT : c.self_owner ? OWNER_WA : OWNER_LINE);
+
+/**
+ * WhatsApp on a line of its own, until the owner's phone is linked: write to the line and tap "It's my number" when it
+ * shows up in the list, or type the number.
+ */
+export function LinkPhone({ channel }: { channel: ChannelInfo }) {
+  const t = useT();
+  return (
+    <li className="chan__link">
+      <div className="chan__linktitle">
+        <Icons.Smartphone size={14} />
+        {t("ch.linkPhone.title")}
+      </div>
+      <ol className="chan__linksteps">
+        <li>{t("ch.linkPhone.step1", { line: channel.account ?? channel.label })}</li>
+        <li>{t("ch.linkPhone.step2")}</li>
+      </ol>
+      <div className="chan__pendingact is-flat">
+        <PhoneForm channelId={channel.id} />
+      </div>
+    </li>
+  );
+}
 
 /**
  * Until the owner's own chat is linked, always on top: open the bot, write to it, and type here the code it answers

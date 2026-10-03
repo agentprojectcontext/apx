@@ -50,6 +50,7 @@ import { contactTools } from "./tools/contact.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
+import { requestTools } from "./tools/requests.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -103,6 +104,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...mediaTools(),
     ...taskTools(),
     ...contactTools(store),
+    ...requestTools(store),
     ...extra,
   ];
 }

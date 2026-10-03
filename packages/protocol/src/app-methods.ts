@@ -5,6 +5,7 @@ import {
   Agent,
   CatalogEngine,
   ChannelInfo,
+  ChannelStrangers,
   EngineStatus,
   Id,
   ImageDefaults,
@@ -541,9 +542,10 @@ export const appMethods = {
             label: z.string().max(60).optional(),
             enabled: z.boolean().default(true),
             agent_id: Id,
-            strangers: z.enum(["pair", "ignore"]).default("pair"),
+            strangers: ChannelStrangers.default("pair"),
             concurrency: z.enum(["queue", "interrupt", "steer"]).default("queue"),
             owner_thread: z.enum(["home", "own"]).default("home"),
+            self_owner: z.boolean().optional(),
           })
           .nullable(),
         token: z.string().min(8).max(400).optional(),
@@ -719,6 +721,22 @@ export const appMethods = {
    * "This account is mine": an address approved as a contact's becomes the owner's (their chats on that channel
    * too); a contact left with no address is removed.
    */
+  /**
+   * Links an address the owner types (a phone number on WhatsApp, a chat id on Telegram) to a person, the owner by
+   * default: whoever writes from it is that person from then on.
+   */
+  "contacts.address": {
+    params: z
+      .object({
+        channel: z.string().min(1).max(32),
+        address: z.string().trim().min(3).max(80),
+        person: Id.optional(),
+      })
+      .strict(),
+    result: Person,
+    effect: true,
+    access: "human",
+  },
   "contacts.claim": {
     params: z.object({ address: Id }).strict(),
     result: z.object({ moved: z.boolean() }),
