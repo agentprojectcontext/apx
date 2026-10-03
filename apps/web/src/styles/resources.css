@@ -746,3 +746,43 @@
   flex-direction: column;
   gap: 12px;
 }
+
+/* An extension's suggested routines: what, when, and whether it is in Routines yet. */
+.extroutines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--apx-border);
+}
+.extroutine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.extroutine__icon {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.extroutine__main {
+  flex: 1;
+  min-width: 0;
+}
+.extroutine__name {
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
+}
+.extroutine__when {
+  color: var(--apx-fg-muted);
+  font-weight: var(--apx-weight-regular);
+}
+.extroutine__prompt {
+  overflow: hidden;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

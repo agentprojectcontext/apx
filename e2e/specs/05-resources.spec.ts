@@ -1,4 +1,5 @@
 // Resources: the variable imported from v1, a new one revealed with the eye; an integration connected and removed.
+import path from "node:path";
 import { expect, open, rpc, test } from "./kit.ts";
 
 test("variables: the imported one is listed, a new one is saved and shown with the eye", async ({ page }) => {
@@ -123,4 +124,17 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
 
   await page.getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
+});
+
+test("an extension's routine says what and when, waits to be added, and once in Routines says so", async ({ page }) => {
+  await rpc("extensions.install", { path: path.resolve(import.meta.dirname, "../../examples/extensions/daily-brief") });
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Extensiones/ }).click();
+  await expect(page.getByText("Rutinas que sugiere")).toBeVisible();
+  await page.getByRole("button", { name: "Agregar a Rutinas" }).click();
+  await expect(page.getByText("En Rutinas · apagada")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Agregar a Rutinas" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Abrir en Rutinas" }).click();
+  await expect(page.getByText("Morning brief").first()).toBeVisible();
 });

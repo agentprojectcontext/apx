@@ -3,11 +3,13 @@ import { Badge, Button, Dialog, EmptyState, IconButton, Icons, Input, Switch } f
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SubHead } from "../config/SectionHead.tsx";
 import { client } from "../data/client.ts";
-import { secretary } from "../data/identity.ts";
+import { DEFAULT_PID, secretary } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
-import { loadRoutines } from "../data/routines.ts";
+import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { scheduleText } from "../routines/Schedule.tsx";
+import { go } from "../shell/nav.ts";
 import { ExtensionGuide } from "./ExtensionGuide.tsx";
 import { ExtensionTest } from "./ExtensionTest.tsx";
 
@@ -133,8 +135,6 @@ function ExtensionSummary({ e }: { e: ExtensionInfo }) {
         <dd>{e.skills.join(", ") || "—"}</dd>
         <dt>{t("ext.mcp")}</dt>
         <dd>{e.mcp.join(", ") || "—"}</dd>
-        <dt>{t("ext.routines")}</dt>
-        <dd>{e.routines.map((r) => r.name).join(", ") || "—"}</dd>
         {e.plugin && (
           <>
             <dt>{t("ext.plugin")}</dt>
@@ -190,7 +190,7 @@ function ExtensionCard({
       client.call("routines.set", { name: r.name, agent, schedule: r.schedule, prompt: r.prompt, enabled: false }),
     );
     if (saved) {
-      notify(t("ext.routineAdded", { name: r.name }));
+      notify(t("ext.routineAdded", { name: r.name }), "info");
       void loadRoutines();
     }
   };
@@ -202,16 +202,7 @@ function ExtensionCard({
           {t("ext.missingSecrets", { n: e.secrets.filter((s) => !s.set).length })}
         </Badge>
       )}
-      {e.routines.map((r) => (
-        <div key={r.name} className="tgtoken">
-          <Icons.Clock size={14} />
-          <span className="res__name">{r.name}</span>
-          <span className="pcard__spacer" />
-          <Button size="sm" variant="secondary" onClick={() => void addRoutine(r)}>
-            {t("ext.addRoutine")}
-          </Button>
-        </div>
-      ))}
+      {e.routines.length > 0 && <ExtensionRoutines e={e} onAdd={addRoutine} />}
       <ExtensionTest e={e} />
       <div className="pcard__actions">
         <Switch
@@ -318,6 +309,64 @@ function SecretRow(props: {
           {t("ext.getIt")}
         </a>
       )}
+    </div>
+  );
+}
+
+/**
+ * The routines an extension suggests: what each one would do and when. None runs by itself: added, it waits in
+ * Routines (Default project) turned off until the owner turns it on; once there, this says so and opens it.
+ */
+function ExtensionRoutines({
+  e,
+  onAdd,
+}: {
+  e: ExtensionInfo;
+  onAdd(r: ExtensionInfo["routines"][number]): Promise<void>;
+}) {
+  const t = useT();
+  const routines = useRoutines((s) => s.routines);
+  const ready = useRoutines((s) => s.ready);
+  useEffect(() => {
+    if (!ready) void loadRoutines();
+  }, [ready]);
+  return (
+    <div className="extroutines">
+      <span className="pform__label">{t("ext.routinesTitle")}</span>
+      <p className="pform__hint">{t("ext.routinesLead")}</p>
+      {e.routines.map((r) => {
+        const there = routines.find((x) => x.name === r.name && !x.project_id);
+        return (
+          <div key={r.name} className="extroutine">
+            <Icons.Clock size={14} className="extroutine__icon" />
+            <div className="extroutine__main">
+              <div className="extroutine__name">
+                {r.name} <span className="extroutine__when">· {scheduleText(r.schedule, t)}</span>
+              </div>
+              <div className="extroutine__prompt">{r.prompt.split("\n").find((l) => l.trim()) ?? ""}</div>
+            </div>
+            {there ? (
+              <>
+                <Badge tone={there.enabled ? "brand" : "neutral"} dot>
+                  {there.enabled ? t("ext.routineOn") : t("ext.routineOff")}
+                </Badge>
+                <Button size="sm" variant="ghost" onClick={() => go.project(DEFAULT_PID, "routines")}>
+                  {t("ext.routineOpen")}
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                leadingIcon={<Icons.Plus size={14} />}
+                onClick={() => void onAdd(r)}
+              >
+                {t("ext.addRoutine")}
+              </Button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
