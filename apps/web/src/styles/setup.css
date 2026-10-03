@@ -148,11 +148,21 @@
   background: var(--apx-surface);
 }
 /* Welcome */
+/* The first screen stands in the middle of the window: hero, two choices and who waits, centered. */
 .wiz__welcome {
   display: flex;
   flex-direction: column;
   gap: 28px;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
+}
+.wiz__welcome .wiz__body {
+  max-width: 600px;
+}
+.wiz__welcome .wiz__choices {
+  width: 100%;
+  max-width: 720px;
+  text-align: left;
 }
 .wiz__pill {
   display: inline-flex;
@@ -239,6 +249,7 @@
   color: var(--apx-fg-muted);
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .wiz__waiting {
   display: inline-flex;
