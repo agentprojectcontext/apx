@@ -27,6 +27,8 @@ export function appHandlers(deps: {
   engines: EngineIds;
   home: string;
   services: Services;
+  /** Whether this machine has Messages (a Mac). */
+  imessage: boolean;
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
@@ -47,6 +49,11 @@ export function appHandlers(deps: {
               })
           : undefined,
       }),
+    "imessage.get": () => ({ available: deps.imessage, on: deps.imessage && store.settings.read("imessage").on }),
+    "imessage.set": ({ on }) => {
+      store.settings.write("imessage", { on });
+      return { available: deps.imessage, on: deps.imessage && on };
+    },
     "desktop.get": () => desktopPrefs(store),
     "desktop.set": (p) => {
       store.settings.write("desktop", p);

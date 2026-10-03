@@ -16,6 +16,7 @@ import { contextWindow } from "../providers/windows.ts";
 import { askedSkill } from "../skills/picker.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
+import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { inherit } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
@@ -309,9 +310,12 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const callers = callersOf(deps.store, turn.thread.id);
   // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
   const mcpTools = !sealed && deps.mcpTools ? await deps.mcpTools(turn.thread).catch(() => []) : [];
-  // With memory off, the tools that read or write it are not offered.
-  const offered =
-    memorySettings(deps.store).mode === "off" ? deps.tools.filter((t) => !MEMORY_TOOLS.has(t.name)) : deps.tools;
+  // With memory off, the tools that read or write it are not offered; iMessage's only once the owner turned it on.
+  const memoryOn = memorySettings(deps.store).mode !== "off";
+  const imessageOn = deps.store.settings.read("imessage").on;
+  const offered = deps.tools.filter(
+    (t) => (memoryOn || !MEMORY_TOOLS.has(t.name)) && (imessageOn || !IMESSAGE_TOOLS.has(t.name)),
+  );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never
   // see the contact-only tools.
   const forContact =

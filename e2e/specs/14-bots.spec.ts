@@ -47,3 +47,10 @@ test("Slack: the app connects with both tokens, the owner links their account an
   ]);
   await linkAndTalk(page, "sl", { id: "U5150", name: "Owner" });
 });
+
+test("iMessage is a pair of tools on a Mac; elsewhere (this sandbox) the panel says so", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Agregar canal" }).click();
+  await page.getByRole("menuitem", { name: /iMessage/ }).click();
+  await expect(page.getByText("Solo en una Mac")).toBeVisible();
+});

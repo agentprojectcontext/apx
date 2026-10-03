@@ -558,7 +558,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.cfg.importN.other": "Importar {n} dominios",
   "channel.slack.text": "Una app de Slack a la que le escribís por mensaje directo. Solo contesta a quien apruebes.",
   "channel.signal.text": "Tu número a través de signal-cli en esta computadora.",
-  "channel.imessage.text": "Los mensajes de esta Mac, con la cuenta que tenga iniciada.",
+  "channel.imessage.text": "Tus agentes leen y mandan iMessages en esta Mac; mandar, solo con tu OK.",
   "channel.matrix.text": "Una cuenta en tu servidor de Matrix, con cifrado de punta a punta.",
   "channel.teams.text": "Un bot de Teams en tu organización.",
   "channel.googlechat.text": "Un bot en los espacios de Google Chat de tu cuenta de trabajo.",
@@ -902,4 +902,15 @@ export const es: Partial<Record<MessageKey, string>> = {
   "sl.step4": "Pegá los dos tokens abajo, escribile a la app y poné su código en “Este es mi Slack”.",
   "sl.botToken": "Token del bot",
   "sl.appToken": "Token de la app",
+  "im.lead":
+    "Dejá que tus agentes lean tus iMessages recientes y manden uno desde esta Mac. Mandar siempre espera tu OK.",
+  "im.toggle": "Los agentes pueden usar iMessage",
+  "im.toggleHint":
+    "Dos herramientas: leer mensajes recientes (lo que escriben otros se trata como dato de afuera) y mandar uno, que espera tu OK.",
+  "im.step1":
+    "Para leer: dale Acceso total al disco a la app que corre APX en Ajustes del Sistema › Privacidad y seguridad.",
+  "im.step2": "Para mandar: la primera vez, macOS pregunta si APX puede controlar Mensajes; decile que sí.",
+  "im.onlyMac": "Solo en una Mac",
+  "im.onlyMacBody":
+    "iMessage vive en la app Mensajes de una Mac con la cuenta iniciada. Este core corre en otro sistema.",
 };

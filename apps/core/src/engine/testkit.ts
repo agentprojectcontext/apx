@@ -9,6 +9,7 @@ import type { AdapterFactory } from "../channels/types.ts";
 import { testConfig } from "../config.ts";
 import type { DesktopOps } from "../desktop.ts";
 import type { Harness } from "../harness/index.ts";
+import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
@@ -57,6 +58,8 @@ export async function startCore(opts: {
   channelAdapters?: Record<string, AdapterFactory>;
   channelRetryMs?: readonly number[];
   desktop?: DesktopOps;
+  /** Messages on a Mac; none by default, so a test never reads the machine's own. */
+  imessage?: IMessageOps | null;
   clock?: () => Date;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
@@ -72,6 +75,7 @@ export async function startCore(opts: {
     ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
     ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
     ...(opts.desktop ? { desktop: opts.desktop } : {}),
+    imessage: opts.imessage ?? null,
     ...(opts.clock ? { clock: opts.clock } : {}),
   });
   // Tests choose their model like an owner would: through the settings, never through code defaults.

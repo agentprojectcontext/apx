@@ -47,6 +47,8 @@ export type CoreConfig = {
   discord: { api: string; gateway: string; cdn: string } | undefined;
   /** Slack's Web API; a test environment points it at an emulated one (APX_SLACK_API). */
   slackApi: string | undefined;
+  /** iMessage tools on a Mac; APX_IMESSAGE=off hides them (a sandbox must never reach the owner's Messages). */
+  imessage: boolean;
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -116,6 +118,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
         ? { api: env.APX_DISCORD_API, gateway: env.APX_DISCORD_GATEWAY, cdn: env.APX_DISCORD_API }
         : undefined,
     slackApi: env.APX_SLACK_API || undefined,
+    imessage: env.APX_IMESSAGE !== "off",
     native: {
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
       codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),

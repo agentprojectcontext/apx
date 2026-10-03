@@ -58,6 +58,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,
     APX_SLACK_API: sl.api,
+    // Never the owner's own Messages, even when the sandbox runs on their Mac.
+    APX_IMESSAGE: "off",
     E2E_WA_PORT: String(E2E.whatsapp),
   },
 });

@@ -579,6 +579,19 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /** iMessage on this Mac as agent tools (read recent messages, send one with the owner's OK); off until turned on. */
+  "imessage.get": {
+    params: z.object({}).strict(),
+    result: z.object({ available: z.boolean(), on: z.boolean() }),
+    effect: false,
+    access: "human",
+  },
+  "imessage.set": {
+    params: z.object({ on: z.boolean() }).strict(),
+    result: z.object({ available: z.boolean(), on: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** The desktop app's settings: the global shortcut of the quick chat and whether APX starts at login. */
   "desktop.get": {
     params: z.object({}).strict(),

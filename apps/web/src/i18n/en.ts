@@ -555,7 +555,7 @@ export const en = {
   "channel.signal.name": "Signal",
   "channel.signal.text": "Your number through signal-cli on this computer.",
   "channel.imessage.name": "iMessage",
-  "channel.imessage.text": "This Mac's messages, with the account signed in.",
+  "channel.imessage.text": "Your agents read and send iMessages on this Mac, sending only with your OK.",
   "channel.matrix.name": "Matrix",
   "channel.matrix.text": "An account on your Matrix server, with end-to-end encryption.",
   "channel.teams.name": "Microsoft Teams",
@@ -902,6 +902,15 @@ export const en = {
   "sl.step4": "Paste both tokens below, write to the app and type its code in “This is my Slack”.",
   "sl.botToken": "Bot token",
   "sl.appToken": "App-level token",
+  "im.lead": "Let your agents read your recent iMessages and send one from this Mac. Sending always waits for your OK.",
+  "im.toggle": "Agents may use iMessage",
+  "im.toggleHint":
+    "Two tools: read recent messages (other people's words are treated as outside data) and send one, which waits for your OK.",
+  "im.step1": "For reading: give the app running APX Full Disk Access in System Settings › Privacy & Security.",
+  "im.step2": "For sending: the first time, macOS asks whether APX may control Messages; say yes.",
+  "im.onlyMac": "Only on a Mac",
+  "im.onlyMacBody":
+    "iMessage lives in the Messages app of a Mac signed in to the account. This core runs on another system.",
 } as const;
 
 export type MessageKey = keyof typeof en;

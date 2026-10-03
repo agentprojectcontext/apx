@@ -65,6 +65,8 @@ export const SETTINGS = {
   }),
   /** Saved without the auxiliary model, which keeps its own key ("model_aux", plain text). */
   memory: entry(MemorySettings.omit({ aux_model: true }).partial(), {}),
+  /** iMessage on this Mac as tools: off until the owner turns it on. */
+  imessage: entry(z.object({ on: z.boolean().catch(false) }), { on: false }),
   skills_off: entry(OffLists, {}),
   mcp_off: entry(OffLists, {}),
   model_default: entry(ModelChoice.nullable(), null),

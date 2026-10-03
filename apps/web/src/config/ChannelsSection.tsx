@@ -6,6 +6,7 @@ import { loadChannels, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { BotSection } from "./BotSection.tsx";
+import { IMessageSection } from "./IMessageSection.tsx";
 import { ChannelSoon } from "./OtherSections.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 import { WhatsAppSection } from "./WhatsAppSection.tsx";
@@ -15,6 +16,7 @@ const LEAD: Partial<Record<ChannelKind, MessageKey>> = {
   whatsapp: "wa.lead",
   discord: "dc.lead",
   slack: "sl.lead",
+  imessage: "im.lead",
 };
 
 /** Config › Channels: a tab per connected channel, and "+" for the kinds not connected yet. */
@@ -25,7 +27,10 @@ export function ChannelsSection() {
   useEffect(() => {
     void loadChannels();
   }, []);
-  const connected = CHANNEL_KIND_IDS.filter((k) => channels.some((c) => c.type === k));
+  const imessageOn = useChannels((s) => s.imessage?.on === true);
+  const connected = CHANNEL_KIND_IDS.filter(
+    (k) => channels.some((c) => c.type === k) || (k === "imessage" && imessageOn),
+  );
   const current = picked ?? connected[0];
   // The kind being set up shows as a tab next to the connected ones until it is connected.
   const tabs = current && !connected.includes(current) ? [...connected, current] : connected;
@@ -68,6 +73,8 @@ export function ChannelsSection() {
         <BotSection kind={current} />
       ) : current === "whatsapp" ? (
         <WhatsAppSection />
+      ) : current === "imessage" ? (
+        <IMessageSection />
       ) : (
         <ChannelSoon channel={current} />
       )}

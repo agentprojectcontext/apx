@@ -10,7 +10,7 @@ export const CHANNEL_KINDS = {
   discord: { name: "channel.discord.name", text: "channel.discord.text", tone: "violet", soon: false },
   slack: { name: "channel.slack.name", text: "channel.slack.text", tone: "warning", soon: false },
   signal: { name: "channel.signal.name", text: "channel.signal.text", tone: "info", soon: true },
-  imessage: { name: "channel.imessage.name", text: "channel.imessage.text", tone: "brand", soon: true },
+  imessage: { name: "channel.imessage.name", text: "channel.imessage.text", tone: "brand", soon: false },
   matrix: { name: "channel.matrix.name", text: "channel.matrix.text", tone: "neutral", soon: true },
   teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: true },
   googlechat: { name: "channel.googlechat.name", text: "channel.googlechat.text", tone: "brand", soon: true },

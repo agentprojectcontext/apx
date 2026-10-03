@@ -12,6 +12,8 @@ type State = {
   pairing: PairingRequest[];
   outbox: OutboxItem[];
   notices: NoticePrefs | undefined;
+  /** iMessage as tools on this Mac: whether this machine has it, and whether the owner turned it on. */
+  imessage: { available: boolean; on: boolean } | undefined;
   ready: boolean;
 };
 const store = createStore<State>({
@@ -20,6 +22,7 @@ const store = createStore<State>({
   pairing: [],
   outbox: [],
   notices: undefined,
+  imessage: undefined,
   ready: false,
 });
 
@@ -32,12 +35,13 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export async function loadChannels(): Promise<void> {
   try {
-    const [c, p, r, o, n] = await Promise.all([
+    const [c, p, r, o, n, im] = await Promise.all([
       client.call("channels.list", {}),
       client.call("contacts.list", {}),
       client.call("pairing.list", {}),
       client.call("channels.outbox", { limit: 20 }),
       client.call("notices.get", {}),
+      client.call("imessage.get", {}),
     ]);
     store.set({
       channels: c.channels,
@@ -45,6 +49,7 @@ export async function loadChannels(): Promise<void> {
       pairing: r.requests,
       outbox: o.items,
       notices: n,
+      imessage: im,
       ready: true,
     });
   } catch (e) {
@@ -61,6 +66,15 @@ export type ChannelDraft = {
   owner_thread: ChannelInfo["owner_thread"];
   self_owner?: boolean | undefined;
 };
+
+/** Lets agents read and send iMessages on this Mac (or stops them). */
+export async function setIMessage(on: boolean): Promise<void> {
+  try {
+    store.set({ imessage: await client.call("imessage.set", { on }) });
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+  }
+}
 
 const TYPES = ["telegram", "whatsapp", "discord", "slack"] as const;
 

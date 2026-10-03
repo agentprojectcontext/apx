@@ -26,6 +26,7 @@ import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
+import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createLog } from "./log.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
@@ -48,6 +49,7 @@ import {
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { skillsFor } from "./skills/skills.ts";
+import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
 
@@ -69,6 +71,8 @@ export type CoreOptions = {
   clock?: () => Date;
   /** Finder and the trash; tests record the calls instead. */
   desktop?: DesktopOps;
+  /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
+  imessage?: IMessageOps | null;
   /** Runs the update's commands (git, pnpm); tests answer them. */
   updateRunner?: Runner;
   /** Closes the core and asks its supervisor to start it again (after an update). */
@@ -130,7 +134,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   apc.sync();
   // The port this core answers on: the configured one, or the one the OS gave (tests listen on 0).
   let listening = config.port || 7440;
-  const tools = builtinTools(store, config.home, () => listening, opts.extraTools);
+  const imessage =
+    opts.imessage === undefined
+      ? process.platform === "darwin" && config.imessage
+        ? systemIMessage()
+        : undefined
+      : (opts.imessage ?? undefined);
+  const tools = builtinTools(store, config.home, () => listening, [
+    ...imessageTools(imessage),
+    ...(opts.extraTools ?? []),
+  ]);
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
   let routed: Dispatch | undefined;
@@ -222,7 +235,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       mcp,
       providers,
       secrets,
-      app: { harnesses, v1: config.v1, catalog, apc, engines: engineIds, home: config.home },
+      app: {
+        harnesses,
+        v1: config.v1,
+        catalog,
+        apc,
+        engines: engineIds,
+        home: config.home,
+        imessage: imessage !== undefined,
+      },
       apc,
       engines: engineIds,
       desktop: opts.desktop ?? systemDesktop,
