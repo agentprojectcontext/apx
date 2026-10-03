@@ -133,4 +133,29 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.globalsOffHere": "Este proyecto no usa las globales: sus agentes solo ven las propias.",
   "res.noOwnSkills": "Todavía no tiene skills propias. «+ Skill» crea una en .apc/skills/.",
   "res.noOwnMcp": "Todavía no tiene servidores propios (.apc/mcps.json).",
+  "ext.guide.title": "¿Cómo se hace una extensión?",
+  "ext.guide.what":
+    "Una extensión es una carpeta que trae varias cosas juntas: skills, servidores MCP, las variables que necesitan y plantillas de rutinas. Instalarla suma todo de una vez; apagarla lo saca todo junto. Nada de lo que trae corre hasta que la prendés.",
+  "ext.guide.folder": "La carpeta",
+  "ext.guide.parts": "Qué puede traer",
+  "ext.guide.skills": "Skills",
+  "ext.guide.skillsBody": "una carpeta de carpetas de skills, cada una con su SKILL.md.",
+  "ext.guide.mcp": "Servidores MCP",
+  "ext.guide.mcpBody":
+    "un comando (npx, uvx, ./un-script) o una URL; secret://nombre es una variable de la propia extensión.",
+  "ext.guide.secrets": "Variables",
+  "ext.guide.secretsBody": "lo que escribís una vez (un token, una API key); queda en el Llavero.",
+  "ext.guide.routines": "Rutinas",
+  "ext.guide.routinesBody": "plantillas que sumás a Rutinas; vos elegís el agente.",
+  "ext.guide.plugin": "Plugin (opcional)",
+  "ext.guide.pluginBody":
+    "un .mjs que corre aparte, mira eventos y puede sumar contexto a tus turnos; no puede llamar a APX.",
+  "ext.guide.install": "Instalarla",
+  "ext.guide.step1":
+    "Armá la carpeta con su apx-extension.json (hay un ejemplo en examples/extensions/ del repo de APX).",
+  "ext.guide.step2":
+    "Acá, + Extensión, pegá la ruta de la carpeta, Revisar e Instalar (o apx2 extensions install <carpeta>).",
+  "ext.guide.step3": "Llega apagada: completá sus variables y prendela.",
+  "ext.guide.safety":
+    "Prenderla aprueba exactamente los archivos que tenía: si uno cambia, se apaga hasta que la vuelvas a aprobar.",
 };

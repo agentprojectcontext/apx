@@ -8,6 +8,7 @@ import { notify } from "../data/notices.ts";
 import { loadRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ExtensionGuide } from "./ExtensionGuide.tsx";
 import { ExtensionTest } from "./ExtensionTest.tsx";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -66,6 +67,7 @@ export function ExtensionsTab({
   return (
     <div className="resext">
       <p className="resvars__note">{t("ext.lead")}</p>
+      <ExtensionGuide />
       {adding && (
         <>
           <SubHead>{t("ext.add")}</SubHead>

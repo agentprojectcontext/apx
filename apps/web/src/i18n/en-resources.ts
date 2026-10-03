@@ -130,4 +130,29 @@ export const enResources = {
   "res.globalsOffHere": "This project does not use the global ones: its agents only see its own.",
   "res.noOwnSkills": "No skills of its own yet. “+ Skill” creates one in .apc/skills/.",
   "res.noOwnMcp": "No servers of its own yet (.apc/mcps.json).",
+  "ext.guide.title": "How is an extension made?",
+  "ext.guide.what":
+    "An extension is a folder that brings several things in one piece: skills, MCP servers, the variables they need and routine templates. Installing it adds all of it at once; turning it off takes all of it away. Nothing in it runs until you turn it on.",
+  "ext.guide.folder": "The folder",
+  "ext.guide.parts": "What it can bring",
+  "ext.guide.skills": "Skills",
+  "ext.guide.skillsBody": "a folder of skill folders, each with its SKILL.md.",
+  "ext.guide.mcp": "MCP servers",
+  "ext.guide.mcpBody":
+    "a command (npx, uvx, ./a-script) or a URL; secret://name means a variable of the extension itself.",
+  "ext.guide.secrets": "Variables",
+  "ext.guide.secretsBody": "what you type once (a token, an API key); kept in the Keychain.",
+  "ext.guide.routines": "Routines",
+  "ext.guide.routinesBody": "templates you add to Routines; you pick the agent.",
+  "ext.guide.plugin": "Plugin (optional)",
+  "ext.guide.pluginBody":
+    "a .mjs that runs apart, watches events and can add context to your turns; it cannot call APX.",
+  "ext.guide.install": "Installing it",
+  "ext.guide.step1":
+    "Make the folder with its apx-extension.json (there is an example in examples/extensions/ of the APX repo).",
+  "ext.guide.step2":
+    "Here, + Extension, paste the folder's path, Inspect and Install (or apx2 extensions install <folder>).",
+  "ext.guide.step3": "It arrives off: fill in its variables and turn it on.",
+  "ext.guide.safety":
+    "Turning it on approves exactly the files it had: if one changes, it turns off until you approve it again.",
 } as const;
