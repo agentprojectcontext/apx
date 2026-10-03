@@ -19,6 +19,14 @@ type Row = {
 const keyOf = (r: Row) => `${r.project ?? ""}/${r.name}`;
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 
+/** A name as the owner types it, written as an env name: upper case, a space or dash becomes "_" ("github token" → "GITHUB_TOKEN"). */
+export const toVarName = (typed: string) =>
+  typed
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/[^A-Z0-9_.]/g, "")
+    .slice(0, 64);
+
 /**
  * Variables: the stored secrets MCP servers, providers and channels name as `secret://NAME`. Values never come back
  * to the panel; long ones show their last four characters. A name a server uses but nobody stored shows "No value".
@@ -155,11 +163,11 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res }
 }
 
 /** New variable, or a new value for one: the old value is replaced, never shown. */
-function VariableDialog(props: {
-  row: Row | undefined;
+export function VariableDialog(props: {
+  row: Pick<Row, "name" | "project"> | undefined;
   projectId: string | undefined;
   onClose(): void;
-  onSaved(): void;
+  onSaved(name: string): void;
 }) {
   const { row, onClose, onSaved } = props;
   const t = useT();
@@ -189,7 +197,7 @@ function VariableDialog(props: {
               setBusy(true);
               void setSecret(name, value, project).then((r) => {
                 setBusy(false);
-                if (r) onSaved();
+                if (r) onSaved(name);
               });
             }}
           >
@@ -205,8 +213,8 @@ function VariableDialog(props: {
             aria-label={t("res.varName")}
             value={name}
             disabled={Boolean(row)}
-            placeholder="github-token"
-            onChange={(e) => setName(e.currentTarget.value)}
+            placeholder="GITHUB_TOKEN"
+            onChange={(e) => setName(toVarName(e.currentTarget.value))}
           />
           <span className="pform__hint">{t("res.varNameHint")}</span>
         </div>

@@ -1,21 +1,10 @@
-import { Button, Dialog, Input, SegmentedControl, Textarea } from "@apx/ui";
+import { Button, Dialog, Input, SegmentedControl } from "@apx/ui";
 import { useState } from "react";
 import { type McpDraft, setMcp } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
+import { type Pair, PairsEditor, pairsToRecord } from "./PairsEditor.tsx";
 
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/;
-
-/** "KEY=value" per line; blank lines and lines without "=" are ignored. */
-export function parsePairs(text: string): Record<string, string> {
-  return Object.fromEntries(
-    text
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.includes("="))
-      .map((l) => [l.slice(0, l.indexOf("=")).trim(), l.slice(l.indexOf("=") + 1).trim()] as const)
-      .filter(([k]) => k),
-  );
-}
 
 /** A command line split on spaces, keeping "quoted parts" together. */
 export function splitCommand(line: string): string[] {
@@ -32,13 +21,13 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
   const [kind, setKind] = useState("command");
   const [command, setCommand] = useState("");
   const [url, setUrl] = useState("");
-  const [pairs, setPairs] = useState("");
+  const [pairs, setPairs] = useState<Pair[]>([]);
   const [busy, setBusy] = useState(false);
   const parts = splitCommand(command);
   const valid = NAME.test(name) && (kind === "command" ? parts.length > 0 : /^https?:\/\/.+/.test(url));
   const save = async () => {
     setBusy(true);
-    const extra = parsePairs(pairs);
+    const extra = pairsToRecord(pairs);
     const server: McpDraft =
       kind === "command" ? { command: parts[0] ?? "", args: parts.slice(1), env: extra } : { url, headers: extra };
     const r = await setMcp(name, server);
@@ -107,13 +96,11 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
         )}
         <div className="pform__field">
           <span className="pform__label">{kind === "command" ? t("res.env") : t("res.headers")}</span>
-          <Textarea
-            aria-label={kind === "command" ? t("res.env") : t("res.headers")}
-            className="resd__monoinput"
-            rows={3}
-            value={pairs}
-            placeholder={kind === "command" ? "GITHUB_TOKEN=secret://github-token" : "Authorization=secret://acme-key"}
-            onChange={(e) => setPairs(e.currentTarget.value)}
+          <PairsEditor
+            keys={kind === "command" ? "env" : "headers"}
+            label={kind === "command" ? t("res.env") : t("res.headers")}
+            pairs={pairs}
+            onChange={setPairs}
           />
           <span className="pform__hint">{t("res.pairsHint")}</span>
         </div>

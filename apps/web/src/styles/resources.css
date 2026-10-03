@@ -382,7 +382,80 @@
   font-size: var(--apx-text-xs);
 }
 .resvars__used {
+  max-width: 240px;
+  overflow: hidden;
   color: var(--apx-fg-muted);
+  text-overflow: ellipsis;
+}
+/* The value takes the room left: showing or hiding it never moves the other columns. */
+.resvars__table th:nth-child(3),
+.resvars__value {
+  width: 100%;
+}
+.resvars__name,
+.resvars__used,
+.resvars__table td:nth-child(2) {
+  white-space: nowrap;
+}
+/* ── Key/value rows with a variable picker ─────────────────────────────── */
+.pairs {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pairs__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto auto;
+  align-items: center;
+  gap: 6px;
+}
+.pairs__value.is-var input {
+  color: var(--apx-brand-soft-fg);
+}
+.varpick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.varpick__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.varpick__item,
+.varpick__new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.varpick__item:hover,
+.varpick__new:hover {
+  background: var(--apx-fill);
+}
+.varpick__new {
+  border-top: 1px solid var(--apx-border);
+  border-radius: 0;
+  color: var(--apx-fg-muted);
+  font-family: inherit;
+}
+.varpick__empty {
+  margin: 6px 8px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
 }
 .resvars__missing {
   color: var(--apx-danger);

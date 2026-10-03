@@ -84,7 +84,16 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.mcpKind": "Cómo se conecta",
   "res.env": "Entorno",
   "res.headers": "Headers",
-  "res.pairsHint": "Un CLAVE=valor por línea. Para secretos, nombrá una variable: secret://NOMBRE.",
+  "res.pairsHint":
+    "Para un token, tocá + y elegí una de tus Variables (o creá una): queda como secret://NOMBRE, nunca el valor.",
+  "res.pairKey": "Clave",
+  "res.pairValue": "Valor",
+  "res.pairValueHint": "valor o una variable",
+  "res.pairRemove": "Quitar esta fila",
+  "res.pairAdd": "Agregar fila",
+  "res.pairInsertVar": "Usar una variable",
+  "res.pairSearchVar": "Buscar variable…",
+  "res.pairNewVar": "Crear nueva variable…",
   "res.integrations.title": "Las integraciones están en camino",
   "res.integrations.body":
     "Una integración es una cuenta que conectás una vez (Obsidian, GitHub, un calendario) y que trae juntos sus MCP, variables y skill, para asignarla a cada proyecto. Mientras tanto, usá MCP y Variables.",
@@ -118,7 +127,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.varRemoveUsed": "Lo usan {where}: dejan de andar hasta que vuelva a tener valor.",
   "res.newVariable": "Nueva variable",
   "res.varDialogLead": "El valor va directo al core y no se vuelve a mostrar.",
-  "res.varNameHint": "Letras, números, puntos, - y _. En un servidor se nombra secret://NOMBRE.",
+  "res.varNameHint":
+    "En mayúsculas con _ (un espacio se vuelve _): GITHUB_TOKEN. Un servidor la usa como secret://NOMBRE.",
   "config.outsideApps": "Apps externas",
   "config.movedMcp":
     "Los MCP ahora viven en Recursos, junto con skills y variables. Acá: las apps que se conectan a APX.",
