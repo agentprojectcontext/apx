@@ -251,6 +251,10 @@ export function createServices(deps: {
     /** Stops what APX runs itself (its whisper.cpp). */
     close: () => whisperCpp.close(),
     /** A media file's bytes; only files APX itself recorded are ever read. */
+    /** Keeps bytes APX was handed (a contact's profile picture) as media, read back through media.get. */
+    keep(bytes: Buffer, mime: string): MediaRecord {
+      return saveFile(bytes, mime, { kind: "image" });
+    },
     read(id: string): { mime: string; data: Buffer } | undefined {
       const m = store.media.get(id);
       if (!m) return undefined;

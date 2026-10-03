@@ -7,6 +7,7 @@ import type { WaContent, WaLib, WaMessage, WaSocket } from "./whatsapp.ts";
 const OWNER_PN = "5491100000001@s.whatsapp.net";
 const OWNER_LID = "100000000000001@lid";
 const REASON = { loggedOut: 401, restartRequired: 515, timedOut: 408 };
+const PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 export type Person = { phone: string; name: string; lid?: string };
 
@@ -42,6 +43,10 @@ export function fakeWhatsApp() {
         return { key: { id } };
       },
       async sendPresenceUpdate() {},
+      // Only the line itself shows a picture here: a 1×1 PNG.
+      async profilePictureUrl(jid: string) {
+        return jid === OWNER_PN ? `data:image/png;base64,${PIXEL}` : undefined;
+      },
       async logout() {
         loggedOut.value = true;
       },

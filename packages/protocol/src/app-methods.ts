@@ -737,6 +737,13 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** A person's profile picture on their channel (WhatsApp, Telegram), as media to fetch; none when hidden. */
+  "contacts.avatar": {
+    params: z.object({ person: Id }).strict(),
+    result: z.object({ media_id: Id.optional() }),
+    effect: false,
+    access: "human",
+  },
   "contacts.claim": {
     params: z.object({ address: Id }).strict(),
     result: z.object({ moved: z.boolean() }),

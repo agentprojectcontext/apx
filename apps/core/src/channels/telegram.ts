@@ -290,6 +290,20 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       }
       return last === undefined ? {} : { external_id: String(last) };
     },
+    async avatar(userId) {
+      const r = await api<{ photos?: Array<Array<{ file_id: string; width: number }>> }>("getUserProfilePhotos", {
+        user_id: Number(userId),
+        limit: 1,
+      });
+      // The smallest size that still reads well in a list.
+      const sizes = [...(r.photos?.[0] ?? [])].sort((a, b) => a.width - b.width);
+      const pick = sizes.find((x) => x.width >= 120) ?? sizes.at(-1);
+      if (!pick) return undefined;
+      const f = await api<{ file_path?: string }>("getFile", { file_id: pick.file_id });
+      if (!f.file_path) return undefined;
+      const res = await fetch(`${apiBase}/file/bot${token}/${f.file_path}`, { signal: AbortSignal.timeout(CALL_MS) });
+      return res.ok ? { mime: "image/jpeg", data: Buffer.from(await res.arrayBuffer()) } : undefined;
+    },
     async typing(conversation) {
       await api("sendChatAction", { chat_id: conversation, action: "typing" }, 8000);
     },

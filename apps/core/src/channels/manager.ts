@@ -370,8 +370,40 @@ export function createChannels(deps: {
     });
   }
 
+  /**
+   * A person's profile picture from the first running channel that knows them and shows one, kept as media for a day
+   * (a list asks for it on every screen; the platform is asked again only after that).
+   */
+  async function avatar(personId: string): Promise<string | undefined> {
+    const key = `avatar:${personId}`;
+    try {
+      const was = JSON.parse(store.settings.get(key) ?? "null") as { media?: string; at: number } | null;
+      if (was && Date.now() - was.at < AVATAR_TTL_MS && (!was.media || store.media.get(was.media))) return was.media;
+    } catch {}
+    const person = store.persons.get(personId);
+    let asked = false;
+    for (const a of person?.addresses ?? []) {
+      const l = live.get(a.channel);
+      if (!l?.adapter.avatar || l.status !== "running") continue;
+      asked = true;
+      try {
+        const pic = await l.adapter.avatar(a.external_id);
+        if (!pic?.data.length) continue;
+        const m = deps.services.keep(pic.data, pic.mime);
+        store.settings.set(key, JSON.stringify({ media: m.id, at: Date.now() }));
+        return m.id;
+      } catch {
+        // A picture that cannot be read is a list without a face, not an error to show.
+      }
+    }
+    // None shown: not asked again for a day. No channel running: ask again next time.
+    if (asked) store.settings.set(key, JSON.stringify({ at: Date.now() }));
+    return undefined;
+  }
+
   return {
     info,
+    avatar,
     notifyOwner,
     sendAsOwner,
     approved: inbound.approved,
@@ -425,6 +457,8 @@ export function createChannels(deps: {
 }
 
 export type Channels = ReturnType<typeof createChannels>;
+
+const AVATAR_TTL_MS = 24 * 3600_000;
 
 /** Whether a settings change needs the channel started again (what its adapter is built with). */
 function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">): boolean {

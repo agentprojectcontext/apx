@@ -57,6 +57,11 @@ export function channelHandlers(store: Store, channels: Channels) {
       return { removed: store.persons.remove(id) };
     },
     "contacts.claim": ({ address }) => ({ moved: store.persons.giveToOwner(address) }),
+    "contacts.avatar": async ({ person }) => {
+      if (!store.persons.get(person)) throw notFound(`person ${person}`);
+      const media = await channels.avatar(person);
+      return media ? { media_id: media } : {};
+    },
     "contacts.address": ({ channel, address, person }) => {
       const cfg = channels.info().find((c) => c.id === channel);
       if (!cfg) throw notFound(`channel ${channel}`);

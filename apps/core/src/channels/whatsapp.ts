@@ -26,6 +26,8 @@ export type WaSocket = {
   sendPresenceUpdate(type: "composing" | "paused", jid?: string): Promise<void>;
   logout(): Promise<void>;
   end(err?: Error): void;
+  /** Where someone's profile picture is (none when they hide it). */
+  profilePictureUrl?(jid: string, type: "image" | "preview"): Promise<string | undefined>;
 };
 export type WaKey = {
   id?: string | null;
@@ -372,6 +374,17 @@ export function whatsappAdapter(opts: {
       }
       if (options) offered.set(conversation, options);
       return last ? { external_id: last } : {};
+    },
+    async avatar(jid) {
+      if (!sock?.profilePictureUrl) return undefined;
+      const url = await sock.profilePictureUrl(jid, "image").catch(() => undefined);
+      if (!url) return undefined;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) return undefined;
+      return {
+        mime: res.headers.get("content-type")?.split(";")[0] || "image/jpeg",
+        data: Buffer.from(await res.arrayBuffer()),
+      };
     },
     async typing(conversation) {
       await sock?.sendPresenceUpdate("composing", conversation);

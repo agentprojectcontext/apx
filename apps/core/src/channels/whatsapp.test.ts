@@ -60,6 +60,17 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
   assert.equal((fs.statSync(wa.dir).mode & 0o777).toString(8), "700", "the credentials folder is private");
 });
 
+test("a person's profile picture comes from the channel, kept as media; one who shows none has none", async () => {
+  const { media_id } = await env.client.call("contacts.avatar", { person: "owner" });
+  assert.ok(media_id, "the line's own picture");
+  assert.equal((await env.client.call("media.get", { id: media_id ?? "" })).mime, "image/png");
+  assert.deepEqual(
+    await env.client.call("contacts.avatar", { person: "owner" }),
+    { media_id },
+    "kept, not asked again",
+  );
+});
+
 test("codes keep coming for a few rounds while nobody scans, then linking waits for the owner", async () => {
   const fake = fakeWhatsApp();
   const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
