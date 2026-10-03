@@ -10,6 +10,11 @@ const answer = (page: Page, method: string, edit: (result: Record<string, unknow
     await route.fulfill({ response: res, json: { ...body, result: edit(body.result) } });
   });
 
+// A stood-in answer still in flight when a test ends must not fail it: its page is closing.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
 test("no pill while APX is up to date", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: /^Actualización/ })).toBeHidden();
