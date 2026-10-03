@@ -128,6 +128,7 @@ export function Composer({
         <textarea
           className="apx-composer__input"
           rows={boxed ? 2 : 1}
+          aria-label={placeholder}
           placeholder={placeholder}
           value={text}
           onChange={(e) => set(e.target.value)}
