@@ -35,6 +35,14 @@ export function channelHandlers(store: Store, channels: Channels) {
     }),
 
     "notices.get": () => noticePrefs(store),
+    "notices.log": ({ limit }) => {
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      return {
+        items: store.nudges.list(limit),
+        today: { sent: store.nudges.countedSince(dayStart.toISOString()), cap: noticePrefs(store).budget_per_day },
+      };
+    },
     "notices.set": (prefs) => saveNoticePrefs(store, prefs),
     "contacts.list": () => {
       store.persons.owner();

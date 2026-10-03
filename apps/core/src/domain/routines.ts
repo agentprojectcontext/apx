@@ -16,6 +16,7 @@ const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): 
   ...opt("pre_command", r.pre_command),
   ...opt("post_command", r.post_command),
   call_model: r.call_model as CallModel,
+  anchor: Boolean(r.anchor),
   enabled: Boolean(r.enabled),
   ...opt("next_run_at", r.next_run_at),
   ...opt("last_run_at", r.last_run_at),
@@ -34,6 +35,7 @@ export type RoutineDraft = {
   pre_command?: string | undefined;
   post_command?: string | undefined;
   call_model: CallModel;
+  anchor?: boolean | undefined;
   enabled: boolean;
   next_run_at: string | undefined;
 };
@@ -43,6 +45,7 @@ const commands = (d: RoutineDraft) => ({
   pre_command: d.pre_command || null,
   post_command: d.post_command || null,
   call_model: d.call_model,
+  anchor: d.anchor ? 1 : 0,
 });
 
 export function routinesRepo({ one, all, run }: Sql) {

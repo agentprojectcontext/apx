@@ -6,7 +6,7 @@
 import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
-import { noticePrefs } from "../domain/notices.ts";
+import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -22,7 +22,7 @@ import type { Services } from "../services/registry.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
-import { inputPresentation, inQuietHours } from "./notices.ts";
+import { inputPresentation } from "./notices.ts";
 import { channelTexts } from "./texts.ts";
 import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 

@@ -307,3 +307,15 @@ method callable without a token (`open` in the registry), for a key of its own (
 That key passes the gate like the core's token, as the owner, and is revoked alone. Five wrong codes void every
 pending one and pause pairing for five minutes. A core listening only on loopback lists no address: the panel says to
 start it with `APX_HOST` and `APX_TOKEN` (or reach it through Tailscale) first.
+
+<a id="d-031"></a>
+## D-031 — 2026-10-03 — One interruption budget for everything APX says unasked
+Messages the owner did not ask for (routine news, the reminders they set, later agents' notices) go through one gate,
+`engine/nudges.ts`, with its ledger in SQLite (`nudges`), as v1's `canNudge` did: a daily cap (3 by default, 0 = none),
+a gap per project (180 min) and per kind (120 min), and quiet hours that now **hold** a message instead of only
+silencing it; what waited goes together in one message when they end. A routine may be an anchor (a morning or
+evening brief): it always arrives and does not count. The reminders the owner set do not count either but wait out
+quiet hours. Something critical may skip the cap (on by default) and, as a separate permission, cross quiet hours
+(off). A due date passing never sends a message: it lands in the tray, and the watch routine mentions it. Answers to
+the owner's own messages, confirmations and pairing never pass through the gate. Feedback (👍/👎) and the agent's own
+`notify_owner` tool come next and use the same gate.

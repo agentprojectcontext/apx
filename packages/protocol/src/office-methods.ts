@@ -126,6 +126,8 @@ export const officeMethods = {
         post_command: z.string().trim().max(4000).optional(),
         /** Absent: what the routine had ("always" for a new one). */
         call_model: CallModel.optional(),
+        /** Absent: what the routine had (off for a new one). */
+        anchor: z.boolean().optional(),
         enabled: z.boolean().default(true),
       })
       .strict(),

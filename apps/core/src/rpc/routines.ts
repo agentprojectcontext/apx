@@ -19,6 +19,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
       pre_command,
       post_command,
       call_model,
+      anchor,
       enabled,
     }) => {
       try {
@@ -46,6 +47,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
         pre_command: pre_command ?? was?.pre_command,
         post_command: post_command ?? was?.post_command,
         call_model: call_model ?? was?.call_model ?? "always",
+        anchor: anchor ?? was?.anchor ?? false,
         enabled,
         next_run_at: next,
       };

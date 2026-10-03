@@ -115,6 +115,15 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
           <Field label={t("routines.when")}>
             <ScheduleEditor value={d.schedule} onChange={(schedule) => set({ schedule })} />
           </Field>
+          {!shell && (
+            <Field label={t("routines.anchor")} hint={t("routines.anchorHint")}>
+              <Switch
+                checked={d.anchor}
+                label={d.anchor ? t("routines.anchorOn") : t("routines.anchorOff")}
+                onCheckedChange={(anchor) => set({ anchor })}
+              />
+            </Field>
+          )}
           {d.pre_command.trim() && !shell && !watch && (
             <Field label={d.action === "message" ? t("routines.sendWhen") : t("routines.callModel")}>
               <SegmentedControl

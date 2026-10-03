@@ -3,11 +3,11 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import { z } from "zod";
+import { inQuietHours } from "../domain/notices.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { guardReply } from "./guard.ts";
-import { inQuietHours } from "./notices.ts";
 import { telegramAdapter } from "./telegram.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 
@@ -263,7 +263,7 @@ test("quiet hours cross midnight; inside them notices arrive without sound", () 
   assert.equal(inQuietHours(prefs, at(7, 59)), true);
   assert.equal(inQuietHours(prefs, at(8, 0)), false);
   assert.equal(inQuietHours(prefs, at(15)), false);
-  assert.equal(inQuietHours({ inputs_after_s: 0 }, at(23, 30)), false);
+  assert.equal(inQuietHours({}, at(23, 30)), false);
 });
 
 test("a confirmation left unanswered in the app follows the owner to Telegram, silently in quiet hours", async () => {

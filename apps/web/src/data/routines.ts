@@ -42,6 +42,8 @@ export type RoutineDraft = {
   pre_command: string;
   post_command: string;
   call_model: CallModel;
+  /** Its news always arrives: not counted in the daily cap nor held by quiet hours. */
+  anchor: boolean;
   enabled: boolean;
 };
 
@@ -59,6 +61,7 @@ export async function saveRoutine(d: RoutineDraft): Promise<boolean> {
       pre_command: d.pre_command.trim(),
       post_command: d.post_command.trim(),
       call_model: d.call_model,
+      anchor: d.anchor,
       enabled: d.enabled,
     });
     await loadRoutines();
@@ -80,6 +83,7 @@ export const draftOf = (r: Routine): RoutineDraft => ({
   pre_command: r.pre_command ?? "",
   post_command: r.post_command ?? "",
   call_model: r.call_model,
+  anchor: r.anchor,
   enabled: r.enabled,
 });
 

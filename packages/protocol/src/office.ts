@@ -112,6 +112,8 @@ export const Routine = z.object({
   /** Shell run after the agent, with $APX_LLM_OUTPUT, $APX_STATUS, $APX_SKIPPED and $APX_PRE_OUTPUT. */
   post_command: z.string().optional(),
   call_model: CallModel.default("always"),
+  /** Its news always arrives (a morning or evening brief): never counted in the daily cap nor held by quiet hours. */
+  anchor: z.boolean().default(false),
   enabled: z.boolean(),
   next_run_at: z.string().optional(),
   last_run_at: z.string().optional(),

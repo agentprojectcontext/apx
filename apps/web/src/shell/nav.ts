@@ -32,6 +32,7 @@ export const CONFIG_SECTIONS = [
   "voices",
   "images",
   "channels",
+  "interruptions",
   "browser",
   "desktop",
   "devices",

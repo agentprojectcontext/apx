@@ -1,18 +1,7 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
 import type { ChannelInfo, Person } from "@apx/protocol";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  IconButton,
-  Icons,
-  Input,
-  Menu,
-  SegmentedControl,
-  SettingRow,
-  Switch,
-} from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { PairingRow } from "../channels/StartRows.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
@@ -26,6 +15,7 @@ import {
   useChannels,
 } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 export const STATUS: Record<ChannelInfo["status"], "brand" | "neutral" | "warning" | "danger"> = {
@@ -253,7 +243,6 @@ export function Notices() {
   const t = useT();
   const prefs = useChannels((s) => s.notices);
   if (!prefs) return null;
-  const quiet = Boolean(prefs.quiet_from && prefs.quiet_to);
   return (
     <>
       <SubHead>{t("tg.notices")}</SubHead>
@@ -266,39 +255,10 @@ export function Notices() {
           options={FOLLOW_UP.map((v) => ({ value: v, label: t(`tg.followUp.${v}`) }))}
         />
       </SettingRow>
-      <SettingRow title={t("tg.quiet")} description={t("tg.quietHint")}>
-        <div className="tgquiet">
-          <Switch
-            size="sm"
-            checked={quiet}
-            onCheckedChange={(on) =>
-              void saveNotices(
-                on
-                  ? { ...prefs, quiet_from: "23:00", quiet_to: "08:00" }
-                  : { inputs_after_s: prefs.inputs_after_s, ...(prefs.channel ? { channel: prefs.channel } : {}) },
-              )
-            }
-            aria-label={t("tg.quiet")}
-          />
-          {quiet && (
-            <>
-              <span className="tgquiet__word">{t("tg.quietFrom")}</span>
-              <Input
-                aria-label={t("tg.quietFrom")}
-                type="time"
-                value={prefs.quiet_from ?? ""}
-                onChange={(e) => void saveNotices({ ...prefs, quiet_from: e.currentTarget.value })}
-              />
-              <span className="tgquiet__word">{t("tg.quietTo")}</span>
-              <Input
-                aria-label={t("tg.quietTo")}
-                type="time"
-                value={prefs.quiet_to ?? ""}
-                onChange={(e) => void saveNotices({ ...prefs, quiet_to: e.currentTarget.value })}
-              />
-            </>
-          )}
-        </div>
+      <SettingRow title={t("tg.quiet")} description={t("nudge.linkHint")}>
+        <Button size="sm" variant="secondary" onClick={() => go.config("interruptions")}>
+          {t("nudge.open")}
+        </Button>
       </SettingRow>
     </>
   );

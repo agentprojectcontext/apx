@@ -61,6 +61,7 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
     pre_command: "",
     post_command: "",
     call_model: "always",
+    anchor: false,
     enabled: true,
   };
 

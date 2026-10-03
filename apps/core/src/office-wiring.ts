@@ -1,11 +1,12 @@
 // How the office's clock reaches the owner: a routine's news and the reminders the owner asked for go to the attention
-// tray and to the owner's channel, in the owner's language. A due date passing only lands in the tray: the watch
-// routine mentions overdue work in one line, never a message per task.
+// tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
+// date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
 import { channelTexts } from "./channels/texts.ts";
 import type { Store } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import type { Attention } from "./engine/attention.ts";
 import type { AdmitFn } from "./engine/engine.ts";
+import { createNudges } from "./engine/nudges.ts";
 import { createScheduler } from "./engine/routines.ts";
 import type { Log } from "./log.ts";
 
@@ -16,12 +17,19 @@ export function officeScheduler(deps: {
   store: Store;
   admit: AdmitFn;
   attention: Attention;
-  notifyOwner: (text: string, threadId: string) => void;
+  /** Puts a message on the owner's channel; false when there is none. */
+  notifyOwner: (text: string, threadId: string | undefined) => boolean;
   log: Log;
   now?: () => Date;
 }) {
   const { store, attention } = deps;
-  return createScheduler({
+  const nudges = createNudges({
+    store,
+    send: (text, threadId) => deps.notifyOwner(text, threadId),
+    digest: (texts) => channelTexts(store).digest(texts),
+    ...(deps.now ? { now: deps.now } : {}),
+  });
+  const scheduler = createScheduler({
     store,
     admit: deps.admit,
     log: deps.log,
@@ -39,12 +47,24 @@ export function officeScheduler(deps: {
       }
       const [first] = asked;
       if (first)
-        deps.notifyOwner(asked.length === 1 ? first.text : texts.reminders(asked.map((a) => a.text)), first.thread_id);
+        nudges.offer({
+          kind: "reminder",
+          text: asked.length === 1 ? first.text : texts.reminders(asked.map((a) => a.text)),
+          thread_id: first.thread_id,
+          asked: true,
+        });
+      nudges.release();
     },
     deliver: ({ routine, run, text, failed }) => {
       const texts = channelTexts(store);
       const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);
-      deps.notifyOwner(body, run.thread_id);
+      nudges.offer({
+        kind: `routine:${routine.name}`,
+        text: body,
+        thread_id: run.thread_id,
+        project_id: routine.project_id,
+        anchor: routine.anchor,
+      });
       attention.add({
         kind: "routine",
         level: failed ? "error" : "info",
@@ -55,4 +75,5 @@ export function officeScheduler(deps: {
       });
     },
   });
+  return Object.assign(scheduler, { nudges });
 }

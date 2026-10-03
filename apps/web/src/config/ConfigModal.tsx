@@ -9,6 +9,7 @@ import { ChannelsSection } from "./ChannelsSection.tsx";
 import { DesktopSection } from "./DesktopSection.tsx";
 import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
+import { InterruptionsSection } from "./InterruptionsSection.tsx";
 import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection } from "./OtherSections.tsx";
@@ -36,6 +37,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
       { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
+      { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
     ],
   },
   {
@@ -133,6 +135,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <ServicesSection kind="image" />;
     case "channels":
       return <ChannelsSection />;
+    case "interruptions":
+      return <InterruptionsSection />;
     case "browser":
       return <BrowserSection />;
     case "desktop":

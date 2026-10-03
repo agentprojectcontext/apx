@@ -18,6 +18,7 @@ import {
   Message,
   ModelChoice,
   NoticePrefs,
+  Nudge,
   OutboxItem,
   PairingRequest,
   PendingInput,
@@ -691,6 +692,13 @@ export const appMethods = {
   "notices.get": {
     params: z.object({}).strict(),
     result: NoticePrefs,
+    effect: false,
+    access: "human",
+  },
+  /** The latest messages APX meant to send unasked (newest first), and how many count today against the cap. */
+  "notices.log": {
+    params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
+    result: z.object({ items: z.array(Nudge), today: z.object({ sent: z.number().int(), cap: z.number().int() }) }),
     effect: false,
     access: "human",
   },

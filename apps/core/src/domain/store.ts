@@ -12,6 +12,7 @@ import { jobsRepo } from "./jobs.ts";
 import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
 import { notificationsRepo } from "./notifications.ts";
+import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
 import { projectsRepo } from "./projects.ts";
 import { routinesRepo } from "./routines.ts";
@@ -45,6 +46,7 @@ export function createStore(db: Db, bus: Bus) {
     extensions: extensionsRepo(q),
     clients: clientsRepo(q),
     devices: devicesRepo(q),
+    nudges: nudgesRepo(q),
     settings: settingsRepo(q),
     harnessSessions: harnessSessionsRepo(q),
     idempotency: idempotencyRepo(q),

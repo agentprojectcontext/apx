@@ -502,4 +502,24 @@ export const MIGRATIONS: readonly string[] = [
     revoked_at TEXT
   );
   `,
+  `
+  -- The interruption budget: every message APX meant to send the owner unasked, and what became of it. A routine may be
+  -- an anchor (its news always arrives).
+  CREATE TABLE nudges (
+    n INTEGER PRIMARY KEY,
+    id TEXT NOT NULL UNIQUE,
+    at TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    text TEXT NOT NULL,
+    thread_id TEXT,
+    project_id TEXT,
+    state TEXT NOT NULL,
+    reason TEXT,
+    exempt INTEGER NOT NULL DEFAULT 0,
+    hold_until TEXT
+  );
+  CREATE INDEX nudges_at ON nudges(at);
+  CREATE INDEX nudges_held ON nudges(state, hold_until);
+  ALTER TABLE routines ADD COLUMN anchor INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

@@ -174,6 +174,20 @@ export interface NotificationsTable {
   read_at: string | null;
 }
 
+export interface NudgesTable {
+  n: Generated<number>;
+  id: string;
+  at: string;
+  kind: string;
+  text: string;
+  thread_id: string | null;
+  project_id: string | null;
+  state: string;
+  reason: string | null;
+  exempt: Generated<number>;
+  hold_until: string | null;
+}
+
 export interface OutboxTable {
   id: string;
   channel: string;
@@ -275,6 +289,7 @@ export interface RoutinesTable {
   post_command: string | null;
   call_model: Generated<string>;
   action: Generated<string>;
+  anchor: Generated<number>;
 }
 
 export interface RunsTable {
@@ -402,6 +417,7 @@ export interface Database {
   meta: MetaTable;
   model_log: ModelLogTable;
   notifications: NotificationsTable;
+  nudges: NudgesTable;
   outbox: OutboxTable;
   pairing: PairingTable;
   pending_inputs: PendingInputsTable;

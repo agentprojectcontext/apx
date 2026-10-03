@@ -89,6 +89,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const secrets = createSecrets(config.home, config.secrets);
   seed(store);
   store.idempotency.prune();
+  store.nudges.prune();
 
   const broker = createNodeBroker();
   broker.onEvent((_node, event) => {

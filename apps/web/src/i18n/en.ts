@@ -765,7 +765,7 @@ export const en = {
   "tg.followUp.120": "After 2 min",
   "tg.followUp.600": "After 10 min",
   "tg.quiet": "Quiet hours",
-  "tg.quietHint": "Notices still arrive, without sound.",
+  "tg.quietHint": "What APX would say unasked waits until they end.",
   "tg.quietFrom": "From",
   "tg.quietTo": "To",
   "quick.title": "Quick chat",
@@ -931,6 +931,39 @@ export const en = {
   "devices.platform.desktop": "Computer",
   "devices.platform.other": "Device",
   "error.devices": "Could not change the devices: {error}",
+  "config.interruptions": "Interruptions",
+  "nudge.lead":
+    "How often APX may write to you unasked (routine news, reminders, agents' notices). Answers to your own messages never count.",
+  "nudge.today": "{sent} sent today unasked; {left} left.",
+  "nudge.todayNoCap": "{sent} sent today unasked; no daily cap.",
+  "nudge.budget_per_day": "Unasked messages per day",
+  "nudge.budgetHint":
+    "Past this, the rest stays in the tray. Anchors (a morning brief) and the reminders you set never count. 0 = no cap.",
+  "nudge.quietHint":
+    "What APX would say unasked waits until they end, and then arrives together in one message. Answers still arrive, silently.",
+  "nudge.project_gap_min": "Gap per project (minutes)",
+  "nudge.projectGapHint": "Two notices about the same project closer than this: the second stays in the tray.",
+  "nudge.kind_gap_min": "Gap per kind (minutes)",
+  "nudge.kindGapHint": "So one repeating condition cannot fill the day's budget alone.",
+  "nudge.criticalBudget": "Something critical may go past the cap",
+  "nudge.criticalBudgetHint": "It is always recorded and marked.",
+  "nudge.criticalWakes": "Something critical may wake you in quiet hours",
+  "nudge.criticalWakesHint": "A separate permission. Off, nothing crosses the quiet window.",
+  "nudge.log": "What it meant to send",
+  "nudge.logEmpty": "Nothing yet.",
+  "nudge.exempt": "always arrives",
+  "nudge.state.sent": "sent",
+  "nudge.state.merged": "sent together",
+  "nudge.state.held": "waiting for quiet hours to end",
+  "nudge.state.dropped": "only in the tray",
+  "nudge.state.no_channel": "no channel",
+  "nudge.linkHint": "Quiet hours, the daily cap and what was sent unasked are in Interruptions.",
+  "nudge.open": "Open Interruptions",
+  "routines.anchor": "Always arrives",
+  "routines.anchorHint":
+    "Its news is never held by quiet hours nor counted in the daily cap (a morning or evening brief).",
+  "routines.anchorOn": "Always",
+  "routines.anchorOff": "Within the budget",
 } as const;
 
 export type MessageKey = keyof typeof en;

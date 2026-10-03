@@ -269,6 +269,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
           pre_command: pre,
           post_command: r.post,
           call_model: "always",
+          anchor: r.anchor ?? false,
           // v1 may still be running them: they wait, off, until the owner turns them on.
           enabled: false,
           next_run_at: undefined,

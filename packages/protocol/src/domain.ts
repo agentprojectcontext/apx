@@ -612,7 +612,10 @@ export type MemorySettings = z.infer<typeof MemorySettings>;
 export const NoticePrefs = z.object({
   /** The channel to use (its id); none = the first running channel that knows the owner. */
   channel: z.string().optional(),
-  /** Quiet hours (local time, "HH:MM"): notices still arrive, without sound. */
+  /**
+   * Quiet hours (local time, "HH:MM"): what APX would say unasked waits until they end (and then goes together); answers
+   * and questions still arrive, without sound.
+   */
   quiet_from: z
     .string()
     .regex(/^\d{2}:\d{2}$/)
@@ -623,8 +626,34 @@ export const NoticePrefs = z.object({
     .optional(),
   /** A confirmation or question unanswered in the app this long also goes to the channel (0 = never). */
   inputs_after_s: z.number().int().min(0).max(86_400).default(120),
+  /** Messages APX may send unasked in a day, besides the ones that always arrive (0 = no cap). */
+  budget_per_day: z.number().int().min(0).max(50).default(3),
+  /** Least time between two unasked messages about the same project, and of the same kind (minutes; 0 = none). */
+  project_gap_min: z.number().int().min(0).max(1440).default(180),
+  kind_gap_min: z.number().int().min(0).max(1440).default(120),
+  /** Something critical may go past the daily cap; and, separately, may arrive during quiet hours. */
+  critical_skips_budget: z.boolean().default(true),
+  critical_wakes: z.boolean().default(false),
 });
 export type NoticePrefs = z.infer<typeof NoticePrefs>;
+
+/** One message APX meant to send unasked, and what the interruption budget did with it. */
+export const Nudge = z.object({
+  id: Id,
+  at: z.string(),
+  /** What it is about: "routine:<name>", "reminder", "digest"… */
+  kind: z.string(),
+  text: z.string(),
+  thread_id: Id.optional(),
+  project_id: Id.optional(),
+  /** sent; held (quiet hours, it goes when they end); dropped (over the cap or too soon after another); merged (held,
+   * then sent inside a digest); no_channel (nowhere to send it). */
+  state: z.enum(["sent", "held", "dropped", "merged", "no_channel"]),
+  reason: z.string().optional(),
+  /** It always arrives (an anchor like the morning brief) or went past the cap as critical: not counted. */
+  exempt: z.boolean(),
+});
+export type Nudge = z.infer<typeof Nudge>;
 
 export const OutboxState = z.enum(["queued", "sending", "sent", "uncertain", "failed"]);
 export const OutboxItem = z.object({

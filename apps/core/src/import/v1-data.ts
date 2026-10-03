@@ -161,6 +161,8 @@ export type V1Routine = {
   command?: string;
   pre?: string;
   post?: string;
+  /** v1's "anchor": its news always arrives (the day's open and close). */
+  anchor?: boolean;
   enabled: boolean;
 };
 
@@ -186,6 +188,7 @@ export function v1Routines(storage: string): V1Routine[] {
         ...(str(spec.command ?? spec.cmd) ? { command: String(spec.command ?? spec.cmd) } : {}),
         ...(join(o.pre_commands) ? { pre: join(o.pre_commands) } : {}),
         ...(join(o.post_commands) ? { post: join(o.post_commands) } : {}),
+        ...(spec.anchor === true ? { anchor: true } : {}),
         enabled: o.enabled !== false,
       },
     ];
