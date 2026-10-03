@@ -49,3 +49,28 @@ test("the branch of a node: its way up and its children", () => {
   const l = layoutTeam([m("lead"), m("a", "lead"), m("b", "lead"), m("c", "a")], "lead");
   assert.deepEqual([...branchOf(l, "a")].sort(), ["a", "c", "lead"]);
 });
+
+test("many direct reports without teams go in bands by area, at most 4 columns wide, never overlapping", () => {
+  const areas = ["design", "engineering", "engineering", "engineering", "engineering", "finance", "growth", "growth"];
+  const members = [
+    { id: "lead", slug: "lead", name: "Lead" },
+    ...areas.map((area, i) => ({ id: `a${i}`, slug: `a${i}`, name: `A${i}`, area, parent: "lead" })),
+  ];
+  const l = layoutTeam(members, "lead");
+  const cols = new Set(l.nodes.filter((n) => n.id !== "lead").map((n) => n.x)).size;
+  assert.ok(cols <= 4, `columns: ${cols}`);
+  assert.ok(new Set(l.nodes.map((n) => n.y)).size >= 3, "more than one band");
+  for (const a of l.nodes)
+    for (const b of l.nodes)
+      if (a !== b)
+        assert.ok(Math.abs(a.x - b.x) >= NODE.w || Math.abs(a.y - b.y) >= NODE.h, `${a.id} overlaps ${b.id}`);
+  assert.deepEqual(
+    l.pills.map((p) => [p.area, p.count]),
+    [
+      ["design", 1],
+      ["engineering", 4],
+      ["finance", 1],
+      ["growth", 2],
+    ],
+  );
+});
