@@ -4,7 +4,7 @@ import { useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { useFlash } from "../common/useFlash.ts";
 import { respondPairing, useChannels } from "../data/channels.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { initials } from "./ChannelScreen.tsx";
 
@@ -18,8 +18,10 @@ export function PairingRow({ request }: { request: PairingRequest }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const { ref, flash } = useFlash<HTMLLIElement>(`pairing:${request.code}`);
-  // Before the owner's own chat is linked, the likely writer is the owner; after, a new person.
+  // Before the owner's own chat is linked, the likely writer is the owner; after, a new person. On the owner's own
+  // number (WhatsApp) it is never the owner.
   const linked = useChannels((s) => ownerOn(s.persons, request.channel));
+  const ownNumber = useChannels((s) => s.channels.find((c) => c.id === request.channel)?.type === "whatsapp");
   const answer = async (c: string, decision: "owner" | "contact" | "deny") => {
     setBusy(true);
     await respondPairing(c, decision);
@@ -58,7 +60,7 @@ export function PairingRow({ request }: { request: PairingRequest }) {
         </div>
       ) : (
         <div className="chan__pendingact">
-          {!linked && (
+          {!linked && !ownNumber && (
             <Button size="sm" onClick={() => setMine(true)}>
               {t("ch.itsMe")}
             </Button>
@@ -74,7 +76,7 @@ export function PairingRow({ request }: { request: PairingRequest }) {
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => void answer(request.code, "deny")}>
             {t("tg.ignore")}
           </Button>
-          {linked && (
+          {linked && !ownNumber && (
             <Button size="sm" variant="ghost" onClick={() => setMine(true)}>
               {t("ch.itsMe")}
             </Button>
@@ -118,13 +120,18 @@ export function OwnerRow({
             <span className="chan__rowname">{t("ch.you")}</span>
           </span>
           <span className="chan__preview">
-            {t(toHome ? "ch.ownerHome" : target ? "ch.ownerOwn" : "ch.ownerOwnNone")}
+            {t((channel.type === "whatsapp" ? OWNER_WA : OWNER_BOT)[toHome ? "home" : target ? "own" : "none"])}
           </span>
         </span>
       </button>
     </li>
   );
 }
+
+type OwnerLine = Record<"home" | "own" | "none", MessageKey>;
+const OWNER_BOT: OwnerLine = { home: "ch.ownerHome", own: "ch.ownerOwn", none: "ch.ownerOwnNone" };
+/** On WhatsApp the owner writes in "Message yourself": there is no bot. */
+const OWNER_WA: OwnerLine = { home: "ch.waOwnerHome", own: "ch.waOwnerOwn", none: "ch.waOwnerOwnNone" };
 
 /**
  * Until the owner's own chat is linked, always on top: open the bot, write to it, and type here the code it answers

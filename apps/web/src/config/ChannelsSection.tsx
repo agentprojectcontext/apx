@@ -1,13 +1,16 @@
 import { Button, EmptyState, Icons, Menu, SegmentedControl } from "@apx/ui";
 import { useEffect } from "react";
 import { addChannelItems } from "../channels/KindIcon.tsx";
-import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { CHANNEL_KIND_IDS, CHANNEL_KINDS, type ChannelKind, isChannelKind } from "../channels/kinds.ts";
 import { loadChannels, useChannels } from "../data/channels.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChannelSoon } from "./OtherSections.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 import { TelegramSection } from "./TelegramSection.tsx";
+import { WhatsAppSection } from "./WhatsAppSection.tsx";
+
+const LEAD: Partial<Record<ChannelKind, MessageKey>> = { telegram: "tg.lead", whatsapp: "wa.lead" };
 
 /** Config › Channels: a tab per connected channel, and "+" for the kinds not connected yet. */
 export function ChannelsSection() {
@@ -39,7 +42,7 @@ export function ChannelsSection() {
     <>
       <SectionHead
         title={t("config.channels")}
-        lead={current ? t(current === "telegram" ? "tg.lead" : CHANNEL_KINDS[current].text) : t("channels.lead")}
+        lead={current ? t(LEAD[current] ?? CHANNEL_KINDS[current].text) : t("channels.lead")}
         actions={add || undefined}
       />
       {tabs.length > 0 && current && (
@@ -58,6 +61,8 @@ export function ChannelsSection() {
         </EmptyState>
       ) : current === "telegram" ? (
         <TelegramSection />
+      ) : current === "whatsapp" ? (
+        <WhatsAppSection />
       ) : (
         <ChannelSoon channel={current} />
       )}

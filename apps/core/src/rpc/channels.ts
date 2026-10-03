@@ -97,4 +97,5 @@ export function channelHandlers(store: Store, channels: Channels) {
   } satisfies Partial<Handlers>;
 }
 
-const defaultLabel = (type: string) => (type === "telegram" ? "Telegram" : type);
+const LABELS: Record<string, string> = { telegram: "Telegram", whatsapp: "WhatsApp" };
+const defaultLabel = (type: string) => LABELS[type] ?? type;

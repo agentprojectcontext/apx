@@ -469,3 +469,34 @@
     margin: 0 10px 10px;
   }
 }
+
+/* WhatsApp linking: the QR beside what to do with it. */
+.waqr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  padding: 12px 0 4px;
+}
+.qrcode {
+  flex: none;
+  border-radius: 12px;
+}
+.waqr__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+}
+.waqr__hint {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.waqr__wait {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  color: var(--apx-fg-muted);
+}

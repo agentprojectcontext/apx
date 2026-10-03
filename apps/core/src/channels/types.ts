@@ -10,6 +10,11 @@ export type AdapterCaps = {
   typing: boolean;
   /** Inline buttons (approve / deny, options). */
   buttons: boolean;
+  /**
+   * The channel is the owner's own account (WhatsApp): a stranger never gets an answer, not even a pairing code; their
+   * request is only listed for the owner to approve.
+   */
+  ownAccount?: boolean;
 };
 
 /** Why a send failed: worth trying again (nothing went out), maybe delivered (never resend blindly), or final. */
@@ -42,14 +47,23 @@ export type AdapterIO = {
   action(a: InboundAction): void;
   /** Running, or failing (bad token, network): shown in the app. */
   status(s: "running" | "error", error?: string): void;
+  /** A QR to link the account (none once linked or expired), shown to the owner in the app. */
+  qr?(code: string | undefined): void;
+  /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
+  identified?(who: { account: string; owner?: string }): void;
   signal: AbortSignal;
 };
 
 export interface ChannelAdapter {
   readonly caps: AdapterCaps;
-  /** Starts receiving; resolves with the account it runs as (a bot's @name) once connected. */
-  start(io: AdapterIO): Promise<{ account?: string }>;
+  /**
+   * Starts receiving; resolves with the account it runs as (a bot's @name) once connected, or `waiting` when linking
+   * goes on in the background (a QR to scan) and its state comes through `io`.
+   */
+  start(io: AdapterIO): Promise<{ account?: string; waiting?: boolean }>;
   stop(): Promise<void>;
+  /** The channel is removed: drop what it keeps (a linked device's credentials). */
+  forget?(): Promise<void>;
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;

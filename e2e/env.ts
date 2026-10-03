@@ -17,6 +17,8 @@ const root = path.resolve(import.meta.dirname, "..");
 export const E2E = {
   port: Number(process.env.E2E_PORT ?? 7460),
   control: Number(process.env.E2E_CONTROL_PORT ?? 7461),
+  /** The emulated phone for WhatsApp (e2e/fake-baileys.ts), inside the core's process. */
+  whatsapp: Number(process.env.E2E_WA_PORT ?? 7462),
   telegramToken: "123456789:AAE2eFakeTokenForTheEmulatedBot0",
 };
 
@@ -25,12 +27,13 @@ const fx = writeFixtures(dir);
 const llm = await fakeLlm();
 const tg = await fakeTelegram(E2E.telegramToken);
 
-const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/core/src/main.ts")], {
+const hook = path.join(root, "e2e/baileys-hook.ts");
+const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "apps/core/src/main.ts")], {
   cwd: root,
   stdio: ["ignore", "pipe", "pipe"],
   env: {
     // Only the sandbox's own CLIs, node and the system: none of the machine's agents (claude, codex, opencode…).
-    PATH: [fx.bin, path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
+    PATH: [fx.bin, "/usr/bin", "/bin"].join(path.delimiter),
     HOME: process.env.HOME ?? os.homedir(),
     APX_HOME: fx.home,
     APX_PORT: String(E2E.port),
@@ -43,6 +46,7 @@ const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/cor
     APX_LLM_KEY: "e2e",
     APX_LLM_MODELS: "fake-1",
     APX_TELEGRAM_API: tg.url,
+    E2E_WA_PORT: String(E2E.whatsapp),
   },
 });
 const log = fs.createWriteStream(path.join(dir, "core.log"));

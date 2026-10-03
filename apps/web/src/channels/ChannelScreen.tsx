@@ -114,7 +114,7 @@ export function ChannelScreen() {
           onChange={(e) => setQuery(e.currentTarget.value)}
         />
         <ul className="chan__rows">
-          {!query && !linked && <LinkMe channel={channel} />}
+          {!query && !linked && channel.type === "telegram" && <LinkMe channel={channel} />}
           {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
           {!query && linked && <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />}
           {shown.map((r) => (

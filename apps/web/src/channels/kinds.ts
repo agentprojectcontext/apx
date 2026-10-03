@@ -6,7 +6,7 @@ import type { MessageKey } from "../i18n/index.ts";
  */
 export const CHANNEL_KINDS = {
   telegram: { name: "channel.telegram.name", text: "channel.telegram.text", tone: "info", soon: false },
-  whatsapp: { name: "channel.whatsapp.name", text: "channel.whatsapp.text", tone: "brand", soon: true },
+  whatsapp: { name: "channel.whatsapp.name", text: "channel.whatsapp.text", tone: "brand", soon: false },
   discord: { name: "channel.discord.name", text: "channel.discord.text", tone: "violet", soon: true },
   slack: { name: "channel.slack.name", text: "channel.slack.text", tone: "warning", soon: true },
   signal: { name: "channel.signal.name", text: "channel.signal.text", tone: "info", soon: true },

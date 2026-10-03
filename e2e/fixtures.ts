@@ -79,5 +79,7 @@ export function writeFixtures(dir: string) {
     `#!/bin/sh\ncase "$1" in --version) echo "codex-cli 0.1.0";; login) echo "Not logged in";; esac\n`,
   );
   for (const f of ["claude", "codex"]) fs.chmodSync(path.join(bin, f), 0o755);
+  // node itself, without the folder it lives in (globally installed CLIs sit there too).
+  fs.symlinkSync(process.execPath, path.join(bin, "node"));
   return { home, v1, claude, codex, repo, bin };
 }

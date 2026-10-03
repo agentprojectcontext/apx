@@ -4,6 +4,8 @@ import { test as base, expect, type Page } from "@playwright/test";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 const control = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}`;
+const phone = `http://127.0.0.1:${process.env.E2E_WA_PORT ?? 7462}`;
+const post = (url: string, body: unknown = {}) => fetch(url, { method: "POST", body: JSON.stringify(body) });
 let seq = 0;
 
 /** A protocol call, as the owner. */
@@ -27,6 +29,19 @@ export const world = {
   },
   sentTo: async (chat: number) =>
     ((await (await fetch(`${control}/tg/sent?chat=${chat}`)).json()) as { sent: Array<{ text?: string }> }).sent,
+  /** The owner's phone on WhatsApp: scan the QR, write in "Message yourself", someone else writing. */
+  whatsapp: {
+    scan: () => post(`${phone}/scan`),
+    fromOwner: (text: string) => post(`${phone}/owner`, { text }),
+    message: (from: { phone: string; name: string }, text: string) => post(`${phone}/message`, { from, text }),
+    sentTo: async (jid: string) =>
+      (
+        (await (await fetch(`${phone}/sent?jid=${encodeURIComponent(jid)}`)).json()) as {
+          owner: string;
+          sent: string[];
+        }
+      ).sent,
+  },
   llmCalls: async () => ((await (await fetch(`${control}/llm/calls`)).json()) as { calls: number }).calls,
 };
 

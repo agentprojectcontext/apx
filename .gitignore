@@ -30,3 +30,6 @@ playground/out/
 test-results/
 playwright-report/
 e2e/.out/
+
+# scratch scripts while developing e2e
+e2e/.*.ts

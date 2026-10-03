@@ -32,6 +32,8 @@ export function createInbound(deps: {
   notifyOwner(body: Presentation, kind?: OutboxRow["kind"], threadId?: string): boolean;
   /** A notice in the app's attention tray. */
   attention(n: NewNotification): void;
+  /** The channel is the owner's own account: strangers are listed quietly, never answered. */
+  ownAccount(channel: string): boolean;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -140,8 +142,9 @@ export function createInbound(deps: {
       name: m.sender.name.slice(0, 80),
       text: m.text,
     });
-    // One code per sender until it expires: a stranger writing again gets no new message.
-    if (!fresh) return;
+    // One code per sender until it expires: a stranger writing again gets no new message. On the owner's own account
+    // (WhatsApp) the request is only listed: the owner's friends must not get a code from their number.
+    if (!fresh || deps.ownAccount(cfg.id)) return;
     const t = channelTexts(store);
     const agent = store.agents.get(cfg.agent_id)?.name ?? "APX";
     delivery.enqueue({

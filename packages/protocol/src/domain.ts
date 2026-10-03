@@ -475,7 +475,7 @@ export type Person = z.infer<typeof Person>;
 /** A channel instance as the owner configured it, and how it is doing. */
 export const ChannelInfo = z.object({
   id: z.string(),
-  type: z.enum(["telegram"]),
+  type: z.enum(["telegram", "whatsapp"]),
   label: z.string(),
   enabled: z.boolean(),
   /** The agent that answers on it. */
@@ -491,8 +491,10 @@ export const ChannelInfo = z.object({
   token_hint: z.string().optional(),
   status: z.enum(["off", "starting", "running", "error"]),
   error: z.string().optional(),
-  /** The account the channel runs as (a bot's @name). */
+  /** The account the channel runs as (a bot's @name, a WhatsApp number). */
   account: z.string().optional(),
+  /** WhatsApp: the QR to scan from the phone to link the account, while one is waiting. Owner-only, never logged. */
+  qr: z.string().optional(),
 });
 export type ChannelInfo = z.infer<typeof ChannelInfo>;
 

@@ -8,6 +8,7 @@ import type { Bus } from "../bus.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import { noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
+import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -36,6 +37,8 @@ type Live = {
   status: ChannelInfo["status"];
   error?: string | undefined;
   account?: string | undefined;
+  /** A QR to link the account, while one is waiting to be scanned. */
+  qr?: string | undefined;
 };
 
 const tokenName = (id: string) => `channel-${id}`;
@@ -114,6 +117,7 @@ export function createChannels(deps: {
     configs,
     notifyOwner,
     attention: deps.attention,
+    ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
   });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
@@ -254,10 +258,21 @@ export function createChannels(deps: {
           l.error = error;
           if (s === "running") delivery.kick();
         },
+        qr: (code) => {
+          l.qr = code;
+        },
+        identified: ({ account, owner }) => {
+          l.account = account;
+          // A linked device is the owner's own account: whoever writes from it is the owner.
+          if (owner && store.persons.byAddress(config.id, owner)?.role !== "owner") {
+            store.persons.owner();
+            store.persons.link(OWNER_ID, { channel: config.id, external_id: owner, label: config.label });
+          }
+        },
         signal: ac.signal,
       });
-      l.account = r.account;
-      if (l.status === "starting") l.status = "running";
+      if (r.account) l.account = r.account;
+      if (l.status === "starting" && !r.waiting) l.status = "running";
       delivery.kick();
     } catch (err) {
       l.status = "error";
@@ -314,6 +329,7 @@ export function createChannels(deps: {
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
+        ...(l?.qr ? { qr: l.qr } : {}),
       };
     });
   }
@@ -359,7 +375,13 @@ export function createChannels(deps: {
         if (token) secrets.set(tokenName(id), token);
         const rest = configs().filter((c) => c.id !== id);
         store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
-        if (!config) secrets.set(tokenName(id), null);
+        if (!config) {
+          secrets.set(tokenName(id), null);
+          await live
+            .get(id)
+            ?.adapter.forget?.()
+            .catch(() => {});
+        }
         await stopOne(id);
         const next = configs().find((c) => c.id === id);
         if (next) await startOne(next);

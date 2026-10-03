@@ -66,7 +66,8 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
   try {
     const r = await client.call("channels.set", {
       id,
-      channel: draft ? { type: "telegram", ...draft } : null,
+      // One channel per kind for now: its id is its type.
+      channel: draft ? { type: id === "whatsapp" ? "whatsapp" : "telegram", ...draft } : null,
       ...(token ? { token } : {}),
     });
     store.set({ channels: r.channels });

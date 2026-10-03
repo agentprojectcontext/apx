@@ -233,3 +233,18 @@ owner did not set `APX_HOME` (a rename on the same disk: all or nothing). This i
 lives, not a compatibility shim, and there is no `doctor` yet to host it. The default home keeps the Keychain service
 `apx2`, so its secrets are still found. The command stays `apx2` until the owner finishes the setup wizard; then v2
 takes `apx` and v1 leaves the PATH.
+
+<a id="d-025"></a>
+## D-025 — 2026-10-03 — WhatsApp is the owner's own account, linked as a device; strangers are only listed
+WhatsApp runs on Baileys (the library v1 already used in production, same pinned version) as a linked device of the
+owner's own number, never the Business API, whose terms forbid general assistants. Because the number is the
+owner's, the channel turns three Telegram rules around: the linked account is the owner (whoever writes in "Message
+yourself" is the owner, linked on connect); a stranger never gets a pairing code from the owner's number — their
+request is listed quietly in the app for the owner to approve, without a notice; and what the owner types to others
+on the phone is theirs, not the agent's (only our own sends' echoes are recognized and dropped). Lessons kept from
+v1: reconnect on the restart WhatsApp asks for after a scan (515), never retry dead credentials (logged out: the
+folder is deleted and a human links again), only live messages (`notify`) are read, and a person may arrive under
+their phone number or their private id (`@lid`): the phone number wins when WhatsApp gives it. The QR is held in
+memory only, shown to the owner through `channels.list`, and dropped once spent; the credentials folder is 0700 and
+deleted when the channel is removed. The library loads with the first WhatsApp channel (it costs ~45 MB) and its
+install scripts are not run.
