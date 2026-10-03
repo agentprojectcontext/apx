@@ -32,7 +32,7 @@ export function WhatsAppSection() {
   return (
     <>
       {ready && (channel ? <Linked channel={channel} /> : <Setup />)}
-      {channel?.status === "running" && (
+      {channel && (
         <>
           {!channel.self_owner && <OwnerPhone channel={channel} />}
           <Pairing channelId={channel.id} itsMe={false} />
@@ -144,17 +144,15 @@ function Linked({ channel }: { channel: ChannelInfo }) {
           </div>
         )}
       </div>
-      {running && (
-        <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
-          <Switch
-            size="sm"
-            checked={channel.self_owner === true}
-            onCheckedChange={(on) => void save({ self_owner: on })}
-            aria-label={t("ch.selfOwner")}
-          />
-        </SettingRow>
-      )}
-      {running && <Behavior channel={channel} save={save} />}
+      <SettingRow title={t("ch.selfOwner")} description={t("ch.selfOwnerHint")}>
+        <Switch
+          size="sm"
+          checked={channel.self_owner === true}
+          onCheckedChange={(on) => void save({ self_owner: on })}
+          aria-label={t("ch.selfOwner")}
+        />
+      </SettingRow>
+      <Behavior channel={channel} save={save} />
       <div className="tgremove">
         <Button
           size="sm"

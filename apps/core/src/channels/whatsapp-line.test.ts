@@ -122,6 +122,17 @@ test("strangers 'ask': the owner can say it to the agent, which sees who waits b
   await until(answered(BOB.phone, "hi there"), "Bob answered");
 });
 
+test("changing who answers, where the owner's words go or what strangers get keeps the connection up", async () => {
+  const before = wa.sockets;
+  await env.client.call("channels.set", {
+    id: "whatsapp",
+    channel: { type: "whatsapp", agent_id: "roby", strangers: "ignore", owner_thread: "own", concurrency: "steer" },
+  });
+  assert.equal((await channel())?.status, "running");
+  assert.equal(wa.sockets, before, "no reconnect");
+  assert.equal((await channel())?.strangers, "ignore");
+});
+
 test("strangers 'answer': a new person is answered at once, as a contact", async () => {
   await configure({ strangers: "answer" });
   wa.message(CARO, "hello?");

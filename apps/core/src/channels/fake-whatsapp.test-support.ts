@@ -17,6 +17,7 @@ export function fakeWhatsApp() {
   let sock: (WaSocket & { emit(event: string, arg: unknown): void }) | undefined;
   let seq = 0;
   let qrs = 0;
+  let sockets = 0;
   const sent: Array<{ jid: string; content: Record<string, unknown> }> = [];
   const loggedOut = { value: false };
   const creds = () => path.join(dir, "creds.json");
@@ -64,6 +65,7 @@ export function fakeWhatsApp() {
   const lib: WaLib = {
     makeWASocket(opts) {
       platform = String((opts.browser as string[] | undefined)?.[1] ?? "");
+      sockets++;
       sock = makeSocket();
       setTimeout(() => (fs.existsSync(creds()) ? open() : sock?.emit("connection.update", { qr: `QR-${++qrs}` })), 5);
       return sock;
@@ -95,6 +97,10 @@ export function fakeWhatsApp() {
     owner: OWNER_PN,
     get dir() {
       return dir;
+    },
+    /** How many times the channel connected (a restart connects again). */
+    get sockets() {
+      return sockets;
     },
     /**
      * The owner scans the QR: the new credentials are handed over to be saved and WhatsApp at once asks for the restart

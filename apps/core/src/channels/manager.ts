@@ -380,8 +380,17 @@ export function createChannels(deps: {
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {
       await serially(id, async () => {
         if (token) secrets.set(tokenName(id), token);
+        const before = configs().find((c) => c.id === id);
         const rest = configs().filter((c) => c.id !== id);
         store.settings.write("channels", config ? [...rest, { ...config, id }] : rest);
+        // Who answers, where the owner's words go, overlapping messages and strangers are read per message: the
+        // connection stays up (a WhatsApp restart is seconds of "connecting"). It restarts only for what it runs
+        // with, or to try again when it is down.
+        const l = live.get(id);
+        if (config && before && l && !token && l.status !== "error" && !restartsFor(before, config)) {
+          l.config = { ...config, id };
+          return;
+        }
         if (!config) {
           secrets.set(tokenName(id), null);
           await live
@@ -416,3 +425,8 @@ export function createChannels(deps: {
 }
 
 export type Channels = ReturnType<typeof createChannels>;
+
+/** Whether a settings change needs the channel started again (what its adapter is built with). */
+function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">): boolean {
+  return a.type !== b.type || a.enabled !== b.enabled || Boolean(a.self_owner) !== Boolean(b.self_owner);
+}

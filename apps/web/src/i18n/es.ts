@@ -715,8 +715,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.ownerThread.home": "Home",
   "tg.ownerThread.own": "Chat propio",
   "tg.concurrency": "Mientras trabaja",
-  "tg.concurrencyHint":
-    "Un mensaje nuevo espera su turno, corta el actual o (en el motor de APX) se suma al que está corriendo.",
   "tg.concurrency.queue": "Espera",
   "tg.concurrency.interrupt": "Interrumpe",
   "tg.concurrency.steer": "Se suma",

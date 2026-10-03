@@ -78,7 +78,7 @@ export function Behavior({
           ]}
         />
       </SettingRow>
-      <SettingRow title={t("tg.concurrency")} description={t("tg.concurrencyHint")}>
+      <SettingRow title={t("tg.concurrency")} description={t(`ch.concurrencyHint.${channel.concurrency}`)}>
         <SegmentedControl
           size="sm"
           label={t("tg.concurrency")}

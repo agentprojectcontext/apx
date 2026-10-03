@@ -57,6 +57,9 @@ test("strangers 'ask me': the owner hears where their notices go who wrote and w
   await page.getByRole("button", { name: "Configuración del canal" }).click();
   await page.getByRole("radio", { name: "Avisarme" }).click();
   await expect(page.getByText(/Te llega un aviso con quién escribió/)).toBeVisible();
+  // A setting changes in place: the line stays connected and every section stays on screen.
+  await expect(page.getByText("Conectando con WhatsApp…")).toHaveCount(0);
+  await expect(page.getByRole("radio", { name: "Se suma" })).toBeVisible();
   await until(async () =>
     (await rpc<{ channels: Array<{ id: string; strangers: string }> }>("channels.list")).channels.some(
       (c) => c.id === "whatsapp" && c.strangers === "ask",

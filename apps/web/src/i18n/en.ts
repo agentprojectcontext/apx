@@ -720,7 +720,6 @@ export const en = {
   "tg.ownerThread.home": "Home",
   "tg.ownerThread.own": "Own chat",
   "tg.concurrency": "While it is working",
-  "tg.concurrencyHint": "A new message waits its turn, stops the current one, or (APX's own loop) slips into it.",
   "tg.concurrency.queue": "Wait",
   "tg.concurrency.interrupt": "Interrupt",
   "tg.concurrency.steer": "Slip in",

@@ -64,6 +64,10 @@ export type ChannelDraft = {
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {
+  // A setting shows changed at once; the core's answer confirms it (or a failure puts it back).
+  const before = store.get().channels;
+  if (draft && before.some((c) => c.id === id))
+    store.set({ channels: before.map((c) => (c.id === id ? { ...c, ...draft } : c)) });
   try {
     const r = await client.call("channels.set", {
       id,
@@ -74,6 +78,7 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
     store.set({ channels: r.channels });
     return true;
   } catch (e) {
+    store.set({ channels: before });
     notify(t("error.channels", { error: errText(e) }));
     return false;
   }
