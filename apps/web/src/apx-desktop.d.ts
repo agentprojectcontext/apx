@@ -18,6 +18,19 @@ declare global {
       setAttention?(unread: number): void;
       /** The system's folder dialog; undefined when the owner cancels. */
       pickFolder?(): Promise<string | undefined>;
+      /** What each of the app's processes takes in memory (the panel, each browser tab, the GPU…), biggest first. */
+      memory?(): Promise<
+        | {
+            total_mb: number;
+            items: Array<{
+              pid: number;
+              kind: "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "helper";
+              site?: string;
+              mb: number;
+            }>;
+          }
+        | undefined
+      >;
     };
   }
 }

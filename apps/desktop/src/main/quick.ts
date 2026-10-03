@@ -130,6 +130,10 @@ export function createQuick(opts: {
       tray?.setTitle(text);
       app.dock?.setBadge(text);
     },
+    /** Its renderer process, for the memory report (none until it was first opened). */
+    processId(): number | undefined {
+      return win && !win.isDestroyed() ? win.webContents.getOSProcessId() : undefined;
+    },
     isQuick(sender: Electron.WebContents): boolean {
       return Boolean(win && !win.isDestroyed() && sender === win.webContents);
     },

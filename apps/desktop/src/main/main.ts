@@ -1,9 +1,11 @@
 // The window is the APX panel (web). The panel reserves a slot for the browser and reports its bounds;
 // the active tab's native view is positioned over that slot. Tab views are siblings of the panel, so a
 // panel reload never kills tabs.
+import fs from "node:fs";
 import path from "node:path";
 import { app, BaseWindow, dialog, ipcMain, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
+import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 
@@ -12,6 +14,8 @@ const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
 const DIST = import.meta.dirname;
 
 type Bounds = { x: number; y: number; width: number; height: number };
+/** Past this, APX tells the owner how much it takes and what takes the most. */
+const MEMORY_LIMIT_MB = 4096;
 
 // The app is APX (menus, notifications, About), keeping the data folder it always had (its browser sessions and
 // imported cookies live there).
@@ -169,6 +173,37 @@ app.whenReady().then(() => {
       fs.writeFileSync(path.join(captureDir, "slot.json"), JSON.stringify({ slot, at: Date.now() }));
     });
   }
+
+  // Every minute: tabs nobody uses close, and APX says when it takes too much memory (and what takes it).
+  const report = () => {
+    const owners = host.processOwners();
+    owners.set(panel.webContents.getOSProcessId(), { kind: "panel" });
+    const quickPid = quick.processId();
+    if (quickPid) owners.set(quickPid, { kind: "quick" });
+    return memoryReport(app.getAppMetrics(), owners);
+  };
+  const memText = memoryText(app.getLocale());
+  const memoryLog = path.join(app.getPath("logs"), "memory.log");
+  const watch = memoryWatch({
+    read: report,
+    limitMb: MEMORY_LIMIT_MB,
+    quietMs: 3_600_000,
+    text: memText,
+    warn: (message, r) => {
+      const lines = r.items.map((i) => `  ${size(i.mb).padStart(8)}  ${itemName(i, memText)}`).join("\n");
+      void fs.promises
+        .mkdir(path.dirname(memoryLog), { recursive: true })
+        .then(() => fs.promises.appendFile(memoryLog, `${new Date().toISOString()} ${message}\n${lines}\n`))
+        .catch(() => {});
+      if (Notification.isSupported()) new Notification({ title: "APX", body: message }).show();
+    },
+  });
+  const tick = setInterval(() => {
+    void host.closeIdle((view) => view === shown && Boolean(slot && slot.width > 0 && slot.height > 0));
+    watch.check();
+  }, 60_000);
+  tick.unref();
+  ipcMain.handle("desktop:memory", (e) => (e.sender === panel.webContents ? report() : undefined));
 
   startNodeLink(host, CORE_URL, () => {});
 });

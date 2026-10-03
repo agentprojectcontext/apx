@@ -16,6 +16,7 @@ export function systemHandlers(
     protocol: PROTOCOL_VERSION,
     started_at: identity.started_at.toISOString(),
     uptime_s: Math.round((Date.now() - identity.started_at.getTime()) / 1000),
+    rss_mb: Math.round(process.memoryUsage.rss() / 1048576),
     subsystems: subsystems(),
     ...(panel() ? { panel: panel() } : {}),
   });

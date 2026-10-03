@@ -4,10 +4,20 @@ import { EventEmitter } from "node:events";
 import { type BrowserProfile, browserMethods, type TabControl, type TabInfo } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { app, type Session, session, WebContentsView } from "electron";
+import type { ProcessOwner } from "../memory.ts";
 import { CdpTab } from "./cdp.ts";
 import { discoverSources, importCookies, listDomains } from "./cookies.ts";
+import { idleTabs } from "./idle.ts";
 
-type Tab = { id: string; profile: BrowserProfile; view: WebContentsView; cdp: CdpTab; control: TabControl };
+type Tab = {
+  id: string;
+  profile: BrowserProfile;
+  view: WebContentsView;
+  cdp: CdpTab;
+  control: TabControl;
+  /** Last time an agent or the owner did something with it (idle tabs close: see idle.ts). */
+  used: number;
+};
 
 const MAX_TABS = 8;
 const NAV_TIMEOUT_MS = 8_000;
@@ -241,7 +251,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
       wc.on(ev as "did-stop-loading", () => this.emit("changed"));
     }
     const cdp = new CdpTab(wc);
-    const tab: Tab = { id, profile, view, cdp, control };
+    const tab: Tab = { id, profile, view, cdp, control, used: Date.now() };
     this.#tabs.set(id, tab);
     this.select(id);
     await this.#load(tab, url);
@@ -313,7 +323,40 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #get(id: string): Tab {
     const tab = this.#tabs.get(id);
     if (!tab) throw new ApxError({ code: "bad_request", message: `unknown tab ${id}` });
+    tab.used = Date.now();
     return tab;
+  }
+
+  /** Closes the tabs nobody used for a while that are not on screen nor the owner's; returns how many. */
+  async closeIdle(onScreen: (view: WebContentsView) => boolean, now = Date.now()): Promise<number> {
+    const ids = idleTabs(
+      [...this.#tabs.values()].map((t) => ({
+        id: t.id,
+        used: t.used,
+        owner: t.control.kind === "user" || t.control.kind === "handoff" || this.#handoffs.has(t.id),
+      })),
+      now,
+      (id) => {
+        const t = this.#tabs.get(id);
+        return Boolean(t && onScreen(t.view));
+      },
+    );
+    for (const id of ids) await this.close(id).catch(() => {});
+    return ids.length;
+  }
+
+  /** Each tab's renderer process and its site, for the memory report. */
+  processOwners(): Map<number, ProcessOwner> {
+    const out = new Map<number, ProcessOwner>();
+    for (const t of this.#tabs.values()) {
+      const wc = t.view.webContents;
+      let site = "";
+      try {
+        site = new URL(wc.getURL()).hostname;
+      } catch {}
+      out.set(wc.getOSProcessId(), { kind: "tab", ...(site ? { site } : {}) });
+    }
+    return out;
   }
 
   #drive(id: string, by: string): Tab {

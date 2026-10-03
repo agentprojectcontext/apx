@@ -18,6 +18,8 @@ export const Health = z.object({
   protocol: z.number().int(),
   started_at: z.string(),
   uptime_s: z.number(),
+  /** What the core process takes in memory (resident), in MB. */
+  rss_mb: z.number().optional(),
   subsystems: z.record(z.string(), SubsystemStatus),
   /** The panel build the core serves now (its entry file): a panel showing another one is out of date. */
   panel: z.string().optional(),
