@@ -12,6 +12,7 @@ import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
 import { KindTile } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
+import { PersonAvatar } from "./PersonAvatar.tsx";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> = {
@@ -219,7 +220,7 @@ function ContactRow({ row, selected, onPick }: { row: Row; selected: boolean; on
         aria-current={selected || undefined}
         onClick={onPick}
       >
-        <span className="chan__avatar">{initials(name)}</span>
+        <PersonAvatar personId={person?.id} fallback={initials(name)} />
         <span className="chan__rowmain">
           <span className="chan__rowtop">
             <span className="chan__rowname">{name}</span>

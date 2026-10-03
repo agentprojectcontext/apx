@@ -526,6 +526,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engines.unavailable.body": "Actualizá y reiniciá el core para ver qué está instalado y con sesión.",
   "engines.notInstalled": "No está instalado en esta computadora. Instalalo y tocá Revisar de nuevo.",
   "engines.status": "Estado",
+  "engines.refreshModels": "Volver a pedir sus modelos",
+  "engines.copySignIn": "Copiar el comando para iniciar sesión",
+  "engines.copySignOut": "Copiar el comando para cerrar sesión",
+  "engines.copied": "Copiado: {command}. Corrélo en una terminal.",
+  "engines.useInRouter": "Usarlo en el router",
+  "engines.leaveRouter": "Sacarlo del router",
   "engines.installed": "Instalado",
   "agents.lead":
     "Modelo: con qué corre cada agente. Navegador: Compartido usa tus sesiones, Aislado tiene su propio perfil, Incógnito arranca vacío.",

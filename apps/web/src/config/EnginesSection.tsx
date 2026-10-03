@@ -1,23 +1,24 @@
 import type { EngineStatus } from "@apx/protocol";
-import { Button, EmptyState, Icons, ProjectTile, Skeleton } from "@apx/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { Button, EmptyState, EngineIcon, IconButton, Icons, Menu, Skeleton } from "@apx/ui";
+import { useEffect, useState } from "react";
 import { loadEngines } from "../data/engines.ts";
-import { loadCatalog, loadModelsConfig } from "../data/models.ts";
+import { loadCatalog, loadModelsConfig, saveModelsConfig, splitRef, useModels } from "../data/models.ts";
+import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { ModelCatalog } from "./models/ModelCatalog.tsx";
 import { ProvidersGrid } from "./ProvidersGrid.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-type Look = { icon: ReactNode; tone: "brand" | "ink"; kind: MessageKey; login: MessageKey };
+type Look = { kind: MessageKey; login: MessageKey };
 
 const LOOK: Record<string, Look> = {
-  native: { icon: <Icons.Sparkles />, tone: "brand", kind: "engine.kind.native", login: "engine.login.native" },
-  claude: { icon: <Icons.Code />, tone: "ink", kind: "engine.kind.cli", login: "engine.login.claude" },
-  codex: { icon: <Icons.Terminal />, tone: "ink", kind: "engine.kind.cli", login: "engine.login.codex" },
+  native: { kind: "engine.kind.native", login: "engine.login.native" },
+  claude: { kind: "engine.kind.cli", login: "engine.login.claude" },
+  codex: { kind: "engine.kind.cli", login: "engine.login.codex" },
 };
 /** Any Agent Client Protocol CLI (OpenCode, Qwen Code, Cursor…). */
-const ACP_LOOK: Look = { icon: <Icons.Bot />, tone: "ink", kind: "engine.kind.acp", login: "engine.login.acp" };
+const ACP_LOOK: Look = { kind: "engine.kind.acp", login: "engine.login.acp" };
 const lookOf = (id: string): Look => LOOK[id] ?? ACP_LOOK;
 
 /**
@@ -94,15 +95,40 @@ export function EnginesSection() {
   );
 }
 
+/** What to type in a terminal to sign a CLI in or out (APX never signs the owner's CLI out by itself). */
+const SIGN: Record<string, { in: string; out: string }> = {
+  claude: { in: "claude", out: "claude /logout" },
+  codex: { in: "codex login", out: "codex logout" },
+};
+
 function EngineCard({ engine: e }: { engine: EngineStatus }) {
   const t = useT();
   const look = lookOf(e.id);
+  const config = useModels((s) => s.config);
+  const [busy, setBusy] = useState(false);
   const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(look.login) : undefined;
   const kind = t(look.kind);
+  const chain = config?.router.chain ?? [];
+  const inChain = chain.some((r) => splitRef(r).engine === e.id);
+  const ready = e.installed && e.logged_in;
+  // In the router: the engine with its own default model joins at the end; out: every model of it leaves.
+  const toggleChain = async () => {
+    if (!config) return;
+    setBusy(true);
+    const next = inChain ? chain.filter((r) => splitRef(r).engine !== e.id) : [...chain, e.id];
+    await saveModelsConfig({ router: { ...config.router, chain: next } });
+    setBusy(false);
+  };
+  const copy = (command: string) =>
+    void navigator.clipboard.writeText(command).then(
+      () => notify(t("engines.copied", { command }), "info"),
+      () => {},
+    );
+  const sign = SIGN[e.id];
   return (
     <div className="engine">
       <div className="engine__top">
-        <ProjectTile tone={look.tone} icon={look.icon} size={36} shape={e.id === "native" ? "square" : "circle"} />
+        <EngineIcon engine={e.id} tile size={36} />
         <div className="engine__titles">
           <div className="engine__name">
             {e.label}
@@ -110,12 +136,51 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
           </div>
           <div className="engine__kind">{e.detail ? `${kind} · ${e.detail}` : kind}</div>
         </div>
+        <Menu
+          align="end"
+          trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
+          items={[
+            {
+              label: t("engines.refreshModels"),
+              icon: <Icons.RefreshCw size={14} />,
+              onSelect: () => void loadCatalog(true),
+            },
+            ...(sign
+              ? [
+                  { type: "separator" as const },
+                  {
+                    label: t("engines.copySignIn"),
+                    icon: <Icons.LogIn size={14} />,
+                    onSelect: () => copy(sign.in),
+                  },
+                  {
+                    label: t("engines.copySignOut"),
+                    icon: <Icons.LogOut size={14} />,
+                    onSelect: () => copy(sign.out),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
       <ol className="engine__steps" aria-label={t("engines.status")}>
         <Step done={e.installed} label={t("engines.installed")} />
         <Step done={e.logged_in} label={t("engine.loggedIn")} />
       </ol>
       {hint && <p className="engine__hint">{hint}</p>}
+      {ready && (
+        <div>
+          <Button
+            size="sm"
+            variant={inChain ? "ghost" : "secondary"}
+            loading={busy}
+            disabled={!config}
+            onClick={() => void toggleChain()}
+          >
+            {inChain ? t("engines.leaveRouter") : t("engines.useInRouter")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,17 +1,4 @@
-import type { CatalogEngine } from "@apx/protocol";
-import {
-  Badge,
-  Button,
-  EngineIcon,
-  IconButton,
-  Icons,
-  Input,
-  ProjectTile,
-  Select,
-  type SelectOption,
-  Spinner,
-  Switch,
-} from "@apx/ui";
+import { Badge, Button, EngineIcon, IconButton, Icons, Input, ProjectTile, Spinner, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
@@ -19,7 +6,7 @@ import { QrCode } from "../common/QrCode.tsx";
 import { RefSelect } from "../config/models/RefSelect.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { loadEngines } from "../data/engines.ts";
-import { loadCatalog, splitRef, useModels } from "../data/models.ts";
+import { loadCatalog, splitRef } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { loadProviders, saveProvider, useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
@@ -44,7 +31,6 @@ export function EnginesStep({ draft: d, set }: StepProps) {
   const t = useT();
   const cli = useData((s) => s.engines);
   const providers = useProviders((s) => s.list);
-  const catalog = useModels((s) => s.catalog);
   useEffect(() => {
     void loadProviders();
     void loadEngines(true);

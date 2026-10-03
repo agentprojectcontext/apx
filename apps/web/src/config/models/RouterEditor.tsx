@@ -1,7 +1,7 @@
 import type { ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
 import { Badge, Button, IconButton, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { inCatalog, refLabel, saveModelsConfig, useModels } from "../../data/models.ts";
+import { inCatalog, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelRefPicker } from "./ModelPickers.tsx";
 import { RefSelect } from "./RefSelect.tsx";

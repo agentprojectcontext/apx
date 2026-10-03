@@ -520,6 +520,12 @@ export const en = {
   "engines.unavailable.body": "Update and restart the core to see what is installed and signed in.",
   "engines.notInstalled": "Not installed on this computer. Install it and click Check again.",
   "engines.status": "Status",
+  "engines.refreshModels": "Ask for its models again",
+  "engines.copySignIn": "Copy the command to sign in",
+  "engines.copySignOut": "Copy the command to sign out",
+  "engines.copied": "Copied: {command} — run it in a terminal.",
+  "engines.useInRouter": "Use it in the router",
+  "engines.leaveRouter": "Take it out of the router",
   "engines.installed": "Installed",
   "agents.lead":
     "Model: what each agent runs on. Browser: Shared uses your sessions, Isolated has its own profile, Incognito starts empty.",

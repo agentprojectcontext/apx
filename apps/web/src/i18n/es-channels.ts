@@ -10,6 +10,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Si le escribís mientras trabaja, corta lo que estaba haciendo y arranca de nuevo con tu mensaje.",
   "ch.concurrencyHint.steer":
     "Si le escribís mientras trabaja, tu mensaje se suma a lo que está haciendo: lo lee entre pasos y sigue, sin empezar de cero (en el motor de APX; en otros motores espera).",
+  "ch.youNamed": "Vos ({name})",
   "ch.itsMe": "Soy yo",
   "ch.itsMyNumber": "Es mi número",
   "ch.strangers.list": "Anotar",

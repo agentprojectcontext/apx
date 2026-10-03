@@ -7,6 +7,7 @@ import { sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { initials, RELATION_KEY } from "./ChannelScreen.tsx";
+import { PersonAvatar } from "./PersonAvatar.tsx";
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the
@@ -66,7 +67,7 @@ export function ChannelConversation(props: {
           icon={<Icons.ArrowLeft size={14} />}
           onClick={props.onBack}
         />
-        <span className="chan__avatar">{initials(name)}</span>
+        <PersonAvatar personId={person?.id} fallback={initials(name)} />
         <div className="chan__titles">
           <div className="chan__name">{name}</div>
           <div className="chan__meta">

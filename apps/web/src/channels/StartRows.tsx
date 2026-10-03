@@ -7,6 +7,7 @@ import { respondPairing, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { initials } from "./ChannelScreen.tsx";
+import { PersonAvatar } from "./PersonAvatar.tsx";
 import { PhoneForm, phoneOf } from "./PhoneForm.tsx";
 
 /**
@@ -109,6 +110,7 @@ export function OwnerRow({
 }) {
   const t = useT();
   const toHome = channel.owner_thread === "home";
+  const owner = useChannels((s) => s.persons.find((p) => p.role === "owner"));
   return (
     <li>
       <button
@@ -118,12 +120,12 @@ export function OwnerRow({
         disabled={!target}
         onClick={() => target && go.channel(channel.id, target)}
       >
-        <span className="chan__avatar is-owner">
-          <Icons.UserRound size={15} />
-        </span>
+        <PersonAvatar personId={owner?.id} className="chan__avatar is-owner" fallback={<Icons.UserRound size={15} />} />
         <span className="chan__rowmain">
           <span className="chan__rowtop">
-            <span className="chan__rowname">{t("ch.you")}</span>
+            <span className="chan__rowname">
+              {owner?.nickname ? t("ch.youNamed", { name: owner.nickname }) : t("ch.you")}
+            </span>
           </span>
           <span className="chan__preview">{t(ownerLine(channel)[toHome ? "home" : target ? "own" : "none"])}</span>
         </span>

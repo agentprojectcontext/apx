@@ -8,6 +8,7 @@ export const enChannels = {
     "A message you send while it works stops what it was doing, and it starts over with your new message.",
   "ch.concurrencyHint.steer":
     "A message you send while it works joins what it is doing: it reads it between steps and keeps going, without starting over (APX's own engine; other engines wait).",
+  "ch.youNamed": "You ({name})",
   "ch.itsMe": "It's me",
   "ch.itsMyNumber": "It's my number",
   "ch.strangers.list": "List them",

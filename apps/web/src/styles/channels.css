@@ -118,6 +118,15 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-2xs);
 }
+.chan__avatar.has-picture {
+  overflow: hidden;
+  background: none;
+}
+.chan__avatarimg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .chan__avatar.is-owner {
   background: var(--apx-fill-strong);
   color: var(--apx-fg);

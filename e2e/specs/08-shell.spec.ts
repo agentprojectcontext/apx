@@ -1,6 +1,6 @@
 // The frame: the list is resized (never folded away), icon buttons say what they do, the language switches with no key
 // left untranslated, and Settings opens every section.
-import { expect, open, test } from "./kit.ts";
+import { expect, open, rpc, test } from "./kit.ts";
 
 test("the chat list resizes from its edge and never folds away; an icon button says what it does", async ({ page }) => {
   await open(page);
@@ -14,6 +14,24 @@ test("the chat list resizes from its edge and never folds away; an icon button s
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   expect(await handle.getAttribute("aria-valuenow")).not.toBe(before);
+});
+
+test("a chain entry picks one of its engine's models and, when the model takes it, its reasoning effort", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Router" }).click();
+  await page.getByRole("button", { name: "Agregar un modelo" }).click();
+  await page.getByRole("option", { name: /GPT e2e/ }).click();
+  await expect(page.getByRole("combobox", { name: "Effort" })).toBeVisible();
+  await page.getByRole("combobox", { name: "Effort" }).click();
+  await page.getByRole("option", { name: "high" }).click();
+  await page.getByRole("button", { name: "Guardar router" }).click();
+  await expect
+    .poll(async () => (await rpc<{ router: { chain: string[] } }>("models.config")).router.chain)
+    .toContain("codex/gpt-e2e#high");
+  await page.keyboard.press("Escape");
 });
 
 test("English and Spanish show text, never a raw key", async ({ page }) => {

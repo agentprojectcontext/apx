@@ -1,5 +1,5 @@
 import type { ProviderInfo } from "@apx/protocol";
-import { Badge, Button, Dialog, IconButton, Icons, Input, ProjectTile, Switch } from "@apx/ui";
+import { Badge, Button, Dialog, EngineIcon, engineBrand, IconButton, Icons, Input, ProjectTile, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import {
   loadProviders,
@@ -49,7 +49,11 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
   return (
     <div className={p.enabled ? "pcard" : "pcard is-off"}>
       <div className="pcard__top">
-        <ProjectTile tone={preset?.tone ?? "neutral"} initial={p.label.slice(0, 1).toUpperCase()} size={36} />
+        {engineBrand(p.preset ?? p.id) ? (
+          <EngineIcon engine={p.preset ?? p.id} tile size={36} />
+        ) : (
+          <ProjectTile tone={preset?.tone ?? "neutral"} initial={p.label.slice(0, 1).toUpperCase()} size={36} />
+        )}
         <div className="pcard__titles">
           <div className="pcard__name">{p.label}</div>
           <div className="pcard__id">{p.id}</div>

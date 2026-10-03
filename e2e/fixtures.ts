@@ -76,7 +76,8 @@ export function writeFixtures(dir: string) {
   );
   write(
     path.join(bin, "codex"),
-    `#!/bin/sh\ncase "$1" in --version) echo "codex-cli 0.1.0";; login) echo "Not logged in";; esac\n`,
+    // `debug models`: one model that takes reasoning efforts, as the real CLI lists them.
+    `#!/bin/sh\ncase "$1" in --version) echo "codex-cli 0.1.0";; login) echo "Not logged in";; debug) echo '${JSON.stringify({ models: [{ slug: "gpt-e2e", display_name: "GPT e2e", supported_reasoning_levels: [{ effort: "low" }, { effort: "high" }], default_reasoning_level: "low" }] })}';; esac\n`,
   );
   for (const f of ["claude", "codex"]) fs.chmodSync(path.join(bin, f), 0o755);
   // node itself, without the folder it lives in (globally installed CLIs sit there too).
