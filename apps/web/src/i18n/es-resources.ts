@@ -154,7 +154,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "ext.guide.step1":
     "Armá la carpeta con su apx-extension.json (hay un ejemplo en examples/extensions/ del repo de APX).",
   "ext.guide.step2":
-    "Acá, + Extensión, pegá la ruta de la carpeta, Revisar e Instalar (o apx2 extensions install <carpeta>).",
+    "Acá, Instalar: pegá la ruta de la carpeta, Revisar e Instalar (o apx2 extensions install <carpeta>).",
   "ext.guide.step3": "Llega apagada: completá sus variables y prendela.",
   "ext.guide.safety":
     "Prenderla aprueba exactamente los archivos que tenía: si uno cambia, se apaga hasta que la vuelvas a aprobar.",

@@ -151,7 +151,7 @@ export const enResources = {
   "ext.guide.step1":
     "Make the folder with its apx-extension.json (there is an example in examples/extensions/ of the APX repo).",
   "ext.guide.step2":
-    "Here, + Extension, paste the folder's path, Inspect and Install (or apx2 extensions install <folder>).",
+    "Here, Install: paste the folder's path, Inspect and Install (or apx2 extensions install <folder>).",
   "ext.guide.step3": "It arrives off: fill in its variables and turn it on.",
   "ext.guide.safety":
     "Turning it on approves exactly the files it had: if one changes, it turns off until you approve it again.",
