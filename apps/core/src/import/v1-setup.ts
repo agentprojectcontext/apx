@@ -195,6 +195,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
         project_id: project,
         status: t.status,
         due_at: due ?? undefined,
+        // What was already due in v1 is not news: no reminder for it the moment it arrives.
+        ...(due && Date.parse(due) <= Date.now() ? { reminded_at: new Date().toISOString() } : {}),
         kind: extra.kind,
         priority: t.priority,
         tags: t.tags,

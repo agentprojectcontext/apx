@@ -149,6 +149,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       parent_id?: string | undefined;
       due_at?: string | undefined;
       remind_at?: string | undefined;
+      /** Already reminded (an import: what was due before it arrived is not news). */
+      reminded_at?: string | undefined;
       kind?: TaskKind | undefined;
       priority?: TaskPriority | undefined;
       tags?: string[] | undefined;
@@ -171,6 +173,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           thread_id: t.thread_id,
           due_at: t.due_at ?? null,
           remind_at: t.remind_at ?? null,
+          reminded_at: t.reminded_at ?? null,
           kind: t.kind ?? (t.person_id ? "commitment" : "task"),
           priority: t.priority ?? "normal",
           tags: JSON.stringify(t.tags ?? []),

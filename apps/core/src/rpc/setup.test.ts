@@ -93,7 +93,7 @@ before(async () => {
         ts: "2026-09-01T10:00:00Z",
         counterparty: "Northwind",
         body: "Send the quote",
-        due: "2026-10-15",
+        due: "2026-09-15",
       },
       { id: "c2", op: "create", ts: "2026-09-01T10:00:00Z", counterparty: "Bob", body: "Return the drill" },
       { id: "c2", op: "kept", ts: "2026-09-04T10:00:00Z" },
@@ -169,6 +169,8 @@ test("importing brings projects, notes, open tasks and commitments, variables an
   const quote = tasks.find((t) => t.title === "Send the quote");
   assert.equal(quote?.kind, "commitment");
   assert.equal(quote?.person_name, "Northwind");
+  // Already due in v1: it arrives as known, so no burst of reminders the moment it lands.
+  assert.ok(!env.core.store.tasks.remindDue(new Date().toISOString()).some((t) => t.title === "Send the quote"));
 
   const notes = env.core.store.memories.list({ limit: 50 }).map((m) => [m.scope, m.text]);
   assert.ok(notes.some(([s, t]) => s === "global" && t === "Ana prefers short answers"));

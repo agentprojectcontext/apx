@@ -33,6 +33,7 @@ const es = {
         : `Vence: ${title}. Se lo debés a ${person}.`
       : `Vence: ${title}.`,
   routineFailed: (name: string, why: string) => `La rutina «${name}» no pudo terminar: ${why}`,
+  reminders: (lines: string[]) => `Recordatorios:\n${lines.map((l) => `• ${l}`).join("\n")}`,
 };
 
 const en: typeof es = {
@@ -66,6 +67,7 @@ const en: typeof es = {
         : `Due: ${title}. You owe it to ${person}.`
       : `Due: ${title}.`,
   routineFailed: (name, why) => `The routine "${name}" couldn't finish: ${why}`,
+  reminders: (lines) => `Reminders:\n${lines.map((l) => `• ${l}`).join("\n")}`,
 };
 
 export type ChannelTexts = typeof es;
