@@ -36,8 +36,38 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight
+pnpm preflight                     # gates + unit tests
+pnpm verify                        # preflight, then end to end, then lightness budgets (what CI runs)
 ```
+
+## 5a. End to end (Playwright)
+```bash
+pnpm e2e                           # builds the panel, then every spec in e2e/specs against a sandboxed core
+pnpm exec playwright test e2e/specs/06-telegram.spec.ts --headed    # one spec, watching
+E2E_KEEP=1 node e2e/env.ts         # the sandbox by hand (core :7460, control :7461); its folder stays after
+```
+`e2e/env.ts` is a whole APX apart from the owner's: a temp home and port, `APX_SECRETS=file`, a fake
+OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API
+(`APX_TELEGRAM_API`), an APX v1 and Claude Code / Codex sessions to import (`e2e/fixtures.ts`). Specs act as the
+outside world through its control API (`world.telegram(...)`, `world.sentTo(chat)`). Specs run in file order on
+one core, like one owner from the first-run setup on. Any console error or 5xx response fails the test. Specs
+are written in Spanish, as the owner uses the panel. WhatsApp, Slack and Discord have no adapter in v2 yet, so
+there is nothing to emulate for them.
+
+## 5b. Lightness
+```bash
+pnpm perf                          # builds the panel, then scripts/perf.ts
+```
+A core on a temp home with the fake model: startup, idle memory and CPU, protocol latency, chat turns, memory
+once quiet again, and the panel's first load (gzip). Each number has a budget in `scripts/perf-budget.json`;
+going over fails. Raising a budget is a regression: it needs a reason in the commit body.
+
+## CI
+`.github/workflows/verify.yml` runs `preflight`, `e2e` and `perf` on every push to main, every `v*` tag and every
+pull request; reports (Playwright HTML, failed-test snapshots, `e2e/.out/perf.json`) are kept 14 days. Its
+`autofix` job is off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a
+failure on main hands the reports to an agent that fixes the cause and opens a pull request (never merged on its
+own, never by weakening a gate).
 
 ## 6. Embedded browser (real path)
 ```bash
