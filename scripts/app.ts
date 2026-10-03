@@ -4,6 +4,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { compileCacheEnv } from "./compile-cache.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const step = (args: string[]) => {
@@ -21,7 +22,7 @@ function startCore() {
   const child = spawn(process.execPath, ["--disable-warning=ExperimentalWarning", "apps/core/src/main.ts"], {
     cwd: root,
     stdio: "inherit",
-    env: { ...process.env, APX_SUPERVISED: "1" },
+    env: { ...process.env, ...compileCacheEnv(root), APX_SUPERVISED: "1" },
   });
   child.on("exit", (code) => {
     if (code === RESTART_CODE) core = startCore();

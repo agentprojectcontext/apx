@@ -1,9 +1,9 @@
 {
   "startup_ms": 1500,
-  "idle_rss_mb": 160,
+  "idle_rss_mb": 135,
   "idle_cpu_pct": 2,
   "rpc_p95_ms": 10,
   "turn_p95_ms": 60,
-  "rss_after_turns_mb": 220,
+  "rss_after_turns_mb": 180,
   "initial_bundle_gzip_kb": 270
 }

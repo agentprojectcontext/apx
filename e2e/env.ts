@@ -12,6 +12,7 @@ import path from "node:path";
 import { fakeDiscord } from "../apps/core/src/channels/fake-discord.test-support.ts";
 import { fakeSlack } from "../apps/core/src/channels/fake-slack.test-support.ts";
 import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-support.ts";
+import { compileCacheEnv } from "../scripts/compile-cache.ts";
 import { fakeLlm } from "./fake-llm.ts";
 import { writeFixtures } from "./fixtures.ts";
 
@@ -41,6 +42,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     // Only the sandbox's own CLIs, node and the system: none of the machine's agents (claude, codex, opencode…).
     PATH: [fx.bin, "/usr/bin", "/bin"].join(path.delimiter),
     HOME: process.env.HOME ?? os.homedir(),
+    ...compileCacheEnv(root),
     APX_HOME: fx.home,
     APX_PORT: String(E2E.port),
     APX_SECRETS: "file",

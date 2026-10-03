@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fakeLlm } from "../e2e/fake-llm.ts";
+import { compileCacheEnv } from "./compile-cache.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const budget = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "perf-budget.json"), "utf8")) as Record<
@@ -63,15 +64,34 @@ function initialBundleKb(): number {
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-perf-"));
 const llm = await fakeLlm();
+const startCore = (apxHome: string) =>
+  spawn(process.execPath, ["--no-warnings", path.join(root, "apps/core/src/main.ts")], {
+    cwd: root,
+    stdio: ["ignore", "ignore", "pipe"],
+    env: coreEnv(apxHome),
+  });
+
+// As the owner's core starts (pnpm app, pnpm dev): with the compile cache warm. A first start on a home of its own
+// fills it, so a fresh checkout or a CI run measures the same thing.
+const warm = startCore(path.join(home, "warm"));
+for (let i = 0; i < 300; i++) {
+  try {
+    if ((await fetch(`${base}/health`)).ok) break;
+  } catch {}
+  await sleep(50);
+}
+warm.kill("SIGTERM");
+await new Promise((r) => warm.once("exit", r));
+
 const t0 = performance.now();
-const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/core/src/main.ts")], {
-  cwd: root,
-  stdio: ["ignore", "ignore", "pipe"],
-  env: {
+const core = startCore(path.join(home, "apx"));
+function coreEnv(apxHome: string): NodeJS.ProcessEnv {
+  return {
     // No agent CLIs: the numbers are the core's own, whatever this machine has installed.
     PATH: [path.dirname(process.execPath), "/usr/bin", "/bin"].join(path.delimiter),
     HOME: process.env.HOME ?? os.homedir(),
-    APX_HOME: path.join(home, "apx"),
+    ...compileCacheEnv(root),
+    APX_HOME: apxHome,
     APX_PORT: String(port),
     APX_SECRETS: "file",
     APX_UPDATES: "off",
@@ -81,8 +101,8 @@ const core = spawn(process.execPath, ["--no-warnings", path.join(root, "apps/cor
     APX_LLM_BASE_URL: llm.url,
     APX_LLM_KEY: "perf",
     APX_LLM_MODELS: "fake-1",
-  },
-});
+  };
+}
 let stderr = "";
 core.stderr.on("data", (d) => {
   stderr += d;

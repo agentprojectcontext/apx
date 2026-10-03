@@ -114,7 +114,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     mcpProxy: () => ({
       command: process.execPath,
       args: [TERMINAL_MAIN, "mcp", "--run"],
-      env: { APX_URL: selfUrl, ...(config.token ? { APX_TOKEN: config.token } : {}) },
+      env: {
+        APX_URL: selfUrl,
+        ...(config.token ? { APX_TOKEN: config.token } : {}),
+        // Each harness session starts this CLI: with the core's compile cache it skips stripping TypeScript again.
+        ...(process.env.NODE_COMPILE_CACHE ? { NODE_COMPILE_CACHE: process.env.NODE_COMPILE_CACHE } : {}),
+      },
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });

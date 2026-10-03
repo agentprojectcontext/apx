@@ -8,8 +8,8 @@
     "apx-core": "./src/main.ts"
   },
   "scripts": {
-    "dev": "node --watch src/main.ts",
-    "start": "node src/main.ts",
+    "dev": "NODE_COMPILE_CACHE=${NODE_COMPILE_CACHE:-../../node_modules/.cache/node-compile} node --watch src/main.ts",
+    "start": "NODE_COMPILE_CACHE=${NODE_COMPILE_CACHE:-../../node_modules/.cache/node-compile} node src/main.ts",
     "typecheck": "tsc -p .",
     "test": "node --test 'src/**/*.test.ts'"
   },
