@@ -1,4 +1,4 @@
-import { Badge, Button, Checkbox, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
+import { Badge, Button, Checkbox, ContextMenu, Dialog, EmptyState, IconButton, Icons, Input } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { projectName } from "../data/identity.ts";
@@ -77,7 +77,33 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res }
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={keyOf(r)} className={projectId && !r.project && own.has(r.name) ? "is-shadowed" : undefined}>
+              <ContextMenu
+                key={keyOf(r)}
+                render={<tr className={projectId && !r.project && own.has(r.name) ? "is-shadowed" : undefined} />}
+                items={[
+                  {
+                    label: r.stored ? t("res.varReplaceShort") : t("res.varSetShort"),
+                    icon: <Icons.Pencil size={14} />,
+                    onSelect: () => setEditing(r),
+                  },
+                  {
+                    label: t("res.copyName"),
+                    icon: <Icons.Copy size={14} />,
+                    onSelect: () => void navigator.clipboard.writeText(r.name).catch(() => {}),
+                  },
+                  ...(r.stored
+                    ? [
+                        { type: "separator" as const },
+                        {
+                          label: t("res.remove"),
+                          icon: <Icons.Trash2 size={14} />,
+                          danger: true,
+                          onSelect: () => setRemoving(r),
+                        },
+                      ]
+                    : []),
+                ]}
+              >
                 <td className="resvars__name">{r.name}</td>
                 <td>
                   <span className="resvars__scope">
@@ -108,7 +134,7 @@ export function VariablesTab({ projectId, query, scope, adding, setAdding, res }
                     />
                   )}
                 </td>
-              </tr>
+              </ContextMenu>
             ))}
           </tbody>
         </table>
@@ -216,7 +242,6 @@ export function VariableDialog(props: {
             placeholder="GITHUB_TOKEN"
             onChange={(e) => setName(toVarName(e.currentTarget.value))}
           />
-          <span className="pform__hint">{t("res.varNameHint")}</span>
         </div>
         {!row && props.projectId && (
           <Checkbox

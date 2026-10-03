@@ -1,5 +1,5 @@
 import { ContextMenu as BaseContextMenu } from "@base-ui/react/context-menu";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { cx } from "../cx";
 import { useApx } from "./ApxProvider";
 import { MenuEntries, type MenuEntry } from "./menuEntries";
@@ -11,14 +11,18 @@ export interface ContextMenuProps {
   /** No menu (the children render alone), e.g. while dragging. */
   disabled?: boolean;
   className?: string;
+  /** The element that takes the right-click instead of a wrapper (a table row: `<tr />`). */
+  render?: ReactElement;
 }
 
 /** Right-click menu on an area: the same items as Menu (submenus, checks, danger). */
-export function ContextMenu({ children, items, disabled, className }: ContextMenuProps) {
+export function ContextMenu({ children, items, disabled, className, render }: ContextMenuProps) {
   const { portalRef } = useApx();
   return (
     <BaseContextMenu.Root disabled={disabled}>
-      <BaseContextMenu.Trigger className={cx("apx-ctxmenu", className)}>{children}</BaseContextMenu.Trigger>
+      <BaseContextMenu.Trigger {...(render ? { render, className } : { className: cx("apx-ctxmenu", className) })}>
+        {children}
+      </BaseContextMenu.Trigger>
       <BaseContextMenu.Portal container={portalRef}>
         <BaseContextMenu.Positioner>
           <BaseContextMenu.Popup className="apx-menu">

@@ -1,5 +1,5 @@
 import { Button, IconButton, Icons, Input, Popover, SearchField } from "@apx/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listSecrets } from "../data/resources.ts";
 import { useT } from "../i18n/index.ts";
 import { toVarName, VariableDialog } from "./VariablesTab.tsx";
@@ -11,8 +11,8 @@ export const pairsToRecord = (pairs: readonly Pair[]) =>
   Object.fromEntries(pairs.filter((p) => p.key.trim()).map((p) => [p.key.trim(), p.value.trim()]));
 
 /**
- * Key/value rows; a value can be one of the owner's Variables (`secret://NAME`, picked from a list or created on the
- * spot), so a token is never typed into the definition. Environment keys are written as env names (`GITHUB_TOKEN`).
+ * Key/value rows; a value can hold the owner's Variables (`secret://NAME`, picked from a list or created on the spot),
+ * alone or within text, so a secret is never typed into the definition. Environment keys are written as env names.
  */
 export function PairsEditor(props: {
   pairs: Pair[];
@@ -24,7 +24,21 @@ export function PairsEditor(props: {
   const t = useT();
   const { pairs, onChange } = props;
   const rows = pairs.length ? pairs : [{ key: "", value: "" }];
+  const values = useRef<Array<HTMLInputElement | null>>([]);
   const set = (i: number, p: Partial<Pair>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...p } : r)));
+  /** A variable goes where the cursor was in the value (or replaces what was selected), next to any text. */
+  const insert = (i: number, name: string) => {
+    const input = values.current[i];
+    const value = rows[i]?.value ?? "";
+    const from = input?.selectionStart ?? value.length;
+    const to = input?.selectionEnd ?? from;
+    const ref = `secret://${name}`;
+    set(i, { value: value.slice(0, from) + ref + value.slice(to) });
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(from + ref.length, from + ref.length);
+    });
+  };
   return (
     <fieldset className="pairs" aria-label={props.label}>
       {rows.map((r, i) => (
@@ -40,13 +54,16 @@ export function PairsEditor(props: {
             }
           />
           <Input
+            ref={(el) => {
+              values.current[i] = el;
+            }}
             aria-label={t("res.pairValue")}
-            className={`pairs__value resd__monoinput${r.value.startsWith("secret://") ? " is-var" : ""}`}
+            className={`pairs__value${/^secret:\/\/[\w.-]+$/.test(r.value) ? " is-var" : ""}`}
             value={r.value}
             placeholder={t("res.pairValueHint")}
             onChange={(e) => set(i, { value: e.currentTarget.value })}
           />
-          <VarPicker onPick={(name) => set(i, { value: `secret://${name}` })} />
+          <VarPicker onPick={(name) => insert(i, name)} />
           <IconButton
             size="sm"
             label={t("res.pairRemove")}

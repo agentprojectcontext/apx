@@ -28,7 +28,7 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await open(page);
   await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
   await page.getByRole("radio", { name: /^MCP/ }).click();
-  await page.getByRole("button", { name: "MCP", exact: true }).click();
+  await page.getByRole("button", { name: "MCP", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Nuevo servidor MCP" });
   await dialog.getByRole("textbox", { name: "Nombre" }).fill("northwind");
   await dialog.getByRole("textbox", { name: "Comando" }).fill("npx -y @acme/mcp-server");
@@ -44,11 +44,13 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await create.getByRole("button", { name: "Guardar" }).click();
   await expect(dialog.getByRole("textbox", { name: "Valor" })).toHaveValue("secret://NORTHWIND_TOKEN");
 
+  // A variable goes where the cursor is, next to text.
   await dialog.getByRole("button", { name: "Agregar fila" }).click();
-  await dialog.getByRole("textbox", { name: "Clave" }).nth(1).fill("REGION");
+  await dialog.getByRole("textbox", { name: "Clave" }).nth(1).fill("AUTH_HEADER");
+  await dialog.getByRole("textbox", { name: "Valor" }).nth(1).fill("Bearer ");
   await dialog.getByRole("button", { name: "Usar una variable" }).nth(1).click();
   await page.getByRole("option", { name: "NORTHWIND_API" }).click();
-  await expect(dialog.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveValue("secret://NORTHWIND_API");
+  await expect(dialog.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveValue("Bearer secret://NORTHWIND_API");
 
   await dialog.getByRole("button", { name: "Crear" }).click();
   await expect(dialog).toBeHidden();
@@ -56,15 +58,27 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   const servers = (
     await rpc<{ servers: Array<{ name: string; vars: Array<{ name: string; set: boolean }> }> }>("mcp.list")
   ).servers;
-  const northwind = servers.find((s) => s.name === "northwind");
-  expect(northwind?.vars).toEqual(
+  expect(servers.find((s) => s.name === "northwind")?.vars).toEqual(
     expect.arrayContaining([
       { name: "NORTHWIND_TOKEN", set: true },
       { name: "NORTHWIND_API", set: true },
     ]),
   );
   expect(JSON.stringify(servers)).not.toContain("nw-mcp-secret");
-  await rpc("mcp.set", { name: "northwind", server: null });
+
+  // Right-click: edit it as it is defined, then remove it.
+  const row = page.getByRole("button", { name: /^northwind/ });
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Editar" }).click();
+  const edit = page.getByRole("dialog", { name: "Editar northwind" });
+  await expect(edit.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveValue("Bearer secret://NORTHWIND_API");
+  await edit.getByRole("button", { name: "Cancelar" }).click();
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Quitar" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Quitar" }).click();
+  await expect
+    .poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.map((s) => s.name))
+    .not.toContain("northwind");
 });
 
 test("integrations: GitHub is connected with a token, then disconnected", async ({ page }) => {

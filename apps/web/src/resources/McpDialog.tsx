@@ -1,3 +1,4 @@
+import type { McpServerStatus } from "@apx/protocol";
 import { Button, Dialog, Input, SegmentedControl } from "@apx/ui";
 import { useState } from "react";
 import { type McpDraft, setMcp } from "../data/resources.ts";
@@ -11,17 +12,27 @@ export function splitCommand(line: string): string[] {
   return [...line.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((m) => m[1] ?? m[2] ?? m[3] ?? "");
 }
 
+/** A command line from its parts: an argument with spaces goes back in quotes. */
+const joinCommand = (parts: string[]) => parts.map((p) => (/\s/.test(p) ? `"${p}"` : p)).join(" ");
+const toPairs = (r: Record<string, string> | undefined): Pair[] =>
+  Object.entries(r ?? {}).map(([key, value]) => ({ key, value }));
+
 /**
- * Adds one of the owner's MCP servers: a command it starts (stdio) or a URL (http). Secrets go in as `secret://NAME`
- * references to Variables, never as values in the definition.
+ * Adds one of the owner's MCP servers, or changes one (`server`): a command it starts (stdio) or a URL (http). Secrets
+ * go in as `secret://NAME` references to Variables, never as values in the definition.
  */
-export function McpDialog(props: { onClose(): void; onSaved(name: string): void }) {
+export function McpDialog(props: {
+  server?: McpServerStatus | undefined;
+  onClose(): void;
+  onSaved(name: string): void;
+}) {
   const t = useT();
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState("command");
-  const [command, setCommand] = useState("");
-  const [url, setUrl] = useState("");
-  const [pairs, setPairs] = useState<Pair[]>([]);
+  const def = props.server?.definition;
+  const [name, setName] = useState(props.server?.name ?? "");
+  const [kind, setKind] = useState(def?.url ? "url" : "command");
+  const [command, setCommand] = useState(def?.command ? joinCommand([def.command, ...def.args]) : "");
+  const [url, setUrl] = useState(def?.url ?? "");
+  const [pairs, setPairs] = useState<Pair[]>(toPairs(def?.url ? def.headers : def?.env));
   const [busy, setBusy] = useState(false);
   const parts = splitCommand(command);
   const valid = NAME.test(name) && (kind === "command" ? parts.length > 0 : /^https?:\/\/.+/.test(url));
@@ -30,6 +41,8 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
     const extra = pairsToRecord(pairs);
     const server: McpDraft =
       kind === "command" ? { command: parts[0] ?? "", args: parts.slice(1), env: extra } : { url, headers: extra };
+    // An edit keeps whether it was turned off.
+    if (props.server && !props.server.enabled) server.enabled = false;
     const r = await setMcp(name, server);
     setBusy(false);
     if (r) props.onSaved(name);
@@ -39,15 +52,15 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
       open
       size="lg"
       onOpenChange={(o) => !o && props.onClose()}
-      title={t("res.newMcp")}
-      description={t("res.newMcp.lead")}
+      title={props.server ? t("res.editMcp", { name: props.server.name }) : t("res.newMcp")}
+      description={props.server ? undefined : t("res.newMcp.lead")}
       footer={
         <>
           <Button variant="secondary" onClick={props.onClose}>
             {t("common.cancel")}
           </Button>
           <Button disabled={!valid} loading={busy} onClick={() => void save()}>
-            {t("res.create")}
+            {props.server ? t("common.save") : t("res.create")}
           </Button>
         </>
       }
@@ -58,6 +71,7 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
           <Input
             aria-label={t("res.mcpName")}
             value={name}
+            disabled={Boolean(props.server)}
             placeholder="github"
             onChange={(e) => setName(e.currentTarget.value)}
           />
@@ -102,7 +116,6 @@ export function McpDialog(props: { onClose(): void; onSaved(name: string): void 
             pairs={pairs}
             onChange={setPairs}
           />
-          <span className="pform__hint">{t("res.pairsHint")}</span>
         </div>
       </div>
     </Dialog>

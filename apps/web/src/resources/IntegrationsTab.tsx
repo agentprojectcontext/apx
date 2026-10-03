@@ -2,6 +2,7 @@ import type { Result } from "@apx/protocol";
 import {
   Badge,
   Button,
+  ContextMenu,
   Dialog,
   EmptyState,
   Field,
@@ -117,6 +118,44 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
     );
 
   const current = connected.find((i) => i.id === picked) ?? connected[0];
+  const disconnect = async (id: string) => {
+    try {
+      await client.call("integrations.disconnect", { id });
+      await load();
+    } catch (e) {
+      notify(t("error.change", { error: errText(e) }));
+    }
+  };
+  const dialog = adding && list && (
+    <ConnectDialog
+      list={list}
+      onClose={() => setAdding(false)}
+      onConnected={async (id) => {
+        setAdding(false);
+        await load();
+        setPicked(id);
+      }}
+    />
+  );
+  // Nothing connected yet: the invitation alone, no empty list beside it.
+  if (list && !list.some((i) => i.connected))
+    return (
+      <div className="resvars">
+        <EmptyState
+          variant="dashed"
+          icon={<Icons.Plug />}
+          title={t("int.emptyTitle")}
+          action={
+            <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
+              {t("int.connectNew")}
+            </Button>
+          }
+        >
+          {t("int.emptyBody")}
+        </EmptyState>
+        {dialog}
+      </div>
+    );
   return (
     <>
       <MasterDetail
@@ -128,15 +167,28 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
           <>
             <div className="int__listhead">{t("int.connected")}</div>
             {connected.map((i) => (
-              <PickRow
+              <ContextMenu
                 key={i.id}
-                title={i.label}
-                description={where(i, projects.length, t)}
-                leading={<Tile i={i} />}
-                dot="on"
-                selected={current?.id === i.id}
-                onClick={() => setPicked(i.id)}
-              />
+                items={[
+                  { label: t("res.open"), icon: <Icons.PanelRight size={14} />, onSelect: () => setPicked(i.id) },
+                  { type: "separator" },
+                  {
+                    label: t("int.disconnect"),
+                    icon: <Icons.Unplug size={14} />,
+                    danger: true,
+                    onSelect: () => void disconnect(i.id),
+                  },
+                ]}
+              >
+                <PickRow
+                  title={i.label}
+                  description={where(i, projects.length, t)}
+                  leading={<Tile i={i} />}
+                  dot="on"
+                  selected={current?.id === i.id}
+                  onClick={() => setPicked(i.id)}
+                />
+              </ContextMenu>
             ))}
             <Button
               size="sm"
@@ -158,17 +210,7 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
           </EmptyState>
         }
       />
-      {adding && list && (
-        <ConnectDialog
-          list={list}
-          onClose={() => setAdding(false)}
-          onConnected={async (id) => {
-            setAdding(false);
-            await load();
-            setPicked(id);
-          }}
-        />
-      )}
+      {dialog}
     </>
   );
 }

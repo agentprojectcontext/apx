@@ -1,7 +1,7 @@
-import { Button, Dialog, EmptyState, Icons, Input, MasterDetail, PickRow, Tag, Textarea } from "@apx/ui";
+import { Button, ContextMenu, Dialog, EmptyState, Icons, Input, MasterDetail, PickRow, Tag, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { type SkillInfo, saveSkill } from "../data/resources.ts";
+import { type SkillInfo, saveSkill, toggleSkill } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { sourceTag } from "./labels.ts";
@@ -16,6 +16,8 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
   const t = useT();
   const projects = useData((s) => s.projects);
   const [picked, setPicked] = useState<string>();
+  /** Opened from "Edit" in the list's menu: the detail starts on its source (a new number remounts it). */
+  const [editing, setEditing] = useState(0);
   const all = res.data.skills;
   const shown = (all ?? []).filter(
     (s) =>
@@ -40,21 +42,68 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
   const inherit = useInheritance(projectId, "skills", res.loadSkills);
   const row = (s: SkillInfo) => {
     const tag = sourceTag(s, t);
+    const open = (edit: boolean) => {
+      setPicked(keyOf(s));
+      setEditing(edit ? Date.now() : 0);
+    };
     return (
-      <PickRow
+      <ContextMenu
         key={keyOf(s)}
-        mono
-        title={s.name}
-        description={s.description || t("res.noDescription")}
-        trailing={tag && <Tag>{tag}</Tag>}
-        dot={s.on ? "on" : "off"}
-        muted={!s.on}
-        selected={keyOf(s) === picked}
-        onClick={() => setPicked(keyOf(s))}
-      />
+        items={[
+          { label: t("res.open"), icon: <Icons.PanelRight size={14} />, onSelect: () => open(false) },
+          ...(s.editable
+            ? [{ label: t("res.edit"), icon: <Icons.Pencil size={14} />, onSelect: () => open(true) }]
+            : []),
+          {
+            label: s.on ? t("res.turnOff") : t("res.turnOn"),
+            icon: <Icons.Power size={14} />,
+            disabled: Boolean(projectId) && s.off_everywhere,
+            onSelect: () => void toggleSkill(s.name, !s.on, projectId ?? s.project_id).then(() => res.loadSkills()),
+          },
+        ]}
+      >
+        <PickRow
+          mono
+          title={s.name}
+          description={s.description || t("res.noDescription")}
+          trailing={tag && <Tag>{tag}</Tag>}
+          dot={s.on ? "on" : "off"}
+          muted={!s.on}
+          selected={keyOf(s) === picked}
+          onClick={() => open(false)}
+        />
+      </ContextMenu>
     );
   };
 
+  const newSkill = adding && (
+    <NewSkill
+      projectId={projectId}
+      onClose={() => setAdding(false)}
+      onCreated={async (s) => {
+        setAdding(false);
+        await res.loadSkills();
+        setPicked(keyOf(s));
+      }}
+    />
+  );
+  // None at all yet: the invitation alone, no empty list beside it.
+  if (all && !all.length && !projectId)
+    return (
+      <div className="resvars">
+        <EmptyState
+          variant="dashed"
+          icon={<Icons.Sparkles />}
+          title={t("res.noSkills")}
+          action={
+            <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setAdding(true)}>
+              {t("res.add.skill")}
+            </Button>
+          }
+        />
+        {newSkill}
+      </div>
+    );
   return (
     <>
       <MasterDetail
@@ -92,9 +141,10 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
         detail={
           current && (
             <SkillDetail
-              key={keyOf(current)}
+              key={`${keyOf(current)}:${editing}`}
               skill={current}
               projectId={projectId}
+              editing={editing > 0}
               onChanged={async (next) => {
                 await res.loadSkills();
                 if (next) setPicked(keyOf(next));
@@ -108,17 +158,7 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
           </EmptyState>
         }
       />
-      {adding && (
-        <NewSkill
-          projectId={projectId}
-          onClose={() => setAdding(false)}
-          onCreated={async (s) => {
-            setAdding(false);
-            await res.loadSkills();
-            setPicked(keyOf(s));
-          }}
-        />
-      )}
+      {newSkill}
     </>
   );
 }

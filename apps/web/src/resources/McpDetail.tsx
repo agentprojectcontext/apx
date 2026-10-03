@@ -1,8 +1,8 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Badge, Button, Dialog, Icons, Switch, Tag } from "@apx/ui";
+import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { listMcp, setMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { listMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -18,16 +18,22 @@ export function McpDetail({
   server: s,
   projectId,
   onChanged,
+  onEdit,
+  onRemove,
+  testRequest = 0,
 }: {
   server: McpServerStatus;
   projectId: string | undefined;
   onChanged(): Promise<void> | void;
+  onEdit(): void;
+  onRemove(): void;
+  /** Bumped by "Test" in the list's menu: the test runs here, where its result shows. */
+  testRequest?: number;
 }) {
   const t = useT();
   const projects = useData((st) => st.projects);
   const [test, setTest] = useState<TestResult>();
   const [testing, setTesting] = useState(false);
-  const [removing, setRemoving] = useState(false);
   const inherited = Boolean(projectId) && s.scope === "global";
   const tools = test?.tools.length ? test.tools : s.tool_names;
   const run = async () => {
@@ -37,6 +43,10 @@ export function McpDetail({
     if (r) setTest(r);
     await onChanged();
   };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new request from the menu runs it
+  useEffect(() => {
+    if (testRequest) void run();
+  }, [testRequest]);
 
   return (
     <article className="resd">
@@ -94,7 +104,7 @@ export function McpDetail({
               title={v.set ? t("res.varSet") : t("res.varMissing")}
               onClick={() => go.resourcesTab("variables")}
             >
-              {`\${var.${v.name}}`}
+              {v.name}
             </button>
           ))}
         </div>
@@ -135,39 +145,19 @@ export function McpDetail({
             {t("mcp.revoke")}
           </Button>
         )}
-        {s.scope === "global" && !projectId && (
-          <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={() => setRemoving(true)}>
+        {s.definition && (
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
+            {t("res.edit")}
+          </Button>
+        )}
+        {s.definition && !projectId && (
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={onRemove}>
             {t("res.remove")}
           </Button>
         )}
       </div>
 
       {!projectId && s.scope === "global" && <AvailableIn server={s.name} onChanged={onChanged} />}
-      {removing && (
-        <Dialog
-          open
-          onOpenChange={(o) => !o && setRemoving(false)}
-          title={t("res.mcpRemoveTitle", { name: s.name })}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setRemoving(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  setRemoving(false);
-                  void setMcp(s.name, null).then(() => onChanged());
-                }}
-              >
-                {t("res.remove")}
-              </Button>
-            </>
-          }
-        >
-          <p className="resd__note">{t("res.mcpRemoveBody")}</p>
-        </Dialog>
-      )}
     </article>
   );
 }

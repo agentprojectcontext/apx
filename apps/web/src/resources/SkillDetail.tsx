@@ -17,17 +17,20 @@ export function SkillDetail({
   skill,
   projectId,
   onChanged,
+  editing = false,
 }: {
   skill: SkillInfo;
   projectId: string | undefined;
   onChanged(next?: SkillInfo): Promise<void> | void;
+  /** Opened from "Edit": its SKILL.md source first. */
+  editing?: boolean;
 }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const agents = useData((s) => s.agents);
   const [content, setContent] = useState<string>();
   const [draft, setDraft] = useState<string>();
-  const [mode, setMode] = useState("view");
+  const [mode, setMode] = useState(editing ? "source" : "view");
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const context = projectId ?? skill.project_id;
