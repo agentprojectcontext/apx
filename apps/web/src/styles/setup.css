@@ -156,14 +156,6 @@
   align-items: center;
   text-align: center;
 }
-.wiz__welcome .wiz__body {
-  max-width: 600px;
-}
-.wiz__welcome .wiz__choices {
-  width: 100%;
-  max-width: 720px;
-  text-align: left;
-}
 .wiz__pill {
   display: inline-flex;
   gap: 6px;
@@ -244,6 +236,14 @@
   align-items: center;
   font-size: 15px;
   font-weight: 600;
+}
+.wiz__welcome .wiz__body {
+  max-width: 600px;
+}
+.wiz__welcome .wiz__choices {
+  width: 100%;
+  max-width: 720px;
+  text-align: left;
 }
 .wiz__choicebody {
   color: var(--apx-fg-muted);
