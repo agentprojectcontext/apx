@@ -60,6 +60,14 @@ are written in Spanish, as the owner uses the panel. WhatsApp is emulated inside
 with `--import e2e/baileys-hook.ts`, which resolves the library to an in-memory phone (`e2e/fake-baileys.ts`, driven
 through `world.whatsapp`), so the real adapter runs with no test path in the product.
 
+## 5a'. Mobile
+```bash
+cd apps/mobile && npm install && npm run typecheck && npm test
+npx expo export --platform android     # Metro bundles the app: proof it resolves, without a device
+```
+It installs outside the pnpm workspace (React Native never weighs on the rest). On a device: pair it from
+Config › Devices with the core listening on the network (`APX_HOST=0.0.0.0` and `APX_TOKEN`, or Tailscale).
+
 ## 5b. Lightness
 ```bash
 pnpm perf                          # builds the panel, then scripts/perf.ts

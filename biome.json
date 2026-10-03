@@ -13,7 +13,8 @@
       "!packages/ui/playground",
       "!plan",
       "!**/*.html",
-      "!packages/ui/.design-sync"
+      "!packages/ui/.design-sync",
+      "!apps/mobile/package-lock.json"
     ]
   },
   "formatter": {

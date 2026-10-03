@@ -31,6 +31,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
+      - name: Mobile (its own install; types and pairing logic)
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund && npm run typecheck && npm test
       - name: Browser for the end-to-end run
         run: pnpm exec playwright install --with-deps chromium
       - name: End to end (Playwright, sandboxed core)

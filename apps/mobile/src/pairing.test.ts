@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { firstReachable, parsePairingLink } from "./pairing.ts";
+
+test("the QR's link gives the code and the addresses; anything else is not a pairing", () => {
+  assert.deepEqual(
+    parsePairingLink("apx://pair?c=ABCD2345&u=http%3A%2F%2F192.168.1.20%3A7440&u=http%3A%2F%2F100.64.0.3%3A7440"),
+    { code: "ABCD2345", urls: ["http://192.168.1.20:7440", "http://100.64.0.3:7440"] },
+  );
+  assert.equal(parsePairingLink("https://example.com/?c=ABCD2345"), undefined);
+  assert.equal(parsePairingLink("apx://pair?u=http%3A%2F%2F10.0.0.2%3A7440"), undefined);
+  assert.deepEqual(parsePairingLink("apx://pair?c=X&u=javascript:alert(1)"), { code: "X", urls: [] });
+});
+
+test("the first address that answers wins; none answering gives none", async () => {
+  const up = new Set(["http://100.64.0.3:7440"]);
+  const probe = async (u: string) => up.has(u);
+  assert.equal(
+    await firstReachable(["http://192.168.1.20:7440", "http://100.64.0.3:7440"], probe),
+    "http://100.64.0.3:7440",
+  );
+  assert.equal(await firstReachable(["http://192.168.1.20:7440"], probe), undefined);
+});

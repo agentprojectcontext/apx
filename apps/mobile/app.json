@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "APX",
+    "slug": "apx",
+    "scheme": "apx",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "../desktop/assets/icon.png",
+    "ios": { "bundleIdentifier": "dev.apx.mobile", "supportsTablet": true },
+    "android": { "package": "dev.apx.mobile" },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer." }],
+      "expo-secure-store"
+    ]
+  }
+}
