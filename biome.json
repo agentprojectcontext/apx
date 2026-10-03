@@ -43,7 +43,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/terminal/**", "scripts/**", "**/scripts/**"],
+      "includes": ["apps/terminal/**", "scripts/**", "**/scripts/**", "e2e/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

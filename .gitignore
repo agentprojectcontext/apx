@@ -25,3 +25,8 @@ ds-bundle/
 .design-sync/learnings/
 .design-sync/node_modules
 playground/out/
+
+# e2e runs
+test-results/
+playwright-report/
+e2e/.out/

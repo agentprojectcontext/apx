@@ -1,0 +1,76 @@
+# Every push to main, every release tag and every pull request: the repo gates (preflight), the whole app end to end
+# in its own sandbox (Playwright against e2e/env.ts: temp home, fake model, emulated Telegram) and the lightness
+# budgets (scripts/perf.ts). Reports are kept as artifacts.
+name: verify
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APX_SECRETS: file
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Preflight (private terms, schema, lint, typecheck, unit tests)
+        run: pnpm preflight
+      - name: Browser for the end-to-end run
+        run: pnpm exec playwright install --with-deps chromium
+      - name: End to end (Playwright, sandboxed core)
+        run: pnpm e2e
+      - name: Lightness budgets
+        run: node --no-warnings scripts/perf.ts
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-reports
+          path: |
+            playwright-report/
+            test-results/
+            e2e/.out/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Optional: when verify fails on main, an agent reads the reports and opens a pull request with a fix. Off until the
+  # repo sets the variable APX_AUTOFIX=true and the secret ANTHROPIC_API_KEY (see rules/TESTING.md#ci).
+  autofix:
+    needs: verify
+    if: failure() && github.ref == 'refs/heads/main' && vars.APX_AUTOFIX == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: verify-reports
+          path: .verify-reports
+        continue-on-error: true
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The verify workflow failed on main for commit ${{ github.sha }}. Reports are in .verify-reports/
+            (Playwright report, failed-test snapshots under test-results/, perf numbers in e2e/.out/perf.json).
+            Follow AGENTS.md. Find the cause, fix the code (never weaken a test, a budget or a gate), run
+            `pnpm verify`, and open a pull request against main with a conventional-commit title.
