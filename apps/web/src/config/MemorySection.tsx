@@ -8,7 +8,7 @@ import { ModelRefPicker } from "./models/ModelPickers.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 
-type State = MemorySettings & { indexed: number; total: number };
+type State = MemorySettings & { indexed: number; total: number; embedder?: string | undefined };
 
 const MODES: MemorySettings["mode"][] = ["notes", "semantic", "off"];
 
@@ -33,7 +33,7 @@ export function MemorySection() {
 
   const save = async (patch: Partial<MemorySettings>) => {
     if (!s) return;
-    const { indexed: _i, total: _t, ...current } = s;
+    const { indexed: _i, total: _t, embedder: _e, ...current } = s;
     try {
       await client.call("memory.set_settings", { ...current, ...patch });
       await load();
@@ -91,6 +91,22 @@ export function MemorySection() {
       )}
 
       {s.mode !== "off" && <SearchTest />}
+
+      <SubHead>{t("mem.skills")}</SubHead>
+      <SettingRow
+        title={t("mem.skillPicker")}
+        description={`${t("mem.skillPickerHint")} ${
+          s.embedder ? t("mem.skillPickerEngine", { engine: s.embedder }) : t("mem.skillPickerNoEngine")
+        }`}
+      >
+        <Switch
+          size="sm"
+          checked={s.skill_picker}
+          onCheckedChange={(on) => void save({ skill_picker: on })}
+          label={t("mem.skillPicker")}
+        />
+      </SettingRow>
+      {s.skill_picker && !s.embedder && s.mode !== "semantic" && <ServicesSection kind="embedding" embedded />}
 
       <SubHead>{t("mem.longChats")}</SubHead>
       <SettingRow title={t("mem.autoCompact")} description={t("mem.autoCompactHint")}>

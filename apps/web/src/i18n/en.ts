@@ -865,6 +865,12 @@ export const en = {
   "mem.testPlaceholder": "Write it the way you would ask an agent",
   "mem.search": "Search",
   "mem.longChats": "Long chats",
+  "mem.skills": "Skills",
+  "mem.skillPicker": "Pick skills by meaning",
+  "mem.skillPickerHint":
+    "Each message is compared with your skills, and the ones that fit go into the agent's context. They show as chips over the answer.",
+  "mem.skillPickerEngine": "Uses {engine}.",
+  "mem.skillPickerNoEngine": "Needs an embedding engine: add one below.",
   "mem.autoCompact": "Summarize long chats",
   "mem.autoCompactHint": "When a chat gets long, its older turns become a summary; the newest stay word for word.",
   "mem.aux": "Helper model",

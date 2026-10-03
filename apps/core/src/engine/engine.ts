@@ -19,6 +19,7 @@ import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { recoverInterrupted } from "./recovery.ts";
+import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
 export const RUN_DEADLINE_MS = 6 * 60_000;
@@ -75,6 +76,8 @@ export function createEngine(deps: {
   /** The port this core listens on (known once the server listens): commands reaching it are APX's own door. */
   apxPort: () => number;
   memory: MemoryIndex;
+  /** Skills picked by meaning for each turn. */
+  skills?: SkillPicker;
   /** Extension points (a plugin's context for owner turns). */
   hooks?: Hooks;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */

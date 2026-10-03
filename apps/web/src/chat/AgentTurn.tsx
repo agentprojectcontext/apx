@@ -9,14 +9,16 @@ import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { InputPart } from "./parts/InputPart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { SurfacePart } from "./parts/SurfacePart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
+type SkillsPick = Extract<Part, { type: "skills" }>;
 
 /**
- * One agent message, in the design's order: tool calls folded into one group, sub-agent cards, the text,
+ * One agent message, in the design's order: the skills picked for it, tool calls folded into one group, sub-agent cards, the text,
  * then the rest of the cards (browser, widgets, images). The meta line closes the turn.
  */
 export function AgentTurn({
@@ -37,7 +39,11 @@ export function AgentTurn({
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
   const subs = message.parts.filter((p) => p.type === "subthread");
   const texts = message.parts.filter((p) => p.type === "text" && p.text.trim());
-  const rest = message.parts.filter((p) => p.type !== "text" && p.type !== "tool" && p.type !== "subthread");
+  const rest = message.parts.filter(
+    (p) => p.type !== "text" && p.type !== "tool" && p.type !== "subthread" && p.type !== "skills",
+  );
+  const skills = message.parts.find((p): p is SkillsPick => p.type === "skills");
+  const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   const blocks: { key: string; part: Part }[] = [
     ...subs.map((p, i) => ({ key: cardKey(p, i), part: p })),
     ...texts.map((p, i) => ({ key: `x:${i}`, part: p })),
@@ -52,6 +58,7 @@ export function AgentTurn({
 
   return (
     <div className="turn">
+      {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {blocks.map(({ key, part }, i) => (
         <Message

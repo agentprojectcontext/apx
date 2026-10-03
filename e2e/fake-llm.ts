@@ -1,5 +1,6 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
-// ("Got it: <the last line you wrote>"). Streams like a real one when asked; never calls tools.
+// ("Got it: <the last line you wrote>"). Streams like a real one when asked; never calls tools. It also embeds texts
+// (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -21,6 +22,12 @@ function lastWords(messages: Message[]): string {
   return (lines.at(-1) ?? "").slice(0, 160);
 }
 
+/** Embeddings, Ollama-style: pictures point one way, anything else (each a bit apart) another. */
+function vectorOf(text: string): number[] {
+  if (/image|imagen|picture|dibujo/i.test(text)) return [1, 0, 0, 0.2];
+  return [0.05 * (text.length % 5), 0.05 * (text.length % 3), 1, 0];
+}
+
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
   const server = http.createServer((req, res) => {
@@ -32,6 +39,12 @@ export async function fakeLlm() {
       if (req.url?.endsWith("/models")) {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ data: [{ id: "fake-1", object: "model" }] }));
+      }
+      if (req.url === "/api/tags" || req.url === "/api/embed") {
+        res.writeHead(200, { "content-type": "application/json" });
+        if (req.url === "/api/tags") return res.end(JSON.stringify({ models: [] }));
+        const { input } = JSON.parse(raw) as { input: string[] };
+        return res.end(JSON.stringify({ embeddings: input.map(vectorOf) }));
       }
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const said = lastWords(body.messages ?? []);

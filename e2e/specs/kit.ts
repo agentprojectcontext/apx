@@ -23,7 +23,14 @@ export async function rpc<T = Record<string, unknown>>(method: string, params: u
 /** The emulated outside: where things are, a Telegram user writing, what the bot sent. */
 export const world = {
   info: async () =>
-    (await (await fetch(`${control}/info`)).json()) as { dir: string; repo: string; token: string; core: string },
+    (await (await fetch(`${control}/info`)).json()) as {
+      dir: string;
+      repo: string;
+      token: string;
+      core: string;
+      /** The fake model's server, which also embeds (Ollama-style). */
+      llm: string;
+    },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },

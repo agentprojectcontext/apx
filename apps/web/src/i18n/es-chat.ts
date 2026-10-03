@@ -47,4 +47,11 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.state.completed": "Lista",
   "usage.state.failed": "Falló",
   "usage.state.canceled": "Cancelada",
+  "skills.trace.title": "Skills elegidas por significado para este mensaje ({engine})",
+  "skills.trace.loaded": "Cargada: su texto completo entró en el contexto de este turno",
+  "skills.trace.hinted": "Sugerida: entró solo su nombre y descripción; el agente la carga si la necesita",
+  "skills.trace.considered": "Considerada: se parecía al mensaje pero no alcanzó para entrar",
+  "skills.trace.sim": "Similitud {sim}",
+  "skills.trace.noDescription": "Sin descripción.",
+  "skills.trace.open": "Abrir skill",
 };

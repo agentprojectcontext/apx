@@ -482,7 +482,12 @@ export const appMethods = {
   },
   "memory.settings": {
     params: z.object({}).strict(),
-    result: MemorySettings.extend({ indexed: z.number().int(), total: z.number().int() }),
+    result: MemorySettings.extend({
+      indexed: z.number().int(),
+      total: z.number().int(),
+      /** The embedding engine and model in use, when one is set up. */
+      embedder: z.string().optional(),
+    }),
     effect: false,
     access: "human",
   },

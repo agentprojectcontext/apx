@@ -30,7 +30,8 @@ export function memoryHandlers(store: Store, index: MemoryIndex) {
     },
     "memory.settings": () => {
       const s = memorySettings(store);
-      return { ...s, ...store.memories.counts(index.model()) };
+      const embedder = index.engine();
+      return { ...s, ...store.memories.counts(index.model()), ...(embedder ? { embedder } : {}) };
     },
     "memory.set_settings": (s) => {
       const saved = saveMemorySettings(store, s);

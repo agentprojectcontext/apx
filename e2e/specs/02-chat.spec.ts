@@ -28,3 +28,42 @@ test("a new chat starts empty and keeps its own conversation", async ({ page }) 
   await expect(page.getByRole("main").locator("p", { hasText: "Got it: Second chat" })).toBeVisible();
   expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBeGreaterThan(count);
 });
+
+test("a message picks its skills by meaning: chips over the answer, a card per skill, a link to it", async ({
+  page,
+}) => {
+  const { llm } = await world.info();
+  await rpc("services.set", {
+    id: "e2e-embed",
+    service: {
+      kind: "embedding",
+      dialect: "ollama-embed",
+      label: "Ollama",
+      base_url: llm,
+      enabled: true,
+      needs_key: false,
+      model: "embeddinggemma",
+    },
+  });
+  await rpc("skills.save", {
+    name: "image-gen",
+    target: "global",
+    content: "---\nname: image-gen\ndescription: Generate an image from a prompt.\n---\nCall the images service.\n",
+  });
+  try {
+    await open(page);
+    const box = page.getByRole("textbox", { name: /^Escribile a/ });
+    await box.fill("creame una imagen de un gato");
+    await box.press("Enter");
+    await expect(page.getByText("Got it: creame una imagen de un gato")).toBeVisible();
+    const chip = page.getByRole("button", { name: "image-gen", exact: true });
+    await expect(chip).toBeVisible();
+    await chip.click();
+    await expect(page.getByText(/^Cargada: su texto completo/)).toBeVisible();
+    await expect(page.getByText("Generate an image from a prompt.").last()).toBeVisible();
+    await page.getByRole("button", { name: "Abrir skill" }).click();
+    await expect(page.getByText("Call the images service.")).toBeVisible();
+  } finally {
+    await rpc("services.set", { id: "e2e-embed", service: null });
+  }
+});

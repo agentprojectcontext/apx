@@ -3,7 +3,7 @@
 import { type MemorySettings, MemorySettings as Schema } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
-const DEFAULTS: MemorySettings = { mode: "notes", auto_compact: true };
+const DEFAULTS: MemorySettings = { mode: "notes", skill_picker: true, auto_compact: true };
 
 export function memorySettings(store: Store): MemorySettings {
   const saved = store.settings.read("memory");

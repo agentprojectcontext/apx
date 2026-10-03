@@ -59,6 +59,8 @@ export function createMemoryIndex(deps: { store: Store; services: Services; log:
     /** The engine and model notes are indexed with now (none when search by meaning is off or has no engine). */
     model: (): string | undefined =>
       memorySettings(store).mode === "semantic" ? services.embeddingModel() : undefined,
+    /** The embedding engine set up, whatever memory's mode. */
+    engine: (): string | undefined => services.embeddingModel(),
     /** Indexes what is missing; callers share the run in progress. */
     index,
     /** In the background after a note changes; a failure is only logged. */

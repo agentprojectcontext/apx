@@ -275,3 +275,16 @@ agent see who waits by request code, channel and number only (never the name or 
 stays trusted), and `answer_contact_request` lets someone in only through `pairing.respond` as the owner, after the
 owner approves that call; ignoring needs no approval.
 
+
+<a id="d-028"></a>
+## D-028 — 2026-10-03 — Each message picks its skills by meaning, ranked against each skill's own floor
+The catalog in the system prompt names skills; models still skip them and answer that they cannot do what a skill
+covers. So, with an embedding engine set up (and `skill_picker` on, the default), each owner-side message is compared
+with every skill's description: the clear winner goes into that turn's input whole, up to two more by name, and the
+chat shows the pick as chips (loaded, suggested, and near misses "considered") from a `skills` part. Raw similarity is
+not comparable across skills (a chatty description scores high against anything), so each skill is ranked by how far
+it stands above its similarity to a fixed set of subject-less prompts, in units of its own spread (v1's measure,
+ported with its bars: load 3.0, hint 2.2, margin 0.4, raw floor 0.30). The pick goes in the input, never the system
+prompt, which stays byte-stable; the catalog stays too, so a slow or missing engine (4 s budget) only loses the pick.
+Vectors are kept in memory per engine and description and computed at start and on the first message after a skill
+changes. Contacts' turns and engine sessions get no pick, as they get no catalog.

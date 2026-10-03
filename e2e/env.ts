@@ -67,7 +67,13 @@ const control = http.createServer((req, res) => {
     };
     const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>;
     if (req.url === "/info")
-      return json(200, { dir, repo: fx.repo, token: E2E.telegramToken, core: `http://127.0.0.1:${E2E.port}` });
+      return json(200, {
+        dir,
+        repo: fx.repo,
+        token: E2E.telegramToken,
+        core: `http://127.0.0.1:${E2E.port}`,
+        llm: llm.url.replace(/\/v1$/, ""),
+      });
     if (req.url === "/tg/message" && req.method === "POST") {
       tg.message(body.from as { id: number; name: string }, String(body.text ?? ""));
       return json(200, { ok: true });

@@ -861,6 +861,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mem.testPlaceholder": "Escribila como se la preguntarías a un agente",
   "mem.search": "Buscar",
   "mem.longChats": "Chats largos",
+  "mem.skills": "Skills",
+  "mem.skillPicker": "Elegir skills por significado",
+  "mem.skillPickerHint":
+    "En cada mensaje se compara lo que escribís con tus skills, y las que encajan entran al contexto del agente. Se ven como chips sobre la respuesta.",
+  "mem.skillPickerEngine": "Usa {engine}.",
+  "mem.skillPickerNoEngine": "Necesita un motor de embeddings: agregá uno acá abajo.",
   "mem.autoCompact": "Resumir los chats largos",
   "mem.autoCompactHint":
     "Cuando un chat se alarga, los turnos viejos pasan a un resumen; los últimos quedan textuales.",

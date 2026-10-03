@@ -203,3 +203,89 @@
 .surfaceframe--fill .surfaceframe__iframe {
   height: 100%;
 }
+
+/* The skills picked by meaning for a turn: small chips over the answer, beside the avatar's column. */
+.turn__skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-left: 2px;
+  font-size: 11px;
+  color: var(--apx-info);
+}
+.turn__skillsicon {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+}
+.skillchip {
+  font: inherit;
+  font-family: var(--apx-font-mono);
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--apx-radius-sm);
+  padding: 1px 5px;
+  cursor: pointer;
+}
+.skillchip.is-loaded {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.skillchip.is-hinted {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  opacity: 0.8;
+}
+.skillchip.is-considered {
+  border: 1px dashed color-mix(in srgb, currentColor 30%, transparent);
+  opacity: 0.6;
+}
+.skillchip:hover,
+.skillchip:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+.skillcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skillcard__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.skillcard__name {
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.skillcard__why {
+  margin: 0;
+  font-size: 11px;
+  color: var(--apx-fg-muted);
+}
+.skillcard__desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.skillcard__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--apx-info);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.skillcard__open:hover {
+  text-decoration: underline;
+}

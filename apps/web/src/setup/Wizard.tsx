@@ -117,6 +117,7 @@ export function Wizard() {
         const now = await client.call("memory.settings", {});
         await client.call("memory.set_settings", {
           mode: d.memory,
+          skill_picker: now.skill_picker,
           auto_compact: d.compact,
           ...(now.aux_model ? { aux_model: now.aux_model } : {}),
         });

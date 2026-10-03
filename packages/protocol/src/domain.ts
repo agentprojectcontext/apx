@@ -278,6 +278,17 @@ const KnownPart = z.discriminatedUnion("type", [
     state: InputState,
     answer: z.string().optional(),
   }),
+  /**
+   * The skills picked by meaning for this turn: given whole (`loaded`), named (`hinted`), and the closest ones weighed
+   * (`scored`, with their raw similarity), so the chat can show what went in and what nearly did.
+   */
+  z.object({
+    type: z.literal("skills"),
+    engine: z.string(),
+    loaded: z.array(z.string()),
+    hinted: z.array(z.string()),
+    scored: z.array(z.object({ name: z.string(), sim: z.number() })),
+  }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
   z.object({
     type: z.literal("notice"),
@@ -592,6 +603,8 @@ export type ServiceInfo = z.infer<typeof ServiceInfo>;
  */
 export const MemorySettings = z.object({
   mode: z.enum(["notes", "semantic", "off"]),
+  /** Each message picks the skills it calls for by meaning (needs an embedding engine). */
+  skill_picker: z.boolean().default(true),
   /** Summarize long chats' older turns automatically. */
   auto_compact: z.boolean(),
   /** The auxiliary model for titles and summaries: a model ref, "off", or none (the agent's own API models). */

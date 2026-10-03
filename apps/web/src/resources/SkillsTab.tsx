@@ -1,9 +1,10 @@
 import { Button, ContextMenu, Dialog, EmptyState, Icons, Input, MasterDetail, PickRow, Tag, Textarea } from "@apx/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { type SkillInfo, saveSkill, toggleSkill } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { nav, useNav } from "../shell/nav.ts";
 import { sourceTag } from "./labels.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
@@ -19,6 +20,15 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
   /** Opened from "Edit" in the list's menu: the detail starts on its source (a new number remounts it). */
   const [editing, setEditing] = useState(0);
   const all = res.data.skills;
+  // "Open skill" from a chip in the chat: that skill is picked once the list is here.
+  const focus = useNav((s) => s.focus);
+  useEffect(() => {
+    if (!focus?.startsWith("skill:") || !all) return;
+    const name = focus.slice("skill:".length);
+    const s = all.find((x) => x.name === name && x.project_id === projectId) ?? all.find((x) => x.name === name);
+    if (s) setPicked(keyOf(s));
+    nav.set({ focus: undefined });
+  }, [focus, all, projectId]);
   const shown = (all ?? []).filter(
     (s) =>
       (!query || `${s.name} ${s.description}`.toLowerCase().includes(query)) &&

@@ -37,6 +37,7 @@ import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
+import type { SkillPicker } from "./skill-pick.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
 
@@ -65,6 +66,8 @@ export type TurnDeps = {
   apxPort: () => number;
   /** Notes by words and by meaning. */
   memory: MemoryIndex;
+  /** Skills picked by meaning for this message. */
+  skills?: SkillPicker | undefined;
   hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Owner text steered into this turn since the last call. */
@@ -136,7 +139,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   } catch (err) {
     return end(failRun(deps, { run, turn, display, signal, err }));
   }
-  const { history, input, skills, policy, tools } = prepared;
+  const { history, input, skills, picked, policy, tools } = prepared;
+  if (picked) display.upsert((p) => p.type === "skills", picked.part);
   let harness: HarnessId = "native";
   const exec = createExecutor({
     store,
@@ -238,9 +242,13 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
   const roster = rosterBlock(agent, store.agents.list(), thread);
   const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
+  const available = sealed ? [] : agentSkills(agent, skillsFor(store, deps.home, thread.project_id));
+  // Weighed while notes are recalled: both wait on the embedding engine.
+  const picking = deps.skills?.pick(turn.input.text, available);
   const recalled = remembers
     ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
     : {};
+  const picked = await picking;
   // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.
   const o = turn.input.origin;
   const ownerTurn =
@@ -276,6 +284,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           now: new Date(),
           roster: rosterChanged ? roster.text : undefined,
           memory: recalled.text,
+          skills: picked?.block || undefined,
           task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
           extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
           waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
@@ -287,8 +296,8 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
       ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
       ...(recalled.shown ? recalled.shown(at) : {}),
     });
-  const skills = sealed ? "" : skillCatalog(agentSkills(agent, skillsFor(store, deps.home, thread.project_id)));
-  return { history, input, skills };
+  const skills = sealed ? "" : skillCatalog(available);
+  return { history, input, skills, picked };
 }
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */

@@ -99,6 +99,8 @@ export function turnInput(opts: {
   now: Date;
   roster?: string | undefined;
   memory?: string | undefined;
+  /** The skills this message called for (see skill-pick.ts). */
+  skills?: string | undefined;
   /** In a task's conversation: the task as it is now. */
   task?: string | undefined;
   /** What an extension's plugin adds, already framed as outside data. */
@@ -111,6 +113,7 @@ export function turnInput(opts: {
     `[context: ${when} · channel: app]`,
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
+    opts.skills ? `[skills matched for this message]\n${opts.skills}` : "",
     opts.task ? `[task]\n${opts.task}` : "",
     opts.extension ? `[extension context]\n${opts.extension}` : "",
     opts.waiting ? `[waiting]\n${opts.waiting}` : "",

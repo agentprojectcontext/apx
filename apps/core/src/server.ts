@@ -19,6 +19,7 @@ import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
+import { createSkillPicker } from "./engine/skill-pick.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
@@ -44,6 +45,7 @@ import {
 } from "./server-wiring.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { skillsFor } from "./skills/skills.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
 
@@ -135,6 +137,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
   const memory = createMemoryIndex({ store, services, log });
+  const skills = createSkillPicker({ store, services, log });
   const attention = createAttention({ store, bus, ...(opts.clock ? { now: opts.clock } : {}) });
   const channels = createChannels({
     store,
@@ -160,6 +163,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     home: config.home,
     apxPort: () => listening,
     memory,
+    skills,
     hooks,
     mcpTools: mcp.toolsFor,
     afterRun: (run) => {
@@ -228,6 +232,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   await channels.start();
   scheduler.start();
   updates.start();
+  // The owner's skills get their vectors now, so the first message does not wait for them.
+  skills.warm(skillsFor(store, config.home, undefined));
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {
