@@ -1,6 +1,7 @@
 // The desktop app itself (Electron), against the same sandboxed core as the panel's specs: its window shows the
 // panel, it lends its embedded browser to the core as a node, a tab an agent opens shows in the panel, and the
-// menu-bar quick chat talks to the super-agent. Its data folder is a temp HOME: the owner's APX is never touched.
+// menu-bar quick chat talks to the super-agent. Its data folder is a temp one (APX_DESKTOP_DATA; on a Mac the system
+// ignores HOME for it): the owner's APX, its sessions and its single-instance lock are never touched.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -25,6 +26,7 @@ test.beforeAll(async () => {
       ...process.env,
       HOME: home,
       XDG_CONFIG_HOME: path.join(home, ".config"),
+      APX_DESKTOP_DATA: path.join(home, "desktop"),
       APX_URL: core,
       // No dev server: the window falls back to the panel the core serves.
       APX_WEB_URL: "http://127.0.0.1:9",
@@ -68,11 +70,30 @@ test("the app lends its browser to the core, and a tab opened through the core i
   await rpc("browser.close", { tab });
 });
 
-test("the quick chat talks to the super-agent", async () => {
+test("the quick chat opens from Window ▸ Quick chat and talks to the super-agent", async () => {
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("quick")?.click());
   const quick = await page("quick");
   const box = quick.getByRole("textbox").first();
   await expect(box).toBeVisible();
   await box.fill("Desde la barra de menú");
   await box.press("Enter");
   await expect(quick.getByText("Got it: Desde la barra de menú")).toBeVisible();
+});
+
+test("closing the window hides it: APX keeps running, and Dock/activate brings it back", async () => {
+  // The main window is the only one that is not a BrowserWindow (the quick chat is).
+  const mainShown = () =>
+    app.evaluate(({ BaseWindow, BrowserWindow }) =>
+      BaseWindow.getAllWindows()
+        .filter((w) => !(w instanceof BrowserWindow))
+        .map((w) => w.isVisible()),
+    );
+  await app.evaluate(({ BaseWindow, BrowserWindow }) =>
+    BaseWindow.getAllWindows()
+      .find((w) => !(w instanceof BrowserWindow))
+      ?.close(),
+  );
+  expect(await mainShown()).toEqual([false]);
+  await app.evaluate(({ app }) => app.emit("activate"));
+  expect(await mainShown()).toEqual([true]);
 });

@@ -3,7 +3,7 @@
 // panel reload never kills tabs.
 import fs from "node:fs";
 import path from "node:path";
-import { app, BaseWindow, dialog, ipcMain, Notification, WebContentsView } from "electron";
+import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
@@ -18,8 +18,9 @@ type Bounds = { x: number; y: number; width: number; height: number };
 const MEMORY_LIMIT_MB = 4096;
 
 // The app is APX (menus, notifications, About), keeping the data folder it always had (its browser sessions and
-// imported cookies live there).
-app.setPath("userData", path.join(app.getPath("appData"), "@apx", "desktop"));
+// imported cookies live there). APX_DESKTOP_DATA gives a copy its own (a test run): its own sessions and its own
+// single-instance lock, so it never meets the owner's running APX.
+app.setPath("userData", process.env.APX_DESKTOP_DATA ?? path.join(app.getPath("appData"), "@apx", "desktop"));
 app.setName("APX");
 
 // One APX at a time: opening it again brings the running one forward.
@@ -123,6 +124,8 @@ app.whenReady().then(() => {
     openMain,
   });
 
+  Menu.setApplicationMenu(appMenu(() => quick.toggle(false)));
+
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
     quick.hide();
@@ -209,3 +212,25 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => app.quit());
+
+/** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
+function appMenu(openQuick: () => void): Menu {
+  const es = app.getLocale().startsWith("es");
+  return Menu.buildFromTemplate([
+    ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+    { role: "fileMenu" },
+    { role: "editMenu" },
+    { role: "viewMenu" },
+    {
+      label: es ? "Ventana" : "Window",
+      role: "windowMenu",
+      submenu: [
+        { id: "quick", label: es ? "Chat rápido" : "Quick chat", click: openQuick },
+        { type: "separator" },
+        { role: "minimize" },
+        { role: "zoom" },
+        { role: "close" },
+      ],
+    },
+  ]);
+}

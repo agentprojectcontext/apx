@@ -48,7 +48,8 @@ E2E_KEEP=1 node e2e/env.ts         # the sandbox by hand (core :7460, control :7
 E2E_CHROMIUM=/path/to/chrome pnpm e2e   # a Chromium other than the one Playwright pins (container, distro build)
 pnpm e2e:desktop                   # the Electron app (e2e/desktop) against the same sandbox; Linux: xvfb-run -a …
 ```
-The desktop specs launch the real app with a temp `HOME` (its data folder never touches the owner's), the panel
+The desktop specs launch the real app with a temp `HOME` and `APX_DESKTOP_DATA` (its data folder, sessions and
+single-instance lock never touch the owner's running APX; macOS ignores `HOME` for that folder), the panel
 served by the sandbox's core, and check the window, the browser it lends to the core as a node, and the quick chat.
 `e2e/env.ts` is a whole APX apart from the owner's: a temp home and port, `APX_SECRETS=file`, a fake
 OpenAI-compatible model (`e2e/fake-llm.ts`, answers "Got it: <what you wrote>"), an emulated Telegram Bot API

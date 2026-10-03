@@ -124,6 +124,8 @@ export function createQuick(opts: {
     hide(): void {
       win?.hide();
     },
+    /** Opens it (centered under the top of the screen) or hides it when it is in front. */
+    toggle,
     /** How many things wait for the owner, next to the menu-bar icon and on the Dock. */
     badge(unread: number): void {
       const text = unread > 0 ? String(Math.min(unread, 99)) : "";
