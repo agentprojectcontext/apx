@@ -12,7 +12,6 @@ export const LAYOUT = {
   listMinW: 240,
   listMaxW: 520,
   /** A folded chat list leaves this strip to open it again. */
-  listFoldedW: 32,
   listW: 320,
   listWNarrow: 280,
   panelW: 420,
@@ -62,7 +61,7 @@ export function computeLayout(
   panelOpen: boolean,
   chatShown: boolean,
   transcript: keyof typeof LAYOUT.transcriptW = "medium",
-  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number; listCollapsed?: boolean } = {},
+  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number } = {},
 ): Layout {
   const rail = Boolean(own.sidebarCollapsed) || width < BREAKPOINTS.sidebarFull;
   const compact = width < BREAKPOINTS.compact;
@@ -78,13 +77,11 @@ export function computeLayout(
     ? width - sidebarW
     : hideList
       ? 0
-      : own.listCollapsed
-        ? LAYOUT.listFoldedW
-        : own.listW
-          ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW)
-          : width >= BREAKPOINTS.listWide
-            ? LAYOUT.listW
-            : LAYOUT.listWNarrow;
+      : own.listW
+        ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW)
+        : width >= BREAKPOINTS.listWide
+          ? LAYOUT.listW
+          : LAYOUT.listWNarrow;
   const panelW = compact ? width - sidebarW : narrow ? LAYOUT.panelWNarrow : LAYOUT.panelW;
   const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
   return {

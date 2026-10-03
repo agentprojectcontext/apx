@@ -1,11 +1,13 @@
-import { ChannelIcon, type MenuEntry, ProjectTile } from "@apx/ui";
+import { ChannelIcon, type MenuEntry } from "@apx/ui";
 import type { T } from "../i18n/index.ts";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, type ChannelKind } from "./kinds.ts";
 
-/** A channel kind's tile: its official mark on a neutral tile. */
+/** A channel kind's mark where a tile goes: the app's own logo, full, with no frame around it. */
 export function KindTile({ kind, size = 20 }: { kind: ChannelKind; size?: number }) {
   return (
-    <ProjectTile tone="neutral" icon={<ChannelIcon channel={kind} size={Math.round(size * 0.68)} />} size={size} />
+    <span className="kindtile" style={{ width: size, height: size }}>
+      <ChannelIcon channel={kind} size={Math.round(size * 0.9)} />
+    </span>
   );
 }
 

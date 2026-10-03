@@ -22,7 +22,6 @@ export type Prefs = {
   sidebarW: number;
   sidebarCollapsed: boolean;
   listW: number;
-  listCollapsed: boolean;
 };
 
 export type InboxView = "tree" | "activity" | "chats";
@@ -40,7 +39,6 @@ const DEFAULTS: Prefs = {
   sidebarW: 0,
   sidebarCollapsed: false,
   listW: 0,
-  listCollapsed: false,
 };
 
 function load(): Prefs {
@@ -58,7 +56,6 @@ function load(): Prefs {
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,
-      listCollapsed: raw.listCollapsed === true,
     };
   } catch {
     return DEFAULTS;

@@ -97,6 +97,7 @@ export function ChatHeader({
         <IconButton
           size="sm"
           label={tools ? t("chat.hideTools") : t("chat.showTools")}
+          tooltip={t("chat.toolsHint")}
           icon={<Icons.Wrench size={14} />}
           className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
           onClick={go.toggleTools}

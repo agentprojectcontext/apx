@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cx } from "../cx";
+import { Tooltip } from "./Tooltip";
 
 export interface NavItemProps {
   label: ReactNode;
@@ -59,15 +60,8 @@ export function NavItem({
       {collapsed && count != null && count > 0 && <span className="apx-nav__dot" aria-hidden="true" />}
     </>
   );
-  return href ? (
-    <a
-      className={cls}
-      href={href}
-      aria-current={active ? "page" : undefined}
-      aria-label={name}
-      title={name}
-      onClick={onClick}
-    >
+  const el = href ? (
+    <a className={cls} href={href} aria-current={active ? "page" : undefined} aria-label={name} onClick={onClick}>
       {inner}
     </a>
   ) : (
@@ -76,11 +70,18 @@ export function NavItem({
       className={cls}
       aria-current={active ? "page" : undefined}
       aria-label={name}
-      title={name}
       disabled={disabled}
       onClick={onClick}
     >
       {inner}
     </button>
+  );
+  // In the rail only the icon shows: its name comes up beside it.
+  return name ? (
+    <Tooltip content={name} side="right">
+      {el}
+    </Tooltip>
+  ) : (
+    el
   );
 }

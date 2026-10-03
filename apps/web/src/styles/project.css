@@ -13,12 +13,6 @@
   flex: none;
   min-height: 0;
 }
-.listcol.is-folded {
-  justify-content: center;
-  width: 32px;
-  padding-top: 10px;
-  border-right: 1px solid var(--apx-border);
-}
 .apx-resize.listcol__resize {
   right: -4px;
 }

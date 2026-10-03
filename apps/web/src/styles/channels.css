@@ -1,3 +1,9 @@
+/* A channel's logo where a tile goes: same box, no frame. */
+.kindtile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
 /* A channel with its contacts: list · chat · contact card. */
 .chan {
   display: grid;

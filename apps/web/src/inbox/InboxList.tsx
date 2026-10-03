@@ -4,7 +4,6 @@ import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } fr
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { FoldList } from "../shell/ListColumn.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
@@ -56,7 +55,6 @@ export function InboxList() {
       <div className="inbox__head">
         <div className="inbox__titlerow">
           <h1 className="inbox__title">{title}</h1>
-          <FoldList />
           <NewChatMenu
             projectId={projectId}
             trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}

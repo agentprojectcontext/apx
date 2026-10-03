@@ -16,6 +16,7 @@ export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skip
             key={p.id}
             size="sm"
             label={t(p.label)}
+            tooltip={t(p.hint)}
             icon={p.icon(14)}
             className={panel === p.id ? "panelswitch__btn is-on" : "panelswitch__btn"}
             onClick={() => go.togglePanel(p.id)}

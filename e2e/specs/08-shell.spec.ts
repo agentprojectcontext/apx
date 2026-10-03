@@ -1,13 +1,12 @@
-// The frame: the sidebar and the list fold and come back, the list is resized from the keyboard, the language switches
-// with no key left untranslated, and Settings opens every section.
+// The frame: the list is resized (never folded away), icon buttons say what they do, the language switches with no key
+// left untranslated, and Settings opens every section.
 import { expect, open, test } from "./kit.ts";
 
-test("the sidebar and the chat list fold and unfold", async ({ page }) => {
+test("the chat list resizes from its edge and never folds away; an icon button says what it does", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Plegar la lista" }).click();
-  await expect(page.getByRole("searchbox").first()).toBeHidden();
-  await page.getByRole("button", { name: /Desplegar la lista|Mostrar la lista/ }).click();
-  await expect(page.getByRole("searchbox").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Plegar la lista" })).toHaveCount(0);
+  await page.getByRole("button", { name: /herramientas/ }).hover();
+  await expect(page.getByText(/cada paso del agente/)).toBeVisible();
 
   const handle = page.getByRole("separator", { name: "Cambiar el ancho de la lista" });
   const before = await handle.getAttribute("aria-valuenow");

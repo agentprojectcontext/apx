@@ -1,5 +1,5 @@
 import type { ChannelInfo, EngineStatus } from "@apx/protocol";
-import { EngineIcon, Icons, Menu, NavItem, ProjectTile, ResizeHandle, SectionLabel } from "@apx/ui";
+import { EngineIcon, engineBrand, Icons, Menu, NavItem, ProjectTile, ResizeHandle, SectionLabel } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { addChannelItems, KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KIND_IDS, CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
@@ -116,7 +116,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
             <NavItem
               key={e.id}
               collapsed={rail}
-              icon={<EngineIcon engine={e.id} tile size={20} />}
+              icon={<SessionIcon engine={e.id} />}
               label={e.label}
               trailing={<EngineState engine={e} />}
               active={view === "engine" && engineId === e.id}
@@ -180,4 +180,20 @@ function EngineState({ engine }: { engine: EngineStatus | undefined }) {
   if (!engine) return null;
   if (engine.installed && engine.logged_in) return <span className="sidebar__running" title={t("engine.loggedIn")} />;
   return <span className="sidebar__soon">{engine.installed ? t("engine.noSession") : t("engine.install")}</span>;
+}
+
+/**
+ * An engine's logo in the list: Claude Code and Codex (and the other model makers) as their own round app icons; a
+ * coding agent's one-colour mark bare, with no tile around it.
+ */
+function SessionIcon({ engine }: { engine: string }) {
+  const brand = engineBrand(engine);
+  const app = brand === "claude" || brand === "codex" || brand === "gemini" || brand === "openai" || brand === "ollama";
+  return app ? (
+    <EngineIcon engine={engine} tile size={20} />
+  ) : (
+    <span className="kindtile" style={{ width: 20, height: 20 }}>
+      <EngineIcon engine={engine} size={17} />
+    </span>
+  );
 }
