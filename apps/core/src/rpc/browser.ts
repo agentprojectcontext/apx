@@ -19,5 +19,11 @@ export function browserHandlers(broker: NodeBroker) {
     (method: BrowserMethod): Handler<BrowserMethod> =>
     (params) =>
       broker.invoke(BROWSER_CAP, method, params, deadlineFor(method, params)) as never;
-  return Object.fromEntries(BROWSER_METHODS.map((m) => [m, forward(m)])) as { [M in BrowserMethod]: Handler<M> };
+  const handlers = Object.fromEntries(BROWSER_METHODS.map((m) => [m, forward(m)])) as {
+    [M in BrowserMethod]: Handler<M>;
+  };
+  // With no desktop app there are no tabs: an empty list, not an error the panel would log on every load.
+  const tabs = handlers["browser.tabs"];
+  handlers["browser.tabs"] = (params, ctx) => (broker.withCap(BROWSER_CAP) ? tabs(params, ctx) : { tabs: [] });
+  return handlers;
 }

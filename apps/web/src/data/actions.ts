@@ -319,6 +319,9 @@ export async function setAgentBrowserProfile(
 
 export async function cookieSources() {
   try {
+    // Only the desktop app reads the browsers: without it the section says so, with no call bound to fail.
+    const health = await client.call("system.health", {});
+    if (health.subsystems.browser?.status === "off") return [];
     return (await client.call("browser.cookie_sources", {})).sources;
   } catch (e) {
     notify(t("browser.import.needsDesktop", { error: errText(e) }));

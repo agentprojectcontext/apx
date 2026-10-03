@@ -18,9 +18,10 @@ after(async () => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test("browser.* fails fast with `unavailable` when no node offers the capability", async () => {
+test("browser.* fails fast with `unavailable` when no node offers the capability; listing tabs is just empty", async () => {
   const client = new ApxClient({ url: core.url });
-  const err = await client.call("browser.tabs", {}).catch((e: unknown) => e);
+  assert.deepEqual(await client.call("browser.tabs", {}), { tabs: [] });
+  const err = await client.call("browser.open", { url: "https://example.com" }).catch((e: unknown) => e);
   assert.ok(err instanceof ApxError);
   assert.equal(err.code, "unavailable");
   const h = await client.call("system.health", {});
