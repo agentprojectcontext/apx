@@ -27,8 +27,8 @@ export type HarnessId = z.infer<typeof HarnessId>;
  */
 export const ModelRef = z
   .string()
-  // An ACP agent's engine id carries its prefix: "acp:opencode/<model>".
-  .regex(/^(acp:)?[a-z0-9][a-z0-9._-]*(\/.+)?$/i)
+  // An ACP agent's engine id carries its prefix: "acp:opencode/<model>"; "#high" asks for that reasoning effort.
+  .regex(/^(acp:)?[a-z0-9][a-z0-9._-]*(\/[^#]+)?(#[a-z0-9-]+)?$/i)
   .max(200);
 export type ModelRef = z.infer<typeof ModelRef>;
 
@@ -68,7 +68,15 @@ export const CatalogEngine = z.object({
   available: z.boolean(),
   detail: z.string().optional(),
   models: z.array(
-    z.object({ id: z.string(), name: z.string(), description: z.string().optional(), chat: z.boolean() }),
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string().optional(),
+      chat: z.boolean(),
+      /** The reasoning efforts it takes ("low", "high"…), and the one it uses when none is asked for. */
+      efforts: z.array(z.string()).optional(),
+      default_effort: z.string().optional(),
+    }),
   ),
   fetched_at: z.string().optional(),
 });

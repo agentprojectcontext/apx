@@ -58,6 +58,7 @@ export function ModelRefPicker(props: {
           setOpen(false);
           props.onChange(ref);
         }}
+        onEffort={props.onChange}
       />
     </Popover>
   );
@@ -116,7 +117,11 @@ export function ModelChoicePicker(props: {
           onPick={() => pick(null)}
         />
         <div className="mchoice__label">{t("models.ownModel")}</div>
-        <ModelList value={own} onPick={(model) => pick({ model, router: true })} />
+        <ModelList
+          value={own}
+          onPick={(model) => pick({ model, router: true })}
+          onEffort={(model) => props.onChange({ model, router: value?.router ?? true })}
+        />
       </div>
     </Popover>
   );

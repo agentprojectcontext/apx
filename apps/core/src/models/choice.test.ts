@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { RouterConfig } from "@apx/protocol";
+import { harnessOf, parseRef } from "../domain/refs.ts";
 import { candidates, type TurnFeatures } from "./choice.ts";
 
 const f = (over: Partial<TurnFeatures> = {}): TurnFeatures => ({
@@ -45,4 +46,11 @@ test("the router alone: first matching rule wins, conditions all hold, no repeat
     "claude",
     "gemini/flash",
   ]);
+});
+
+test("a ref may ask for a reasoning effort at its end, the engine alone too", () => {
+  assert.deepEqual(parseRef("codex/gpt-6-sol#high"), { engine: "codex", model: "gpt-6-sol", effort: "high" });
+  assert.deepEqual(parseRef("claude#max"), { engine: "claude", effort: "max" });
+  assert.deepEqual(parseRef("gemini/gemini-3.6-flash"), { engine: "gemini", model: "gemini-3.6-flash" });
+  assert.equal(harnessOf("codex/gpt-6-sol#high"), "codex");
 });

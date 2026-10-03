@@ -25,6 +25,7 @@ import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { Draft, StepProps } from "./draft.ts";
+import { RefSelect } from "../config/models/RefSelect.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 type Engine = {
@@ -106,14 +107,7 @@ export function EnginesStep({ draft: d, set }: StepProps) {
           <div key={ref} className="wiz__link">
             <span className="wiz__linkn">#{i + 1}</span>
             <EngineIcon engine={splitRef(ref).engine} size={14} />
-            <Select
-              size="sm"
-              className="wiz__linkmodel"
-              label={t("setup.engines.model")}
-              value={ref}
-              options={modelOptions(ref, catalog, (engine) => t("models.engineDefault", { engine }))}
-              onValueChange={(v) => v && v !== ref && replace(i, v)}
-            />
+            <RefSelect value={ref} onChange={(v) => v !== ref && replace(i, v)} />
             {i === 0 && <Badge tone="brand">{t("setup.engines.default")}</Badge>}
             <span className="wiz__spacer" />
             <IconButton
@@ -134,24 +128,6 @@ export function EnginesStep({ draft: d, set }: StepProps) {
       </div>
     </>
   );
-}
-
-/** The models one chain entry can be: its engine's own default, then each chat model the engine offers. */
-function modelOptions(
-  ref: string,
-  catalog: readonly CatalogEngine[],
-  ownDefault: (engine: string) => string,
-): SelectOption[] {
-  const { engine } = splitRef(ref);
-  const e = catalog.find((x) => x.id === engine);
-  const options: SelectOption[] = [
-    { value: engine, label: ownDefault(e?.label ?? engine) },
-    ...(e?.models ?? [])
-      .filter((m) => m.chat)
-      .map((m) => ({ value: `${engine}/${m.id}`, label: m.name, ...(m.name !== m.id ? { hint: m.id } : {}) })),
-  ];
-  // A model the catalog does not list (yet) stays choosable as it is.
-  return options.some((o) => o.value === ref) ? options : [...options, { value: ref, label: ref }];
 }
 
 function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; onToggle(on: boolean): void }) {

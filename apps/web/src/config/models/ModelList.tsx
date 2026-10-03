@@ -1,8 +1,9 @@
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
 import { Badge, Checkbox, Icons, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { refLabel, useModels } from "../../data/models.ts";
+import { baseRef, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
+import { EffortRow } from "./RefSelect.tsx";
 
 type Group = { engine: CatalogEngine; showDefault: boolean; models: CatalogEngine["models"] };
 
@@ -21,13 +22,25 @@ export function filterCatalog(catalog: readonly CatalogEngine[], q: string, all:
 }
 
 /** Searchable catalog grouped by engine. An engine alone picks that engine's own default model. */
-export function ModelList({ value, onPick }: { value?: ModelRef; onPick: (ref: ModelRef) => void }) {
+export function ModelList({
+  value,
+  onPick,
+  onEffort,
+}: {
+  value?: ModelRef;
+  onPick: (ref: ModelRef) => void;
+  /** Changes the picked model's effort (the list stays open); without it, no effort row. */
+  onEffort?: (ref: ModelRef) => void;
+}) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
   const load = useModels((s) => s.catalogLoad);
   const [q, setQ] = useState("");
   const [all, setAll] = useState(false);
   const groups = useMemo(() => filterCatalog(catalog, q, all), [catalog, q, all]);
+  const picked = value ? baseRef(value) : undefined;
+  /** Picking the same model again keeps the effort it had. */
+  const sameModel = (ref: ModelRef) => (picked === ref && value ? splitRef(value).effort : undefined);
 
   return (
     <div className="mlist">
@@ -55,7 +68,12 @@ export function ModelList({ value, onPick }: { value?: ModelRef; onPick: (ref: M
               )}
             </div>
             {showDefault && (
-              <Option selected={value === e.id} name={refLabel(e.id, catalog)} sub={e.id} onPick={() => onPick(e.id)} />
+              <Option
+                selected={picked === e.id}
+                name={refLabel(e.id, catalog)}
+                sub={e.id}
+                onPick={() => onPick(withEffort(e.id, sameModel(e.id)))}
+              />
             )}
             {models.map((m) => {
               const ref = `${e.id}/${m.id}`;
@@ -63,17 +81,18 @@ export function ModelList({ value, onPick }: { value?: ModelRef; onPick: (ref: M
                 <Option
                   // Engines may list one model under two names ("Default", "Opus …").
                   key={`${m.id}:${m.name}`}
-                  selected={value === ref}
+                  selected={picked === ref}
                   name={m.name}
                   sub={ref}
                   muted={!m.chat}
-                  onPick={() => onPick(ref)}
+                  onPick={() => onPick(withEffort(ref, sameModel(ref)))}
                 />
               );
             })}
           </div>
         ))}
       </div>
+      {value && onEffort && <EffortRow value={value} onChange={onEffort} />}
       <Checkbox checked={all} onCheckedChange={setAll} label={t("models.showAll")} />
     </div>
   );

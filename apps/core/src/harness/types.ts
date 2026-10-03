@@ -69,6 +69,8 @@ export type Harness = { id: HarnessId; run(io: TurnIO): Promise<TurnOutcome> };
 
 /** The model part of a ref for a harness that takes one ("claude/claude-opus-5-5" → "claude-opus-5-5"). */
 export const modelPart = (ref: string | undefined): string | undefined => (ref ? parseRef(ref).model : undefined);
+/** The reasoning effort a ref asks for ("codex/gpt-6-sol#high" → "high"). */
+export const effortPart = (ref: string | undefined): string | undefined => (ref ? parseRef(ref).effort : undefined);
 
 /**
  * For an engine with no system-prompt option (Codex, ACP agents): a fresh session gets APX's instructions at the

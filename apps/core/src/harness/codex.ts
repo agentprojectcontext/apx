@@ -1,8 +1,8 @@
 // Codex as a harness: the owner's own `codex` (their ChatGPT login). APX tools reach it through a per-run MCP
 // proxy (`apx2 mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
-import { Codex } from "@openai/codex-sdk";
+import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { harnessEnv } from "./env.ts";
-import { type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "./types.ts";
+import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "./types.ts";
 
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
 
@@ -17,6 +17,7 @@ export function codexHarness(opts: {
     async run(io: TurnIO): Promise<TurnOutcome> {
       const codexPath = await opts.codexPath();
       const chosen = modelPart(io.models[0]);
+      const effort = effortPart(io.models[0]);
       const gate = opts.gate(io);
       try {
         const codex = new Codex({
@@ -33,6 +34,7 @@ export function codexHarness(opts: {
           sandboxMode: writes ? ("workspace-write" as const) : ("read-only" as const),
           approvalPolicy: "never" as const,
           ...(chosen ? { model: chosen } : {}),
+          ...(effort ? { modelReasoningEffort: effort as ModelReasoningEffort } : {}),
         };
         const thread = io.sessionId
           ? codex.resumeThread(io.sessionId, threadOptions)

@@ -3,6 +3,7 @@ import { Badge, Button, IconButton, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { inCatalog, refLabel, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
+import { RefSelect } from "./RefSelect.tsx";
 import { ModelRefPicker } from "./ModelPickers.tsx";
 import { cleanWhen, RuleCard } from "./RuleCard.tsx";
 
@@ -99,7 +100,12 @@ export function RouterEditor() {
                     {t("router.default")}
                   </Badge>
                 )}
-                <span className="chain__ref">{refLabel(ref, catalog)}</span>
+                <RefSelect
+                  value={ref}
+                  onChange={(next) =>
+                    !draft.chain.includes(next) && setChain(draft.chain.map((r, j) => (j === i ? next : r)))
+                  }
+                />
                 {catalog.length > 0 && !inCatalog(ref, catalog) && (
                   <span className="chain__warn" title={t("models.notInCatalog")}>
                     <Icons.TriangleAlert size={12} />

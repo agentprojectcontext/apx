@@ -1,10 +1,19 @@
 // Model refs: "<engine>/<model>" ("claude/opus", "gemini/gemini-3.6-flash", "acp:opencode/big-pickle"), or an
-// engine alone when it has a default model of its own. One parser for every place that reads them.
+// engine alone when it has a default model of its own; "#<effort>" at the end asks for that reasoning effort
+// ("codex/gpt-6-sol#high"). One parser for every place that reads them.
 import type { HarnessId } from "@apx/protocol";
 
-export function parseRef(ref: string): { engine: string; model?: string | undefined } {
-  const i = ref.indexOf("/");
-  return i > 0 ? { engine: ref.slice(0, i), model: ref.slice(i + 1) || undefined } : { engine: ref };
+export function parseRef(ref: string): {
+  engine: string;
+  model?: string | undefined;
+  effort?: string | undefined;
+} {
+  const hash = ref.lastIndexOf("#");
+  const effort = hash > 0 ? ref.slice(hash + 1) || undefined : undefined;
+  const base = hash > 0 ? ref.slice(0, hash) : ref;
+  const i = base.indexOf("/");
+  const parts = i > 0 ? { engine: base.slice(0, i), model: base.slice(i + 1) || undefined } : { engine: base };
+  return effort ? { ...parts, effort } : parts;
 }
 
 export const engineOf = (ref: string): string => parseRef(ref).engine;

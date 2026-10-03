@@ -21,7 +21,14 @@ import type { Secrets } from "../secrets.ts";
 const run = promisify(execFile);
 const TTL_MS = 24 * 3600_000;
 
-export type CatalogModel = { id: string; name: string; description?: string; chat: boolean };
+export type CatalogModel = {
+  id: string;
+  name: string;
+  description?: string;
+  chat: boolean;
+  efforts?: string[];
+  default_effort?: string;
+};
 export type CatalogEngine = {
   /** "claude", "codex", or a provider id ("gemini", "anthropic", …). */
   id: string;
@@ -100,6 +107,7 @@ async function claudeModels(): Promise<CatalogModel[]> {
           }
         : {}),
       chat: true,
+      ...(m.supportsEffort && m.supportedEffortLevels?.length ? { efforts: [...m.supportedEffortLevels] } : {}),
     }));
   } finally {
     ac.abort();
@@ -117,6 +125,8 @@ async function codexModels(): Promise<CatalogModel[]> {
       description?: string;
       visibility?: string;
       priority?: number;
+      supported_reasoning_levels?: Array<{ effort?: string }>;
+      default_reasoning_level?: string;
     }>;
   };
   return (body.models ?? [])
@@ -127,6 +137,10 @@ async function codexModels(): Promise<CatalogModel[]> {
       name: m.display_name ?? m.slug,
       ...(m.description ? { description: m.description } : {}),
       chat: true,
+      ...(m.supported_reasoning_levels?.length
+        ? { efforts: m.supported_reasoning_levels.flatMap((l) => (l.effort ? [l.effort] : [])) }
+        : {}),
+      ...(m.default_reasoning_level ? { default_effort: m.default_reasoning_level } : {}),
     }));
 }
 

@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { errorMessage } from "../errors.ts";
 import { harnessEnv } from "./env.ts";
-import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
+import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
 /**
  * Our tool specs are JSON Schema derived from each tool's zod schema; the Agent SDK wants a zod raw shape. Rebuilt
@@ -97,7 +97,14 @@ function toolOptions(io: TurnIO, counts: Counts) {
 /** Runs one query and reads its stream: text as it comes, its own tools as cards, the result at the end. */
 async function attempt(
   io: TurnIO,
-  o: { claudePath: string; cwd: string; chosen: string | undefined; counts: Counts; resume: string | undefined },
+  o: {
+    claudePath: string;
+    cwd: string;
+    chosen: string | undefined;
+    effort: string | undefined;
+    counts: Counts;
+    resume: string | undefined;
+  },
 ): Promise<TurnOutcome> {
   const ac = new AbortController();
   const onAbort = () => ac.abort();
@@ -127,6 +134,7 @@ async function attempt(
         includePartialMessages: true,
         ...(o.resume ? { resume: o.resume } : {}),
         ...(o.chosen ? { model: o.chosen } : {}),
+        ...(o.effort ? { effort: o.effort as "low" | "medium" | "high" | "xhigh" | "max" } : {}),
         env: harnessEnv(),
       },
     });
@@ -174,7 +182,12 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: st
   return {
     id: "claude",
     async run(io: TurnIO): Promise<TurnOutcome> {
-      const base = { claudePath: await opts.claudePath(), cwd: opts.cwd, chosen: modelPart(io.models[0]) };
+      const base = {
+        claudePath: await opts.claudePath(),
+        cwd: opts.cwd,
+        chosen: modelPart(io.models[0]),
+        effort: effortPart(io.models[0]),
+      };
       const counts: Counts = { apx: 0, builtins: 0, permissions: 0 };
       try {
         return await attempt(io, { ...base, counts, resume: io.sessionId });
