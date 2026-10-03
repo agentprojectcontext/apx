@@ -3,6 +3,7 @@
 // dropped by the inbox's unique key.
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
+import { causeCode, NEVER_SENT, sleep } from "./net.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 import {
   type AdapterFactory,
@@ -324,9 +325,6 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   };
 }) satisfies (...args: [...Parameters<AdapterFactory>, string?]) => ChannelAdapter;
 
-/** Connection failures that happen before a request leaves this machine: the message surely did not go out. */
-const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ENETUNREACH", "EHOSTUNREACH"]);
-
 /**
  * Maps a failure to what the outbox should do. `sent` parts of a long reply already went out: a retry continues after
  * them. Anything that may have reached Telegram is uncertain, never resent.
@@ -338,21 +336,7 @@ function toSendError(err: unknown, sent: number): SendError {
     if (err.code >= 500) return new SendError("uncertain", msg);
     return new SendError(sent ? "uncertain" : "fatal", msg);
   }
-  const code = (err as { cause?: { code?: string } } | undefined)?.cause?.code;
+  const code = causeCode(err);
   if (code && NEVER_SENT.has(code)) return new SendError("retry", msg, undefined, sent);
   return new SendError("uncertain", msg);
-}
-
-/** Waits, unless the adapter is stopped first. */
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal.aborted) return resolve();
-    const t = setTimeout(done, ms);
-    function done() {
-      clearTimeout(t);
-      signal.removeEventListener("abort", done);
-      resolve();
-    }
-    signal.addEventListener("abort", done, { once: true });
-  });
 }

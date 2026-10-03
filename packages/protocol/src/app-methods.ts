@@ -7,6 +7,7 @@ import {
   CatalogEngine,
   ChannelInfo,
   ChannelStrangers,
+  ChannelType,
   EngineStatus,
   Id,
   ImageDefaults,
@@ -544,7 +545,7 @@ export const appMethods = {
         id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
         channel: z
           .object({
-            type: z.enum(["telegram", "whatsapp"]),
+            type: ChannelType,
             label: z.string().max(60).optional(),
             enabled: z.boolean().default(true),
             agent_id: Id,

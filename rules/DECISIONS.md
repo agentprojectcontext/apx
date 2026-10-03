@@ -288,3 +288,12 @@ ported with its bars: load 3.0, hint 2.2, margin 0.4, raw floor 0.30). The pick 
 prompt, which stays byte-stable; the catalog stays too, so a slow or missing engine (4 s budget) only loses the pick.
 Vectors are kept in memory per engine and description and computed at start and on the first message after a skill
 changes. Contacts' turns and engine sessions get no pick, as they get no catalog.
+
+<a id="d-029"></a>
+## D-029 — 2026-10-03 — Discord and Slack are bots in direct messages, with no library
+Discord runs on its Gateway (a WebSocket) and REST API; Slack on Socket Mode (a WebSocket the app opens) and the Web
+API: no public URL, no SDK, the platform's own `WebSocket` and `fetch`, like Telegram. Only direct messages reach an
+agent (servers' and workspaces' channels are ignored), so pairing, contacts, the outbox and buttons work as on
+Telegram. A Slack app needs two tokens (the bot's `xoxb-…` to talk, the app's `xapp-…` to open the socket); they are
+stored as one secret ("xoxb-… xapp-…") so a channel keeps one token, as every other. Slack acknowledges an envelope
+only after it is stored; Discord does not redeliver a message sent while the socket was down (a known gap).

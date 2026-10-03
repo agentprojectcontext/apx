@@ -30,10 +30,19 @@ export const world = {
       core: string;
       /** The fake model's server, which also embeds (Ollama-style). */
       llm: string;
+      discord: string;
+      slack: { bot: string; app: string };
     },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },
+  /** Someone writing to the Discord or Slack bot in a direct message, and what the bot sent them. */
+  dm: async (channel: "dc" | "sl", from: { id: string; name: string }, text: string) => {
+    await post(`${control}/${channel}/message`, { from, text });
+  },
+  dmSentTo: async (channel: "dc" | "sl", user: string) =>
+    ((await (await fetch(`${control}/${channel}/sent?user=${user}`)).json()) as { sent: Array<{ text?: string }> })
+      .sent,
   /** The answers Telegram showed as they were written (drafts), to a chat. */
   draftsTo: async (chat: number) =>
     ((await (await fetch(`${control}/tg/drafts?chat=${chat}`)).json()) as { drafts: Array<{ text?: string }> }).drafts,

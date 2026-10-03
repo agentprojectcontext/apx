@@ -6,13 +6,42 @@ import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { type ChannelDraft, loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 
-const CHANNEL_ID = "telegram";
+export type BotKind = "telegram" | "discord" | "slack";
 
-/** Telegram: connect a bot, choose who answers, approve who may write, see what was sent. */
-export function TelegramSection() {
+type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp };
+
+/**
+ * What each bot channel needs: the steps to make the bot, and its token(s). Slack takes two (the bot's and the app's,
+ * for Socket Mode), stored together as one secret.
+ */
+const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSpec[] }> = {
+  telegram: {
+    name: "Telegram",
+    steps: ["tg.step1", "tg.step2", "tg.step3"],
+    // What BotFather hands out: the bot's number, a colon and its secret.
+    tokens: [{ label: "tg.token", placeholder: "123456789:AA…", pattern: /^\d+:[\w-]{20,}$/ }],
+  },
+  discord: {
+    name: "Discord",
+    steps: ["dc.step1", "dc.step2", "dc.step3", "dc.step4"],
+    tokens: [{ label: "tg.token", placeholder: "MTA…", pattern: /^[\w-]{20,}\.[\w-]{4,}\.[\w-]{20,}$/ }],
+  },
+  slack: {
+    name: "Slack",
+    steps: ["sl.step1", "sl.step2", "sl.step3", "sl.step4"],
+    tokens: [
+      { label: "sl.botToken", placeholder: "xoxb-…", pattern: /^xoxb-[\w-]{10,}$/ },
+      { label: "sl.appToken", placeholder: "xapp-…", pattern: /^xapp-[\w-]{10,}$/ },
+    ],
+  },
+};
+
+/** A bot channel (Telegram, Discord, Slack): connect it, choose who answers, approve who may write, see what went out. */
+export function BotSection({ kind }: { kind: BotKind }) {
+  const t = useT();
   const channels = useChannels((s) => s.channels);
   const ready = useChannels((s) => s.ready);
   useEffect(() => {
@@ -20,11 +49,17 @@ export function TelegramSection() {
     const id = setInterval(() => void loadChannels(), 5000);
     return () => clearInterval(id);
   }, []);
-  const channel = channels.find((c) => c.type === "telegram");
+  const channel = channels.find((c) => c.type === kind);
+  const name = BOTS[kind].name;
   return (
     <>
-      {ready && (channel ? <Connected channel={channel} /> : <Setup />)}
-      {channel && <Pairing channelId={channel.id} itsMe />}
+      {ready && (channel ? <Connected channel={channel} kind={kind} /> : <Setup kind={kind} />)}
+      {channel && (
+        <Pairing
+          channelId={channel.id}
+          itsMe={{ title: t("tg.itsMe", { channel: name }), hint: t("tg.itsMeHint", { channel: name }) }}
+        />
+      )}
       {channel && <Notices />}
       {channel && <People channelId={channel.id} />}
       {channel && <Deliveries channelId={channel.id} />}
@@ -32,46 +67,63 @@ export function TelegramSection() {
   );
 }
 
-function Setup() {
+/** The token fields of a kind, as one value ("xoxb-… xapp-…" for Slack) once every field holds a valid token. */
+function useTokens(kind: BotKind) {
+  const specs = BOTS[kind].tokens;
+  const [values, setValues] = useState<string[]>(() => specs.map(() => ""));
+  const ok = specs.every((s, i) => s.pattern.test((values[i] ?? "").trim()));
+  return {
+    specs,
+    values,
+    set: (i: number, v: string) => setValues((cur) => cur.map((x, j) => (j === i ? v : x))),
+    clear: () => setValues(specs.map(() => "")),
+    ok,
+    joined: values.map((v) => v.trim()).join(" "),
+  };
+}
+
+function Setup({ kind }: { kind: BotKind }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const secretary = Object.values(agents).find((a) => a.kind === "secretary");
-  const [token, setToken] = useState("");
+  const tokens = useTokens(kind);
   const [agent, setAgent] = useState(secretary?.id ?? "roby");
   const [busy, setBusy] = useState(false);
   const connect = async () => {
     setBusy(true);
     await saveChannel(
-      CHANNEL_ID,
+      kind,
       { agent_id: agent, enabled: true, strangers: "pair", concurrency: "queue", owner_thread: "home" },
-      token.trim(),
+      tokens.joined,
     );
     setBusy(false);
   };
   return (
     <div className="tgsetup">
       <ol className="tgsetup__steps">
-        <li>{t("tg.step1")}</li>
-        <li>{t("tg.step2")}</li>
-        <li>{t("tg.step3")}</li>
+        {BOTS[kind].steps.map((k) => (
+          <li key={k}>{t(k)}</li>
+        ))}
       </ol>
-      <div className="pform__field">
-        <span className="pform__label">{t("tg.token")}</span>
-        <Input
-          aria-label={t("tg.token")}
-          type="password"
-          autoComplete="off"
-          placeholder="123456789:AA…"
-          value={token}
-          onChange={(e) => setToken(e.currentTarget.value)}
-        />
-        <span className="pform__hint">{t("tg.tokenHint")}</span>
-      </div>
-      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: "Telegram" })}>
+      {tokens.specs.map((spec, i) => (
+        <div className="pform__field" key={spec.label}>
+          <span className="pform__label">{t(spec.label)}</span>
+          <Input
+            aria-label={t(spec.label)}
+            type="password"
+            autoComplete="off"
+            placeholder={spec.placeholder}
+            value={tokens.values[i]}
+            onChange={(e) => tokens.set(i, e.currentTarget.value)}
+          />
+          {i === tokens.specs.length - 1 && <span className="pform__hint">{t("tg.tokenHint")}</span>}
+        </div>
+      ))}
+      <SettingRow title={t("tg.agent")} description={t("tg.agentHint", { channel: BOTS[kind].name })}>
         <AgentSelect size="sm" className="tgagent" value={agent} onChange={(id) => id && setAgent(id)} />
       </SettingRow>
       <div>
-        <Button disabled={!TOKEN.test(token.trim())} loading={busy} onClick={() => void connect()}>
+        <Button disabled={!tokens.ok} loading={busy} onClick={() => void connect()}>
           {t("tg.connect")}
         </Button>
       </div>
@@ -79,51 +131,52 @@ function Setup() {
   );
 }
 
-/** What BotFather hands out: the bot's number, a colon and its secret. */
-const TOKEN = /^\d+:[\w-]{20,}$/;
-
-/** Paste a new bot token: the core stores it and starts the bot again at once. */
+/** Paste new token(s): the core stores them and starts the bot again at once. */
 function TokenField({
   channel,
+  kind,
   onSave,
   onCancel,
 }: {
   channel: ChannelInfo;
+  kind: BotKind;
   onSave(token: string): Promise<boolean>;
   onCancel?(): void;
 }) {
   const t = useT();
-  const [token, setToken] = useState("");
+  const tokens = useTokens(kind);
   const [busy, setBusy] = useState(false);
-  const ok = TOKEN.test(token.trim());
   const save = async () => {
-    if (!ok) return;
+    if (!tokens.ok) return;
     setBusy(true);
-    const done = await onSave(token.trim());
+    const done = await onSave(tokens.joined);
     setBusy(false);
     if (!done) return;
-    setToken("");
+    tokens.clear();
     notify(t("tg.tokenSaved"), "info");
     onCancel?.();
   };
   return (
     <div className="tgtoken">
-      <Input
-        aria-label={t("tg.token")}
-        type="password"
-        autoComplete="off"
-        autoFocus={Boolean(onCancel)}
-        placeholder={channel.token_set ? t("tg.tokenNew") : "123456789:AA…"}
-        value={token}
-        onChange={(e) => setToken(e.currentTarget.value)}
-        onKeyDown={(e) => e.key === "Enter" && void save()}
-      />
+      {tokens.specs.map((spec, i) => (
+        <Input
+          key={spec.label}
+          aria-label={t(spec.label)}
+          type="password"
+          autoComplete="off"
+          autoFocus={Boolean(onCancel) && i === 0}
+          placeholder={channel.token_set ? `${t("tg.tokenNew")} (${spec.placeholder})` : spec.placeholder}
+          value={tokens.values[i]}
+          onChange={(e) => tokens.set(i, e.currentTarget.value)}
+          onKeyDown={(e) => e.key === "Enter" && void save()}
+        />
+      ))}
       {onCancel && (
         <Button size="sm" variant="ghost" onClick={onCancel}>
           {t("common.cancel")}
         </Button>
       )}
-      <Button size="sm" variant="secondary" disabled={!ok} loading={busy} onClick={() => void save()}>
+      <Button size="sm" variant="secondary" disabled={!tokens.ok} loading={busy} onClick={() => void save()}>
         {t("common.save")}
       </Button>
     </div>
@@ -131,10 +184,18 @@ function TokenField({
 }
 
 /** The stored token, masked, with "Change token"; the field shows only when asked for. */
-function StoredToken({ channel, onSave }: { channel: ChannelInfo; onSave(token: string): Promise<boolean> }) {
+function StoredToken({
+  channel,
+  kind,
+  onSave,
+}: {
+  channel: ChannelInfo;
+  kind: BotKind;
+  onSave(token: string): Promise<boolean>;
+}) {
   const t = useT();
   const [changing, setChanging] = useState(false);
-  if (changing) return <TokenField channel={channel} onSave={onSave} onCancel={() => setChanging(false)} />;
+  if (changing) return <TokenField channel={channel} kind={kind} onSave={onSave} onCancel={() => setChanging(false)} />;
   return (
     <div className="tgtoken">
       <code className="tgtoken__hint">{channel.token_hint ?? "••••"}</code>
@@ -145,7 +206,7 @@ function StoredToken({ channel, onSave }: { channel: ChannelInfo; onSave(token: 
   );
 }
 
-function Connected({ channel }: { channel: ChannelInfo }) {
+function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
   const t = useT();
   // A refused or missing token is fixed right where the error shows, not at the bottom of the page.
   const fixToken = channel.status === "error" || !channel.token_set;
@@ -163,7 +224,7 @@ function Connected({ channel }: { channel: ChannelInfo }) {
       <div className="pcard tgcard">
         <div className="pcard__top">
           <span className={`tgcard__tile${channel.status === "running" ? "" : " is-idle"}`}>
-            <KindTile kind="telegram" />
+            <KindTile kind={kind} />
           </span>
           <div className="pcard__titles">
             <div className="pcard__name">{channel.account ?? channel.label}</div>
@@ -183,7 +244,7 @@ function Connected({ channel }: { channel: ChannelInfo }) {
         {fixToken && (
           <div className="tgcard__fix">
             <span className="tgcard__fixlabel">{t(channel.token_set ? "tg.tokenFix" : "tg.tokenMissing")}</span>
-            <TokenField channel={channel} onSave={(token) => save({}, token)} />
+            <TokenField channel={channel} kind={kind} onSave={(token) => save({}, token)} />
           </div>
         )}
       </div>
@@ -191,7 +252,7 @@ function Connected({ channel }: { channel: ChannelInfo }) {
       <Behavior channel={channel} save={save} />
       {!fixToken && (
         <SettingRow title={t("tg.token")} description={t("tg.tokenStored")}>
-          <StoredToken channel={channel} onSave={(token) => save({}, token)} />
+          <StoredToken channel={channel} kind={kind} onSave={(token) => save({}, token)} />
         </SettingRow>
       )}
       <div className="tgremove">

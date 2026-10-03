@@ -487,9 +487,13 @@ export const ChannelStrangers = z.enum(["pair", "ask", "answer", "ignore"]);
 export type ChannelStrangers = z.infer<typeof ChannelStrangers>;
 
 /** A channel instance as the owner configured it, and how it is doing. */
+/** The channels APX can run: a bot or account the owner connects. */
+export const ChannelType = z.enum(["telegram", "whatsapp", "discord", "slack"]);
+export type ChannelType = z.infer<typeof ChannelType>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
-  type: z.enum(["telegram", "whatsapp"]),
+  type: ChannelType,
   label: z.string(),
   enabled: z.boolean(),
   /** The agent that answers on it. */

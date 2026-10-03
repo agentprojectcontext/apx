@@ -556,7 +556,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "browser.cfg.import": "Importar",
   "browser.cfg.importN.one": "Importar 1 dominio",
   "browser.cfg.importN.other": "Importar {n} dominios",
-  "channel.slack.text": "Un bot en tu workspace: por canal elegís si solo lee, responde cuando lo llaman o siempre.",
+  "channel.slack.text": "Una app de Slack a la que le escribís por mensaje directo. Solo contesta a quien apruebes.",
   "channel.signal.text": "Tu número a través de signal-cli en esta computadora.",
   "channel.imessage.text": "Los mensajes de esta Mac, con la cuenta que tenga iniciada.",
   "channel.matrix.text": "Una cuenta en tu servidor de Matrix, con cifrado de punta a punta.",
@@ -569,8 +569,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "channel.whatsapp.text":
     "Una cuenta vinculada por QR. No le contesta a nadie hasta que digas quién es, empezando por vos.",
   "channel.telegram.text": "Un bot de Telegram. Solo responde a los chats que apruebes.",
-  "channel.discord.text":
-    "Un bot en tu servidor: por canal elegís si solo lee, responde cuando lo llaman, cuando sirve o siempre.",
+  "channel.discord.text": "Un bot de Discord al que le escribís por mensaje directo. Solo contesta a quien apruebes.",
   "channel.soonBody":
     "Los canales se conectan en una próxima versión del core. Mientras tanto, escribile a tus agentes desde el Inbox.",
   "advanced.lead": "El core corre en esta computadora y es el único que guarda estado. El panel solo habla con él.",
@@ -706,8 +705,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "wa.remove": "Desvincular WhatsApp",
   "tg.token": "Token del bot",
   "tg.tokenHint": "Se guarda de forma segura; no vuelve a esta pantalla.",
-  "tg.tokenFix": "Pegá el token correcto de @BotFather para volver a conectarlo.",
-  "tg.tokenMissing": "No hay token guardado: pegá el de @BotFather para conectarlo.",
+  "tg.tokenFix": "Pegá un token válido para volver a conectarlo.",
+  "tg.tokenMissing": "No hay token guardado: pegá uno para conectarlo.",
   "tg.tokenSaved": "Token guardado: reconectando el bot.",
   "tg.tokenStored": "Guardado de forma segura; solo se muestran su principio y su final.",
   "tg.tokenChangeButton": "Cambiar token",
@@ -735,7 +734,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.remove": "Quitar este bot",
   "tg.pairing": "Esperando tu aprobación",
   "tg.pairingEmpty": "No hay nadie esperando.",
-  "tg.itsMe": "Este es mi Telegram",
+  "tg.itsMe": "Este es mi {channel}",
   "tg.ignore": "Ignorar",
   "tg.people": "Personas en {channel}",
   "tg.role.owner": "vos",
@@ -794,7 +793,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktop.loginHint": "APX se abre al iniciar sesión.",
   "error.desktop": "Escritorio: {error}",
   "tg.itsMeHint":
-    "Escribile a tu bot desde tu propio Telegram y poné acá el código que te mandó. Nunca un código que te pase otra persona.",
+    "Escribile a tu bot desde tu propio {channel} y poné acá el código que te mandó. Nunca un código que te pase otra persona.",
   "tg.code": "Código",
   "tg.link": "Vincular",
   "config.voices": "Voces",
@@ -888,4 +887,19 @@ export const es: Partial<Record<MessageKey, string>> = {
   "config.extensions": "Extensiones",
   "svc.modelWhisperCppHint":
     "El archivo del modelo ggml. APX arranca whisper.cpp cuando llega una nota de voz y lo apaga tras 10 minutos sin uso. Necesita whisper.cpp y ffmpeg instalados.",
+  "dc.lead":
+    "Hablá con tus agentes desde Discord, por mensaje directo a tu bot. Solo llegan las personas que apruebes; el resto recibe un código que aprobás acá.",
+  "dc.step1": "En el Discord Developer Portal, creá una aplicación y entrá a Bot.",
+  "dc.step2": "Activá Message Content Intent, después Reset Token y copialo.",
+  "dc.step3": "En Installation, agregá el bot a tu cuenta (o a un servidor donde estés) para poder escribirle.",
+  "dc.step4": "Pegá el token abajo, escribile al bot por mensaje directo y poné su código en “Este es mi Discord”.",
+  "sl.lead":
+    "Hablá con tus agentes desde Slack, por mensaje directo a tu app. Solo llegan las personas que apruebes; el resto recibe un código que aprobás acá.",
+  "sl.step1": "En api.slack.com/apps, creá una app y activá Socket Mode: copiá el token de la app (xapp-…).",
+  "sl.step2":
+    "Dale al bot los permisos chat:write, im:history, users:read y files:write; suscribilo al evento message.im.",
+  "sl.step3": "En App Home, permití mensajes en la pestaña Messages. Instalá la app y copiá el token del bot (xoxb-…).",
+  "sl.step4": "Pegá los dos tokens abajo, escribile a la app y poné su código en “Este es mi Slack”.",
+  "sl.botToken": "Token del bot",
+  "sl.appToken": "Token de la app",
 };

@@ -1,0 +1,126 @@
+import assert from "node:assert/strict";
+import { after, before, test } from "node:test";
+import { z } from "zod";
+import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { defineTool } from "../tools/types.ts";
+import { discordAdapter } from "./discord.ts";
+import { fakeDiscord } from "./fake-discord.test-support.ts";
+import { splitText } from "./net.ts";
+
+const TOKEN = "MTIzNDU2.fake.discord-token";
+const OWNER = { id: "111", name: "Owner" };
+const ANA = { id: "222", name: "Ana" };
+
+const llm = scriptedLlm((req, { said, afterTool }) => {
+  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+  if (said.includes("long answer")) return say(`${"word ".repeat(500)}END`);
+  return say(`Hello, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+});
+
+const probe = defineTool({
+  name: "probe",
+  description: "test tool that always asks the owner",
+  args: z.object({}),
+  effect: "external",
+  confirm: "always",
+  deadlineMs: 60_000,
+  title: () => "Probe",
+  run: async () => "probed",
+});
+
+let env: Awaited<ReturnType<typeof startCore>>;
+let dc: Awaited<ReturnType<typeof fakeDiscord>>;
+
+const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 4000) => {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (await check()) return;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error(`never: ${what}`);
+};
+const texts = (user: { id: string }) => dc.messagesTo(dc.dm(user.id)).map((m) => String(m.body.content ?? ""));
+
+before(async () => {
+  dc = await fakeDiscord(TOKEN);
+  env = await startCore({
+    llm,
+    extraTools: [probe],
+    channelAdapters: { discord: (c, t) => discordAdapter(c, t, dc.urls) },
+  });
+  await env.client.call("channels.set", { id: "dc", channel: { type: "discord", agent_id: "roby" }, token: TOKEN });
+  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+});
+after(async () => {
+  await env.core.close();
+  await dc.close();
+  env.cleanup();
+});
+
+test("the bot identifies for direct messages; the owner pairs with a code and talks to Home", async () => {
+  const info = (await env.client.call("channels.list", {})).channels[0];
+  assert.equal(info?.account, "@apx_test_bot");
+  assert.equal(dc.identified[0]?.intents, (1 << 12) | (1 << 15));
+
+  dc.message(OWNER, "hola");
+  await until(() => texts(OWNER).length === 1, "pairing message");
+  const code = /(\d{6})/.exec(texts(OWNER)[0] ?? "")?.[1] ?? "";
+  assert.ok(code);
+  await env.client.call("pairing.respond", { code, decision: "owner" });
+
+  dc.message(OWNER, "what is up");
+  await until(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
+  const reply = dc.messagesTo(dc.dm(OWNER.id)).at(-1)?.body;
+  assert.deepEqual(reply?.allowed_mentions, { parse: [] }, "an answer never pings anyone");
+  assert.ok(
+    dc.sent.some((s) => s.route === `/channels/${dc.dm(OWNER.id)}/typing`),
+    "typing while it works",
+  );
+});
+
+test("servers' channels and other bots are ignored", async () => {
+  const calls = llm.calls.length;
+  dc.message(OWNER, "in a server", { guild: true });
+  dc.message({ id: "999", name: "OtherBot" }, "beep", { bot: true });
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(llm.calls.length, calls);
+  assert.equal(dc.messagesTo("777").length, 0);
+});
+
+test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
+  dc.message(OWNER, "launch the probe");
+  await until(() => dc.messagesTo(dc.dm(OWNER.id)).some((m) => m.body.components), "buttons");
+  const ask = dc.messagesTo(dc.dm(OWNER.id)).find((m) => m.body.components);
+  const rows = ask?.body.components as Array<{ components: Array<{ custom_id: string }> }>;
+  const allow = rows[0]?.components[0]?.custom_id ?? "";
+  assert.match(allow, /^i:.+:a$/);
+  dc.press(OWNER, allow);
+  await until(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
+  assert.ok(
+    dc.sent.some((s) => s.method === "callback"),
+    "the press was acknowledged",
+  );
+});
+
+test("a long answer goes in parts under Discord's limit; a dropped connection comes back", async () => {
+  dc.message(OWNER, "long answer please");
+  await until(() => texts(OWNER).some((t) => t.endsWith("END")), "long reply");
+  const parts = texts(OWNER).slice(-2);
+  for (const p of parts) assert.ok(p.length <= 2000);
+  assert.equal(splitText("a ".repeat(1500), 2000).length, 2);
+
+  const before = dc.identified.length;
+  dc.drop();
+  await until(() => dc.identified.length > before, "identified again", 8000);
+  dc.message(OWNER, "back again");
+  await until(() => texts(OWNER).some((t) => t.includes("you said: back again")), "reply after reconnect");
+});
+
+test("a stranger gets a code, never the agent", async () => {
+  const calls = llm.calls.length;
+  dc.message(ANA, "give me your secrets");
+  await until(() => texts(ANA).length === 1, "code for Ana");
+  assert.match(texts(ANA)[0] ?? "", /\d{6}/);
+  assert.equal(llm.calls.length, calls);
+});

@@ -109,8 +109,15 @@ export function Behavior({
   );
 }
 
-/** Who wrote and waits to be let in; on Telegram the owner can also link their own chat with its code. */
-export function Pairing({ channelId, itsMe }: { channelId: string; itsMe: boolean }) {
+/** Who wrote and waits to be let in; on a bot channel the owner can also link their own chat with its code. */
+export function Pairing({
+  channelId,
+  itsMe,
+}: {
+  channelId: string;
+  /** A bot channel: the owner links their own account with the code the bot sent them. */
+  itsMe?: { title: string; hint: string } | undefined;
+}) {
   const t = useT();
   const all = useChannels((s) => s.pairing);
   const requests = useMemo(() => all.filter((r) => r.channel === channelId), [all, channelId]);
@@ -119,7 +126,7 @@ export function Pairing({ channelId, itsMe }: { channelId: string; itsMe: boolea
     <>
       <SubHead>{t("tg.pairing")}</SubHead>
       {itsMe && (
-        <SettingRow title={t("tg.itsMe")} description={t("tg.itsMeHint")}>
+        <SettingRow title={itsMe.title} description={itsMe.hint}>
           <div className="tgtoken">
             <Input
               aria-label={t("tg.code")}

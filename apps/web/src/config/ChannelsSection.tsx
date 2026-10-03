@@ -5,12 +5,17 @@ import { CHANNEL_KIND_IDS, CHANNEL_KINDS, type ChannelKind, isChannelKind } from
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { BotSection } from "./BotSection.tsx";
 import { ChannelSoon } from "./OtherSections.tsx";
 import { SectionHead } from "./SectionHead.tsx";
-import { TelegramSection } from "./TelegramSection.tsx";
 import { WhatsAppSection } from "./WhatsAppSection.tsx";
 
-const LEAD: Partial<Record<ChannelKind, MessageKey>> = { telegram: "tg.lead", whatsapp: "wa.lead" };
+const LEAD: Partial<Record<ChannelKind, MessageKey>> = {
+  telegram: "tg.lead",
+  whatsapp: "wa.lead",
+  discord: "dc.lead",
+  slack: "sl.lead",
+};
 
 /** Config › Channels: a tab per connected channel, and "+" for the kinds not connected yet. */
 export function ChannelsSection() {
@@ -59,8 +64,8 @@ export function ChannelsSection() {
         <EmptyState variant="dashed" icon={<Icons.MessageCircle />} title={t("channels.empty")}>
           {t("channels.emptyBody")}
         </EmptyState>
-      ) : current === "telegram" ? (
-        <TelegramSection />
+      ) : current === "telegram" || current === "discord" || current === "slack" ? (
+        <BotSection kind={current} />
       ) : current === "whatsapp" ? (
         <WhatsAppSection />
       ) : (

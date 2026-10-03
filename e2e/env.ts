@@ -9,6 +9,8 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { fakeDiscord } from "../apps/core/src/channels/fake-discord.test-support.ts";
+import { fakeSlack } from "../apps/core/src/channels/fake-slack.test-support.ts";
 import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-support.ts";
 import { fakeLlm } from "./fake-llm.ts";
 import { writeFixtures } from "./fixtures.ts";
@@ -20,12 +22,16 @@ export const E2E = {
   /** The emulated phone for WhatsApp (e2e/fake-baileys.ts), inside the core's process. */
   whatsapp: Number(process.env.E2E_WA_PORT ?? 7462),
   telegramToken: "123456789:AAE2eFakeTokenForTheEmulatedBot0",
+  discordToken: "MTIzNDU2Nzg5MDEyMzQ1Njc4.GfAkE1.e2eFakeTokenForTheEmulatedDiscordBot",
+  slackTokens: { bot: "xoxb-1234-e2e-fake-bot", app: "xapp-1-e2e-fake-app" },
 };
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-"));
 const fx = writeFixtures(dir);
 const llm = await fakeLlm();
 const tg = await fakeTelegram(E2E.telegramToken);
+const dc = await fakeDiscord(E2E.discordToken);
+const sl = await fakeSlack(E2E.slackTokens);
 
 const hook = path.join(root, "e2e/baileys-hook.ts");
 const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "apps/core/src/main.ts")], {
@@ -47,6 +53,9 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_LLM_KEY: "e2e",
     APX_LLM_MODELS: "fake-1",
     APX_TELEGRAM_API: tg.url,
+    APX_DISCORD_API: dc.urls.api,
+    APX_DISCORD_GATEWAY: dc.urls.gateway,
+    APX_SLACK_API: sl.api,
     E2E_WA_PORT: String(E2E.whatsapp),
   },
 });
@@ -71,6 +80,8 @@ const control = http.createServer((req, res) => {
         dir,
         repo: fx.repo,
         token: E2E.telegramToken,
+        discord: E2E.discordToken,
+        slack: E2E.slackTokens,
         core: `http://127.0.0.1:${E2E.port}`,
         llm: llm.url.replace(/\/v1$/, ""),
       });
@@ -85,6 +96,23 @@ const control = http.createServer((req, res) => {
     if (req.url?.startsWith("/tg/drafts")) {
       const chat = new URL(req.url, "http://x").searchParams.get("chat");
       return json(200, { drafts: tg.draftsTo(Number(chat)).map((s) => s.body) });
+    }
+    // Discord and Slack: someone writing to the bot in a direct message, and what the bot sent to them.
+    if (req.url === "/dc/message" && req.method === "POST") {
+      dc.message(body.from as { id: string; name: string }, String(body.text ?? ""));
+      return json(200, { ok: true });
+    }
+    if (req.url?.startsWith("/dc/sent")) {
+      const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";
+      return json(200, { sent: dc.messagesTo(dc.dm(user)).map((s) => ({ text: s.body.content })) });
+    }
+    if (req.url === "/sl/message" && req.method === "POST") {
+      sl.message(body.from as { id: string }, String(body.text ?? ""));
+      return json(200, { ok: true });
+    }
+    if (req.url?.startsWith("/sl/sent")) {
+      const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";
+      return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
     json(404, { error: "no such control" });

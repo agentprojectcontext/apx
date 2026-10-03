@@ -62,6 +62,8 @@ export type ChannelDraft = {
   self_owner?: boolean | undefined;
 };
 
+const TYPES = ["telegram", "whatsapp", "discord", "slack"] as const;
+
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {
   // A setting shows changed at once; the core's answer confirms it (or a failure puts it back).
@@ -72,7 +74,7 @@ export async function saveChannel(id: string, draft: ChannelDraft | null, token?
     const r = await client.call("channels.set", {
       id,
       // One channel per kind for now: its id is its type.
-      channel: draft ? { type: id === "whatsapp" ? "whatsapp" : "telegram", ...draft } : null,
+      channel: draft ? { type: TYPES.find((k) => k === id) ?? "telegram", ...draft } : null,
       ...(token ? { token } : {}),
     });
     store.set({ channels: r.channels });

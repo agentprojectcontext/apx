@@ -35,7 +35,7 @@ export function WhatsAppSection() {
       {channel && (
         <>
           {!channel.self_owner && <OwnerPhone channel={channel} />}
-          <Pairing channelId={channel.id} itsMe={false} />
+          <Pairing channelId={channel.id} />
           <Notices />
           <People channelId={channel.id} />
           <Deliveries channelId={channel.id} />

@@ -551,8 +551,7 @@ export const en = {
   "browser.cfg.importN.one": "Import 1 domain",
   "browser.cfg.importN.other": "Import {n} domains",
   "channel.slack.name": "Slack",
-  "channel.slack.text":
-    "A bot in your workspace: per channel you choose whether it only reads, answers when called or always.",
+  "channel.slack.text": "A Slack app you write to in direct messages. It only answers the people you approve.",
   "channel.signal.name": "Signal",
   "channel.signal.text": "Your number through signal-cli on this computer.",
   "channel.imessage.name": "iMessage",
@@ -576,8 +575,7 @@ export const en = {
   "channel.telegram.name": "Telegram",
   "channel.telegram.text": "A Telegram bot. It only answers the chats you approve.",
   "channel.discord.name": "Discord",
-  "channel.discord.text":
-    "A bot on your server: per channel you choose whether it only reads, answers when called, when useful or always.",
+  "channel.discord.text": "A Discord bot you write to in direct messages. It only answers the people you approve.",
   "channel.soonBody":
     "Channels connect in an upcoming version of the core. Meanwhile, write to your agents from the Inbox.",
   "advanced.lead": "The core runs on this computer and is the only one that keeps state. The panel only talks to it.",
@@ -711,8 +709,8 @@ export const en = {
   "wa.remove": "Unlink WhatsApp",
   "tg.token": "Bot token",
   "tg.tokenHint": "Stored securely; it never comes back to this screen.",
-  "tg.tokenFix": "Paste the right token from @BotFather to connect it again.",
-  "tg.tokenMissing": "No token stored: paste the one from @BotFather to connect it.",
+  "tg.tokenFix": "Paste a valid token to connect it again.",
+  "tg.tokenMissing": "No token stored: paste one to connect it.",
   "tg.tokenSaved": "Token saved — connecting the bot again.",
   "tg.tokenStored": "Stored securely; only its start and end are shown.",
   "tg.tokenChangeButton": "Change token",
@@ -740,7 +738,7 @@ export const en = {
   "tg.remove": "Remove this bot",
   "tg.pairing": "Waiting for your approval",
   "tg.pairingEmpty": "Nobody is waiting.",
-  "tg.itsMe": "This is my Telegram",
+  "tg.itsMe": "This is my {channel}",
   "tg.ignore": "Ignore",
   "tg.people": "People on {channel}",
   "tg.role.owner": "you",
@@ -799,7 +797,7 @@ export const en = {
   "desktop.loginHint": "APX opens when you log in.",
   "error.desktop": "Desktop: {error}",
   "tg.itsMeHint":
-    "Write to your bot from your own Telegram and type here the code it sent you. Never a code someone else gives you.",
+    "Write to your bot from your own {channel} and type here the code it sent you. Never a code someone else gives you.",
   "tg.code": "Code",
   "tg.link": "Link",
   "config.voices": "Voices",
@@ -889,6 +887,21 @@ export const en = {
   "config.extensions": "Extensions",
   "svc.modelWhisperCppHint":
     "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp and ffmpeg installed.",
+  "dc.lead":
+    "Talk with your agents from Discord, in direct messages to your bot. Only people you approve reach them; everyone else gets a code you approve here.",
+  "dc.step1": "In the Discord Developer Portal, create an application and open Bot.",
+  "dc.step2": "Turn on Message Content Intent, then Reset Token and copy it.",
+  "dc.step3": "Under Installation, add the bot to your account (or to a server you are in), so you can write to it.",
+  "dc.step4": "Paste the token below, write to the bot in a direct message and type its code in “This is my Discord”.",
+  "sl.lead":
+    "Talk with your agents from Slack, in direct messages to your app. Only people you approve reach them; everyone else gets a code you approve here.",
+  "sl.step1": "At api.slack.com/apps, create an app and turn on Socket Mode: copy the app-level token (xapp-…).",
+  "sl.step2":
+    "Give the bot the scopes chat:write, im:history, users:read and files:write; subscribe to the message.im event.",
+  "sl.step3": "In App Home, allow messages in the Messages tab. Install the app and copy the bot token (xoxb-…).",
+  "sl.step4": "Paste both tokens below, write to the app and type its code in “This is my Slack”.",
+  "sl.botToken": "Bot token",
+  "sl.appToken": "App-level token",
 } as const;
 
 export type MessageKey = keyof typeof en;

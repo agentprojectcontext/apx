@@ -6,7 +6,9 @@ import path from "node:path";
 import { type HarnessId, TabInfo } from "@apx/protocol";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
+import { discordAdapter } from "./channels/discord.ts";
 import { createChannels } from "./channels/manager.ts";
+import { slackAdapter } from "./channels/slack.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { whatsappAdapter } from "./channels/whatsapp.ts";
@@ -152,6 +154,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     log,
     factories: opts.channelAdapters ?? {
       telegram: (c, token) => telegramAdapter(c, token, config.telegramApi ?? "https://api.telegram.org"),
+      discord: (c, token) => discordAdapter(c, token, config.discord),
+      slack: (c, token) => slackAdapter(c, token, config.slackApi ?? "https://slack.com/api"),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
     },

@@ -43,6 +43,10 @@ export type CoreConfig = {
   native: { claude: string; codex: string };
   /** Telegram's Bot API; a test environment points it at an emulated one (APX_TELEGRAM_API). */
   telegramApi: string | undefined;
+  /** Discord's REST API and Gateway; a test environment points them at an emulated one (APX_DISCORD_API, _GATEWAY). */
+  discord: { api: string; gateway: string; cdn: string } | undefined;
+  /** Slack's Web API; a test environment points it at an emulated one (APX_SLACK_API). */
+  slackApi: string | undefined;
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -107,6 +111,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
     webDist: env.APX_WEB_DIST || undefined,
     v1: { url: env.APX_V1_URL ?? "http://127.0.0.1:7430", home: env.APX_V1_HOME ?? path.join(os.homedir(), ".apx") },
     telegramApi: env.APX_TELEGRAM_API || undefined,
+    discord:
+      env.APX_DISCORD_API && env.APX_DISCORD_GATEWAY
+        ? { api: env.APX_DISCORD_API, gateway: env.APX_DISCORD_GATEWAY, cdn: env.APX_DISCORD_API }
+        : undefined,
+    slackApi: env.APX_SLACK_API || undefined,
     native: {
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
       codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
