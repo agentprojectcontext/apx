@@ -292,7 +292,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
             set: deps.secrets.resolveIn(`secret://${name}`, projectId) !== undefined,
           })),
           off_here: d.scope === "global" && offHere.has(d.name),
-          ...(d.own
+          ...(d.own || d.scope === "project"
             ? {
                 definition: {
                   ...(d.command ? { command: d.command } : {}),

@@ -121,11 +121,15 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
-  /** Adds, replaces or (null) removes one of the owner's own servers. Env and header values may be secret://. */
+  /**
+   * Adds, replaces or (null) removes one of the owner's own servers (env and header values may hold secret://), or,
+   * with `project`, one in that project's .apc/mcps.json (no secret://; approved as the owner wrote it).
+   */
   "mcp.set": {
     params: z
       .object({
         name: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/),
+        project: Id.optional(),
         server: z
           .object({
             command: z.string().optional(),
@@ -164,6 +168,10 @@ export const resourceMethods = {
               secret: z.boolean(),
               placeholder: z.string().optional(),
               url: z.string().optional(),
+              /** A secret field: whether a value is stored (it never comes back). */
+              set: z.boolean().optional(),
+              /** A plain field: what was typed, to edit it. */
+              value: z.string().optional(),
             }),
           ),
           connected: z.boolean(),
@@ -176,11 +184,12 @@ export const resourceMethods = {
     effect: false,
     access: "human",
   },
-  /** Connects one: its secrets go to the secret store, its server becomes a global one (on in every project). */
+  /**
+   * Connects one: its secrets go to the secret store, its server becomes a global one (on in every project). Again on
+   * a connected one, it edits it: a field not given keeps its value.
+   */
   "integrations.connect": {
-    params: z
-      .object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().min(1).max(4000)) })
-      .strict(),
+    params: z.object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().max(4000)) }).strict(),
     result: z.object({ connected: z.literal(true) }),
     effect: true,
     access: "human",

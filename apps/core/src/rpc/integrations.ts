@@ -14,6 +14,14 @@ const expand = (v: string) => (v.startsWith("~/") ? `${os.homedir()}${v.slice(1)
 export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp }) {
   const { store, secrets, mcp } = deps;
   const connected = (id: string) => mcp.config.global().some((d) => d.name === id);
+  /** What was typed in an integration's plain fields (a team id, a folder), to edit it later. */
+  const plainOf = (id: string): Record<string, string> => {
+    try {
+      return JSON.parse(store.settings.get(`integration_values:${id}`) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  };
   return {
     "integrations.list": () => {
       const projects = store.projects.list().filter((p) => p.path);
@@ -29,6 +37,12 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
               secret,
               ...(placeholder ? { placeholder } : {}),
               ...(url ? { url } : {}),
+              // Editing: a secret says only that it is stored; a plain value comes back as typed.
+              ...(secret
+                ? { set: secrets.has(`secret://${integrationSecret(e.id, name)}`) }
+                : plainOf(e.id)[name]
+                  ? { value: plainOf(e.id)[name] }
+                  : {}),
             })),
             connected: connected(e.id),
             coming: false,
@@ -43,12 +57,22 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
     "integrations.connect": ({ id, values }) => {
       const e = CATALOG.find((x) => x.id === id);
       if (!e) throw notFound(`integration ${id}`);
-      for (const f of e.fields) if (!values[f.name]?.trim()) throw badRequest(`${e.label} needs its ${f.label}`);
-      for (const f of e.fields.filter((x) => x.secret))
-        secrets.set(integrationSecret(e.id, f.name), (values[f.name] ?? "").trim());
+      // Editing a connected one, a field left empty keeps what it had.
+      const was = connected(e.id);
+      const kept = plainOf(e.id);
+      for (const f of e.fields) {
+        const typed = values[f.name]?.trim();
+        const has = f.secret ? secrets.has(`secret://${integrationSecret(e.id, f.name)}`) : Boolean(kept[f.name]);
+        if (!typed && !(was && has)) throw badRequest(`${e.label} needs its ${f.label}`);
+      }
+      for (const f of e.fields.filter((x) => x.secret)) {
+        const typed = values[f.name]?.trim();
+        if (typed) secrets.set(integrationSecret(e.id, f.name), typed);
+      }
       const plain = Object.fromEntries(
-        e.fields.filter((f) => !f.secret).map((f) => [f.name, expand((values[f.name] ?? "").trim())]),
+        e.fields.filter((f) => !f.secret).map((f) => [f.name, expand(values[f.name]?.trim() || kept[f.name] || "")]),
       );
+      store.settings.set(`integration_values:${e.id}`, JSON.stringify(plain));
       mcp.config.setGlobal(e.id, serverFor(e, plain));
       mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
@@ -59,6 +83,7 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       mcp.config.setGlobal(e.id, null);
       mcp.drop({ scope: "global", name: e.id });
       for (const f of e.fields.filter((x) => x.secret)) secrets.set(integrationSecret(e.id, f.name), null);
+      store.settings.set(`integration_values:${e.id}`, "");
       return { connected: false as const };
     },
   } satisfies Partial<Handlers>;

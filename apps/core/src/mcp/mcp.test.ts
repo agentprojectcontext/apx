@@ -93,11 +93,6 @@ test("a secret inside text is resolved too, and the owner's server comes back as
   const mine = servers.find((s) => s.name === "mine");
   assert.deepEqual(mine?.definition?.env, { NOTES_TOKEN: "Bearer secret://notes" }, "the reference, not the value");
   assert.deepEqual(mine?.vars, [{ name: "notes", set: true }]);
-  assert.equal(
-    servers.find((s) => s.name === "notes")?.definition,
-    undefined,
-    "a project's file is edited in the project",
-  );
   await env.client.call("mcp.set", {
     name: "mine",
     server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
@@ -112,6 +107,30 @@ test("a project's own value reaches the owner's server only in that project's ch
   await env.settle(t.id, 15_000);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /token=s3cret/);
   await env.client.call("secrets.set", { name: "notes", value: null, project });
+});
+
+test("the owner edits a project's server: its file is written, approved as written, and secrets are refused", async () => {
+  const { servers } = await env.client.call("mcp.list", { project });
+  assert.deepEqual(servers.find((x) => x.name === "notes")?.definition?.args, [SERVER]);
+  await assert.rejects(
+    env.client.call("mcp.set", {
+      name: "notes",
+      project,
+      server: { command: process.execPath, args: [SERVER], env: { NOTES_TOKEN: "secret://notes" } },
+    }),
+    /cannot use your variables/,
+  );
+  const r = await env.client.call("mcp.set", {
+    name: "notes",
+    project,
+    server: { command: process.execPath, args: [SERVER], env: { MODE: "fast" } },
+  });
+  const notes = r.servers.find((x) => x.name === "notes" && x.scope === "project");
+  assert.deepEqual(notes?.definition?.env, { MODE: "fast" });
+  assert.equal(notes?.trusted, true);
+  const file = JSON.parse(fs.readFileSync(path.join(root, ".apc", "mcps.json"), "utf8"));
+  assert.deepEqual(file.mcpServers.notes.env, { MODE: "fast" });
+  assert.ok(file.mcpServers.sneaky, "the rest of the file stays");
 });
 
 test("changing the server's definition needs a new approval", async () => {

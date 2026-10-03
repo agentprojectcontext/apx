@@ -27,10 +27,23 @@ export function mcpHandlers(mcp: Mcp, store: Store) {
       if (!d) throw badRequest(`no ${scope} server ${server}`);
       return mcp.test(d);
     },
-    "mcp.set": ({ name, server }) => {
-      mcp.config.setGlobal(name, server);
-      mcp.drop({ scope: "global", name });
-      return { servers: mcp.status() };
+    "mcp.set": ({ name, server, project }) => {
+      if (!project) {
+        mcp.config.setGlobal(name, server);
+        mcp.drop({ scope: "global", name });
+        return { servers: mcp.status() };
+      }
+      if (!store.projects.get(project)?.path) throw notFound(`project ${project}`);
+      // A repo's file never holds the owner's secrets: whoever can read the repo would get them.
+      if (server && JSON.stringify(server).includes("secret://"))
+        throw badRequest("a project's .apc/mcps.json cannot use your variables (secret://); use a server of your own");
+      const old = mcp.find("project", name, project);
+      if (old) mcp.drop(old);
+      mcp.config.setProject(project, name, server);
+      // The owner wrote this definition: it is approved as written.
+      const next = mcp.find("project", name, project);
+      if (next) mcp.config.setTrust(next, true);
+      return { servers: mcp.status(project) };
     },
   } satisfies Partial<Handlers>;
 }

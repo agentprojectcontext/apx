@@ -160,6 +160,36 @@ export function mcpConfig(store: Store) {
       all[projectId] = [...list];
       store.settings.write("mcp_off", all);
     },
+    /** Adds, replaces or (null) removes a server in a project's .apc/mcps.json, keeping the rest of the file. */
+    setProject(projectId: string, name: string, server: Record<string, unknown> | null): void {
+      const p = store.projects.get(projectId);
+      if (!p?.path) throw new Error(`project ${projectId} has no folder`);
+      const dir = path.join(p.path, ".apc");
+      const file = path.join(dir, "mcps.json");
+      if (fs.existsSync(dir) && fs.lstatSync(dir).isSymbolicLink()) throw new Error(".apc is a link: not written");
+      if (fs.existsSync(file) && fs.lstatSync(file).isSymbolicLink())
+        throw new Error("mcps.json is a link: not written");
+      let doc: Record<string, unknown> = {};
+      try {
+        doc = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+      } catch {}
+      const servers = { ...((doc.mcpServers as Record<string, unknown> | undefined) ?? {}) };
+      if (server) {
+        // What the dialog does not edit (a client's own keys) stays; what it does is replaced as a whole.
+        const {
+          command: _c,
+          args: _a,
+          env: _e,
+          url: _u,
+          headers: _h,
+          type: _t,
+          ...rest
+        } = (servers[name] ?? {}) as Record<string, unknown>;
+        servers[name] = { ...rest, ...server };
+      } else delete servers[name];
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(file, `${JSON.stringify({ ...doc, mcpServers: servers }, null, 2)}\n`);
+    },
     /** Adds, replaces or (null) removes one of the owner's global servers. */
     setGlobal(name: string, server: Record<string, unknown> | null): void {
       const all = parse(store.settings.get("mcp_servers"));

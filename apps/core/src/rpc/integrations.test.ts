@@ -44,3 +44,21 @@ test("connecting an integration stores its token and adds its server; it can be 
   assert.ok(!env.core.secrets.has("secret://github-token"));
   assert.ok(!(await env.client.call("mcp.list", {})).servers.some((s) => s.name === "github"));
 });
+
+test("a connected integration is edited: what is typed changes, what is left empty keeps its value", async () => {
+  const slack = async () => (await env.client.call("integrations.list", {})).integrations.find((i) => i.id === "slack");
+  await env.client.call("integrations.connect", { id: "slack", values: { token: "xoxb-first", team: "T0001" } });
+  const fields = (await slack())?.fields ?? [];
+  assert.deepEqual(
+    fields.map((f) => [f.name, f.set, f.value]),
+    [
+      ["token", true, undefined],
+      ["team", undefined, "T0001"],
+    ],
+    "a token only says it is stored; a team id comes back as typed",
+  );
+  await env.client.call("integrations.connect", { id: "slack", values: { token: "", team: "T0002" } });
+  assert.equal(env.core.secrets.resolve("secret://slack-token"), "xoxb-first", "the token stays");
+  assert.equal((await slack())?.fields.find((f) => f.name === "team")?.value, "T0002");
+  await env.client.call("integrations.disconnect", { id: "slack" });
+});
