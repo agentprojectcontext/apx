@@ -14,7 +14,7 @@ import { VariablesTab } from "./VariablesTab.tsx";
 const TABS: Array<{ id: ResourceTab; label: MessageKey; add?: MessageKey; search?: MessageKey }> = [
   { id: "skills", label: "res.tab.skills", add: "res.add.skill", search: "res.search.skills" },
   { id: "mcp", label: "res.tab.mcp", add: "res.add.mcp", search: "res.search.mcp" },
-  { id: "integrations", label: "res.tab.integrations" },
+  { id: "integrations", label: "res.tab.integrations", add: "res.add.integration", search: "res.search.integrations" },
   { id: "variables", label: "res.tab.variables", add: "res.add.variable", search: "res.search.variables" },
   { id: "extensions", label: "res.tab.extensions", add: "res.add.extension" },
 ];
@@ -42,7 +42,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const counts: Record<ResourceTab, number | undefined> = {
     skills: skills?.length,
     mcp: servers?.length,
-    integrations: 0,
+    integrations: undefined,
     // The table also lists names a server uses but nobody stored: count those too.
     variables:
       secrets &&
@@ -58,7 +58,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   let body: ReactNode;
   if (tab === "skills") body = <SkillsTab {...ctx} />;
   else if (tab === "mcp") body = <McpTab {...ctx} />;
-  else if (tab === "integrations") body = <IntegrationsTab />;
+  else if (tab === "integrations") body = <IntegrationsTab {...ctx} />;
   else if (tab === "variables") body = <VariablesTab {...ctx} />;
   else body = <ExtensionsTab adding={adding} setAdding={setAdding} onChanged={() => void res.loadExtensions()} />;
 

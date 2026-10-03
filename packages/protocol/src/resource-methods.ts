@@ -145,6 +145,53 @@ export const resourceMethods = {
     access: "human",
   },
   /** Turns one of the owner's global servers off (or back on) inside a project; elsewhere it stays as it is. */
+  /**
+   * Accounts the owner can connect (GitHub, Notion, Slack…), each with its MCP server and variables: connected or not,
+   * the projects it is off in, and the ones still coming.
+   */
+  "integrations.list": {
+    params: z.object({}).strict(),
+    result: z.object({
+      integrations: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          description: z.string(),
+          fields: z.array(
+            z.object({
+              name: z.string(),
+              label: z.string(),
+              secret: z.boolean(),
+              placeholder: z.string().optional(),
+              url: z.string().optional(),
+            }),
+          ),
+          connected: z.boolean(),
+          coming: z.boolean(),
+          /** Projects where it is turned off (it is on everywhere else). */
+          off_in: z.array(Id),
+        }),
+      ),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /** Connects one: its secrets go to the secret store, its server becomes a global one (on in every project). */
+  "integrations.connect": {
+    params: z
+      .object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().min(1).max(4000)) })
+      .strict(),
+    result: z.object({ connected: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  /** Disconnects one: its server and its secrets go. */
+  "integrations.disconnect": {
+    params: z.object({ id: z.string().max(40) }).strict(),
+    result: z.object({ connected: z.literal(false) }),
+    effect: true,
+    access: "human",
+  },
   "mcp.toggle": {
     params: z.object({ project: Id, server: z.string().min(1).max(64), on: z.boolean() }).strict(),
     result: z.object({ servers: z.array(McpServerStatus) }),

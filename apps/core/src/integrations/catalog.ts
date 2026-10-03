@@ -1,0 +1,141 @@
+// Integrations: an account the owner connects once (GitHub, Notion, Slack…), which brings its MCP server with the
+// variables it needs. Connecting stores the secrets and adds the server as a global one; where it is used is the
+// usual per-project switch of global servers. The catalog is data: each entry says how its server starts.
+
+export type IntegrationField = {
+  name: string;
+  /** Shown to the owner ("Personal access token"). */
+  label: string;
+  /** Kept in the secret store (a token, a key) or written as is (a team id, a folder). */
+  secret: boolean;
+  placeholder?: string;
+  /** Where to get it. */
+  url?: string;
+};
+
+export type IntegrationEntry = {
+  id: string;
+  label: string;
+  description: string;
+  fields: IntegrationField[];
+  /** The MCP server: values in `{field}` are filled in (a secret field as secret://<id>-<field>). */
+  server: { command: string; args: string[]; env: Record<string, string> };
+};
+
+/** Coming: they need a sign-in flow (OAuth) APX does not run yet. */
+export const COMING = [
+  { id: "google-calendar", label: "Google Calendar", description: "Your calendar: events, free time, invitations." },
+  { id: "gmail", label: "Gmail", description: "Read and draft mail from your inbox." },
+  { id: "linear", label: "Linear", description: "Issues, projects and cycles." },
+  { id: "asana", label: "Asana", description: "Tasks and projects of your workspace." },
+];
+
+export const CATALOG: IntegrationEntry[] = [
+  {
+    id: "github",
+    label: "GitHub",
+    description: "Repositories, issues and pull requests.",
+    fields: [
+      {
+        name: "token",
+        label: "Personal access token",
+        secret: true,
+        placeholder: "ghp_…",
+        url: "https://github.com/settings/tokens",
+      },
+    ],
+    server: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "{token}" },
+    },
+  },
+  {
+    id: "notion",
+    label: "Notion",
+    description: "Pages and databases of your workspace.",
+    fields: [
+      {
+        name: "token",
+        label: "Integration token",
+        secret: true,
+        placeholder: "ntn_…",
+        url: "https://www.notion.so/profile/integrations",
+      },
+    ],
+    server: { command: "npx", args: ["-y", "@notionhq/notion-mcp-server"], env: { NOTION_TOKEN: "{token}" } },
+  },
+  {
+    id: "slack",
+    label: "Slack",
+    description: "Channels, messages and threads of your workspace.",
+    fields: [
+      { name: "token", label: "Bot token", secret: true, placeholder: "xoxb-…", url: "https://api.slack.com/apps" },
+      { name: "team", label: "Team id", secret: false, placeholder: "T0123ABCD" },
+    ],
+    server: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-slack"],
+      env: { SLACK_BOT_TOKEN: "{token}", SLACK_TEAM_ID: "{team}" },
+    },
+  },
+  {
+    id: "sentry",
+    label: "Sentry",
+    description: "Errors and issues of your projects.",
+    fields: [
+      {
+        name: "token",
+        label: "Access token",
+        secret: true,
+        placeholder: "sntrys_…",
+        url: "https://sentry.io/settings/account/api/auth-tokens/",
+      },
+    ],
+    server: { command: "npx", args: ["-y", "@sentry/mcp-server"], env: { SENTRY_ACCESS_TOKEN: "{token}" } },
+  },
+  {
+    id: "brave-search",
+    label: "Brave Search",
+    description: "Web search for your agents.",
+    fields: [
+      {
+        name: "key",
+        label: "API key",
+        secret: true,
+        placeholder: "BSA…",
+        url: "https://api-dashboard.search.brave.com/app/keys",
+      },
+    ],
+    server: {
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-brave-search"],
+      env: { BRAVE_API_KEY: "{key}" },
+    },
+  },
+  {
+    id: "obsidian",
+    label: "Obsidian",
+    description: "Read and write the notes of your vault.",
+    fields: [{ name: "vault", label: "Vault folder", secret: false, placeholder: "~/Documents/Vault" }],
+    server: { command: "npx", args: ["-y", "mcp-obsidian", "{vault}"], env: {} },
+  },
+];
+
+/** The secret a field of an integration is kept under. */
+export const integrationSecret = (id: string, field: string) => `${id}-${field}`;
+
+/** The server of an entry with the owner's values in: secrets by reference, the rest as typed. */
+export function serverFor(e: IntegrationEntry, values: Record<string, string>) {
+  const fill = (s: string) =>
+    s.replace(/\{([a-z]+)\}/g, (_m, name: string) => {
+      const f = e.fields.find((x) => x.name === name);
+      if (!f) return "";
+      return f.secret ? `secret://${integrationSecret(e.id, name)}` : (values[name] ?? "");
+    });
+  return {
+    command: e.server.command,
+    args: e.server.args.map(fill),
+    env: Object.fromEntries(Object.entries(e.server.env).map(([k, v]) => [k, fill(v)])),
+  };
+}

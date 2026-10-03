@@ -528,3 +528,92 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
+/* Integrations */
+.int__listhead {
+  padding: 4px 8px 6px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.int__add {
+  align-self: flex-start;
+  margin: 10px 8px 0;
+}
+.int__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 760px;
+}
+.int__head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.int__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.int__titles b {
+  font-size: var(--apx-text-lg);
+}
+.int__titles span,
+.int__desc {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.int__usehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.int__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.int__row,
+.int__card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.int__rowmain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+}
+.int__rowmain span {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.int__catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+.int__card {
+  color: var(--apx-fg);
+  cursor: pointer;
+}
+.int__card:hover {
+  border-color: var(--apx-fg-subtle);
+}
+.int__card.is-coming {
+  opacity: 0.55;
+  cursor: default;
+}
+.int__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
