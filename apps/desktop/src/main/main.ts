@@ -149,7 +149,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(
     appMenu(
       () => quick.toggle(false),
-      () => connector.change(),
+      () => void connector.change(),
     ),
   );
 
@@ -228,7 +228,11 @@ app.on("window-all-closed", () => app.quit());
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
 function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
   const es = app.getLocale().startsWith("es");
-  const change = { label: es ? "Cambiar conexión…" : "Change connection…", click: changeConnection };
+  const change = {
+    id: "change-connection",
+    label: es ? "Cambiar conexión…" : "Change connection…",
+    click: changeConnection,
+  };
   return Menu.buildFromTemplate([
     ...(process.platform === "darwin"
       ? [

@@ -67,3 +67,15 @@ test("a client address that does not answer is refused on the spot", async () =>
   expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
   await app.close();
 });
+
+test("change connection goes back to the question in the same window, and the app stays up", async () => {
+  fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
+  const app = await launch();
+  await windowAt(app, (u) => u.startsWith(core));
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+  await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+  expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
+  // The checkout's core is still the one the e2e started: nothing took it down.
+  expect((await fetch(`${core}/health`)).ok).toBe(true);
+  await app.close();
+});

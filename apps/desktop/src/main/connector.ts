@@ -45,10 +45,11 @@ export function createConnector(opts: {
 
   ipcMain.handle("connect:local", async (e, access: unknown): Promise<Answer> => {
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
-    if (access === "lan" || access === "tailscale") {
-      const r = runCli(["expose", access]);
-      if (!r.ok) return r;
-    }
+    if (access !== "none" && access !== "lan" && access !== "tailscale") return { ok: false, error: "bad access" };
+    // "Only this computer" undoes an earlier LAN or Tailscale choice too.
+    const r = runCli(["expose", access === "none" ? "off" : access]);
+    if (!r.ok) return r;
+    await restartOwnCore();
     return choose({ mode: "local" });
   });
 
@@ -77,7 +78,21 @@ export function createConnector(opts: {
     return choose({ mode: "ssh", target });
   });
 
+  /** The bundled core reads core.env when it starts: after an exposure change it starts again (a checkout's is not ours). */
+  async function restartOwnCore(): Promise<void> {
+    if (!core) return;
+    core.stop();
+    core = undefined;
+    const until = Date.now() + 10_000;
+    while (Date.now() < until && (await isUp(opts.coreUrl))) await new Promise((r) => setTimeout(r, 200));
+  }
+
   async function choose(c: Connection): Promise<Answer> {
+    // A client needs no core here: the bundled one stops.
+    if (c.mode !== "local") {
+      core?.stop();
+      core = undefined;
+    }
     saveConnection(dataDir, c);
     conn = c;
     await open();
@@ -152,11 +167,16 @@ export function createConnector(opts: {
 
   return {
     open,
-    /** Back to the first-run choice (the app starts again). */
-    change(): void {
+    /**
+     * Back to the first-run choice in the same window. Nothing restarts: a checkout's supervisor (`pnpm app`) takes its
+     * core down with the app.
+     */
+    async change(): Promise<void> {
       forgetConnection(dataDir);
-      app.relaunch();
-      app.exit(0);
+      conn = undefined;
+      tunnel?.stop();
+      tunnel = undefined;
+      await open();
     },
     stop(): void {
       core?.stop();
