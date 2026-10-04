@@ -16,4 +16,14 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
+  // The local core's token when it asks for one (it listens beyond this computer); asked once, at load.
+  coreToken: (ipcRenderer.sendSync("desktop:core-token") as string | undefined) || undefined,
+});
+
+type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
+// The first-run screen (connect.html): the main process only answers it when that page is what the window shows.
+contextBridge.exposeInMainWorld("apxConnect", {
+  local: (access: string): Promise<Answer> => ipcRenderer.invoke("connect:local", access),
+  url: (url: string): Promise<Answer> => ipcRenderer.invoke("connect:url", url),
+  ssh: (target: string): Promise<Answer> => ipcRenderer.invoke("connect:ssh", target),
 });

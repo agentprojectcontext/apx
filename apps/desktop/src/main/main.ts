@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
-import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
+import { createConnector } from "./connector.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -29,11 +29,9 @@ const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 
 let quitting = false;
-let core: EmbeddedCore | undefined;
 app.on("before-quit", () => {
   quitting = true;
 });
-app.on("will-quit", () => core?.stop());
 
 app.whenReady().then(() => {
   if (!single) return;
@@ -127,7 +125,29 @@ app.whenReady().then(() => {
     openMain,
   });
 
-  Menu.setApplicationMenu(appMenu(() => quick.toggle(false)));
+  let linked = false;
+  const connector = createConnector({
+    panel: panel.webContents,
+    coreUrl: CORE_URL,
+    webUrl: WEB_URL,
+    dist: DIST,
+    isOwnWindow: (sender) => sender === panel.webContents || quick.isQuick(sender),
+    opened: (url, node) => {
+      base = url;
+      quick.start();
+      if (linked || !node) return;
+      linked = true;
+      startNodeLink(host, node.url, () => {}, node.token);
+    },
+  });
+  app.on("will-quit", () => connector.stop());
+
+  Menu.setApplicationMenu(
+    appMenu(
+      () => quick.toggle(false),
+      () => connector.change(),
+    ),
+  );
 
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
@@ -152,29 +172,7 @@ app.whenReady().then(() => {
   });
   app.on("will-quit", () => quick.stop());
 
-  const loadPanel = async () => {
-    // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
-    if (app.isPackaged && !(await isUp(CORE_URL))) {
-      core = startEmbeddedCore({
-        resources: process.resourcesPath,
-        logDir: app.getPath("logs"),
-        cacheDir: path.join(app.getPath("userData"), "compile-cache"),
-      });
-      await waitUp(CORE_URL);
-    }
-    for (const url of app.isPackaged ? [CORE_URL] : [WEB_URL, CORE_URL]) {
-      try {
-        await panel.webContents.loadURL(url);
-        base = url;
-        quick.start();
-        return;
-      } catch {}
-    }
-    await panel.webContents.loadURL(
-      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">APX core not reachable at ${CORE_URL}. ${app.isPackaged ? `See core.log in ${app.getPath("logs")}.` : "Start it with <code>pnpm dev</code>."}</body>`,
-    );
-  };
-  void loadPanel();
+  void connector.open();
 
   // Dev-only: `kill -USR2 <pid>` writes the panel, the visible tab and the slot so a script can compose them.
   const captureDir = process.env.APX_CAPTURE_DIR;
@@ -219,17 +217,33 @@ app.whenReady().then(() => {
   }, 60_000);
   tick.unref();
   ipcMain.handle("desktop:memory", (e) => (e.sender === panel.webContents ? report() : undefined));
-
-  startNodeLink(host, CORE_URL, () => {});
 });
 
 app.on("window-all-closed", () => app.quit());
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
-function appMenu(openQuick: () => void): Menu {
+function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
   const es = app.getLocale().startsWith("es");
+  const change = { label: es ? "Cambiar conexión…" : "Change connection…", click: changeConnection };
   return Menu.buildFromTemplate([
-    ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+    ...(process.platform === "darwin"
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" as const },
+              { type: "separator" as const },
+              change,
+              { type: "separator" as const },
+              { role: "hide" as const },
+              { role: "hideOthers" as const },
+              { role: "unhide" as const },
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]
+      : [{ label: "APX", submenu: [change, { type: "separator" as const }, { role: "quit" as const }] }]),
     { role: "fileMenu" },
     { role: "editMenu" },
     { role: "viewMenu" },

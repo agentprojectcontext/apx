@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>APX</title>
+    <style>
+      :root { --bg: #f7f7f5; --card: #fff; --text: #1d1d1b; --muted: #6b6b66; --border: #dcdcd6; --accent: #1f9d6b; --danger: #b3261e; color-scheme: light dark; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #161616; --card: #1f1f1f; --text: #ececea; --muted: #a3a39d; --border: #333331; --accent: #2fbf86; --danger: #f28b82; } }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
+      main { width: 100%; max-width: 640px; }
+      h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+      p.lead { color: var(--muted); margin: 0 0 20px; }
+      .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      button.card { text-align: left; background: var(--card); color: inherit; border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; font: inherit; }
+      button.card:hover, button.card:focus-visible { border-color: var(--accent); outline: none; }
+      .card b { display: block; font-size: 15px; margin-bottom: 4px; }
+      .card span { color: var(--muted); }
+      label.opt { display: flex; gap: 10px; align-items: flex-start; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
+      label.opt span { color: var(--muted); display: block; }
+      input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: inherit; font: inherit; }
+      .row { display: flex; gap: 8px; margin-top: 16px; align-items: center; }
+      .primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; cursor: pointer; }
+      .primary:disabled { opacity: 0.6; cursor: default; }
+      .link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; padding: 8px 4px; }
+      .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+      .seg button { background: var(--card); color: inherit; border: 0; padding: 7px 14px; font: inherit; cursor: pointer; }
+      .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+      .error { color: var(--danger); margin-top: 10px; white-space: pre-wrap; }
+      pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px; }
+      .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+      [hidden] { display: none !important; }
+      @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="start">
+        <h1 data-t="title"></h1>
+        <p class="lead" data-t="lead"></p>
+        <div class="cards">
+          <button class="card" id="pick-server"><b data-t="server"></b><span data-t="serverText"></span></button>
+          <button class="card" id="pick-client"><b data-t="client"></b><span data-t="clientText"></span></button>
+        </div>
+      </section>
+
+      <section id="server" hidden>
+        <h1 data-t="server"></h1>
+        <p class="lead" data-t="accessLead"></p>
+        <label class="opt"><input type="radio" name="access" value="none" checked /><div><b data-t="accessNone"></b><span data-t="accessNoneText"></span></div></label>
+        <label class="opt"><input type="radio" name="access" value="lan" /><div><b data-t="accessLan"></b><span data-t="accessLanText"></span></div></label>
+        <label class="opt"><input type="radio" name="access" value="tailscale" /><div><b>Tailscale</b><span data-t="accessTsText"></span></div></label>
+        <p class="hint" data-t="importHint"></p>
+        <div class="error" id="server-error" hidden></div>
+        <div class="row"><button class="primary" id="server-go" data-t="start"></button><button class="link" data-back data-t="back"></button></div>
+      </section>
+
+      <section id="client" hidden>
+        <h1 data-t="client"></h1>
+        <p class="lead" data-t="clientLead"></p>
+        <div class="seg" role="group"><button id="tab-url" aria-pressed="true" data-t="byUrl"></button><button id="tab-ssh" aria-pressed="false">SSH</button></div>
+        <div id="by-url">
+          <input type="text" id="url" placeholder="https://mi-servidor.ts.net" autocomplete="off" />
+          <p class="hint" data-t="urlHint"></p>
+        </div>
+        <div id="by-ssh" hidden>
+          <input type="text" id="ssh" placeholder="usuario@servidor" autocomplete="off" />
+          <p class="hint" data-t="sshHint"></p>
+        </div>
+        <div class="error" id="client-error" hidden></div>
+        <pre id="install" hidden></pre>
+        <div class="row"><button class="primary" id="client-go" data-t="connect"></button><button class="link" data-back data-t="back"></button></div>
+      </section>
+    </main>
+    <script>
+      const T = {
+        es: {
+          title: "¿Cómo usás APX en esta computadora?",
+          lead: "Lo podés cambiar después desde el menú APX › Cambiar conexión.",
+          server: "Servidor",
+          serverText: "APX corre en esta computadora: instala y arranca el core acá. Empezás de cero o importás desde APX v1.",
+          client: "Cliente",
+          clientText: "APX corre en otra máquina (otra compu o un servidor). Acá no se instala nada: esta app se conecta.",
+          accessLead: "¿Desde dónde lo vas a usar?",
+          accessNone: "Solo desde esta computadora",
+          accessNoneText: "Lo más seguro. Podés abrirlo a otros equipos más adelante.",
+          accessLan: "También desde mi red local",
+          accessLanText: "Otros equipos de tu casa u oficina, con un código de vinculación.",
+          accessTsText: "Tus equipos desde cualquier lado, con https y un código de vinculación. Necesita Tailscale instalado.",
+          importHint: "En el paso siguiente elegís empezar de cero o importar desde APX v1.",
+          start: "Empezar",
+          back: "Volver",
+          clientLead: "Conectate a un APX que ya corre en otra máquina.",
+          byUrl: "Dirección",
+          urlHint: "La dirección del APX (por ejemplo la de Tailscale). Te va a pedir un código: sacalo en ese APX en Config › Dispositivos, o con apx2 pair.",
+          sshHint: "Usa tu ssh y tus claves. El core del servidor queda en su propia máquina; no abre puertos.",
+          connect: "Conectar",
+          notReachable: "No responde un APX en esa dirección.",
+          sshDown: "Llegué por SSH pero el core de APX no responde en el servidor.",
+          sshNoApx: "Ese servidor no tiene APX. Instalalo ahí y volvé a conectar:",
+          sshFailed: "No pude entrar por SSH (¿la clave está cargada en el agente?).",
+          badUrl: "Escribí una dirección válida.",
+          badSsh: "Escribí usuario@servidor.",
+        },
+        en: {
+          title: "How do you use APX on this computer?",
+          lead: "You can change it later from the APX menu › Change connection.",
+          server: "Server",
+          serverText: "APX runs on this computer: the core is installed and started here. Start fresh or import from APX v1.",
+          client: "Client",
+          clientText: "APX runs on another machine (another computer or a server). Nothing is installed here: this app connects.",
+          accessLead: "Where will you use it from?",
+          accessNone: "Only from this computer",
+          accessNoneText: "The safest. You can open it to other devices later.",
+          accessLan: "Also from my local network",
+          accessLanText: "Other devices at home or at the office, with a pairing code.",
+          accessTsText: "Your devices from anywhere, over https, with a pairing code. Needs Tailscale installed.",
+          importHint: "Next you choose to start fresh or import from APX v1.",
+          start: "Start",
+          back: "Back",
+          clientLead: "Connect to an APX already running on another machine.",
+          byUrl: "Address",
+          urlHint: "The APX's address (its Tailscale one, for example). It asks for a code: get it on that APX in Config › Devices, or with apx2 pair.",
+          sshHint: "Uses your ssh and your keys. The server's core stays on its machine; no port is opened.",
+          connect: "Connect",
+          notReachable: "No APX answers at that address.",
+          sshDown: "SSH works but the APX core does not answer on the server.",
+          sshNoApx: "That server has no APX. Install it there and connect again:",
+          sshFailed: "Could not log in over SSH (is the key loaded in the agent?).",
+          badUrl: "Type a valid address.",
+          badSsh: "Type user@server.",
+        },
+      };
+      const t = T[navigator.language.startsWith("es") ? "es" : "en"];
+      for (const el of document.querySelectorAll("[data-t]")) el.textContent = t[el.dataset.t];
+      const show = (id) => {
+        for (const s of document.querySelectorAll("main > section")) s.hidden = s.id !== id;
+      };
+      const fail = (id, text) => {
+        const el = document.getElementById(id);
+        el.textContent = text;
+        el.hidden = !text;
+      };
+      document.getElementById("pick-server").onclick = () => show("server");
+      document.getElementById("pick-client").onclick = () => show("client");
+      for (const b of document.querySelectorAll("[data-back]")) b.onclick = () => show("start");
+      let via = "url";
+      const tab = (v) => {
+        via = v;
+        document.getElementById("tab-url").setAttribute("aria-pressed", String(v === "url"));
+        document.getElementById("tab-ssh").setAttribute("aria-pressed", String(v === "ssh"));
+        document.getElementById("by-url").hidden = v !== "url";
+        document.getElementById("by-ssh").hidden = v !== "ssh";
+        fail("client-error", "");
+        document.getElementById("install").hidden = true;
+      };
+      document.getElementById("tab-url").onclick = () => tab("url");
+      document.getElementById("tab-ssh").onclick = () => tab("ssh");
+
+      const busy = (button, on) => {
+        button.disabled = on;
+      };
+      document.getElementById("server-go").onclick = async (e) => {
+        busy(e.target, true);
+        fail("server-error", "");
+        const access = document.querySelector('input[name="access"]:checked').value;
+        const r = await window.apxConnect.local(access);
+        if (!r.ok) fail("server-error", r.error);
+        busy(e.target, false);
+      };
+      document.getElementById("client-go").onclick = async (e) => {
+        busy(e.target, true);
+        fail("client-error", "");
+        document.getElementById("install").hidden = true;
+        const r =
+          via === "url"
+            ? await window.apxConnect.url(document.getElementById("url").value)
+            : await window.apxConnect.ssh(document.getElementById("ssh").value);
+        if (!r.ok) {
+          fail("client-error", t[r.reason] ?? r.reason);
+          if (r.reason === "sshNoApx") {
+            const pre = document.getElementById("install");
+            pre.textContent = "npm i -g @agentprojectcontext/apx\napx2 setup --headless";
+            pre.hidden = false;
+          }
+        }
+        busy(e.target, false);
+      };
+    </script>
+  </body>
+</html>

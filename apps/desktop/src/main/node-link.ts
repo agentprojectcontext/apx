@@ -3,8 +3,18 @@ import { BROWSER_CAP } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import type { BrowserHost } from "./browser/host.ts";
 
-export function startNodeLink(host: BrowserHost, url: string, onStatus: (s: "connected" | "offline") => void): void {
-  const client = new ApxClient({ url, client: { name: "apx-desktop", version: "0.0.0" }, timeoutMs: 5_000 });
+export function startNodeLink(
+  host: BrowserHost,
+  url: string,
+  onStatus: (s: "connected" | "offline") => void,
+  token?: string,
+): void {
+  const client = new ApxClient({
+    url,
+    ...(token ? { token } : {}),
+    client: { name: "apx-desktop", version: "0.0.0" },
+    timeoutMs: 5_000,
+  });
   let socket: ApxSocket | undefined;
   host.on("changed", () => socket?.emit("browser", "tabs.changed", { tabs: host.list() }));
 

@@ -70,9 +70,9 @@ export function startEmbeddedCore(opts: { resources: string; logDir: string; cac
   };
 }
 
-/** Waits until the core answers, or gives up after READY_MS. */
-export async function waitUp(url: string): Promise<boolean> {
-  const until = Date.now() + READY_MS;
+/** Waits until the core answers, or gives up. */
+export async function waitUp(url: string, ms = READY_MS): Promise<boolean> {
+  const until = Date.now() + ms;
   while (Date.now() < until) {
     if (await isUp(url)) return true;
     await new Promise((r) => setTimeout(r, 300));
