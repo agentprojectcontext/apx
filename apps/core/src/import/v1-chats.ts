@@ -114,7 +114,15 @@ function ledgerChats(home: string): V1Chat[] {
   }
   const own = [...telegram].sort((a, b) => b[1] - a[1])[0]?.[0];
   const ownChat = own ? chats.get(own) : undefined;
-  if (ownChat) ownChat.title = CHANNEL_NAME.telegram ?? "Telegram";
+  if (ownChat) {
+    ownChat.title = CHANNEL_NAME.telegram ?? "Telegram";
+    // Rows v1 restored lost their chat id: they are the owner's own chat.
+    const loose = chats.get("chat:telegram");
+    if (loose) {
+      ownChat.rows.push(...loose.rows);
+      chats.delete("chat:telegram");
+    }
+  }
   // Days were read channel by channel: a merged chat (web and its sidebar) goes back in time order.
   for (const chat of chats.values()) chat.rows.sort((a, b) => a.ts.localeCompare(b.ts));
   return [...chats.values()];

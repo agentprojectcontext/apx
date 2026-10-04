@@ -111,6 +111,7 @@ before(async () => {
     lines(
       { ts: "2026-09-04T09:00:00.000Z", type: "user", body: "and the bakery?", meta: { chat_id: 1 } },
       { ts: "2026-09-04T09:00:01.000Z", type: "agent", body: "Open till 8.", meta: { chat_id: 1 } },
+      { ts: "2026-09-04T09:30:00.000Z", type: "agent", body: "A restored reminder.", meta: { restored_from: "x" } },
       { ts: "2026-09-04T12:00:00.000Z", type: "user", body: "lunch at 1?", meta: { chat_id: -7, chat_title: "Team" } },
     ),
   );
@@ -336,9 +337,9 @@ test("importing brings Default's agents with their notes, and the chats: one per
   const threads = env.core.store.threads.list().filter((t) => /Telegram|WhatsApp|Web|Plan the week/.test(t.title));
   const tg = threads.find((t) => t.title === "Telegram");
   assert.ok(tg, "the owner's Telegram chat is one conversation, whatever the days");
-  assert.equal(tg.updated_at, "2026-09-04T09:00:01.000Z", "the chat keeps v1's time");
+  assert.equal(tg.updated_at, "2026-09-04T09:30:00.000Z", "the chat keeps v1's time");
   const msgs = env.core.store.messages.list(tg.id);
-  assert.equal(msgs.length, 4);
+  assert.equal(msgs.length, 5, "a row that lost its chat id is the owner's chat too");
   assert.equal(msgs[0]?.created_at, "2026-09-01T10:00:00.000Z");
   assert.deepEqual(
     msgs[1]?.parts.map((p) => p.type),
