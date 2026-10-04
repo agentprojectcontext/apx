@@ -62,6 +62,8 @@ for (const scope of ["@anthropic-ai", "@openai"]) {
     if (/^claude-agent-sdk-|^codex$|^codex-(?!sdk$)/.test(name)) fs.rmSync(path.join(dir, name), { recursive: true });
   }
 }
+// The core never runs node_modules/.bin, and links left pointing at what was removed break the Linux zip.
+fs.rmSync(path.join(out, "node_modules", ".bin"), { recursive: true, force: true });
 
 // After npm (which prunes what package.json does not list).
 const protocol = path.join(out, "node_modules/@apx/protocol");
