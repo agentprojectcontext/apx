@@ -715,6 +715,11 @@
 .nudge__reason {
   margin: 4px 0 0;
 }
+.nudge__rate {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
 .sec__cron {
   width: 280px;
 }

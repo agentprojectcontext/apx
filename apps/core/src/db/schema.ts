@@ -187,6 +187,8 @@ export interface NudgesTable {
   reason: string | null;
   exempt: Generated<number>;
   hold_until: string | null;
+  feedback: string | null;
+  feedback_at: string | null;
 }
 
 export interface OutboxTable {

@@ -530,4 +530,9 @@ export const MIGRATIONS: readonly string[] = [
   -- A routine a profile seeded ("secretary:day-open"): the profile keeps it in step.
   ALTER TABLE routines ADD COLUMN origin TEXT;
   `,
+  `
+  -- The owner's 👍/👎 on a message APX sent unasked: a kind marked unhelpful again and again stops reaching them.
+  ALTER TABLE nudges ADD COLUMN feedback TEXT;
+  ALTER TABLE nudges ADD COLUMN feedback_at TEXT;
+  `,
 ];

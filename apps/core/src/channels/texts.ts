@@ -25,6 +25,9 @@ const es = {
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
+  useful: "👍 Útil",
+  notUseful: "👎 No me sirve",
+  rated: "Anotado, gracias.",
   routine: (name: string, text: string) => `**${name}**\n\n${text}`,
   due: (title: string, person?: string, owedBy?: "owner" | "person") =>
     person
@@ -60,6 +63,9 @@ const en: typeof es = {
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
+  useful: "👍 Useful",
+  notUseful: "👎 Not useful",
+  rated: "Noted, thanks.",
   routine: (name, text) => `**${name}**\n\n${text}`,
   due: (title, person, owedBy) =>
     person

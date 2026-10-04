@@ -218,7 +218,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     admit: (a) => engine.admit(a),
     attention,
-    notifyOwner: (text, threadId) => channels.notifyOwner({ text }, "notice", threadId),
+    notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
   });

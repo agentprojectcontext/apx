@@ -340,3 +340,13 @@ arrive), the watch goes through the interruption budget (D-031). Saving the prof
 or off; a prompt the owner edited stays, and "Restore" puts the default back. A v1 routine of the same job is adopted,
 not doubled. While on, a short role block joins the super-agent's system prompt (it changes only with the profile, so
 the prefix stays cacheable), and the watch reads its thresholds from it.
+
+<a id="d-034"></a>
+## D-034 — 2026-10-04 — The owner's 👍/👎 on unasked messages tunes the gate and the routine itself
+A routine's or an agent's news that reaches the owner carries 👍/👎 buttons (a channel without buttons leaves them out
+rather than numbering them; the panel's Interruptions log has them too, and a second press takes it back). The rating
+is stored on the nudge (D-031). Two effects, both bounded to the last 14 days: a kind marked 👎 at least twice with the
+latest rating a 👎 is dropped by the gate ("you marked this kind unhelpful") until a 👍 lifts it; anchors, reminders
+the owner set and critical messages are never muted. A routine's turn is told its counts as an `[owner feedback]`
+line in its input (not the system prompt, so the prefix stays cacheable). Reminders are not rated: the owner set them.
+No learned model, no per-signal scoring: two counts and a rule the owner can read.

@@ -655,6 +655,8 @@ export const Nudge = z.object({
   reason: z.string().optional(),
   /** It always arrives (an anchor like the morning brief) or went past the cap as critical: not counted. */
   exempt: z.boolean(),
+  /** The owner's 👍/👎 on it. */
+  feedback: z.enum(["up", "down"]).optional(),
 });
 export type Nudge = z.infer<typeof Nudge>;
 

@@ -1,10 +1,34 @@
 // The interruption budget: the one gate every message APX sends the owner unasked goes through (routine news, the
 // reminders they set). Anchors always arrive; in quiet hours the rest waits and goes together when they end; past the
-// day's cap, or too soon after another about the same project or of the same kind, it stays in the tray only. Answers
-// to the owner's own messages never come here.
+// day's cap, too soon after another about the same project or of the same kind, or of a kind the owner keeps marking
+// 👎, it stays in the tray only. Answers to the owner's own messages never come here.
 import type { Nudge } from "@apx/protocol";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
+import { nudgeId } from "../domain/nudges.ts";
 import type { Store } from "../domain/store.ts";
+
+/** How far back the owner's 👍/👎 count, and how many 👎 (with no later 👍) mute a kind. */
+const RATING_DAYS = 14;
+const MUTE_AFTER = 2;
+
+/** A routine's or an agent's news is rated (an anchor too: its rating shapes it, never mutes it); reminders are not. */
+export const rateable = (kind: string) => kind.startsWith("routine:") || kind.startsWith("agent:");
+
+const ratingsSince = (at: Date) => new Date(at.getTime() - RATING_DAYS * 86_400_000).toISOString();
+
+/** A kind the owner marked 👎 at least twice lately, the latest rating a 👎. */
+export function muted(store: Store, kind: string, at: Date): boolean {
+  const r = store.nudges.ratings(kind, ratingsSince(at));
+  return r.down >= MUTE_AFTER && r.last === "down";
+}
+
+/** What a routine's turn is told about how the owner rated its earlier messages; empty when they never did. */
+export function ratingNote(store: Store, kind: string, at = new Date()): string {
+  const r = store.nudges.ratings(kind, ratingsSince(at));
+  if (!r.up && !r.down) return "";
+  const last = r.last === "down" ? "not useful" : "useful";
+  return `In the last ${RATING_DAYS} days the owner marked ${r.up} of these messages useful and ${r.down} not useful (the latest: ${last}).${r.last === "down" ? " Be shorter and say only what changed; if nothing did, say so in one line." : ""}`;
+}
 
 export type Offer = {
   /** What it is about, for the per-kind gap: "routine:<name>", "reminder"… */
@@ -21,8 +45,8 @@ export type Offer = {
 
 export function createNudges(deps: {
   store: Store;
-  /** Puts it on the owner's channel; false when there is none to put it on. */
-  send: (text: string, threadId: string | undefined) => boolean;
+  /** Puts it on the owner's channel; false when there is none to put it on. `rate` names one to rate (👍/👎). */
+  send: (text: string, threadId: string | undefined, rate?: string) => boolean;
   /** "While you were away: …" for what waited out the quiet hours. */
   digest: (texts: string[]) => string;
   now?: () => Date;
@@ -31,8 +55,10 @@ export function createNudges(deps: {
   const clock = deps.now ?? (() => new Date());
 
   function deliver(o: Offer, exempt: boolean, reason?: string): Nudge["state"] {
-    const state = deps.send(o.text, o.thread_id) ? "sent" : "no_channel";
-    store.nudges.add({ ...strip(o), at: clock().toISOString(), state, exempt, ...(reason ? { reason } : {}) });
+    const id = nudgeId();
+    const rate = rateable(o.kind) ? id : undefined;
+    const state = deps.send(o.text, o.thread_id, rate) ? "sent" : "no_channel";
+    store.nudges.add({ id, ...strip(o), at: clock().toISOString(), state, exempt, ...(reason ? { reason } : {}) });
     return state;
   }
 
@@ -47,6 +73,7 @@ export function createNudges(deps: {
       store.nudges.add({ ...strip(o), at: at.toISOString(), state: "dropped", reason, exempt: false });
       return "dropped" as const;
     };
+    if (muted(store, o.kind, at)) return drop("you marked this kind unhelpful");
     if (prefs.budget_per_day > 0 && store.nudges.countedSince(dayStart.toISOString()) >= prefs.budget_per_day)
       return drop("daily cap reached");
     const within = (last: string | undefined, min: number) =>

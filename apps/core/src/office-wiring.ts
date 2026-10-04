@@ -1,7 +1,9 @@
 // How the office's clock reaches the owner: a routine's news and the reminders the owner asked for go to the attention
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
+import { ratedPresentation } from "./channels/notices.ts";
 import { channelTexts } from "./channels/texts.ts";
+import type { Presentation } from "./domain/channels.ts";
 import type { Store } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import type { Attention } from "./engine/attention.ts";
@@ -18,14 +20,15 @@ export function officeScheduler(deps: {
   admit: AdmitFn;
   attention: Attention;
   /** Puts a message on the owner's channel; false when there is none. */
-  notifyOwner: (text: string, threadId: string | undefined) => boolean;
+  notifyOwner: (body: Presentation, threadId: string | undefined) => boolean;
   log: Log;
   now?: () => Date;
 }) {
   const { store, attention } = deps;
   const nudges = createNudges({
     store,
-    send: (text, threadId) => deps.notifyOwner(text, threadId),
+    send: (text, threadId, rate) =>
+      deps.notifyOwner(rate ? ratedPresentation(text, rate, channelTexts(store)) : { text }, threadId),
     digest: (texts) => channelTexts(store).digest(texts),
     ...(deps.now ? { now: deps.now } : {}),
   });

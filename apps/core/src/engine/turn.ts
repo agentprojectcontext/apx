@@ -34,6 +34,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import { ratingNote } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { recallFor } from "./recall.ts";
@@ -295,6 +296,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
           extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
           waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+          feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
         }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);

@@ -107,7 +107,10 @@ export function createChannels(deps: {
         conversation: addr.external_id,
         thread_id: threadId,
         kind,
-        body: inQuietHours(prefs) ? { ...body, silent: true } : body,
+        body: {
+          ...(body.optionalButtons && !l.adapter.caps.buttons ? { text: body.text } : body),
+          ...(inQuietHours(prefs) ? { silent: true } : {}),
+        },
       });
       return true;
     }

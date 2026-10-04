@@ -43,6 +43,11 @@ export function channelHandlers(store: Store, channels: Channels) {
         today: { sent: store.nudges.countedSince(dayStart.toISOString()), cap: noticePrefs(store).budget_per_day },
       };
     },
+    "notices.feedback": ({ id, feedback }) => {
+      const n = store.nudges.feedback(id, feedback, new Date().toISOString());
+      if (!n) throw notFound(`notice ${id}`);
+      return n;
+    },
     "notices.set": (prefs) => saveNoticePrefs(store, prefs),
     "contacts.list": () => {
       store.persons.owner();

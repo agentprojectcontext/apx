@@ -342,3 +342,24 @@ test("a refused connection is retried (nothing went out); two quick saves leave 
   // One poller with nothing to read makes about one poll per 50 ms here; two would make twice as many.
   assert.ok(tg.polls() - a < 16, `polls in 500 ms: ${tg.polls() - a}`);
 });
+
+test("a routine's news reaches the owner with 👍/👎; a press is kept on the notice", async () => {
+  const r = await env.client.call("routines.set", {
+    name: "rated-probe",
+    agent: "roby",
+    schedule: { kind: "manual" },
+    action: "message",
+    prompt: "Rate me",
+    enabled: true,
+  });
+  await env.client.call("routines.run", { routine: r.id });
+  const rated = () => tg.messagesTo(OWNER.id).find((m) => /Rate me/.test(String(m.body.text)));
+  await until(() => Boolean(rated()), "routine notice");
+  const markup = rated()?.body.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
+  const down = markup.inline_keyboard[1]?.[0]?.callback_data ?? "";
+  assert.match(down, /^f:ndg_.+:d$/);
+  tg.press(OWNER, down);
+  const id = down.split(":")[1] ?? "";
+  await until(() => env.core.store.nudges.get(id)?.feedback === "down", "feedback stored");
+  await until(() => tg.messagesTo(OWNER.id).some((m) => /Anotado/.test(String(m.body.text))), "thanks");
+});

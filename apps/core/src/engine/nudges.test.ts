@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, test } from "node:test";
-import { createNudges } from "./nudges.ts";
+import { createNudges, ratingNote } from "./nudges.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let clock = new Date(2026, 9, 5, 10, 0);
 let sent: string[] = [];
+let rates: Array<string | undefined> = [];
 let nudges: ReturnType<typeof createNudges>;
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   nudges = createNudges({
     store: env.core.store,
-    send: (text) => {
+    send: (text, _thread, rate) => {
       sent.push(text);
+      rates.push(rate);
       return true;
     },
     digest: (texts) => `DIGEST[${texts.join("|")}]`,
@@ -26,6 +28,7 @@ after(async () => {
 });
 afterEach(() => {
   sent = [];
+  rates = [];
   env.core.store.settings.write("notices", { inputs_after_s: 120 } as never);
 });
 
@@ -113,4 +116,31 @@ test("a routine is made an anchor, and keeps it when changed without saying", as
     enabled: false,
   });
   assert.equal(again.anchor, true);
+});
+
+test("a routine's news can be rated; a kind marked 👎 twice stops reaching the owner until a 👍", async () => {
+  at(9, 0, 12);
+  prefs({ budget_per_day: 0, project_gap_min: 0, kind_gap_min: 0 });
+  const offer = () => nudges.offer({ kind: "routine:Watch", text: "news" });
+  assert.equal(offer(), "sent");
+  assert.equal(nudges.offer({ kind: "reminder", text: "call", asked: true }), "sent");
+  const [first, reminder] = rates;
+  assert.ok(first, "a routine's news carries its id for 👍/👎");
+  assert.equal(reminder, undefined, "a reminder the owner set is not rated");
+
+  const rate = (id: string, feedback: "up" | "down" | null) => env.client.call("notices.feedback", { id, feedback });
+  assert.equal((await rate(first, "down")).feedback, "down");
+  assert.equal(offer(), "sent", "one 👎 is not enough");
+  await rate(rates.at(-1) ?? "", "down");
+  assert.equal(offer(), "dropped");
+  assert.match(env.core.store.nudges.list(1)[0]?.reason ?? "", /unhelpful/);
+  // An anchor of that kind still arrives; its rating only shapes it.
+  assert.equal(nudges.offer({ kind: "routine:Watch", text: "brief", anchor: true }), "sent");
+  assert.match(ratingNote(env.core.store, "routine:Watch", clock), /0 of these messages useful and 2 not useful/);
+
+  await new Promise((r) => setTimeout(r, 5));
+  await rate(first, "up");
+  assert.equal(offer(), "sent", "a later 👍 lifts it");
+  assert.equal(ratingNote(env.core.store, "routine:Never", clock), "");
+  await assert.rejects(rate("ndg_missing", "up"));
 });

@@ -1,5 +1,5 @@
 import type { Device, NoticePrefs, Nudge } from "@apx/protocol";
-import { Badge, EmptyState, Icons, Input, Select, SettingRow, Switch } from "@apx/ui";
+import { Badge, Button, EmptyState, Icons, Input, Select, SettingRow, Switch } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { loadChannels, saveNotices, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
@@ -13,6 +13,10 @@ const STATE_TONE: Record<Nudge["state"], "brand" | "neutral" | "warning" | "dang
   dropped: "neutral",
   no_channel: "danger",
 };
+
+/** What the core lets the owner rate: a routine's or an agent's news that went out. */
+const rateable = (n: Nudge) =>
+  (n.state === "sent" || n.state === "no_channel") && (n.kind.startsWith("routine:") || n.kind.startsWith("agent:"));
 
 /**
  * How often APX may write to you unasked: a daily cap, gaps per project and per kind, quiet hours that hold messages
@@ -31,6 +35,13 @@ export function InterruptionsSection() {
       setLog(undefined);
     }
   }, []);
+  const rate = async (n: Nudge, feedback: "up" | "down") => {
+    const next = await client.call("notices.feedback", {
+      id: n.id,
+      feedback: n.feedback === feedback ? null : feedback,
+    });
+    setLog((l) => l && { ...l, items: l.items.map((i) => (i.id === n.id ? next : i)) });
+  };
   useEffect(() => {
     void loadChannels();
     void loadLog();
@@ -153,6 +164,22 @@ export function InterruptionsSection() {
             </div>
             <p className="nudge__text">{n.text.length > 280 ? `${n.text.slice(0, 280)}…` : n.text}</p>
             {n.reason && <p className="nudge__reason">{n.reason}</p>}
+            {rateable(n) && (
+              <div className="nudge__rate">
+                {(["up", "down"] as const).map((f) => (
+                  <Button
+                    key={f}
+                    size="sm"
+                    variant={n.feedback === f ? "secondary" : "ghost"}
+                    aria-pressed={n.feedback === f}
+                    aria-label={t(f === "up" ? "nudge.useful" : "nudge.notUseful")}
+                    onClick={() => void rate(n, f).catch(() => {})}
+                  >
+                    {f === "up" ? "👍" : "👎"}
+                  </Button>
+                ))}
+              </div>
+            )}
           </li>
         ))}
       </ul>

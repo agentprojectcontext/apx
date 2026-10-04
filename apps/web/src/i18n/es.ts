@@ -954,6 +954,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.log": "Lo que quiso mandar",
   "nudge.logEmpty": "Nada todavía.",
   "nudge.exempt": "llega siempre",
+  "nudge.useful": "Útil",
+  "nudge.notUseful": "No me sirve",
   "nudge.state.sent": "enviado",
   "nudge.state.merged": "enviado junto",
   "nudge.state.held": "esperando el fin del silencio",

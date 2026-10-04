@@ -29,6 +29,8 @@ export type InboundAction = { conversation: string; sender: { id: string; name: 
 export type Presentation = {
   text: string;
   buttons?: Array<{ id: string; label: string }>;
+  /** A channel without buttons leaves them out instead of numbering them (a 👍/👎 nobody needs to answer). */
+  optionalButtons?: boolean;
   /** Delivered without sound (quiet hours). */
   silent?: boolean;
   /** Parts already delivered by an earlier attempt (text chunks first, then media). */

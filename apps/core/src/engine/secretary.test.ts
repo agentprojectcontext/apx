@@ -109,3 +109,21 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     fresh.cleanup();
   }
 });
+
+test("a routine's turn hears how the owner rated its earlier messages", async () => {
+  const open = (await get()).routines.find((r) => r.origin === "secretary:day-open");
+  assert.ok(open);
+  const store = env.core.store;
+  for (const f of ["up", "down"] as const) {
+    const n = store.nudges.add({ kind: `routine:${open.name}`, text: "brief", state: "sent", exempt: true });
+    store.nudges.feedback(n.id, f, new Date(Date.now() + (f === "down" ? 1000 : 0)).toISOString());
+  }
+  const { thread_id } = await env.client.call("routines.run", { routine: open.id });
+  await env.settle(thread_id);
+  const said = llm.calls.flatMap((c) => c.messages).map((m) => String(m.content));
+  assert.ok(
+    said.some((t) =>
+      /\[owner feedback\]\n.*1 of these messages useful and 1 not useful \(the latest: not useful\)/.test(t),
+    ),
+  );
+});

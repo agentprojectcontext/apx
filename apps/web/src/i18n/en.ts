@@ -952,6 +952,8 @@ export const en = {
   "nudge.log": "What it meant to send",
   "nudge.logEmpty": "Nothing yet.",
   "nudge.exempt": "always arrives",
+  "nudge.useful": "Useful",
+  "nudge.notUseful": "Not useful",
   "nudge.state.sent": "sent",
   "nudge.state.merged": "sent together",
   "nudge.state.held": "waiting for quiet hours to end",

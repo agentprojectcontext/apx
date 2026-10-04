@@ -17,14 +17,18 @@ const toNudge = (r: Selectable<NudgesTable>): Nudge => ({
   state: r.state as Nudge["state"],
   ...opt("reason", r.reason),
   exempt: Boolean(r.exempt),
+  ...(r.feedback === "up" || r.feedback === "down" ? { feedback: r.feedback } : {}),
 });
+
+/** An id for a nudge about to be sent, so its 👍/👎 buttons can name it. */
+export const nudgeId = () => newId("ndg");
 
 export type NudgeRow = Nudge & { hold_until?: string | undefined };
 
 export function nudgesRepo({ one, all, run }: Sql) {
   return {
-    add(n: Omit<NudgeRow, "id" | "at"> & { at?: string }): Nudge {
-      const id = newId("ndg");
+    add(n: Omit<NudgeRow, "id" | "at"> & { id?: string; at?: string }): Nudge {
+      const id = n.id ?? nudgeId();
       run(
         qb.insertInto("nudges").values({
           id,
@@ -77,6 +81,34 @@ export function nudgesRepo({ one, all, run }: Sql) {
           .set({ state, reason: reason ?? null })
           .where("id", "in", ids),
       );
+    },
+    get(id: string): Nudge | undefined {
+      const r = one(qb.selectFrom("nudges").selectAll().where("id", "=", id));
+      return r ? toNudge(r as Selectable<NudgesTable>) : undefined;
+    },
+    feedback(id: string, feedback: "up" | "down" | null, at: string): Nudge | undefined {
+      run(
+        qb
+          .updateTable("nudges")
+          .set({ feedback, feedback_at: feedback ? at : null })
+          .where("id", "=", id),
+      );
+      return this.get(id);
+    },
+    /** How the owner rated this kind since `at`, and their latest rating. */
+    ratings(kind: string, at: string): { up: number; down: number; last?: "up" | "down" } {
+      const rows = all(
+        qb
+          .selectFrom("nudges")
+          .select(["feedback"])
+          .where("kind", "=", kind)
+          .where("at", ">=", at)
+          .where("feedback", "is not", null)
+          .orderBy("feedback_at", "desc"),
+      );
+      const up = rows.filter((r) => r.feedback === "up").length;
+      const last = rows[0]?.feedback;
+      return { up, down: rows.length - up, ...(last === "up" || last === "down" ? { last } : {}) };
     },
     prune(): void {
       const before = new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString();

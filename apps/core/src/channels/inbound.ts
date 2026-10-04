@@ -251,6 +251,11 @@ export function createInbound(deps: {
         reply(button.decision === "contact" ? t.approved : t.denied);
         return;
       }
+      if (button.kind === "feedback") {
+        await call("notices.feedback", { id: button.nudgeId, feedback: button.feedback }, { actor: "human" });
+        reply(t.rated);
+        return;
+      }
       const input = store.inputs.get(button.inputId);
       if (input?.state !== "pending") return;
       store.threads.mergeContext(input.thread_id, { reply_to: { channel, conversation: a.conversation } });

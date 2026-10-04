@@ -18,8 +18,8 @@ before(async () => {
       throw new Error("no routines here");
     },
     attention: { add: (n: { title: string }) => void tray.push(n.title) } as unknown as Attention,
-    notifyOwner: (text) => {
-      sent.push(text);
+    notifyOwner: (body) => {
+      sent.push(body.text);
       return true;
     },
     log: { info() {}, warn() {}, error() {}, debug() {} } as never,

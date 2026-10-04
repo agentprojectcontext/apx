@@ -1,5 +1,5 @@
 // Interruptions: the owner sets how often APX may write unasked; a second notice of the same kind soon after the first
-// stays in the tray, and the log says so.
+// stays in the tray, and the log says so; what reached the owner can be rated.
 import { expect, open, rpc, test, until } from "./kit.ts";
 
 test("the daily cap is set in Interruptions, and a notice too soon after another stays in the tray", async ({
@@ -43,4 +43,17 @@ test("the daily cap is set in Interruptions, and a notice too soon after another
   await expect(probes.first().getByText("solo en la bandeja")).toBeVisible();
   await expect(probes.first().getByText(/too soon after another of this kind/)).toBeVisible();
   await expect(probes.last().getByText("enviado", { exact: true })).toBeVisible();
+
+  // The owner rates what reached them; a second press takes it back.
+  const down = probes.last().getByRole("button", { name: "No me sirve" });
+  await down.click();
+  await expect(down).toHaveAttribute("aria-pressed", "true");
+  const rated = async () =>
+    (await rpc<{ items: Array<{ text: string; feedback?: string }> }>("notices.log", { limit: 50 })).items.find(
+      (n) => n.text.includes("Probe from the budget") && n.feedback,
+    )?.feedback;
+  await expect.poll(rated).toBe("down");
+  await down.click();
+  await expect(down).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(rated).toBeUndefined();
 });

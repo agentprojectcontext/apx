@@ -703,6 +703,13 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /** The owner's 👍/👎 on a message APX sent unasked (null takes it back). A kind marked 👎 again and again stops. */
+  "notices.feedback": {
+    params: z.object({ id: Id, feedback: z.enum(["up", "down"]).nullable() }).strict(),
+    result: Nudge,
+    effect: true,
+    access: "human",
+  },
   "notices.set": {
     params: NoticePrefs.strict(),
     result: NoticePrefs,

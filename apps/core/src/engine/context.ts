@@ -110,6 +110,8 @@ export function turnInput(opts: {
   extension?: string | undefined;
   /** People on channels waiting for the owner's OK (codes and numbers only). */
   waiting?: string | undefined;
+  /** A routine's turn: how the owner rated its earlier messages. */
+  feedback?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
   const head = [
@@ -120,6 +122,7 @@ export function turnInput(opts: {
     opts.task ? `[task]\n${opts.task}` : "",
     opts.extension ? `[extension context]\n${opts.extension}` : "",
     opts.waiting ? `[waiting]\n${opts.waiting}` : "",
+    opts.feedback ? `[owner feedback]\n${opts.feedback}` : "",
   ].filter(Boolean);
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }
