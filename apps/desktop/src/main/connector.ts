@@ -30,8 +30,9 @@ export function createConnector(opts: {
   const dataDir = app.getPath("userData");
   const chooser = path.join(opts.dist, "connect.html");
   const corePort = Number(new URL(opts.coreUrl).port || 7440);
-  // A checkout (`pnpm app`) is always the owner's own core; only an installed app asks.
-  let conn: Connection | undefined = loadConnection(dataDir) ?? (app.isPackaged ? undefined : { mode: "local" });
+  // Asked once (installed or from a checkout) and kept; APX_CONNECTION=local skips the question (tests, scripts).
+  let conn: Connection | undefined =
+    process.env.APX_CONNECTION === "local" ? { mode: "local" } : loadConnection(dataDir);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
 
