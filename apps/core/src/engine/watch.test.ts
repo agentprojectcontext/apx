@@ -60,6 +60,38 @@ test("a watch calls its agent only with signals it has not told yet, as data; wi
   assert.deepEqual(second.notices, ["routine.watch.quiet"]);
 });
 
+test("in the owner's quiet hours a watch waits without the model; the next run after them sees what is new", async () => {
+  const hm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const now = new Date();
+  const prefs = await env.client.call("notices.get", {});
+  await env.client.call("notices.set", {
+    ...prefs,
+    quiet_from: hm(new Date(now.getTime() - 3_600_000)),
+    quiet_to: hm(new Date(now.getTime() + 3_600_000)),
+  });
+  await env.client.call("tasks.create", { title: "Renew the Acme domain", due_at: "2026-01-06" });
+  const r = await env.client.call("routines.set", {
+    name: "Night watch",
+    agent: "roby",
+    action: "watch",
+    schedule: { kind: "cron", cron: "0 */2 * * *" },
+    prompt: "Only what matters.",
+  });
+  const calls = llm.calls.length;
+  const quiet = await runWatch(r.id);
+  assert.equal(llm.calls.length, calls, "no model call in quiet hours");
+  assert.equal(quiet.run?.model_called, false);
+
+  await env.client.call("notices.set", prefs);
+  await runWatch(r.id);
+  assert.equal(llm.calls.length, calls + 1);
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /Renew the Acme domain/,
+    "the signal was kept for later",
+  );
+});
+
 test("a signal already told comes back after a day; old records are dropped", () => {
   const s: Signal = { key: "overdue_task:t1", kind: "overdue_task", severity: "normal", subject: "x" };
   const t0 = new Date("2026-10-01T09:00:00Z");

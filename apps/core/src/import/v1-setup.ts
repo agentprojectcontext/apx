@@ -111,7 +111,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     },
     { id: "tasks", count: all.reduce((n, s) => n + v1OpenTasks(s.storage).length, 0) },
     { id: "commitments", count: all.reduce((n, s) => n + v1OpenCommitments(s.storage).length, 0) },
-    { id: "routines", count: all.reduce((n, s) => n + v1Routines(s.storage).length, 0) },
+    { id: "routines", count: all.reduce((n, s) => n + v1Routines(s.storage).filter((r) => !r.profile).length, 0) },
   ];
 }
 
@@ -334,7 +334,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       if (s.path && !project) continue;
       const have = new Set(store.routines.list(project ?? null).map((r) => r.name));
       for (const r of v1Routines(s.storage)) {
-        if (have.has(r.name)) continue;
+        // A profile's routines come from v2's own profile (with v2's tools in their prompts), not as v1 wrote them.
+        if (have.has(r.name) || r.profile) continue;
         const action = ACTION[r.kind] ?? "agent";
         const agent =
           (r.agent && store.agents.list().find((a) => a.project_id === project && a.slug === r.agent)) || secretary;

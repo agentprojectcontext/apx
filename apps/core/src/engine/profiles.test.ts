@@ -116,7 +116,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     const close = routines.filter((r) => r.origin === "secretary:day-close");
     assert.equal(close.length, 1);
     assert.equal(close[0]?.id, v1.id, "v1's own routine became the profile's");
-    assert.equal(close[0]?.prompt, "v1's close");
+    assert.match(close[0]?.prompt ?? "", /Close the owner's day/, "with v2's prompt: v1's named v1's tools");
     assert.equal(routines.length, 3);
   } finally {
     await fresh.core.close();

@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { CallModel, Routine } from "@apx/protocol";
+import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
@@ -132,9 +133,16 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
     return r;
   };
 
-  /** A watch: its agent is called only with signals not told lately; they reach it as data, not instructions. */
+  /**
+   * A watch: its agent is called only with signals not told lately; they reach it as data, not instructions. In the
+   * owner's quiet hours it waits (nothing it says would reach them): the first run after sees what is new.
+   */
   const watch = (result: StepResult | undefined) => {
     const now = new Date();
+    if (inQuietHours(noticePrefs(o.store), now)) {
+      o.store.routines.modelCalled(o.run.id, false);
+      return { call: false, prompt: (t: string) => t };
+    }
     const key = `watch_seen:${routine.id}`;
     let seen: Record<string, string> = {};
     try {

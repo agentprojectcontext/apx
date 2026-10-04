@@ -188,6 +188,15 @@ before(async () => {
         enabled: true,
       },
       {
+        id: "r3",
+        name: "secretary-watch",
+        kind: "watch",
+        schedule: "0 8-20/2 * * *",
+        origin: "profile:secretary",
+        spec: { prompt: "Call list_commitments" },
+        enabled: true,
+      },
+      {
         id: "r2",
         name: "Backup",
         kind: "shell",

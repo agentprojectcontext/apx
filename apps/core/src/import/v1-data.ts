@@ -163,6 +163,8 @@ export type V1Routine = {
   post?: string;
   /** v1's "anchor": its news always arrives (the day's open and close). */
   anchor?: boolean;
+  /** The v1 profile that installed it ("secretary"): v2's own profile brings that routine instead. */
+  profile?: string;
   enabled: boolean;
 };
 
@@ -189,6 +191,7 @@ export function v1Routines(storage: string): V1Routine[] {
         ...(join(o.pre_commands) ? { pre: join(o.pre_commands) } : {}),
         ...(join(o.post_commands) ? { post: join(o.post_commands) } : {}),
         ...(spec.anchor === true ? { anchor: true } : {}),
+        ...(str(o.origin)?.startsWith("profile:") ? { profile: String(o.origin).slice(8) } : {}),
         enabled: o.enabled !== false,
       },
     ];

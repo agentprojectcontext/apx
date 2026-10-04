@@ -379,7 +379,10 @@ One runs at a time (`profile` setting: id + values); switching turns the previou
 (prompts the owner wrote stay, Restore puts the shipped one back). D-033's objection still holds: no fingerprint, no
 re-adoption, no drift warnings. The watch's thresholds read `waiting_hours`, `commitment_lead_hours` and
 `stale_project_days` from the running profile's values, with fixed defaults otherwise. A migration moves the old
-`secretary` setting into `profile`.
+`secretary` setting into `profile`. v1's profile routines (`origin: profile:<id>`) are not imported: the v2 profile
+brings them, and a v1 routine it adopts by name takes v2's prompt (v1's names tools v2 does not have). A watch waits
+out the owner's quiet hours without calling the model (nothing it said would reach them); the first run after sees
+what is new, which is what v1 owners did by hand with a watch limited to daytime hours.
 
 <a id="d-038"></a>
 ## D-038 — 2026-10-04 — Agents know their owner, the channel and v1's working rules

@@ -136,7 +136,8 @@ export function applyProfile(
       project_id: undefined,
       schedule,
       action: spec.action,
-      prompt: mine?.prompt ?? spec.prompt,
+      // The owner's edits to a profile routine stay; a v1 routine it adopts gets v2's prompt (v1's names v1's tools).
+      prompt: mine?.origin ? mine.prompt : spec.prompt,
       pre_command: pre || undefined,
       post_command: mine?.post_command,
       call_model: mine?.call_model ?? ("always" as const),
