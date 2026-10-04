@@ -41,6 +41,18 @@ test("the catalog asks each engine for its models, caches them and keeps the las
         },
       },
     });
+    // A list an older APX kept (fresh, but read before efforts existed) is asked again, not served for a day.
+    store.settings.set(
+      "catalog:claude",
+      JSON.stringify({
+        id: "claude",
+        kind: "harness",
+        label: "Claude Code",
+        available: true,
+        models: [{ id: "old", name: "Old", chat: true }],
+        fetched_at: new Date().toISOString(),
+      }),
+    );
     const first = await catalog.list();
     const g = first.find((e) => e.id === "g");
     assert.deepEqual(
