@@ -250,13 +250,27 @@ function networkAddresses(host: string, port: number): string[] {
 }
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1", "localhost"]);
 
+/** The panel may also be opened at the public URL (a Tailscale name) or at any address the core is reachable on. */
+export function exposedOrigins(config: Pick<CoreConfig, "host" | "publicUrl">, port: number): string[] {
+  const origins = new Set<string>();
+  for (const u of reachableAt(config.host, port, config.publicUrl)) {
+    try {
+      origins.add(new URL(u).origin);
+    } catch {
+      // A malformed APX_PUBLIC_URL allows nothing extra.
+    }
+  }
+  return [...origins];
+}
+
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
   d: { dispatch: Dispatch; store: Store; log: Log; identity: Identity; broker: NodeBroker; bus: Bus },
 ) {
+  const allowedOrigins = originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins);
   const gate: Gate = {
-    allowedOrigins: originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins),
+    allowedOrigins,
     token: config.token,
     device: (token) => Boolean(d.store.devices.byToken(token)),
   };
@@ -290,6 +304,8 @@ export async function listen(
     server.listen(config.port, config.host, resolve);
   });
   const { port } = server.address() as AddressInfo;
+  // Known once bound: a test or an APX_PORT=0 core only learns its port here.
+  for (const o of exposedOrigins(config, port)) allowedOrigins.add(o);
   return {
     port,
     url: `http://${config.host}:${port}`,

@@ -6,11 +6,16 @@ import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
+import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
+import { localConnection } from "./commands/local.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
+import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
+import { service } from "./commands/service.ts";
+import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
 
@@ -77,11 +82,22 @@ Usage:
                            its model API keys into v2's secret store, --skills its skills, --services its
                            image engines and voices, once
 
+  apx2 service install|uninstall|status|restart
+                           Run the core in the background (systemd, launchd or a Windows login entry), started at
+                           login and again if it dies
+  apx2 expose tailscale|lan|off|status
+                           Who may reach the core: your tailnet (https://<machine>.ts.net), the network, or only
+                           this computer. Writes <home>/core.env; restart the core afterwards
+  apx2 pair                A one-time code and link to connect a phone or another computer
+  apx2 setup --headless [--import [--keys] [--skills] [--services]] [--expose tailscale|lan]
+                           A server with no desktop: service, optional import, optional exposure, then a pair code
+
   apx2 mcp [--by <agent>]  Stdio MCP server exposing browser_* tools (for Claude Code, Codex…); with
                            APX_CLIENT_TOKEN also apx_agents / apx_ask / apx_read (apx2 clients add <name>)
   apx2 mcp --run           The tools of one agent run (APX_RUN_TOKEN), for an external harness
 
-Env: APX_URL (default http://127.0.0.1:7440), APX_TOKEN`;
+Env: APX_URL (default http://127.0.0.1:<APX_PORT or 7440>), APX_TOKEN (default: the one in <home>/core.env),
+     APX_HOME (default ~/.apx/v2)`;
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -120,14 +136,17 @@ const { values, positionals } = parseArgs({
     router: { type: "boolean" },
     timeout: { type: "string" },
     run: { type: "boolean" },
+    headless: { type: "boolean" },
+    import: { type: "boolean" },
+    expose: { type: "string" },
+    home: { type: "string" },
   },
 });
 const [command, ...rest] = positionals;
-const connection = {
-  url: process.env.APX_URL ?? "http://127.0.0.1:7440",
-  ...(process.env.APX_TOKEN ? { token: process.env.APX_TOKEN } : {}),
-};
-const client = new ApxClient({ ...connection, client: { name: "apx2-terminal", version: "0.0.0" } });
+const connection = localConnection();
+const terminalClient = () =>
+  new ApxClient({ ...localConnection(), client: { name: "apx2-terminal", version: "0.0.0" } });
+const client = terminalClient();
 /** MCP servers are driven by a model: the core never gives them the owner's controls. */
 const agentClient = new ApxClient({ ...connection, client: { name: "apx2-mcp", version: "0.0.0" }, actor: "agent" });
 
@@ -237,17 +256,31 @@ try {
     case "secrets":
       await secrets(client, rest);
       break;
-    case "import-v1": {
-      const r = await client.call("system.import_v1", {
+    case "import-v1":
+      await importV1(client, {
         keys: values.keys ?? false,
         skills: values.skills ?? false,
         services: values.services ?? false,
       });
-      console.log(
-        `imported ${r.projects} projects, ${r.agents} agents${r.keys.length ? `; keys: ${r.keys.join(", ")}` : ""}${r.skills.length ? `; ${r.skills.length} skills` : ""}${r.services.length ? `; services: ${r.services.join(", ")}` : ""}`,
-      );
       break;
-    }
+    case "service":
+      await service(rest[0], { home: values.home });
+      break;
+    case "expose":
+      await expose(rest[0]);
+      break;
+    case "pair":
+      await pair(client);
+      break;
+    case "setup":
+      await setupHeadless(terminalClient, {
+        headless: values.headless,
+        expose: values.expose,
+        import: values.import
+          ? { keys: values.keys ?? false, skills: values.skills ?? false, services: values.services ?? false }
+          : undefined,
+      });
+      break;
     case "mcp": {
       if (values.run) {
         // The run token comes in the environment, never on the command line.
@@ -273,7 +306,7 @@ try {
 } catch (err) {
   if (err instanceof ApxError) console.error(`apx2: ${err.code}: ${err.message}`);
   else if (err instanceof TypeError && String(err.cause ?? "").includes("ECONNREFUSED"))
-    console.error("apx2: the core is not running (try: pnpm dev)");
+    console.error("apx2: the core is not running (try: apx2 service install, or pnpm dev)");
   else console.error(`apx2: ${err instanceof Error ? err.message : String(err)}`);
   process.exitCode = 1;
 }

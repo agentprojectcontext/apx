@@ -37,4 +37,39 @@ pnpm app        # starts the core on 127.0.0.1:7440 and opens the desktop app
 pnpm preflight  # privacy check + lint + typecheck + tests
 ```
 
+## Run APX on a server (VPS, no desktop)
+
+The core runs on its own; the desktop app and the phone connect to it. On the server (Node 24 and a checkout or the
+packaged `apps/` folder):
+
+```bash
+pnpm install
+alias apx2="node $PWD/apps/terminal/src/main.ts"
+
+apx2 setup --headless --expose tailscale   # or --expose lan; add --import to bring a local APX v1's projects
+```
+
+`setup --headless` does, in order, what you can also run by hand:
+
+```bash
+apx2 service install      # systemd user unit (Linux), launchd agent (macOS) or a login entry (Windows)
+sudo loginctl enable-linger "$USER"        # Linux: keep the service running after you log out
+apx2 expose tailscale     # or: apx2 expose lan
+apx2 service restart      # the core reads <home>/core.env when it starts
+apx2 pair                 # a one-time code, the addresses and an apx://pair link
+```
+
+- `apx2 expose tailscale` keeps the core on `127.0.0.1` and publishes it with `tailscale serve` at
+  `https://<machine>.<tailnet>.ts.net`, reachable only from your tailnet. Tailscale must be installed and logged in.
+- `apx2 expose lan` makes the core listen on every address (`APX_HOST=0.0.0.0`), e.g. `http://192.168.1.20:7440`.
+  Use it only on a network you trust, or behind your own TLS proxy.
+- Both create a token for the core if it has none; it lives in `<home>/core.env` (mode 600, home `~/.apx/v2` unless
+  `APX_HOME` says otherwise). The terminal and the desktop app on the same machine read it from there.
+- `apx2 expose status` shows what is in effect; `apx2 expose off` goes back to this computer only (the token stays).
+- `apx2 service status` / `uninstall` check or remove the service.
+
+To connect a phone or another computer, run `apx2 pair` on the server and, in the APX app, paste the `apx://pair` link
+or enter one of the printed addresses (the Tailscale URL or the LAN address) and the code. The code is valid for a few
+minutes and works once; each device gets its own token.
+
 Working on the code: [`AGENTS.md`](AGENTS.md).

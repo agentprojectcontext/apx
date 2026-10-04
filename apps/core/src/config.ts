@@ -1,6 +1,8 @@
 // One config loader, injected everywhere (no import-time singletons, no process.env reads elsewhere).
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv } from "@apx/protocol";
 import type { SecretsBackend } from "./secrets.ts";
 
 /**
@@ -98,7 +100,21 @@ const list = (v: string | undefined) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
+/** `<home>/core.env` (written by `apx2 expose`) as defaults under the process environment, which always wins. */
+export function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const home = env.APX_HOME ?? defaultHome();
+  let text: string;
+  try {
+    text = fs.readFileSync(path.join(home, CORE_ENV_FILE), "utf8");
+  } catch {
+    return env;
+  }
+  return { ...coreEnvDefaults(parseCoreEnv(text)), ...env };
+}
+
+/** `readCoreEnv: false` keeps the result independent of any file on disk (tests, embedders). */
+export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCoreEnv = true): CoreConfig {
+  const env = readCoreEnv ? withCoreEnv(processEnv) : processEnv;
   // APX_LLM_* puts one custom OpenAI-compatible provider first (local models, tests, other gateways).
   const custom: ProviderConfig[] = env.APX_LLM_BASE_URL
     ? [
@@ -153,5 +169,5 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
   // Never the machine's real v1: a test that wants one passes it.
   const v1 = { url: "http://127.0.0.1:9", home: path.join(over.home, "v1") };
   const native = { claude: path.join(over.home, "claude-home"), codex: path.join(over.home, "codex-home") };
-  return { ...loadConfig({}), port: 0, secrets: "file", v1, native, updates: false, ...over };
+  return { ...loadConfig({}, false), port: 0, secrets: "file", v1, native, updates: false, ...over };
 }
