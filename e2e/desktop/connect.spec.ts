@@ -33,11 +33,11 @@ test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
 
 test("the first run asks server or client; server opens this computer's APX and is not asked again", async () => {
   const first = await launch();
-  const chooser = await windowAt(first, (u) => u.endsWith("/connect.html"));
+  const chooser = await windowAt(first, (u) => u.startsWith("apx-app://"));
   await expect(chooser.locator("#pick-server")).toBeVisible();
   await expect(chooser.locator("#pick-client")).toBeVisible();
   await chooser.locator("#pick-server").click();
-  await expect(chooser.locator('input[name="access"][value="none"]')).toBeChecked();
+  await expect(chooser.locator('[data-access="none"]')).toHaveAttribute("aria-pressed", "true");
   await chooser.locator("#server-go").click();
   await windowAt(first, (u) => u.startsWith(core));
   expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({ mode: "local" });
@@ -45,14 +45,14 @@ test("the first run asks server or client; server opens this computer's APX and 
 
   const again = await launch();
   await windowAt(again, (u) => u.startsWith(core));
-  expect(again.windows().some((p) => p.url().endsWith("/connect.html"))).toBe(false);
+  expect(again.windows().some((p) => p.url().startsWith("apx-app://"))).toBe(false);
   await again.close();
 });
 
 test("a client address that does not answer is refused on the spot", async () => {
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   const app = await launch();
-  const chooser = await windowAt(app, (u) => u.endsWith("/connect.html"));
+  const chooser = await windowAt(app, (u) => u.startsWith("apx-app://"));
   await chooser.locator("#pick-client").click();
   await chooser.locator("#url").fill("http://127.0.0.1:9");
   await chooser.locator("#client-go").click();

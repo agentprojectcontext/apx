@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld("apxDesktop", {
 });
 
 type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
-// The first-run screen (connect.html): the main process only answers it when that page is what the window shows.
+// The first-run screen (apx-app://app/?connect): the main process only answers it while the window shows that page.
 contextBridge.exposeInMainWorld("apxConnect", {
   local: (access: string): Promise<Answer> => ipcRenderer.invoke("connect:local", access),
   url: (url: string): Promise<Answer> => ipcRenderer.invoke("connect:url", url),

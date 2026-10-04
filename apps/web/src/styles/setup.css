@@ -653,7 +653,8 @@ input.wiz__name {
   color: var(--apx-fg-muted);
   line-height: 1.5;
 }
-.wiz__takeover pre {
+.wiz__takeover pre,
+.connect__install {
   align-self: stretch;
   margin: 0;
   padding: 10px 12px;
@@ -681,4 +682,11 @@ input.wiz__name {
   font-family: var(--apx-font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+/* The desktop app's first run: the address field sits under its segmented choice. */
+.connect .wiz__field {
+  margin-top: 14px;
+}
+.connect__via {
+  display: flex;
 }

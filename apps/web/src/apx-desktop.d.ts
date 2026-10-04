@@ -1,8 +1,16 @@
 // Bridge the desktop app (Electron preload) exposes to the panel. Absent in a plain browser.
 export {};
 
+type ConnectAnswer = { ok: true } | { ok: false; reason?: string; error?: string };
+
 declare global {
   interface Window {
+    /** Only on the desktop app's first-run page: this computer's APX (server) or one elsewhere (client). */
+    apxConnect?: {
+      local(access: "none" | "lan" | "tailscale"): Promise<ConnectAnswer>;
+      url(url: string): Promise<ConnectAnswer>;
+      ssh(target: string): Promise<ConnectAnswer>;
+    };
     apxDesktop?: {
       /** The core's token, when the app knows it: the panel sends it on every call. */
       coreToken?: string;

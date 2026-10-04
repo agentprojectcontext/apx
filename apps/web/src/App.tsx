@@ -11,6 +11,7 @@ import { Shell } from "./shell/Shell.tsx";
 
 const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m.Wizard })));
 const PairScreen = lazy(() => import("./setup/PairScreen.tsx").then((m) => ({ default: m.PairScreen })));
+const ConnectScreen = lazy(() => import("./setup/ConnectScreen.tsx").then((m) => ({ default: m.ConnectScreen })));
 
 /** The desktop app's menu-bar window loads the panel with ?quick: only the quick chat. */
 const QUICK = new URLSearchParams(window.location.search).has("quick");
@@ -18,7 +19,22 @@ const QUICK = new URLSearchParams(window.location.search).has("quick");
 // Settings › Appearance › Font: swapping the sans token reaches every component, overlays included.
 const MONO = { "--apx-font-sans": "var(--apx-font-mono)" } as CSSProperties;
 
+/** The desktop app's first run (?connect): no APX is chosen yet, so nothing calls a core. */
+const CONNECT = new URLSearchParams(window.location.search).has("connect") && Boolean(window.apxConnect);
+
 export function App() {
+  if (CONNECT)
+    return (
+      <ApxProvider look="minimal" mode="dark" fill>
+        <Suspense fallback={null}>
+          <ConnectScreen />
+        </Suspense>
+      </ApxProvider>
+    );
+  return <Main />;
+}
+
+function Main() {
   const mode = useNav((s) => s.mode);
   const look = usePrefs((s) => s.look);
   const font = usePrefs((s) => s.font);

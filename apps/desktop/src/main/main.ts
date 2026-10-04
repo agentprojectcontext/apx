@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
+import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { createConnector } from "./connector.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
@@ -23,6 +24,8 @@ const MEMORY_LIMIT_MB = 4096;
 // single-instance lock, so it never meets the owner's running APX.
 app.setPath("userData", process.env.APX_DESKTOP_DATA ?? path.join(app.getPath("appData"), "@apx", "desktop"));
 app.setName("APX");
+
+registerAppScheme();
 
 // One APX at a time: opening it again brings the running one forward.
 const single = app.requestSingleInstanceLock();
@@ -52,6 +55,7 @@ app.whenReady().then(() => {
   });
   app.on("activate", openMain);
   app.on("second-instance", openMain);
+  serveAppScheme("persist:apx-ui", webDist(DIST));
   const host = new BrowserHost();
   blockAppOrigins([CORE_URL, WEB_URL]);
 

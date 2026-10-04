@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { app, ipcMain, type WebContents } from "electron";
+import { APP_SCHEME, FIRST_RUN_URL } from "./app-scheme.ts";
 import {
   type Connection,
   forgetConnection,
@@ -28,7 +29,6 @@ export function createConnector(opts: {
   opened: (url: string, node: { url: string; token: string | undefined } | undefined) => void;
 }) {
   const dataDir = app.getPath("userData");
-  const chooser = path.join(opts.dist, "connect.html");
   const corePort = Number(new URL(opts.coreUrl).port || 7440);
   // Asked once (installed or from a checkout) and kept; APX_CONNECTION=local skips the question (tests, scripts).
   let conn: Connection | undefined =
@@ -37,7 +37,7 @@ export function createConnector(opts: {
   let tunnel: Tunnel | undefined;
 
   const onChooser = (sender: WebContents) =>
-    sender === opts.panel && sender.getURL().startsWith("file:") && sender.getURL().endsWith("/connect.html");
+    sender === opts.panel && sender.getURL().startsWith(`${APP_SCHEME}://app/`);
 
   ipcMain.on("desktop:core-token", (e) => {
     e.returnValue = conn?.mode === "local" && opts.isOwnWindow(e.sender) ? localCoreToken() : undefined;
@@ -102,7 +102,7 @@ export function createConnector(opts: {
 
   async function open(): Promise<void> {
     if (!conn) {
-      await opts.panel.loadFile(chooser);
+      await opts.panel.loadURL(FIRST_RUN_URL);
       return;
     }
     if (conn.mode === "local") {
