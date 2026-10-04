@@ -395,7 +395,9 @@ prompt), the profile it ran with its values, and its nudge budget and quiet hour
 <a id="d-039"></a>
 ## D-039 — 2026-10-04 — v1's chats come in as threads with their own dates; Default's agents become global
 The owner moves to v2 by importing, so the import brings what v1 kept, not only its settings. v1's super-agent chats
-(`~/.apx/messages/<channel>/<day>.jsonl`) become one thread per channel and day, as v1 showed them; a WhatsApp
+(`~/.apx/messages/<channel>/<day>.jsonl`) become one thread per channel (per chat on Telegram; web and v1's sidebar
+are one), so the owner finds "Telegram" rather than a hundred days of it, and the model log gets only the newest
+stretch (about 200k characters), which the upkeep summarizes on the thread's next turn; a WhatsApp
 contact's rows, one thread with that contact; project agents' web and agent-to-agent conversations
 (`projects/<id>/agents/<slug>/conversations/*.md`), threads with that agent. Messages keep v1's time (the store takes
 an `at` for history and adds it without a live event per message), tool rows ride on the answer that followed them as

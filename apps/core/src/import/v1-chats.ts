@@ -1,7 +1,8 @@
-// v1's conversations and Default's agents, brought into v2. The super-agent's chats come by channel and day (as v1
-// showed them), a contact's WhatsApp chat as one conversation with them; project agents' chats from their
-// conversation files. Tool calls ride on the answer that followed them. Routine logs, compactions and media stay in
-// v1. Read-only on v1's folder; what was brought once is not brought again.
+// v1's conversations and Default's agents, brought into v2. The super-agent's chats come as one conversation per
+// channel (and per Telegram chat), a contact's WhatsApp chat as one conversation with them; project agents' chats from
+// their conversation files. Tool calls ride on the answer that followed them; the model gets the newest stretch (a long
+// one is summarized on its next turn). Routine logs, compactions and media stay in v1. Read-only on v1's folder; what
+// was brought once is not brought again.
 import fs from "node:fs";
 import path from "node:path";
 import type { Author, Part } from "@apx/protocol";
@@ -21,8 +22,12 @@ const CHANNEL_NAME: Record<string, string> = {
   web_sidebar: "Web",
   discord: "Discord",
 };
+/** v1's sidebar chat is its web chat. */
+const SAME_AS: Record<string, string> = { web_sidebar: "web" };
 const DONE_KEY = "v1_chats_imported";
 const TEXT_MAX = 100_000;
+/** What of a long chat goes to the model log, newest first: the rest stays visible in the chat. */
+const LOG_CHARS = 200_000;
 
 type Row = { ts: string; type: string; body: string; author?: string; meta: Record<string, unknown> };
 export type V1Chat = {
@@ -38,13 +43,6 @@ export type V1Chat = {
 const obj = (v: unknown): Record<string, unknown> =>
   v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
-const readJson = (file: string): unknown => {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return undefined;
-  }
-};
 const listDir = (dir: string) => {
   try {
     return fs.readdirSync(dir).sort();
@@ -60,10 +58,11 @@ function contactOf(r: Row): string | undefined {
   return str(m.contact_key) ?? str(m.chat_jid);
 }
 
-/** The super-agent's chats, from ~/.apx/messages/<channel>/<day>.jsonl. */
+/** The super-agent's chats, from ~/.apx/messages/<channel>/<day>.jsonl: one per channel, a contact or a Telegram chat. */
 function ledgerChats(home: string): V1Chat[] {
-  const titles = obj(readJson(path.join(home, "messages", ".threads.json")));
   const chats = new Map<string, V1Chat>();
+  /** Telegram chats by size: the biggest is the owner's own, the rest (groups) are titled apart. */
+  const telegram = new Map<string, number>();
   for (const channel of CHANNELS) {
     const dir = path.join(home, "messages", channel);
     for (const file of listDir(dir).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))) {
@@ -92,16 +91,17 @@ function ledgerChats(home: string): V1Chat[] {
         const contact = channel === "whatsapp" ? contactOf(row) : undefined;
         // A Telegram group or a second chat is its own conversation, as in v1.
         const sub = contact ?? (channel === "telegram" ? str(String(row.meta.chat_id ?? "")) : undefined);
-        const key = contact ? `${channel}~${contact}` : `${channel}/${day}${sub ? `~${sub}` : ""}`;
+        const base = SAME_AS[channel] ?? channel;
+        const key = `chat:${base}${sub ? `~${sub}` : ""}`;
+        if (channel === "telegram" && sub) telegram.set(key, (telegram.get(key) ?? 0) + 1);
         let chat = chats.get(key);
         if (!chat) {
-          const own = str(obj(titles[`${channel}/${day}`]).title);
           chat = {
             key,
             title: contact
               ? `${CHANNEL_NAME[channel]} · ${row.author ?? contact}`
-              : (own ?? `${CHANNEL_NAME[channel]} · ${day}`),
-            channel,
+              : `${CHANNEL_NAME[base]}${sub ? ` · ${str(String(row.meta.chat_title ?? "")) ?? sub}` : ""}`,
+            channel: base,
             ...(contact ? { contact } : {}),
             rows: [],
           };
@@ -112,6 +112,11 @@ function ledgerChats(home: string): V1Chat[] {
       }
     }
   }
+  const own = [...telegram].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const ownChat = own ? chats.get(own) : undefined;
+  if (ownChat) ownChat.title = CHANNEL_NAME.telegram ?? "Telegram";
+  // Days were read channel by channel: a merged chat (web and its sidebar) goes back in time order.
+  for (const chat of chats.values()) chat.rows.sort((a, b) => a.ts.localeCompare(b.ts));
   return [...chats.values()];
 }
 
@@ -177,6 +182,15 @@ export function v1ChatCount(home: string): { chats: number; messages: number } {
     chats: chats.length,
     messages: chats.reduce((n, c) => n + c.rows.filter((r) => r.type === "user" || r.type === "agent").length, 0),
   };
+}
+
+/** The newest items that fit in `chars`, starting on the owner's words so the log reads as turns. */
+function newest<T extends { role: string; content: string }>(items: T[], chars: number): T[] {
+  let i = items.length;
+  for (let used = 0; i > 0 && used + (items[i - 1]?.content.length ?? 0) <= chars; i--)
+    used += items[i - 1]?.content.length ?? 0;
+  while (i < items.length && items[i]?.role !== "user") i++;
+  return items.slice(i);
 }
 
 /** A tool row as a finished tool call on the answer that follows it. */
@@ -250,8 +264,8 @@ export function importV1Chats(
           last = { at: r.ts, text };
         }
       });
-      // The model's view of the chat, so going on with it there has the earlier turns.
-      if (log.length) store.modelLog.append(thread.id, undefined, log);
+      // The model's view of the chat, so going on with it there has the earlier turns (its newest stretch).
+      if (log.length) store.modelLog.append(thread.id, undefined, newest(log, LOG_CHARS));
       store.threads.settle(thread.id, last.at || first || new Date().toISOString(), last.text.slice(0, 140));
     });
     done.add(chat.key);

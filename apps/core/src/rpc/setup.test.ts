@@ -91,7 +91,8 @@ before(async () => {
     path.join(v1, "memory.md"),
     "# Self\n\n## 2026-09-01\n- [09:00][app] Ana prefers short answers\n- [10:00] Coffee at 10\n",
   );
-  // The super-agent's chats (Telegram by day; a WhatsApp contact), Default's agents and an agent's own chat and notes.
+  // The super-agent's chats (Telegram over two days, a Telegram group, web and its sidebar; a WhatsApp contact),
+  // Default's agents and an agent's own chat and notes.
   json(
     path.join(v1, "messages", "telegram", "2026-09-01.jsonl"),
     lines(
@@ -104,6 +105,22 @@ before(async () => {
         meta: { chat_id: 1, model: "m1" },
       },
     ),
+  );
+  json(
+    path.join(v1, "messages", "telegram", "2026-09-04.jsonl"),
+    lines(
+      { ts: "2026-09-04T09:00:00.000Z", type: "user", body: "and the bakery?", meta: { chat_id: 1 } },
+      { ts: "2026-09-04T09:00:01.000Z", type: "agent", body: "Open till 8.", meta: { chat_id: 1 } },
+      { ts: "2026-09-04T12:00:00.000Z", type: "user", body: "lunch at 1?", meta: { chat_id: -7, chat_title: "Team" } },
+    ),
+  );
+  json(
+    path.join(v1, "messages", "web", "2026-09-05.jsonl"),
+    lines({ ts: "2026-09-05T10:00:00.000Z", type: "user", body: "from the web", meta: {} }),
+  );
+  json(
+    path.join(v1, "messages", "web_sidebar", "2026-09-04.jsonl"),
+    lines({ ts: "2026-09-04T10:00:00.000Z", type: "user", body: "from the sidebar", meta: {} }),
   );
   json(
     path.join(v1, "messages", "whatsapp", "2026-09-02.jsonl"),
@@ -204,7 +221,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     memory: 3,
     embeddings: 2,
     identity: 5,
-    chats: 3,
+    chats: 5,
     channels: 1,
     tasks: 1,
     commitments: 1,
@@ -304,7 +321,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
   await env.client.call("profiles.set", { id: null, values: {} });
 });
 
-test("importing brings Default's agents with their notes, and the chats: by day, a contact's, an agent's", async () => {
+test("importing brings Default's agents with their notes, and the chats: one per channel, a contact's, an agent's", async () => {
   const r = await env.client.call("setup.import_v1", { groups: ["projects", "chats"] });
   assert.deepEqual(r.errors, []);
   const andy = env.core.store.agents.get("andy");
@@ -315,17 +332,28 @@ test("importing brings Default's agents with their notes, and the chats: by day,
   assert.ok(
     env.core.store.memories.list({ agent_id: "andy", limit: 10 }).some((m) => m.text === "The owner likes lists short"),
   );
-  assert.equal(r.imported.chats, 3);
-  const threads = env.core.store.threads.list().filter((t) => /Telegram|WhatsApp|Plan the week/.test(t.title));
-  const tg = threads.find((t) => t.title === "Telegram · 2026-09-01");
-  assert.ok(tg);
-  assert.equal(tg.updated_at, "2026-09-01T10:00:03.000Z", "the chat keeps v1's time");
+  assert.equal(r.imported.chats, 5);
+  const threads = env.core.store.threads.list().filter((t) => /Telegram|WhatsApp|Web|Plan the week/.test(t.title));
+  const tg = threads.find((t) => t.title === "Telegram");
+  assert.ok(tg, "the owner's Telegram chat is one conversation, whatever the days");
+  assert.equal(tg.updated_at, "2026-09-04T09:00:01.000Z", "the chat keeps v1's time");
   const msgs = env.core.store.messages.list(tg.id);
+  assert.equal(msgs.length, 4);
   assert.equal(msgs[0]?.created_at, "2026-09-01T10:00:00.000Z");
   assert.deepEqual(
     msgs[1]?.parts.map((p) => p.type),
     ["tool", "text"],
     "the tool call rides on the answer",
+  );
+  assert.ok(
+    threads.some((t) => t.title === "Telegram · Team"),
+    "a group is its own conversation",
+  );
+  const web = threads.find((t) => t.title === "Web");
+  assert.deepEqual(
+    env.core.store.messages.list(web?.id ?? "").map((m) => m.parts[0]?.type === "text" && m.parts[0].text),
+    ["from the sidebar", "from the web"],
+    "v1's web and sidebar chats are one, in time order",
   );
   const wa = threads.find((t) => t.title === "WhatsApp · Northwind Buyer");
   assert.equal(env.core.store.messages.list(wa?.id ?? "")[0]?.author.kind, "user");
