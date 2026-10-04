@@ -21,6 +21,13 @@ const launch = () =>
     },
   });
 
+/** The intro holds the hero alone for a moment; a key skips straight to the question. */
+async function question(page: Page): Promise<Page> {
+  await page.keyboard.press("Space");
+  await expect(page.locator(".connect__stage.is-ready")).toBeVisible();
+  return page;
+}
+
 async function windowAt(app: ElectronApplication, test: (url: string) => boolean): Promise<Page> {
   await expect.poll(() => app.windows().some((p) => test(p.url())), { timeout: 20_000 }).toBe(true);
   return app.windows().find((p) => test(p.url())) as Page;
@@ -33,7 +40,7 @@ test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
 
 test("the first run asks server or client; server opens this computer's APX and is not asked again", async () => {
   const first = await launch();
-  const chooser = await windowAt(first, (u) => u.startsWith("apx-app://"));
+  const chooser = await question(await windowAt(first, (u) => u.startsWith("apx-app://")));
   await expect(chooser.locator("#pick-server")).toBeVisible();
   await expect(chooser.locator("#pick-client")).toBeVisible();
   await chooser.locator("#pick-server").click();
@@ -52,7 +59,7 @@ test("the first run asks server or client; server opens this computer's APX and 
 test("a client address that does not answer is refused on the spot", async () => {
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   const app = await launch();
-  const chooser = await windowAt(app, (u) => u.startsWith("apx-app://"));
+  const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
   await chooser.locator("#pick-client").click();
   await chooser.locator("#url").fill("http://127.0.0.1:9");
   await chooser.locator("#client-go").click();

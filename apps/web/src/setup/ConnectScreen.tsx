@@ -1,12 +1,16 @@
 import { Button, Icons, Input, SegmentedControl } from "@apx/ui";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { CrewHero } from "./CrewHero.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 type Access = "none" | "lan" | "tailscale";
 type Via = "url" | "ssh";
 type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
+
+/** How long the intro holds the hero alone before the question unrolls under it. */
+const INTRO_MS = 3400;
 
 const ACCESS: Array<{ id: Access; icon: typeof Icons.Lock; title: MessageKey; body: MessageKey }> = [
   { id: "none", icon: Icons.Lock, title: "connect.access.none", body: "connect.access.noneBody" },
@@ -36,6 +40,22 @@ export function ConnectScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [install, setInstall] = useState(false);
+  // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
+  const [revealed, setRevealed] = useState(
+    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+  );
+  useEffect(() => {
+    if (revealed) return;
+    const reveal = () => setRevealed(true);
+    const timer = window.setTimeout(reveal, INTRO_MS);
+    window.addEventListener("keydown", reveal);
+    window.addEventListener("pointerdown", reveal);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", reveal);
+      window.removeEventListener("pointerdown", reveal);
+    };
+  }, [revealed]);
 
   const answer = async (ask: () => Promise<Answer> | undefined) => {
     setBusy(true);
@@ -61,7 +81,7 @@ export function ConnectScreen() {
   };
 
   return (
-    <div className="wiz" data-apx-look="minimal" data-apx-mode="dark">
+    <div className="wiz is-connect" data-apx-look="minimal" data-apx-mode="dark">
       <header className="wiz__head">
         <div className="wiz__brand">
           <img src={logo} alt="" width={24} height={24} />
@@ -71,19 +91,24 @@ export function ConnectScreen() {
       <div className="wiz__scroll">
         <div className="wiz__grid is-single connect">
           {step === "start" && (
-            <div className="wiz__main">
-              <StepHead kicker="connect.kicker" title={t("connect.title")} end={t("connect.titleEnd")} green>
-                {t("connect.body")}
-              </StepHead>
-              <div className="wiz__choices">
-                <Choice id="pick-server" icon={<Icons.Monitor size={16} />} onClick={() => setStep("server")}>
-                  {t("connect.server")}
-                  {t("connect.serverBody")}
-                </Choice>
-                <Choice id="pick-client" icon={<Icons.Server size={16} />} onClick={() => setStep("client")}>
-                  {t("connect.client")}
-                  {t("connect.clientBody")}
-                </Choice>
+            <div className={`connect__stage${revealed ? " is-ready" : ""}`}>
+              <CrewHero compact={revealed} />
+              <div className="connect__blind" inert={!revealed}>
+                <div className="wiz__main">
+                  <StepHead kicker="connect.kicker" title={t("connect.title")} end={t("connect.titleEnd")} green>
+                    {t("connect.body")}
+                  </StepHead>
+                  <div className="wiz__choices">
+                    <Choice id="pick-server" icon={<Icons.Monitor size={16} />} onClick={() => setStep("server")}>
+                      {t("connect.server")}
+                      {t("connect.serverBody")}
+                    </Choice>
+                    <Choice id="pick-client" icon={<Icons.Server size={16} />} onClick={() => setStep("client")}>
+                      {t("connect.client")}
+                      {t("connect.clientBody")}
+                    </Choice>
+                  </div>
+                </div>
               </div>
             </div>
           )}
