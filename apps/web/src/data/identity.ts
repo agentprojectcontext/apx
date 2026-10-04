@@ -32,8 +32,13 @@ export function projectName(projects: Project[], id: string | undefined): string
 /** Group label for threads without a project. */
 export const DEFAULT_PROJECT = "Default";
 
-/** Threads the chat lists show: not a sub-thread between agents, nor a task's or a routine's conversation. */
-export function isListed(t: Pick<Thread, "parent_id" | "kind">): boolean {
+/** Threads the chat lists show: not archived, a sub-thread between agents, nor a task's or a routine's conversation. */
+export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): boolean {
+  return !t.archived && isTopLevel(t);
+}
+
+/** A chat of its own (not a sub-thread, a task's or a routine's), archived or not. */
+export function isTopLevel(t: Pick<Thread, "parent_id" | "kind">): boolean {
   return !t.parent_id && t.kind !== "a2a" && t.kind !== "task" && t.kind !== "routine";
 }
 

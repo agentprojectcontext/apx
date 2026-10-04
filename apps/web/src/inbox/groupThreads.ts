@@ -1,18 +1,28 @@
 import type { Project, Thread } from "@apx/protocol";
-import { DEFAULT_PROJECT, inProject, isListed, isWorking } from "../data/identity.ts";
+import { DEFAULT_PROJECT, inProject, isListed, isTopLevel, isWorking } from "../data/identity.ts";
+
+type Filter = { projectId?: string; query?: string };
 
 /** Top-level chats the Inbox shows (sub-threads between agents live inside their caller's chat). */
-function visible(threads: Record<string, Thread>, opts: { projectId?: string; query?: string }): Thread[] {
+function visible(threads: Record<string, Thread>, opts: Filter, keep: (t: Thread) => boolean = isListed): Thread[] {
   const q = opts.query?.trim().toLowerCase();
   return Object.values(threads).filter(
     (t) =>
-      isListed(t) &&
+      keep(t) &&
       (!opts.projectId || inProject(t, opts.projectId)) &&
       (!q || `${t.title} ${t.preview}`.toLowerCase().includes(q)),
   );
 }
 
 const newest = (a: Thread, b: Thread) => b.updated_at.localeCompare(a.updated_at);
+
+/** Within a group: pinned chats first, then the most recent. */
+export const pinnedFirst = (a: Thread, b: Thread) => Number(!!b.pinned) - Number(!!a.pinned) || newest(a, b);
+
+/** The archived chats, most recent first: shown apart, under Archived. */
+export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
+  return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);
+}
 
 export type ThreadGroup = {
   key: string;
@@ -25,11 +35,7 @@ export type ThreadGroup = {
 const NO_PROJECT = "__none__";
 
 /** Inbox organisation "a" (by chat): top-level threads grouped by project, most recent group first. */
-export function groupByProject(
-  threads: Record<string, Thread>,
-  projects: Project[],
-  opts: { projectId?: string; query?: string },
-): ThreadGroup[] {
+export function groupByProject(threads: Record<string, Thread>, projects: Project[], opts: Filter): ThreadGroup[] {
   const q = opts.query?.trim().toLowerCase();
   const byId = new Map(projects.map((p) => [p.id, p]));
   const groups = new Map<string, ThreadGroup>();
@@ -48,8 +54,9 @@ export function groupByProject(
     if (isWorking(t.state)) g.running++;
   }
   const out = [...groups.values()];
-  for (const g of out) g.threads.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  out.sort((a, b) => (b.threads[0]?.updated_at ?? "").localeCompare(a.threads[0]?.updated_at ?? ""));
+  const latest = (g: ThreadGroup) => g.threads.reduce((m, t) => (t.updated_at > m ? t.updated_at : m), "");
+  out.sort((a, b) => latest(b).localeCompare(latest(a)));
+  for (const g of out) g.threads.sort(pinnedFirst);
   return out;
 }
 
@@ -58,11 +65,7 @@ export type AgentBranch = { agentId: string; engine?: string | undefined; thread
 export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
 
 /** Inbox organisation "b" (tree): project → agent → chats; busiest-recent first at every level. */
-export function groupByAgent(
-  threads: Record<string, Thread>,
-  projects: Project[],
-  opts: { projectId?: string; query?: string },
-): ProjectTree[] {
+export function groupByAgent(threads: Record<string, Thread>, projects: Project[], opts: Filter): ProjectTree[] {
   const byId = new Map(projects.map((p) => [p.id, p]));
   const trees = new Map<string, ProjectTree>();
   for (const t of visible(threads, opts).sort(newest)) {
@@ -82,20 +85,19 @@ export function groupByAgent(
     }
     branch.threads.push(t);
   }
+  // Branches keep their order (most recent first); a pinned chat goes to the top of its own branch.
+  for (const tree of trees.values()) for (const b of tree.agents) b.threads.sort(pinnedFirst);
   return [...trees.values()];
 }
 
-export type TimeBucket = "running" | "today" | "yesterday" | "week" | "earlier";
+export type TimeBucket = "pinned" | "running" | "today" | "yesterday" | "week" | "earlier";
 export type ActivityGroup = { bucket: TimeBucket; threads: Thread[] };
 
-/** Inbox organisation "c" (activity): what runs now on top, then by when it last moved. */
-export function groupByTime(
-  threads: Record<string, Thread>,
-  opts: { projectId?: string; query?: string },
-  now = new Date(),
-): ActivityGroup[] {
+/** Inbox organisation "c" (activity): pinned chats on top, then what runs now, then by when it last moved. */
+export function groupByTime(threads: Record<string, Thread>, opts: Filter, now = new Date()): ActivityGroup[] {
   const day = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const bucketOf = (t: Thread): TimeBucket => {
+    if (t.pinned) return "pinned";
     if (isWorking(t.state) || t.state === "input-required") return "running";
     const at = Date.parse(t.updated_at);
     if (at >= day) return "today";
@@ -103,7 +105,7 @@ export function groupByTime(
     if (at >= day - 6 * 86_400_000) return "week";
     return "earlier";
   };
-  const order: TimeBucket[] = ["running", "today", "yesterday", "week", "earlier"];
+  const order: TimeBucket[] = ["pinned", "running", "today", "yesterday", "week", "earlier"];
   const groups = new Map<TimeBucket, Thread[]>();
   for (const t of visible(threads, opts).sort(newest)) groups.set(bucketOf(t), [...(groups.get(bucketOf(t)) ?? []), t]);
   return order.flatMap((bucket) => {

@@ -5,7 +5,7 @@ import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
+import { archivedThreads, groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
@@ -23,6 +23,7 @@ export function InboxList() {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [creating, setCreating] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const chatAgents = useChatAgents(projectId);
 
   const view = usePrefs((s) => s.inboxView);
@@ -38,6 +39,7 @@ export function InboxList() {
     () => (view === "activity" ? groupByTime(threads, { projectId, query }) : []),
     [view, threads, projectId, query],
   );
+  const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
     : t("nav.inbox");
@@ -86,7 +88,7 @@ export function InboxList() {
           </EmptyState>
         ) : !ready ? (
           <InboxSkeleton />
-        ) : groups.length === 0 ? (
+        ) : groups.length === 0 && archived.length === 0 ? (
           <EmptyState
             icon={<Icons.Inbox />}
             title={query ? t("inbox.noResults") : t("inbox.empty")}
@@ -141,6 +143,32 @@ export function InboxList() {
               </div>
             );
           })
+        )}
+        {ready && archived.length > 0 && (
+          <div className="inbox__archived">
+            <button
+              type="button"
+              className="inbox__grouphead"
+              aria-expanded={showArchived}
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              <Icons.Archive size={14} />
+              <span className="inbox__groupname">{t("inbox.archived")}</span>
+              <span className="inbox__groupcount">{archived.length}</span>
+              <span className="inbox__groupspacer" />
+              {showArchived ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
+            </button>
+            {showArchived &&
+              archived.map((th) => (
+                <ThreadRow
+                  key={th.id}
+                  thread={th}
+                  agent={threadAgent(th, agents)}
+                  selected={th.id === threadId}
+                  onOpen={() => go.thread(th.id)}
+                />
+              ))}
+          </div>
         )}
       </div>
     </section>

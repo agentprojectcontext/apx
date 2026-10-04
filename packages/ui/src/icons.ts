@@ -3,6 +3,8 @@
 import {
   Activity,
   AppWindow,
+  Archive,
+  ArchiveRestore,
   ArrowDown,
   ArrowLeft,
   ArrowRightLeft,
@@ -16,6 +18,7 @@ import {
   Building2,
   Calendar,
   Check,
+  CheckCheck,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -119,6 +122,9 @@ import {
 } from "lucide-react";
 
 export const Icons = {
+  Archive,
+  ArchiveRestore,
+  CheckCheck,
   FileImage,
   Music,
   Film,

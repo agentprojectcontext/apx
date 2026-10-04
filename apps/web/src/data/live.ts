@@ -10,6 +10,7 @@ import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { loadTasks, taskChanged, tasksLoaded } from "./tasks.ts";
+import { forgetThreads } from "./threadAdmin.ts";
 import { needsPairing } from "./token.ts";
 import { loadUpdates, notePanel } from "./updates.ts";
 
@@ -121,6 +122,9 @@ function apply(ev: CoreEvent): void {
   switch (ev.type) {
     case "thread.updated":
       data.set((s) => ({ threads: { ...s.threads, [ev.thread.id]: ev.thread } }));
+      return;
+    case "thread.deleted":
+      forgetThreads([ev.thread_id, ...ev.children]);
       return;
     case "message.created":
     case "message.updated": {

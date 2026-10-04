@@ -7,6 +7,8 @@ import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { PinMark } from "../inbox/ThreadRow.tsx";
+import { threadMenu } from "../inbox/threadActions.tsx";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
 
@@ -85,7 +87,10 @@ export function ChatHeader({
           {!sub && (
             <>
               <span className="chat__crumbsep">/</span>
-              <span className="chat__crumbthread">{thread.title}</span>
+              <span className="chat__crumbthread">
+                {thread.pinned && <PinMark />}
+                {thread.title}
+              </span>
             </>
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
@@ -121,13 +126,17 @@ export function ChatHeader({
           <Menu
             align="end"
             trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}
-            items={[
-              {
-                label: t("chat.compact"),
-                icon: <Icons.Layers size={14} />,
-                onSelect: () => void compactThread(thread.id),
-              },
-            ]}
+            items={threadMenu(thread, {
+              t,
+              agent,
+              extra: [
+                {
+                  label: t("chat.compact"),
+                  icon: <Icons.Layers size={14} />,
+                  onSelect: () => void compactThread(thread.id),
+                },
+              ],
+            })}
           />
         )}
         <span className="chat__toolsdiv" />

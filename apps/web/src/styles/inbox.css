@@ -168,3 +168,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A chat the owner pinned: a small pin before its name, in every view. */
+.threadrow__pin {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  margin-right: 4px;
+  vertical-align: -1px;
+  color: var(--apx-fg-subtle);
+}
+
+/* Archived chats: one quiet row at the end of the list that unfolds them. */
+.inbox__archived {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--apx-border);
+}

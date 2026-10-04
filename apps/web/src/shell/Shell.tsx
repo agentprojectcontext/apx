@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
+import { useThreadDialog } from "../data/threadAdmin.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
 import { go, showsChat, useNav } from "./nav.ts";
@@ -23,6 +24,7 @@ const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
 const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
+const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
@@ -37,6 +39,7 @@ export function Shell() {
   const own = usePrefs((s) => s);
   const config = useNav((s) => s.config != null);
   const palette = useNav((s) => s.palette);
+  const threadDialog = useThreadDialog() != null;
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, own);
   useShortcuts();
   useDesktopBridge();
@@ -75,6 +78,11 @@ export function Shell() {
       {palette && (
         <Suspense fallback={null}>
           <CommandPalette />
+        </Suspense>
+      )}
+      {threadDialog && (
+        <Suspense fallback={null}>
+          <ThreadDialogs />
         </Suspense>
       )}
       <PhoneDialog />

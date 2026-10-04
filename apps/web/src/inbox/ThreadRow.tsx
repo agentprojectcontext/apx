@@ -1,9 +1,10 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, ConversationRow, EngineIcon, Spinner, Tag } from "@apx/ui";
+import { AgentAvatar, ContextMenu, ConversationRow, EngineIcon, Icons, Spinner, Tag } from "@apx/ui";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { type T, useT } from "../i18n/index.ts";
+import { threadMenu } from "./threadActions.tsx";
 
 export type ThreadRowProps = {
   thread: Thread;
@@ -18,29 +19,46 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   const waiting = thread.state === "input-required";
   const preview = firstLine(thread.preview) || (working ? t("thread.working") : t("thread.noMessages"));
   return (
-    <ConversationRow
-      selected={selected}
-      onClick={onOpen}
-      avatar={
-        thread.engine ? (
-          <EngineIcon engine={thread.engine} tile size={36} />
-        ) : (
-          <AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />
-        )
-      }
-      title={thread.title}
-      titleTag={!thread.engine && agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
-      time={shortWhen(thread.updated_at)}
-      unread={thread.unread}
-      meta={metaLine(thread, agent, t)}
-      preview={
-        <span className="threadrow__preview">
-          {working && <Spinner size={12} className="threadrow__spin" />}
-          {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
-          {preview}
-        </span>
-      }
-    />
+    <ContextMenu items={threadMenu(thread, { t, agent })}>
+      <ConversationRow
+        selected={selected}
+        onClick={onOpen}
+        avatar={
+          thread.engine ? (
+            <EngineIcon engine={thread.engine} tile size={36} />
+          ) : (
+            <AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />
+          )
+        }
+        title={
+          <>
+            {thread.pinned && <PinMark />}
+            {thread.title}
+          </>
+        }
+        titleTag={!thread.engine && agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
+        time={shortWhen(thread.updated_at)}
+        unread={thread.unread}
+        meta={metaLine(thread, agent, t)}
+        preview={
+          <span className="threadrow__preview">
+            {working && <Spinner size={12} className="threadrow__spin" />}
+            {waiting && <span className="threadrow__waiting">{t("thread.waiting")} · </span>}
+            {preview}
+          </span>
+        }
+      />
+    </ContextMenu>
+  );
+}
+
+/** The mark of a chat the owner pinned on top of its group. */
+export function PinMark() {
+  const t = useT();
+  return (
+    <span className="threadrow__pin" role="img" aria-label={t("thread.pinned")}>
+      <Icons.Pin size={11} />
+    </span>
   );
 }
 
