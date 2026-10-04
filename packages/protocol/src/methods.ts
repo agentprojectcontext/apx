@@ -4,6 +4,7 @@ import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { threadMethods } from "./thread-methods.ts";
 
 export const SubsystemStatus = z.object({
   status: z.enum(["ok", "degraded", "down", "off"]),
@@ -54,6 +55,7 @@ export const methods = {
   ...browserMethods,
   ...appMethods,
   ...deviceMethods,
+  ...threadMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

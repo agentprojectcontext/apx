@@ -404,6 +404,9 @@ export interface ThreadsTable {
   conversation: string | null;
   person_id: string | null;
   engine: string | null;
+  custom_title: string | null;
+  pinned: Generated<number>;
+  archived: Generated<number>;
 }
 
 export interface Database {

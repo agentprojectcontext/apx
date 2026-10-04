@@ -96,6 +96,16 @@ export function notificationsRepo({ one, all, run, tx }: Sql, bus: Bus) {
         )?.n ?? 0,
       );
     },
+    /** Deleted chats take their notices along: unread ones are read first, so every tray drops them. */
+    dropThreads(threadIds: string[]): void {
+      if (!threadIds.length) return;
+      markRead(
+        unreadIds(
+          qb.selectFrom("notifications").select("id").where("thread_id", "in", threadIds).where("read_at", "is", null),
+        ),
+      );
+      run(qb.deleteFrom("notifications").where("thread_id", "in", threadIds));
+    },
     /** Marks these (or every unread notice) read. */
     read(ids?: string[]): void {
       markRead(ids ?? unreadIds());

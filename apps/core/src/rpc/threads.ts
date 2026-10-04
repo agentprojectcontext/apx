@@ -164,8 +164,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
-    "threads.list": ({ project_id, include_subthreads, engine }) => ({
-      threads: store.threads.list({ project_id, include_subthreads, engine }),
+    "threads.list": ({ project_id, include_subthreads, include_archived, engine }) => ({
+      threads: store.threads.list({ project_id, include_subthreads, include_archived, engine }),
     }),
     "threads.get": ({ thread }, ctx) => {
       const t = store.threads.get(thread);

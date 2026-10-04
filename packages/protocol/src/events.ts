@@ -7,6 +7,8 @@ import { Notification, Task } from "./office.ts";
 /** Events pushed to every operator socket. `stream` groups the seq counter. */
 export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("thread.updated"), thread: Thread }),
+  /** The owner deleted the thread (and its sub-threads, listed in `children`). */
+  z.object({ type: z.literal("thread.deleted"), thread_id: Id, children: z.array(Id) }),
   z.object({ type: z.literal("message.created"), message: Message }),
   z.object({ type: z.literal("message.updated"), message: Message }),
   /** One part of a message changed (streaming text, a tool card): cheaper than resending the whole message. */

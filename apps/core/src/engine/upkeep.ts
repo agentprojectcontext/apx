@@ -177,8 +177,10 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     const agent = store.agents.get(run.agent_id);
     if (!t || !agent || t.parent_id || t.kind === "a2a" || store.threads.context(t.id).titled) return;
     store.threads.mergeContext(t.id, { titled: true });
-    // Only a title APX gave (the agent's name, or name · folder) is replaced; the owner's own stays.
-    if (t.title !== agent.name && !t.title.startsWith(`${agent.name} · `)) return;
+    // Only a title APX gave (the agent's name, or name · folder) is replaced; one the owner typed at creation stays.
+    // A rename (auto_title) stands over it either way, and a reset shows this one.
+    const auto = t.auto_title ?? t.title;
+    if (auto !== agent.name && !auto.startsWith(`${agent.name} · `)) return;
     const said = run.input?.text ?? "";
     const answer = run.message_id
       ? (store.messages
@@ -194,9 +196,9 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       log.warn({ thread: t.id, err: String(err) }, "no title from the auxiliary model");
     }
     next ??= titleFromText(said);
-    // The owner may have renamed it meanwhile.
+    // Another title may have landed meanwhile.
     const now = store.threads.get(t.id);
-    if (next && now && now.title === t.title) store.threads.patch(t.id, { title: next }, false);
+    if (next && now && (now.auto_title ?? now.title) === auto) store.threads.patch(t.id, { title: next }, false);
   }
 
   /** Summarizes the older turns into a new epoch. `force` compacts whatever there is beyond the newest turns. */

@@ -47,6 +47,7 @@ import { setupHandlers } from "./rpc/setup.ts";
 import { systemHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
+import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
@@ -161,6 +162,7 @@ export function coreHandlers(d: HandlerDeps) {
     })),
     ...browserHandlers(d.broker),
     ...threadHandlers(d.store, d.engine, d.upkeep),
+    ...threadAdminHandlers(d.store, d.app.home),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory),

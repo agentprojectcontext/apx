@@ -1,7 +1,7 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
 import type { Author, Message, ModelChoice, Part, Thread } from "@apx/protocol";
-import type { Selectable } from "kysely";
+import type { Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
@@ -20,7 +20,10 @@ function chatModel(context: string): Pick<Thread, "model_choice"> {
 const toThread = (r: Selectable<ThreadsTable>): Thread => ({
   id: r.id,
   kind: r.kind as Thread["kind"],
-  title: r.title,
+  title: r.custom_title ?? r.title,
+  ...(r.custom_title ? { auto_title: r.title } : {}),
+  ...(r.pinned ? { pinned: true } : {}),
+  ...(r.archived ? { archived: true } : {}),
   agent_ids: JSON.parse(r.agent_ids) as string[],
   ...opt("project_id", r.project_id),
   ...opt("parent_id", r.parent_id),
@@ -96,7 +99,12 @@ export type LogEntry = { seq: number; run_id: string | undefined; item: unknown 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
     list(
-      opts: { project_id?: string | undefined; include_subthreads?: boolean; engine?: string | undefined } = {},
+      opts: {
+        project_id?: string | undefined;
+        include_subthreads?: boolean;
+        include_archived?: boolean;
+        engine?: string | undefined;
+      } = {},
     ): Thread[] {
       const { project_id, engine } = opts;
       return all(
@@ -104,9 +112,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
           .selectFrom("threads")
           .selectAll()
           .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
+          .$if(!opts.include_archived, (q) => q.where("archived", "=", 0))
           .$if(!!project_id, (q) => q.where("project_id", "=", project_id as string))
           // An engine's sessions: the engine itself, never an agent's chat that happens to run on its model.
           .$if(!!engine, (q) => q.where("engine", "=", engine as string))
+          // Pinned first, so the cap never drops one.
+          .orderBy("pinned", "desc")
           .orderBy("updated_at", "desc")
           .limit(300),
       ).map(toThread);
@@ -188,24 +199,74 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
     settle(id: string, at: string, preview: string): void {
       run(qb.updateTable("threads").set({ updated_at: at, preview }).where("id", "=", id));
     },
+    /** State and activity. `title` is the automatic one: an owner's own name stays over it. */
     patch(id: string, patch: Partial<Pick<Thread, "state" | "preview" | "unread" | "title">>, touch = true): Thread {
-      const cur = repo.get(id);
-      if (!cur) throw new Error(`unknown thread ${id}`);
-      const next = { ...cur, ...patch, updated_at: touch ? now() : cur.updated_at };
-      run(
-        qb
-          .updateTable("threads")
-          .set({
-            state: next.state,
-            preview: next.preview,
-            unread: next.unread,
-            title: next.title,
-            updated_at: next.updated_at,
-          })
-          .where("id", "=", id),
-      );
+      if (!repo.get(id)) throw new Error(`unknown thread ${id}`);
+      const set: Updateable<ThreadsTable> = {};
+      if (patch.state !== undefined) set.state = patch.state;
+      if (patch.preview !== undefined) set.preview = patch.preview;
+      if (patch.unread !== undefined) set.unread = patch.unread;
+      if (patch.title !== undefined) set.title = patch.title;
+      if (touch) set.updated_at = now();
+      return repo.write(id, set);
+    },
+    /** The owner's arrangement: their own name (null = the automatic title), pinned, archived. Not activity. */
+    arrange(id: string, a: { custom_title?: string | null; pinned?: boolean; archived?: boolean }): Thread {
+      if (!repo.get(id)) throw new Error(`unknown thread ${id}`);
+      const set: Updateable<ThreadsTable> = {};
+      if (a.custom_title !== undefined) set.custom_title = a.custom_title || null;
+      if (a.pinned !== undefined) set.pinned = a.pinned ? 1 : 0;
+      if (a.archived !== undefined) set.archived = a.archived ? 1 : 0;
+      return repo.write(id, set);
+    },
+    write(id: string, set: Updateable<ThreadsTable>): Thread {
+      if (Object.keys(set).length) run(qb.updateTable("threads").set(set).where("id", "=", id));
+      const next = repo.get(id) as Thread;
       bus.emit({ type: "thread.updated", thread: next });
       return next;
+    },
+    /** The thread and every sub-thread under it, the thread first. */
+    family(id: string): string[] {
+      const out = [id];
+      for (let i = 0; i < out.length; i++) out.push(...repo.children(out[i] as string));
+      return out;
+    },
+    /** Whether a turn is queued or running, or a terminal job runs, in any of these threads. */
+    busy(ids: string[]): boolean {
+      const run = one(
+        qb
+          .selectFrom("runs")
+          .select("id")
+          .where("thread_id", "in", ids)
+          .where("state", "in", ["submitted", "working", "input-required"])
+          .limit(1),
+      );
+      const job = one(
+        qb.selectFrom("jobs").select("id").where("thread_id", "in", ids).where("state", "=", "working").limit(1),
+      );
+      return Boolean(run || job);
+    },
+    /**
+     * Deletes threads and everything that only made sense inside them. Rows that outlive a chat (notes, widgets, sent
+     * messages, nudges) keep their content and lose the link. Returns the files left to remove.
+     */
+    remove(ids: string[]): { media: string[]; jobs: string[] } {
+      if (!ids.length) return { media: [], jobs: [] };
+      const media = all(qb.selectFrom("media").select("path").where("thread_id", "in", ids)).map((r) => r.path);
+      const jobs = all(qb.selectFrom("jobs").select("id").where("thread_id", "in", ids)).map((r) => r.id);
+      run(qb.deleteFrom("media").where("thread_id", "in", ids));
+      run(qb.deleteFrom("jobs").where("thread_id", "in", ids));
+      run(qb.deleteFrom("pending_inputs").where("thread_id", "in", ids));
+      run(qb.deleteFrom("routine_runs").where("thread_id", "in", ids));
+      run(qb.updateTable("memories").set({ thread_id: null }).where("thread_id", "in", ids));
+      run(qb.updateTable("surfaces").set({ thread_id: null }).where("thread_id", "in", ids));
+      run(qb.updateTable("outbox").set({ thread_id: null }).where("thread_id", "in", ids));
+      run(qb.updateTable("nudges").set({ thread_id: null }).where("thread_id", "in", ids));
+      // Messages first, so the search index triggers run; runs, steps, the model log and harness sessions cascade.
+      run(qb.deleteFrom("messages").where("thread_id", "in", ids));
+      run(qb.deleteFrom("threads").where("id", "in", ids));
+      bus.emit({ type: "thread.deleted", thread_id: ids[0] as string, children: ids.slice(1) });
+      return { media, jobs };
     },
     /** Moves a thread to another project (or to none): a task's conversation follows its task. */
     moveTo(id: string, projectId: string | undefined): Thread {

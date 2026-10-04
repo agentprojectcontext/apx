@@ -169,6 +169,12 @@ export const Thread = z.object({
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */
   model_choice: ModelChoice.optional(),
+  /** The automatic title, present only while the owner's own name (`title`) stands over it. */
+  auto_title: z.string().optional(),
+  /** Pinned by the owner: first within its group in every list. */
+  pinned: z.boolean().optional(),
+  /** Archived by the owner: out of the lists (threads.list `include_archived`) until unarchived. */
+  archived: z.boolean().optional(),
   state: RunState.or(z.literal("idle")),
   preview: z.string().default(""),
   unread: z.number().int().nonnegative().default(0),

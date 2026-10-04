@@ -332,6 +332,8 @@ export const appMethods = {
       .object({
         project_id: Id.optional(),
         include_subthreads: z.boolean().default(false),
+        /** Archived threads too (they are left out by default). */
+        include_archived: z.boolean().default(false),
         /** Only that engine's own sessions ("claude", "codex", "acp:opencode"), not agents' chats run on its model. */
         engine: z.string().max(80).optional(),
       })

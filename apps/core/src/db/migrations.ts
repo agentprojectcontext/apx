@@ -550,4 +550,11 @@ export const MIGRATIONS: readonly string[] = [
     WHERE key = 'setting:secretary' AND NOT EXISTS (SELECT 1 FROM meta WHERE key = 'setting:profile');
   DELETE FROM meta WHERE key = 'setting:secretary';
   `,
+  `
+  -- The owner's own arrangement of chats: a name of theirs over the automatic title (NULL = automatic), pinned on top
+  -- of its group, and archived out of the lists until unarchived.
+  ALTER TABLE threads ADD COLUMN custom_title TEXT;
+  ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE threads ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
