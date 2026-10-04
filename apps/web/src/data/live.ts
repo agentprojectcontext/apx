@@ -6,9 +6,11 @@ import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { jobsChanged } from "./jobs.ts";
 import { loadNotifications, notificationChanged } from "./notifications.ts";
+import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { loadTasks, taskChanged, tasksLoaded } from "./tasks.ts";
+import { needsPairing } from "./token.ts";
 import { loadUpdates, notePanel } from "./updates.ts";
 
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000];
@@ -48,8 +50,16 @@ async function connect(): Promise<void> {
   if (data.get().connection !== "offline") data.set({ connection: "connecting" });
   let s: ApxSocket | undefined;
   try {
-    // The health probe fails fast when the core is down; the socket alone can wait for its full timeout.
-    const [sock, health] = await Promise.all([client.connect(), client.call("system.health", {})]);
+    // The health probe fails fast when the core is down; the socket alone can wait for its full timeout. A refused
+    // socket says nothing of why: the probe's error does (a revoked token shows the pairing gate).
+    const probe = client.call("system.health", {});
+    const [sock, health] = await Promise.all([
+      client.connect().catch(async (e: unknown) => {
+        await probe;
+        throw e;
+      }),
+      probe,
+    ]);
     s = sock;
     notePanel(health);
     if (gen !== generation) return s.close();
@@ -71,6 +81,7 @@ async function connect(): Promise<void> {
   } catch (e) {
     s?.close();
     if (gen !== generation) return;
+    if (needsPairing(e)) return denied();
     data.set({ connection: "offline", error: e instanceof Error ? e.message : String(e) });
   }
   schedule();

@@ -173,4 +173,19 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.preview.unset": "Sin configurar",
   "setup.preview.groups": "{n} de {total} grupos de v1",
   "setup.menu": "Configuración inicial",
+  "pair.kicker": "VINCULAR ESTE DISPOSITIVO",
+  "pair.title": "Vinculá este",
+  "pair.titleEnd": "dispositivo.",
+  "pair.body":
+    "Este APX pide vincular este navegador o computadora antes de abrirse. Pedí un código en APX › Configuración › Dispositivos en la máquina donde corre, o con apx2 pair en un servidor.",
+  "pair.code": "Código de vinculación",
+  "pair.placeholder": "ABCD2345",
+  "pair.submit": "Vincular",
+  "pair.badCode": "Ese código es incorrecto o venció. Pedí uno nuevo.",
+  "pair.locked": "Demasiados códigos incorrectos: esperá unos minutos y pedí uno nuevo.",
+  "pair.failed": "No se pudo vincular: {error}",
+  "pair.noStorage":
+    "Este navegador no deja que el panel guarde su clave (los datos del sitio están bloqueados). Permitilo y probá de nuevo.",
+  "pair.browser": "Navegador ({os})",
+  "pair.desktop": "App de escritorio",
 };

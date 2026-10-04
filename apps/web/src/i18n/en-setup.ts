@@ -173,4 +173,18 @@ export const enSetup = {
   "setup.preview.unset": "Not set",
   "setup.preview.groups": "{n} of {total} v1 groups",
   "setup.menu": "First-run setup",
+  "pair.kicker": "PAIR THIS DEVICE",
+  "pair.title": "Pair this",
+  "pair.titleEnd": "device.",
+  "pair.body":
+    "This APX asks to pair this browser or computer before it opens. Get a code in APX › Settings › Devices on the machine that runs it, or with apx2 pair on a server.",
+  "pair.code": "Pairing code",
+  "pair.placeholder": "ABCD2345",
+  "pair.submit": "Pair",
+  "pair.badCode": "That code is wrong or expired. Ask for a new one.",
+  "pair.locked": "Too many wrong codes: wait a few minutes and ask for a new one.",
+  "pair.failed": "Could not pair: {error}",
+  "pair.noStorage": "This browser does not let the panel keep its key (site data is blocked). Allow it and try again.",
+  "pair.browser": "Browser ({os})",
+  "pair.desktop": "Desktop app",
 } as const;

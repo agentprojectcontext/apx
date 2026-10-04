@@ -663,3 +663,22 @@ input.wiz__name {
   font-family: var(--apx-font-mono);
   font-size: 12px;
 }
+/* Pairing this device: the code and its button on one line. */
+.pair {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.pair__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.pair__code {
+  flex: 1 1 240px;
+}
+.pair__code input {
+  font-family: var(--apx-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
