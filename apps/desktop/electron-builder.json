@@ -1,0 +1,46 @@
+{
+  "appId": "dev.apx.desktop",
+  "productName": "APX",
+  "artifactName": "APX-${version}-${os}-${arch}.${ext}",
+  "directories": {
+    "output": "release",
+    "buildResources": "assets"
+  },
+  "files": ["dist/**", "package.json", "!node_modules/**"],
+  "extraResources": [
+    {
+      "from": ".stage/apx",
+      "to": "apx",
+      "filter": ["**/*"]
+    },
+    {
+      "from": ".stage/apx/node_modules",
+      "to": "apx/node_modules",
+      "filter": ["**/*"]
+    }
+  ],
+  "npmRebuild": false,
+  "electronVersion": "44.5.1",
+  "publish": null,
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "assets/icon.png",
+    "category": "public.app-category.productivity"
+  },
+  "win": {
+    "target": ["nsis", "zip"],
+    "icon": "assets/icon.png"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "runAfterFinish": true
+  },
+  "linux": {
+    "target": ["AppImage", "deb", "zip"],
+    "icon": "assets/icon.png",
+    "category": "Utility",
+    "maintainer": "APX",
+    "synopsis": "Your agents, your projects, one local core."
+  }
+}

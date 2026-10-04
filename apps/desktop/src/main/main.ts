@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
+import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -28,9 +29,11 @@ const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 
 let quitting = false;
+let core: EmbeddedCore | undefined;
 app.on("before-quit", () => {
   quitting = true;
 });
+app.on("will-quit", () => core?.stop());
 
 app.whenReady().then(() => {
   if (!single) return;
@@ -150,7 +153,16 @@ app.whenReady().then(() => {
   app.on("will-quit", () => quick.stop());
 
   const loadPanel = async () => {
-    for (const url of [WEB_URL, CORE_URL]) {
+    // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
+    if (app.isPackaged && !(await isUp(CORE_URL))) {
+      core = startEmbeddedCore({
+        resources: process.resourcesPath,
+        logDir: app.getPath("logs"),
+        cacheDir: path.join(app.getPath("userData"), "compile-cache"),
+      });
+      await waitUp(CORE_URL);
+    }
+    for (const url of app.isPackaged ? [CORE_URL] : [WEB_URL, CORE_URL]) {
       try {
         await panel.webContents.loadURL(url);
         base = url;
@@ -159,7 +171,7 @@ app.whenReady().then(() => {
       } catch {}
     }
     await panel.webContents.loadURL(
-      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">APX core not reachable at ${CORE_URL}. Start it with <code>pnpm dev</code>.</body>`,
+      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">APX core not reachable at ${CORE_URL}. ${app.isPackaged ? `See core.log in ${app.getPath("logs")}.` : "Start it with <code>pnpm dev</code>."}</body>`,
     );
   };
   void loadPanel();

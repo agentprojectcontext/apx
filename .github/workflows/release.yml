@@ -1,0 +1,64 @@
+# A version tag (v2.0.1) builds the installers on each OS — native modules and the agent CLIs are per platform, so
+# nothing is cross-built — and attaches them to a GitHub Release of that tag. The tag is the version: no bump commit.
+name: release
+
+on:
+  push:
+    tags: ["v2.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v2.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # One job opens the release so the three builds only upload to it.
+  open:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - run: gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "APX ${TAG#v}" --generate-notes --verify-tag
+
+  installers:
+    needs: open
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      # No signing certificates yet: the builder must not look for one.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Version from the tag
+        shell: bash
+        run: cd apps/desktop && npm pkg set version="${TAG#v}"
+      - name: Installers
+        run: pnpm package
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          gh release upload "$TAG" apps/desktop/release/*.{AppImage,deb,exe,dmg,zip} --clobber

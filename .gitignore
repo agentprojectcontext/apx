@@ -33,3 +33,7 @@ e2e/.out/
 
 # scratch scripts while developing e2e
 e2e/.*.ts
+
+# desktop installers (pnpm package)
+apps/desktop/.stage/
+apps/desktop/release/

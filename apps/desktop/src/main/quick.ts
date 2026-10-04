@@ -1,7 +1,8 @@
 // The menu-bar icon and its quick chat: a small window under the icon (or centered, from the global shortcut) with
 // the super-agent's chat. It hides when it loses focus, like any menu-bar app.
 import path from "node:path";
-import { app, BrowserWindow, globalShortcut, Menu, screen, Tray } from "electron";
+import { app, BrowserWindow, globalShortcut, Menu, nativeImage, screen, Tray } from "electron";
+import { setLaunchAtLogin } from "./autostart.ts";
 
 const WIDTH = 400;
 /** How long a click on the menu-bar icon waits to see whether it is a double click. */
@@ -81,7 +82,14 @@ export function createQuick(opts: {
 
   return {
     start(): void {
-      tray = new Tray(path.join(opts.assets, "trayTemplate.png"));
+      // macOS tints a black template image; Windows and Linux trays show the colour icon as it is.
+      tray = new Tray(
+        process.platform === "darwin"
+          ? path.join(opts.assets, "trayTemplate.png")
+          : nativeImage
+              .createFromPath(path.join(opts.assets, "icon.png"))
+              .resize({ width: process.platform === "win32" ? 16 : 22 }),
+      );
       tray.setToolTip("APX");
       // One click opens the quick chat; a double click opens APX. The click waits a moment so a double click does
       // not flash the quick chat first.
@@ -118,7 +126,7 @@ export function createQuick(opts: {
       } catch {
         error = `${prefs.shortcut} is not a valid shortcut`;
       }
-      if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: prefs.launchAtLogin });
+      setLaunchAtLogin(prefs.launchAtLogin);
       return error;
     },
     hide(): void {

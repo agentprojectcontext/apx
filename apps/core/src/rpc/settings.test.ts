@@ -17,7 +17,7 @@ test("a stored setting that does not read falls back to its default instead of r
   settings.set("desktop", "{not json");
   settings.set("task_columns", "[]");
   settings.set("notices", JSON.stringify({ inputs_after_s: "soon" }));
-  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+Space", launch_at_login: false });
+  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+Space", launch_at_login: true });
   assert.deepEqual(
     (await env.client.call("tasks.list", {})).columns.map((c) => c.id),
     ["backlog", "todo", "doing", "review"],
@@ -27,10 +27,10 @@ test("a stored setting that does not read falls back to its default instead of r
 
 test("one bad field of the desktop prefs falls back alone; a saved value reads back", async () => {
   const { settings } = env.core.store;
-  settings.set("desktop", JSON.stringify({ shortcut: 42, launch_at_login: true }));
-  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+Space", launch_at_login: true });
-  await env.client.call("desktop.set", { shortcut: "Alt+K", launch_at_login: false });
-  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+K", launch_at_login: false });
+  settings.set("desktop", JSON.stringify({ shortcut: 42, launch_at_login: false }));
+  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+Space", launch_at_login: false });
+  await env.client.call("desktop.set", { shortcut: "Alt+K", launch_at_login: true });
+  assert.deepEqual(await env.client.call("desktop.get", {}), { shortcut: "Alt+K", launch_at_login: true });
 });
 
 test("a list setting drops only the item that does not read, and an unreadable list reads as empty", async () => {

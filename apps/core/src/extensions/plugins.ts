@@ -10,6 +10,7 @@ import type { ExtensionRecord } from "../domain/extensions.ts";
 import type { ContextInput, Hooks } from "../engine/hooks.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { nodeChildEnv } from "../node-runtime.ts";
 import type { Secrets } from "../secrets.ts";
 import { extSecret } from "./extensions.ts";
 
@@ -63,6 +64,7 @@ export function createPlugins(deps: {
       APX_DATA_DIR: data,
       APX_PLUGIN_NETWORK: plugin.network ? "1" : "0",
       PATH: process.env.PATH ?? "",
+      ...nodeChildEnv(),
     };
     for (const s of ext.manifest.secrets) {
       const value = deps.secrets.resolve(`secret://${extSecret(ext.id, s.name)}`);

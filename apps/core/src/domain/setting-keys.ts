@@ -58,10 +58,10 @@ const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: tr
 export const SETTINGS = {
   task_columns: entry(z.array(TaskColumn).min(1), DEFAULT_COLUMNS),
   notices: entry(NoticePrefs, NoticePrefs.parse({})),
-  /** The quick chat's shortcut and start at login; each field falls back on its own. */
-  desktop: entry(z.object({ shortcut: z.string().catch("Alt+Space"), launch_at_login: z.boolean().catch(false) }), {
+  /** The quick chat's shortcut and start at login (on: APX is meant to be always there); each field falls back alone. */
+  desktop: entry(z.object({ shortcut: z.string().catch("Alt+Space"), launch_at_login: z.boolean().catch(true) }), {
     shortcut: "Alt+Space",
-    launch_at_login: false,
+    launch_at_login: true,
   }),
   /** Saved without the auxiliary model, which keeps its own key ("model_aux", plain text). */
   memory: entry(MemorySettings.omit({ aux_model: true }).partial(), {}),

@@ -43,7 +43,7 @@ export function DesktopSection() {
   useEffect(() => {
     void client
       .call("desktop.get", {})
-      .then(setPrefs, () => setPrefs({ shortcut: "Alt+Space", launch_at_login: false }));
+      .then(setPrefs, () => setPrefs({ shortcut: "Alt+Space", launch_at_login: true }));
   }, []);
 
   const save = async (next: Prefs) => {

@@ -30,6 +30,7 @@ import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createLog } from "./log.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
+import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
@@ -127,6 +128,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         ...(config.token ? { APX_TOKEN: config.token } : {}),
         // Each harness session starts this CLI: with the core's compile cache it skips stripping TypeScript again.
         ...(process.env.NODE_COMPILE_CACHE ? { NODE_COMPILE_CACHE: process.env.NODE_COMPILE_CACHE } : {}),
+        ...nodeChildEnv(),
       },
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
