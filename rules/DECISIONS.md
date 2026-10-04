@@ -319,3 +319,13 @@ quiet hours. Something critical may skip the cap (on by default) and, as a separ
 (off). A due date passing never sends a message: it lands in the tray, and the watch routine mentions it. Answers to
 the owner's own messages, confirmations and pairing never pass through the gate. Feedback (👍/👎) and the agent's own
 `notify_owner` tool come next and use the same gate.
+
+<a id="d-032"></a>
+## D-032 — 2026-10-04 — The phone lends location and camera as a node, and takes notices by push
+The paired phone opens a second socket as a node lending `location` and `camera`; its tools (`phone_location`,
+`phone_photo`) are offered to agents only while a node lends the capability (`needsCap` on a tool), so a turn without
+the phone never sees them. A picture is always taken by the owner on the phone (the app shows the agent's reason);
+reading the location asks for the owner's OK only while outside content is in the turn. Push goes to a device chosen
+as where notices go (`notices.channel = "device:<id>"`), after the interruption budget (D-031): Expo push with the
+token the app registers itself, or a UnifiedPush / ntfy address the owner pastes. A device sets only its own push; the
+token never comes back to any client. `APX_PUBLIC_URL` puts a VPS or Tailscale address first in the pairing QR.

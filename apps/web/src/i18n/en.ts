@@ -964,6 +964,15 @@ export const en = {
     "Its news is never held by quiet hours nor counted in the daily cap (a morning or evening brief).",
   "routines.anchorOn": "Always",
   "routines.anchorOff": "Within the budget",
+  "nudge.where": "Where notices go",
+  "nudge.whereHint":
+    "A channel, or your phone's push (pair it in Devices; the APX app registers it, or paste an ntfy address there).",
+  "nudge.whereAuto": "The first channel that knows you",
+  "nudge.wherePhone": "{name} (push)",
+  "devices.push.expo": "push",
+  "devices.push.unifiedpush": "push (ntfy)",
+  "devices.pushUrl": "Push address for {name}",
+  "devices.pushSave": "Use for push",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -72,6 +72,8 @@ export type TurnDeps = {
   skills?: SkillPicker | undefined;
   hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
+  /** Whether a connected node lends a capability: tools that need one are offered only then. */
+  hasCap?: ((cap: string) => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
   /** A protocol method through the router, as the agent of `as.run`. */
@@ -314,7 +316,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const memoryOn = memorySettings(deps.store).mode !== "off";
   const imessageOn = deps.store.settings.read("imessage").on;
   const offered = deps.tools.filter(
-    (t) => (memoryOn || !MEMORY_TOOLS.has(t.name)) && (imessageOn || !IMESSAGE_TOOLS.has(t.name)),
+    (t) =>
+      (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
+      (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
+      (!t.needsCap || Boolean(deps.hasCap?.(t.needsCap))),
   );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never
   // see the contact-only tools.

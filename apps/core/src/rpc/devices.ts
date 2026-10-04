@@ -57,6 +57,17 @@ export function deviceHandlers(
       return store.devices.create(name, platform);
     },
     "devices.list": () => ({ devices: store.devices.list() }),
+    "devices.set_push": ({ id, push }, ctx) => {
+      // A device sets its own; the owner, from the panel, names the device. Nobody else.
+      const target = ctx.device?.id ?? (ctx.actor === "human" && !ctx.client && !ctx.agent ? id : undefined);
+      if (!target)
+        throw new CallError({ code: "unauthorized", message: "only a paired device, or the owner, sets push" });
+      if (ctx.device && id && id !== ctx.device.id)
+        throw new CallError({ code: "unauthorized", message: "a device sets only its own push" });
+      const device = store.devices.setPush(target, push);
+      if (!device) throw new CallError({ code: "not_found", message: `device ${target} not found` });
+      return device;
+    },
     "devices.revoke": ({ id }) => ({ revoked: store.devices.revoke(id) }),
   } satisfies Partial<Handlers>;
 }

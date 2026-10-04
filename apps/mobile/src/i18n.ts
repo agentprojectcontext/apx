@@ -18,6 +18,9 @@ const en = {
   unpair: "Unpair",
   offline: "No connection to your computer…",
   you: "You",
+  photoAsk: "Your agent asks for a picture",
+  takePhoto: "Take it",
+  decline: "Not now",
 } as const;
 type Key = keyof typeof en;
 const es: Record<Key, string> = {
@@ -39,6 +42,9 @@ const es: Record<Key, string> = {
   unpair: "Desvincular",
   offline: "Sin conexión con tu computadora…",
   you: "Vos",
+  photoAsk: "Tu agente te pide una foto",
+  takePhoto: "Sacarla",
+  decline: "Ahora no",
 };
 
 const lang = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith("es") ? es : en;

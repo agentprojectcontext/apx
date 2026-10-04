@@ -1,6 +1,6 @@
 import type { Device } from "@apx/protocol";
 import { pairingLink } from "@apx/protocol/client";
-import { Badge, Button, EmptyState, IconButton, Icons } from "@apx/ui";
+import { Badge, Button, EmptyState, IconButton, Icons, Input } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { QrCode } from "../common/QrCode.tsx";
 import { client } from "../data/client.ts";
@@ -107,6 +107,7 @@ export function DevicesSection() {
         <div key={d.id} className="tgtoken">
           <span className="res__name">{d.name}</span>
           <Badge>{t(`devices.platform.${d.platform}`)}</Badge>
+          {d.push ? <Badge tone="brand">{t(`devices.push.${d.push}`)}</Badge> : <PushField device={d} onSaved={load} />}
           {d.last_seen_at && (
             <span className="pform__hint">
               {t("devices.lastSeen", { when: d.last_seen_at.slice(0, 16).replace("T", " ") })}
@@ -120,6 +121,34 @@ export function DevicesSection() {
           />
         </div>
       ))}
+    </>
+  );
+}
+
+/** A UnifiedPush / ntfy address for a device that cannot register Expo push by itself (an https URL). */
+function PushField({ device, onSaved }: { device: Device; onSaved: () => Promise<void> }) {
+  const t = useT();
+  const [url, setUrl] = useState("");
+  const save = async () => {
+    try {
+      await client.call("devices.set_push", { id: device.id, push: { kind: "unifiedpush", endpoint: url.trim() } });
+      setUrl("");
+      await onSaved();
+    } catch (e) {
+      notify(t("error.devices", { error: e instanceof Error ? e.message : String(e) }));
+    }
+  };
+  return (
+    <>
+      <Input
+        aria-label={t("devices.pushUrl", { name: device.name })}
+        placeholder="https://ntfy.sh/…"
+        value={url}
+        onChange={(e) => setUrl(e.currentTarget.value)}
+      />
+      <Button size="sm" variant="secondary" disabled={!/^https:\/\/\S+$/.test(url.trim())} onClick={() => void save()}>
+        {t("devices.pushSave")}
+      </Button>
     </>
   );
 }

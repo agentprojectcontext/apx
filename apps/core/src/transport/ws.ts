@@ -21,7 +21,15 @@ function methodsFor(hello: HelloFrame): string[] {
 
 export function attachWs(
   server: Server,
-  deps: { dispatch: Dispatch; identity: Identity; log: Log; broker: NodeBroker; bus: Bus; gate: Gate },
+  deps: {
+    dispatch: Dispatch;
+    identity: Identity;
+    log: Log;
+    broker: NodeBroker;
+    bus: Bus;
+    gate: Gate;
+    deviceOf?: (token: string) => { id: string; name: string } | undefined;
+  },
 ) {
   const { dispatch, identity, log, broker, bus, gate } = deps;
   const wss = new WebSocketServer({
@@ -44,6 +52,8 @@ export function attachWs(
 
   wss.on("connection", (ws, req) => {
     const canBeNode = mayBeNode(req);
+    const key = new URL(req.url ?? "/", "http://core").searchParams.get("token");
+    const device = key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined;
     let hello: HelloFrame | undefined;
     const session = randomUUID();
 
@@ -110,7 +120,7 @@ export function attachWs(
       const out = await dispatch(
         frame.method,
         frame.params,
-        { transport: "ws", role: hello.role, actor: hello.actor, session, log },
+        { transport: "ws", role: hello.role, actor: hello.actor, session, log, ...(device ? { device } : {}) },
         frame.idem,
       );
       ws.send(JSON.stringify({ t: "res", id: frame.id, ...out }));

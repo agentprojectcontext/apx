@@ -610,7 +610,10 @@ export type MemorySettings = z.infer<typeof MemorySettings>;
 
 /** How APX reaches the owner when they are not looking at the app. */
 export const NoticePrefs = z.object({
-  /** The channel to use (its id); none = the first running channel that knows the owner. */
+  /**
+   * Where notices go: a channel (its id) or a paired device's push ("device:<id>"); none = the first running channel
+   * that knows the owner.
+   */
   channel: z.string().optional(),
   /**
    * Quiet hours (local time, "HH:MM"): what APX would say unasked waits until they end (and then goes together); answers

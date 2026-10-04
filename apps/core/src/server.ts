@@ -47,6 +47,7 @@ import {
   reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
+import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { skillsFor } from "./skills/skills.ts";
@@ -92,6 +93,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   store.nudges.prune();
 
   const broker = createNodeBroker();
+  const push = createPush({ expoUrl: config.expoPushUrl, onError: (err) => log.warn({ err }, "push not delivered") });
   broker.onEvent((_node, event) => {
     if (event.type !== "tabs.changed") return;
     // A node's tabs are checked here, once: operators trust what the core pushes.
@@ -183,6 +185,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     call: internal,
     services,
     attention: attention.add,
+    pushOwner: (deviceId, text) => {
+      const target = store.devices.pushTarget(deviceId);
+      if (!target) return false;
+      void push(target, { title: "APX", body: text.slice(0, 3500) });
+      return true;
+    },
   });
   const engine = createEngine({
     store,
@@ -196,6 +204,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     skills,
     hooks,
     mcpTools: mcp.toolsFor,
+    hasCap: (cap) => Boolean(broker.withCap(cap)),
     afterRun: (run) => {
       upkeep.afterRun(run);
       channels.afterRun(run);
@@ -223,7 +232,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
-      addresses: () => reachableAt(config.host, listening),
+      addresses: () => reachableAt(config.host, listening, config.publicUrl),
       store,
       identity,
       broker,

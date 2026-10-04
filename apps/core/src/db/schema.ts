@@ -61,6 +61,7 @@ export interface DevicesTable {
   created_at: string;
   last_seen_at: string | null;
   revoked_at: string | null;
+  push: string | null;
 }
 
 export interface ExtensionsTable {

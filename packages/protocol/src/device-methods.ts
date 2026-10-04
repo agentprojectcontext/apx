@@ -12,8 +12,21 @@ export const Device = z.object({
   platform: DevicePlatform,
   created_at: z.string(),
   last_seen_at: z.string().optional(),
+  /** How notices reach it when the app is closed (the token or address itself is never shown back). */
+  push: z.enum(["expo", "unifiedpush"]).optional(),
 });
 export type Device = z.infer<typeof Device>;
+
+/** Where a device takes push notices: an Expo push token, or a UnifiedPush / ntfy address (any https URL). */
+export const PushTarget = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("expo"), token: z.string().regex(/^Expo(nent)?PushToken\[[\w-]+\]$/) }),
+  z.object({ kind: z.literal("unifiedpush"), endpoint: z.string().url().max(2000).startsWith("https://") }),
+]);
+export type PushTarget = z.infer<typeof PushTarget>;
+
+/** What a phone lends the core as a node: where it is, and its camera (the owner takes the picture). */
+export const PHONE_LOCATION_CAP = "location";
+export const PHONE_CAMERA_CAP = "camera";
 
 export const deviceMethods = {
   /**
@@ -46,6 +59,27 @@ export const deviceMethods = {
     result: z.object({ devices: z.array(Device) }),
     effect: false,
     access: "human",
+  },
+  /**
+   * Where a device takes push notices (null: none). A device sets its own; the owner (from the panel) names one. Pick
+   * it as the place notices go in Interruptions.
+   */
+  "devices.set_push": {
+    params: z.object({ id: Id.optional(), push: PushTarget.nullable() }).strict(),
+    result: Device,
+    effect: true,
+  },
+  /** The owner's phone, as a node: where it is now. */
+  "phone.location": {
+    params: z.object({}).strict(),
+    result: z.object({ lat: z.number(), lon: z.number(), accuracy_m: z.number().optional(), at: z.string() }),
+    effect: false,
+  },
+  /** The owner's phone, as a node: a picture the owner takes there (the app asks them); it is kept as media. */
+  "phone.photo": {
+    params: z.object({ reason: z.string().max(200).optional(), thread: Id.optional() }).strict(),
+    result: z.object({ media: z.object({ id: Id, mime: z.string() }) }),
+    effect: true,
   },
   "devices.revoke": {
     params: z.object({ id: Id }).strict(),

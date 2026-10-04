@@ -29,6 +29,12 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
 
   await expect(page.getByText("Teléfono de prueba")).toBeVisible();
   await expect(page.getByText("Android", { exact: true })).toBeVisible();
+  // A phone without Expo push takes an ntfy address, set here.
+  await page
+    .getByRole("textbox", { name: "Dirección de push para Teléfono de prueba" })
+    .fill("https://ntfy.example.com/apx-e2e");
+  await page.getByRole("button", { name: "Usar para push" }).click();
+  await expect(page.getByText("push (ntfy)")).toBeVisible();
   await page.getByRole("button", { name: "Quitar Teléfono de prueba" }).click();
   await expect(page.getByText("Teléfono de prueba")).toBeHidden();
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);

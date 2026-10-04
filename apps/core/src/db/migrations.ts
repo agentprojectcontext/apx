@@ -522,4 +522,8 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX nudges_held ON nudges(state, hold_until);
   ALTER TABLE routines ADD COLUMN anchor INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- Where a paired device takes push notices: {"kind":"expo","token":…} or {"kind":"unifiedpush","endpoint":…}.
+  ALTER TABLE devices ADD COLUMN push TEXT;
+  `,
 ];

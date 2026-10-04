@@ -58,6 +58,8 @@ export function createChannels(deps: {
   attention: (n: NewNotification) => void;
   /** Waits before starting again a channel that failed to start; the last one repeats. */
   retryMs?: readonly number[];
+  /** A paired device's push, when the owner picked it as where notices go; false when it has none. */
+  pushOwner?: (deviceId: string, text: string) => boolean;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
   const { store, secrets, log } = deps;
@@ -90,6 +92,8 @@ export function createChannels(deps: {
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
+    // The owner's phone, when they picked it: a push instead of a channel message (a channel if it has no push).
+    if (prefs.channel?.startsWith("device:") && deps.pushOwner?.(prefs.channel.slice(7), body.text)) return true;
     const order = [...live.values()].sort(
       (a, b) =>
         Number(b.config.id === prefs.channel) - Number(a.config.id === prefs.channel) ||

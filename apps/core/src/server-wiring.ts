@@ -34,6 +34,7 @@ import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
 import { notificationHandlers } from "./rpc/notifications.ts";
+import { phoneHandlers } from "./rpc/phone.ts";
 import { providerHandlers } from "./rpc/providers.ts";
 import { resourceHandlers } from "./rpc/resources.ts";
 import type { Dispatch } from "./rpc/router.ts";
@@ -52,6 +53,7 @@ import { contactTools } from "./tools/contact.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
+import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
@@ -104,6 +106,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...skillTools(store, home),
     ...memoryTools(),
     ...mediaTools(),
+    ...phoneTools(),
     ...taskTools(),
     ...contactTools(store),
     ...requestTools(store),
@@ -163,6 +166,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses }),
+    ...phoneHandlers(d.broker, d.store, d.app.home),
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp, d.store),
     ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),
@@ -218,7 +222,12 @@ export function panelEntry(dist: string | undefined): string | undefined {
  * Where a device on the network may reach this core: none while it listens only on this computer; each of the machine's
  * network addresses (LAN, Tailscale) when it listens on all of them.
  */
-export function reachableAt(host: string, port: number): string[] {
+export function reachableAt(host: string, port: number, publicUrl?: string): string[] {
+  const own = publicUrl ? [publicUrl] : [];
+  return [...own, ...networkAddresses(host, port).filter((u) => u !== publicUrl)];
+}
+
+function networkAddresses(host: string, port: number): string[] {
   if (LOOPBACK_HOSTS.has(host)) return [];
   if (host !== "0.0.0.0" && host !== "::") return [`http://${host.includes(":") ? `[${host}]` : host}:${port}`];
   return Object.values(os.networkInterfaces())
@@ -250,6 +259,7 @@ export async function listen(
         },
       },
       (token) => d.store.clients.byToken(token),
+      (token) => d.store.devices.byToken(token),
     ),
   );
   const wss = attachWs(server, {
@@ -259,6 +269,7 @@ export async function listen(
     broker: d.broker,
     bus: d.bus,
     gate,
+    deviceOf: (token) => d.store.devices.byToken(token),
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);

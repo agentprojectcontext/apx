@@ -58,6 +58,9 @@ function artifactPage(title: string, html: string): string {
   return doc;
 }
 
+/** Which paired device a key belongs to (undefined: not a device's, or revoked). */
+export type DeviceLookup = (token: string) => { id: string; name: string } | undefined;
+
 /** Who an outside app's client token belongs to (undefined: unknown or revoked). */
 export type ClientLookup = (token: string) => { id: string; name: string; scopes: ClientScope[] } | undefined;
 
@@ -68,6 +71,7 @@ export function httpHandler(
   webDist?: string,
   pages?: PublicPages,
   clientOf?: ClientLookup,
+  deviceOf?: DeviceLookup,
 ) {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://core");
@@ -101,6 +105,8 @@ export function httpHandler(
         return send(res, 400, { ok: false, error: { code: "bad_request", message: String(err) } });
       }
       const idem = header(req, "idempotency-key");
+      const auth = header(req, "authorization");
+      const device = auth?.startsWith("Bearer apxd_") ? deviceOf?.(auth.slice(7)) : undefined;
       if (clientToken && !client)
         return send(res, 401, {
           ok: false,
@@ -115,6 +121,7 @@ export function httpHandler(
           // An outside app is a model, whatever it says it is.
           actor: client || header(req, "x-apx-actor") === "agent" ? "agent" : "human",
           ...(client ? { client } : {}),
+          ...(device ? { device } : {}),
           session: undefined,
           log,
         },

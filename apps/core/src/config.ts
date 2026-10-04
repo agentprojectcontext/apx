@@ -45,6 +45,13 @@ export type CoreConfig = {
   telegramApi: string | undefined;
   /** Discord's REST API and Gateway; a test environment points them at an emulated one (APX_DISCORD_API, _GATEWAY). */
   discord: { api: string; gateway: string; cdn: string } | undefined;
+  /**
+   * The address devices reach this core on from outside (a VPS or a Tailscale name, e.g. https://apx.example.ts.net):
+   * it goes first in a pairing QR.
+   */
+  publicUrl: string | undefined;
+  /** Expo's push service; a test environment points it at a fake one (APX_EXPO_PUSH_URL). */
+  expoPushUrl: string;
   /** Slack's Web API; a test environment points it at an emulated one (APX_SLACK_API). */
   slackApi: string | undefined;
   /** iMessage tools on a Mac; APX_IMESSAGE=off hides them (a sandbox must never reach the owner's Messages). */
@@ -118,6 +125,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): CoreConfig {
         ? { api: env.APX_DISCORD_API, gateway: env.APX_DISCORD_GATEWAY, cdn: env.APX_DISCORD_API }
         : undefined,
     slackApi: env.APX_SLACK_API || undefined,
+    publicUrl: env.APX_PUBLIC_URL?.replace(/\/$/, "") || undefined,
+    expoPushUrl: env.APX_EXPO_PUSH_URL || "https://exp.host/--/api/v2/push/send",
     imessage: env.APX_IMESSAGE !== "off",
     native: {
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),

@@ -7,11 +7,28 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "../desktop/assets/icon.png",
-    "ios": { "bundleIdentifier": "dev.apx.mobile", "supportsTablet": true },
-    "android": { "package": "dev.apx.mobile" },
+    "ios": {
+      "bundleIdentifier": "dev.apx.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.apx.mobile"
+    },
     "plugins": [
-      ["expo-camera", { "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer." }],
-      "expo-secure-store"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer, and to take a picture when an agent asks you for one."
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "APX tells your agents where you are when they ask (only while the app is open)."
+        }
+      ],
+      "expo-notifications"
     ]
   }
 }

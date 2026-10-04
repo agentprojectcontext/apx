@@ -82,6 +82,8 @@ export function createEngine(deps: {
   hooks?: Hooks;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
+  /** Whether a connected node lends this capability now (a phone's location). */
+  hasCap?: (cap: string) => boolean;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
   afterRun?: (run: RunRecord) => void;
 }) {

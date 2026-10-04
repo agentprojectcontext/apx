@@ -966,4 +966,13 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Sus novedades nunca quedan retenidas por las horas de silencio ni cuentan en el tope diario (un resumen de la mañana o de la tarde).",
   "routines.anchorOn": "Siempre",
   "routines.anchorOff": "Dentro del presupuesto",
+  "nudge.where": "A dónde llegan los avisos",
+  "nudge.whereHint":
+    "Un canal, o el push de tu teléfono (vinculalo en Dispositivos; la app de APX lo registra sola, o pegá ahí una dirección de ntfy).",
+  "nudge.whereAuto": "El primer canal que te conoce",
+  "nudge.wherePhone": "{name} (push)",
+  "devices.push.expo": "push",
+  "devices.push.unifiedpush": "push (ntfy)",
+  "devices.pushUrl": "Dirección de push para {name}",
+  "devices.pushSave": "Usar para push",
 };

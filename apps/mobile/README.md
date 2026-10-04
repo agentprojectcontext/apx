@@ -16,4 +16,16 @@ npx expo start                       # Expo Go or a dev build; the core must lis
 ```
 
 It reads the protocol's client from `packages/protocol/src` (no zod reaches the phone: the core validates).
-Next: the phone as a node (camera, notifications), push, and the panel's surfaces in a WebView.
+
+While paired it also:
+- **Lends the phone to the core as a node** (`location`, `camera`): agents get `phone_location` and `phone_photo`
+  only while it is connected. A picture is always taken by the owner (the app shows why it is asked); location asks
+  the system's permission once.
+- **Registers for push** with its Expo push token, when the app has an EAS project id (`extra.eas.projectId` in
+  `app.json`). Without one, paste an ntfy / UnifiedPush address for the device in Config › Devices. Then pick the phone
+  in Config › Interruptions › Where notices go: the same budget decides what reaches it.
+
+A core on a VPS or reached through Tailscale: start it with `APX_HOST=0.0.0.0`, an `APX_TOKEN` and
+`APX_PUBLIC_URL=https://<its name>` (that address goes first in the pairing QR).
+
+Next: the panel's surfaces in a WebView.
