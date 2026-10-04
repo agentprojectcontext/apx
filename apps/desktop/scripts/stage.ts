@@ -54,6 +54,15 @@ execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund", "--no-p
   shell: process.platform === "win32",
 });
 
+// The agent SDKs pull a copy of the Claude Code and Codex CLIs as optional packages; APX runs the owner's own
+// installed `claude` / `codex` instead (harness/index.ts), so those copies only add hundreds of MB.
+for (const scope of ["@anthropic-ai", "@openai"]) {
+  const dir = path.join(out, "node_modules", scope);
+  for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    if (/^claude-agent-sdk-|^codex$|^codex-(?!sdk$)/.test(name)) fs.rmSync(path.join(dir, name), { recursive: true });
+  }
+}
+
 // After npm (which prunes what package.json does not list).
 const protocol = path.join(out, "node_modules/@apx/protocol");
 await build({
