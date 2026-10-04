@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
+import { showAbout } from "./about.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { createConnector } from "./connector.ts";
@@ -228,6 +229,7 @@ app.on("window-all-closed", () => app.quit());
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
 function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
   const es = app.getLocale().startsWith("es");
+  const about = { id: "about", label: es ? "Acerca de APX" : "About APX", click: () => showAbout("persist:apx-ui") };
   const change = {
     id: "change-connection",
     label: es ? "Cambiar conexión…" : "Change connection…",
@@ -239,7 +241,7 @@ function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
           {
             label: app.name,
             submenu: [
-              { role: "about" as const },
+              about,
               { type: "separator" as const },
               change,
               { type: "separator" as const },
@@ -251,7 +253,7 @@ function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
             ],
           },
         ]
-      : [{ label: "APX", submenu: [change, { type: "separator" as const }, { role: "quit" as const }] }]),
+      : [{ label: "APX", submenu: [about, change, { type: "separator" as const }, { role: "quit" as const }] }]),
     { role: "fileMenu" },
     { role: "editMenu" },
     { role: "viewMenu" },

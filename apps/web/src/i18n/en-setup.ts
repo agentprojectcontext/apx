@@ -193,6 +193,9 @@ export const enSetup = {
     "crew.|team.|night shift.|assistant.|secretary.|dev team.|copywriter.|analyst.|researcher.|community manager.|designer.|partner.",
   "connect.pill": "APX 2",
   "connect.pillMuted": "· on this computer or your server",
+  "about.statuses":
+    "orbita|Lucía|is handing out the work;perla|Tomás|is fixing the checkout bug;caracol|Vera|is scheduling the newsletter;menta|Nova|is summarizing your inbox;cobalto|Reviewer|is reading the open PRs;noche|Night shift|is posting the weekly report",
+  "about.foot": "Open source · your crew, on your computer or your server",
   "connect.kicker": "FIRST RUN",
   "connect.title": "Where does",
   "connect.titleEnd": "your APX run?",

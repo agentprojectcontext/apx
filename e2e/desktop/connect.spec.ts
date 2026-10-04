@@ -79,3 +79,14 @@ test("change connection goes back to the question in the same window, and the ap
   expect((await fetch(`${core}/health`)).ok).toBe(true);
   await app.close();
 });
+
+test("About opens APX's own window with the hero and this build's version", async () => {
+  fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
+  const app = await launch();
+  await windowAt(app, (u) => u.startsWith(core));
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("about")?.click());
+  const about = await windowAt(app, (u) => u.includes("?about"));
+  await expect(about.locator(".about__version")).toContainText("APX");
+  await expect(about.locator(".about__status")).toBeVisible();
+  await app.close();
+});

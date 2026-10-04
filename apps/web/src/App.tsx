@@ -12,6 +12,7 @@ import { Shell } from "./shell/Shell.tsx";
 const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m.Wizard })));
 const PairScreen = lazy(() => import("./setup/PairScreen.tsx").then((m) => ({ default: m.PairScreen })));
 const ConnectScreen = lazy(() => import("./setup/ConnectScreen.tsx").then((m) => ({ default: m.ConnectScreen })));
+const AboutScreen = lazy(() => import("./setup/AboutScreen.tsx").then((m) => ({ default: m.AboutScreen })));
 
 /** The desktop app's menu-bar window loads the panel with ?quick: only the quick chat. */
 const QUICK = new URLSearchParams(window.location.search).has("quick");
@@ -22,13 +23,14 @@ const MONO = { "--apx-font-sans": "var(--apx-font-mono)" } as CSSProperties;
 /** The desktop app's first run (?connect): no APX is chosen yet, so nothing calls a core. */
 const CONNECT = new URLSearchParams(window.location.search).has("connect") && Boolean(window.apxConnect);
 
+/** The desktop app's About window (?about): the hero with this build's version; no core either. */
+const ABOUT = new URLSearchParams(window.location.search).has("about");
+
 export function App() {
-  if (CONNECT)
+  if (CONNECT || ABOUT)
     return (
       <ApxProvider look="minimal" mode="dark" fill>
-        <Suspense fallback={null}>
-          <ConnectScreen />
-        </Suspense>
+        <Suspense fallback={null}>{ABOUT ? <AboutScreen /> : <ConnectScreen />}</Suspense>
       </ApxProvider>
     );
   return <Main />;

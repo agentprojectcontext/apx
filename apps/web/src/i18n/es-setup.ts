@@ -194,6 +194,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "crew.|equipo.|turno noche.|asistente.|secretaria.|dev team.|redactor.|analista.|investigador.|community manager.|diseñadora.|socio.",
   "connect.pill": "APX 2",
   "connect.pillMuted": "· en esta compu o en tu servidor",
+  "about.statuses":
+    "orbita|Lucía|reparte el trabajo;perla|Tomás|arregla el bug del checkout;caracol|Vera|programa el newsletter;menta|Nova|resume tu bandeja de entrada;cobalto|Revisor|lee los PRs abiertos;noche|Turno noche|publica el reporte semanal",
+  "about.foot": "Open source · tu crew, en tu compu o en tu servidor",
   "connect.kicker": "PRIMER ARRANQUE",
   "connect.title": "¿Dónde corre",
   "connect.titleEnd": "tu APX?",

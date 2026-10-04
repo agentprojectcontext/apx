@@ -1,5 +1,5 @@
 import { AgentAvatar, Icons } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 
 /** The faces the headline cycles through, as on the website. */
@@ -61,8 +61,49 @@ function useScramble(words: readonly string[], start: boolean): string {
   return shown;
 }
 
+/** Shows `target`, turning into each new value through random glyphs (the ticker's line). */
+export function useScrambleTo(target: string): string {
+  const [shown, setShown] = useState(target);
+  const last = useRef(target);
+  useEffect(() => {
+    const from = last.current;
+    last.current = target;
+    if (from === target) return;
+    if (reducedMotion()) {
+      setShown(target);
+      return;
+    }
+    const len = Math.max(from.length, target.length);
+    const began = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - began) / 600);
+      let out = "";
+      for (let i = 0; i < len; i++) {
+        if (i / len < p * 1.25 - 0.15) out += target[i] ?? "";
+        else if (i < target.length || p < 0.5) out += GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+      }
+      setShown(p < 1 ? out : target);
+      if (p < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target]);
+  return shown;
+}
+
 /** "Meet ⟨blob⟩ your crew." — the website's hero: the headline assembles, then the face and the word keep changing. */
-export function CrewHero({ compact }: { compact: boolean }) {
+export function CrewHero({
+  compact = false,
+  pill,
+  below,
+}: {
+  compact?: boolean;
+  /** The badge above the headline; the first run's by default. */
+  pill?: ReactNode;
+  /** What sits under the headline; the crew lining up by default. */
+  below?: ReactNode;
+}) {
   const t = useT();
   const words = t("connect.heroWords").split("|");
   const [face, setFace] = useState(0);
@@ -86,12 +127,14 @@ export function CrewHero({ compact }: { compact: boolean }) {
   const your = t("setup.welcome.your");
   return (
     <div className={`crew${compact ? " is-compact" : ""}`}>
-      <span className="wiz__pill crew__pill">
-        {t("connect.pill")} <span className="is-muted">{t("connect.pillMuted")}</span>
-        <span className="wiz__lock">
-          <Icons.Server size={12} />
+      {pill ?? (
+        <span className="wiz__pill crew__pill">
+          {t("connect.pill")} <span className="is-muted">{t("connect.pillMuted")}</span>
+          <span className="wiz__lock">
+            <Icons.Server size={12} />
+          </span>
         </span>
-      </span>
+      )}
       <h1 className="crew__title" aria-label={`${meet} ${your} ${words[0] ?? ""}`}>
         <span className="crew__row">
           <Letters text={meet} delay={0.1} />
@@ -114,13 +157,15 @@ export function CrewHero({ compact }: { compact: boolean }) {
           </span>
         </span>
       </h1>
-      <div className="crew__parade" aria-hidden="true">
-        {PARADE.map((b, i) => (
-          <span key={b} className="crew__member" style={{ animationDelay: `${1.1 + i * 0.09}s` }}>
-            <AgentAvatar name={b} blob={b} size={44} />
-          </span>
-        ))}
-      </div>
+      {below ?? (
+        <div className="crew__parade" aria-hidden="true">
+          {PARADE.map((b, i) => (
+            <span key={b} className="crew__member" style={{ animationDelay: `${1.1 + i * 0.09}s` }}>
+              <AgentAvatar name={b} blob={b} size={44} />
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
