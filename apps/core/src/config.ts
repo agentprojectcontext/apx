@@ -62,6 +62,8 @@ export type CoreConfig = {
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
   llmTimeoutMs: number;
+  /** The super-agent's name on a fresh install (APX_AGENT_NAME); none = one picked at random. */
+  agentName: string | undefined;
   /** Look for a newer APX now and then (APX_UPDATES=off stops it). */
   updates: boolean;
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
@@ -151,6 +153,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
+    agentName: env.APX_AGENT_NAME?.trim() || undefined,
     updates: env.APX_UPDATES !== "off",
     supervised: env.APX_SUPERVISED === "1",
   };
@@ -169,5 +172,14 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
   // Never the machine's real v1: a test that wants one passes it.
   const v1 = { url: "http://127.0.0.1:9", home: path.join(over.home, "v1") };
   const native = { claude: path.join(over.home, "claude-home"), codex: path.join(over.home, "codex-home") };
-  return { ...loadConfig({}, false), port: 0, secrets: "file", v1, native, updates: false, ...over };
+  return {
+    ...loadConfig({}, false),
+    port: 0,
+    secrets: "file",
+    v1,
+    native,
+    updates: false,
+    agentName: "Roby",
+    ...over,
+  };
 }

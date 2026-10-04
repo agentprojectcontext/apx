@@ -92,7 +92,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const bus = createBus();
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
-  seed(store);
+  seed(store, config.agentName);
   store.idempotency.prune();
   store.nudges.prune();
 

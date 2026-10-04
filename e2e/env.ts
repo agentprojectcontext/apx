@@ -48,6 +48,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_PORT: String(E2E.port),
     APX_SECRETS: "file",
     APX_UPDATES: "off",
+    APX_AGENT_NAME: "Roby",
     APX_V1_HOME: fx.v1,
     APX_V1_URL: "http://127.0.0.1:9",
     CLAUDE_CONFIG_DIR: fx.claude,

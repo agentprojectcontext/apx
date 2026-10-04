@@ -33,6 +33,9 @@ export function findV1(home: string) {
   const version = str(readJson(path.join(home, "update-check.json"))?.current);
   const identity = readJson(path.join(home, "identity.json"));
   const agent = str(identity?.agent_name);
+  const sa = config.super_agent;
+  const icon = sa && typeof sa === "object" ? str((sa as Record<string, unknown>).icon) : undefined;
+  const blob = icon && /^[a-z]{2,20}$/.test(icon) ? icon : undefined;
   const owner = str(identity?.owner_name);
   const user = os.homedir();
   return {
@@ -41,6 +44,7 @@ export function findV1(home: string) {
     projects: v1Projects(home).length,
     ...(version ? { version } : {}),
     ...(agent ? { agent_name: agent } : {}),
+    ...(blob ? { agent_blob: blob } : {}),
     ...(owner ? { owner_name: owner } : {}),
   };
 }

@@ -85,6 +85,8 @@ export const appMethods = {
           home: z.string(),
           version: z.string().optional(),
           agent_name: z.string().optional(),
+          /** The super-agent's face in v1 (a blob name), shown before the import brings it. */
+          agent_blob: z.string().optional(),
           owner_name: z.string().optional(),
           projects: z.number().int(),
         })

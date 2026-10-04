@@ -29,7 +29,16 @@ export function StepHead(props: {
 }
 
 /** Start fresh, or bring v1 when it is on this machine. */
-export function Welcome({ v1, onStart }: { v1: Result<"setup.status">["v1"]; onStart: (mode: Draft["mode"]) => void }) {
+export function Welcome({
+  v1,
+  agent,
+  onStart,
+}: {
+  v1: Result<"setup.status">["v1"];
+  /** The super-agent this install has now (its name was picked at random on a fresh one). */
+  agent: { name: string; blob?: string | undefined } | undefined;
+  onStart: (mode: Draft["mode"]) => void;
+}) {
   const t = useT();
   return (
     <div className="wiz__welcome">
@@ -70,8 +79,13 @@ export function Welcome({ v1, onStart }: { v1: Result<"setup.status">["v1"]; onS
         )}
       </div>
       <span className="wiz__waiting">
-        <AgentAvatar name={v1?.agent_name ?? "Roby"} blob="ovni" size={24} animated={false} />
-        <b>{v1?.agent_name ?? "Roby"}</b>
+        <AgentAvatar
+          name={v1?.agent_name ?? agent?.name ?? "crew"}
+          blob={v1?.agent_blob ?? agent?.blob ?? "ovni"}
+          size={24}
+          animated={false}
+        />
+        <b>{v1?.agent_name ?? agent?.name}</b>
         <span className="is-mono">{t("setup.welcome.waiting")}</span>
         <span className="wiz__dots">•••</span>
       </span>

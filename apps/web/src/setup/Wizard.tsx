@@ -76,7 +76,11 @@ export function Wizard() {
   }, [boss, d.nameSet]);
 
   const start = (mode: Draft["mode"]) => {
-    set({ mode });
+    const v1 = status?.v1;
+    // Importing brings v1's super-agent: the preview shows its name and face from the first step.
+    if (mode === "import" && (v1?.agent_name || v1?.agent_blob))
+      set({ mode, nameSet: true, name: v1.agent_name ?? d.name, blob: v1.agent_blob ?? d.blob });
+    else set({ mode });
     setAt(1);
     if (mode === "import" && !scan) void scanV1().then(setScan);
   };
@@ -105,6 +109,11 @@ export function Wizard() {
       if (r.imported.embeddings) {
         const now = await client.call("memory.settings", {}).catch(() => undefined);
         set({ memory: "semantic", ...(now ? { skillPicker: now.skill_picker } : {}) });
+      }
+      // v1's main model and fallbacks came in as the default and the router: the engines step starts from them.
+      if (r.imported.keys) {
+        await loadModelsConfig();
+        set({ chainSet: false });
       }
       if (r.errors.length) notify(t("setup.import.failed", { error: r.errors.join("; ") }));
       // What came in (projects, agents, chats, channels) shows in the panel and the next steps.
@@ -151,7 +160,7 @@ export function Wizard() {
 
   const name = d.name.trim() || t("setup.preview.unset");
   const body: Record<Step, ReactNode> = {
-    welcome: <Welcome v1={status?.v1 ?? null} onStart={start} />,
+    welcome: <Welcome v1={status?.v1 ?? null} agent={boss} onStart={start} />,
     import: <ImportStep home={status?.v1?.home ?? "~/.apx"} scan={scan} draft={d} set={set} />,
     agent: <AgentStep draft={d} set={set} />,
     engines: <EnginesStep draft={d} set={set} />,
