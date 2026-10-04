@@ -535,4 +535,9 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE nudges ADD COLUMN feedback TEXT;
   ALTER TABLE nudges ADD COLUMN feedback_at TEXT;
   `,
+  `
+  -- How a commitment ended (kept, missed, dropped), and how many times its date was moved by agreement.
+  ALTER TABLE tasks ADD COLUMN outcome TEXT;
+  ALTER TABLE tasks ADD COLUMN renegotiated INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

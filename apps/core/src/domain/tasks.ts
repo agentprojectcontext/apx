@@ -1,6 +1,6 @@
 // Tasks: the row is the task as it is now; every change is also an event, so its history can be told. The board's
 // columns are a setting; "done" and "dropped" are states, never columns.
-import type { Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } from "@apx/protocol";
+import type { CommitmentOutcome, Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
@@ -76,6 +76,8 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Tas
         owed_by: (r.owed_by ?? "owner") as "owner" | "person",
       }
     : {}),
+  ...(r.outcome === "kept" || r.outcome === "missed" || r.outcome === "dropped" ? { outcome: r.outcome } : {}),
+  renegotiated: r.renegotiated,
   created_by: r.created_by,
   created_at: r.created_at,
   updated_at: r.updated_at,
@@ -97,6 +99,7 @@ export type TaskChange = Partial<{
   awaits_owner: boolean;
   person_id: string | null;
   owed_by: "owner" | "person";
+  outcome: CommitmentOutcome | null;
 }>;
 
 export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
@@ -203,6 +206,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.description !== undefined ? { description: c.description } : {}),
             ...(c.status !== undefined ? { status: c.status } : {}),
             ...(c.state !== undefined ? { state: c.state } : {}),
+            // Open again, a commitment has no outcome yet.
+            ...(c.outcome !== undefined ? { outcome: c.outcome } : c.state === "open" ? { outcome: null } : {}),
             ...(c.assignee !== undefined ? { assignee: c.assignee } : {}),
             ...(c.project_id !== undefined ? { project_id: c.project_id } : {}),
             ...(c.kind !== undefined ? { kind: c.kind } : {}),
@@ -226,6 +231,29 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           .where("id", "=", id),
       );
       event(id, opOf(cur, c), by, { ...c, ...(note ? { note } : {}) });
+      const task = repo.get(id) as Task;
+      emit(task);
+      return task;
+    },
+    /** A commitment's date moved by agreement: a new date, reminded again, counted and recorded as its own event. */
+    renegotiate(id: string, dueAt: string, by: string, note?: string): Task | undefined {
+      const cur = repo.get(id);
+      if (!cur) return undefined;
+      const at = now();
+      run(
+        qb
+          .updateTable("tasks")
+          .set((eb) => ({
+            due_at: dueAt,
+            remind_at: null,
+            reminded_at: null,
+            renegotiated: eb("renegotiated", "+", 1),
+            updated_at: at,
+            activity_at: at,
+          }))
+          .where("id", "=", id),
+      );
+      event(id, "renegotiate", by, { from: cur.due_at ?? null, to: dueAt, ...(note ? { note } : {}) });
       const task = repo.get(id) as Task;
       emit(task);
       return task;

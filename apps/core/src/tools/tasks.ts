@@ -10,6 +10,8 @@ const line = (t: Task) =>
     t.awaits_owner ? "waiting for the owner" : "",
     t.person_name ? (t.owed_by === "person" ? `${t.person_name} owes it` : `owed to ${t.person_name}`) : "",
     t.due_at ? `due ${t.due_at}` : "",
+    t.outcome ?? "",
+    t.renegotiated ? `date moved ${t.renegotiated}×` : "",
   ]
     .filter(Boolean)
     .join(", ")})`;
@@ -127,6 +129,25 @@ export function taskTools(): Tool[] {
       async run(a, ctx) {
         const t = await ctx.call("tasks.close", a);
         return `now ${t.state}.`;
+      },
+    }),
+    defineTool({
+      name: "commitment_settle",
+      description:
+        "Record how a commitment went, as the owner said it: kept, missed, dropped (released by agreement) or renegotiated (a new date agreed with the person: give due_at). Never decide it yourself.",
+      args: z.object({
+        task: z.string().min(1).max(64),
+        outcome: z.enum(["kept", "missed", "dropped", "renegotiated"]),
+        due_at: z.string().max(40).optional().describe("Renegotiated: the new date (2026-10-05 or ISO)."),
+        note: z.string().max(2000).optional(),
+      }),
+      effect: "local",
+      confirm: "untrusted",
+      deadlineMs: 5_000,
+      title: (a) => `Marked ${String(a.task ?? "")} ${String(a.outcome ?? "")}`,
+      async run(a, ctx) {
+        const t = await ctx.call("tasks.settle", a);
+        return t.state === "open" ? `still open, now due ${t.due_at ?? "?"}.` : `closed: ${t.outcome ?? t.state}.`;
       },
     }),
   ];

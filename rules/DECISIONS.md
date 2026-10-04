@@ -358,3 +358,12 @@ No learned model, no per-signal scoring: two counts and a rule the owner can rea
 routine's thread (its answer is already delivered) and between agents (the answer goes back to the asker), and it is
 not among a contact's tools. It asks the owner's OK while outside content is in the turn: an injected page must not
 write to the owner in APX's voice. The tool reports what the gate did, so a dropped message is not retried.
+
+<a id="d-036"></a>
+## D-036 — 2026-10-04 — A commitment ends kept, missed or released; a new date is an event, not an outcome
+`tasks.settle` records how a commitment went. Kept closes it as done; missed (its date passed undelivered) and
+dropped (released by agreement) close it as dropped; the task's `outcome` says which, and reopening clears it.
+Renegotiated is not an ending: the commitment stays open with the new date (reminded again), a `renegotiate` event
+keeps the old and new dates, and a counter shows how often it moved. Only the owner's word settles one: the
+day-close routine asks, and the agent records the answer with `commitment_settle`, never on its own. How far ahead a
+commitment is raised is the secretary profile's `commitment_lead_hours` (D-033).

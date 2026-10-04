@@ -1,5 +1,5 @@
 import type { Task, TaskEvent } from "@apx/protocol";
-import { AgentAvatar, Button, IconButton, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
+import { AgentAvatar, Badge, Button, IconButton, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -8,7 +8,7 @@ import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { loadThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PROJECT } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, commentTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
+import { closeTask, commentTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { type HistoryKey, historyLines } from "./history.ts";
 import {
@@ -33,6 +33,9 @@ const HISTORY: Record<HistoryKey, [MessageKey, MessageKey]> = {
   done: ["tasks.ev.done.you", "tasks.ev.done"],
   drop: ["tasks.ev.drop.you", "tasks.ev.drop"],
   reopen: ["tasks.ev.reopen.you", "tasks.ev.reopen"],
+  kept: ["tasks.ev.kept.you", "tasks.ev.kept"],
+  missed: ["tasks.ev.missed.you", "tasks.ev.missed"],
+  renegotiate: ["tasks.ev.renegotiate.you", "tasks.ev.renegotiate"],
   priority: ["tasks.ev.priority.you", "tasks.ev.priority"],
   due: ["tasks.ev.due.you", "tasks.ev.due"],
   undue: ["tasks.ev.undue.you", "tasks.ev.undue"],
@@ -132,7 +135,9 @@ function StateBar({ task }: { task: Task }) {
         options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t) }))}
       />
       <span className="board__spacer" />
-      {task.state === "open" ? (
+      {task.kind === "commitment" ? (
+        <CommitmentActions task={task} />
+      ) : task.state === "open" ? (
         <>
           <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void closeTask(task.id, "done")}>
             {t("tasks.markDone")}
@@ -147,6 +152,42 @@ function StateBar({ task }: { task: Task }) {
         </Button>
       )}
     </div>
+  );
+}
+
+/** A commitment ends kept, missed or released; a new date agreed with the person keeps it open. */
+function CommitmentActions({ task }: { task: Task }) {
+  const t = useT();
+  if (task.state !== "open")
+    return (
+      <>
+        {task.outcome && (
+          <Badge tone={task.outcome === "kept" ? "brand" : "neutral"}>{t(`tasks.outcome.${task.outcome}`)}</Badge>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => void closeTask(task.id, "open")}>
+          {t("tasks.reopen")}
+        </Button>
+      </>
+    );
+  return (
+    <>
+      {task.renegotiated > 0 && <Badge>{t("tasks.renegotiated", { n: String(task.renegotiated) })}</Badge>}
+      <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void settleTask(task.id, "kept")}>
+        {t("tasks.kept")}
+      </Button>
+      <Button size="sm" variant="secondary" onClick={() => void settleTask(task.id, "missed")}>
+        {t("tasks.missed")}
+      </Button>
+      <DueField
+        size="sm"
+        label={t("tasks.newDate")}
+        value={undefined}
+        onChange={(v) => v && void settleTask(task.id, "renegotiated", v)}
+      />
+      <Button size="sm" variant="ghost" onClick={() => void settleTask(task.id, "dropped")}>
+        {t("tasks.release")}
+      </Button>
+    </>
   );
 }
 

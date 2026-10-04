@@ -38,7 +38,7 @@ const SPECS: Spec[] = [
     anchor: true,
     schedule: (p) => ({ kind: "cron", cron: p.day_close }),
     prompt:
-      'Close the owner\'s day in ONE message: what moved today, what is stuck, what carries over to tomorrow. Call task_list once. Ask whether the commitments due today were kept; never mark them yourself. Say "no data" rather than guess. Short lines, no headers.',
+      'Close the owner\'s day in ONE message: what moved today, what is stuck, what carries over to tomorrow. Call task_list once. Ask whether the commitments due today were kept; when the owner answers, record it with commitment_settle (kept, missed, dropped, or renegotiated with the new date), never on your own. Say "no data" rather than guess. Short lines, no headers.',
   },
   {
     key: "watch",

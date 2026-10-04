@@ -149,6 +149,21 @@ export function taskHandlers(store: Store, engine: Engine) {
         note,
       ) as Task;
     },
+    "tasks.settle": ({ task, outcome, due_at, note }, ctx) => {
+      const t = visible(task, ctx);
+      if (t.kind !== "commitment") throw badRequest("only a commitment is kept, missed or renegotiated");
+      if (outcome === "renegotiated") {
+        if (!due_at) throw badRequest("a renegotiated commitment needs its new date (due_at)");
+        if (t.state !== "open") throw badRequest("reopen it first: a closed commitment has no date to move");
+        return store.tasks.renegotiate(task, dueOf(due_at) ?? "", by(ctx), note) as Task;
+      }
+      return store.tasks.change(
+        task,
+        { state: outcome === "kept" ? "done" : "dropped", outcome, awaits_owner: false },
+        by(ctx),
+        note,
+      ) as Task;
+    },
     "tasks.comment": ({ task, text }, ctx) => {
       const t = visible(task, ctx);
       const owner = !ctx.agent;

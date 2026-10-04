@@ -97,6 +97,22 @@ export const officeMethods = {
     result: Task,
     effect: true,
   },
+  /**
+   * How a commitment went: kept (done), missed or dropped (closed with that outcome), or renegotiated (still open,
+   * with the new date agreed with the person).
+   */
+  "tasks.settle": {
+    params: z
+      .object({
+        task: Id,
+        outcome: z.enum(["kept", "missed", "dropped", "renegotiated"]),
+        due_at: z.string().max(40).optional(),
+        note: z.string().max(2000).optional(),
+      })
+      .strict(),
+    result: Task,
+    effect: true,
+  },
   /** A comment in the task's conversation; an @mentioned agent answers there. */
   "tasks.comment": {
     params: z.object({ task: Id, text: z.string().trim().min(1).max(20_000) }).strict(),

@@ -380,6 +380,8 @@ export interface TasksTable {
   priority: Generated<string>;
   tags: Generated<string>;
   remind_at: string | null;
+  outcome: string | null;
+  renegotiated: Generated<number>;
 }
 
 export interface ThreadsTable {

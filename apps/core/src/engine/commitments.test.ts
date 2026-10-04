@@ -5,8 +5,11 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
+let settling = "";
 const llm = scriptedLlm((_req, { said, afterTool }) => {
   if (afterTool) return say("Noted.");
+  if (said.includes("I sent it, it was kept"))
+    return callTool("s1", "commitment_settle", { task: settling, outcome: "kept" });
   if (said.includes("Ana owes me the contract"))
     return callTool("c1", "task_create", {
       title: "Signed contract",
@@ -158,4 +161,41 @@ test("moving a task to another project moves its conversation and lets go of an 
   const { thread } = await env.client.call("threads.get", { thread: t.thread_id });
   assert.equal(thread.project_id, undefined, "its conversation went with it");
   await assert.rejects(env.client.call("tasks.update", { task: t.id, project: "p_missing" }), /not found/);
+});
+
+test("a commitment ends kept, missed or dropped; renegotiated it stays open with the new date", async () => {
+  const t = await env.client.call("tasks.create", { title: "Send the deck", person: "Ula", due_at: "2026-10-03" });
+  const moved = await env.client.call("tasks.settle", {
+    task: t.id,
+    outcome: "renegotiated",
+    due_at: "2026-10-10",
+    note: "Ana agreed",
+  });
+  assert.equal(moved.state, "open");
+  assert.equal(moved.due_at, new Date(2026, 9, 10, 9).toISOString());
+  assert.equal(moved.renegotiated, 1);
+  const missed = await env.client.call("tasks.settle", { task: t.id, outcome: "missed" });
+  assert.deepEqual([missed.state, missed.outcome], ["dropped", "missed"]);
+  await assert.rejects(
+    env.client.call("tasks.settle", { task: t.id, outcome: "renegotiated", due_at: "2026-10-12" }),
+    /reopen it first/,
+  );
+  const reopened = await env.client.call("tasks.close", { task: t.id, state: "open" });
+  assert.equal(reopened.outcome, undefined, "open again, it has no outcome");
+  const ops = (await env.client.call("tasks.get", { task: t.id })).events.map((e) => e.op);
+  assert.deepEqual(ops.slice(-3), ["renegotiate", "drop", "reopen"]);
+
+  const plain = await env.client.call("tasks.create", { title: "Water the plants" });
+  await assert.rejects(env.client.call("tasks.settle", { task: plain.id, outcome: "kept" }), /only a commitment/);
+  await assert.rejects(env.client.call("tasks.settle", { task: t.id, outcome: "renegotiated" }), /new date/);
+});
+
+test("the agent records what the owner says of a commitment", async () => {
+  const t = await env.client.call("tasks.create", { title: "Call back Ula", person: "Ula", due_at: "2026-10-02" });
+  settling = t.id;
+  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: thread.id, text: "I sent it, it was kept" });
+  await env.settle(thread.id);
+  const after = (await env.client.call("tasks.get", { task: t.id })).task;
+  assert.deepEqual([after.state, after.outcome], ["done", "kept"]);
 });

@@ -15,6 +15,9 @@ export type TaskKind = z.infer<typeof TaskKind>;
 export const TaskPriority = z.enum(["low", "normal", "high", "urgent"]);
 export type TaskPriority = z.infer<typeof TaskPriority>;
 export const TaskTag = z.string().trim().min(1).max(32);
+/** How a commitment ended: kept, missed (its date passed undelivered) or dropped (released by agreement). */
+export const CommitmentOutcome = z.enum(["kept", "missed", "dropped"]);
+export type CommitmentOutcome = z.infer<typeof CommitmentOutcome>;
 export type TaskColumn = z.infer<typeof TaskColumn>;
 export const Task = z.object({
   id: Id,
@@ -40,6 +43,10 @@ export const Task = z.object({
   person_id: Id.optional(),
   person_name: z.string().optional(),
   owed_by: z.enum(["owner", "person"]).optional(),
+  /** A closed commitment: how it ended. */
+  outcome: CommitmentOutcome.optional(),
+  /** How many times its date was moved by agreement with the person. */
+  renegotiated: z.number().int(),
   /** Who created it: "owner" or an agent's id. */
   created_by: z.string(),
   created_at: z.string(),
@@ -50,7 +57,7 @@ export const Task = z.object({
 export type Task = z.infer<typeof Task>;
 export const TaskEvent = z.object({
   at: z.string(),
-  op: z.enum(["create", "update", "move", "assign", "comment", "done", "drop", "reopen"]),
+  op: z.enum(["create", "update", "move", "assign", "comment", "done", "drop", "reopen", "renegotiate"]),
   by: z.string(),
   data: z.record(z.string(), z.unknown()).default({}),
 });

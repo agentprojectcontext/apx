@@ -24,3 +24,23 @@ test("tasks: imported, created, opened and done", async ({ page }) => {
     })
     .toBe(true);
 });
+
+test("a commitment: a new date agreed keeps it open, then it is marked kept", async ({ page }) => {
+  const ana = await rpc<{ id: string }>("contacts.set", { name: "Northwind buyer", role: "contact" });
+  const c = await rpc<{ id: string }>("tasks.create", { title: "Send Northwind the quote", person: ana.id });
+  await open(page);
+  await page.getByRole("button", { name: "Tareas", exact: true }).first().click();
+  const view = page.getByRole("region", { name: "Tareas" });
+  await view.getByText("Send Northwind the quote").click();
+
+  await page.getByRole("button", { name: "Nueva fecha" }).click();
+  await page.getByRole("button", { name: "Mañana" }).click();
+  const task = async () =>
+    (await rpc<{ task: { renegotiated: number; outcome?: string } }>("tasks.get", { task: c.id })).task;
+  await expect.poll(async () => (await task()).renegotiated).toBe(1);
+  await expect(page.getByText("fecha movida 1×")).toBeVisible();
+
+  await page.getByRole("button", { name: "Cumplido" }).click();
+  await expect.poll(async () => (await task()).outcome).toBe("kept");
+  await expect(page.getByText("cumplido", { exact: true })).toBeVisible();
+});

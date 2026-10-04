@@ -19,6 +19,9 @@ export type HistoryKey =
   | "done"
   | "drop"
   | "reopen"
+  | "kept"
+  | "missed"
+  | "renegotiate"
   | "priority"
   | "due"
   | "undue"
@@ -55,9 +58,13 @@ export function historyLines(events: readonly TaskEvent[], columns: readonly Tas
       }
       case "assign":
         return typeof d.assignee === "string" ? line("assign", { agent: n.agent(d.assignee) }) : line("unassign");
-      case "comment":
       case "done":
+        return line(d.outcome === "kept" ? "kept" : "done");
       case "drop":
+        return line(d.outcome === "missed" ? "missed" : "drop");
+      case "renegotiate":
+        return line("renegotiate", { when: typeof d.to === "string" ? n.when(d.to) : "" });
+      case "comment":
       case "reopen":
         return line(e.op);
       default:

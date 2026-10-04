@@ -54,3 +54,27 @@ test("history says who did what, by name, and where a move came from", () => {
     ],
   );
 });
+
+test("a commitment's history says kept, missed and each new date agreed", () => {
+  const lines = historyLines(
+    [
+      ev("renegotiate", "owner", { from: "2026-10-01T09:00:00Z", to: "2026-10-03T09:00:00Z" }),
+      ev("drop", "roby", { state: "dropped", outcome: "missed" }),
+      ev("reopen", "owner"),
+      ev("done", "owner", { state: "done", outcome: "kept" }),
+      ev("drop", "owner", { state: "dropped", outcome: "dropped" }),
+    ],
+    columns,
+    names,
+  );
+  assert.deepEqual(
+    lines.map((l) => [l.key, l.vars.when ?? ""]),
+    [
+      ["renegotiate", "Sat 3"],
+      ["missed", ""],
+      ["reopen", ""],
+      ["kept", ""],
+      ["drop", ""],
+    ],
+  );
+});

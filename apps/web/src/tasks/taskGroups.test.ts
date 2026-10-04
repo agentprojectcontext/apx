@@ -14,6 +14,7 @@ const task = (over: Partial<Task>): Task => ({
   tags: [],
   thread_id: "th1",
   awaits_owner: false,
+  renegotiated: 0,
   created_by: "owner",
   created_at: "2026-10-01T10:00:00Z",
   updated_at: "2026-10-01T10:00:00Z",

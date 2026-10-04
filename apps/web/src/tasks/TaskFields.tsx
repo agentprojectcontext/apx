@@ -145,23 +145,26 @@ export function DueField({
   value,
   onChange,
   size,
+  label,
 }: {
   value: string | undefined;
   onChange: (v: string | undefined) => void;
   size?: "sm" | "md";
+  /** Its name and, with no date, its text (a commitment's "New date"). */
+  label?: string;
 }) {
   const t = useT();
   const labels = useDateLabels();
   const names = { today: t("date.today"), tomorrow: t("date.tomorrow"), monday: t("date.nextMonday") };
   return (
     <DatePicker
-      label={t("commitments.due")}
+      label={label ?? t("commitments.due")}
       size={size ?? "md"}
       value={value}
       onValueChange={onChange}
       withTime
       locale={currentLocale()}
-      labels={labels}
+      labels={label ? { ...labels, placeholder: label } : labels}
       presets={duePresets().map((p) => ({ label: names[p.key], value: p.value }))}
     />
   );

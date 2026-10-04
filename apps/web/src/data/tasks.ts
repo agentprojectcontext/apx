@@ -63,6 +63,15 @@ export async function closeTask(task: string, state: TaskState) {
   }
 }
 
+/** How a commitment went; renegotiated keeps it open with the new date. */
+export async function settleTask(task: string, outcome: Params<"tasks.settle">["outcome"], due_at?: string) {
+  try {
+    taskChanged(await client.call("tasks.settle", { task, outcome, ...(due_at ? { due_at } : {}) }));
+  } catch (e) {
+    fail(e);
+  }
+}
+
 export async function commentTask(task: string, text: string): Promise<boolean> {
   try {
     await client.call("tasks.comment", { task, text });
