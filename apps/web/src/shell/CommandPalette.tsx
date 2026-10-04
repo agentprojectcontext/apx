@@ -17,6 +17,7 @@ const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
   memory: "config.memory",
   channels: "config.channels",
   interruptions: "config.interruptions",
+  secretary: "config.secretary",
   browser: "config.browser",
   desktop: "config.desktop",
   devices: "config.devices",

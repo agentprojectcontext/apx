@@ -526,4 +526,8 @@ export const MIGRATIONS: readonly string[] = [
   -- Where a paired device takes push notices: {"kind":"expo","token":…} or {"kind":"unifiedpush","endpoint":…}.
   ALTER TABLE devices ADD COLUMN push TEXT;
   `,
+  `
+  -- A routine a profile seeded ("secretary:day-open"): the profile keeps it in step.
+  ALTER TABLE routines ADD COLUMN origin TEXT;
+  `,
 ];

@@ -8,6 +8,7 @@ import {
   NoticePrefs,
   ProviderInfo,
   RouterConfig,
+  SecretaryProfile,
   ServiceSettings,
   TaskColumn,
 } from "@apx/protocol";
@@ -65,6 +66,8 @@ export const SETTINGS = {
   }),
   /** Saved without the auxiliary model, which keeps its own key ("model_aux", plain text). */
   memory: entry(MemorySettings.omit({ aux_model: true }).partial(), {}),
+  /** The super-agent's secretary profile (off until the owner turns it on). */
+  secretary: entry(SecretaryProfile, SecretaryProfile.parse({})),
   /** iMessage on this Mac as tools: off until the owner turns it on. */
   imessage: entry(z.object({ on: z.boolean().catch(false) }), { on: false }),
   skills_off: entry(OffLists, {}),

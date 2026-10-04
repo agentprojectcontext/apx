@@ -28,6 +28,8 @@ export function systemPrompt(
   project?: { name: string; context?: string | undefined; memory?: string | undefined } | undefined,
   /** The skills catalog (one line each); changes only when skills do, so the prompt stays cacheable. */
   skills = "",
+  /** A profile's role block (the secretary's): changes only when its settings do. */
+  role = "",
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -35,6 +37,7 @@ export function systemPrompt(
     agent.kind === "secretary"
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
+    role ? `\n${role}` : "",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
     project ? `\n## Project: ${project.name}${project.context ? `\nIts AGENTS.md:\n\n${project.context}` : ""}` : "",
     project?.memory ? `\n### Project notes (.apc/memory.md)\n\n${project.memory}` : "",

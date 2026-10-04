@@ -11,6 +11,7 @@ import {
   RoutineAction,
   RoutineRun,
   Schedule,
+  SecretaryProfile,
   Task,
   TaskColumn,
   TaskEvent,
@@ -131,6 +132,27 @@ export const officeMethods = {
         enabled: z.boolean().default(true),
       })
       .strict(),
+    result: Routine,
+    effect: true,
+    access: "human",
+  },
+  /** The secretary profile and the routines it keeps. */
+  "secretary.get": {
+    params: z.object({}).strict(),
+    result: z.object({ profile: SecretaryProfile, routines: z.array(Routine) }),
+    effect: false,
+    access: "human",
+  },
+  /** Saves it and keeps its routines in step (created, rescheduled, turned on or off; prompts the owner edited stay). */
+  "secretary.set": {
+    params: SecretaryProfile.strict(),
+    result: z.object({ profile: SecretaryProfile, routines: z.array(Routine) }),
+    effect: true,
+    access: "human",
+  },
+  /** Puts back a profile routine's default prompt. */
+  "secretary.restore": {
+    params: z.object({ routine: Id }).strict(),
     result: Routine,
     effect: true,
     access: "human",

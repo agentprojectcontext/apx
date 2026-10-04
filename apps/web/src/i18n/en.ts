@@ -973,6 +973,43 @@ export const en = {
   "devices.push.unifiedpush": "push (ntfy)",
   "devices.pushUrl": "Push address for {name}",
   "devices.pushSave": "Use for push",
+  "config.secretary": "Secretary",
+  "sec.lead":
+    "Your super-agent as chief of staff: it opens and closes your day, watches your work every few hours and keeps your promises in sight. Its routines live in Routines too.",
+  "sec.on": "Secretary on",
+  "sec.day_open": "Opens the day",
+  "sec.dayOpenHint":
+    "One message: promises due, what is due today, your calendar and the one thing to start with. It always arrives.",
+  "sec.day_close": "Closes the day",
+  "sec.dayCloseHint":
+    "What moved, what is stuck, what carries over; it asks whether today's promises were kept. It always arrives.",
+  "sec.days": "Days",
+  "sec.days.1-5": "Weekdays",
+  "sec.days.*": "Every day",
+  "sec.days.0,6": "Weekends",
+  "sec.watch_every_h": "Watches every (hours)",
+  "sec.watchHint":
+    "Cheap: with nothing new it never calls the model. What it says goes through your interruption budget.",
+  "sec.calendar": "Calendar command (optional)",
+  "sec.calendarHint": "A shell command that prints today's agenda; its output reaches the morning brief as data.",
+  "sec.commitment_lead_hours": "Raise a promise this early (hours)",
+  "sec.leadHint": "How long before its date a commitment is mentioned, while there is still time to keep it.",
+  "sec.waiting_hours": "A task waiting on you is worth a word after (hours)",
+  "sec.waitingHint": "Something an agent needs from you, untouched this long.",
+  "sec.stale_project_days": "A project goes quiet after (days)",
+  "sec.staleHint": "Open work and no movement this long.",
+  "sec.formality": "How it addresses you",
+  "sec.formalityHint": "Only where the language tells them apart (tú / vos / usted).",
+  "sec.formality.informal": "Informal",
+  "sec.formality.neutral": "Neutral",
+  "sec.formality.formal": "Formal",
+  "sec.budget": "How often it may write",
+  "sec.budgetHint": "The daily cap, quiet hours and gaps are in Interruptions; the day's open and close always arrive.",
+  "sec.routines": "Its routines",
+  "sec.noRoutines": "Turn it on to create them.",
+  "sec.restore": "Restore the default prompt of {name}",
+  "sec.restoreShort": "Restore",
+  "error.secretary": "Could not change the secretary: {error}",
 } as const;
 
 export type MessageKey = keyof typeof en;

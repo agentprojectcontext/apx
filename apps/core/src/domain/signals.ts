@@ -4,13 +4,8 @@
 import type { Task } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
+/** Fixed thresholds; the rest come from the secretary profile (waiting hours, a commitment's lead, a quiet project). */
 export const WATCH = {
-  /** A task waiting on the owner this long is worth a word. */
-  waitingHours: 48,
-  /** A commitment due within this many hours is coming up. */
-  commitmentLeadHours: 48,
-  /** A project with open tasks and nothing moving for this many days has gone quiet. */
-  staleDays: 7,
   /** A task this many days late is serious. */
   lateDays: 7,
   /** The same signal is told again only after this long. */
@@ -39,6 +34,14 @@ const isCommitment = (t: Task) => t.kind === "commitment" || Boolean(t.person_id
 /** Every signal in a project (or, without one, across all of them and the global work), most serious first. */
 export function watchSignals(store: Store, o: { projectId?: string | undefined; now: Date }): Signal[] {
   const now = o.now.getTime();
+  // The secretary profile's thresholds (its defaults when it was never set).
+  const p = store.settings.read("secretary");
+  const lim = {
+    waitingHours: p.waiting_hours,
+    commitmentLeadHours: p.commitment_lead_hours,
+    staleDays: p.stale_project_days,
+    lateDays: WATCH.lateDays,
+  };
   const names = new Map(store.projects.list().map((p) => [p.id, p.name]));
   const scope = o.projectId ? [o.projectId] : undefined;
   const open = store.tasks.list({ ...(scope ? { projects: scope } : {}), state: "open", limit: MAX_OPEN });
@@ -59,7 +62,7 @@ export function watchSignals(store: Store, o: { projectId?: string | undefined; 
           ...where(t),
           subject: `Commitment late: ${t.title}${who}`,
         });
-      else if (due - now <= WATCH.commitmentLeadHours * HOUR)
+      else if (due - now <= lim.commitmentLeadHours * HOUR)
         out.push({
           key: `commitment_due:${t.id}`,
           kind: "commitment_due",
@@ -74,12 +77,12 @@ export function watchSignals(store: Store, o: { projectId?: string | undefined; 
       out.push({
         key: `overdue_task:${t.id}`,
         kind: "overdue_task",
-        severity: late >= WATCH.lateDays ? "high" : "normal",
+        severity: late >= lim.lateDays ? "high" : "normal",
         ...where(t),
         subject: `Overdue${late ? ` by ${late} day${late === 1 ? "" : "s"}` : ""}: ${t.title}`,
       });
     }
-    if (t.awaits_owner && now - Date.parse(t.activity_at) >= WATCH.waitingHours * HOUR)
+    if (t.awaits_owner && now - Date.parse(t.activity_at) >= lim.waitingHours * HOUR)
       out.push({
         key: `waiting_owner:${t.id}`,
         kind: "waiting_owner",
@@ -96,11 +99,11 @@ export function watchSignals(store: Store, o: { projectId?: string | undefined; 
     const at = last.get(id);
     if (!at) continue;
     const days = Math.floor((now - Date.parse(at)) / DAY);
-    if (days < WATCH.staleDays) continue;
+    if (days < lim.staleDays) continue;
     out.push({
       key: `stale_project:${id}`,
       kind: "stale_project",
-      severity: days >= WATCH.staleDays * 3 ? "normal" : "low",
+      severity: days >= lim.staleDays * 3 ? "normal" : "low",
       project: names.get(id) ?? id,
       subject: `No movement for ${days} days, with open tasks`,
     });

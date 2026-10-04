@@ -114,6 +114,8 @@ export const Routine = z.object({
   call_model: CallModel.default("always"),
   /** Its news always arrives (a morning or evening brief): never counted in the daily cap nor held by quiet hours. */
   anchor: z.boolean().default(false),
+  /** Seeded by a profile ("secretary:day-open"): the profile keeps its schedule, and can restore its prompt. */
+  origin: z.string().optional(),
   enabled: z.boolean(),
   next_run_at: z.string().optional(),
   last_run_at: z.string().optional(),
@@ -122,6 +124,29 @@ export const Routine = z.object({
   updated_at: z.string(),
 });
 export type Routine = z.infer<typeof Routine>;
+
+/**
+ * The super-agent's secretary profile: when on, it opens and closes the owner's day (anchors), watches their work
+ * every few hours, and reads it with these thresholds. Its routines are ordinary ones, seeded and kept in step.
+ */
+export const SecretaryProfile = z.object({
+  on: z.boolean().default(false),
+  /** Five-field crons, local time. */
+  day_open: z.string().trim().min(9).max(120).default("30 8 * * 1-5"),
+  day_close: z.string().trim().min(9).max(120).default("30 18 * * 1-5"),
+  watch_every_h: z.number().int().min(1).max(24).default(2),
+  /** Prints today's agenda; its output reaches the morning brief as data (empty: no calendar). */
+  calendar_command: z.string().max(2000).default(""),
+  /** A project with open work and no movement this many days has gone quiet. */
+  stale_project_days: z.number().int().min(1).max(90).default(7),
+  /** A task waiting on the owner this many hours is worth a word. */
+  waiting_hours: z.number().int().min(1).max(720).default(48),
+  /** How long before its date a commitment is raised, while there is still time to keep it. */
+  commitment_lead_hours: z.number().int().min(1).max(720).default(48),
+  /** How it addresses the owner, where the language tells them apart (tú / vos / usted). */
+  formality: z.enum(["informal", "neutral", "formal"]).default("neutral"),
+});
+export type SecretaryProfile = z.infer<typeof SecretaryProfile>;
 
 /** What a notice in the attention tray is about. */
 export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel"]);

@@ -28,6 +28,7 @@ export const CONFIG_SECTIONS = [
   "mcp",
   "extensions",
   "agents",
+  "secretary",
   "memory",
   "voices",
   "images",

@@ -14,6 +14,7 @@ import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
 import { AccountSection, AdvancedSection, AppearanceSection } from "./OtherSections.tsx";
 import { RouterSection } from "./RouterSection.tsx";
+import { SecretarySection } from "./SecretarySection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
@@ -32,6 +33,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
       { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
+      { id: "secretary", label: "config.secretary", icon: <Icons.Calendar /> },
       { id: "mcp", label: "config.outsideApps", icon: <Icons.Server /> },
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
@@ -137,6 +139,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <ChannelsSection />;
     case "interruptions":
       return <InterruptionsSection />;
+    case "secretary":
+      return <SecretarySection />;
     case "browser":
       return <BrowserSection />;
     case "desktop":

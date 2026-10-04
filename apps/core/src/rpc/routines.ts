@@ -2,6 +2,7 @@
 import { checkSchedule } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
 import type { Scheduler } from "../engine/routines.ts";
+import { applySecretary, restoreSecretaryRoutine, secretaryProfile, secretaryRoutines } from "../engine/secretary.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
@@ -48,6 +49,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
         post_command: post_command ?? was?.post_command,
         call_model: call_model ?? was?.call_model ?? "always",
         anchor: anchor ?? was?.anchor ?? false,
+        origin: was?.origin,
         enabled,
         next_run_at: next,
       };
@@ -57,6 +59,22 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
       return r;
     },
     "routines.remove": ({ routine }) => ({ removed: store.routines.remove(routine) }),
+    "secretary.get": () => ({ profile: secretaryProfile(store), routines: secretaryRoutines(store) }),
+    "secretary.set": (profile) => {
+      try {
+        checkSchedule({ kind: "cron", cron: profile.day_open });
+        checkSchedule({ kind: "cron", cron: profile.day_close });
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      const routines = applySecretary(store, profile, (s) => scheduler.nextFor(s));
+      return { profile: secretaryProfile(store), routines };
+    },
+    "secretary.restore": ({ routine }) => {
+      const r = restoreSecretaryRoutine(store, routine);
+      if (!r) throw notFound(`profile routine ${routine}`);
+      return r;
+    },
     "routines.run": ({ routine }) => scheduler.runNow(routine),
     "routines.runs": ({ routine, limit }) => {
       if (!store.routines.get(routine)) throw notFound(`routine ${routine}`);

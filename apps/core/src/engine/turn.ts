@@ -39,6 +39,7 @@ import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
+import { secretaryBlock, secretaryProfile } from "./secretary.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
@@ -347,7 +348,15 @@ function systemFor(store: Store, turn: Turn, skills: string): string {
   if (turn.audience.kind === "contact") return contactPrompt(turn.agent, turn.audience, lang);
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
-  return systemPrompt(turn.agent, turn.thread, lang, projectId ? store.projects.get(projectId) : undefined, skills);
+  const role = turn.agent.kind === "secretary" ? secretaryBlock(secretaryProfile(store)) : "";
+  return systemPrompt(
+    turn.agent,
+    turn.thread,
+    lang,
+    projectId ? store.projects.get(projectId) : undefined,
+    skills,
+    role,
+  );
 }
 
 /** The engines to try, in the router's order; a sealed turn only where no tool of the engine's own can run. */

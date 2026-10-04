@@ -329,3 +329,14 @@ reading the location asks for the owner's OK only while outside content is in th
 as where notices go (`notices.channel = "device:<id>"`), after the interruption budget (D-031): Expo push with the
 token the app registers itself, or a UnifiedPush / ntfy address the owner pastes. A device sets only its own push; the
 token never comes back to any client. `APX_PUBLIC_URL` puts a VPS or Tailscale address first in the pairing QR.
+
+<a id="d-033"></a>
+## D-033 — 2026-10-04 — The secretary profile is settings plus three seeded routines, no package system
+v1's profiles were installable packages (manifest, prompt template, routines, sync and re-adopt with a fingerprint);
+the doctor's "you edited it and the package moved on" confused more than it helped. In v2 the secretary is one setting
+(`secretary`: on, the day's open and close crons, watch interval, calendar command, thresholds, formality) and three
+ordinary routines it keeps in step by `origin` ("secretary:day-open"…): open and close are anchors (they always
+arrive), the watch goes through the interruption budget (D-031). Saving the profile reschedules them and turns them on
+or off; a prompt the owner edited stays, and "Restore" puts the default back. A v1 routine of the same job is adopted,
+not doubled. While on, a short role block joins the super-agent's system prompt (it changes only with the profile, so
+the prefix stays cacheable), and the watch reads its thresholds from it.

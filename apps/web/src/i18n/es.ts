@@ -975,4 +975,43 @@ export const es: Partial<Record<MessageKey, string>> = {
   "devices.push.unifiedpush": "push (ntfy)",
   "devices.pushUrl": "Dirección de push para {name}",
   "devices.pushSave": "Usar para push",
+  "config.secretary": "Secretaria",
+  "sec.lead":
+    "Tu super-agente como jefe de gabinete: abre y cierra tu día, mira tu trabajo cada algunas horas y tiene tus promesas a la vista. Sus rutinas también están en Rutinas.",
+  "sec.on": "Secretaria activa",
+  "sec.day_open": "Abre el día",
+  "sec.dayOpenHint":
+    "Un solo mensaje: promesas que vencen, lo de hoy, tu agenda y lo primero que conviene hacer. Llega siempre.",
+  "sec.day_close": "Cierra el día",
+  "sec.dayCloseHint":
+    "Qué se movió, qué está trabado y qué pasa a mañana; pregunta si se cumplieron las promesas de hoy. Llega siempre.",
+  "sec.days": "Días",
+  "sec.days.1-5": "Días de semana",
+  "sec.days.*": "Todos los días",
+  "sec.days.0,6": "Fines de semana",
+  "sec.watch_every_h": "Mira cada (horas)",
+  "sec.watchHint":
+    "Barato: si no hay nada nuevo no llama al modelo. Lo que diga pasa por tu presupuesto de interrupciones.",
+  "sec.calendar": "Comando de agenda (opcional)",
+  "sec.calendarHint":
+    "Un comando de shell que imprime la agenda de hoy; su salida llega al resumen de la mañana como dato.",
+  "sec.commitment_lead_hours": "Avisar de una promesa con esta anticipación (horas)",
+  "sec.leadHint": "Cuánto antes de su fecha se menciona un compromiso, mientras todavía hay tiempo de cumplirlo.",
+  "sec.waiting_hours": "Una tarea que te espera merece una palabra después de (horas)",
+  "sec.waitingHint": "Algo que un agente necesita de vos, sin tocar este tiempo.",
+  "sec.stale_project_days": "Un proyecto queda quieto después de (días)",
+  "sec.staleHint": "Trabajo abierto y sin movimiento este tiempo.",
+  "sec.formality": "Cómo te trata",
+  "sec.formalityHint": "Solo donde el idioma lo distingue (tú / vos / usted).",
+  "sec.formality.informal": "Informal",
+  "sec.formality.neutral": "Neutro",
+  "sec.formality.formal": "Formal",
+  "sec.budget": "Cada cuánto puede escribirte",
+  "sec.budgetHint":
+    "El tope diario, las horas de silencio y los espacios están en Interrupciones; abrir y cerrar el día llegan siempre.",
+  "sec.routines": "Sus rutinas",
+  "sec.noRoutines": "Activala para crearlas.",
+  "sec.restore": "Restaurar el prompt por defecto de {name}",
+  "sec.restoreShort": "Restaurar",
+  "error.secretary": "No se pudo cambiar la secretaria: {error}",
 };

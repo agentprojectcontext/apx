@@ -291,6 +291,7 @@ export interface RoutinesTable {
   call_model: Generated<string>;
   action: Generated<string>;
   anchor: Generated<number>;
+  origin: string | null;
 }
 
 export interface RunsTable {
