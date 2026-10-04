@@ -33,6 +33,15 @@ before(async () => {
   json(path.join(repo, ".apc", "agents", "dev.md"), "---\nname: Dev\nrole: developer\n---\nYou build.\n");
   json(path.join(v1, "config.json"), {
     projects: [{ path: repo }, { path: "/nowhere/gone" }],
+    memory: {
+      embeddings: {
+        order: ["ollama", "gemini", "openai"],
+        ollama: { model: "embeddinggemma:300m", base_url: "" },
+        gemini: { api_key: "", model: "gemini-embedding-001" },
+        openai: { api_key: "sk-e2e-0000", model: "text-embedding-3-small", enabled: true },
+      },
+    },
+    skills: { inspector: { enabled: false } },
     whatsapp: {
       self_is_owner: false,
       self_jid: "5491100000001:3@s.whatsapp.net",
@@ -142,12 +151,18 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     keys: 0,
     vars: 1,
     memory: 3,
+    embeddings: 2,
     channels: 1,
     tasks: 1,
     commitments: 1,
     routines: 2,
   });
   assert.equal(groups.find((g) => g.id === "projects")?.detail, "1", "one agent in it");
+  assert.equal(
+    groups.find((g) => g.id === "embeddings")?.detail,
+    "Ollama · embeddinggemma:300m, OpenAI · text-embedding-3-small",
+    "Gemini had no key of its own",
+  );
 });
 
 test("importing brings projects, notes, open tasks and commitments, variables and routines (off)", async () => {
@@ -190,6 +205,25 @@ test("importing brings projects, notes, open tasks and commitments, variables an
 
   await env.client.call("setup.finish", {});
   assert.equal((await env.client.call("setup.status", {})).done, true);
+});
+
+test("importing the embedding engines brings them in v1's order, with their keys, and v1's skill picker choice", async () => {
+  const r = await env.client.call("setup.import_v1", { groups: ["embeddings"] });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.imported.embeddings, 2);
+  // Read as stored: listing them would call the engines to check they answer.
+  const services = env.core.store.settings.read("services").filter((s) => s.kind === "embedding");
+  assert.deepEqual(
+    services.map((s) => [s.id, s.label, s.base_url, s.model, env.core.secrets.has(`secret://service-${s.id}`)]),
+    [
+      ["v1-ollama", "Ollama", "http://127.0.0.1:11434", "embeddinggemma:300m", false],
+      ["v1-openai", "OpenAI", "https://api.openai.com/v1", "text-embedding-3-small", true],
+    ],
+  );
+  assert.equal((await env.client.call("memory.settings", {})).skill_picker, false);
+  // Again: what v2 already has is kept, nothing doubles.
+  assert.equal((await env.client.call("setup.import_v1", { groups: ["embeddings"] })).imported.embeddings, 0);
+  await env.client.call("memory.set_settings", { mode: "notes", auto_compact: true, skill_picker: true });
 });
 
 test("importing channels brings v1's WhatsApp: whose phone the line is, the owner's numbers and who each contact is", async () => {

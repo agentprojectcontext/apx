@@ -182,6 +182,7 @@ export function coreHandlers(d: HandlerDeps) {
       apc: d.apc,
       secrets: d.secrets,
       channels: d.channels,
+      services: d.services,
       v1Home: d.app.v1.home,
       v2Home: d.app.home,
     }),

@@ -101,6 +101,11 @@ export function Wizard() {
         .map(([k, n]) => `${t(GROUP[k].label)} ${n}`)
         .join(" · ");
       notify(t("setup.import.result", { list }), "info");
+      // v1 searched by meaning with these engines: memory starts there too, with v1's choice on skills.
+      if (r.imported.embeddings) {
+        const now = await client.call("memory.settings", {}).catch(() => undefined);
+        set({ memory: "semantic", ...(now ? { skillPicker: now.skill_picker } : {}) });
+      }
       if (r.errors.length) notify(t("setup.import.failed", { error: r.errors.join("; ") }));
       // What came in (projects, agents, chats, channels) shows in the panel and the next steps.
       await Promise.all([bootstrap().catch(() => {}), loadChannels()]);
@@ -117,7 +122,7 @@ export function Wizard() {
         const now = await client.call("memory.settings", {});
         await client.call("memory.set_settings", {
           mode: d.memory,
-          skill_picker: now.skill_picker,
+          skill_picker: d.skillPicker,
           auto_compact: d.compact,
           ...(now.aux_model ? { aux_model: now.aux_model } : {}),
         });

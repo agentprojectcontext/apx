@@ -28,8 +28,9 @@ export const E2E = {
 };
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-"));
-const fx = writeFixtures(dir);
 const llm = await fakeLlm();
+// v1's embedding engine is the fake model's server (Ollama-style), never one running on this machine.
+const fx = writeFixtures(dir, { embedUrl: llm.url.replace(/\/v1$/, "") });
 const tg = await fakeTelegram(E2E.telegramToken);
 const dc = await fakeDiscord(E2E.discordToken);
 const sl = await fakeSlack(E2E.slackTokens);

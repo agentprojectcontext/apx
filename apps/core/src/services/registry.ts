@@ -248,6 +248,11 @@ export function createServices(deps: {
       const s = ofKind("embedding").find((x) => x.enabled);
       return s ? `${s.id}/${s.model ?? ""}` : undefined;
     },
+    /** The embedding engine in use as the owner reads it ("Ollama · bge-m3"). */
+    embeddingLabel(): string | undefined {
+      const s = ofKind("embedding").find((x) => x.enabled);
+      return s ? [s.label, s.model].filter(Boolean).join(" · ") : undefined;
+    },
     /** Stops what APX runs itself (its whisper.cpp). */
     close: () => whisperCpp.close(),
     /** A media file's bytes; only files APX itself recorded are ever read. */

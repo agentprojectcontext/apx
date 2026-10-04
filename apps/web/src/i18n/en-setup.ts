@@ -47,6 +47,9 @@ export const enSetup = {
   "setup.v1.varsBody": "Tokens and keys your MCP servers use, stored securely",
   "setup.v1.memory": "Memory",
   "setup.v1.memoryBody": "Your notes and each project's, one note per line",
+  "setup.v1.embeddings": "Embedding engine",
+  "setup.v1.embeddingsBody":
+    "The one that finds notes by meaning and picks skills for each message, with its model and key",
   "setup.v1.channels": "Channels",
   "setup.v1.channelsBody": "Telegram and WhatsApp: your accounts, your contacts and who each one is",
   "setup.v1.tasks": "Open tasks",
@@ -100,6 +103,11 @@ export const enSetup = {
   "setup.memory.semanticBody": "An embeddings engine (Ollama, Gemini, OpenAI) indexes them to find related ideas too.",
   "setup.memory.off": "No memory",
   "setup.memory.offBody": "Agents do not keep notes between chats.",
+  "setup.memory.engine": "Embedding engine: {engine}.",
+  "setup.memory.noEngine": "No embedding engine yet: add one later in Settings › Memory (Ollama runs on your machine).",
+  "setup.memory.skills": "Pick skills by meaning",
+  "setup.memory.skillsBody":
+    "Each message brings in the skills that fit, shown as chips over the answer. It uses the embedding engine.",
   "setup.memory.compact": "Keep long chats small",
   "setup.memory.compactBody":
     "Older turns become a summary made by the auxiliary model. Changed later in Settings › Memory.",

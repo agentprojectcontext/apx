@@ -5,6 +5,7 @@ import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
 import { RefSelect } from "../config/models/RefSelect.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
+import { client } from "../data/client.ts";
 import { loadEngines } from "../data/engines.ts";
 import { loadCatalog, splitRef } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
@@ -208,6 +209,13 @@ const MEMORY: Array<{ id: Draft["memory"]; title: MessageKey; body: MessageKey; 
 
 export function MemoryStep({ draft: d, set }: StepProps) {
   const t = useT();
+  const [embedder, setEmbedder] = useState<string | null>();
+  useEffect(() => {
+    void client
+      .call("memory.settings", {})
+      .then((s) => setEmbedder(s.embedder ?? null))
+      .catch(() => setEmbedder(null));
+  }, []);
   return (
     <>
       <StepHead kicker="setup.memory.kicker" title={t("setup.memory.title")} end={t("setup.memory.titleGreen")} green>
@@ -229,6 +237,23 @@ export function MemoryStep({ draft: d, set }: StepProps) {
             <span className="wiz__choicebody">{t(m.body)}</span>
           </button>
         ))}
+      </div>
+      {embedder !== undefined && (d.memory === "semantic" || embedder) && (
+        <p className="wiz__hintline">
+          {embedder ? t("setup.memory.engine", { engine: embedder }) : t("setup.memory.noEngine")}
+        </p>
+      )}
+      <div className="wiz__card wiz__toggle">
+        <span className="wiz__rowmain">
+          <span className="wiz__rowname">{t("setup.memory.skills")}</span>
+          <span className="wiz__rowbody">{t("setup.memory.skillsBody")}</span>
+        </span>
+        <Switch
+          size="sm"
+          aria-label={t("setup.memory.skills")}
+          checked={d.skillPicker}
+          onCheckedChange={(skillPicker) => set({ skillPicker })}
+        />
       </div>
       <div className="wiz__card wiz__toggle">
         <span className="wiz__rowmain">

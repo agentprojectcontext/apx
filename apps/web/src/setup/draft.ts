@@ -13,6 +13,8 @@ export type Draft = {
   chainSet: boolean;
   memory: MemorySettings["mode"];
   compact: boolean;
+  /** Each message picks its skills by meaning (needs an embedding engine). */
+  skillPicker: boolean;
   importOn: Partial<Record<V1Group, boolean>>;
   projectChoice: "folder" | "later";
   path: string;
@@ -27,6 +29,7 @@ export const defaultDraft = (): Draft => ({
   chainSet: false,
   memory: "notes",
   compact: true,
+  skillPicker: true,
   importOn: {},
   projectChoice: "folder",
   path: "",

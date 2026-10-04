@@ -2,7 +2,7 @@
 // Read-only: nothing here writes to v1's folder. Secrets are read only to be stored in v2's own secret store.
 import fs from "node:fs";
 import path from "node:path";
-import type { PersonRelation } from "@apx/protocol";
+import type { PersonRelation, ServiceSettings } from "@apx/protocol";
 
 const readJson = (file: string): unknown => {
   try {
@@ -328,4 +328,59 @@ export function v1Vars(home: string): Array<{ name: string; value: string }> {
     const value = typeof v === "string" ? v : str(obj(v).value);
     return value && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) ? [{ name, value }] : [];
   });
+}
+
+export type V1Embedder = { id: string; service: ServiceSettings; api_key?: string };
+
+const EMBED_DEFAULTS = {
+  ollama: { label: "Ollama", dialect: "ollama-embed", base_url: "http://127.0.0.1:11434", model: "bge-m3" },
+  gemini: {
+    label: "Gemini",
+    dialect: "gemini-embed",
+    base_url: "https://generativelanguage.googleapis.com",
+    model: "gemini-embedding-001",
+  },
+  openai: {
+    label: "OpenAI",
+    dialect: "openai-embed",
+    base_url: "https://api.openai.com/v1",
+    model: "text-embedding-3-small",
+  },
+} as const;
+
+/**
+ * v1's embedding engines (memory.embeddings), in the order it tried them, and whether it picked skills by meaning.
+ * A cloud engine comes only with its own key; Ollama always, as v1 tried it first with no key.
+ */
+export function v1Embeddings(home: string): { engines: V1Embedder[]; picker?: boolean } {
+  const config = v1Config(home);
+  const e = obj(obj(config.memory).embeddings);
+  const picker = obj(obj(config.skills).inspector).enabled;
+  const choice = typeof picker === "boolean" ? { picker } : {};
+  if (!Object.keys(e).length) return { engines: [], ...choice };
+  const order = list(e.order).flatMap(
+    (x): Array<keyof typeof EMBED_DEFAULTS> => (x === "ollama" || x === "gemini" || x === "openai" ? [x] : []),
+  );
+  const engines = (order.length ? order : (["ollama"] as const)).flatMap((id): V1Embedder[] => {
+    const c = obj(e[id]);
+    const d = EMBED_DEFAULTS[id];
+    const key = str(c.api_key);
+    if (id !== "ollama" && (!key || c.enabled === false)) return [];
+    return [
+      {
+        id: `v1-${id}`,
+        service: {
+          kind: "embedding",
+          dialect: d.dialect,
+          label: d.label,
+          base_url: str(c.base_url) ?? d.base_url,
+          enabled: true,
+          needs_key: id !== "ollama",
+          model: str(c.model) ?? d.model,
+        },
+        ...(key ? { api_key: key } : {}),
+      },
+    ];
+  });
+  return { engines, ...choice };
 }

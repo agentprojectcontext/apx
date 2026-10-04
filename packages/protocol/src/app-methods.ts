@@ -49,6 +49,7 @@ const V1Group = z.enum([
   "keys",
   "vars",
   "memory",
+  "embeddings",
   "channels",
   "tasks",
   "commitments",
@@ -488,7 +489,7 @@ export const appMethods = {
     result: MemorySettings.extend({
       indexed: z.number().int(),
       total: z.number().int(),
-      /** The embedding engine and model in use, when one is set up. */
+      /** The embedding engine and model in use ("Ollama · bge-m3"), when one is set up. */
       embedder: z.string().optional(),
     }),
     effect: false,

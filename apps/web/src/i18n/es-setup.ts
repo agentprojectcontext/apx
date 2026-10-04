@@ -48,6 +48,8 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.v1.varsBody": "Los tokens y claves que usan tus MCP, guardados de forma segura",
   "setup.v1.memory": "Memoria",
   "setup.v1.memoryBody": "Tus notas y las de cada proyecto, una nota por línea",
+  "setup.v1.embeddings": "Motor de embeddings",
+  "setup.v1.embeddingsBody": "El que busca notas por significado y elige skills en cada mensaje, con su modelo y clave",
   "setup.v1.channels": "Canales",
   "setup.v1.channelsBody": "Telegram y WhatsApp: tus cuentas, tus contactos y quién es cada uno",
   "setup.v1.tasks": "Tareas abiertas",
@@ -102,6 +104,12 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Un motor de embeddings (Ollama, Gemini, OpenAI) las indexa para traer también ideas relacionadas.",
   "setup.memory.off": "Sin memoria",
   "setup.memory.offBody": "Los agentes no guardan notas entre chats.",
+  "setup.memory.engine": "Motor de embeddings: {engine}.",
+  "setup.memory.noEngine":
+    "Falta un motor de embeddings: agregalo después en Config › Memoria (Ollama corre en tu máquina).",
+  "setup.memory.skills": "Elegir skills por significado",
+  "setup.memory.skillsBody":
+    "En cada mensaje entran al contexto las skills que encajan, y se ven como chips sobre la respuesta. Usa el motor de embeddings.",
   "setup.memory.compact": "Achicar los chats largos",
   "setup.memory.compactBody":
     "Los turnos viejos pasan a un resumen hecho por el modelo auxiliar. Se cambia después en Config › Memoria.",

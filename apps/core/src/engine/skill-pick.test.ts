@@ -91,7 +91,7 @@ test("a short message, or the picker turned off, adds nothing", async () => {
   assert.equal(skillsPart((await env.settle(t.id)).messages), undefined);
 
   const s = await env.client.call("memory.settings", {});
-  assert.equal(s.embedder, "local/embeddinggemma");
+  assert.equal(s.embedder, "Ollama · embeddinggemma");
   await env.client.call("memory.set_settings", { mode: s.mode, auto_compact: s.auto_compact, skill_picker: false });
   await env.client.call("threads.send", { thread: t.id, text: "creame una imagen de un gato" });
   const { messages } = await env.settle(t.id);

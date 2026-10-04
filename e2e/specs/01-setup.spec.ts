@@ -10,6 +10,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
 
   await wizard.getByRole("button", { name: /Importar desde APX v1/ }).click();
   await expect(wizard.getByRole("switch").first()).toBeVisible();
+  await expect(wizard.getByText("Ollama · embeddinggemma:300m")).toBeVisible();
   await wizard.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByText(/Importado:/)).toBeVisible();
 
@@ -22,7 +23,13 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard.getByText("custom/fake-1").first()).toBeVisible();
   await expect(wizard.getByRole("combobox", { name: "Modelo" }).first()).toBeVisible();
   await wizard.getByRole("button", { name: "Continuar" }).click();
-  // Memory: as it comes.
+  // Memory: by meaning, with v1's engine, and skills picked by meaning on.
+  await expect(wizard.getByText("Motor de embeddings: Ollama · embeddinggemma:300m.")).toBeVisible();
+  await expect(wizard.getByRole("button", { name: /Notas por su significado/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(wizard.getByRole("switch", { name: "Elegir skills por significado" })).toBeChecked();
   await wizard.getByRole("button", { name: "Continuar" }).click();
 
   // Channels: WhatsApp links from here too (it is linked in 10-whatsapp); the emulated Telegram bot.

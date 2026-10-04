@@ -9,7 +9,7 @@ const write = (file: string, v: unknown) => {
 };
 const lines = (...rows: unknown[]) => `${rows.map((r) => JSON.stringify(r)).join("\n")}\n`;
 
-export function writeFixtures(dir: string) {
+export function writeFixtures(dir: string, opts: { embedUrl: string }) {
   const home = path.join(dir, "apx-home");
   const v1 = path.join(dir, "apx-v1");
   const claude = path.join(dir, "claude");
@@ -30,7 +30,10 @@ export function writeFixtures(dir: string) {
   write(path.join(legacy, ".apc", "project.json"), { name: "Northwind", apx_id: "nw0000000001" });
   write(path.join(legacy, ".apc", "agents", "dev.md"), "---\nname: Dev\nrole: developer\n---\nYou build.\n");
   write(path.join(legacy, ".apc", "agents", "ops.md"), "---\nname: Ops\nrole: operations\n---\nYou deploy.\n");
-  write(path.join(v1, "config.json"), { projects: [{ path: legacy }] });
+  write(path.join(v1, "config.json"), {
+    projects: [{ path: legacy }],
+    memory: { embeddings: { order: ["ollama"], ollama: { model: "embeddinggemma:300m", base_url: opts.embedUrl } } },
+  });
   write(path.join(v1, "update-check.json"), { current: "1.120.0" });
   write(path.join(v1, "identity.json"), { agent_name: "Roby", owner_name: "Ana" });
   write(path.join(v1, "vars.json"), { NORTHWIND_API: "nw-e2e-value" });

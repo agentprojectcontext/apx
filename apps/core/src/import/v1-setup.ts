@@ -5,14 +5,17 @@ import path from "node:path";
 import type { RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Channels } from "../channels/manager.ts";
+import { memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { dueOf } from "../domain/tasks.ts";
 import type { Secrets } from "../secrets.ts";
+import type { Services } from "../services/registry.ts";
 import { importKeys, importSkills, v1KeyCount } from "./v1.ts";
 import {
   type V1Project,
   v1AgentCount,
+  v1Embeddings,
   v1Notes,
   v1OpenCommitments,
   v1OpenTasks,
@@ -30,6 +33,7 @@ export const V1_GROUPS = [
   "keys",
   "vars",
   "memory",
+  "embeddings",
   "channels",
   "tasks",
   "commitments",
@@ -42,6 +46,7 @@ export type V1ImportDeps = {
   apc: ApcSync;
   secrets: Secrets;
   channels: Pick<Channels, "set" | "info">;
+  services: Pick<Services, "set" | "has">;
   v1Home: string;
   v2Home: string;
 };
@@ -60,6 +65,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
   const all = spaces(home);
   const tg = v1Telegram(home);
   const wa = v1WhatsApp(home);
+  const embedders = v1Embeddings(home).engines;
   const memory =
     v1Notes(path.join(home, "memory.md")).length +
     projects.reduce((n, p) => n + v1Notes(path.join(p.storage, "memory.md")).length, 0);
@@ -73,6 +79,13 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     { id: "keys", count: v1KeyCount(home) },
     { id: "vars", count: v1Vars(home).length },
     { id: "memory", count: memory },
+    {
+      id: "embeddings",
+      count: embedders.length,
+      ...(embedders.length
+        ? { detail: embedders.map((e) => `${e.service.label} · ${e.service.model ?? ""}`).join(", ") }
+        : {}),
+    },
     {
       id: "channels",
       count: (tg ? 1 : 0) + (wa ? 1 : 0),
@@ -162,6 +175,18 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
         n++;
       }
     }
+    return n;
+  });
+  // The engines v1 searched notes and picked skills with, in its order; one v2 already has (same id) is kept.
+  run("embeddings", () => {
+    const { engines, picker } = v1Embeddings(home);
+    let n = 0;
+    for (const e of engines) {
+      if (deps.services.has(e.id)) continue;
+      deps.services.set(e.id, e.service, e.api_key);
+      n++;
+    }
+    if (picker !== undefined) saveMemorySettings(store, { ...memorySettings(store), skill_picker: picker });
     return n;
   });
   run("channels", () => {
