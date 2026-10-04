@@ -41,6 +41,7 @@
     "icon": "assets/icon.png",
     "category": "Utility",
     "maintainer": "APX",
-    "synopsis": "Your agents, your projects, one local core."
+    "synopsis": "Your agents, your projects, one local core.",
+    "executableName": "apx"
   }
 }
