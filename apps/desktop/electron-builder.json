@@ -37,7 +37,7 @@
     "runAfterFinish": true
   },
   "linux": {
-    "target": ["AppImage", "deb", "zip"],
+    "target": ["AppImage", "zip"],
     "icon": "assets/icon.png",
     "category": "Utility",
     "maintainer": "APX",

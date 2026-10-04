@@ -54,14 +54,16 @@ jobs:
         shell: bash
         run: cd apps/desktop && npm pkg set version="${TAG#v}"
       - name: Installers
-        run: pnpm package
+        # Once more on failure: npx's cache on the hosted runners fails now and then (ECOMPROMISED).
+        shell: bash
+        run: pnpm package || (npm cache clean --force && pnpm package)
       - name: Attach to the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
-          gh release upload "$TAG" apps/desktop/release/*.{AppImage,deb,exe,dmg,zip} --clobber
+          gh release upload "$TAG" apps/desktop/release/*.{AppImage,exe,dmg,zip} --clobber
 
   # The phone app as an installable APK (Expo prebuild + Gradle; the release build signs with the template's debug
   # key, enough to sideload — the Play Store needs its own key later).
