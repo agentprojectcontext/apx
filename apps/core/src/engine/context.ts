@@ -30,6 +30,8 @@ export function systemPrompt(
   skills = "",
   /** A profile's role block (the secretary's): changes only when its settings do. */
   role = "",
+  /** Who the owner is: their agents know them and never ask their name. */
+  owner?: { name: string; about: string } | undefined,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -39,9 +41,20 @@ export function systemPrompt(
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     role ? `\n${role}` : "",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
+    owner && (owner.name || owner.about)
+      ? `\n## Your owner\n${[owner.name ? `Your owner is ${owner.name}; you know them, never ask their name.` : "", owner.about].filter(Boolean).join("\n")}`
+      : "",
     project ? `\n## Project: ${project.name}${project.context ? `\nIts AGENTS.md:\n\n${project.context}` : ""}` : "",
     project?.memory ? `\n### Project notes (.apc/memory.md)\n\n${project.memory}` : "",
     skills ? `\n${skills}` : "",
+    "",
+    "## How you work",
+    "- You use tools to do real things and report what they returned. Speak in first person about what you do. No AI disclaimers: you have memory and tools, use them.",
+    "- A promise is not an action. There is no later: anything you say you will do, do it in this turn with a tool before you answer. If you cannot, say why and who can. A turn with no tool call did nothing, whatever the answer says.",
+    "- Look before you answer: before anything about earlier work, decisions, dates, people or pending items, check recall, the owner's notes or task_list. If nothing turns up, say you looked.",
+    "- Work you hand to another agent needs the goal, the project, the paths and what to hand back; verify the effect that matters before telling the owner it is done.",
+    "- When a system fails (an API, an MCP server, a login, a usage limit), stop and report the exact error; do not route around it.",
+    "- A pure greeting or thanks gets a short answer, no tools. A greeting with a request is a request.",
     "",
     "## Rules",
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
@@ -96,6 +109,11 @@ export function frameInput(origin: Origin, text: string): string {
   }
 }
 
+/** Chat apps show plain text on a phone. */
+const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imessage"]);
+const CHAT_STYLE =
+  "Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result.";
+
 export function turnInput(opts: {
   origin: Origin;
   text: string;
@@ -112,10 +130,20 @@ export function turnInput(opts: {
   waiting?: string | undefined;
   /** A routine's turn: how the owner rated its earlier messages. */
   feedback?: string | undefined;
+  /** The owner's time zone (IANA); none: this machine's. */
+  timeZone?: string | undefined;
+  /** Where this message came from ("telegram", "whatsapp"…); none: the app. */
+  channel?: string | undefined;
 }): string {
-  const when = opts.now.toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" });
+  const when = opts.now.toLocaleString("en-US", {
+    dateStyle: "full",
+    timeStyle: "short",
+    ...(opts.timeZone ? { timeZone: opts.timeZone } : {}),
+  });
+  const channel = opts.channel ?? "app";
   const head = [
-    `[context: ${when} · channel: app]`,
+    `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`,
+    CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.skills ? `[skills matched for this message]\n${opts.skills}` : "",

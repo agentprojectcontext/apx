@@ -4,7 +4,7 @@
 import type { Task } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
-/** Fixed thresholds; the rest come from the secretary profile (waiting hours, a commitment's lead, a quiet project). */
+/** Fixed thresholds; the rest come from the running profile (waiting hours, a commitment's lead, a quiet project). */
 export const WATCH = {
   /** A task this many days late is serious. */
   lateDays: 7,
@@ -34,12 +34,13 @@ const isCommitment = (t: Task) => t.kind === "commitment" || Boolean(t.person_id
 /** Every signal in a project (or, without one, across all of them and the global work), most serious first. */
 export function watchSignals(store: Store, o: { projectId?: string | undefined; now: Date }): Signal[] {
   const now = o.now.getTime();
-  // The secretary profile's thresholds (its defaults when it was never set).
-  const p = store.settings.read("secretary");
+  // The running profile's thresholds, when it has them; these defaults otherwise.
+  const v = store.settings.read("profile").values;
+  const num = (x: unknown, d: number) => (typeof x === "number" && x > 0 ? x : d);
   const lim = {
-    waitingHours: p.waiting_hours,
-    commitmentLeadHours: p.commitment_lead_hours,
-    staleDays: p.stale_project_days,
+    waitingHours: num(v.waiting_hours, 48),
+    commitmentLeadHours: num(v.commitment_lead_hours, 48),
+    staleDays: num(v.stale_project_days, 7),
     lateDays: WATCH.lateDays,
   };
   const names = new Map(store.projects.list().map((p) => [p.id, p.name]));

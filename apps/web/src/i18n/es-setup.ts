@@ -48,6 +48,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.v1.varsBody": "Los tokens y claves que usan tus MCP, guardados de forma segura",
   "setup.v1.memory": "Memoria",
   "setup.v1.memoryBody": "Tus notas y las de cada proyecto, una nota por línea",
+  "setup.v1.identity": "Identidad y perfil",
+  "setup.v1.identityBody":
+    "Quién sos, la personalidad de tu super-agente, su perfil (secretaria) con sus horarios, y tus horas tranquilas",
   "setup.v1.embeddings": "Motor de embeddings",
   "setup.v1.embeddingsBody": "El que busca notas por significado y elige skills en cada mensaje, con su modelo y clave",
   "setup.v1.channels": "Canales",

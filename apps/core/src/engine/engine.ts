@@ -18,6 +18,7 @@ import { createInputs } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
@@ -78,6 +79,8 @@ export function createEngine(deps: {
   memory: MemoryIndex;
   /** Skills picked by meaning for each turn. */
   skills?: SkillPicker;
+  /** Where profiles are found (APX's own and the owner's). */
+  profileRoots?: readonly ProfileRoot[];
   /** Extension points (a plugin's context for owner turns). */
   hooks?: Hooks;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */

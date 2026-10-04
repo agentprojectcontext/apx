@@ -2,6 +2,7 @@ import { IconButton, Icons } from "@apx/ui";
 import type { ReactNode } from "react";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { AgentPanel } from "./AgentPanel.tsx";
 import { BrowserPanel } from "./BrowserPanel.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
@@ -17,6 +18,8 @@ export function SidePanel() {
     <aside className="sidepanel" aria-label={t("panel.side")}>
       {panel === "browser" ? (
         <BrowserPanel />
+      ) : panel === "agent" ? (
+        <AgentPanel />
       ) : (
         <>
           <PanelHeader>

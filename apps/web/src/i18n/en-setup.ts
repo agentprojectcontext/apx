@@ -47,6 +47,9 @@ export const enSetup = {
   "setup.v1.varsBody": "Tokens and keys your MCP servers use, stored securely",
   "setup.v1.memory": "Memory",
   "setup.v1.memoryBody": "Your notes and each project's, one note per line",
+  "setup.v1.identity": "Identity and profile",
+  "setup.v1.identityBody":
+    "Who you are, your super-agent's personality, its profile (secretary) with its schedule, and your quiet hours",
   "setup.v1.embeddings": "Embedding engine",
   "setup.v1.embeddingsBody":
     "The one that finds notes by meaning and picks skills for each message, with its model and key",

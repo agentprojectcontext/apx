@@ -540,4 +540,14 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tasks ADD COLUMN outcome TEXT;
   ALTER TABLE tasks ADD COLUMN renegotiated INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- The secretary became one profile among others: its settings move to the running profile's values.
+  INSERT INTO meta(key, value)
+    SELECT 'setting:profile',
+      json_object('id', CASE WHEN json_extract(value, '$.on') THEN 'secretary' ELSE NULL END,
+                  'values', json(json_remove(value, '$.on')))
+    FROM meta
+    WHERE key = 'setting:secretary' AND NOT EXISTS (SELECT 1 FROM meta WHERE key = 'setting:profile');
+  DELETE FROM meta WHERE key = 'setting:secretary';
+  `,
 ];

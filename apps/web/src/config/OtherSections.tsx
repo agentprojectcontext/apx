@@ -1,28 +1,50 @@
-import { Badge, Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
+import type { OwnerIdentity } from "@apx/protocol";
+import { Badge, Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Skeleton, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
+import { client } from "../data/client.ts";
 import { loadHealth } from "../data/engines.ts";
+import { notify } from "../data/notices.ts";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { SectionHead } from "./SectionHead.tsx";
 
-/** Account: how the panel calls you. Stored in this browser only. */
+/** Account: who you are, for the panel and for your agents (name, a few lines about you, their language, your time). */
 export function AccountSection() {
   const t = useT();
   const stored = usePrefs((s) => s.displayName);
   const you = t("account.you");
+  const [owner, setOwner] = useState<OwnerIdentity>();
   const [draft, setDraft] = useState(stored);
-  const save = () => setPrefs({ displayName: draft.trim() });
+  const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  useEffect(() => {
+    void client
+      .call("owner.get", {})
+      .then((o) => {
+        setOwner(o);
+        if (o.name && !stored) setDraft(o.name);
+      })
+      .catch(() => {});
+  }, [stored]);
+  const save = (patch: Partial<OwnerIdentity>) =>
+    void client
+      .call("owner.set", patch)
+      .then(setOwner)
+      .catch((e: unknown) => notify(t("error.account", { error: e instanceof Error ? e.message : String(e) })));
+  const saveName = () => {
+    setPrefs({ displayName: draft.trim() });
+    if (draft.trim() && draft.trim() !== owner?.name) save({ name: draft.trim() });
+  };
   return (
     <>
       <SectionHead title={t("config.account")} lead={t("account.lead")} />
       <div className="account-card">
         <span className="account-card__avatar">{initialsOf(draft.trim() || you)}</span>
         <div className="account-card__text">
-          <div className="account-card__name">{stored || you}</div>
+          <div className="account-card__name">{draft.trim() || you}</div>
           <div className="account-card__sub">{t("account.owner")}</div>
         </div>
       </div>
@@ -32,13 +54,49 @@ export function AccountSection() {
           className="config__input"
           value={draft}
           placeholder={you}
-          maxLength={40}
+          maxLength={80}
           onChange={(e) => setDraft(e.currentTarget.value)}
-          onBlur={save}
-          onKeyDown={(e) => e.key === "Enter" && save()}
+          onBlur={saveName}
+          onKeyDown={(e) => e.key === "Enter" && saveName()}
           aria-label={t("account.name")}
         />
       </SettingRow>
+      {owner && (
+        <>
+          <SettingRow title={t("account.about")} description={t("account.aboutHint")}>
+            <Textarea
+              className="config__input account__about"
+              rows={3}
+              defaultValue={owner.about}
+              maxLength={2000}
+              placeholder={t("account.aboutPlaceholder")}
+              onBlur={(e) => e.currentTarget.value !== owner.about && save({ about: e.currentTarget.value })}
+              aria-label={t("account.about")}
+            />
+          </SettingRow>
+          <SettingRow title={t("account.agentLanguage")} description={t("account.agentLanguageHint")}>
+            <SegmentedControl
+              size="sm"
+              label={t("account.agentLanguage")}
+              value={owner.language}
+              onValueChange={(v) => save({ language: v })}
+              options={LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_NAMES[l] }))}
+            />
+          </SettingRow>
+          <SettingRow title={t("account.timezone")} description={t("account.timezoneHint", { local })}>
+            <Input
+              size="sm"
+              className="config__input"
+              defaultValue={owner.timezone}
+              placeholder={local}
+              onBlur={(e) =>
+                e.currentTarget.value.trim() !== owner.timezone && save({ timezone: e.currentTarget.value.trim() })
+              }
+              aria-label={t("account.timezone")}
+            />
+          </SettingRow>
+        </>
+      )}
       <SettingRow title={t("account.cloud")} description={t("account.cloudHint")}>
         <Badge>{t("common.soon")}</Badge>
       </SettingRow>

@@ -132,28 +132,92 @@ export const Routine = z.object({
 });
 export type Routine = z.infer<typeof Routine>;
 
+/** Text in the owner's languages: `en` always, others when the author wrote them. */
+export const Localized = z.object({ en: z.string().max(400) }).catchall(z.string().max(400));
+export type Localized = z.infer<typeof Localized>;
+
+const ProfileKey = z.string().regex(/^[a-z][a-z0-9_]{0,40}$/);
+
 /**
- * The super-agent's secretary profile: when on, it opens and closes the owner's day (anchors), watches their work
- * every few hours, and reads it with these thresholds. Its routines are ordinary ones, seeded and kept in step.
+ * One setting a profile asks for. `schedule` is a five-field cron shown as a time and days; `choice` options may
+ * carry a line for the prompt block (`prompt`), put where the block says `{{key}}`.
  */
-export const SecretaryProfile = z.object({
-  on: z.boolean().default(false),
-  /** Five-field crons, local time. */
-  day_open: z.string().trim().min(9).max(120).default("30 8 * * 1-5"),
-  day_close: z.string().trim().min(9).max(120).default("30 18 * * 1-5"),
-  watch_every_h: z.number().int().min(1).max(24).default(2),
-  /** Prints today's agenda; its output reaches the morning brief as data (empty: no calendar). */
-  calendar_command: z.string().max(2000).default(""),
-  /** A project with open work and no movement this many days has gone quiet. */
-  stale_project_days: z.number().int().min(1).max(90).default(7),
-  /** A task waiting on the owner this many hours is worth a word. */
-  waiting_hours: z.number().int().min(1).max(720).default(48),
-  /** How long before its date a commitment is raised, while there is still time to keep it. */
-  commitment_lead_hours: z.number().int().min(1).max(720).default(48),
-  /** How it addresses the owner, where the language tells them apart (tú / vos / usted). */
-  formality: z.enum(["informal", "neutral", "formal"]).default("neutral"),
+export const ProfileField = z.object({
+  key: ProfileKey,
+  type: z.enum(["schedule", "number", "text", "command", "choice"]),
+  label: Localized,
+  help: Localized.optional(),
+  default: z.union([z.string().max(2000), z.number()]),
+  /** Numbers: bounds and what they count ("hours", "days"). */
+  min: z.number().optional(),
+  max: z.number().optional(),
+  unit: z.enum(["hours", "days", "minutes"]).optional(),
+  options: z
+    .array(z.object({ value: z.string().max(60), label: Localized, prompt: z.string().max(500).optional() }))
+    .max(10)
+    .optional(),
 });
-export type SecretaryProfile = z.infer<typeof SecretaryProfile>;
+export type ProfileField = z.infer<typeof ProfileField>;
+
+/**
+ * A routine a profile keeps on the super-agent. Its schedule may name a setting: a cron `"{{day_open}}"`, or every
+ * `hours: "{{watch_every_h}}"`; `pre_command` too (`"{{calendar_command}}"`).
+ */
+export const ProfileRoutine = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9_-]{0,40}$/),
+  name: Localized,
+  /** v1's names for the same routine: an imported one is adopted instead of doubled. */
+  v1: z.array(z.string()).default([]),
+  action: z.enum(["agent", "watch", "message"]).default("agent"),
+  anchor: z.boolean().default(false),
+  schedule: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("cron"), cron: z.string().max(120) }),
+    z.object({
+      kind: z.literal("every"),
+      hours: z.union([
+        z
+          .number()
+          .min(1)
+          .max(24 * 31),
+        z.string().max(60),
+      ]),
+    }),
+  ]),
+  prompt: z.string().min(1).max(8000),
+  pre_command: z.string().max(2000).optional(),
+});
+export type ProfileRoutine = z.infer<typeof ProfileRoutine>;
+
+/**
+ * A profile: what the super-agent is for (a chief of staff, a focus coach…), as data. Its block joins the
+ * super-agent's system prompt, its routines are seeded and kept in step, its settings feed both and the watch's
+ * thresholds (`waiting_hours`, `commitment_lead_hours`, `stale_project_days`, when it has them).
+ * See DECISIONS.md#d-037
+ */
+export const ProfileManifest = z.object({
+  id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,40}$/),
+  name: Localized,
+  description: Localized,
+  version: z.string().max(20).default("1.0.0"),
+  /** English, for the system prompt; `{{key}}` takes a setting (a choice's own prompt line). */
+  prompt: z.string().max(6000).default(""),
+  settings: z.array(ProfileField).max(30).default([]),
+  routines: z.array(ProfileRoutine).max(12).default([]),
+});
+export type ProfileManifest = z.infer<typeof ProfileManifest>;
+
+export const ProfileInfo = ProfileManifest.extend({
+  /** "apx": ships with APX; "owner": installed from a folder. */
+  source: z.enum(["apx", "owner"]),
+});
+export type ProfileInfo = z.infer<typeof ProfileInfo>;
+
+/** The profile the super-agent runs (none: it only answers), with the owner's values for its settings. */
+export const ActiveProfile = z.object({
+  id: z.string().nullable().default(null),
+  values: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
+});
+export type ActiveProfile = z.infer<typeof ActiveProfile>;
 
 /** What a notice in the attention tray is about. */
 export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent"]);

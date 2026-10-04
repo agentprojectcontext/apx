@@ -1,6 +1,7 @@
 // The settings stored as JSON, each with its schema and the value it has when unset or unreadable. They are read
 // only through `store.settings.read`, so a bad stored value falls back here instead of reaching the code using it.
 import {
+  ActiveProfile,
   ChannelInfo,
   ImageDefaults,
   MemorySettings,
@@ -8,7 +9,6 @@ import {
   NoticePrefs,
   ProviderInfo,
   RouterConfig,
-  SecretaryProfile,
   ServiceSettings,
   TaskColumn,
 } from "@apx/protocol";
@@ -66,8 +66,13 @@ export const SETTINGS = {
   }),
   /** Saved without the auxiliary model, which keeps its own key ("model_aux", plain text). */
   memory: entry(MemorySettings.omit({ aux_model: true }).partial(), {}),
-  /** The super-agent's secretary profile (off until the owner turns it on). */
-  secretary: entry(SecretaryProfile, SecretaryProfile.parse({})),
+  /** About the owner and their time zone (their name is the owner's person; the language is "owner_language"). */
+  owner_profile: entry(z.object({ about: z.string().catch(""), timezone: z.string().catch("") }), {
+    about: "",
+    timezone: "",
+  }),
+  /** The profile the super-agent runs and the owner's values for it (none until the owner picks one). */
+  profile: entry(ActiveProfile, { id: null, values: {} }),
   /** iMessage on this Mac as tools: off until the owner turns it on. */
   imessage: entry(z.object({ on: z.boolean().catch(false) }), { on: false }),
   skills_off: entry(OffLists, {}),

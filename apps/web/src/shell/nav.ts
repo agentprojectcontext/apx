@@ -4,7 +4,7 @@ import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
-export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage";
+export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage" | "agent";
 
 export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
 
@@ -28,7 +28,7 @@ export const CONFIG_SECTIONS = [
   "mcp",
   "extensions",
   "agents",
-  "secretary",
+  "profile",
   "memory",
   "voices",
   "images",
@@ -53,6 +53,8 @@ export type NavState = {
   appId: string | undefined;
   panel: PanelKind | null;
   browserTab: string | undefined;
+  /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
+  panelAgent: string | undefined;
   mode: ApxMode;
   /** Show tool-call groups in transcripts (chat header wrench). */
   tools: boolean;
@@ -130,6 +132,7 @@ export const nav = createStore<NavState>({
   appId: undefined,
   panel: null,
   browserTab: undefined,
+  panelAgent: undefined,
   mode: initialMode(),
   tools: true,
   config: null,
@@ -255,6 +258,10 @@ export const go = {
   },
   phone(open: boolean) {
     nav.set({ phone: open });
+  },
+  /** An agent's block beside the chat: its settings, prompt and routines, with Edit. */
+  agent(agentId: string) {
+    nav.set({ panel: "agent", panelAgent: agentId });
   },
   panel(panel: PanelKind | null) {
     nav.set({ panel });

@@ -723,3 +723,15 @@
 .sec__cron {
   width: 280px;
 }
+.prof__card .apx-tag {
+  margin-left: 6px;
+}
+.prof__num {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.account__about {
+  width: 100%;
+  min-width: 260px;
+}

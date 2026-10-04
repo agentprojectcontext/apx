@@ -3,6 +3,8 @@ import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@ap
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
@@ -35,6 +37,7 @@ export function AgentTurn({
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
 }) {
+  const t = useT();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
   const subs = message.parts.filter((p) => p.type === "subthread");
@@ -52,7 +55,14 @@ export function AgentTurn({
   const avatar = !showAvatar ? undefined : engine ? (
     <EngineIcon engine={engine.id} size={24} />
   ) : agent ? (
-    <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} />
+    <button
+      type="button"
+      className="turn__agentbtn"
+      aria-label={t("agent.openPanel", { name: agent.name })}
+      onClick={() => go.agent(agent.id)}
+    >
+      <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} />
+    </button>
   ) : undefined;
   const meta = <MessageMeta agent={engine?.label ?? agent?.name} model={message.model} />;
 

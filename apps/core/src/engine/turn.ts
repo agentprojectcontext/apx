@@ -3,8 +3,9 @@ import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
@@ -37,10 +38,10 @@ import type { MemoryIndex } from "./memory-index.ts";
 import { ratingNote } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
+import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { recallFor } from "./recall.ts";
 import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
-import { secretaryBlock, secretaryProfile } from "./secretary.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
@@ -72,6 +73,8 @@ export type TurnDeps = {
   memory: MemoryIndex;
   /** Skills picked by meaning for this message. */
   skills?: SkillPicker | undefined;
+  /** Where profiles are found: the running one adds its block to the super-agent's system prompt. */
+  profileRoots?: readonly ProfileRoot[] | undefined;
   hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
@@ -169,7 +172,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills),
+    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills, deps.profileRoots ?? []),
     sealed: turn.audience.kind === "contact",
     direct: Boolean(thread.engine),
     history,
@@ -296,6 +299,8 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
           extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
           waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+          timeZone: ownerTimeZone(store),
+          channel: channelKindOf(store, o),
           feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
         }),
   };
@@ -307,6 +312,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
     });
   const skills = sealed ? "" : skillCatalog(available);
   return { history, input, skills, picked };
+}
+
+/** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
+function channelKindOf(store: Store, o: Origin) {
+  if (o.kind !== "channel") return undefined;
+  return store.settings.read("channels").find((c) => c.id === o.channel)?.type ?? o.channel;
 }
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
@@ -345,12 +356,12 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
 const DIRECT_NOTE =
   "You are running inside APX, the owner's local assistant app; they talk to you directly in this chat. APX's own tools (mcp__apx__*) are there if useful.";
 
-function systemFor(store: Store, turn: Turn, skills: string): string {
-  const lang = store.settings.get("owner_language") ?? "es";
+function systemFor(store: Store, turn: Turn, skills: string, roots: readonly ProfileRoot[]): string {
+  const lang = store.settings.get("owner_language") || "es";
   if (turn.audience.kind === "contact") return contactPrompt(turn.agent, turn.audience, lang);
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
-  const role = turn.agent.kind === "secretary" ? secretaryBlock(secretaryProfile(store)) : "";
+  const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
   return systemPrompt(
     turn.agent,
     turn.thread,
@@ -358,6 +369,7 @@ function systemFor(store: Store, turn: Turn, skills: string): string {
     projectId ? store.projects.get(projectId) : undefined,
     skills,
     role,
+    ownerIdentity(store),
   );
 }
 

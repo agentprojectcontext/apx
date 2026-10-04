@@ -48,18 +48,33 @@ export function ChatHeader({
       )}
       {thread.engine ? (
         <EngineIcon engine={thread.engine} tile size={32} />
+      ) : agent ? (
+        <button
+          type="button"
+          className="chat__agentbtn"
+          aria-label={t("agent.openPanel", { name: agent.name })}
+          onClick={() => go.agent(agent.id)}
+        >
+          <AgentAvatar
+            name={agent.name}
+            blob={blobOf(agent)}
+            size={32}
+            status={sub ? undefined : "online"}
+            statusLabel={t("presence.online")}
+          />
+        </button>
       ) : (
-        <AgentAvatar
-          name={agent?.name ?? name}
-          blob={blobOf(agent)}
-          size={32}
-          status={sub ? undefined : "online"}
-          statusLabel={t("presence.online")}
-        />
+        <AgentAvatar name={name} size={32} />
       )}
       <div className="chat__titles">
         <div className="chat__title">
-          <span className="chat__name">{name}</span>
+          {agent && !engine ? (
+            <button type="button" className="chat__name chat__namebtn" onClick={() => go.agent(agent.id)}>
+              {name}
+            </button>
+          ) : (
+            <span className="chat__name">{name}</span>
+          )}
           {engine && <Tag kind="role">{t("engine.direct")}</Tag>}
           {!sub && !engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
           {!sub && !engine && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}

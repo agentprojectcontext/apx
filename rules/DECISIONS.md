@@ -367,3 +367,27 @@ Renegotiated is not an ending: the commitment stays open with the new date (remi
 keeps the old and new dates, and a counter shows how often it moved. Only the owner's word settles one: the
 day-close routine asks, and the agent records the answer with `commitment_settle`, never on its own. How far ahead a
 commitment is raised is the secretary profile's `commitment_lead_hours` (D-033).
+
+<a id="d-037"></a>
+## D-037 — 2026-10-04 — Profiles are data: the secretary is one of several, and more install from a folder
+The owner wants to choose what the super-agent is for, and later get more from a store. D-033's secretary was fixed in
+code, so a profile is now an `apx-profile.json`: an English block for the super-agent's system prompt (`{{key}}` takes
+a setting; a choice's option brings its own line), settings fields (schedule, number, text, command, choice) with
+labels per language, and routine templates (`{{day_open}}` crons, every `{{watch_every_h}}` hours, `v1` names to
+adopt). APX ships `examples/profiles/` (secretary, focus); the owner's install into `<home>/profiles/` and win an id.
+One runs at a time (`profile` setting: id + values); switching turns the previous one's routines off and keeps them
+(prompts the owner wrote stay, Restore puts the shipped one back). D-033's objection still holds: no fingerprint, no
+re-adoption, no drift warnings. The watch's thresholds read `waiting_hours`, `commitment_lead_hours` and
+`stale_project_days` from the running profile's values, with fixed defaults otherwise. A migration moves the old
+`secretary` setting into `profile`.
+
+<a id="d-038"></a>
+## D-038 — 2026-10-04 — Agents know their owner, the channel and v1's working rules
+In v2 the super-agent did not know who it worked for (the panel kept the owner's name in the browser), always read
+"channel: app", and lacked v1's working rules, so it answered like a generic chatbot. Now the owner's identity lives in
+the core (`owner.get/set`: name on the owner's person, about, language, time zone), the system prompt carries a "Your
+owner" block and a short "How you work" block ported from v1 (a promise is not an action; look before you answer;
+hand-offs carry what the other agent needs; a failing system is reported, not routed around), and each turn's
+context names the real channel and the owner's time zone, with a plain-text style line for chat apps. The v1 import
+brings identity.json, the user's language and time zone, the super-agent's personality and extra instructions (as its
+prompt), the profile it ran with its values, and its nudge budget and quiet hours.

@@ -11,11 +11,20 @@ type Draft = { name: string; role: string; area: string; description: string; bl
  * The whole agent in one dialog: who it is (name, role, area, what it does, avatar) and its system prompt. A project
  * agent's changes are written to its `.apc/agents/<slug>.md`.
  */
-export function AgentEditor({ agent, onClose }: { agent: Agent; onClose: () => void }) {
+export function AgentEditor({
+  agent,
+  onClose,
+  start = "identity",
+}: {
+  agent: Agent;
+  onClose: () => void;
+  /** The tab it opens on. */
+  start?: "identity" | "prompt";
+}) {
   const t = useT();
   const [base, setBase] = useState<Draft>();
   const [d, setD] = useState<Draft>();
-  const [tab, setTab] = useState("identity");
+  const [tab, setTab] = useState<string>(start);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     let current = true;

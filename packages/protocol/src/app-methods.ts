@@ -20,6 +20,7 @@ import {
   NoticePrefs,
   Nudge,
   OutboxItem,
+  OwnerIdentity,
   PairingRequest,
   PendingInput,
   Person,
@@ -50,6 +51,7 @@ const V1Group = z.enum([
   "vars",
   "memory",
   "embeddings",
+  "identity",
   "channels",
   "tasks",
   "commitments",
@@ -483,6 +485,19 @@ export const appMethods = {
       .strict(),
     result: z.object({ memories: z.array(Memory) }),
     effect: false,
+  },
+  /** Who the owner is, for their agents (name, about, language, time zone). */
+  "owner.get": {
+    params: z.object({}).strict(),
+    result: OwnerIdentity,
+    effect: false,
+    access: "human",
+  },
+  "owner.set": {
+    params: OwnerIdentity.partial().strict(),
+    result: OwnerIdentity,
+    effect: true,
+    access: "human",
   },
   "memory.settings": {
     params: z.object({}).strict(),

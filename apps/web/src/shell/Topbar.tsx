@@ -140,17 +140,35 @@ export function Topbar() {
         }
       />
       {sec && (
-        <button
-          type="button"
-          className="topbar__agent"
-          title={t("topbar.chatWith", { name: sec.name })}
-          onClick={() => homeId && go.inboxThread(homeId)}
-          disabled={!homeId}
-        >
-          <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
-          <span className="topbar__agentname">{sec.name}</span>
-          <span className="topbar__agentkbd">⌘J</span>
-        </button>
+        <Menu
+          align="end"
+          items={[
+            {
+              label: t("topbar.chatWith", { name: sec.name }),
+              icon: <Icons.MessageCircle />,
+              disabled: !homeId,
+              onSelect: () => homeId && go.inboxThread(homeId),
+            },
+            {
+              label: t("agent.openPanel", { name: sec.name }),
+              icon: <Icons.PanelRight />,
+              disabled: !homeId,
+              onSelect: () => {
+                if (homeId) go.inboxThread(homeId);
+                go.agent(sec.id);
+              },
+            },
+            { label: t("agent.super.profile"), icon: <Icons.Calendar />, onSelect: () => go.config("profile") },
+            { label: t("agent.super.owner"), icon: <Icons.User />, onSelect: () => go.config("account") },
+          ]}
+          trigger={
+            <button type="button" className="topbar__agent" aria-label={sec.name}>
+              <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
+              <span className="topbar__agentname">{sec.name}</span>
+              <span className="topbar__agentkbd">⌘J</span>
+            </button>
+          }
+        />
       )}
     </header>
   );

@@ -1,9 +1,11 @@
 // The app's settings and catalog: projects, surfaces, models and the router, skills, secrets, desktop prefs and the
 // v1 import. (Agents live in rpc/agents.ts.)
+
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
+import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -33,6 +35,8 @@ export function appHandlers(deps: {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
   return {
+    "owner.get": () => ownerIdentity(deps.store),
+    "owner.set": (patch) => saveOwnerIdentity(deps.store, patch),
     "system.import_v1": async ({ keys, skills, services }) =>
       importFromV1(deps.apc, secrets, {
         ...deps.v1,

@@ -303,3 +303,25 @@
 .skillcard__open:hover {
   text-decoration: underline;
 }
+
+/* An agent's face and name open its block beside the chat. */
+.chat__agentbtn,
+.turn__agentbtn {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.chat__namebtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.chat__namebtn:hover {
+  text-decoration: underline;
+}

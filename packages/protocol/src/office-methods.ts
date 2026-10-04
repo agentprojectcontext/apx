@@ -2,16 +2,17 @@
 import { z } from "zod";
 import { Id, Message, Nudge, Run } from "./domain.ts";
 import {
+  ActiveProfile,
   ApiClient,
   CallModel,
   ClientScope,
   ExtensionInfo,
   Notification,
+  ProfileInfo,
   Routine,
   RoutineAction,
   RoutineRun,
   Schedule,
-  SecretaryProfile,
   Task,
   TaskColumn,
   TaskEvent,
@@ -152,24 +153,46 @@ export const officeMethods = {
     effect: true,
     access: "human",
   },
-  /** The secretary profile and the routines it keeps. */
-  "secretary.get": {
+  /** The profiles APX knows (its own and the owner's), the one the super-agent runs, and the routines it keeps. */
+  "profiles.list": {
     params: z.object({}).strict(),
-    result: z.object({ profile: SecretaryProfile, routines: z.array(Routine) }),
+    result: z.object({ profiles: z.array(ProfileInfo), active: ActiveProfile, routines: z.array(Routine) }),
     effect: false,
     access: "human",
   },
-  /** Saves it and keeps its routines in step (created, rescheduled, turned on or off; prompts the owner edited stay). */
-  "secretary.set": {
-    params: SecretaryProfile.strict(),
-    result: z.object({ profile: SecretaryProfile, routines: z.array(Routine) }),
+  /**
+   * Runs a profile (or none) with these values: its routines are created or adopted, rescheduled and turned on; the
+   * previous profile's are turned off. Prompts the owner edited stay.
+   */
+  "profiles.set": {
+    params: z
+      .object({
+        id: z.string().nullable(),
+        values: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
+      })
+      .strict(),
+    result: z.object({ active: ActiveProfile, routines: z.array(Routine) }),
     effect: true,
     access: "human",
   },
   /** Puts back a profile routine's default prompt. */
-  "secretary.restore": {
+  "profiles.restore": {
     params: z.object({ routine: Id }).strict(),
     result: Routine,
+    effect: true,
+    access: "human",
+  },
+  /** Installs a profile from a folder with an apx-profile.json (copied into APX's home; one of the same id is replaced). */
+  "profiles.install": {
+    params: z.object({ path: z.string().min(1).max(1000) }).strict(),
+    result: z.object({ profile: ProfileInfo }),
+    effect: true,
+    access: "human",
+  },
+  /** Removes an installed profile (APX's own stay); if it was running, the super-agent goes back to none. */
+  "profiles.remove": {
+    params: z.object({ id: z.string() }).strict(),
+    result: z.object({ removed: z.boolean() }),
     effect: true,
     access: "human",
   },

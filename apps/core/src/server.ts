@@ -21,6 +21,7 @@ import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
+import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
@@ -194,6 +195,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       return true;
     },
   });
+  // APX's own profiles, then the ones the owner installed (theirs win an id).
+  const profileRoots: ProfileRoot[] = [
+    { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/profiles") },
+    { source: "owner", dir: path.join(config.home, "profiles") },
+  ];
   const engine = createEngine({
     store,
     harnesses,
@@ -204,6 +210,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     apxPort: () => listening,
     memory,
     skills,
+    profileRoots,
     hooks,
     mcpTools: mcp.toolsFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)),
@@ -265,6 +272,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       native: config.native,
       updates,
       panel: () => panelEntry(servedPanel(config)),
+      profileRoots,
       // APX's own templates, then the owner's v1 vault (read-only).
       templateRoots: [
         { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },

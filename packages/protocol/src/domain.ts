@@ -597,6 +597,23 @@ export type ServiceInfo = z.infer<typeof ServiceInfo>;
  * How memory works: notes searched by their words (default), also by meaning (an embedding model indexes them), or
  * no memory at all. And how long chats are kept small: summaries by an auxiliary model.
  */
+/**
+ * Who the owner is, as every agent working for them knows it: their name, a few lines about them, the language agents
+ * answer in and the time zone their day runs on.
+ */
+export const OwnerIdentity = z.object({
+  name: z.string().trim().max(80).default(""),
+  about: z.string().max(2000).default(""),
+  /** ISO 639-1 ("es", "en"). */
+  language: z
+    .string()
+    .regex(/^[a-z]{2}$/)
+    .default("es"),
+  /** IANA ("America/Argentina/Buenos_Aires"); empty: this machine's. */
+  timezone: z.string().max(60).default(""),
+});
+export type OwnerIdentity = z.infer<typeof OwnerIdentity>;
+
 export const MemorySettings = z.object({
   mode: z.enum(["notes", "semantic", "off"]),
   /** Each message picks the skills it calls for by meaning (needs an embedding engine). */

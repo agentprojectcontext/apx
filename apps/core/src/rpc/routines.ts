@@ -1,12 +1,33 @@
 // Routines, for the owner only: an agent's scheduled work and its history.
 import { checkSchedule } from "../domain/schedule.ts";
 import type { Store } from "../domain/store.ts";
+import {
+  activeProfile,
+  applyProfile,
+  installProfile,
+  listProfiles,
+  type ProfileRoot,
+  profileRoutines,
+  profileSchedules,
+  removeProfile,
+  restoreProfileRoutine,
+} from "../engine/profiles.ts";
 import type { Scheduler } from "../engine/routines.ts";
-import { applySecretary, restoreSecretaryRoutine, secretaryProfile, secretaryRoutines } from "../engine/secretary.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
-export function routineHandlers(store: Store, scheduler: Scheduler) {
+const PROFILE_HINT = "it needs an apx-profile.json";
+
+export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots: readonly ProfileRoot[] = []) {
+  const lang = () => store.settings.get("owner_language") ?? "es";
+  const listed = () => {
+    const active = activeProfile(store);
+    return {
+      profiles: listProfiles(profileRoots),
+      active,
+      routines: active.id ? profileRoutines(store, active.id) : [],
+    };
+  };
   return {
     "routines.list": ({ project }) => ({ routines: store.routines.list(project) }),
     "routines.set": ({
@@ -59,21 +80,35 @@ export function routineHandlers(store: Store, scheduler: Scheduler) {
       return r;
     },
     "routines.remove": ({ routine }) => ({ removed: store.routines.remove(routine) }),
-    "secretary.get": () => ({ profile: secretaryProfile(store), routines: secretaryRoutines(store) }),
-    "secretary.set": (profile) => {
+    "profiles.list": () => listed(),
+    "profiles.set": ({ id, values }) => {
+      const manifest = id ? listProfiles(profileRoots).find((p) => p.id === id) : undefined;
+      if (id && !manifest) throw notFound(`profile ${id}`);
       try {
-        checkSchedule({ kind: "cron", cron: profile.day_open });
-        checkSchedule({ kind: "cron", cron: profile.day_close });
+        for (const s of manifest ? profileSchedules(manifest, values) : []) checkSchedule(s);
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
-      const routines = applySecretary(store, profile, (s) => scheduler.nextFor(s));
-      return { profile: secretaryProfile(store), routines };
+      const active = applyProfile(store, { manifest, values, lang: lang(), nextFor: (s) => scheduler.nextFor(s) });
+      return { active, routines: active.id ? profileRoutines(store, active.id) : [] };
     },
-    "secretary.restore": ({ routine }) => {
-      const r = restoreSecretaryRoutine(store, routine);
+    "profiles.restore": ({ routine }) => {
+      const r = restoreProfileRoutine(store, profileRoots, routine);
       if (!r) throw notFound(`profile routine ${routine}`);
       return r;
+    },
+    "profiles.install": ({ path }) => {
+      try {
+        return { profile: installProfile(profileRoots, path) };
+      } catch (err) {
+        throw badRequest(`not a profile folder (${PROFILE_HINT}): ${errorMessage(err, 200)}`);
+      }
+    },
+    "profiles.remove": ({ id }) => {
+      const removed = removeProfile(profileRoots, id);
+      if (removed && activeProfile(store).id === id)
+        applyProfile(store, { manifest: undefined, values: {}, lang: lang(), nextFor: (s) => scheduler.nextFor(s) });
+      return { removed };
     },
     "routines.run": ({ routine }) => scheduler.runNow(routine),
     "routines.runs": ({ routine, limit }) => {

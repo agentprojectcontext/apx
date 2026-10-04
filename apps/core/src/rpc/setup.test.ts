@@ -42,6 +42,19 @@ before(async () => {
       },
     },
     skills: { inspector: { enabled: false } },
+    user: { language: "es", timezone: "America/Argentina/Buenos_Aires" },
+    super_agent: { system: "Never book meetings before 10." },
+    profile: {
+      active: "secretary",
+      config: {
+        day_open_schedule: "0 9 * * 1-5",
+        watch_schedule: "0 */3 * * *",
+        blocked_task_hours: 24,
+        formality: "informal",
+        nudge_budget_per_day: 5,
+        quiet_hours: "22:00-07:30",
+      },
+    },
     whatsapp: {
       self_is_owner: false,
       self_jid: "5491100000001:3@s.whatsapp.net",
@@ -66,7 +79,12 @@ before(async () => {
     },
   });
   json(path.join(v1, "update-check.json"), { current: "1.123.1" });
-  json(path.join(v1, "identity.json"), { agent_name: "Roby", owner_name: "Ana" });
+  json(path.join(v1, "identity.json"), {
+    agent_name: "Roby",
+    owner_name: "Ana",
+    personality: "warm and direct",
+    owner_context: "Runs a small bakery in Northwind.",
+  });
   json(path.join(v1, "vars.json"), { NORTHWIND_TOKEN: "nw-secret-value" });
   json(path.join(v1, "skills", "brief", "SKILL.md"), "---\nname: brief\ndescription: A brief.\n---\nHow.\n");
   json(
@@ -152,6 +170,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     vars: 1,
     memory: 3,
     embeddings: 2,
+    identity: 5,
     channels: 1,
     tasks: 1,
     commitments: 1,
@@ -224,6 +243,30 @@ test("importing the embedding engines brings them in v1's order, with their keys
   // Again: what v2 already has is kept, nothing doubles.
   assert.equal((await env.client.call("setup.import_v1", { groups: ["embeddings"] })).imported.embeddings, 0);
   await env.client.call("memory.set_settings", { mode: "notes", auto_compact: true, skill_picker: true });
+});
+
+test("importing the identity brings who the owner is, the super-agent's personality and the profile it ran", async () => {
+  const r = await env.client.call("setup.import_v1", { groups: ["identity"] });
+  assert.deepEqual(r.errors, []);
+  const owner = await env.client.call("owner.get", {});
+  assert.deepEqual(owner, {
+    name: "Ana",
+    about: "Runs a small bakery in Northwind.",
+    language: "es",
+    timezone: "America/Argentina/Buenos_Aires",
+  });
+  const roby = await env.client.call("agents.get", { agent: "roby" });
+  assert.match(roby.prompt ?? "", /Your personality: warm and direct\n\nNever book meetings before 10\./);
+  const { active, routines } = await env.client.call("profiles.list", {});
+  assert.equal(active.id, "secretary");
+  assert.equal(active.values.day_open, "0 9 * * 1-5");
+  assert.equal(active.values.watch_every_h, 3);
+  assert.equal(active.values.waiting_hours, 24);
+  assert.equal(active.values.formality, "informal");
+  assert.equal(routines.filter((x) => x.enabled).length, 3);
+  const notices = env.core.store.settings.read("notices");
+  assert.deepEqual([notices.budget_per_day, notices.quiet_from, notices.quiet_to], [5, "22:00", "07:30"]);
+  await env.client.call("profiles.set", { id: null, values: {} });
 });
 
 test("importing channels brings v1's WhatsApp: whose phone the line is, the owner's numbers and who each contact is", async () => {

@@ -6,6 +6,7 @@ import type { RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Channels } from "../channels/manager.ts";
 import { memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
+import { saveOwnerIdentity } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { dueOf } from "../domain/tasks.ts";
@@ -16,6 +17,7 @@ import {
   type V1Project,
   v1AgentCount,
   v1Embeddings,
+  v1Identity,
   v1Notes,
   v1OpenCommitments,
   v1OpenTasks,
@@ -34,6 +36,7 @@ export const V1_GROUPS = [
   "vars",
   "memory",
   "embeddings",
+  "identity",
   "channels",
   "tasks",
   "commitments",
@@ -47,6 +50,8 @@ export type V1ImportDeps = {
   secrets: Secrets;
   channels: Pick<Channels, "set" | "info">;
   services: Pick<Services, "set" | "has">;
+  /** Runs a profile on the super-agent (its routines seeded); false when APX has no profile of that id. */
+  runProfile: (id: string, values: Record<string, string | number>) => boolean;
   v1Home: string;
   v2Home: string;
 };
@@ -66,6 +71,8 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
   const tg = v1Telegram(home);
   const wa = v1WhatsApp(home);
   const embedders = v1Embeddings(home).engines;
+  const who = v1Identity(home);
+  const identity = [who.owner_name, who.owner_about, who.timezone, who.prompt, who.profile].filter(Boolean).length;
   const memory =
     v1Notes(path.join(home, "memory.md")).length +
     projects.reduce((n, p) => n + v1Notes(path.join(p.storage, "memory.md")).length, 0);
@@ -79,6 +86,11 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     { id: "keys", count: v1KeyCount(home) },
     { id: "vars", count: v1Vars(home).length },
     { id: "memory", count: memory },
+    {
+      id: "identity",
+      count: identity,
+      ...(identity ? { detail: [who.owner_name, who.profile?.id].filter(Boolean).join(" · ") } : {}),
+    },
     {
       id: "embeddings",
       count: embedders.length,
@@ -187,6 +199,28 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       n++;
     }
     if (picker !== undefined) saveMemorySettings(store, { ...memorySettings(store), skill_picker: picker });
+    return n;
+  });
+  // Who the owner is, the super-agent's personality, and the profile it ran with its budget and quiet hours.
+  run("identity", () => {
+    const who = v1Identity(home);
+    saveOwnerIdentity(store, {
+      ...(who.owner_name ? { name: who.owner_name } : {}),
+      ...(who.owner_about ? { about: who.owner_about } : {}),
+      ...(who.language ? { language: who.language } : {}),
+      ...(who.timezone ? { timezone: who.timezone } : {}),
+    });
+    let n = [who.owner_name, who.owner_about, who.timezone].filter(Boolean).length;
+    if (who.prompt && secretary && !secretary.prompt.trim()) {
+      const { harness: _h, ...rest } = secretary;
+      store.agents.upsert({ ...rest, prompt: who.prompt });
+      n++;
+    }
+    if (who.notices) {
+      store.settings.write("notices", { ...store.settings.read("notices"), ...who.notices });
+      n++;
+    }
+    if (who.profile && deps.runProfile(who.profile.id, who.profile.values)) n++;
     return n;
   });
   run("channels", () => {

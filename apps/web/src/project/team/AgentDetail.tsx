@@ -1,16 +1,18 @@
 import type { Agent } from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu, Tabs } from "@apx/ui";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { AgentModelPicker } from "../../config/models/AgentModelPicker.tsx";
 import { setAgentBrowserProfile } from "../../data/actions.ts";
+import { client } from "../../data/client.ts";
 import { PROFILE_KEY } from "../../data/engines.ts";
 import { blobOf } from "../../data/identity.ts";
 import { useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
-import { setAgentParent } from "../../data/team.ts";
-import { useT } from "../../i18n/index.ts";
+import { getAgent, setAgentParent } from "../../data/team.ts";
+import { useLanguage, useT } from "../../i18n/index.ts";
+import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
 import { AgentEditor } from "./AgentEditor.tsx";
 import { AgentRoutines } from "./AgentRoutines.tsx";
@@ -27,16 +29,21 @@ export function AgentDetail({
   team,
   onClose,
   onChat,
+  inPanel = false,
 }: {
   agent: Agent;
   team: Agent[];
   onClose(): void;
   onChat(): void;
+  /** Beside a chat (the side panel) instead of the team canvas. */
+  inPanel?: boolean;
 }) {
   const t = useT();
   const [pending, setPending] = useState<string>();
   const [tab, setTab] = useState("summary");
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<false | "identity" | "prompt">(false);
+  /** Bumped when the editor closes, so the prompt shown is read again. */
+  const [edits, setEdits] = useState(0);
   const threads = useData((s) => s.threads);
   const tasks = useTasks((s) => s.tasks);
   const routines = useRoutines((s) => s.routines);
@@ -114,7 +121,7 @@ export function AgentDetail({
   );
 
   return (
-    <aside className="teamdetail" aria-label={agent.name}>
+    <aside className={inPanel ? "teamdetail is-panel" : "teamdetail"} aria-label={agent.name}>
       <header className="teamdetail__head">
         <AgentAvatar name={agent.name} blob={blobOf(agent)} size={40} animated={false} />
         <div className="teamdetail__names">
@@ -125,12 +132,13 @@ export function AgentDetail({
           size="sm"
           label={t("agent.edit.open")}
           icon={<Icons.Pencil size={14} />}
-          onClick={() => setEditing(true)}
+          onClick={() => setEditing("identity")}
         />
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
       </header>
       {agent.role && <div className="teamdetail__role">{agent.role}</div>}
       {agent.description && <p className="teamdetail__desc">{agent.description}</p>}
+      {agent.kind === "secretary" && <SuperAgentLinks />}
       <Button size="sm" leadingIcon={<Icons.MessageCircle size={14} />} onClick={onChat}>
         {t("team.chatWith", { name: agent.name })}
       </Button>
@@ -149,6 +157,11 @@ export function AgentDetail({
         onValueChange={setTab}
         items={[
           { value: "summary", label: t("agent.tab.summary"), content: facts },
+          {
+            value: "prompt",
+            label: t("agent.tab.prompt"),
+            content: <AgentPrompt key={edits} agent={agent} onEdit={() => setEditing("prompt")} />,
+          },
           { value: "activity", label: t("agent.tab.activity"), content: <AgentActivity agent={agent} /> },
           {
             value: "routines",
@@ -158,7 +171,16 @@ export function AgentDetail({
           },
         ]}
       />
-      {editing && <AgentEditor agent={agent} onClose={() => setEditing(false)} />}
+      {editing && (
+        <AgentEditor
+          agent={agent}
+          start={editing}
+          onClose={() => {
+            setEditing(false);
+            setEdits((n) => n + 1);
+          }}
+        />
+      )}
 
       {pending !== undefined && (
         <Dialog
@@ -228,5 +250,69 @@ function Pick(props: {
         </button>
       }
     />
+  );
+}
+
+/** What the agent is told: its own prompt, and where the rest comes from. */
+function AgentPrompt({ agent, onEdit }: { agent: Agent; onEdit(): void }) {
+  const t = useT();
+  const [prompt, setPrompt] = useState<string>();
+  useEffect(() => {
+    let live = true;
+    void getAgent(agent.id).then((r) => live && setPrompt(r?.prompt ?? ""));
+    return () => {
+      live = false;
+    };
+  }, [agent.id]);
+  return (
+    <div className="teamdetail__prompt">
+      {prompt === undefined ? null : prompt.trim() ? (
+        <pre className="teamdetail__prompttext">{prompt}</pre>
+      ) : (
+        <p className="teamdetail__muted">{t("agent.prompt.empty")}</p>
+      )}
+      <p className="teamdetail__muted">
+        {agent.kind === "secretary" ? t("agent.prompt.alsoSuper") : t("agent.prompt.also")}
+      </p>
+      <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
+        {t("agent.prompt.edit")}
+      </Button>
+    </div>
+  );
+}
+
+/** The super-agent's own settings live elsewhere: its profile, and who you are to it. */
+function SuperAgentLinks() {
+  const t = useT();
+  const lang = useLanguage();
+  const [profile, setProfile] = useState<string | null>();
+  useEffect(() => {
+    let live = true;
+    void client
+      .call("profiles.list", {})
+      .then((r) => {
+        const p = r.profiles.find((x) => x.id === r.active.id);
+        if (live) setProfile(p ? (p.name[lang] ?? p.name.en) : null);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [lang]);
+  return (
+    <div className="teamdetail__super">
+      <button type="button" className="teamdetail__superlink" onClick={() => go.config("profile")}>
+        <Icons.Calendar size={14} />
+        <span>
+          {t("agent.super.profile")}: <b>{profile === undefined ? "…" : (profile ?? t("prof.none"))}</b>
+        </span>
+        <Icons.ChevronRight size={14} />
+      </button>
+      <button type="button" className="teamdetail__superlink" onClick={() => go.config("account")}>
+        <Icons.User size={14} />
+        <span>{t("agent.super.owner")}</span>
+        <Icons.ChevronRight size={14} />
+      </button>
+    </div>
   );
 }

@@ -384,3 +384,71 @@ export function v1Embeddings(home: string): { engines: V1Embedder[]; picker?: bo
   });
   return { engines, ...choice };
 }
+
+export type V1Identity = {
+  owner_name?: string;
+  owner_about?: string;
+  language?: string;
+  timezone?: string;
+  /** The super-agent's personality and the owner's extra instructions, as its prompt. */
+  prompt?: string;
+  /** The profile v1 ran, with its settings in v2's names. */
+  profile?: { id: string; values: Record<string, string | number> };
+  /** v1's nudge budget and quiet hours. */
+  notices?: {
+    budget_per_day?: number;
+    quiet_from?: string;
+    quiet_to?: string;
+    project_gap_min?: number;
+    kind_gap_min?: number;
+  };
+};
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+
+/** Who the owner is and how their super-agent was set up in v1 (identity.json, config.json's user, super_agent, profile). */
+export function v1Identity(home: string): V1Identity {
+  const id = obj(readJson(path.join(home, "identity.json")));
+  const config = v1Config(home);
+  const user = obj(config.user);
+  const sa = obj(config.super_agent);
+  const personality = str(id.personality);
+  const extra = str(sa.system) ?? str(sa.instructions);
+  const prompt = [personality ? `Your personality: ${personality}` : "", extra ?? ""].filter(Boolean).join("\n\n");
+  const prof = obj(config.profile);
+  const active = str(prof.active);
+  const c = obj(prof.config ?? obj(prof.configs)[active ?? ""]);
+  // v1 watched on a cron ("0 */2 * * *"); v2 counts hours.
+  const every = /^\S+ \*\/(\d{1,2}) /.exec(str(c.watch_schedule) ?? "")?.[1];
+  const values: Record<string, string | number> = {};
+  const put = (key: string, v: string | number | undefined) => {
+    if (v !== undefined) values[key] = v;
+  };
+  put("day_open", str(c.day_open_schedule));
+  put("day_close", str(c.day_close_schedule));
+  put("watch_every_h", every ? Number(every) : undefined);
+  put("calendar_command", typeof c.calendar_command === "string" ? c.calendar_command : undefined);
+  put("stale_project_days", num(c.stale_project_days));
+  put("waiting_hours", num(c.blocked_task_hours));
+  put("commitment_lead_hours", num(c.commitment_lead_hours));
+  put("formality", str(c.formality));
+  const quiet = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(str(c.quiet_hours) ?? "");
+  const notices = {
+    ...(num(c.nudge_budget_per_day) !== undefined ? { budget_per_day: num(c.nudge_budget_per_day) } : {}),
+    ...(quiet ? { quiet_from: quiet[1], quiet_to: quiet[2] } : {}),
+    ...(num(c.nudge_project_cooldown_minutes) !== undefined
+      ? { project_gap_min: num(c.nudge_project_cooldown_minutes) }
+      : {}),
+    ...(num(c.nudge_kind_cooldown_minutes) !== undefined ? { kind_gap_min: num(c.nudge_kind_cooldown_minutes) } : {}),
+  };
+  const lang = str(user.language);
+  return {
+    ...(str(id.owner_name) ? { owner_name: str(id.owner_name) } : {}),
+    ...(str(id.owner_context) ? { owner_about: str(id.owner_context) } : {}),
+    ...(lang && /^[a-z]{2}$/.test(lang) ? { language: lang } : {}),
+    ...(str(user.timezone) ? { timezone: str(user.timezone) } : {}),
+    ...(prompt ? { prompt } : {}),
+    ...(active ? { profile: { id: active, values } } : {}),
+    ...(Object.keys(notices).length ? { notices } : {}),
+  };
+}

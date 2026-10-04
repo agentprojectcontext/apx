@@ -12,6 +12,7 @@ import type { CoreConfig } from "./config.ts";
 import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
+import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -134,6 +135,8 @@ type HandlerDeps = {
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
+  /** Where profiles are found: APX's own, then the owner's installed ones. */
+  profileRoots: readonly ProfileRoot[];
   engines: Parameters<typeof agentHandlers>[2];
   desktop: Parameters<typeof fileHandlers>[1];
   /** Where Claude Code and Codex keep the owner's own sessions. */
@@ -164,7 +167,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
     ...taskHandlers(d.store, d.engine),
-    ...routineHandlers(d.store, d.scheduler),
+    ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
@@ -186,6 +189,13 @@ export function coreHandlers(d: HandlerDeps) {
       secrets: d.secrets,
       channels: d.channels,
       services: d.services,
+      runProfile: (id, values) => {
+        const manifest = listProfiles(d.profileRoots).find((p) => p.id === id);
+        if (!manifest) return false;
+        const lang = d.store.settings.get("owner_language") || "es";
+        applyProfile(d.store, { manifest, values, lang, nextFor: (s) => d.scheduler.nextFor(s) });
+        return true;
+      },
       v1Home: d.app.v1.home,
       v2Home: d.app.home,
     }),
