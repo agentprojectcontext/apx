@@ -102,6 +102,7 @@ export const GROUP: Record<V1Group, { label: MessageKey; body: MessageKey; icon:
   chats: { label: "setup.v1.chats", body: "setup.v1.chatsBody", icon: Icons.MessageCircle },
   identity: { label: "setup.v1.identity", body: "setup.v1.identityBody", icon: Icons.User },
   embeddings: { label: "setup.v1.embeddings", body: "setup.v1.embeddingsBody", icon: Icons.Search },
+  services: { label: "setup.v1.services", body: "setup.v1.servicesBody", icon: Icons.Image },
   channels: { label: "setup.v1.channels", body: "setup.v1.channelsBody", icon: Icons.Send },
   tasks: { label: "setup.v1.tasks", body: "setup.v1.tasksBody", icon: Icons.ListChecks },
   commitments: { label: "setup.v1.commitments", body: "setup.v1.commitmentsBody", icon: Icons.Calendar },

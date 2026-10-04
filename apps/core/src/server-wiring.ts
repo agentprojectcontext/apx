@@ -13,6 +13,7 @@ import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
+import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
@@ -119,6 +120,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
 
 type HandlerDeps = {
   store: Store;
+  log: Log;
   identity: Identity;
   broker: NodeBroker;
   llmLabel: () => string;
@@ -198,6 +200,9 @@ export function coreHandlers(d: HandlerDeps) {
         const lang = d.store.settings.get("owner_language") || "es";
         applyProfile(d.store, { manifest, values, lang, nextFor: (s) => d.scheduler.nextFor(s) });
         return true;
+      },
+      reindex: () => {
+        void d.memory.index().catch((err) => d.log.warn({ err: errorMessage(err, 200) }, "memory indexing failed"));
       },
       v1Home: d.app.v1.home,
       v2Home: d.app.home,

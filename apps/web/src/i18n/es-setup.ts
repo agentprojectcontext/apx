@@ -60,6 +60,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Quién sos, la personalidad de tu super-agente, su perfil (secretaria) con sus horarios, y tus horas tranquilas",
   "setup.v1.embeddings": "Motor de embeddings",
   "setup.v1.embeddingsBody": "El que busca notas por significado y elige skills en cada mensaje, con su modelo y clave",
+  "setup.v1.services": "Imágenes y voces",
+  "setup.v1.servicesBody":
+    "Tus servidores de imágenes, tus voces (la activa primero) y la transcripción de audios, con sus valores por defecto",
   "setup.v1.channels": "Canales",
   "setup.v1.channelsBody":
     "Telegram, WhatsApp y Discord: tus cuentas, tus contactos, quién es cada uno y las salas de tu servidor",

@@ -60,6 +60,9 @@ export const enSetup = {
   "setup.v1.embeddings": "Embedding engine",
   "setup.v1.embeddingsBody":
     "The one that finds notes by meaning and picks skills for each message, with its model and key",
+  "setup.v1.services": "Images and voices",
+  "setup.v1.servicesBody":
+    "Your image servers, your voices (the active one first) and voice-note transcription, with their defaults",
   "setup.v1.channels": "Channels",
   "setup.v1.channelsBody":
     "Telegram, WhatsApp and Discord: your accounts, your contacts, who each one is and your server's rooms",

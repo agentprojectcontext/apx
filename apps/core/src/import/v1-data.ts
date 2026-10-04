@@ -63,6 +63,36 @@ export function v1Projects(home: string): V1Project[] {
   return out;
 }
 
+/**
+ * Project storages v1 still has but no longer lists (the folder was removed or unregistered), with the name their
+ * memory file's title gives ("# Acme — project memory"), else their id. Only those with notes.
+ */
+export function v1OrphanStorages(home: string): Array<{ storage: string; name: string }> {
+  const root = path.join(home, "projects");
+  const known = new Set(v1Projects(home).map((p) => p.storage));
+  let ids: string[];
+  try {
+    ids = fs.readdirSync(root).sort();
+  } catch {
+    return [];
+  }
+  return ids.flatMap((id) => {
+    const storage = path.join(root, id);
+    if (id === "default" || id.startsWith(".") || known.has(storage)) return [];
+    let head: string;
+    try {
+      head = fs.readFileSync(path.join(storage, "memory.md"), "utf8").slice(0, 400);
+    } catch {
+      return [];
+    }
+    const title = /^#\s+(.+)$/m
+      .exec(head)?.[1]
+      ?.split(/\s+[—–-]\s+/)[0]
+      ?.trim();
+    return [{ storage, name: (title || id).slice(0, 60) }];
+  });
+}
+
 /** The agents a project defines (.apc/agents/*.md). */
 export function v1AgentCount(project: V1Project): number {
   try {
@@ -382,7 +412,7 @@ export function v1Vars(home: string): Array<{ name: string; value: string }> {
 export type V1Embedder = { id: string; service: ServiceSettings; api_key?: string };
 
 const EMBED_DEFAULTS = {
-  ollama: { label: "Ollama", dialect: "ollama-embed", base_url: "http://127.0.0.1:11434", model: "bge-m3" },
+  ollama: { label: "Ollama", dialect: "ollama-embed", base_url: "http://127.0.0.1:11434", model: "nomic-embed-text" },
   gemini: {
     label: "Gemini",
     dialect: "gemini-embed",
@@ -396,25 +426,44 @@ const EMBED_DEFAULTS = {
     model: "text-embedding-3-small",
   },
 } as const;
+type EmbedId = keyof typeof EMBED_DEFAULTS;
+const isEmbedId = (x: unknown): x is EmbedId => x === "ollama" || x === "gemini" || x === "openai";
+
+/** A model engine's key in v1's config (`engines.<id>`): its api_key, or the first of its api_keys. */
+export function v1EngineKey(config: Record<string, unknown>, id: string): string | undefined {
+  const e = obj(obj(config.engines)[id]);
+  return str(e.api_key) ?? list(e.api_keys).map(str).find(Boolean);
+}
 
 /**
  * v1's embedding engines (memory.embeddings), in the order it tried them, and whether it picked skills by meaning.
- * A cloud engine comes only with its own key; Ollama always, as v1 tried it first with no key.
+ * As v1 did, Ollama falls back to the Ollama engine's address and a cloud engine to its model engine's key; one with
+ * no key at all stays behind. One v1 had switched off comes in off.
  */
 export function v1Embeddings(home: string): { engines: V1Embedder[]; picker?: boolean } {
   const config = v1Config(home);
-  const e = obj(obj(config.memory).embeddings);
+  const mem = obj(config.memory);
+  const e = obj(mem.embeddings);
   const picker = obj(obj(config.skills).inspector).enabled;
   const choice = typeof picker === "boolean" ? { picker } : {};
-  if (!Object.keys(e).length) return { engines: [], ...choice };
-  const order = list(e.order).flatMap(
-    (x): Array<keyof typeof EMBED_DEFAULTS> => (x === "ollama" || x === "gemini" || x === "openai" ? [x] : []),
-  );
-  const engines = (order.length ? order : (["ollama"] as const)).flatMap((id): V1Embedder[] => {
+  if (!Object.keys(e).length && !str(mem.embed_model) && !str(mem.embed_base_url)) return { engines: [], ...choice };
+  const single = e.mode === "single" || (e.mode !== "chain" && isEmbedId(e.provider));
+  const order = single && isEmbedId(e.provider) ? [e.provider] : list(e.order).filter(isEmbedId);
+  const engines = (order.length ? order : (["ollama", "gemini", "openai"] as const)).flatMap((id): V1Embedder[] => {
     const c = obj(e[id]);
     const d = EMBED_DEFAULTS[id];
-    const key = str(c.api_key);
-    if (id !== "ollama" && (!key || c.enabled === false)) return [];
+    const key = id === "ollama" ? undefined : (str(c.api_key) ?? v1EngineKey(config, id));
+    if (id !== "ollama" && !key) return [];
+    const engine = obj(obj(config.engines)[id]);
+    const base =
+      id === "ollama"
+        ? // v1 called Ollama's own API at the root; its chat engine's address may carry /v1.
+          (str(c.base_url) ?? str(mem.embed_base_url) ?? str(engine.base_url) ?? d.base_url)
+            .replace(/\/+$/, "")
+            .replace(/\/v1$/, "")
+        : id === "openai"
+          ? (str(c.base_url) ?? str(engine.base_url) ?? d.base_url)
+          : d.base_url;
     return [
       {
         id: `v1-${id}`,
@@ -422,10 +471,10 @@ export function v1Embeddings(home: string): { engines: V1Embedder[]; picker?: bo
           kind: "embedding",
           dialect: d.dialect,
           label: d.label,
-          base_url: str(c.base_url) ?? d.base_url,
-          enabled: true,
+          base_url: base,
+          enabled: c.enabled !== false,
           needs_key: id !== "ollama",
-          model: str(c.model) ?? d.model,
+          model: str(c.model) ?? (id === "ollama" ? str(mem.embed_model) : undefined) ?? d.model,
         },
         ...(key ? { api_key: key } : {}),
       },

@@ -259,6 +259,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     vars: 1,
     memory: 3,
     embeddings: 2,
+    services: 0,
     identity: 5,
     chats: 5,
     channels: 2,

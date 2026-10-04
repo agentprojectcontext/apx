@@ -3,7 +3,7 @@
 // v2's own home. Never writes to v1; never sends the v1 token off this machine.
 import fs from "node:fs";
 import path from "node:path";
-import type { ServiceSettings } from "@apx/protocol";
+import { ImageDefaults, type ServiceSettings } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Secrets } from "../secrets.ts";
 
@@ -95,8 +95,47 @@ type V1Service = {
   clone?: string | null;
   ref_text?: string | null;
   temperature?: number | null;
-  defaults?: { steps?: number; cfg_scale?: number; size?: string };
+  defaults?: V1ImageDefaults;
 };
+
+export type V1ImageDefaults = {
+  steps?: unknown;
+  cfg_scale?: unknown;
+  size?: unknown;
+  width?: unknown;
+  height?: unknown;
+  negative_prompt?: unknown;
+  count?: unknown;
+};
+
+/** v1's image defaults (any layer: global, per engine) in v2's shape; what v1 left empty stays out. */
+export function v1ImageDefaults(d: V1ImageDefaults | undefined): Partial<ImageDefaults> {
+  if (!d || typeof d !== "object") return {};
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  const size = /^(\d+)x(\d+)$/.exec(typeof d.size === "string" ? d.size.trim() : "");
+  const out: Partial<ImageDefaults> = {
+    ...(n(d.steps) ? { steps: n(d.steps) } : {}),
+    ...(n(d.cfg_scale) !== undefined ? { cfg_scale: n(d.cfg_scale) } : {}),
+    ...(size ? { width: Number(size[1]), height: Number(size[2]) } : {}),
+    ...(!size && n(d.width) && n(d.height) ? { width: n(d.width), height: n(d.height) } : {}),
+    ...(typeof d.negative_prompt === "string" && d.negative_prompt.trim()
+      ? { negative_prompt: d.negative_prompt.trim().slice(0, 2000) }
+      : {}),
+    ...(n(d.count) ? { count: n(d.count) } : {}),
+  };
+  // Anything out of v2's range is dropped rather than refused with the rest.
+  return Object.fromEntries(
+    Object.entries(out).filter(([k, v]) => ImageDefaults.shape[k as keyof ImageDefaults].safeParse(v).success),
+  );
+}
+
+/** A v1 slug as a v2 service id (lowercase letters, digits and dashes, at most 32). */
+export const v1ServiceId = (slug: string) =>
+  slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, 32);
 
 const IMAGE_DIALECT: Record<string, ServiceSettings["dialect"]> = {
   a1111: "a1111",
@@ -116,15 +155,10 @@ export function v1Services(config: unknown): Array<{ id: string; settings: Servi
   const out: Array<{ id: string; settings: ServiceSettings }> = [];
   const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
   for (const [slug, s] of Object.entries(c.images?.custom ?? {})) {
-    if (!s.base_url) continue;
-    const [w, h] = (s.defaults?.size ?? "").split("x").map(Number);
-    const defaults = {
-      ...(s.defaults?.steps ? { steps: s.defaults.steps } : {}),
-      ...(s.defaults?.cfg_scale !== undefined ? { cfg_scale: s.defaults.cfg_scale } : {}),
-      ...(w && h ? { width: w, height: h } : {}),
-    };
+    if (!s.base_url || !v1ServiceId(slug)) continue;
+    const defaults = v1ImageDefaults(s.defaults);
     out.push({
-      id: slug.replaceAll("_", "-"),
+      id: v1ServiceId(slug),
       settings: {
         kind: "image",
         dialect: IMAGE_DIALECT[s.kind ?? "a1111"] ?? "a1111",
@@ -138,10 +172,10 @@ export function v1Services(config: unknown): Array<{ id: string; settings: Servi
     });
   }
   for (const [slug, s] of Object.entries(c.voice?.tts?.custom ?? {})) {
-    if (!s.base_url) continue;
+    if (!s.base_url || !v1ServiceId(slug)) continue;
     const lang = str(s.language);
     out.push({
-      id: slug.replaceAll("_", "-"),
+      id: v1ServiceId(slug),
       settings: {
         kind: "speech",
         dialect: "openai-speech",

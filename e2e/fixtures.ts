@@ -39,6 +39,9 @@ export function writeFixtures(dir: string, opts: { embedUrl: string }) {
       ollama: { base_url: opts.embedUrl, default_model: "gemma-e2e" },
     },
     super_agent: { model: "custom:fake-1", model_fallback: { enabled: true, models: ["ollama:gemma-e2e"] } },
+    // An image server and a voice of the owner's own (nothing listens there: they are only brought in).
+    images: { custom: { homelab: { kind: "sdcpp", label: "Homelab", base_url: "http://127.0.0.1:9" } } },
+    voice: { tts: { custom: { qvox: { label: "QVox", base_url: "http://127.0.0.1:9/v1", voice: "ryan" } } } },
   });
   write(path.join(v1, "update-check.json"), { current: "1.120.0" });
   write(path.join(v1, "identity.json"), { agent_name: "Roby", owner_name: "Ana" });

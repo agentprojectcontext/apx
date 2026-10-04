@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ModelRef, type RouterConfig } from "@apx/protocol";
+import { harnessOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { modelSettings } from "../models/choice.ts";
 import { NO_KEY } from "../providers/llm.ts";
@@ -186,7 +187,27 @@ export function importV1Engines(deps: EngineImportDeps, home: string): number {
   }
   saveChain(deps.store, config, usable);
   saveOwnModel(deps.store, config, usable);
+  saveAuxModel(deps.store, config, usable);
   return usable.size;
+}
+
+/**
+ * v1's compaction model, its fallback and (as v1 always ended there) the main model become v2's auxiliary model chain,
+ * only with engines v2 now has and never a CLI harness (an auxiliary call is one prompt, not an agent turn). With none
+ * named, v2's own default (the agent's API models) is kept; one the owner already set in v2 stays.
+ */
+function saveAuxModel(store: Store, config: Record<string, unknown>, usable: ReadonlyMap<string, string>): void {
+  if (store.settings.get("model_aux")) return;
+  const mem = (config.memory ?? {}) as { compact_model?: unknown; compact_fallback_model?: unknown };
+  const sa = (config.super_agent ?? {}) as { model?: unknown };
+  const api = (r: string | undefined) => {
+    const ref = r ? v1Ref(r, usable) : undefined;
+    return ref && harnessOf(ref) === "native" ? ref : undefined;
+  };
+  const own = [api(str(mem.compact_model)), api(str(mem.compact_fallback_model))];
+  if (!own.some(Boolean)) return;
+  const refs = [...new Set([...own, api(str(sa.model))].filter((r): r is string => Boolean(r)))];
+  store.settings.set("model_aux", refs.join(","));
 }
 
 /** v1's main model first, then its fallbacks (when on), as v2's default and router chain. */

@@ -12,6 +12,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard.getByRole("switch").first()).toBeVisible();
   await expect(wizard.getByText("Ollama · embeddinggemma:300m")).toBeVisible();
   await expect(wizard.locator(".wiz__rowname").filter({ hasText: /^Motores\s*2$/ })).toBeVisible();
+  await expect(wizard.locator(".wiz__rowname").filter({ hasText: /^Imágenes y voces\s*2$/ })).toBeVisible();
   await wizard.getByRole("button", { name: "Continuar" }).click();
   await expect(page.getByText(/Importado:/)).toBeVisible();
 
@@ -60,6 +61,9 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
     async () => (await rpc<{ channels: Array<{ status: string }> }>("channels.list")).channels[0]?.status === "running",
   );
   expect(channels.length).toBe(1);
+  // v1's image server and voice, kept in v2's settings.
+  const services = (await rpc<{ services: Array<{ id: string; kind: string }> }>("services.list")).services;
+  expect(services.map((s) => `${s.kind}:${s.id}`)).toEqual(expect.arrayContaining(["image:homelab", "speech:qvox"]));
   expect((await rpc<{ done: boolean }>("setup.status")).done).toBe(true);
   await expect(page.getByRole("button", { name: /Northwind/ })).toBeVisible();
 });

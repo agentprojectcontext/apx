@@ -24,6 +24,7 @@ import {
   v1Notes,
   v1OpenCommitments,
   v1OpenTasks,
+  v1OrphanStorages,
   v1Projects,
   v1Routines,
   v1SkillCount,
@@ -32,6 +33,7 @@ import {
   v1WhatsApp,
 } from "./v1-data.ts";
 import { importV1Engines, v1EngineCount } from "./v1-engines.ts";
+import { importV1Media, v1MediaCount } from "./v1-services.ts";
 
 export const V1_GROUPS = [
   "projects",
@@ -40,6 +42,7 @@ export const V1_GROUPS = [
   "vars",
   "memory",
   "embeddings",
+  "services",
   "identity",
   "chats",
   "channels",
@@ -54,10 +57,12 @@ export type V1ImportDeps = {
   apc: ApcSync;
   secrets: Secrets;
   channels: Pick<Channels, "set" | "info">;
-  services: Pick<Services, "set" | "has">;
+  services: Pick<Services, "set" | "has" | "order">;
   providers: Pick<ProviderRegistry, "all" | "set">;
   /** Runs a profile on the super-agent (its routines seeded); false when APX has no profile of that id. */
   runProfile: (id: string, values: Record<string, string | number>) => boolean;
+  /** Indexes notes by meaning in the background (what is missing); its failure is only logged. */
+  reindex?: () => void;
   v1Home: string;
   v2Home: string;
 };
@@ -69,6 +74,18 @@ const defaultSpace = (home: string): V1Project => ({
   storage: path.join(home, "projects", "default"),
 });
 const spaces = (home: string) => [defaultSpace(home), ...v1Projects(home)];
+
+/**
+ * Every v1 note file that becomes global: the super-agent's own, Default's (v1's workspace without a folder) and,
+ * marked with their name, those of projects v1 no longer lists (v2 has no project for them).
+ */
+function globalNotes(home: string): Array<{ file: string; mark?: string }> {
+  return [
+    { file: path.join(home, "memory.md") },
+    { file: path.join(defaultSpace(home).storage, "memory.md") },
+    ...v1OrphanStorages(home).map((o) => ({ file: path.join(o.storage, "memory.md"), mark: `[v1 · ${o.name}] ` })),
+  ];
+}
 
 /** How much of each group v1 has, and a word on it (channel names). */
 export function scanV1(home: string): Array<{ id: V1Group; count: number; detail?: string }> {
@@ -84,7 +101,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     Boolean,
   ).length;
   const memory =
-    v1Notes(path.join(home, "memory.md")).length +
+    globalNotes(home).reduce((n, g) => n + v1Notes(g.file).length, 0) +
     projects.reduce((n, p) => n + v1Notes(path.join(p.storage, "memory.md")).length, 0);
   return [
     {
@@ -109,6 +126,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
         ? { detail: embedders.map((e) => `${e.service.label} · ${e.service.model ?? ""}`).join(", ") }
         : {}),
     },
+    { id: "services", count: v1MediaCount(home) },
     {
       id: "channels",
       count: (tg ? 1 : 0) + (wa ? 1 : 0) + (dc ? 1 : 0),
@@ -119,6 +137,9 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     { id: "routines", count: all.reduce((n, s) => n + v1Routines(s.storage).filter((r) => !r.profile).length, 0) },
   ];
 }
+
+/** Ollama's address on this machine, where an embedding engine with no address of its own was put. */
+const LOCAL_OLLAMA = "http://127.0.0.1:11434";
 
 const PRIORITY: Record<string, TaskPriority> = { low: "low", normal: "normal", high: "high", urgent: "urgent" };
 const STATUS: Record<string, string> = { pending: "todo", running: "doing", in_review: "review", blocked: "todo" };
@@ -187,34 +208,41 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       }
     return n;
   });
+  // Counted by what is new: a note v2 already has (same scope and text) is not added twice.
   run("memory", () => {
-    let n = 0;
-    for (const text of v1Notes(path.join(home, "memory.md"))) {
-      store.memories.add({ scope: "global", text, source: "owner" });
-      n++;
-    }
+    const before = store.memories.counts(undefined).total;
+    for (const { file, mark } of globalNotes(home))
+      for (const text of v1Notes(file))
+        store.memories.add({ scope: "global", text: `${mark ?? ""}${text}`.slice(0, 2000), source: "owner" });
     for (const p of v1Projects(home)) {
       const project = projectOf(p);
       if (!project) continue;
-      for (const text of v1Notes(path.join(p.storage, "memory.md"))) {
+      for (const text of v1Notes(path.join(p.storage, "memory.md")))
         store.memories.add({ scope: "project", project_id: project, text, source: "owner" });
-        n++;
-      }
     }
-    return n;
+    return store.memories.counts(undefined).total - before;
   });
   // The engines v1 searched notes and picked skills with, in its order; one v2 already has (same id) is kept.
   run("embeddings", () => {
     const { engines, picker } = v1Embeddings(home);
     let n = 0;
     for (const e of engines) {
-      if (deps.services.has(e.id)) continue;
+      const prev = store.settings.read("services").find((s) => s.id === e.id);
+      // An Ollama left at this machine's address while v1 used another one (its engine's) could never answer.
+      if (prev?.dialect === "ollama-embed" && prev.base_url === LOCAL_OLLAMA && e.service.base_url !== LOCAL_OLLAMA) {
+        const { id: _id, ...rest } = prev;
+        deps.services.set(e.id, { ...rest, base_url: e.service.base_url });
+        n++;
+      }
+      if (prev) continue;
       deps.services.set(e.id, e.service, e.api_key);
       n++;
     }
     if (picker !== undefined) saveMemorySettings(store, { ...memorySettings(store), skill_picker: picker });
     return n;
   });
+  // Images, voices (the active one first), transcription, the image defaults and spoken replies.
+  run("services", () => importV1Media(deps, home));
   // Who the owner is, the super-agent's personality, and the profile it ran with its budget and quiet hours.
   run("identity", () => {
     const who = v1Identity(home);
@@ -367,6 +395,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     }
     return n;
   });
+  // Notes that came in (or an engine to index them with) get their vectors now, without holding the setup.
+  if (groups.includes("memory") || groups.includes("embeddings")) deps.reindex?.();
   return { imported: done, errors };
 }
 

@@ -52,6 +52,7 @@ const V1Group = z.enum([
   "vars",
   "memory",
   "embeddings",
+  "services",
   "identity",
   "chats",
   "channels",

@@ -247,6 +247,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     coreHandlers({
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       store,
+      log,
       identity,
       broker,
       llmLabel: () => llm.label(),
