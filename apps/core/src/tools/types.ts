@@ -4,6 +4,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
+import type { Worker } from "../domain/threads.ts";
 import type { ToolSpec } from "../providers/types.ts";
 
 /**
@@ -34,9 +35,9 @@ export type ToolContext = {
    * call (an owner-only method, like copying their browser's session, runs as their own act).
    */
   callAsOwner?<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
-  /** Hands a task to another agent (a new session, or one to continue): the one a2a path. */
+  /** Hands a task to another agent or a worker (a new session, or one to continue): the one a2a path. */
   delegate(
-    to: { agent?: AgentRecord | undefined; session?: string | undefined },
+    to: { agent?: AgentRecord | undefined; session?: string | undefined; worker?: Worker | undefined },
     task: string,
     waitMs: number,
   ): Promise<string>;

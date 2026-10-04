@@ -405,3 +405,14 @@ in v1. What was brought is remembered by key, so importing again adds nothing. v
 agent's `memory.md` becomes its own notes, and the super-agent takes v1's name, face and personality. An agent's
 personality is its own field (`personality:` in its file), apart from its instructions. A variable already in the
 Keychain from an earlier install no longer stops the import: only this install's index counts.
+
+## D-040 — 2026-10-04 — Workers: throwaway helpers an agent starts through `delegate`
+An agent often needs focused work (a long search, a review) that would fill its own context, and no standing agent
+fits it. `delegate` takes `worker {name, instructions, tools?}` instead of an agent: the sub-thread runs as the caller
+itself (its model chain, harness and inherited tools), under a system prompt made of the instructions it wrote, the
+project and the safety rules, with no personality, owner block or roster. A worker asks no one (no `delegate` or
+`list_sessions`) and, when the caller named tools, keeps to those. Its instructions live in the sub-thread's context,
+so continuing the session keeps them. It is the same one a2a path (rule 2), not a second one: depth, the breaker and
+the delegation cap apply as they do to agents. The chat card now carries the whole report (folded until asked) and how
+long it took, and a result that arrives after the caller's turn ended shows its card again above what the caller makes
+of it.

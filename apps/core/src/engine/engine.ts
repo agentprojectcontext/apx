@@ -107,7 +107,7 @@ export function createEngine(deps: {
     live,
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
-      const name = agent?.name ?? child.agent_id;
+      const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
       const paused = tripped(store, parent.thread_id);
       if (paused) {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
@@ -137,7 +137,7 @@ export function createEngine(deps: {
         origin: {
           kind: "delegation_result",
           agent_id: child.agent_id,
-          name: agent?.name ?? child.agent_id,
+          name,
           thread_id: child.thread_id,
           run_id: child.id,
           state: child.state,

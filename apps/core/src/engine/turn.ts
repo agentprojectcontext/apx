@@ -7,7 +7,7 @@ import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
+import { previewOf, type Worker } from "../domain/threads.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
@@ -26,8 +26,8 @@ import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
 import { type Audience, audienceOf, contactPrompt, ownerInstruction, SEALED_HARNESSES } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
-import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput } from "./context.ts";
-import type { Caller, DelegateTo } from "./delegation.ts";
+import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput, workerPrompt } from "./context.ts";
+import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
 import type { Hooks } from "./hooks.ts";
@@ -95,7 +95,14 @@ export type ToolCall = <M extends MethodName>(
 
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 
-type Turn = { agent: AgentRecord; thread: Thread; input: NonNullable<RunRecord["input"]>; audience: Audience };
+type Turn = {
+  agent: AgentRecord;
+  thread: Thread;
+  input: NonNullable<RunRecord["input"]>;
+  audience: Audience;
+  /** In a worker's session: the instructions its caller wrote (the agent is the caller itself). */
+  worker?: Worker | undefined;
+};
 type Groups = Array<{ harness: HarnessId; refs: string[] }>;
 
 export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSignal): Promise<RunRecord> {
@@ -104,7 +111,13 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
-  const turn: Turn = { agent, thread, input: start.input, audience: audienceOf(store, thread) };
+  const turn: Turn = {
+    agent,
+    thread,
+    input: start.input,
+    audience: audienceOf(store, thread),
+    worker: store.threads.context(thread.id).worker,
+  };
 
   let run = store.runs.setState(start, "working");
   store.threads.patch(thread.id, { state: "working" });
@@ -113,6 +126,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     store.messages.add({ thread_id: thread.id, author: { kind: "agent", id: agent.id }, parts: [], run_id: run.id }),
   );
   run = store.runs.patch(run, { message_id: display.message.id });
+  // A delegated result arriving later: its report shows above what the caller makes of it.
+  const report =
+    start.input.origin.kind === "delegation_result" ? resultCard(store, start.input.origin.run_id) : undefined;
+  if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
   const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
@@ -250,7 +267,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const ctxState = store.threads.context(thread.id);
   const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
   const roster = rosterBlock(agent, store.agents.list(), thread);
-  const rosterChanged = !sealed && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
+  // A worker delegates to no one: it needs no roster.
+  const rosterChanged =
+    !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
   const available = sealed ? [] : agentSkills(agent, skillsFor(store, deps.home, thread.project_id));
   // A skill named with "/name" goes in as asked; otherwise skills are weighed while notes are recalled (both wait on
   // the embedding engine).
@@ -346,8 +365,12 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
       ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...mcpTools],
   );
+  // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
+  const only = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
   const tools = policy.tools.filter(
-    (t) => callers.length < MAX_DEPTH || (t.name !== "delegate" && t.name !== "list_sessions"),
+    (t) =>
+      ((callers.length < MAX_DEPTH && !turn.worker) || (t.name !== "delegate" && t.name !== "list_sessions")) &&
+      (!only || only.has(t.name)),
   );
   return { policy, tools };
 }
@@ -361,6 +384,8 @@ function systemFor(store: Store, turn: Turn, skills: string, roots: readonly Pro
   if (turn.audience.kind === "contact") return contactPrompt(turn.agent, turn.audience, lang);
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
+  if (turn.worker)
+    return workerPrompt(turn.worker, turn.agent, lang, projectId ? store.projects.get(projectId) : undefined, skills);
   const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
   return systemPrompt(
     turn.agent,

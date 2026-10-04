@@ -1,10 +1,11 @@
 // The one way an agent asks another: a sub-thread with a durable child run. The caller may wait for it inside its
 // turn; past that (or when the caller's turn ends for any reason) the result comes back to the caller's thread as
 // a new input. See DECISIONS.md#d-009
-import type { Part, RunState } from "@apx/protocol";
+import type { Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import type { Worker } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { ancestors } from "./ancestry.ts";
 import { tripped } from "./breaker.ts";
@@ -13,8 +14,23 @@ import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts"
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
-/** Whom to ask: an agent (a new session), a session by name or id (the same agent, with its context), or both. */
-export type DelegateTo = { agent?: AgentRecord | undefined; session?: string | undefined };
+/**
+ * Whom to ask: an agent (a new session), a session by name or id (the same agent, with its context), or both. A
+ * worker instead of an agent is the caller itself under instructions it writes for the task.
+ */
+export type DelegateTo = { agent?: AgentRecord | undefined; session?: string | undefined; worker?: Worker | undefined };
+
+/** How much of an answer its card keeps: the whole report, short of a runaway one. */
+const REPORT_CHARS = 6000;
+
+const tookMs = (run: RunRecord) =>
+  run.ended_at ? Math.max(0, new Date(run.ended_at).getTime() - new Date(run.started_at).getTime()) : undefined;
+
+/** The card a delegated run shows once it ended: its state, what it answered and how long it took. */
+export function reportCard(p: Extract<Part, { type: "subthread" }>, child: RunRecord, answer: string): Part {
+  const ms = tookMs(child);
+  return { ...p, state: child.state, summary: answer.slice(0, REPORT_CHARS), ...(ms !== undefined ? { ms } : {}) };
+}
 
 const slug = (s: string) =>
   s
@@ -23,6 +39,16 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "session";
+
+/** The caller's card for a delegated run (settled by now), to show again when its result arrives in a new turn. */
+export function resultCard(store: Store, childRunId: string): Extract<Part, { type: "subthread" }> | undefined {
+  const child = store.runs.get(childRunId);
+  const parent = child?.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
+  const msg = parent?.message_id ? store.messages.get(parent.message_id) : undefined;
+  return msg?.parts.find(
+    (p): p is Extract<Part, { type: "subthread" }> => p.type === "subthread" && p.thread_id === child?.thread_id,
+  );
+}
 
 export function createDelegations(deps: {
   store: Store;
@@ -45,14 +71,11 @@ export function createDelegations(deps: {
   /** Updates the sub-thread card in the caller's answer, through its live display when it is still being written. */
   function settleCard(parent: RunRecord, child: RunRecord, answer: string): void {
     const match = (p: Part) => p.type === "subthread" && p.thread_id === child.thread_id;
-    const card =
-      (state: RunState) =>
-      (p: Part): Part =>
-        p.type === "subthread" ? { ...p, state, summary: answer.slice(0, 240) } : p;
+    const card = (p: Part): Part => (p.type === "subthread" ? reportCard(p, child, answer) : p);
     const display = deps.live.get(parent.id);
     const shown = display?.message.parts.find(match);
     if (display && shown) {
-      display.upsert(match, card(child.state)(shown));
+      display.upsert(match, card(shown));
       return;
     }
     const msg = parent.message_id ? store.messages.get(parent.message_id) : undefined;
@@ -60,7 +83,7 @@ export function createDelegations(deps: {
     const part = msg?.parts[index];
     if (!msg || !part) return;
     const parts = [...msg.parts];
-    parts[index] = card(child.state)(part);
+    parts[index] = card(part);
     store.messages.setPart({ ...msg, parts }, index);
   }
 
@@ -91,44 +114,56 @@ export function createDelegations(deps: {
         ? (store.threads.session(parentThread.id, slug(req.session)) ??
           store.threads.session(parentThread.id, req.session))
         : undefined;
-      const toId = existing?.agent_ids[0] ?? req.agent?.id;
+      const kept = existing ? store.threads.context(existing.id).worker : undefined;
+      if (existing && req.worker && !kept)
+        return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;
+      const worker = kept ?? (existing ? undefined : req.worker);
+      if (worker && req.agent) return "refused: give an agent or a worker, not both.";
+      // A worker is the caller itself, under the worker's instructions: no self or cycle check applies.
+      const toId = worker ? from.agent.id : (existing?.agent_ids[0] ?? req.agent?.id);
       if (existing && req.agent && req.agent.id !== toId)
         return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
       const to = toId ? store.agents.get(toId) : undefined;
       if (!to)
         return req.session
           ? `refused: no session "${req.session}" in this thread; give an agent to start one (see list_sessions).`
-          : "refused: say which agent to ask.";
-      if (to.id === from.agent.id) return "refused: you cannot delegate to yourself.";
-      if (chainAgents(parentThread.id).includes(to.id))
+          : "refused: say which agent to ask, or describe a worker.";
+      if (!worker && to.id === from.agent.id)
+        return "refused: you cannot delegate to yourself; start a worker for a focused task instead.";
+      if (!worker && chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
       const paused = tripped(store, parentThread.id);
       if (paused) return `refused: ${paused}. Tell the owner what you were about to delegate.`;
       if (store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS)
         return `refused: ${MAX_ACTIVE_DELEGATIONS} delegations are already running from this thread; wait for their results.`;
       deps.live.set(from.run.id, from.display);
-      const name = existing?.session ?? sessionName(parentThread.id, req.session ?? to.name);
-      const sub =
-        existing ??
-        store.threads.create({
+      const who = worker?.name ?? to.name;
+      const name = existing?.session ?? sessionName(parentThread.id, req.session ?? who);
+      let sub = existing;
+      if (!sub) {
+        sub = store.threads.create({
           kind: "a2a",
-          title: `${from.agent.name} → ${to.name}: ${task.slice(0, 60)}`,
-          agent_ids: [to.id, from.agent.id],
+          title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}`,
+          agent_ids: worker ? [to.id] : [to.id, from.agent.id],
           project_id: parentThread.project_id,
           parent_id: parentThread.id,
           session: name,
         });
+        if (worker) store.threads.mergeContext(sub.id, { worker });
+      }
       store.messages.add({
         thread_id: sub.id,
         author: { kind: "agent", id: from.agent.id },
         parts: [{ type: "text", text: task }],
       });
-      from.display.upsert((p) => p.type === "subthread" && p.thread_id === sub.id, {
+      const subId = sub.id;
+      from.display.upsert((p) => p.type === "subthread" && p.thread_id === subId, {
         type: "subthread",
         thread_id: sub.id,
         agent_id: to.id,
         title: task.slice(0, 120),
         state: "working",
+        ...(worker ? { worker: worker.name } : {}),
       });
       const child = store.runs.create({
         thread_id: sub.id,
@@ -157,9 +192,9 @@ export function createDelegations(deps: {
       const quick = await done;
       clearTimeout(timer);
       inline.delete(child.id);
-      const resume = `(session "${name}": delegate with session="${name}" to continue it with ${to.name}, who keeps the context)`;
-      if (quick) return `${agentReply(to.name, answerOf(quick), quick.state)}\n${resume}`;
-      return `${to.name} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
+      const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
+      if (quick) return `${agentReply(who, answerOf(quick), quick.state)}\n${resume}`;
+      return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 
     /** A delegated run ended: settle its card, then hand the answer to the waiting caller or deliver it later. */

@@ -92,6 +92,15 @@ export function elapsed(iso: string, now = Date.now()): string {
   return `${h} h ${String(m % 60).padStart(2, "0")}`;
 }
 
+/** How long something took: "8 s", "3 min 10 s", "1 h 05". */
+export function duration(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return s % 60 ? `${m} min ${s % 60} s` : `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+}
+
 /** A moment ahead: "Today · 08:30", "Tomorrow · 08:30", "Mon · 08:30", else "Sep 3 · 08:30". */
 export function aheadLabel(iso: string, now = new Date()): string {
   const d = new Date(iso);

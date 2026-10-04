@@ -232,7 +232,12 @@ const KnownPart = z.discriminatedUnion("type", [
     agent_id: Id,
     title: z.string(),
     state: RunState,
+    /** What it answered (the whole report, up to a few thousand characters). */
     summary: z.string().optional(),
+    /** A worker's name: a throwaway helper the caller started for this task (agent_id is then the caller's own). */
+    worker: z.string().optional(),
+    /** How long it worked, once it ended. */
+    ms: z.number().int().nonnegative().optional(),
   }),
   z.object({
     type: z.literal("browser"),

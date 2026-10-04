@@ -78,7 +78,12 @@ export type ThreadContext = {
   client?: string;
   /** The model picked for this chat in its composer: tried before the agent's own choice. */
   model_choice?: ModelChoice;
+  /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
+  worker?: Worker;
 };
+
+/** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */
+export type Worker = { name: string; instructions: string; tools?: string[] | undefined };
 
 /** What a thread list shows of the last thing said. */
 export const PREVIEW_CHARS = 160;

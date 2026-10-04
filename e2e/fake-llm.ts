@@ -1,6 +1,7 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
-// ("Got it: <the last line you wrote>"). Streams like a real one when asked; never calls tools. It also embeds texts
-// (Ollama's /api/embed) for the skills picked by meaning.
+// ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls one tool: "start a worker"
+// delegates to a worker, which answers with a long report. It also embeds texts (Ollama's /api/embed) for the skills
+// picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -28,6 +29,20 @@ function vectorOf(text: string): number[] {
   return [0.05 * (text.length % 5), 0.05 * (text.length % 3), 1, 0];
 }
 
+/** The report a worker hands back: long enough to fold. */
+const REPORT = [
+  "## Report",
+  ...Array.from({ length: 14 }, (_, i) => `- Source ${i + 1}: checked, still current.`),
+  "Last line of the report.",
+].join("\n");
+
+/** A tool call to make instead of answering, if the conversation asks for one. */
+function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  if (messages.at(-1)?.role === "tool" || !/^start a worker/i.test(said)) return undefined;
+  const worker = { name: "Researcher", instructions: "Check every source and list it." };
+  return { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
+}
+
 export async function fakeLlm() {
   const calls: Array<{ model: string; said: string }> = [];
   const server = http.createServer((req, res) => {
@@ -49,8 +64,33 @@ export async function fakeLlm() {
       const body = (raw ? JSON.parse(raw) : {}) as { model?: string; messages?: Message[]; stream?: boolean };
       const said = lastWords(body.messages ?? []);
       calls.push({ model: body.model ?? "", said });
-      const text = `Got it: ${said || "(nothing)"}`;
+      const system = String(body.messages?.[0]?.content ?? "");
+      const text = system.startsWith("You are Researcher, a worker") ? REPORT : `Got it: ${said || "(nothing)"}`;
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
+      const call = toolCall(body.messages ?? [], said);
+      if (call) {
+        const tool_calls = [{ id: `call-${calls.length}`, type: "function", function: call }];
+        if (!body.stream) {
+          res.writeHead(200, { "content-type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              id: "fake",
+              choices: [
+                { index: 0, message: { role: "assistant", content: null, tool_calls }, finish_reason: "tool_calls" },
+              ],
+              usage,
+            }),
+          );
+        }
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+        const delta = { tool_calls: tool_calls.map((c, index) => ({ index, ...c })) };
+        res.write(`data: ${JSON.stringify({ id: "fake", choices: [{ index: 0, delta, finish_reason: null }] })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] })}\n\n`,
+        );
+        res.write(`data: ${JSON.stringify({ id: "fake", choices: [], usage })}\n\n`);
+        return res.end("data: [DONE]\n\n");
+      }
       if (!body.stream) {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(
@@ -63,7 +103,7 @@ export async function fakeLlm() {
       }
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
       const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-      for (const part of text.match(/.{1,12}/g) ?? [text])
+      for (const part of text.match(/[\s\S]{1,12}/g) ?? [text])
         send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
       send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
       send({ id: "fake", choices: [], usage });

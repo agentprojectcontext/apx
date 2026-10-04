@@ -25,10 +25,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await wizard.getByRole("button", { name: "Continuar" }).click();
   // Memory: by meaning, with v1's engine, and skills picked by meaning on.
   await expect(wizard.getByText("Motor de embeddings: Ollama · embeddinggemma:300m.")).toBeVisible();
-  await expect(wizard.getByRole("button", { name: /Buscar por significado/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(wizard.getByRole("button", { name: /Buscar por significado/ })).toHaveAttribute("aria-pressed", "true");
   await expect(wizard.getByRole("switch", { name: "Elegir skills por significado" })).toBeChecked();
   await wizard.getByRole("button", { name: "Continuar" }).click();
 

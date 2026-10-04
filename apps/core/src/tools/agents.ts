@@ -32,9 +32,21 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Ask another agent to do a task. It works in a session (a sub-thread the owner can open). Give agent (id, or a unique name) to start one; give session (a name, or the one a previous delegate returned) to continue that session with the same agent, who keeps its context. If it answers within wait_s you get the answer now; otherwise you get the result later in a new turn: never poll for it.",
+        "Ask another agent to do a task, or start a worker for it. It works in a session (a sub-thread the owner can open). Give agent (id, or a unique name) to start one; or give worker instead: a throwaway helper with your own model and tools, run under the instructions you write (a researcher, a reviewer, a careful searcher), for focused work that would fill your context. Give session (a name, or the one a previous delegate returned) to continue that session, which keeps its context. If it answers within wait_s you get the answer now; otherwise you get the result later in a new turn: never poll for it.",
       args: z.object({
-        agent: z.string().optional().describe("agent id or unique name; needed to start a new session"),
+        agent: z.string().optional().describe("agent id or unique name; to start a session with an agent"),
+        worker: z
+          .object({
+            name: z.string().min(1).max(40).describe("short name for the helper (Researcher, Reviewer)"),
+            instructions: z
+              .string()
+              .min(1)
+              .max(8000)
+              .describe("its system prompt: role, how to work, what its report must contain"),
+            tools: z.array(z.string()).max(60).optional().describe("only these of your tools (optional; default all)"),
+          })
+          .optional()
+          .describe("to start a worker instead of asking an agent"),
         session: z.string().max(60).optional().describe("session name: continues it, or names the new one"),
         task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
         wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
@@ -42,7 +54,7 @@ export function agentTools(store: Store): Tool[] {
       effect: "message",
       // The wait itself is bounded by wait_s; this covers the bookkeeping around it.
       deadlineMs: 130_000,
-      title: (a) => `Asked ${String(a.agent ?? a.session)}`,
+      title: (a) => `Asked ${String(a.worker?.name ?? a.agent ?? a.session)}`,
       async run(a, ctx) {
         let agent: AgentRecord | undefined;
         if (a.agent) {
@@ -50,7 +62,7 @@ export function agentTools(store: Store): Tool[] {
           if ("error" in found) return found.error;
           agent = found.agent;
         }
-        return ctx.delegate({ agent, session: a.session }, a.task, (a.wait_s ?? 60) * 1000);
+        return ctx.delegate({ agent, session: a.session, worker: a.worker }, a.task, (a.wait_s ?? 60) * 1000);
       },
     }),
     defineTool({

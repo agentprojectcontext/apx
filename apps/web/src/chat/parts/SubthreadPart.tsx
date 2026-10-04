@@ -1,5 +1,6 @@
 import type { Agent, Part, RunState } from "@apx/protocol";
-import { AgentAvatar, SubthreadCard, type SubthreadCardProps } from "@apx/ui";
+import { AgentAvatar, Icons, MarkdownView, SubthreadCard, type SubthreadCardProps } from "@apx/ui";
+import { duration } from "../../common/format.ts";
 import { blobOf } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -14,20 +15,32 @@ const STATE: Record<RunState, { status: NonNullable<SubthreadCardProps["status"]
   canceled: { status: "failed", label: "run.canceled" },
 };
 
+/** Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. */
 export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
   const t = useT();
   const target = useData((s) => s.agents[part.agent_id]);
   const st = STATE[part.state];
-  const name = target?.name ?? part.agent_id;
+  const name = part.worker ?? target?.name ?? part.agent_id;
   return (
     <SubthreadCard
-      avatar={<AgentAvatar name={name} blob={blobOf(target)} size={28} animated={part.state === "working"} />}
+      avatar={
+        part.worker ? (
+          <span className="subthread__worker" title={t("subthread.worker")}>
+            <Icons.Bot size={16} />
+          </span>
+        ) : (
+          <AgentAvatar name={name} blob={blobOf(target)} size={28} animated={part.state === "working"} />
+        )
+      }
       title={part.title}
-      subtitle={`${from?.name ?? t("common.agent")} → ${name}`}
+      subtitle={`${from?.name ?? t("common.agent")} → ${name}${part.worker ? ` · ${t("subthread.worker")}` : ""}`}
       status={st.status}
       statusLabel={t(st.label)}
-      summary={part.summary}
+      summary={part.summary ? <MarkdownView source={part.summary} size="sm" /> : undefined}
+      meta={part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined}
       openLabel={t("subthread.open", { name })}
+      moreLabel={t("subthread.more")}
+      lessLabel={t("subthread.less")}
       onOpen={() => go.thread(part.thread_id)}
     />
   );

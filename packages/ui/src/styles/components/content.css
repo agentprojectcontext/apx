@@ -505,20 +505,34 @@
 /* ── SubthreadCard ─────────────────────────────────────────────────────────── */
 .apx-subthread {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: min(480px, 100%);
-  padding: 10px 12px;
+  flex-direction: column;
+  width: min(560px, 100%);
   border: 1px solid var(--apx-group-border);
   border-radius: var(--apx-radius-md);
   background: var(--apx-group-bg);
   color: var(--apx-fg);
-  text-align: left;
-  cursor: pointer;
   transition: border-color var(--apx-duration);
 }
 .apx-subthread:hover {
   border-color: var(--apx-border-strong);
+}
+.apx-subthread__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.apx-subthread__head:focus-visible {
+  outline: 2px solid var(--apx-ring);
+  outline-offset: -2px;
 }
 .apx-subthread__avatar {
   display: inline-flex;
@@ -568,14 +582,51 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+/* The report sits under the head, lined up with the title (avatar 28px + gap). */
+.apx-subthread__report {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin: -2px 12px 0 50px;
+  padding-bottom: 10px;
+}
 .apx-subthread__summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-top: 2px;
+  width: 100%;
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
+  overflow-wrap: anywhere;
+}
+.apx-subthread__summary.is-folded {
+  max-height: 9.5em;
+  overflow: hidden;
+}
+.apx-subthread__summary.is-long {
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.apx-subthread__summary > :first-child {
+  margin-top: 0;
+}
+.apx-subthread__summary > :last-child {
+  margin-bottom: 0;
+}
+.apx-subthread__more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-brand-soft-fg);
+  font: inherit;
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.apx-subthread__more:hover {
+  text-decoration: underline;
+}
+.apx-subthread__meta {
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--apx-group-border);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
 }
 .apx-subthread__chevron {
   flex-shrink: 0;

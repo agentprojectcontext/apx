@@ -325,6 +325,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "run.failed": "Falló",
   "run.canceled": "Cancelado",
   "subthread.open": "Abrir conversación con {name}",
+  "subthread.worker": "Ayudante",
+  "subthread.took": "Tardó {time}",
+  "subthread.more": "Mostrar más",
+  "subthread.less": "Mostrar menos",
 
   // Widgets, apps, compartir
   "widget.gone": "El widget “{title}” ya no existe.",

@@ -320,6 +320,10 @@ export const en = {
   "run.failed": "Failed",
   "run.canceled": "Canceled",
   "subthread.open": "Open conversation with {name}",
+  "subthread.worker": "Worker",
+  "subthread.took": "Took {time}",
+  "subthread.more": "Show more",
+  "subthread.less": "Show less",
 
   // Widgets, apps, sharing
   "widget.gone": "The widget “{title}” no longer exists.",
