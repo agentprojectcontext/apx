@@ -78,9 +78,6 @@ export const en = {
   "agent.tab.summary": "Summary",
   "agent.tab.prompt": "Prompt",
   "agent.prompt.empty": "No instructions of its own yet.",
-  "agent.prompt.also": "It also gets APX's rules, its project's AGENTS.md and the skills that fit each message.",
-  "agent.prompt.alsoSuper":
-    "It also gets APX's rules, who you are (Account), its profile's role and the skills that fit each message.",
   "agent.prompt.edit": "Edit prompt",
   "agent.super.profile": "Profile",
   "agent.super.owner": "What it knows about you",
@@ -98,6 +95,9 @@ export const en = {
   "agent.edit.role": "Role",
   "agent.edit.roleHint": "One line: what it does in the team.",
   "agent.edit.description": "Description",
+  "agent.edit.personality": "Personality",
+  "agent.edit.personalityHint": "How it comes across, apart from what it does. It goes before its instructions.",
+  "agent.edit.personalityPlaceholder": "E.g.: kind, direct, with a dry sense of humor.",
   "agent.edit.avatar": "Avatar",
   "agent.edit.prompt": "Prompt",
   "agent.edit.promptHint": "How it thinks and behaves. ⌘S saves.",
@@ -870,10 +870,12 @@ export const en = {
   "svc.temperatureHint": "Lower reads steadier, higher more varied (QVox, 0–2).",
   "config.memory": "Memory",
   "mem.lead": "What agents remember between chats, and how long chats are kept small.",
-  "mem.mode.notes": "Notes, found by their words",
-  "mem.mode.notes.hint": "Each agent keeps notes; a message brings the ones that share its words. Recommended.",
-  "mem.mode.semantic": "Notes, also found by meaning",
-  "mem.mode.semantic.hint": "An embedding engine indexes the notes so they are found by meaning.",
+  "mem.mode.notes": "Search by words",
+  "mem.mode.notes.hint":
+    "Your agents keep notes and bring the ones that share words with your message. Nothing else needed.",
+  "mem.mode.semantic": "Search by meaning",
+  "mem.mode.semantic.hint":
+    "An embedding engine understands what each note is about and also brings the ones that say it in other words. Needs that engine.",
   "mem.mode.off": "No memory",
   "mem.mode.off.hint": "Every chat starts from zero; agents keep no notes.",
   "mem.engines": "Embedding engines",
@@ -983,9 +985,7 @@ export const en = {
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
   "routines.anchorHint":
-    "Its news is never held by quiet hours nor counted in the daily cap (a morning or evening brief).",
-  "routines.anchorOn": "Always",
-  "routines.anchorOff": "Within the budget",
+    "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Where notices go",
   "nudge.whereHint":
     "A channel, or your phone's push (pair it in Devices; the APX app registers it, or paste an ntfy address there).",

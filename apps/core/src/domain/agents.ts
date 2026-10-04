@@ -26,8 +26,8 @@ const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
 });
 
 /** `tools:`, `autonomy:`, `skills:` and `area:` as the agent's file wrote them; unknown autonomy values mean the default. */
-function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills" | "area"> {
-  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown; area?: unknown } = {};
+function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality"> {
+  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown; area?: unknown; personality?: unknown } = {};
   try {
     e = extra ? JSON.parse(extra) : {};
   } catch {}
@@ -39,6 +39,9 @@ function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "ski
     ...(autonomy.success ? { autonomy: autonomy.data } : {}),
     ...(skills.length ? { skills } : {}),
     ...(typeof e.area === "string" && e.area.trim() ? { area: e.area.trim().slice(0, 40) } : {}),
+    ...(typeof e.personality === "string" && e.personality.trim()
+      ? { personality: e.personality.trim().slice(0, 1000) }
+      : {}),
   };
 }
 
@@ -213,13 +216,14 @@ export function agentsRepo({ one, all, run }: Sql) {
   return repo;
 }
 
-/** The policy fields kept in `extra` (what an agent's file writes as tools, autonomy, skills and area). */
-function extraOf(a: Pick<Agent, "tools" | "autonomy" | "skills" | "area">): string | null {
+/** The fields kept in `extra`: what an agent's file writes as tools, autonomy, skills and area, and its personality. */
+function extraOf(a: Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality">): string | null {
   const e = {
     ...(a.tools?.length ? { tools: a.tools } : {}),
     ...(a.autonomy ? { autonomy: a.autonomy } : {}),
     ...(a.skills?.length ? { skills: a.skills } : {}),
     ...(a.area ? { area: a.area } : {}),
+    ...(a.personality ? { personality: a.personality } : {}),
   };
   return Object.keys(e).length ? JSON.stringify(e) : null;
 }

@@ -22,6 +22,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.scope.all": "Todos",
   "res.scope.global": "Global",
   "res.scope.project": "Proyecto",
+  "res.defaultGlobal": "Los recursos de Default son los globales: los usan todos tus proyectos.",
   "res.inherit": "Propias de {name} y globales heredadas. Lo que apagues acá no toca la global.",
   "res.group.own": "Propias de {name}",
   "res.group.inherited": "Globales · heredadas",

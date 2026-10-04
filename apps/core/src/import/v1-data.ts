@@ -390,7 +390,10 @@ export type V1Identity = {
   owner_about?: string;
   language?: string;
   timezone?: string;
-  /** The super-agent's personality and the owner's extra instructions, as its prompt. */
+  /** The super-agent: its name, face (a blob), personality and the owner's extra instructions (its prompt). */
+  agent_name?: string;
+  blob?: string;
+  personality?: string;
   prompt?: string;
   /** The profile v1 ran, with its settings in v2's names. */
   profile?: { id: string; values: Record<string, string | number> };
@@ -413,8 +416,8 @@ export function v1Identity(home: string): V1Identity {
   const user = obj(config.user);
   const sa = obj(config.super_agent);
   const personality = str(id.personality);
-  const extra = str(sa.system) ?? str(sa.instructions);
-  const prompt = [personality ? `Your personality: ${personality}` : "", extra ?? ""].filter(Boolean).join("\n\n");
+  const prompt = str(sa.system) ?? str(sa.instructions);
+  const blob = str(sa.icon);
   const prof = obj(config.profile);
   const active = str(prof.active);
   const c = obj(prof.config ?? obj(prof.configs)[active ?? ""]);
@@ -447,6 +450,9 @@ export function v1Identity(home: string): V1Identity {
     ...(str(id.owner_context) ? { owner_about: str(id.owner_context) } : {}),
     ...(lang && /^[a-z]{2}$/.test(lang) ? { language: lang } : {}),
     ...(str(user.timezone) ? { timezone: str(user.timezone) } : {}),
+    ...(str(id.agent_name) ? { agent_name: str(id.agent_name) } : {}),
+    ...(blob && /^[a-z]{2,20}$/.test(blob) ? { blob } : {}),
+    ...(personality ? { personality } : {}),
     ...(prompt ? { prompt } : {}),
     ...(active ? { profile: { id: active, values } } : {}),
     ...(Object.keys(notices).length ? { notices } : {}),

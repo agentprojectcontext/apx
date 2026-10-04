@@ -85,6 +85,7 @@ export const GROUP: Record<V1Group, { label: MessageKey; body: MessageKey; icon:
   keys: { label: "setup.v1.keys", body: "setup.v1.keysBody", icon: Icons.KeyRound },
   vars: { label: "setup.v1.vars", body: "setup.v1.varsBody", icon: Icons.Lock },
   memory: { label: "setup.v1.memory", body: "setup.v1.memoryBody", icon: Icons.Brain },
+  chats: { label: "setup.v1.chats", body: "setup.v1.chatsBody", icon: Icons.MessageCircle },
   identity: { label: "setup.v1.identity", body: "setup.v1.identityBody", icon: Icons.User },
   embeddings: { label: "setup.v1.embeddings", body: "setup.v1.embeddingsBody", icon: Icons.Search },
   channels: { label: "setup.v1.channels", body: "setup.v1.channelsBody", icon: Icons.Send },
@@ -99,13 +100,15 @@ export function ImportStep({ home, scan, draft: d, set }: StepProps & { home: st
   const count = (g: V1Groups[number]) =>
     g.id === "projects"
       ? t("setup.v1.projectsCount", { n: g.count, agents: g.detail ?? "0" })
-      : g.id === "embeddings" || g.id === "identity"
-        ? (g.detail ?? "—")
-        : g.id === "channels"
-          ? g.count
-            ? "Telegram"
-            : "—"
-          : g.count.toLocaleString();
+      : g.id === "chats"
+        ? t("setup.v1.chatsCount", { n: g.count, messages: g.detail ?? "0" })
+        : g.id === "embeddings" || g.id === "identity"
+          ? (g.detail ?? "—")
+          : g.id === "channels"
+            ? g.count
+              ? "Telegram"
+              : "—"
+            : g.count.toLocaleString();
   return (
     <>
       <StepHead kicker="setup.import.kicker" title={t("setup.import.title")} end={t("setup.import.titleMuted")}>

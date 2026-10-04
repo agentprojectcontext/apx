@@ -145,9 +145,11 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
         channel?: Thread["channel"];
         engine?: string | undefined;
         id?: string;
+        /** When it started, for history brought from elsewhere (v1); now otherwise. */
+        at?: string | undefined;
       },
     ): Thread {
-      const ts = now();
+      const ts = t.at ?? now();
       const id = t.id ?? newId("th");
       run(
         qb.insertInto("threads").values({
@@ -174,6 +176,10 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       const thread = repo.get(id) as Thread;
       bus.emit({ type: "thread.updated", thread });
       return thread;
+    },
+    /** A thread whose history was brought in: its last activity and preview are the history's own. */
+    settle(id: string, at: string, preview: string): void {
+      run(qb.updateTable("threads").set({ updated_at: at, preview }).where("id", "=", id));
     },
     patch(id: string, patch: Partial<Pick<Thread, "state" | "preview" | "unread" | "title">>, touch = true): Thread {
       const cur = repo.get(id);
@@ -308,7 +314,16 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         ),
       );
     },
-    add(m: { thread_id: string; author: Author; parts: Part[]; run_id?: string; model?: string }): Message {
+    add(m: {
+      thread_id: string;
+      author: Author;
+      parts: Part[];
+      run_id?: string;
+      model?: string;
+      /** History brought from elsewhere: its own time, and no live event per message. */
+      at?: string;
+      quiet?: boolean;
+    }): Message {
       const seqRow = one(
         qb
           .selectFrom("messages")
@@ -323,7 +338,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         parts: m.parts,
         ...(m.run_id ? { run_id: m.run_id } : {}),
         ...(m.model ? { model: m.model } : {}),
-        created_at: now(),
+        created_at: m.at ?? now(),
       };
       run(
         qb.insertInto("messages").values({
@@ -337,7 +352,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           created_at: message.created_at,
         }),
       );
-      bus.emit({ type: "message.created", message });
+      if (!m.quiet) bus.emit({ type: "message.created", message });
       return message;
     },
     /** Replaces the whole message (model change, recovery). */

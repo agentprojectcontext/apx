@@ -81,10 +81,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "agent.tab.summary": "Resumen",
   "agent.tab.prompt": "Prompt",
   "agent.prompt.empty": "Sin instrucciones propias todavía.",
-  "agent.prompt.also":
-    "Además recibe las reglas de APX, el AGENTS.md de su proyecto y las skills que encajan con cada mensaje.",
-  "agent.prompt.alsoSuper":
-    "Además recibe las reglas de APX, quién sos (Cuenta), el rol de su perfil y las skills que encajan con cada mensaje.",
   "agent.prompt.edit": "Editar prompt",
   "agent.super.profile": "Perfil",
   "agent.super.owner": "Lo que sabe de vos",
@@ -102,6 +98,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "agent.edit.role": "Rol",
   "agent.edit.roleHint": "Una línea: qué hace en el equipo.",
   "agent.edit.description": "Descripción",
+  "agent.edit.personality": "Personalidad",
+  "agent.edit.personalityHint": "Cómo se expresa, aparte de lo que hace. Va antes de sus instrucciones.",
+  "agent.edit.personalityPlaceholder": "Ej.: amable, directo, con humor seco.",
   "agent.edit.avatar": "Avatar",
   "agent.edit.prompt": "Prompt",
   "agent.edit.promptHint": "Cómo piensa y se comporta. ⌘S guarda.",
@@ -868,10 +867,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.temperatureHint": "Más baja lee más parejo, más alta con más variación (QVox, 0–2).",
   "config.memory": "Memoria",
   "mem.lead": "Lo que los agentes recuerdan entre chats, y cómo se mantienen cortos los chats largos.",
-  "mem.mode.notes": "Notas, que se encuentran por sus palabras",
-  "mem.mode.notes.hint": "Cada agente toma notas; un mensaje trae las que comparten sus palabras. Recomendado.",
-  "mem.mode.semantic": "Notas, que se encuentran también por significado",
-  "mem.mode.semantic.hint": "Un motor de embeddings indexa las notas para encontrarlas por significado.",
+  "mem.mode.notes": "Buscar por palabras",
+  "mem.mode.notes.hint":
+    "Tus agentes guardan notas y traen las que comparten palabras con tu mensaje. No necesita nada más.",
+  "mem.mode.semantic": "Buscar por significado",
+  "mem.mode.semantic.hint":
+    "Un motor de embeddings entiende de qué habla cada nota y trae también las que lo dicen con otras palabras. Necesita ese motor.",
   "mem.mode.off": "Sin memoria",
   "mem.mode.off.hint": "Cada chat empieza de cero; los agentes no toman notas.",
   "mem.engines": "Motores de embeddings",
@@ -986,9 +987,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.open": "Abrir Interrupciones",
   "routines.anchor": "Llega siempre",
   "routines.anchorHint":
-    "Sus novedades nunca quedan retenidas por las horas de silencio ni cuentan en el tope diario (un resumen de la mañana o de la tarde).",
-  "routines.anchorOn": "Siempre",
-  "routines.anchorOff": "Dentro del presupuesto",
+    "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
   "nudge.where": "A dónde llegan los avisos",
   "nudge.whereHint":
     "Un canal, o el push de tu teléfono (vinculalo en Dispositivos; la app de APX lo registra sola, o pegá ahí una dirección de ntfy).",

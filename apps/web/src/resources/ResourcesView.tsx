@@ -31,9 +31,12 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const projects = useData((s) => s.projects);
   const tab = useNav((s) => s.resourcesTab);
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<ScopeFilter>("all");
+  const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
   const projectId = project && !project.isDefault ? project.id : undefined;
+  // Default's resources are the global ones, which every project takes: no other scope to pick there.
+  const inDefault = Boolean(project?.isDefault);
+  const scope: ScopeFilter = inDefault ? "global" : picked;
   const res = useResources(
     projectId,
     projects.filter((p) => p.path).map((p) => p.id),
@@ -110,6 +113,8 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       <div className="resv__under">
         {projectId ? (
           <p className="resv__inherit">{t("res.inherit", { name: projectName(projects, projectId) })}</p>
+        ) : inDefault ? (
+          <p className="resv__inherit">{t("res.defaultGlobal")}</p>
         ) : (
           tab !== "extensions" && (
             <fieldset className="resv__scopes">

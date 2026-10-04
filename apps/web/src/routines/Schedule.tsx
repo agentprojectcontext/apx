@@ -1,24 +1,77 @@
 import type { Schedule } from "@apx/protocol";
-import { Button, Icons, Input, Menu, SegmentedControl } from "@apx/ui";
+import { Button, Input, SegmentedControl, Select } from "@apx/ui";
+import { useState } from "react";
 import { aheadLabel } from "../common/format.ts";
-import { type T, useT } from "../i18n/index.ts";
+import { type MessageKey, type T, useT } from "../i18n/index.ts";
 
-/** Ready-made times; any other five-field cron can be typed. */
-const PRESETS = [
-  { cron: "0 9 * * *", key: "routines.preset.daily" },
-  { cron: "30 8 * * 1-5", key: "routines.preset.weekdays" },
-  { cron: "0 9 * * 1", key: "routines.preset.mondays" },
-  { cron: "0 * * * *", key: "routines.preset.hourly" },
+/** Monday first, as people read a week; cron numbers Sunday 0. */
+const WEEK = [1, 2, 3, 4, 5, 6, 0] as const;
+const DAY_KEY: Record<number, MessageKey> = {
+  0: "routines.day.sun",
+  1: "routines.day.mon",
+  2: "routines.day.tue",
+  3: "routines.day.wed",
+  4: "routines.day.thu",
+  5: "routines.day.fri",
+  6: "routines.day.sat",
+};
+
+/** "30 8 * * 1-5" → days and a time; undefined for a cron that says more (a day of the month, every N minutes). */
+export function weeklyOf(cron: string): { days: number[]; time: string } | undefined {
+  const m = /^(\d{1,2}) (\d{1,2}) \* \* ([\d,*-]+)$/.exec(cron.trim());
+  if (!m) return undefined;
+  const days = new Set<number>();
+  for (const part of (m[3] ?? "").split(",")) {
+    if (part === "*") for (const d of WEEK) days.add(d);
+    else if (/^\d-\d$/.test(part)) {
+      const [a = 0, b = 0] = part.split("-").map(Number);
+      for (let d = a; d <= b; d++) days.add(d % 7);
+    } else if (/^\d$/.test(part)) days.add(Number(part) % 7);
+    else return undefined;
+  }
+  return { days: WEEK.filter((d) => days.has(d)), time: `${m[2]?.padStart(2, "0")}:${m[1]?.padStart(2, "0")}` };
+}
+
+export function weeklyCron(days: number[], time: string): string {
+  const [h = "9", min = "0"] = time.split(":");
+  const all = days.length === 7;
+  const list = [...days].sort((a, b) => a - b).join(",");
+  return `${Number(min)} ${Number(h)} * * ${all ? "*" : list === "1,2,3,4,5" ? "1-5" : list || "*"}`;
+}
+
+const UNITS = [
+  { id: "minutes", n: 1 },
+  { id: "hours", n: 60 },
+  { id: "days", n: 1440 },
+  { id: "weeks", n: 10080 },
 ] as const;
+type Unit = (typeof UNITS)[number]["id"];
+/** The largest unit the minutes divide into: 120 → 2 hours. */
+export function everyParts(minutes: number): { n: number; unit: Unit } {
+  const u = [...UNITS].reverse().find((x) => minutes % x.n === 0) ?? UNITS[0];
+  return { n: minutes / u.n, unit: u.id };
+}
 
 export function scheduleText(s: Schedule, t: T): string {
   switch (s.kind) {
     case "cron": {
-      const preset = PRESETS.find((p) => p.cron === s.cron);
-      return preset ? t(preset.key) : `cron ${s.cron}`;
+      const w = weeklyOf(s.cron);
+      if (!w) return `cron ${s.cron}`;
+      const key = w.days.join(",");
+      const days =
+        w.days.length === 7
+          ? t("routines.days.every")
+          : key === "1,2,3,4,5"
+            ? t("routines.days.weekdays")
+            : key === "6,0"
+              ? t("routines.days.weekends")
+              : w.days.map((d) => t(DAY_KEY[d] as MessageKey)).join(", ");
+      return t("routines.atTime", { days, time: w.time });
     }
-    case "every":
-      return t("routines.everyN", { n: s.minutes });
+    case "every": {
+      const { n, unit } = everyParts(s.minutes);
+      return t("routines.everyUnit", { n, unit: t(`routines.unit.${unit}`) });
+    }
     case "once":
       return t("routines.onceAt", { when: aheadLabel(s.at) });
     case "manual":
@@ -26,15 +79,20 @@ export function scheduleText(s: Schedule, t: T): string {
   }
 }
 
-/** `datetime-local` wants local time without a zone. */
-const localInput = (iso: string) => {
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Local date and time of an ISO instant, as the date and time inputs want them. */
+const localParts = (iso: string) => {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "09:00" };
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 };
 
 export function ScheduleEditor({ value, onChange }: { value: Schedule; onChange: (s: Schedule) => void }) {
   const t = useT();
+  const [advanced, setAdvanced] = useState(() => value.kind === "cron" && !weeklyOf(value.cron));
   const tomorrow9 = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -42,11 +100,12 @@ export function ScheduleEditor({ value, onChange }: { value: Schedule; onChange:
     return d.toISOString();
   };
   const kinds: Record<Schedule["kind"], () => Schedule> = {
-    cron: () => ({ kind: "cron", cron: "0 9 * * *" }),
+    cron: () => ({ kind: "cron", cron: "0 9 * * 1-5" }),
     every: () => ({ kind: "every", minutes: 60 }),
     once: () => ({ kind: "once", at: tomorrow9() }),
     manual: () => ({ kind: "manual" }),
   };
+  const weekly = value.kind === "cron" ? weeklyOf(value.cron) : undefined;
   return (
     <div className="pform">
       <SegmentedControl
@@ -61,47 +120,116 @@ export function ScheduleEditor({ value, onChange }: { value: Schedule; onChange:
           { value: "manual", label: t("routines.kind.manual") },
         ]}
       />
-      {value.kind === "cron" && (
-        <div className="tgtoken">
-          <Menu
-            trigger={
-              <Button variant="secondary" size="sm" trailingIcon={<Icons.ChevronDown size={14} />}>
-                {scheduleText(value, t)}
-              </Button>
+      {value.kind === "cron" && weekly && !advanced && (
+        <div className="sched__weekly">
+          <fieldset className="sched__days">
+            <legend className="sr-only">{t("routines.daysLabel")}</legend>
+            {WEEK.map((d) => {
+              const on = weekly.days.includes(d);
+              return (
+                <label key={d} className={on ? "sched__day is-on" : "sched__day"}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => {
+                      const days = on ? weekly.days.filter((x) => x !== d) : [...weekly.days, d];
+                      if (days.length) onChange({ kind: "cron", cron: weeklyCron(days, weekly.time) });
+                    }}
+                  />
+                  {t(DAY_KEY[d] as MessageKey)}
+                </label>
+              );
+            })}
+          </fieldset>
+          <Input
+            type="time"
+            aria-label={t("routines.time")}
+            className="sched__time"
+            value={weekly.time}
+            onChange={(e) =>
+              e.currentTarget.value && onChange({ kind: "cron", cron: weeklyCron(weekly.days, e.currentTarget.value) })
             }
-            items={PRESETS.map((p) => ({ label: t(p.key), onSelect: () => onChange({ kind: "cron", cron: p.cron }) }))}
           />
+        </div>
+      )}
+      {value.kind === "cron" && (advanced || !weekly) && (
+        <>
           <Input
             aria-label={t("routines.cron")}
             value={value.cron}
             onChange={(e) => onChange({ kind: "cron", cron: e.currentTarget.value })}
           />
+          <span className="pform__hint">{t("routines.cronHint")}</span>
+        </>
+      )}
+      {value.kind === "cron" && (
+        <div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (advanced && !weeklyOf(value.cron)) onChange(kinds.cron());
+              setAdvanced(!advanced);
+            }}
+          >
+            {advanced ? t("routines.simple") : t("routines.advanced")}
+          </Button>
         </div>
       )}
-      {value.kind === "cron" && <span className="pform__hint">{t("routines.cronHint")}</span>}
-      {value.kind === "every" && (
-        <div className="tgtoken">
-          <Input
-            type="number"
-            min={5}
-            aria-label={t("routines.minutes")}
-            value={String(value.minutes)}
-            onChange={(e) => onChange({ kind: "every", minutes: Number(e.currentTarget.value) || 0 })}
-          />
-          <span className="pform__hint">{t("routines.minutes")}</span>
-        </div>
-      )}
-      {value.kind === "once" && (
-        <Input
-          type="datetime-local"
-          aria-label={t("routines.kind.once")}
-          value={localInput(value.at)}
-          onChange={(e) => {
-            const d = new Date(e.currentTarget.value);
-            if (!Number.isNaN(d.getTime())) onChange({ kind: "once", at: d.toISOString() });
-          }}
-        />
-      )}
+      {value.kind === "every" && <EveryInput minutes={value.minutes} onChange={onChange} />}
+      {value.kind === "once" && <OnceInput at={value.at} onChange={onChange} />}
+    </div>
+  );
+}
+
+function EveryInput({ minutes, onChange }: { minutes: number; onChange: (s: Schedule) => void }) {
+  const t = useT();
+  const { n, unit } = everyParts(minutes);
+  const factor = (u: Unit) => UNITS.find((x) => x.id === u)?.n ?? 1;
+  return (
+    <div className="tgtoken">
+      <Input
+        type="number"
+        min={1}
+        aria-label={t("routines.everyN.n")}
+        className="sched__n"
+        value={String(n)}
+        onChange={(e) =>
+          onChange({ kind: "every", minutes: Math.max(1, Number(e.currentTarget.value) || 1) * factor(unit) })
+        }
+      />
+      <Select
+        label={t("routines.everyN.unit")}
+        value={unit}
+        onValueChange={(u) => u && onChange({ kind: "every", minutes: n * factor(u as Unit) })}
+        options={UNITS.map((u) => ({ value: u.id, label: t(`routines.unit.${u.id}`) }))}
+      />
+      {minutes < 5 && <span className="pform__hint">{t("routines.minutes")}</span>}
+    </div>
+  );
+}
+
+function OnceInput({ at, onChange }: { at: string; onChange: (s: Schedule) => void }) {
+  const t = useT();
+  const { date, time } = localParts(at);
+  const set = (d: string, tm: string) => {
+    const when = new Date(`${d}T${tm || "09:00"}`);
+    if (!Number.isNaN(when.getTime())) onChange({ kind: "once", at: when.toISOString() });
+  };
+  return (
+    <div className="tgtoken">
+      <Input
+        type="date"
+        aria-label={t("routines.date")}
+        value={date}
+        onChange={(e) => set(e.currentTarget.value, time)}
+      />
+      <Input
+        type="time"
+        aria-label={t("routines.time")}
+        value={time}
+        onChange={(e) => set(date, e.currentTarget.value)}
+      />
     </div>
   );
 }

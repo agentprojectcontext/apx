@@ -526,3 +526,52 @@ textarea.pipeline__cmd {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* A routine's days: a chip per weekday, Monday first, then the time. */
+.sched__weekly {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.sched__days {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sched__day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.sched__day input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.sched__day.is-on {
+  border-color: var(--apx-fg);
+  background: var(--apx-fg);
+  color: var(--apx-bg);
+}
+.sched__day:has(input:focus-visible) {
+  outline: 2px solid var(--apx-ring);
+  outline-offset: 2px;
+}
+.sched__time {
+  width: 120px;
+}
+.sched__n {
+  width: 80px;
+}

@@ -266,14 +266,16 @@ function AgentPrompt({ agent, onEdit }: { agent: Agent; onEdit(): void }) {
   }, [agent.id]);
   return (
     <div className="teamdetail__prompt">
+      {agent.personality && (
+        <p className="teamdetail__personality">
+          <b>{t("agent.edit.personality")}:</b> {agent.personality}
+        </p>
+      )}
       {prompt === undefined ? null : prompt.trim() ? (
         <pre className="teamdetail__prompttext">{prompt}</pre>
       ) : (
         <p className="teamdetail__muted">{t("agent.prompt.empty")}</p>
       )}
-      <p className="teamdetail__muted">
-        {agent.kind === "secretary" ? t("agent.prompt.alsoSuper") : t("agent.prompt.also")}
-      </p>
       <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
         {t("agent.prompt.edit")}
       </Button>

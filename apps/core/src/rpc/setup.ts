@@ -1,12 +1,18 @@
 // The first-run setup: whether it is done, whether this install is new, and what APX v1 left on this machine.
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
+import { errorMessage } from "../errors.ts";
 import { v1Projects } from "../import/v1-data.ts";
 import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
 import type { Handlers } from "./router.ts";
 
 const DONE_KEY = "setup_done";
+/** The global npm package v1's `apx` comes from. */
+const V1_PACKAGE = "@agentprojectcontext/apx";
+const run = promisify(execFile);
 /** This checkout's command (apps/terminal): where `pnpm link --global` makes `apx` this APX. */
 const TERMINAL = path.resolve(import.meta.dirname, "../../../terminal");
 
@@ -51,6 +57,17 @@ export function setupHandlers(deps: V1ImportDeps) {
       v1: findV1(v1Home),
       ...(fs.existsSync(TERMINAL) ? { terminal: TERMINAL } : {}),
     }),
+    "setup.take_over_cli": async () => {
+      if (!fs.existsSync(TERMINAL)) return { ok: false, detail: "this APX has no terminal to link" };
+      // v1's package may already be gone: only the link has to work.
+      await run("pnpm", ["remove", "-g", V1_PACKAGE]).catch(() => undefined);
+      try {
+        await run("pnpm", ["--dir", TERMINAL, "link", "--global"]);
+        return { ok: true, detail: "apx and apx2 now run this APX" };
+      } catch (err) {
+        return { ok: false, detail: errorMessage(err, 300) };
+      }
+    },
     "setup.finish": () => {
       store.settings.set(DONE_KEY, "1");
       return { done: true as const };

@@ -38,7 +38,8 @@ export const enSetup = {
   "setup.import.failed": "Some of it could not be imported: {error}",
   "setup.v1.projects": "Projects",
   "setup.v1.projectsCount": "{n} · {agents} agents",
-  "setup.v1.projectsBody": "Their folders and agents (.apc/) come as they are; Default stays the base space",
+  "setup.v1.projectsBody":
+    "Their folders and agents (.apc/) come as they are; v1's Default agents become global agents, with their memory",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Your global skills, copied into v2",
   "setup.v1.keys": "Model keys",
@@ -47,6 +48,11 @@ export const enSetup = {
   "setup.v1.varsBody": "Tokens and keys your MCP servers use, stored securely",
   "setup.v1.memory": "Memory",
   "setup.v1.memoryBody": "Your notes and each project's, one note per line",
+  "setup.channels.waScan": "Link with QR",
+  "setup.v1.chats": "Chats",
+  "setup.v1.chatsCount": "{n} · {messages} messages",
+  "setup.v1.chatsBody":
+    "Your conversations with your super-agent (Telegram, WhatsApp, web…) and your agents', with their dates; routine logs and files stay in v1",
   "setup.v1.identity": "Identity and profile",
   "setup.v1.identityBody":
     "Who you are, your super-agent's personality, its profile (secretary) with its schedule, and your quiet hours",
@@ -100,12 +106,14 @@ export const enSetup = {
   "setup.memory.titleGreen": "that remembers.",
   "setup.memory.body":
     "Each agent takes notes in markdown and brings back what matters on each turn. Long chats are kept small with summaries.",
-  "setup.memory.notes": "Notes by their words",
-  "setup.memory.notesBody": "Fast and local: notes are found by the words they share. The default.",
-  "setup.memory.semantic": "Notes by their meaning",
-  "setup.memory.semanticBody": "An embeddings engine (Ollama, Gemini, OpenAI) indexes them to find related ideas too.",
+  "setup.memory.notes": "Search by words",
+  "setup.memory.notesBody":
+    "Your agents keep notes and, before answering, bring the ones that share words with your message. Nothing else needed.",
+  "setup.memory.semantic": "Search by meaning",
+  "setup.memory.semanticBody":
+    "The same, but an embedding engine understands what each note is about and also brings the ones that say it in other words. Needs that engine (Ollama on your machine, or Gemini/OpenAI).",
   "setup.memory.off": "No memory",
-  "setup.memory.offBody": "Agents do not keep notes between chats.",
+  "setup.memory.offBody": "Agents keep and remember nothing between chats.",
   "setup.memory.engine": "Embedding engine: {engine}.",
   "setup.memory.noEngine": "No embedding engine yet: add one later in Settings › Memory (Ollama runs on your machine).",
   "setup.memory.skills": "Pick skills by meaning",
@@ -138,12 +146,12 @@ export const enSetup = {
   "setup.project.title": "Where does",
   "setup.project.titleGreen": "your crew work?",
   "setup.project.body":
-    "Default already exists: it is the general space, with no folder. Add a project with a repo or folder your agents read and edit.",
-  "setup.project.default": "General space · no folder · cannot be removed",
+    "Default is your crew's general space: as in v1, it has no folder of its own and its agents work in a folder inside APX. Your v1 projects come with their folders. Add another one now if you like.",
+  "setup.project.default": "General space · no folder of its own · always there",
   "setup.project.folder": "With a folder",
   "setup.project.folderBody": "A repo or working folder. Agents read and edit there.",
-  "setup.project.later": "Later",
-  "setup.project.laterBody": "Start with Default only.",
+  "setup.project.later": "Not now",
+  "setup.project.laterBody": "Go on with Default and the projects you brought.",
   "setup.project.pick": "Choose folder",
   "setup.project.pathPlaceholder": "/path/to/your/project",
   "setup.project.plain": "It is a plain folder: an AGENTS.md naming it is written there.",
@@ -152,9 +160,11 @@ export const enSetup = {
   "setup.done.body":
     "Your crew lives in {home} and in each project's .apc/. Everything can be changed later in Settings.",
   "setup.done.copy": "Copy",
+  "setup.done.takeOverDo": "Use v2 as apx",
+  "setup.done.takeOverDone": "Done: apx is now v2.",
   "setup.done.takeOver": "Make apx this version",
   "setup.done.takeOverBody":
-    "While v1 is installed, the apx command is v1's (this one answers to apx2). When you stop using v1, run these two lines: v1 leaves the PATH and apx becomes v2. Your v1 files stay in ~/.apx.",
+    "While v1 is installed, the apx command is v1's. One click makes it this version (apx2 too). Your v1 files stay in ~/.apx; v1's own commands (like apx company) stop being there.",
   "setup.preview.engines": "ENGINES",
   "setup.preview.memory": "MEMORY",
   "setup.preview.channels": "CHANNELS",

@@ -16,7 +16,7 @@ test("the super-agent's face opens its block beside the chat; its prompt and pro
   await expect(block).toBeVisible();
   await expect(block.getByRole("button", { name: /Perfil: Ninguno/ })).toBeVisible();
   await block.getByRole("tab", { name: "Prompt" }).click();
-  await expect(block.getByText(/quién sos \(Cuenta\)/)).toBeVisible();
+
   await block.getByRole("button", { name: "Editar prompt" }).click();
   const editor = page.getByRole("dialog", { name: /^Editar a / });
   await editor.getByRole("textbox").last().fill("Sign every message with a lemon.");

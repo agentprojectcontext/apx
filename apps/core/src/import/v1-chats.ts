@@ -1,0 +1,279 @@
+// v1's conversations and Default's agents, brought into v2. The super-agent's chats come by channel and day (as v1
+// showed them), a contact's WhatsApp chat as one conversation with them; project agents' chats from their
+// conversation files. Tool calls ride on the answer that followed them. Routine logs, compactions and media stay in
+// v1. Read-only on v1's folder; what was brought once is not brought again.
+import fs from "node:fs";
+import path from "node:path";
+import type { Author, Part } from "@apx/protocol";
+import { parseFrontmatter } from "../apc/frontmatter.ts";
+import { readAgentDir } from "../apc/read.ts";
+import type { Store } from "../domain/store.ts";
+
+/** The super-agent's channels worth keeping as chats (routine deliveries, code and decks are not conversations). */
+const CHANNELS = ["telegram", "web", "whatsapp", "cli", "desktop", "api", "web_sidebar", "discord"] as const;
+const CHANNEL_NAME: Record<string, string> = {
+  telegram: "Telegram",
+  web: "Web",
+  whatsapp: "WhatsApp",
+  cli: "Terminal",
+  desktop: "Desktop",
+  api: "API",
+  web_sidebar: "Web",
+  discord: "Discord",
+};
+const DONE_KEY = "v1_chats_imported";
+const TEXT_MAX = 100_000;
+
+type Row = { ts: string; type: string; body: string; author?: string; meta: Record<string, unknown> };
+export type V1Chat = {
+  key: string;
+  title: string;
+  channel: string;
+  /** A WhatsApp contact's chat id; none for the owner's own chats. */
+  contact?: string;
+  agent?: { project?: string; slug: string };
+  rows: Row[];
+};
+
+const obj = (v: unknown): Record<string, unknown> =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+const readJson = (file: string): unknown => {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return undefined;
+  }
+};
+const listDir = (dir: string) => {
+  try {
+    return fs.readdirSync(dir).sort();
+  } catch {
+    return [];
+  }
+};
+
+/** A WhatsApp row from someone other than the owner. */
+function contactOf(r: Row): string | undefined {
+  const m = r.meta;
+  if (m.role === "owner" || m.policy === "full" || m.audience === "owner") return undefined;
+  return str(m.contact_key) ?? str(m.chat_jid);
+}
+
+/** The super-agent's chats, from ~/.apx/messages/<channel>/<day>.jsonl. */
+function ledgerChats(home: string): V1Chat[] {
+  const titles = obj(readJson(path.join(home, "messages", ".threads.json")));
+  const chats = new Map<string, V1Chat>();
+  for (const channel of CHANNELS) {
+    const dir = path.join(home, "messages", channel);
+    for (const file of listDir(dir).filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))) {
+      const day = file.slice(0, 10);
+      let text = "";
+      try {
+        text = fs.readFileSync(path.join(dir, file), "utf8");
+      } catch {
+        continue;
+      }
+      for (const line of text.split("\n")) {
+        if (!line.trim()) continue;
+        let raw: Record<string, unknown>;
+        try {
+          raw = obj(JSON.parse(line));
+        } catch {
+          continue;
+        }
+        const row: Row = {
+          ts: str(raw.ts) ?? `${day}T00:00:00.000Z`,
+          type: str(raw.type) ?? "",
+          body: typeof raw.body === "string" ? raw.body : "",
+          ...(str(raw.author) ? { author: str(raw.author) } : {}),
+          meta: obj(raw.meta),
+        };
+        const contact = channel === "whatsapp" ? contactOf(row) : undefined;
+        // A Telegram group or a second chat is its own conversation, as in v1.
+        const sub = contact ?? (channel === "telegram" ? str(String(row.meta.chat_id ?? "")) : undefined);
+        const key = contact ? `${channel}~${contact}` : `${channel}/${day}${sub ? `~${sub}` : ""}`;
+        let chat = chats.get(key);
+        if (!chat) {
+          const own = str(obj(titles[`${channel}/${day}`]).title);
+          chat = {
+            key,
+            title: contact
+              ? `${CHANNEL_NAME[channel]} · ${row.author ?? contact}`
+              : (own ?? `${CHANNEL_NAME[channel]} · ${day}`),
+            channel,
+            ...(contact ? { contact } : {}),
+            rows: [],
+          };
+          chats.set(key, chat);
+        }
+        if (contact && row.type === "user" && row.author) chat.title = `${CHANNEL_NAME[channel]} · ${row.author}`;
+        chat.rows.push(row);
+      }
+    }
+  }
+  return [...chats.values()];
+}
+
+/** "## user — 2026-09-01T10:00:00Z {json}" headings and their text, from a v1 conversation file. */
+function conversationRows(body: string): Row[] {
+  const rows: Row[] = [];
+  const re = /^## (user|assistant|system|tool|compact) — (\S+)(?: (\{.*\}))?$/gm;
+  const heads = [...body.matchAll(re)];
+  heads.forEach((h, i) => {
+    const end = heads[i + 1]?.index ?? body.length;
+    const start = (h.index ?? 0) + h[0].length;
+    let meta: Record<string, unknown> = {};
+    try {
+      meta = h[3] ? obj(JSON.parse(h[3])) : {};
+    } catch {}
+    const role = h[1] === "assistant" ? "agent" : (h[1] ?? "");
+    rows.push({ ts: h[2] ?? "", type: role, body: body.slice(start, end).trim(), meta });
+  });
+  return rows;
+}
+
+/** Project agents' web and agent-to-agent chats, from ~/.apx/projects/<id>/agents/<slug>/conversations/*.md. */
+function agentChats(home: string): V1Chat[] {
+  const out: V1Chat[] = [];
+  const root = path.join(home, "projects");
+  for (const project of listDir(root)) {
+    const agentsDir = path.join(root, project, "agents");
+    for (const slug of listDir(agentsDir)) {
+      const dir = path.join(agentsDir, slug, "conversations");
+      for (const file of listDir(dir).filter((f) => f.endsWith(".md"))) {
+        let text = "";
+        try {
+          text = fs.readFileSync(path.join(dir, file), "utf8");
+        } catch {
+          continue;
+        }
+        const { fields, body } = parseFrontmatter(text);
+        const channel = String(fields.channel ?? "web");
+        if (channel !== "web" && channel !== "a2a") continue;
+        const rows = conversationRows(body);
+        if (!rows.some((r) => r.type === "user" || r.type === "agent")) continue;
+        out.push({
+          key: `agent/${project}/${slug}/${file}`,
+          title: String(fields.title ?? "").trim() || `${slug} · ${file.slice(0, 10)}`,
+          channel,
+          agent: { ...(project === "default" ? {} : { project }), slug },
+          rows,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+export function v1Chats(home: string): V1Chat[] {
+  return [...ledgerChats(home), ...agentChats(home)];
+}
+
+/** How many conversations and messages v1 has to bring. */
+export function v1ChatCount(home: string): { chats: number; messages: number } {
+  const chats = v1Chats(home);
+  return {
+    chats: chats.length,
+    messages: chats.reduce((n, c) => n + c.rows.filter((r) => r.type === "user" || r.type === "agent").length, 0),
+  };
+}
+
+/** A tool row as a finished tool call on the answer that follows it. */
+function toolPart(r: Row, i: number): Part {
+  const tool = str(r.meta.tool) ?? "tool";
+  const failed = /^(error|failed)/i.test(String(obj(r.meta.result).error ?? r.meta.error ?? ""));
+  return { type: "tool", call_id: `v1-${i}`, tool, title: tool, status: failed ? "error" : "ok" };
+}
+
+/**
+ * Brings v1's chats in (once each). `agentFor` finds the v2 agent of a project agent's chat (or none); `persons`
+ * maps a WhatsApp chat id to its contact.
+ */
+export function importV1Chats(
+  store: Store,
+  home: string,
+  o: {
+    secretaryId: string;
+    agentFor(project: string | undefined, slug: string): { id: string; project_id?: string | undefined } | undefined;
+  },
+): number {
+  const done = new Set<string>(JSON.parse(store.settings.get(DONE_KEY) ?? "[]") as string[]);
+  let n = 0;
+  for (const chat of v1Chats(home)) {
+    if (done.has(chat.key)) continue;
+    const agent = chat.agent ? o.agentFor(chat.agent.project, chat.agent.slug) : { id: o.secretaryId };
+    if (!agent) continue;
+    const person = chat.contact
+      ? (store.persons.byAddress("whatsapp", chat.contact) ??
+        store.persons.byAddress("whatsapp", chat.contact.replace(/@.*/, "")))
+      : undefined;
+    const first = chat.rows[0]?.ts;
+    store.tx(() => {
+      const thread = store.threads.create({
+        kind: chat.channel === "a2a" ? "a2a" : "loose",
+        title: chat.title.slice(0, 120),
+        agent_ids: [agent.id],
+        ...(agent.project_id ? { project_id: agent.project_id } : {}),
+        at: first,
+      });
+      let tools: Part[] = [];
+      let last = { at: first ?? "", text: "" };
+      const log: Array<{ role: "user" | "assistant"; content: string }> = [];
+      chat.rows.forEach((r, i) => {
+        if (r.type === "tool") {
+          tools.push(toolPart(r, i));
+          return;
+        }
+        if (r.type !== "user" && r.type !== "agent") return;
+        const text = r.body.slice(0, TEXT_MAX);
+        if (!text.trim() && !tools.length) return;
+        const author: Author =
+          r.type === "agent"
+            ? { kind: "agent", id: agent.id }
+            : person
+              ? { kind: "person", id: person.id, name: person.name, channel: chat.channel }
+              : { kind: "user" };
+        const parts: Part[] = r.type === "agent" ? [...tools, ...(text ? [{ type: "text" as const, text }] : [])] : [];
+        if (r.type === "user") parts.push({ type: "text", text });
+        tools = [];
+        store.messages.add({
+          thread_id: thread.id,
+          author,
+          parts,
+          ...(r.type === "agent" && str(r.meta.model) ? { model: str(r.meta.model) } : {}),
+          at: r.ts,
+          quiet: true,
+        });
+        if (text) {
+          log.push({ role: r.type === "agent" ? "assistant" : "user", content: text });
+          last = { at: r.ts, text };
+        }
+      });
+      // The model's view of the chat, so going on with it there has the earlier turns.
+      if (log.length) store.modelLog.append(thread.id, undefined, log);
+      store.threads.settle(thread.id, last.at || first || new Date().toISOString(), last.text.slice(0, 140));
+    });
+    done.add(chat.key);
+    n++;
+  }
+  store.settings.set(DONE_KEY, JSON.stringify([...done]));
+  return n;
+}
+
+/** Default's agents in v1 live under ~/.apx/projects/default/.apc/agents: in v2 they are global agents. */
+export function v1DefaultAgents(home: string) {
+  return readAgentDir(path.join(home, "projects", "default", ".apc", "agents"));
+}
+
+/** Notes an agent kept for itself in v1 (~/.apx/projects/<id>/agents/<slug>/memory.md), one per line. */
+export function v1AgentNotes(home: string): Array<{ project: string; slug: string; file: string }> {
+  const out: Array<{ project: string; slug: string; file: string }> = [];
+  const root = path.join(home, "projects");
+  for (const project of listDir(root))
+    for (const slug of listDir(path.join(root, project, "agents"))) {
+      const file = path.join(root, project, "agents", slug, "memory.md");
+      if (fs.existsSync(file)) out.push({ project, slug, file });
+    }
+  return out;
+}

@@ -97,6 +97,13 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     has(ref: string | undefined): boolean {
       return api.resolve(ref) !== undefined;
     },
+    /**
+     * Whether this install keeps a value under that name (its index). The Keychain may still hold one from an earlier
+     * install in another home, which `has` sees and the owner's list does not.
+     */
+    listed(name: string): boolean {
+      return Object.hasOwn(read(), name);
+    },
     /** Like resolve, but a project's own value for a `secret://` name comes first. */
     resolveIn(ref: string | undefined, projectId: string | undefined): string | undefined {
       if (projectId && ref?.startsWith("secret://")) {

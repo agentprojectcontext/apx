@@ -118,6 +118,8 @@ export const Agent = z.object({
   autonomy: Autonomy.optional(),
   /** Skills it works with (its catalog is narrowed to these). From `skills:`; absent = every skill it can see. */
   skills: z.array(z.string()).optional(),
+  /** How it comes across (warm, dry, playful…), apart from its instructions. */
+  personality: z.string().max(1000).optional(),
 });
 export type Agent = z.infer<typeof Agent>;
 

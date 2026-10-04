@@ -14,6 +14,7 @@ export type AgentFileFields = {
   parent?: string | undefined;
   icon?: string | undefined;
   area?: string | undefined;
+  personality?: string | undefined;
   aliases?: string[] | undefined;
 };
 
@@ -120,6 +121,7 @@ export function updateAgentFile(root: string, slug: string, fields: AgentFileFie
     parent: fields.parent,
     icon: fields.icon,
     area: fields.area,
+    personality: fields.personality,
     aliases: fields.aliases,
   });
   writeAtomic(file, join(next, prompt ?? body));

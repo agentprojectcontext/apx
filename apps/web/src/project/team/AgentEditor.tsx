@@ -5,10 +5,19 @@ import { blobOf } from "../../data/identity.ts";
 import { getAgent, updateAgent } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
 
-type Draft = { name: string; role: string; area: string; description: string; blob: string; prompt: string };
+type Draft = {
+  name: string;
+  role: string;
+  area: string;
+  description: string;
+  personality: string;
+  blob: string;
+  prompt: string;
+};
 
 /**
- * The whole agent in one dialog: who it is (name, role, area, what it does, avatar) and its system prompt. A project
+ * The whole agent in one dialog: who it is (name, role, area, what it does, its personality, avatar) and its system
+ * prompt. A project
  * agent's changes are written to its `.apc/agents/<slug>.md`.
  */
 export function AgentEditor({
@@ -35,6 +44,7 @@ export function AgentEditor({
         role: r.agent.role,
         area: r.agent.area ?? "",
         description: r.agent.description ?? "",
+        personality: r.agent.personality ?? "",
         blob: blobOf(r.agent) ?? "",
         prompt: r.prompt,
       };
@@ -107,6 +117,17 @@ export function AgentEditor({
                         rows={3}
                         value={d.description}
                         onChange={(e) => set("description")(e.currentTarget.value)}
+                      />
+                    )}
+                  </Field>
+                  <Field label={t("agent.edit.personality")} hint={t("agent.edit.personalityHint")}>
+                    {(id) => (
+                      <Textarea
+                        id={id}
+                        rows={2}
+                        value={d.personality}
+                        placeholder={t("agent.edit.personalityPlaceholder")}
+                        onChange={(e) => set("personality")(e.currentTarget.value)}
                       />
                     )}
                   </Field>

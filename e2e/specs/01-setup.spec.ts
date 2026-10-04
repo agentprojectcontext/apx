@@ -25,7 +25,7 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await wizard.getByRole("button", { name: "Continuar" }).click();
   // Memory: by meaning, with v1's engine, and skills picked by meaning on.
   await expect(wizard.getByText("Motor de embeddings: Ollama · embeddinggemma:300m.")).toBeVisible();
-  await expect(wizard.getByRole("button", { name: /Notas por su significado/ })).toHaveAttribute(
+  await expect(wizard.getByRole("button", { name: /Buscar por significado/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -73,7 +73,7 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
   await expect(wizard.getByRole("textbox", { name: "Nombre" })).toHaveValue("Robina");
   for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
-  await wizard.getByRole("button", { name: /Después/ }).click();
+  await wizard.getByRole("button", { name: /Por ahora no/ }).click();
   await wizard.getByRole("button", { name: "Crear crew" }).click();
   await wizard.getByRole("button", { name: "Abrir APX" }).click();
   await expect(wizard).toBeHidden();

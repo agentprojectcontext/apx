@@ -236,3 +236,11 @@
     transition: none;
   }
 }
+/* A lead's chip takes a line: its description gets one, so the footer never reaches the card's edge. */
+.apx-agentnode.is-lead .apx-agentnode__desc {
+  -webkit-line-clamp: 1;
+}
+.apx-agentnode__stats,
+.apx-agentnode__foot {
+  flex: none;
+}

@@ -1,4 +1,4 @@
-import { Badge, Button, EngineIcon, IconButton, Icons, Input, ProjectTile, Spinner, Switch } from "@apx/ui";
+import { Badge, Button, Dialog, EngineIcon, IconButton, Icons, Input, ProjectTile, Spinner, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
@@ -383,6 +383,7 @@ function WhatsAppCard() {
   const wa = useChannels((s) => s.channels.find((c) => c.id === "whatsapp"));
   const [selfOwner, setSelfOwner] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const running = wa?.status === "running";
   // While linking the QR changes every few seconds: read it often.
   useEffect(() => {
@@ -421,15 +422,12 @@ function WhatsAppCard() {
       <p className="wiz__enginebody">{t("setup.channels.whatsappBody")}</p>
       {running ? (
         !wa.self_owner && <span className="wiz__hintline">{t("setup.channels.waPhone")}</span>
-      ) : wa?.qr ? (
-        <div className="wiz__qr">
-          <QrCode value={wa.qr} label={t("wa.scan")} size={180} />
-          <span className="wiz__hintline">{t("wa.step2")}</span>
+      ) : wa?.qr || wa?.status === "starting" ? (
+        <div>
+          <Button size="sm" leadingIcon={<Icons.QrCode size={14} />} onClick={() => setScanning(true)}>
+            {t("setup.channels.waScan")}
+          </Button>
         </div>
-      ) : wa?.status === "starting" ? (
-        <span className="wiz__hintline">
-          <Spinner size={12} /> {t("wa.connecting")}
-        </span>
       ) : (
         <>
           {wa?.error && <span className="wiz__hintline is-error">{wa.error}</span>}
@@ -443,6 +441,24 @@ function WhatsAppCard() {
             </Button>
           </div>
         </>
+      )}
+      {scanning && !running && (
+        <Dialog
+          open
+          onOpenChange={(o) => !o && setScanning(false)}
+          title={t("setup.channels.waScan")}
+          description={t("wa.step2")}
+        >
+          <div className="wiz__qr">
+            {wa?.qr ? (
+              <QrCode value={wa.qr} label={t("wa.scan")} size={220} />
+            ) : (
+              <span className="wiz__hintline">
+                <Spinner size={12} /> {t("wa.connecting")}
+              </span>
+            )}
+          </div>
+        </Dialog>
       )}
     </div>
   );
@@ -521,37 +537,47 @@ export function DoneStep({ name }: { name: string }) {
   const t = useT();
   const home = useSetup((s) => s.status?.v1?.home);
   const terminal = useSetup((s) => s.status?.terminal);
-  const command = "apx2 status";
-  // With v1 still installed, `apx` is v1's: two commands make it this one (the owner runs them).
-  const takeOver =
-    home && terminal ? `pnpm remove -g @agentprojectcontext/apx\npnpm --dir "${terminal}" link --global` : "";
+  const [cli, setCli] = useState<{ busy?: boolean; ok?: boolean; detail?: string }>({});
+  const command = "apx status";
   const copy = () => void navigator.clipboard.writeText(command).catch(() => {});
+  const takeOver = async () => {
+    setCli({ busy: true });
+    try {
+      setCli(await client.call("setup.take_over_cli", {}));
+    } catch (e) {
+      setCli({ ok: false, detail: e instanceof Error ? e.message : String(e) });
+    }
+  };
   return (
     <div className="wiz__done">
       <h1 className="wiz__hero is-done">
         {name} <span className="is-green">{t("setup.done.ready")}</span>
       </h1>
       <p className="wiz__body">{t("setup.done.body", { home: home ? `${home}/v2` : "~/.apx/v2" })}</p>
-      <span className="wiz__command">
-        <span className="is-muted">$</span> {command}
-        <button type="button" onClick={copy}>
-          {t("setup.done.copy")}
-        </button>
-      </span>
-      {takeOver && (
+      {/* With v1 installed, `apx` is v1's: one click makes it this one. */}
+      {home && terminal && (
         <div className="wiz__card wiz__takeover">
           <b>{t("setup.done.takeOver")}</b>
           <span>{t("setup.done.takeOverBody")}</span>
-          <pre>{takeOver}</pre>
-          <Button
-            size="sm"
-            variant="secondary"
-            leadingIcon={<Icons.Copy size={14} />}
-            onClick={() => void navigator.clipboard.writeText(takeOver).catch(() => {})}
-          >
-            {t("setup.done.copy")}
-          </Button>
+          {cli.ok ? (
+            <span className="wiz__hintline">
+              <Icons.Check size={12} /> {t("setup.done.takeOverDone")}
+            </span>
+          ) : (
+            <Button size="sm" variant="secondary" loading={cli.busy} onClick={() => void takeOver()}>
+              {t("setup.done.takeOverDo")}
+            </Button>
+          )}
+          {cli.ok === false && <span className="wiz__hintline is-error">{cli.detail}</span>}
         </div>
+      )}
+      {(cli.ok || !home) && (
+        <span className="wiz__command">
+          <span className="is-muted">$</span> {command}
+          <button type="button" onClick={copy}>
+            {t("setup.done.copy")}
+          </button>
+        </span>
       )}
     </div>
   );

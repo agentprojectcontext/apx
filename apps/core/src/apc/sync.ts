@@ -88,6 +88,7 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
             emoji: a.emoji,
             autonomy: textField(a.fields.autonomy ?? a.fields.Autonomy),
             area: textField(a.fields.area ?? a.fields.Area),
+            personality: textField(a.fields.personality ?? a.fields.Personality),
           },
         });
       }

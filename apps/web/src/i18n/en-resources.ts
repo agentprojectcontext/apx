@@ -20,6 +20,7 @@ export const enResources = {
   "res.scope.all": "All",
   "res.scope.global": "Global",
   "res.scope.project": "Project",
+  "res.defaultGlobal": "Default's resources are the global ones: every project uses them.",
   "res.inherit": "{name}'s own and the inherited global ones. What you turn off here leaves the global one as it is.",
   "res.group.own": "{name}'s own",
   "res.group.inherited": "Global · inherited",

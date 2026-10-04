@@ -29,7 +29,7 @@ export function importKeys(home: string, secrets: Secrets): string[] {
     const config = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
     for (const [from, name] of Object.entries(V1_KEYS)) {
       const value = v1Value(config, from);
-      if (value && !secrets.has(`secret://${name}`)) {
+      if (value && !secrets.listed(name)) {
         secrets.set(name, value);
         keys.push(name);
       }

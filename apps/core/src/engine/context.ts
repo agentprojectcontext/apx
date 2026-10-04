@@ -40,6 +40,7 @@ export function systemPrompt(
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
     role ? `\n${role}` : "",
+    agent.personality ? `\nYour personality: ${agent.personality}` : "",
     agent.prompt ? `\n## Your instructions\n${agent.prompt}` : "",
     owner && (owner.name || owner.about)
       ? `\n## Your owner\n${[owner.name ? `Your owner is ${owner.name}; you know them, never ask their name.` : "", owner.about].filter(Boolean).join("\n")}`

@@ -39,7 +39,8 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.import.failed": "Parte no se pudo importar: {error}",
   "setup.v1.projects": "Proyectos",
   "setup.v1.projectsCount": "{n} · {agents} agentes",
-  "setup.v1.projectsBody": "Sus carpetas y agentes (.apc/) vienen como están; Default queda como espacio base",
+  "setup.v1.projectsBody":
+    "Sus carpetas y agentes (.apc/) vienen como están; los agentes de Default de v1 quedan como agentes globales, con su memoria",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Tus skills globales, copiadas a v2",
   "setup.v1.keys": "Claves de modelos",
@@ -48,6 +49,11 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.v1.varsBody": "Los tokens y claves que usan tus MCP, guardados de forma segura",
   "setup.v1.memory": "Memoria",
   "setup.v1.memoryBody": "Tus notas y las de cada proyecto, una nota por línea",
+  "setup.channels.waScan": "Vincular con QR",
+  "setup.v1.chats": "Chats",
+  "setup.v1.chatsCount": "{n} · {messages} mensajes",
+  "setup.v1.chatsBody":
+    "Tus conversaciones con tu super-agente (Telegram, WhatsApp, web…) y las de tus agentes, con su fecha; las rutinas y archivos quedan en v1",
   "setup.v1.identity": "Identidad y perfil",
   "setup.v1.identityBody":
     "Quién sos, la personalidad de tu super-agente, su perfil (secretaria) con sus horarios, y tus horas tranquilas",
@@ -100,13 +106,14 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.memory.titleGreen": "que recuerda.",
   "setup.memory.body":
     "Cada agente toma notas en markdown y trae lo relevante en cada turno. Los chats largos se mantienen chicos con resúmenes.",
-  "setup.memory.notes": "Notas por sus palabras",
-  "setup.memory.notesBody": "Rápido y local: las notas se encuentran por las palabras que comparten. El default.",
-  "setup.memory.semantic": "Notas por su significado",
+  "setup.memory.notes": "Buscar por palabras",
+  "setup.memory.notesBody":
+    "Tus agentes guardan notas y, antes de contestar, traen las que comparten palabras con tu mensaje. No necesita nada más.",
+  "setup.memory.semantic": "Buscar por significado",
   "setup.memory.semanticBody":
-    "Un motor de embeddings (Ollama, Gemini, OpenAI) las indexa para traer también ideas relacionadas.",
+    "Lo mismo, pero un motor de embeddings entiende de qué habla cada nota y trae también las que lo dicen con otras palabras. Necesita ese motor (Ollama en tu máquina, o Gemini/OpenAI).",
   "setup.memory.off": "Sin memoria",
-  "setup.memory.offBody": "Los agentes no guardan notas entre chats.",
+  "setup.memory.offBody": "Los agentes no guardan ni recuerdan nada entre chats.",
   "setup.memory.engine": "Motor de embeddings: {engine}.",
   "setup.memory.noEngine":
     "Falta un motor de embeddings: agregalo después en Config › Memoria (Ollama corre en tu máquina).",
@@ -140,12 +147,12 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.project.title": "¿Dónde trabaja",
   "setup.project.titleGreen": "tu crew?",
   "setup.project.body":
-    "Default ya existe: es el espacio general, sin carpeta. Sumá un proyecto con un repo o una carpeta que tus agentes lean y editen.",
-  "setup.project.default": "Espacio general · sin carpeta · no se puede borrar",
+    "Default es el espacio general de tu crew: como en v1, no tiene carpeta propia y sus agentes trabajan en una carpeta interna de APX. Tus proyectos de v1 ya vienen con sus carpetas. Si querés, sumá otro ahora.",
+  "setup.project.default": "Espacio general · sin carpeta propia · siempre está",
   "setup.project.folder": "Con carpeta",
   "setup.project.folderBody": "Un repo o carpeta de trabajo. Los agentes leen y editan ahí.",
-  "setup.project.later": "Después",
-  "setup.project.laterBody": "Arrancá solo con Default.",
+  "setup.project.later": "Por ahora no",
+  "setup.project.laterBody": "Seguís con Default y los proyectos que trajiste.",
   "setup.project.pick": "Elegir carpeta",
   "setup.project.pathPlaceholder": "/ruta/a/tu/proyecto",
   "setup.project.plain": "Es una carpeta común: se escribe ahí un AGENTS.md con su nombre.",
@@ -154,8 +161,10 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.done.body": "Tu crew queda en {home} y en el .apc/ de cada proyecto. Todo se cambia después desde Config.",
   "setup.done.copy": "Copiar",
   "setup.done.takeOver": "Que apx sea esta versión",
+  "setup.done.takeOverDo": "Usar v2 como apx",
+  "setup.done.takeOverDone": "Listo: apx ahora es v2.",
   "setup.done.takeOverBody":
-    "Mientras v1 esté instalada, el comando apx es el de v1 (esta responde a apx2). Cuando dejes de usar v1, corré estas dos líneas: v1 sale del PATH y apx pasa a ser v2. Tus archivos de v1 quedan en ~/.apx.",
+    "Mientras v1 esté instalada, el comando apx es el de v1. Con un click pasa a ser esta versión (y apx2 también). Tus archivos de v1 quedan en ~/.apx; los comandos propios de v1 (como apx company) dejan de estar.",
   "setup.preview.engines": "MOTORES",
   "setup.preview.memory": "MEMORIA",
   "setup.preview.channels": "CANALES",

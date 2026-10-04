@@ -391,3 +391,17 @@ hand-offs carry what the other agent needs; a failing system is reported, not ro
 context names the real channel and the owner's time zone, with a plain-text style line for chat apps. The v1 import
 brings identity.json, the user's language and time zone, the super-agent's personality and extra instructions (as its
 prompt), the profile it ran with its values, and its nudge budget and quiet hours.
+
+<a id="d-039"></a>
+## D-039 — 2026-10-04 — v1's chats come in as threads with their own dates; Default's agents become global
+The owner moves to v2 by importing, so the import brings what v1 kept, not only its settings. v1's super-agent chats
+(`~/.apx/messages/<channel>/<day>.jsonl`) become one thread per channel and day, as v1 showed them; a WhatsApp
+contact's rows, one thread with that contact; project agents' web and agent-to-agent conversations
+(`projects/<id>/agents/<slug>/conversations/*.md`), threads with that agent. Messages keep v1's time (the store takes
+an `at` for history and adds it without a live event per message), tool rows ride on the answer that followed them as
+finished tool calls, and the text goes to the model log so a chat can go on. Routine logs, compactions and media stay
+in v1. What was brought is remembered by key, so importing again adds nothing. v1's Default agents
+(`projects/default/.apc/agents`) become global agents with their prompt and face (Default has no folder in v2), each
+agent's `memory.md` becomes its own notes, and the super-agent takes v1's name, face and personality. An agent's
+personality is its own field (`personality:` in its file), apart from its instructions. A variable already in the
+Keychain from an earlier install no longer stops the import: only this install's index counts.

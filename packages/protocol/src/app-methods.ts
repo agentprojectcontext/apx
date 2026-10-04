@@ -52,6 +52,7 @@ const V1Group = z.enum([
   "memory",
   "embeddings",
   "identity",
+  "chats",
   "channels",
   "tasks",
   "commitments",
@@ -113,6 +114,16 @@ export const appMethods = {
     access: "human",
   },
   /** The setup is over: it does not open again by itself. */
+  /**
+   * Makes the `apx` command this APX: v1's global package is removed and this checkout's terminal is linked in its
+   * place (`apx` and `apx2`). v1's files stay where they are.
+   */
+  "setup.take_over_cli": {
+    params: z.object({}).strict(),
+    result: z.object({ ok: z.boolean(), detail: z.string() }),
+    effect: true,
+    access: "human",
+  },
   "setup.finish": {
     params: z.object({}).strict(),
     result: z.object({ done: z.literal(true) }),
@@ -234,6 +245,8 @@ export const appMethods = {
         /** The team area it belongs to (shown as a pill on the team chart). */
         area: z.string().trim().max(60).optional(),
         prompt: z.string().max(100_000).optional(),
+        /** How it comes across, apart from its instructions ("" clears it). */
+        personality: z.string().max(1000).optional(),
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
         /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */

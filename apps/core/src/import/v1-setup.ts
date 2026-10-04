@@ -13,6 +13,7 @@ import { dueOf } from "../domain/tasks.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { importKeys, importSkills, v1KeyCount } from "./v1.ts";
+import { importV1Chats, v1AgentNotes, v1ChatCount, v1DefaultAgents } from "./v1-chats.ts";
 import {
   type V1Project,
   v1AgentCount,
@@ -37,6 +38,7 @@ export const V1_GROUPS = [
   "memory",
   "embeddings",
   "identity",
+  "chats",
   "channels",
   "tasks",
   "commitments",
@@ -72,7 +74,10 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
   const wa = v1WhatsApp(home);
   const embedders = v1Embeddings(home).engines;
   const who = v1Identity(home);
-  const identity = [who.owner_name, who.owner_about, who.timezone, who.prompt, who.profile].filter(Boolean).length;
+  const talk = v1ChatCount(home);
+  const identity = [who.owner_name, who.owner_about, who.timezone, who.personality || who.prompt, who.profile].filter(
+    Boolean,
+  ).length;
   const memory =
     v1Notes(path.join(home, "memory.md")).length +
     projects.reduce((n, p) => n + v1Notes(path.join(p.storage, "memory.md")).length, 0);
@@ -80,7 +85,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     {
       id: "projects",
       count: projects.length,
-      detail: String(projects.reduce((n, p) => n + v1AgentCount(p), 0)),
+      detail: String(projects.reduce((n, p) => n + v1AgentCount(p), 0) + v1DefaultAgents(home).length),
     },
     { id: "skills", count: v1SkillCount(home) },
     { id: "keys", count: v1KeyCount(home) },
@@ -91,6 +96,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
       count: identity,
       ...(identity ? { detail: [who.owner_name, who.profile?.id].filter(Boolean).join(" · ") } : {}),
     },
+    { id: "chats", count: talk.chats, ...(talk.chats ? { detail: String(talk.messages) } : {}) },
     {
       id: "embeddings",
       count: embedders.length,
@@ -160,6 +166,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
         deps.apc.register(p.path);
         n++;
       } catch {}
+    importDefaultAgents(store, home);
+    importAgentNotes(store, home);
     return n;
   });
   run("skills", () => importSkills(path.join(home, "skills"), path.join(deps.v2Home, "skills")).length);
@@ -167,7 +175,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
   run("vars", () => {
     let n = 0;
     for (const v of v1Vars(home))
-      if (!deps.secrets.has(`secret://${v.name}`)) {
+      if (!deps.secrets.listed(v.name)) {
         deps.secrets.set(v.name, v.value);
         n++;
       }
@@ -211,9 +219,16 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       ...(who.timezone ? { timezone: who.timezone } : {}),
     });
     let n = [who.owner_name, who.owner_about, who.timezone].filter(Boolean).length;
-    if (who.prompt && secretary && !secretary.prompt.trim()) {
+    // The super-agent as v1 had it: its name, face, personality and the owner's extra instructions.
+    if (secretary && (who.agent_name || who.blob || who.personality || who.prompt)) {
       const { harness: _h, ...rest } = secretary;
-      store.agents.upsert({ ...rest, prompt: who.prompt });
+      store.agents.upsert({
+        ...rest,
+        ...(who.agent_name ? { name: who.agent_name } : {}),
+        ...(who.blob ? { blob: who.blob } : {}),
+        ...(who.personality ? { personality: who.personality } : {}),
+        ...(who.prompt && !secretary.prompt.trim() ? { prompt: who.prompt } : {}),
+      });
       n++;
     }
     if (who.notices) {
@@ -222,6 +237,13 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     }
     if (who.profile && deps.runProfile(who.profile.id, who.profile.values)) n++;
     return n;
+  });
+  run("chats", () => {
+    if (!secretary) return 0;
+    return importV1Chats(store, home, {
+      secretaryId: secretary.id,
+      agentFor: (project, slug) => agentFor(store, project, slug),
+    });
   });
   run("channels", () => {
     if (!secretary) return 0;
@@ -414,4 +436,61 @@ function importWhatsApp(deps: V1ImportDeps, agentId: string): number {
       self_owner: wa.selfOwner,
     });
   return 1 + wa.contacts.length;
+}
+
+/** A v1 agent in v2: Default's are global (by slug), a project's by its project and slug. */
+function agentFor(store: Store, apxId: string | undefined, slug: string) {
+  const projectId = apxId ? `p_${apxId}` : undefined;
+  return store.agents
+    .list()
+    .find((a) => a.project_id === projectId && a.kind === "agent" && (a.slug === slug || a.id === slug));
+}
+
+/** Default's agents (v1 kept them in its own .apc folder) become global agents, each with its prompt and face. */
+function importDefaultAgents(store: Store, home: string): number {
+  let n = 0;
+  for (const a of v1DefaultAgents(home)) {
+    if (agentFor(store, undefined, a.slug)) continue;
+    const prompt = [a.description && !a.prompt.includes(a.description) ? a.description : "", a.prompt]
+      .filter(Boolean)
+      .join("\n\n");
+    const text = (k: string) => {
+      const v = a.fields[k];
+      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+    };
+    const area = text("area");
+    const personality = text("personality");
+    store.agents.upsert({
+      id: store.agents.get(a.slug) ? `v1-${a.slug}` : a.slug,
+      name: a.name,
+      role: a.role,
+      kind: "agent",
+      ...(a.icon && /^[a-z]{2,20}$/.test(a.icon) ? { blob: a.icon } : {}),
+      browser_profile: "shared",
+      slug: a.slug,
+      ...(a.description ? { description: a.description } : {}),
+      ...(area ? { area } : {}),
+      ...(personality ? { personality } : {}),
+      ...(a.skills.length ? { skills: a.skills } : {}),
+      prompt,
+    });
+    n++;
+  }
+  return n;
+}
+
+/** What each agent noted for itself in v1, as that agent's own notes. */
+function importAgentNotes(store: Store, home: string): number {
+  let n = 0;
+  for (const { project, slug, file } of v1AgentNotes(home)) {
+    const agent = agentFor(store, project === "default" ? undefined : project, slug);
+    if (!agent) continue;
+    const have = new Set(store.memories.list({ agent_id: agent.id, limit: 500 }).map((m) => m.text));
+    for (const text of v1Notes(file))
+      if (!have.has(text)) {
+        store.memories.add({ scope: "agent", agent_id: agent.id, text, source: "owner" });
+        n++;
+      }
+  }
+  return n;
 }

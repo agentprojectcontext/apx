@@ -43,7 +43,7 @@ before(async () => {
     },
     skills: { inspector: { enabled: false } },
     user: { language: "es", timezone: "America/Argentina/Buenos_Aires" },
-    super_agent: { system: "Never book meetings before 10." },
+    super_agent: { system: "Never book meetings before 10.", icon: "noche" },
     profile: {
       active: "secretary",
       config: {
@@ -90,6 +90,39 @@ before(async () => {
   json(
     path.join(v1, "memory.md"),
     "# Self\n\n## 2026-09-01\n- [09:00][app] Ana prefers short answers\n- [10:00] Coffee at 10\n",
+  );
+  // The super-agent's chats (Telegram by day; a WhatsApp contact), Default's agents and an agent's own chat and notes.
+  json(
+    path.join(v1, "messages", "telegram", "2026-09-01.jsonl"),
+    lines(
+      { ts: "2026-09-01T10:00:00.000Z", type: "user", body: "remind me to call Northwind", meta: { chat_id: 1 } },
+      { ts: "2026-09-01T10:00:02.000Z", type: "tool", body: "", meta: { tool: "create_task", chat_id: 1 } },
+      {
+        ts: "2026-09-01T10:00:03.000Z",
+        type: "agent",
+        body: "Done: a task for Friday.",
+        meta: { chat_id: 1, model: "m1" },
+      },
+    ),
+  );
+  json(
+    path.join(v1, "messages", "whatsapp", "2026-09-02.jsonl"),
+    lines({
+      ts: "2026-09-02T09:00:00.000Z",
+      type: "user",
+      author: "Northwind Buyer",
+      body: "Do you have rye bread?",
+      meta: { contact_key: "5491100000002@s.whatsapp.net", policy: "contact" },
+    }),
+  );
+  json(
+    path.join(v1, "projects", "default", ".apc", "agents", "andy.md"),
+    "---\nname: Andy\nrole: orchestrator\nicon: eclipse\nmaster: true\n---\nYou route the work.\n",
+  );
+  json(path.join(v1, "projects", "default", "agents", "andy", "memory.md"), "- The owner likes lists short\n");
+  json(
+    path.join(v1, "projects", "default", "agents", "andy", "conversations", "2026-09-03-01.md"),
+    "---\nagent: andy\nchannel: web\ntitle: Plan the week\n---\n## user — 2026-09-03T08:00:00.000Z\nWhat is on?\n\n## assistant — 2026-09-03T08:00:05.000Z\nTwo deliveries.\n",
   );
   const storage = path.join(v1, "projects", "abc123def456");
   json(path.join(storage, "memory.md"), "## 2026-09-02\n- [11:00][app] Deploys go out on Fridays\n");
@@ -171,12 +204,13 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     memory: 3,
     embeddings: 2,
     identity: 5,
+    chats: 3,
     channels: 1,
     tasks: 1,
     commitments: 1,
     routines: 2,
   });
-  assert.equal(groups.find((g) => g.id === "projects")?.detail, "1", "one agent in it");
+  assert.equal(groups.find((g) => g.id === "projects")?.detail, "2", "one agent in it and one in Default");
   assert.equal(
     groups.find((g) => g.id === "embeddings")?.detail,
     "Ollama · embeddinggemma:300m, OpenAI · text-embedding-3-small",
@@ -256,7 +290,8 @@ test("importing the identity brings who the owner is, the super-agent's personal
     timezone: "America/Argentina/Buenos_Aires",
   });
   const roby = await env.client.call("agents.get", { agent: "roby" });
-  assert.match(roby.prompt ?? "", /Your personality: warm and direct\n\nNever book meetings before 10\./);
+  assert.equal(roby.prompt, "Never book meetings before 10.");
+  assert.deepEqual([roby.agent.name, roby.agent.blob, roby.agent.personality], ["Roby", "noche", "warm and direct"]);
   const { active, routines } = await env.client.call("profiles.list", {});
   assert.equal(active.id, "secretary");
   assert.equal(active.values.day_open, "0 9 * * 1-5");
@@ -267,6 +302,36 @@ test("importing the identity brings who the owner is, the super-agent's personal
   const notices = env.core.store.settings.read("notices");
   assert.deepEqual([notices.budget_per_day, notices.quiet_from, notices.quiet_to], [5, "22:00", "07:30"]);
   await env.client.call("profiles.set", { id: null, values: {} });
+});
+
+test("importing brings Default's agents with their notes, and the chats: by day, a contact's, an agent's", async () => {
+  const r = await env.client.call("setup.import_v1", { groups: ["projects", "chats"] });
+  assert.deepEqual(r.errors, []);
+  const andy = env.core.store.agents.get("andy");
+  assert.deepEqual(
+    [andy?.name, andy?.blob, andy?.project_id, andy?.prompt],
+    ["Andy", "eclipse", undefined, "You route the work."],
+  );
+  assert.ok(
+    env.core.store.memories.list({ agent_id: "andy", limit: 10 }).some((m) => m.text === "The owner likes lists short"),
+  );
+  assert.equal(r.imported.chats, 3);
+  const threads = env.core.store.threads.list().filter((t) => /Telegram|WhatsApp|Plan the week/.test(t.title));
+  const tg = threads.find((t) => t.title === "Telegram · 2026-09-01");
+  assert.ok(tg);
+  assert.equal(tg.updated_at, "2026-09-01T10:00:03.000Z", "the chat keeps v1's time");
+  const msgs = env.core.store.messages.list(tg.id);
+  assert.equal(msgs[0]?.created_at, "2026-09-01T10:00:00.000Z");
+  assert.deepEqual(
+    msgs[1]?.parts.map((p) => p.type),
+    ["tool", "text"],
+    "the tool call rides on the answer",
+  );
+  const wa = threads.find((t) => t.title === "WhatsApp · Northwind Buyer");
+  assert.equal(env.core.store.messages.list(wa?.id ?? "")[0]?.author.kind, "user");
+  const week = threads.find((t) => t.title === "Plan the week");
+  assert.deepEqual(week?.agent_ids, ["andy"]);
+  assert.equal((await env.client.call("setup.import_v1", { groups: ["chats"] })).imported.chats, 0, "once only");
 });
 
 test("importing channels brings v1's WhatsApp: whose phone the line is, the owner's numbers and who each contact is", async () => {
