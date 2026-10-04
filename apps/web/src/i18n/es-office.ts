@@ -236,6 +236,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "attention.kind.task": "Tarea que te espera",
   "attention.kind.routine": "Rutina",
   "attention.kind.channel": "Canal",
+  "attention.kind.agent": "Agente",
   "commitments.youOwe": "para {name}",
   "commitments.theyOwe": "te lo debe {name}",
   "commitments.noPerson": "Sin persona",

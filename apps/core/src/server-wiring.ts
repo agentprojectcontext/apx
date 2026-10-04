@@ -33,6 +33,7 @@ import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
 import { mediaHandlers } from "./rpc/media.ts";
 import { memoryHandlers } from "./rpc/memory.ts";
+import { noticeHandlers } from "./rpc/notices.ts";
 import { notificationHandlers } from "./rpc/notifications.ts";
 import { phoneHandlers } from "./rpc/phone.ts";
 import { providerHandlers } from "./rpc/providers.ts";
@@ -125,6 +126,7 @@ type HandlerDeps = {
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
+  nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
   providers: Parameters<typeof providerHandlers>[0];
@@ -163,6 +165,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...mediaHandlers(d.services),
     ...taskHandlers(d.store, d.engine),
     ...routineHandlers(d.store, d.scheduler),
+    ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses }),

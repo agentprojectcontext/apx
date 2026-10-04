@@ -234,6 +234,7 @@ export const enOffice = {
   "attention.kind.task": "Task waiting for you",
   "attention.kind.routine": "Routine",
   "attention.kind.channel": "Channel",
+  "attention.kind.agent": "Agent",
   "commitments.youOwe": "to {name}",
   "commitments.theyOwe": "{name} owes you",
   "commitments.noPerson": "No person",

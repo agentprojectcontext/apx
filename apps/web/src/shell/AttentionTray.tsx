@@ -13,6 +13,7 @@ const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   due: Icons.Calendar,
   routine: Icons.Clock,
   channel: Icons.Send,
+  agent: Icons.Bell,
 };
 
 /** Opens what a notice is about. A question stays in the tray until it is answered. */
@@ -27,7 +28,7 @@ function openNotice(n: Notification): void {
   } else if (n.kind === "channel") go.channelConfig("telegram");
 }
 
-/** Topbar bell: what wants the owner (an agent's question, a task waiting, a routine's news, a channel matter). */
+/** Topbar bell: what wants the owner (an agent's question or news, a task waiting, a routine's news, a channel matter). */
 export function AttentionTray() {
   const t = useT();
   const items = useAttention((s) => s.items);

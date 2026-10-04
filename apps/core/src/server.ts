@@ -245,6 +245,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       channels,
       services,
       scheduler,
+      nudges: scheduler.nudges,
       extensions,
       mcp,
       providers,

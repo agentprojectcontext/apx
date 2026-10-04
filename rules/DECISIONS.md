@@ -350,3 +350,11 @@ latest rating a 👎 is dropped by the gate ("you marked this kind unhelpful") u
 the owner set and critical messages are never muted. A routine's turn is told its counts as an `[owner feedback]`
 line in its input (not the system prompt, so the prefix stays cacheable). Reminders are not rated: the owner set them.
 No learned model, no per-signal scoring: two counts and a rule the owner can read.
+
+<a id="d-035"></a>
+## D-035 — 2026-10-04 — Agents reach the owner unasked only through `notify_owner`, the same gate as routines
+`notify_owner` calls `notices.notify`, which offers the text to the interruption budget (D-031) as kind
+`agent:<id>` (so the owner's 👍/👎, D-034, tune it per agent) and adds a tray entry either way. It is refused in a
+routine's thread (its answer is already delivered) and between agents (the answer goes back to the asker), and it is
+not among a contact's tools. It asks the owner's OK while outside content is in the turn: an injected page must not
+write to the owner in APX's voice. The tool reports what the gate did, so a dropped message is not retried.

@@ -1,6 +1,6 @@
 // Methods behind the office: tasks and commitments, routines, the attention tray and extensions.
 import { z } from "zod";
-import { Id, Message, Run } from "./domain.ts";
+import { Id, Message, Nudge, Run } from "./domain.ts";
 import {
   ApiClient,
   CallModel,
@@ -156,6 +156,15 @@ export const officeMethods = {
     result: Routine,
     effect: true,
     access: "human",
+  },
+  /**
+   * An agent tells the owner something now, from work they are not watching (a routine, a task, a long job). It goes
+   * through the interruption budget like a routine's news, and lands in the tray either way.
+   */
+  "notices.notify": {
+    params: z.object({ text: z.string().min(1).max(1000), critical: z.boolean().optional() }).strict(),
+    result: z.object({ state: Nudge.shape.state }),
+    effect: true,
   },
   "routines.remove": {
     params: z.object({ routine: Id }).strict(),

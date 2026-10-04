@@ -6,6 +6,14 @@ import { defineTool, type Tool } from "./types.ts";
 
 const PAGE = 12_000;
 
+const NOTIFY_STATE = {
+  sent: "sent to the owner",
+  held: "held: the owner's quiet hours; it goes when they end",
+  dropped: "kept in the owner's tray only (their interruption budget); do not send it again",
+  merged: "sent with others",
+  no_channel: "in the owner's tray (they have no channel set up)",
+} as const;
+
 export function ownerTools(store: Store): Tool[] {
   return [
     defineTool({
@@ -24,6 +32,27 @@ export function ownerTools(store: Store): Tool[] {
         const r = await ctx.askOwner(a.question, a.options);
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
         return "The owner did not answer in time. Continue without it if you can, or say what you are waiting for.";
+      },
+    }),
+    defineTool({
+      name: "notify_owner",
+      description:
+        "Tell the owner something now, on their phone or channel, from work they are not watching (a task, a long job). Only what needs them: a decision, a blocker, a result they are waiting for. One or two lines. Their interruption budget may hold it for later or keep it in the tray only. Not in a routine (its answer already reaches them) nor between agents.",
+      args: z.object({
+        text: z.string().min(1).max(1000),
+        critical: z
+          .boolean()
+          .optional()
+          .describe("Only for something that cannot wait (money, safety, a hard deadline)."),
+      }),
+      effect: "external",
+      // Outside content in the turn could make it write to the owner in APX's voice: they OK it then.
+      confirm: "untrusted",
+      deadlineMs: 15_000,
+      title: (a) => `Told you: ${String(a.text ?? "").slice(0, 60)}`,
+      async run(a, ctx) {
+        const { state } = await ctx.call("notices.notify", { text: a.text, ...(a.critical ? { critical: true } : {}) });
+        return NOTIFY_STATE[state];
       },
     }),
     defineTool({

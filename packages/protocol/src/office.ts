@@ -149,7 +149,7 @@ export const SecretaryProfile = z.object({
 export type SecretaryProfile = z.infer<typeof SecretaryProfile>;
 
 /** What a notice in the attention tray is about. */
-export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel"]);
+export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent"]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
 /**
