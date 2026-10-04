@@ -2,6 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { build } from "esbuild";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
@@ -24,7 +25,9 @@ await build({
 // Blob bodies are named by `new URL("./bodies/…", import.meta.url)`: the same path from src/blobs and from dist.
 cpSync("src/blobs/bodies", "dist/bodies", { recursive: true });
 
-execFileSync("node_modules/.bin/tsc", ["-p", "tsconfig.json", "--emitDeclarationOnly"], { stdio: "inherit" });
+// tsc through node: node_modules/.bin/tsc is a shell script, which Windows cannot run directly.
+const tsc = createRequire(import.meta.url).resolve("typescript/bin/tsc");
+execFileSync(process.execPath, [tsc, "-p", "tsconfig.json", "--emitDeclarationOnly"], { stdio: "inherit" });
 
 // components.css only lists the per-area sheets; inline them in that order so dist/ stays one file.
 const sheets = [...readFileSync("src/styles/components.css", "utf8").matchAll(/@import "\.\/(.+?)";/g)].map(

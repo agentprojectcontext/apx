@@ -62,3 +62,40 @@ jobs:
         run: |
           shopt -s nullglob
           gh release upload "$TAG" apps/desktop/release/*.{AppImage,deb,exe,dmg,zip} --clobber
+
+  # The phone app as an installable APK (Expo prebuild + Gradle; the release build signs with the template's debug
+  # key, enough to sideload — the Play Store needs its own key later).
+  android:
+    needs: open
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
+      - name: Native project
+        working-directory: apps/mobile
+        run: |
+          node -e 'const f="app.json",j=require("./"+f);j.expo.version=process.env.TAG.slice(1);require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+          npx expo prebuild --platform android --no-install
+      - name: APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "APX-${TAG#v}-android.apk"
+          gh release upload "$TAG" "APX-${TAG#v}-android.apk" --clobber

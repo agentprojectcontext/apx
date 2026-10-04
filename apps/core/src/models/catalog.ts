@@ -41,9 +41,15 @@ export type CatalogEngine = {
   fetched_at?: string;
 };
 
-/** An engine's last fetched model list, kept per engine (`catalog:<id>`); none when unset or unreadable. */
+/**
+ * Where an engine's list is kept. The version moves whenever more is read from an engine (efforts were added later),
+ * so a list kept by an older APX is asked again instead of hiding what is new for a day.
+ */
+const cacheKey = (id: string) => `catalog.v2:${id}`;
+
+/** An engine's last fetched model list, kept per engine; none when unset or unreadable. */
 export function cachedCatalog(store: Store, id: string): CatalogEngine | undefined {
-  const raw = store.settings.get(`catalog:${id}`);
+  const raw = store.settings.get(cacheKey(id));
   if (!raw) return undefined;
   try {
     const r = CatalogEngineSchema.safeParse(JSON.parse(raw));
@@ -179,7 +185,7 @@ export function createCatalog(deps: {
     try {
       const models = await list();
       const entry: CatalogEngine = { ...base, available: true, models, fetched_at: new Date().toISOString() };
-      store.settings.set(`catalog:${base.id}`, JSON.stringify(entry));
+      store.settings.set(cacheKey(base.id), JSON.stringify(entry));
       return entry;
     } catch (err) {
       const prev = cached(base.id);
