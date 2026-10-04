@@ -21,6 +21,10 @@ const en = {
   photoAsk: "Your agent asks for a picture",
   takePhoto: "Take it",
   decline: "Not now",
+  apps: "Apps and widgets",
+  chat: "Chat",
+  back: "Back",
+  noApps: "No pinned widgets or apps yet. Agents make them; pin one in the panel to see it here.",
 } as const;
 type Key = keyof typeof en;
 const es: Record<Key, string> = {
@@ -45,6 +49,10 @@ const es: Record<Key, string> = {
   photoAsk: "Tu agente te pide una foto",
   takePhoto: "Sacarla",
   decline: "Ahora no",
+  apps: "Apps y widgets",
+  chat: "Chat",
+  back: "Volver",
+  noApps: "Todavía no hay widgets ni apps fijados. Los hacen los agentes; fijá uno en el panel para verlo acá.",
 };
 
 const lang = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith("es") ? es : en;

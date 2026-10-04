@@ -28,4 +28,6 @@ While paired it also:
 A core on a VPS or reached through Tailscale: start it with `APX_HOST=0.0.0.0`, an `APX_TOKEN` and
 `APX_PUBLIC_URL=https://<its name>` (that address goes first in the pairing QR).
 
-Next: the panel's surfaces in a WebView.
+- **Shows the pinned widgets and apps** (Apps button): each opens full screen in a WebView with the panel's strict CSP
+  (inline code only, no network, no navigation) and the phone's light or dark colors; a widget's `sendPrompt()` after
+  a real touch goes to its thread, as in the panel.

@@ -8,12 +8,14 @@ import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { parsePairingLink } from "./pairing";
 import { registerPush, startPhoneNode } from "./phone";
+import { SurfacesScreen } from "./SurfacesScreen";
 
 /** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
 export function App() {
   const [creds, setCreds] = useState<Creds | null>();
   const [link, setLink] = useState<string>();
   const [photo, setPhoto] = useState<PhotoAsk>();
+  const [apps, setApps] = useState(false);
   // Paired: the phone lends its location and camera to the core, and registers for push.
   useEffect(() => {
     if (!creds) return;
@@ -48,8 +50,11 @@ export function App() {
           <View style={{ flex: 1, justifyContent: "center" }}>
             <ActivityIndicator />
           </View>
+        ) : creds && !link && apps ? (
+          <SurfacesScreen creds={creds} onBack={() => setApps(false)} />
         ) : creds && !link ? (
           <ChatScreen
+            onApps={() => setApps(true)}
             creds={creds}
             onUnpair={() => {
               void clearCreds();

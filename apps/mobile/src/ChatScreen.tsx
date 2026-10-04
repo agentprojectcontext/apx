@@ -8,7 +8,7 @@ const HOME = "home";
 const RETRY_MS = [1000, 2000, 5000, 10000];
 
 /** The super-agent's chat (Home): what was said, live over the socket, and a box to write. */
-export function ChatScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
+export function ChatScreen({ creds, onUnpair, onApps }: { creds: Creds; onUnpair: () => void; onApps: () => void }) {
   const client = useMemo(
     () => new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-mobile", version: "0.0.0" } }),
     [creds],
@@ -75,7 +75,10 @@ export function ChatScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => 
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.header}>
         <Text style={styles.status}>{online ? "APX" : t("offline")}</Text>
-        <Button title={t("unpair")} onPress={onUnpair} />
+        <View style={{ flexDirection: "row" }}>
+          <Button title={t("apps")} onPress={onApps} />
+          <Button title={t("unpair")} onPress={onUnpair} />
+        </View>
       </View>
       <FlatList
         ref={list}
