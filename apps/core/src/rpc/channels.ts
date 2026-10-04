@@ -127,7 +127,12 @@ export function channelHandlers(store: Store, channels: Channels) {
   } satisfies Partial<Handlers>;
 }
 
-const LABELS: Record<string, string> = { telegram: "Telegram", whatsapp: "WhatsApp" };
+const LABELS: Record<string, string> = {
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+  discord: "Discord",
+  slack: "Slack",
+};
 
 /** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
 function typedAddress(type: string, typed: string): string | undefined {

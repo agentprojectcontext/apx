@@ -104,8 +104,15 @@ const control = http.createServer((req, res) => {
     }
     // Discord and Slack: someone writing to the bot in a direct message, and what the bot sent to them.
     if (req.url === "/dc/message" && req.method === "POST") {
-      dc.message(body.from as { id: string; name: string }, String(body.text ?? ""));
+      const room = typeof body.room === "string" ? body.room : undefined;
+      dc.message(body.from as { id: string; name: string }, String(body.text ?? ""), room ? { room } : {});
       return json(200, { ok: true });
+    }
+    if (req.url?.startsWith("/dc/room")) {
+      const room = new URL(req.url, "http://x").searchParams.get("room") ?? "";
+      return json(200, {
+        sent: dc.messagesTo(room).map((s) => ({ text: s.body.content, reply: Boolean(s.body.message_reference) })),
+      });
     }
     if (req.url?.startsWith("/dc/sent")) {
       const user = new URL(req.url, "http://x").searchParams.get("user") ?? "";

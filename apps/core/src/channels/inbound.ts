@@ -15,6 +15,7 @@ import type { Services } from "../services/registry.ts";
 import { untrusted } from "../tools/result.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
+import type { createRooms } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
 
@@ -34,14 +35,16 @@ export function createInbound(deps: {
   attention(n: NewNotification): void;
   /** The channel is the owner's own account: strangers are listed quietly, never answered. */
   ownAccount(channel: string): boolean;
+  /** Messages in the public rooms the owner listed. */
+  rooms: ReturnType<typeof createRooms>;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
   const paused = new Set<string>();
 
-  /** Stores a one-to-one message and handles it; groups are never stored nor answered. */
+  /** Stores a one-to-one message (or one in a listed room) and handles it; other groups are never stored nor answered. */
   function receive(channel: string, m: Inbound): void {
-    if (!m.private) return;
+    if (!m.private && !m.room) return;
     const id = store.channels.inbox.add(channel, m);
     if (id) queueMicrotask(() => void process({ id, channel, payload: m }));
   }
@@ -62,6 +65,7 @@ export function createInbound(deps: {
   async function route(channel: string, rowId: string, m: Inbound): Promise<"done" | "ignored"> {
     const cfg = deps.configs().find((c) => c.id === channel);
     if (!cfg) return "ignored";
+    if (!m.private) return m.room ? deps.rooms.handle(cfg, m, rowId) : "ignored";
     const person = store.persons.byAddress(cfg.id, m.sender.id);
     if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";

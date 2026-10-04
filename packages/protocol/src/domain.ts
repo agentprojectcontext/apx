@@ -498,6 +498,43 @@ export type ChannelStrangers = z.infer<typeof ChannelStrangers>;
 export const ChannelType = z.enum(["telegram", "whatsapp", "discord", "slack"]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
+/**
+ * How the bot behaves in a room of a server (a Discord channel): answer everything, only when called, only when it
+ * can really help (a cheap model judges, by the owner's criterion), or never (it reads, so the owner can ask later).
+ */
+export const RoomMode = z.enum(["always", "mention", "useful", "read"]);
+export type RoomMode = z.infer<typeof RoomMode>;
+
+/**
+ * Public rooms (a Discord server's channels). Deny by default: a room that is not listed does not exist for APX. People
+ * there are strangers in public: the agent answers sealed (no tools, no memory, nothing of the owner's), by the owner's
+ * knowledge and rules.
+ */
+export const ChannelRooms = z.object({
+  rooms: z
+    .array(z.object({ id: z.string().min(1).max(40), name: z.string().max(80).default(""), mode: RoomMode }))
+    .max(50),
+  /** Words that count as calling the bot (besides an @mention or a reply to it). */
+  names: z.array(z.string().min(1).max(40)).max(10).default([]),
+  /** Answer only the owner in rooms; everyone else is read, never answered. */
+  owner_only: z.boolean().default(false),
+  /** What it can do and answer there: written by the owner, public. */
+  knowledge: z.string().max(12_000).default(""),
+  /** Hard rules for what it says there; they go last and win. */
+  rules: z.string().max(2000).default(""),
+  /** When an uncalled message deserves an answer (the "useful" rooms). */
+  reply_when: z.string().max(2000).default(""),
+  /** Between two answers to one person; answers per room per hour; uncalled messages judged per room per hour. */
+  limits: z
+    .object({
+      user_cooldown_s: z.number().int().min(0).max(3600).default(20),
+      room_replies_per_hour: z.number().int().min(1).max(600).default(30),
+      checks_per_hour: z.number().int().min(0).max(1000).default(120),
+    })
+    .default({ user_cooldown_s: 20, room_replies_per_hour: 30, checks_per_hour: 120 }),
+});
+export type ChannelRooms = z.infer<typeof ChannelRooms>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -519,6 +556,8 @@ export const ChannelInfo = z.object({
    * its own the agent answers on, and the owner writes to it from their phone (linked with a code or by number).
    */
   self_owner: z.boolean().optional(),
+  /** Discord: the server rooms it reads and may speak in. None: only direct messages. */
+  rooms: ChannelRooms.optional(),
   token_set: z.boolean(),
   /** The stored token, masked for the owner to recognize it: the bot's number and the secret's last four. */
   token_hint: z.string().optional(),

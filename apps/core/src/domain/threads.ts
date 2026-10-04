@@ -61,8 +61,10 @@ export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: n
 
 /** What the context builder, the upkeep and the channels keep per thread. */
 export type ThreadContext = {
-  /** Answers go back to this channel conversation while the last words came from it. */
-  reply_to?: { channel: string; conversation: string };
+  /** Answers go back to this channel conversation while the last words came from it (in a room, as a reply to `message`). */
+  reply_to?: { channel: string; conversation: string; message?: string | undefined };
+  /** A public room of a server (a Discord channel): its turns are sealed, whoever wrote. */
+  room?: { name: string };
   compaction?: Epoch;
   /** The roster last shown to this agent, to show it again only when it changes. */
   roster_hash?: string;

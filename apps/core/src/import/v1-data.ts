@@ -2,7 +2,7 @@
 // Read-only: nothing here writes to v1's folder. Secrets are read only to be stored in v2's own secret store.
 import fs from "node:fs";
 import path from "node:path";
-import type { PersonRelation, ServiceSettings } from "@apx/protocol";
+import { ChannelRooms, type PersonRelation, RoomMode, type ServiceSettings } from "@apx/protocol";
 
 const readJson = (file: string): unknown => {
   try {
@@ -240,6 +240,52 @@ export function v1Telegram(home: string): V1Telegram | undefined {
       const id = o.user_id != null ? String(o.user_id) : "";
       const name = str(o.name) ?? str(o.username);
       return id && name && id !== String(owner) && o.role !== "owner" ? [{ id, name: name.slice(0, 80) }] : [];
+    }),
+  };
+}
+
+export type V1Discord = {
+  token: string;
+  enabled: boolean;
+  /** The owner's Discord user ids. */
+  ownerIds: string[];
+  rooms: ChannelRooms;
+};
+
+/** v1's Discord bot: the owner's ids and the server rooms it read or spoke in, with its words, knowledge and rules. */
+export function v1Discord(home: string): V1Discord | undefined {
+  const d = obj(v1Config(home).discord);
+  const token = str(d.token);
+  if (!token) return undefined;
+  const ids = (v: unknown) =>
+    list(v).flatMap((x) => (/^\d{15,21}$/.test(String(x ?? "").trim()) ? [String(x).trim()] : []));
+  const limits = obj(d.limits);
+  const secs = (v: unknown, def: number) => Math.round((num(v) ?? def * 1000) / 1000);
+  const rooms = Object.entries(obj(d.channels)).flatMap(([id, row]) => {
+    const r = obj(row);
+    const mode = RoomMode.safeParse(String(r.mode ?? "").toLowerCase());
+    return /^\d{15,21}$/.test(id) && mode.success
+      ? [{ id, name: (str(r.name) ?? "").slice(0, 80), mode: mode.data }]
+      : [];
+  });
+  return {
+    token,
+    enabled: d.enabled !== false,
+    ownerIds: ids(d.owner_ids),
+    rooms: ChannelRooms.parse({
+      rooms: rooms.slice(0, 50),
+      names: list(d.names)
+        .flatMap((n) => (str(n) ? [String(n).trim().toLowerCase().slice(0, 40)] : []))
+        .slice(0, 10),
+      owner_only: d.owner_only === true,
+      knowledge: (str(d.knowledge) ?? "").slice(0, 12_000),
+      rules: (str(d.rules) ?? "").slice(0, 2000),
+      reply_when: (str(d.reply_when) ?? "").slice(0, 2000),
+      limits: {
+        user_cooldown_s: Math.min(3600, secs(limits.user_cooldown_ms, 20)),
+        room_replies_per_hour: Math.max(1, Math.min(600, num(limits.channel_replies_per_hour) ?? 30)),
+        checks_per_hour: Math.min(1000, num(limits.gate_checks_per_hour) ?? 120),
+      },
     }),
   };
 }

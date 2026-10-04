@@ -65,6 +65,8 @@ export type ChannelDraft = {
   concurrency: ChannelInfo["concurrency"];
   owner_thread: ChannelInfo["owner_thread"];
   self_owner?: boolean | undefined;
+  /** Discord: the server rooms it reads and may speak in (kept on every save, or they would be dropped). */
+  rooms?: ChannelInfo["rooms"];
 };
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */

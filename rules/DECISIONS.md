@@ -421,3 +421,19 @@ so continuing the session keeps them. It is the same one a2a path (rule 2), not 
 the delegation cap apply as they do to agents. The chat card now carries the whole report (folded until asked) and how
 long it took, and a result that arrives after the caller's turn ended shows its card again above what the caller makes
 of it.
+
+<a id="d-041"></a>
+## D-041 — 2026-10-04 — Discord server rooms: listed, kept, answered sealed
+v1's Discord lived in the owner's server rooms; v2's only read direct messages. A Discord channel now has `rooms`: the
+rooms it reads (deny by default: an unlisted room is neither stored nor answered), each with a mode (`mention`: when
+called by @mention, a reply to it or one of its names as a whole word; `always`; `useful`: the auxiliary model judges
+an uncalled message by the owner's `reply_when`, at most `checks_per_hour`; `read`: never speaks), plus the owner's
+notes for that community (`knowledge`), their `rules` (last in the prompt), `owner_only` and limits (a pause between
+answers to one person, a cap per room per hour, which the owner skips unless the model chose to answer). Every message
+of a listed room is kept in the room's chat (one per room); one person's quick messages settle into one answer to the
+last. A room's turn is sealed for everyone, the owner included (the room is public): no tools, no memory, no history of
+its own; it reads the room's latest messages (25, within 6000 characters) as data and the one it answers, framed with
+who wrote it (the owner checked by account). Answers go as a reply to that message, with no mentions; a failure is
+told to the owner, never posted. The import brings v1's bot token, the owner's ids, rooms, words, notes, rules,
+criterion and limits; direct messages from strangers wait for the owner (v1 never answered them). Not brought: v1's
+room summaries and similarity recall over older room messages, and a bot-role mention counting as a call.

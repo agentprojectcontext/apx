@@ -71,6 +71,8 @@ export type CoreOptions = {
   channelAdapters?: Record<string, AdapterFactory>;
   /** Waits before a channel that failed to start tries again; tests shorten them. */
   channelRetryMs?: readonly number[];
+  /** How long a room waits for one person's quick messages to settle (tests shorten it). */
+  roomBurstMs?: number;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** Finder and the trash; tests record the calls instead. */
@@ -188,6 +190,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     call: internal,
     services,
     attention: attention.add,
+    judge: upkeep.judge,
+    ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
     pushOwner: (deviceId, text) => {
       const target = store.devices.pushTarget(deviceId);
       if (!target) return false;

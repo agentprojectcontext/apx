@@ -23,6 +23,7 @@ import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
 import { inputPresentation } from "./notices.ts";
+import { createRooms, quietMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 
@@ -60,6 +61,10 @@ export function createChannels(deps: {
   retryMs?: readonly number[];
   /** A paired device's push, when the owner picked it as where notices go; false when it has none. */
   pushOwner?: (deviceId: string, text: string) => boolean;
+  /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
+  judge?: (system: string, user: string) => Promise<string | undefined>;
+  /** How long a room waits for one person's quick messages to settle (tests shorten it). */
+  roomBurstMs?: number;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
   const { store, secrets, log } = deps;
@@ -117,6 +122,14 @@ export function createChannels(deps: {
     return false;
   }
 
+  const rooms = createRooms({
+    store,
+    log,
+    call: deps.call,
+    notifyOwner: (body) => notifyOwner(body),
+    judge: deps.judge,
+    ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
+  });
   const inbound = createInbound({
     store,
     log,
@@ -127,6 +140,7 @@ export function createChannels(deps: {
     notifyOwner,
     attention: deps.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
+    rooms,
   });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
@@ -165,6 +179,14 @@ export function createChannels(deps: {
     const thread = store.threads.get(run.thread_id);
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
+    const room = audience?.kind === "contact" ? audience.room : undefined;
+    if (!out && run.state === "failed" && room) {
+      // A public room never sees what went wrong inside APX; the owner does.
+      const text = channelTexts(store).roomFailed(`#${room.name}`, why);
+      notifyOwner({ text }, "notice", run.thread_id);
+      deps.attention({ kind: "channel", level: "error", title: `#${room.name}`, body: text, thread_id: run.thread_id });
+      return;
+    }
     if (!out && run.state === "failed") {
       if (audience?.kind === "contact") {
         // A contact never sees what went wrong inside APX; the owner does.
@@ -179,13 +201,18 @@ export function createChannels(deps: {
     );
     if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
+    if (room) out = quietMentions(out);
     const voice = out && run.state === "completed" ? await voiceFor(run.thread_id, out) : undefined;
     delivery.enqueue({
       channel: to.channel,
       conversation: to.conversation,
       thread_id: run.thread_id,
       kind: "reply",
-      body: { text: out, media: [...images, ...(voice ? [voice] : [])] },
+      body: {
+        text: out,
+        media: [...images, ...(voice ? [voice] : [])],
+        ...(room && to.message ? { reply_to: to.message } : {}),
+      },
     });
   }
 
@@ -491,6 +518,7 @@ export function createChannels(deps: {
       delivery.kick();
     },
     async stop(): Promise<void> {
+      rooms.stop();
       stopped = true;
       delivery.stop();
       for (const iv of typing.values()) clearInterval(iv);
@@ -518,5 +546,16 @@ const AVATAR_TTL_MS = 24 * 3600_000;
 
 /** Whether a settings change needs the channel started again (what its adapter is built with). */
 function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">): boolean {
-  return a.type !== b.type || a.enabled !== b.enabled || Boolean(a.self_owner) !== Boolean(b.self_owner);
+  // The rooms a bot listens to are part of its connection (Discord subscribes to server messages only with some).
+  const rooms = (c: Omit<ChannelConfig, "id">) =>
+    (c.rooms?.rooms ?? [])
+      .map((r) => r.id)
+      .sort()
+      .join(",");
+  return (
+    a.type !== b.type ||
+    a.enabled !== b.enabled ||
+    Boolean(a.self_owner) !== Boolean(b.self_owner) ||
+    rooms(a) !== rooms(b)
+  );
 }

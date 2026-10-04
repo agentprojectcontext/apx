@@ -6,6 +6,7 @@ import {
   Author,
   CatalogEngine,
   ChannelInfo,
+  ChannelRooms,
   ChannelStrangers,
   ChannelType,
   EngineStatus,
@@ -583,6 +584,7 @@ export const appMethods = {
             concurrency: z.enum(["queue", "interrupt", "steer"]).default("queue"),
             owner_thread: z.enum(["home", "own"]).default("home"),
             self_owner: z.boolean().optional(),
+            rooms: ChannelRooms.optional(),
           })
           .nullable(),
         token: z.string().min(8).max(400).optional(),

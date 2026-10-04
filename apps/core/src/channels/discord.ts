@@ -1,6 +1,7 @@
 // Discord through its Gateway (a WebSocket) and REST API, with plain fetch and the platform's WebSocket: no library.
-// Only direct messages to the bot are read (like Telegram's private chats); buttons are message components and a press
-// comes back as an interaction. A message that arrives while the socket is down is not redelivered by Discord.
+// Direct messages to the bot are read (like Telegram's private chats), and messages in the server rooms the owner
+// listed; buttons are message components and a press comes back as an interaction. A message that arrives while the
+// socket is down is not redelivered by Discord.
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import { causeCode, NEVER_SENT, sleep, splitText } from "./net.ts";
@@ -18,11 +19,20 @@ const UPLOAD_MS = 60_000;
 const MAX_BACKOFF_MS = 60_000;
 /** Discord's limit for one message's text. */
 const MAX_CHARS = 2000;
-/** DIRECT_MESSAGES | MESSAGE_CONTENT: DMs to the bot, with their text. */
+/** DIRECT_MESSAGES | MESSAGE_CONTENT: DMs to the bot, with their text; GUILD_MESSAGES when it has rooms. */
 const INTENTS = (1 << 12) | (1 << 15);
+const GUILD_MESSAGES = 1 << 9;
 
 type DcUser = { id: string; username?: string; global_name?: string | null; bot?: boolean; avatar?: string | null };
-type DcMessage = { id: string; channel_id: string; guild_id?: string; author: DcUser; content?: string };
+type DcMessage = {
+  id: string;
+  channel_id: string;
+  guild_id?: string;
+  author: DcUser;
+  content?: string;
+  mentions?: DcUser[];
+  referenced_message?: { author?: DcUser } | null;
+};
 type DcInteraction = {
   id: string;
   token: string;
@@ -67,6 +77,9 @@ export const discordAdapter = ((
   let socket: WebSocket | undefined;
   let heartbeat: ReturnType<typeof setInterval> | undefined;
   let loop: Promise<void> | undefined;
+  /** The bot's own user id, to know when a room message calls it. */
+  let me: string | undefined;
+  const rooms = new Set((config.rooms?.rooms ?? []).map((r) => r.id));
 
   async function api<T>(method: string, route: string, body?: object, timeoutMs = CALL_MS): Promise<T> {
     if (!token) throw new DcError(401, "no bot token");
@@ -114,7 +127,11 @@ export const discordAdapter = ((
           heartbeat.unref?.();
           send({
             op: 2,
-            d: { token, intents: INTENTS, properties: { os: process.platform, browser: "apx", device: "apx" } },
+            d: {
+              token,
+              intents: INTENTS | (rooms.size ? GUILD_MESSAGES : 0),
+              properties: { os: process.platform, browser: "apx", device: "apx" },
+            },
           });
         } else if (f.op === 11) acked = true;
         else if (f.op === 1) send({ op: 1, d: seq });
@@ -133,17 +150,22 @@ export const discordAdapter = ((
   }
 
   function dispatch(f: Frame, io: AdapterIO): void {
-    if (f.t === "READY") io.status("running");
-    else if (f.t === "MESSAGE_CREATE") {
+    if (f.t === "READY") {
+      me = (f.d as { user?: DcUser })?.user?.id ?? me;
+      io.status("running");
+    } else if (f.t === "MESSAGE_CREATE") {
       const m = f.d as DcMessage;
-      // Only direct messages from people (never another bot, never a server's channels).
-      if (m.guild_id || m.author.bot) return;
+      // Messages from people only, never another bot; in a server, only the rooms the owner listed.
+      if (m.author.bot || (m.guild_id && !rooms.has(m.channel_id))) return;
+      const called = Boolean(me) && (m.mentions?.some((u) => u.id === me) || m.referenced_message?.author?.id === me);
       io.receive({
         external_id: m.id,
         conversation: m.channel_id,
         sender: { id: m.author.id, name: nameOf(m.author) },
-        text: m.content ?? "",
-        private: true,
+        // The @mention of the bot itself says nothing: it is how it was called.
+        text: (me ? (m.content ?? "").replace(new RegExp(`<@!?${me}>`, "g"), "") : (m.content ?? "")).trim(),
+        private: !m.guild_id,
+        ...(m.guild_id ? { room: { called: Boolean(called) } } : {}),
       });
     } else if (f.t === "INTERACTION_CREATE") {
       const i = f.d as DcInteraction;
@@ -179,7 +201,12 @@ export const discordAdapter = ((
     }
   }
 
-  async function sendText(channel: string, content: string, buttons: Presentation["buttons"]): Promise<string> {
+  async function sendText(
+    channel: string,
+    content: string,
+    buttons: Presentation["buttons"],
+    replyTo?: string,
+  ): Promise<string> {
     const components = buttons?.length
       ? [
           {
@@ -194,6 +221,7 @@ export const discordAdapter = ((
       content,
       allowed_mentions: { parse: [] },
       ...(components ? { components } : {}),
+      ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
     });
     return r.id;
   }
@@ -233,7 +261,10 @@ export const discordAdapter = ((
     async send(conversation, p, files = []) {
       const texts = p.text.trim() ? splitText(p.text, MAX_CHARS) : [];
       const steps: Array<() => Promise<string>> = [
-        ...texts.map((t, i) => () => sendText(conversation, t, i === texts.length - 1 ? p.buttons : undefined)),
+        ...texts.map(
+          (t, i) => () =>
+            sendText(conversation, t, i === texts.length - 1 ? p.buttons : undefined, i === 0 ? p.reply_to : undefined),
+        ),
         ...files.map((f) => () => sendFile(conversation, f)),
       ];
       let last: string | undefined;

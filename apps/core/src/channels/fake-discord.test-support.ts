@@ -89,15 +89,27 @@ export async function fakeDiscord(token: string) {
     failures,
     identified,
     dm,
-    /** A direct message to the bot (or, with `guild`, a message in a server's channel). */
-    message(from: { id: string; name: string }, content: string, opts: { guild?: boolean; bot?: boolean } = {}) {
+    /**
+     * A direct message to the bot (or, with `guild`, a message in a server's channel: `room`, else "777"); `mention`
+     * @mentions the bot, `replyToBot` answers one of its messages. Returns the message's id.
+     */
+    message(
+      from: { id: string; name: string },
+      content: string,
+      opts: { guild?: boolean; bot?: boolean; room?: string; mention?: boolean; replyToBot?: boolean } = {},
+    ): string {
+      const id = String(nextId++);
+      const guild = opts.guild || Boolean(opts.room);
       dispatch("MESSAGE_CREATE", {
-        id: String(nextId++),
-        channel_id: opts.guild ? "777" : dm(from.id),
-        ...(opts.guild ? { guild_id: "42" } : {}),
+        id,
+        channel_id: guild ? (opts.room ?? "777") : dm(from.id),
+        ...(guild ? { guild_id: "42" } : {}),
         author: { ...author(from), ...(opts.bot ? { bot: true } : {}) },
-        content,
+        content: opts.mention ? `<@1> ${content}` : content,
+        mentions: opts.mention ? [{ id: "1", username: "apx_test_bot" }] : [],
+        ...(opts.replyToBot ? { referenced_message: { author: { id: "1", username: "apx_test_bot" } } } : {}),
       });
+      return id;
     },
     press(from: { id: string; name: string }, customId: string) {
       dispatch("INTERACTION_CREATE", {

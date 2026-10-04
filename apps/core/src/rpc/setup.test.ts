@@ -24,6 +24,13 @@ before(async () => {
     channelAdapters: {
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(env.home, "wa"), selfOwner: c.self_owner === true, lib: async () => wa.lib }),
+      // Importing Discord starts its bot: a stand-in that connects nowhere.
+      discord: () => ({
+        caps: { typing: false, buttons: false },
+        start: async () => ({ account: "@bot" }),
+        stop: async () => {},
+        send: async () => ({}),
+      }),
     },
   });
   const v1 = path.join(env.home, "v1");
@@ -53,6 +60,28 @@ before(async () => {
         formality: "informal",
         nudge_budget_per_day: 5,
         quiet_hours: "22:00-07:30",
+      },
+    },
+    discord: {
+      enabled: true,
+      token: "MTIzNDU2.fake.discord-token",
+      owner_ids: ["123456789012345678"],
+      names: ["Roby", "roby-superagent"],
+      owner_only: false,
+      knowledge: "Acme Notes installs with brew.",
+      rules: "Never talk about prices.",
+      reply_when: "Only install questions.",
+      channels: {
+        "100000000000000001": { mode: "mention", name: "general" },
+        "100000000000000002": { mode: "useful", name: "help" },
+        "not-a-snowflake": { mode: "always" },
+        "100000000000000003": { mode: "shout" },
+      },
+      limits: {
+        user_cooldown_ms: 30000,
+        channel_replies_per_hour: 10,
+        burst_window_ms: 8000,
+        gate_checks_per_hour: 50,
       },
     },
     whatsapp: {
@@ -232,7 +261,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     embeddings: 2,
     identity: 5,
     chats: 5,
-    channels: 1,
+    channels: 2,
     tasks: 1,
     commitments: 1,
     routines: 2,
@@ -375,7 +404,7 @@ test("importing brings Default's agents with their notes, and the chats: one per
 test("importing channels brings v1's WhatsApp: whose phone the line is, the owner's numbers and who each contact is", async () => {
   const r = await env.client.call("setup.import_v1", { groups: ["channels"] });
   assert.deepEqual(r.errors, []);
-  assert.equal(r.imported.channels, 3);
+  assert.equal(r.imported.channels, 6, "WhatsApp and its 2 contacts, Discord and its 2 rooms");
   const { persons } = await env.client.call("contacts.list", {});
   const wa = (p: (typeof persons)[number] | undefined) =>
     p?.addresses.filter((a) => a.channel === "whatsapp").map((a) => a.external_id);
@@ -408,6 +437,35 @@ test("importing channels brings v1's WhatsApp: whose phone the line is, the owne
     { strangers: channel?.strangers, self_owner: channel?.self_owner },
     { strangers: "ask", self_owner: false },
   );
+});
+
+test("importing channels brings v1's Discord: the owner's id, its rooms with their modes, words, notes and limits", async () => {
+  const channel = (await env.client.call("channels.list", {})).channels.find((c) => c.id === "discord");
+  assert.ok(channel?.token_set, "the bot's token, in v2's secret store");
+  assert.deepEqual(channel?.rooms?.rooms, [
+    { id: "100000000000000001", name: "general", mode: "mention" },
+    { id: "100000000000000002", name: "help", mode: "useful" },
+  ]);
+  assert.deepEqual(
+    {
+      names: channel?.rooms?.names,
+      knowledge: channel?.rooms?.knowledge,
+      rules: channel?.rooms?.rules,
+      reply_when: channel?.rooms?.reply_when,
+      limits: channel?.rooms?.limits,
+      strangers: channel?.strangers,
+    },
+    {
+      names: ["roby", "roby-superagent"],
+      knowledge: "Acme Notes installs with brew.",
+      rules: "Never talk about prices.",
+      reply_when: "Only install questions.",
+      limits: { user_cooldown_s: 30, room_replies_per_hour: 10, checks_per_hour: 50 },
+      strangers: "ask",
+    },
+  );
+  const owner = (await env.client.call("contacts.list", {})).persons.find((p) => p.role === "owner");
+  assert.ok(owner?.addresses.some((a) => a.channel === "discord" && a.external_id === "123456789012345678"));
 });
 
 test("v1 schedules read as v2's", () => {

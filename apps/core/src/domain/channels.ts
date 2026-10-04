@@ -16,8 +16,10 @@ export type Inbound = {
   conversation: string;
   sender: { id: string; name: string };
   text: string;
-  /** Only one-to-one conversations reach the agent; groups are ignored. */
+  /** A one-to-one conversation; anything else reaches the agent only as a listed room (see `room`). */
   private: boolean;
+  /** A message in a server's room the owner listed: whether it called the bot (an @mention or a reply to it). */
+  room?: { called: boolean } | undefined;
   /** A voice note or audio, to be transcribed before an agent reads it. */
   voice?: { mime: string; data: string } | undefined;
 };
@@ -37,6 +39,8 @@ export type Presentation = {
   skip?: number;
   /** Images and voice notes APX made, sent after the text. */
   media?: Array<{ id: string; kind: "image" | "audio"; mime: string }>;
+  /** In a room: the message this answers (shown as a reply to it). */
+  reply_to?: string;
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };

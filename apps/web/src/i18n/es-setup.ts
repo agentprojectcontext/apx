@@ -60,7 +60,8 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.v1.embeddings": "Motor de embeddings",
   "setup.v1.embeddingsBody": "El que busca notas por significado y elige skills en cada mensaje, con su modelo y clave",
   "setup.v1.channels": "Canales",
-  "setup.v1.channelsBody": "Telegram y WhatsApp: tus cuentas, tus contactos y quién es cada uno",
+  "setup.v1.channelsBody":
+    "Telegram, WhatsApp y Discord: tus cuentas, tus contactos, quién es cada uno y las salas de tu servidor",
   "setup.v1.tasks": "Tareas abiertas",
   "setup.v1.tasksBody": "Con su vencimiento, prioridad y etiquetas; las terminadas quedan en v1",
   "setup.v1.commitments": "Compromisos",

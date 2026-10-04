@@ -57,6 +57,7 @@ export async function startCore(opts: {
   aux?: boolean;
   channelAdapters?: Record<string, AdapterFactory>;
   channelRetryMs?: readonly number[];
+  roomBurstMs?: number;
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -74,6 +75,7 @@ export async function startCore(opts: {
     ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
     ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
     ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
+    ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
     ...(opts.desktop ? { desktop: opts.desktop } : {}),
     imessage: opts.imessage ?? null,
     ...(opts.clock ? { clock: opts.clock } : {}),

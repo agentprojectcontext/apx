@@ -17,6 +17,7 @@ import { importV1Chats, v1AgentNotes, v1ChatCount, v1DefaultAgents } from "./v1-
 import {
   type V1Project,
   v1AgentCount,
+  v1Discord,
   v1Embeddings,
   v1Identity,
   v1Notes,
@@ -72,6 +73,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
   const all = spaces(home);
   const tg = v1Telegram(home);
   const wa = v1WhatsApp(home);
+  const dc = v1Discord(home);
   const embedders = v1Embeddings(home).engines;
   const who = v1Identity(home);
   const talk = v1ChatCount(home);
@@ -106,7 +108,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     },
     {
       id: "channels",
-      count: (tg ? 1 : 0) + (wa ? 1 : 0),
+      count: (tg ? 1 : 0) + (wa ? 1 : 0) + (dc ? 1 : 0),
       ...(tg || wa ? { detail: String((tg?.contacts.length ?? 0) + (wa?.contacts.length ?? 0)) } : {}),
     },
     { id: "tasks", count: all.reduce((n, s) => n + v1OpenTasks(s.storage).length, 0) },
@@ -247,7 +249,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
   });
   run("channels", () => {
     if (!secretary) return 0;
-    return importTelegram(deps, secretary.id) + importWhatsApp(deps, secretary.id);
+    return importTelegram(deps, secretary.id) + importWhatsApp(deps, secretary.id) + importDiscord(deps, secretary.id);
   });
   const personFor = (name: string) => {
     const known = store.persons.list().find((p) => p.name.toLowerCase() === name.toLowerCase());
@@ -395,6 +397,35 @@ function importTelegram(deps: V1ImportDeps, agentId: string): number {
       tg.token,
     );
   return 1 + tg.contacts.length;
+}
+
+/** v1's Discord bot: the owner's ids, and the server rooms with their modes, words, knowledge and rules. */
+function importDiscord(deps: V1ImportDeps, agentId: string): number {
+  const { store } = deps;
+  const dc = v1Discord(deps.v1Home);
+  if (!dc) return 0;
+  store.tx(() => {
+    store.persons.owner();
+    for (const id of dc.ownerIds)
+      store.persons.link(OWNER_ID, { channel: "discord", external_id: id, label: "Discord" });
+  });
+  if (!deps.channels.info().some((c) => c.id === "discord" && c.token_set))
+    void deps.channels.set(
+      "discord",
+      {
+        type: "discord",
+        label: "Discord",
+        agent_id: agentId,
+        enabled: dc.enabled,
+        // v1 answered strangers only in its rooms; a direct message from one waits for the owner.
+        strangers: "ask",
+        concurrency: "queue",
+        owner_thread: "home",
+        rooms: dc.rooms,
+      },
+      dc.token,
+    );
+  return 1 + dc.rooms.rooms.length;
 }
 
 /**

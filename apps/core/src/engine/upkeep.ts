@@ -270,6 +270,8 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
 
   return {
     auxModels,
+    /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
+    judge: (system: string, user: string) => ask(undefined, system, user),
     compact: (threadId: string) => once(threadId, true),
     /** After every run: a title for a new chat, and compaction when the thread got long. */
     afterRun(run: RunRecord): void {

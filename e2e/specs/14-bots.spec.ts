@@ -1,7 +1,7 @@
 // Discord and Slack, emulated: each bot is connected from Config › Channels with its token(s), the owner writes to it
 // in a direct message, gets a code, links it as their own account, and from then on talks to the super-agent there.
 import type { Page } from "@playwright/test";
-import { expect, open, test, until, world } from "./kit.ts";
+import { expect, open, rpc, test, until, world } from "./kit.ts";
 
 async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[label: string, value: string]>) {
   await open(page);
@@ -35,6 +35,37 @@ test("Discord: the bot connects with its token, the owner links their account an
   const { discord } = await world.info();
   await connect(page, "Discord", [["Token del bot", discord]]);
   await linkAndTalk(page, "dc", { id: "5150", name: "Owner" });
+});
+
+test("Discord rooms: the owner lists a server room, and the bot answers there when called by name", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Discord", exact: true }).first().click();
+  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await expect(page.getByText("Salas del servidor")).toBeVisible();
+  await page.getByRole("textbox", { name: "Nombre de la sala" }).fill("general");
+  await page.getByRole("textbox", { name: "ID de la sala" }).fill("100000000000000001");
+  await page.getByRole("button", { name: "Agregar sala" }).click();
+  await expect(page.getByText("#general")).toBeVisible();
+  const names = page.getByRole("textbox", { name: "Cómo lo llaman" });
+  await names.fill("roby");
+  await names.blur();
+  await expect(names).toHaveValue("roby");
+
+  // Each save restarts the bot with its rooms: it listens again before anyone writes.
+  await until(async () =>
+    (
+      await rpc<{ channels: Array<{ id: string; status: string; rooms?: { names: string[] } }> }>("channels.list")
+    ).channels.some((c) => c.id === "discord" && c.status === "running" && c.rooms?.names.includes("roby")),
+  );
+  await world.room({ id: "6160", name: "Ana" }, "100000000000000001", "nice weather today");
+  await world.room({ id: "6161", name: "Ben" }, "100000000000000001", "roby what is Acme Notes?");
+  // A room waits a few seconds for one person's quick messages before it answers.
+  const post = await until(async () => (await world.roomPosts("100000000000000001"))[0], 20_000);
+  expect(post.text).toContain("Got it");
+  expect(post.reply).toBe(true);
+  expect(await world.roomPosts("100000000000000001")).toHaveLength(1);
 });
 
 test("Slack: the app connects with both tokens, the owner links their account and talks to the super-agent", async ({

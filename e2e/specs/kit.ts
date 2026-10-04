@@ -40,6 +40,16 @@ export const world = {
   dm: async (channel: "dc" | "sl", from: { id: string; name: string }, text: string) => {
     await post(`${control}/${channel}/message`, { from, text });
   },
+  /** Someone writing in a room of the Discord server, and what the bot posted there. */
+  room: async (from: { id: string; name: string }, room: string, text: string) => {
+    await post(`${control}/dc/message`, { from, text, room });
+  },
+  roomPosts: async (room: string) =>
+    (
+      (await (await fetch(`${control}/dc/room?room=${room}`)).json()) as {
+        sent: Array<{ text?: string; reply: boolean }>;
+      }
+    ).sent,
   dmSentTo: async (channel: "dc" | "sl", user: string) =>
     ((await (await fetch(`${control}/${channel}/sent?user=${user}`)).json()) as { sent: Array<{ text?: string }> })
       .sent,

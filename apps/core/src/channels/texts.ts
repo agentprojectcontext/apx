@@ -23,6 +23,9 @@ const es = {
   contactFailed: "Ahora no puedo responder; ya le avisé a mi dueño.",
   contactFailedOwner: (name: string, why: string) => `No pude responderle a ${name}: ${why}`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
+  roomCap: (room: string) =>
+    `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
+  roomFailed: (room: string, why: string) => `No pude responder en ${room}: ${why}`,
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
   useful: "👍 Útil",
@@ -61,6 +64,8 @@ const en: typeof es = {
   contactFailed: "I can't answer right now; I've let my owner know.",
   contactFailedOwner: (name, why) => `I couldn't answer ${name}: ${why}`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
+  roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
+  roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
   useful: "👍 Useful",

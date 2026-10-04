@@ -24,7 +24,15 @@ import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
-import { type Audience, audienceOf, contactPrompt, ownerInstruction, SEALED_HARNESSES } from "./audience.ts";
+import {
+  type Audience,
+  audienceOf,
+  contactPrompt,
+  ownerInstruction,
+  roomInput,
+  roomPrompt,
+  SEALED_HARNESSES,
+} from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput, workerPrompt } from "./context.ts";
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
@@ -265,7 +273,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const sealed = turn.audience.kind === "contact" || direct;
   const remembers = !sealed && memorySettings(store).mode !== "off";
   const ctxState = store.threads.context(thread.id);
-  const { items: history, from } = project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
+  // A public room's turn reads the room's latest messages instead of a history of its own.
+  const room = turn.audience.kind === "contact" ? turn.audience.room : undefined;
+  const projected = room
+    ? { items: [] as ChatItem[], from: 0 }
+    : project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
+  const { items: history, from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
@@ -304,24 +317,33 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const input: ChatItem & { role: "user" } = {
     role: "user",
     ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
-    content: direct
-      ? files
-        ? `${said}\n\n${files}`
-        : said
-      : turnInput({
-          origin: turn.input.origin,
-          text: files ? `${said}\n\n${files}` : said,
-          now: new Date(),
-          roster: rosterChanged ? roster.text : undefined,
-          memory: recalled.text,
-          skills: picked?.block || undefined,
-          task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
-          extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
-          waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
-          timeZone: ownerTimeZone(store),
-          channel: channelKindOf(store, o),
-          feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
-        }),
+    content: room
+      ? roomInput(store, {
+          threadId: thread.id,
+          runId: run.id,
+          agentName: agent.name,
+          from: o.kind === "channel" ? o.name : "your owner",
+          owner: o.kind !== "channel" || o.role === "owner",
+          text: said,
+        })
+      : direct
+        ? files
+          ? `${said}\n\n${files}`
+          : said
+        : turnInput({
+            origin: turn.input.origin,
+            text: files ? `${said}\n\n${files}` : said,
+            now: new Date(),
+            roster: rosterChanged ? roster.text : undefined,
+            memory: recalled.text,
+            skills: picked?.block || undefined,
+            task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
+            extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
+            waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+            timeZone: ownerTimeZone(store),
+            channel: channelKindOf(store, o),
+            feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
+          }),
   };
   const at = store.modelLog.append(thread.id, run.id, [input]);
   if (rosterChanged || recalled.shown)
@@ -381,7 +403,10 @@ const DIRECT_NOTE =
 
 function systemFor(store: Store, turn: Turn, skills: string, roots: readonly ProfileRoot[]): string {
   const lang = store.settings.get("owner_language") || "es";
-  if (turn.audience.kind === "contact") return contactPrompt(turn.agent, turn.audience, lang);
+  if (turn.audience.kind === "contact")
+    return turn.audience.room
+      ? roomPrompt(turn.agent, turn.audience.room, lang)
+      : contactPrompt(turn.agent, turn.audience, lang);
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
   if (turn.worker)

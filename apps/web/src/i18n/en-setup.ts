@@ -60,7 +60,8 @@ export const enSetup = {
   "setup.v1.embeddingsBody":
     "The one that finds notes by meaning and picks skills for each message, with its model and key",
   "setup.v1.channels": "Channels",
-  "setup.v1.channelsBody": "Telegram and WhatsApp: your accounts, your contacts and who each one is",
+  "setup.v1.channelsBody":
+    "Telegram, WhatsApp and Discord: your accounts, your contacts, who each one is and your server's rooms",
   "setup.v1.tasks": "Open tasks",
   "setup.v1.tasksBody": "With their due date, priority and tags; finished ones stay in v1",
   "setup.v1.commitments": "Commitments",

@@ -8,6 +8,7 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
+import { RoomsSection } from "./RoomsSection.tsx";
 
 export type BotKind = "telegram" | "discord" | "slack";
 
@@ -216,6 +217,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    ...(channel.rooms ? { rooms: channel.rooms } : {}),
   };
   const save = (patch: Partial<ChannelDraft>, newToken?: string) =>
     saveChannel(channel.id, { ...draft, ...patch }, newToken);
@@ -250,6 +252,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
       </div>
 
       <Behavior channel={channel} save={save} />
+      {kind === "discord" && <RoomsSection channel={channel} save={(rooms) => save({ rooms })} />}
       {!fixToken && (
         <SettingRow title={t("tg.token")} description={t("tg.tokenStored")}>
           <StoredToken channel={channel} kind={kind} onSave={(token) => save({}, token)} />

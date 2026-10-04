@@ -735,3 +735,57 @@
   width: 100%;
   min-width: 260px;
 }
+
+/* Discord's server rooms: one line each (name, id, mode, remove), then the line that adds one. */
+.rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.rooms__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.rooms__name {
+  flex: 0 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--apx-weight-medium);
+}
+.rooms__id {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.rooms__addname {
+  flex: 0 1 160px;
+}
+.rooms__addid {
+  flex: 1;
+}
+.rooms__names {
+  width: 220px;
+}
+.rooms__limits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rooms__limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 560px) {
+  .rooms__row {
+    flex-wrap: wrap;
+  }
+}
