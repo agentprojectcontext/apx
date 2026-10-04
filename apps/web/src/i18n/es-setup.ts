@@ -190,7 +190,10 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Este navegador no deja que el panel guarde su clave (los datos del sitio están bloqueados). Permitilo y probá de nuevo.",
   "pair.browser": "Navegador ({os})",
   "pair.desktop": "App de escritorio",
-  "connect.heroWords": "crew.|equipo.|turno noche.|asistente.|dev team.|redactor.|analista.",
+  "connect.heroWords":
+    "crew.|equipo.|turno noche.|asistente.|secretaria.|dev team.|redactor.|analista.|investigador.|community manager.|diseñadora.|socio.",
+  "connect.pill": "APX 2",
+  "connect.pillMuted": "· en esta compu o en tu servidor",
   "connect.kicker": "PRIMER ARRANQUE",
   "connect.title": "¿Dónde corre",
   "connect.titleEnd": "tu APX?",

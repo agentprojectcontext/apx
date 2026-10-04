@@ -189,7 +189,10 @@ export const enSetup = {
   "pair.noStorage": "This browser does not let the panel keep its key (site data is blocked). Allow it and try again.",
   "pair.browser": "Browser ({os})",
   "pair.desktop": "Desktop app",
-  "connect.heroWords": "crew.|reviewer.|night shift.|secretary.|dev team.|copywriter.|researcher.",
+  "connect.heroWords":
+    "crew.|team.|night shift.|assistant.|secretary.|dev team.|copywriter.|analyst.|researcher.|community manager.|designer.|partner.",
+  "connect.pill": "APX 2",
+  "connect.pillMuted": "· on this computer or your server",
   "connect.kicker": "FIRST RUN",
   "connect.title": "Where does",
   "connect.titleEnd": "your APX run?",

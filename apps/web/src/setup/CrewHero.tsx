@@ -87,9 +87,9 @@ export function CrewHero({ compact }: { compact: boolean }) {
   return (
     <div className={`crew${compact ? " is-compact" : ""}`}>
       <span className="wiz__pill crew__pill">
-        {t("setup.welcome.pill")} <span className="is-muted">{t("setup.welcome.pillMuted")}</span>
+        {t("connect.pill")} <span className="is-muted">{t("connect.pillMuted")}</span>
         <span className="wiz__lock">
-          <Icons.Lock size={12} />
+          <Icons.Server size={12} />
         </span>
       </span>
       <h1 className="crew__title" aria-label={`${meet} ${your} ${words[0] ?? ""}`}>

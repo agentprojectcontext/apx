@@ -695,6 +695,10 @@ input.wiz__name {
 .wiz.is-connect .wiz__scroll {
   overflow-x: hidden;
 }
+/* The intro places itself (top-anchored), so the choice lands near the middle once the headline rises. */
+.wiz__grid.connect:has(.connect__stage) {
+  align-content: start;
+}
 .connect__stage {
   position: relative;
   display: flex;
@@ -728,18 +732,28 @@ input.wiz__name {
   flex-direction: column;
   gap: 26px;
   align-items: center;
-  margin-top: 16vh;
+  margin-top: 12vh;
   text-align: center;
   transition:
     margin-top 0.9s cubic-bezier(0.7, 0, 0.2, 1),
     gap 0.9s cubic-bezier(0.7, 0, 0.2, 1);
 }
 .crew.is-compact {
-  gap: 14px;
-  margin-top: 2vh;
+  gap: 0;
+  margin-top: 4vh;
 }
 .crew__pill {
+  max-height: 40px;
   animation: crew-fade 0.8s ease both;
+  transition:
+    opacity 0.4s,
+    max-height 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+/* Once the question shows, the headline alone stays on top: the choice sits near the middle of the window. */
+.crew.is-compact .crew__pill {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
 }
 .crew__title {
   margin: 0;
@@ -807,7 +821,7 @@ input.wiz__name {
 .connect__blind {
   width: 100%;
   max-width: 760px;
-  margin-top: 28px;
+  margin-top: 18px;
   opacity: 0;
   clip-path: inset(0 0 100% 0);
   transform: translateY(-28px);
