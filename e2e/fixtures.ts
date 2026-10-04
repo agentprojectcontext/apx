@@ -33,6 +33,12 @@ export function writeFixtures(dir: string, opts: { embedUrl: string }) {
   write(path.join(v1, "config.json"), {
     projects: [{ path: legacy }],
     memory: { embeddings: { order: ["ollama"], ollama: { model: "embeddinggemma:300m", base_url: opts.embedUrl } } },
+    // The fake model under v1's "custom" engine (v2 already has it) and a local Ollama as its fallback.
+    engines: {
+      custom: { engine: "custom", base_url: `${opts.embedUrl}/v1`, api_key: "e2e-placeholder" },
+      ollama: { base_url: opts.embedUrl, default_model: "gemma-e2e" },
+    },
+    super_agent: { model: "custom:fake-1", model_fallback: { enabled: true, models: ["ollama:gemma-e2e"] } },
   });
   write(path.join(v1, "update-check.json"), { current: "1.120.0" });
   write(path.join(v1, "identity.json"), { agent_name: "Roby", owner_name: "Ana" });

@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Message } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 import type { AdapterFactory } from "../channels/types.ts";
-import { testConfig } from "../config.ts";
+import { type ProviderConfig, testConfig } from "../config.ts";
 import type { DesktopOps } from "../desktop.ts";
 import type { Harness } from "../harness/index.ts";
 import type { IMessageOps } from "../imessage.ts";
@@ -62,11 +62,14 @@ export async function startCore(opts: {
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
   clock?: () => Date;
+  /** Built-in model APIs beside "fake" (as config.ts gives a real install). */
+  providers?: ProviderConfig[];
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
   const providers = [
     { id: "fake", transport: "openai-chat" as const, base_url: "http://fake.test", key: "env:NONE", models: [] },
+    ...(opts.providers ?? []),
   ];
   const core = await createCore(testConfig({ home, providers }), {
     quiet: true,

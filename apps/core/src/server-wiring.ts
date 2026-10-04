@@ -189,6 +189,7 @@ export function coreHandlers(d: HandlerDeps) {
       secrets: d.secrets,
       channels: d.channels,
       services: d.services,
+      providers: d.providers,
       runProfile: (id, values) => {
         const manifest = listProfiles(d.profileRoots).find((p) => p.id === id);
         if (!manifest) return false;

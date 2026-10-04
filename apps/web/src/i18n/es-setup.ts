@@ -43,8 +43,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Sus carpetas y agentes (.apc/) vienen como están; los agentes de Default de v1 quedan como agentes globales, con su memoria",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Tus skills globales, copiadas a v2",
-  "setup.v1.keys": "Claves de modelos",
-  "setup.v1.keysBody": "Las de Gemini, Anthropic y OpenAI, guardadas de forma segura",
+  "setup.v1.keys": "Motores",
+  "setup.v1.keysBody":
+    "Tus proveedores de modelos con sus claves (guardadas de forma segura), Ollama, ChatGPT y Claude, y tu cadena de modelos",
   "setup.v1.vars": "Variables",
   "setup.v1.varsBody": "Los tokens y claves que usan tus MCP, guardados de forma segura",
   "setup.v1.memory": "Memoria",

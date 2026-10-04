@@ -42,8 +42,9 @@ export const enSetup = {
     "Their folders and agents (.apc/) come as they are; v1's Default agents become global agents, with their memory",
   "setup.v1.skills": "Skills",
   "setup.v1.skillsBody": "Your global skills, copied into v2",
-  "setup.v1.keys": "Model keys",
-  "setup.v1.keysBody": "Gemini, Anthropic and OpenAI keys, stored securely",
+  "setup.v1.keys": "Engines",
+  "setup.v1.keysBody":
+    "Your model providers with their keys (stored securely), Ollama, ChatGPT and Claude, and your model chain",
   "setup.v1.vars": "Variables",
   "setup.v1.varsBody": "Tokens and keys your MCP servers use, stored securely",
   "setup.v1.memory": "Memory",

@@ -10,9 +10,10 @@ import { saveOwnerIdentity } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { dueOf } from "../domain/tasks.ts";
+import type { ProviderRegistry } from "../providers/registry.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
-import { importKeys, importSkills, v1KeyCount } from "./v1.ts";
+import { importSkills } from "./v1.ts";
 import { importV1Chats, v1AgentNotes, v1ChatCount, v1DefaultAgents } from "./v1-chats.ts";
 import {
   type V1Project,
@@ -30,6 +31,7 @@ import {
   v1Vars,
   v1WhatsApp,
 } from "./v1-data.ts";
+import { importV1Engines, v1EngineCount } from "./v1-engines.ts";
 
 export const V1_GROUPS = [
   "projects",
@@ -53,6 +55,7 @@ export type V1ImportDeps = {
   secrets: Secrets;
   channels: Pick<Channels, "set" | "info">;
   services: Pick<Services, "set" | "has">;
+  providers: Pick<ProviderRegistry, "all" | "set">;
   /** Runs a profile on the super-agent (its routines seeded); false when APX has no profile of that id. */
   runProfile: (id: string, values: Record<string, string | number>) => boolean;
   v1Home: string;
@@ -90,7 +93,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
       detail: String(projects.reduce((n, p) => n + v1AgentCount(p), 0) + v1DefaultAgents(home).length),
     },
     { id: "skills", count: v1SkillCount(home) },
-    { id: "keys", count: v1KeyCount(home) },
+    { id: "keys", count: v1EngineCount(home) },
     { id: "vars", count: v1Vars(home).length },
     { id: "memory", count: memory },
     {
@@ -173,7 +176,8 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     return n;
   });
   run("skills", () => importSkills(path.join(home, "skills"), path.join(deps.v2Home, "skills")).length);
-  run("keys", () => importKeys(home, deps.secrets).length);
+  // v1's engines with their keys, and its main model with its fallback chain (see v1-engines.ts).
+  run("keys", () => importV1Engines(deps, home));
   run("vars", () => {
     let n = 0;
     for (const v of v1Vars(home))

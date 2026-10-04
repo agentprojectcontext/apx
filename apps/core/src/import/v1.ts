@@ -38,16 +38,6 @@ export function importKeys(home: string, secrets: Secrets): string[] {
   return keys;
 }
 
-/** How many of v1's model API keys v2 can take. */
-export function v1KeyCount(home: string): number {
-  try {
-    const config = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
-    return Object.keys(V1_KEYS).filter((from) => v1Value(config, from)).length;
-  } catch {
-    return 0;
-  }
-}
-
 const SKILL_NAME = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 
 /** Anything already at that name, a broken link included, is the owner's and stays. */
