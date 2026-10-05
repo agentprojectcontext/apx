@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv } from "@apx/protocol";
+import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
 import type { SecretsBackend } from "./secrets.ts";
 
 /**
@@ -75,6 +75,10 @@ export type CoreConfig = {
   updates: boolean;
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
   supervised: boolean;
+  /** APX_APP: where install.sh/ps1 put this daemon (its bundles and `current`); unset for a checkout or the app. */
+  app: string | undefined;
+  /** owner/repo whose Releases announce newer bundles (APX_RELEASES; "off" stops it). */
+  releases: string | undefined;
 };
 
 /** The key reference of the ChatGPT plan's sign-in. */
@@ -180,6 +184,8 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
     updates: env.APX_UPDATES !== "off",
     supervised: env.APX_SUPERVISED === "1",
+    app: env.APX_APP || undefined,
+    releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,
   };
   assertSafeBind(config);
   return config;
@@ -203,6 +209,8 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     v1,
     native,
     updates: false,
+    app: undefined,
+    releases: undefined,
     headless: false,
     agentName: "Roby",
     ...over,

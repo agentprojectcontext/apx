@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   setTitleBar: (mode: "light" | "dark") => ipcRenderer.send("desktop:titlebar", mode),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
+  /** Whether a newer APX app is out (check: ask the release feed now). */
+  updateStatus: (check?: boolean): Promise<unknown> => ipcRenderer.invoke("desktop:update-status", check === true),
+  /** Downloads the newer app and puts it in place (it restarts by itself, or opens for the owner on macOS). */
+  installUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-install"),
   // The local core's token when it asks for one (it listens beyond this computer); asked once, at load.
   coreToken: (ipcRenderer.sendSync("desktop:core-token") as string | undefined) || undefined,
 });

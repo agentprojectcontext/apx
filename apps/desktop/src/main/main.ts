@@ -11,6 +11,7 @@ import { createConnector } from "./connector.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
+import { createDesktopUpdater } from "./updater.ts";
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
@@ -203,6 +204,21 @@ app.whenReady().then(() => {
     );
   });
   app.on("will-quit", () => quick.stop());
+
+  // A newer APX: the panel shows it and asks for it; the app downloads and puts it in place.
+  const updater = createDesktopUpdater({
+    quit: () => {
+      quitting = true;
+      app.quit();
+    },
+  });
+  ipcMain.handle("desktop:update-status", (e, check: unknown) => {
+    if (e.sender !== panel.webContents) return undefined;
+    return check === true ? updater.check() : updater.status();
+  });
+  ipcMain.handle("desktop:update-install", (e) => (e.sender === panel.webContents ? updater.install() : undefined));
+  updater.start();
+  app.on("will-quit", () => updater.stop());
 
   void connector.open();
 

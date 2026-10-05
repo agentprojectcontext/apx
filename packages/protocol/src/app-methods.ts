@@ -139,11 +139,14 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
-  /** Whether a newer APX is out (for a checkout: commits on main it does not have); `check` asks now. */
+  /**
+   * Whether a newer APX is out: for a checkout, commits on main it does not have; for a daemon installed from a bundle,
+   * newer releases. `check` asks now.
+   */
   "system.updates": {
     params: z.object({ check: z.boolean().default(false) }).strict(),
     result: z.object({
-      source: z.enum(["git", "none"]),
+      source: z.enum(["git", "release", "none"]),
       behind: z.number().int(),
       latest: z.string().optional(),
       changes: z.array(z.string()),
@@ -154,8 +157,9 @@ export const appMethods = {
     access: "human",
   },
   /**
-   * Brings the newer APX in (pull fast-forward only, install, build the panel). `restart`: the core starts again with it
-   * now; otherwise the owner restarts APX.
+   * Brings the newer APX in: a checkout pulls (fast-forward only), installs and builds the panel; a bundle install
+   * downloads the newer bundle, checks it and makes it current. `restart`: the core starts again with it now; otherwise
+   * the owner restarts APX.
    */
   "system.update": {
     params: z.object({}).strict(),

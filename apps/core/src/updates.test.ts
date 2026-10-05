@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -31,7 +34,11 @@ const runner = (fail?: string): Runner & { calls: string[] } => {
 test("outside a checkout there is nothing to update, and an update says why", async () => {
   const u = createUpdates({ root: os.tmpdir(), log, enabled: true, supervised: false, run: runner() });
   assert.equal((await u.check()).source, "none");
-  assert.deepEqual(await u.apply(), { ok: false, restart: false, log: "This APX does not run from a git checkout." });
+  assert.deepEqual(await u.apply(), {
+    ok: false,
+    restart: false,
+    log: "This APX updates with its desktop app, or by hand.",
+  });
 });
 
 test("a check tells how far behind main the checkout is and what changed", async () => {
@@ -87,4 +94,132 @@ test("the served panel is known by its entry file, read again when the build cha
   assert.equal(panelEntry(dist), "index-BBB222.js");
   assert.equal(panelEntry(undefined), undefined);
   fs.rmSync(dist, { recursive: true });
+});
+
+/** A bundle install (APX_APP) at 2.0.3 and a feed that serves 2.1.0 for linux-x64, the way GitHub would. */
+async function releaseFeed(o: { corrupt?: boolean } = {}) {
+  const app = fs.mkdtempSync(path.join(os.tmpdir(), "apx-upd-app-"));
+  const old = path.join(app, "versions", "2.0.3");
+  fs.mkdirSync(path.join(old, "node", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(old, "node", "bin", "node"), "old");
+  fs.mkdirSync(path.join(app, "versions", "1.9.0"));
+  fs.symlinkSync(path.join("versions", "2.0.3"), path.join(app, "current"));
+
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), "apx-upd-src-"));
+  fs.mkdirSync(path.join(src, "apx", "node", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(src, "apx", "node", "bin", "node"), "new");
+  const name = "apx-core-2.1.0-linux-x64.tar.gz";
+  execFileSync("tar", ["-czf", path.join(src, name), "-C", src, "apx"]);
+  const tarball = fs.readFileSync(path.join(src, name));
+  const digest = createHash("sha256")
+    .update(o.corrupt ? "something else" : tarball)
+    .digest("hex");
+
+  const server = http.createServer((req, res) => {
+    if (req.url === `/${name}`) return res.end(tarball);
+    if (req.url === `/${name}.sha256`) return res.end(`${digest}  ${name}\n`);
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const releases = [
+    {
+      tag_name: "v2.1.0",
+      body: "* feat: sidebar sections by @someone in https://example.com/1",
+      assets: [name, `${name}.sha256`].map((n) => ({ name: n, browser_download_url: `${base}/${n}` })),
+    },
+    { tag_name: "v1.123.1", assets: [] },
+  ];
+  // The GitHub API call is the only one fetch makes to another host: answered here, downloads go to the server.
+  const fakeFetch: typeof fetch = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith("https://api.github.com/repos/acme/apx/releases")) return Response.json(releases);
+    return fetch(input, init);
+  };
+  const tar: Runner = async (cmd, args) => {
+    try {
+      return { code: 0, out: execFileSync(cmd, args, { encoding: "utf8" }) };
+    } catch (err) {
+      return { code: 1, out: String(err) };
+    }
+  };
+  const done = () => {
+    server.close();
+    fs.rmSync(app, { recursive: true, force: true });
+    fs.rmSync(src, { recursive: true, force: true });
+  };
+  return { app, fakeFetch, tar, done };
+}
+
+test("a bundle install finds the newer release, installs it beside the running one and restarts", async () => {
+  const f = await releaseFeed();
+  let restarted = false;
+  const u = createUpdates({
+    root: os.tmpdir(),
+    log,
+    enabled: true,
+    supervised: true,
+    version: "2.0.3",
+    app: f.app,
+    feed: "acme/apx",
+    platform: { os: "linux", arch: "x64" },
+    fetch: f.fakeFetch,
+    run: f.tar,
+    restart: () => (restarted = true),
+  });
+  const s = await u.check();
+  assert.equal(s.source, "release");
+  assert.equal(s.behind, 1);
+  assert.equal(s.latest, "2.1.0");
+  assert.deepEqual(s.changes, ["feat: sidebar sections"]);
+
+  const r = await u.apply();
+  assert.equal(r.ok, true, r.log);
+  assert.equal(r.restart, true);
+  assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "new");
+  // The version that ran stays (to go back by hand); older ones and the download go.
+  assert.deepEqual(fs.readdirSync(path.join(f.app, "versions")).sort(), ["2.0.3", "2.1.0"]);
+  assert.deepEqual(
+    fs.readdirSync(f.app).filter((n) => n.startsWith(".update-")),
+    [],
+  );
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  assert.equal(restarted, true);
+  f.done();
+});
+
+test("a bundle that does not match its .sha256 is refused and what runs stays as it was", async () => {
+  const f = await releaseFeed({ corrupt: true });
+  const u = createUpdates({
+    root: os.tmpdir(),
+    log,
+    enabled: true,
+    supervised: false,
+    version: "2.0.3",
+    app: f.app,
+    feed: "acme/apx",
+    platform: { os: "linux", arch: "x64" },
+    fetch: f.fakeFetch,
+    run: f.tar,
+  });
+  const r = await u.apply();
+  assert.equal(r.ok, false);
+  assert.match(r.log, /does not match its \.sha256/);
+  assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "old");
+  assert.deepEqual(fs.readdirSync(path.join(f.app, "versions")).sort(), ["1.9.0", "2.0.3"]);
+  f.done();
+});
+
+test("without a bundle install or a checkout, updates belong to the desktop app", async () => {
+  const u = createUpdates({
+    root: os.tmpdir(),
+    log,
+    enabled: true,
+    supervised: false,
+    version: "2.0.3",
+    feed: "acme/apx",
+  });
+  assert.equal((await u.check()).source, "none");
+  assert.equal((await u.apply()).ok, false);
 });

@@ -1,16 +1,22 @@
-// Updates for an APX that runs from its source checkout: every few hours it asks git whether main moved, and on the
-// owner's word it pulls (fast-forward only), installs and builds the panel. A supervisor (`pnpm app`) starts the core
-// again with the new code; without one the owner is told to restart.
+// Updates for an APX that runs from its source checkout or from an installed bundle. Every few hours it asks git
+// whether main moved (a checkout) or the release feed whether a newer APX is out (a bundle, see updates-release.ts),
+// and on the owner's word it brings it in. A supervisor (`pnpm app`, the service) starts the core again with the new
+// code; without one the owner is told to restart.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { type Platform, platformOf, type Release } from "@apx/protocol";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
+import { checkReleases, installRelease, releaseChanges } from "./updates-release.ts";
 
 export type UpdateStatus = {
-  /** Where updates come from: this checkout's git remote, or nowhere (a packaged build, a test). */
-  source: "git" | "none";
-  /** Commits on main this checkout does not have. */
+  /**
+   * Where updates come from: this checkout's git remote, the release feed (a daemon installed from a bundle), or
+   * nowhere (the desktop app updates itself, a test).
+   */
+  source: "git" | "release" | "none";
+  /** Commits on main this checkout does not have, or releases newer than this one. */
   behind: number;
   latest?: string | undefined;
   /** What they change, newest first (their commit subjects). */
@@ -51,17 +57,28 @@ export function createUpdates(opts: {
   enabled: boolean;
   /** A supervisor starts the core again after an update (exit code RESTART_CODE). */
   supervised: boolean;
+  /** This APX's version (what the release feed is compared with). */
+  version?: string;
+  /** APX_APP: the folder a bundle install lives in (install.sh/ps1); updates then come from the release feed. */
+  app?: string | undefined;
+  /** owner/repo of the release feed; undefined turns release updates off. */
+  feed?: string | undefined;
+  platform?: Platform | undefined;
+  fetch?: typeof fetch;
   run?: Runner;
   restart?: () => void;
 }) {
   const git = opts.enabled && fs.existsSync(path.join(opts.root, ".git"));
+  const platform = opts.platform ?? platformOf(process.platform, process.arch);
+  const release = !git && opts.enabled && Boolean(opts.app && opts.feed && opts.version && platform);
   const sh = opts.run ?? run(opts.root);
-  let status: UpdateStatus = { source: git ? "git" : "none", behind: 0, changes: [] };
+  const fetchImpl = opts.fetch ?? fetch;
+  let status: UpdateStatus = { source: git ? "git" : release ? "release" : "none", behind: 0, changes: [] };
+  let newer: Release[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let busy: Promise<unknown> | undefined;
 
-  async function check(): Promise<UpdateStatus> {
-    if (!git) return status;
+  async function checkGit(): Promise<UpdateStatus> {
     const fetched = await sh("git", ["fetch", "--quiet", "origin", BRANCH], 60_000);
     if (fetched.code !== 0) {
       status = { ...status, error: fetched.out.trim().slice(-300) || "git fetch failed", checked_at: now() };
@@ -83,8 +100,26 @@ export function createUpdates(opts: {
     return status;
   }
 
-  async function apply(): Promise<UpdateResult> {
-    if (!git) return { ok: false, restart: false, log: "This APX does not run from a git checkout." };
+  async function checkRelease(): Promise<UpdateStatus> {
+    try {
+      ({ newer } = await checkReleases(opts.feed ?? "", opts.version ?? "", fetchImpl));
+    } catch (err) {
+      status = { ...status, error: errorMessage(err, 300), checked_at: now() };
+      return status;
+    }
+    status = {
+      source: "release",
+      behind: newer.length,
+      latest: newer[0]?.version,
+      changes: releaseChanges(newer),
+      checked_at: now(),
+    };
+    return status;
+  }
+
+  const check = (): Promise<UpdateStatus> => (git ? checkGit() : release ? checkRelease() : Promise.resolve(status));
+
+  async function applyGit(): Promise<UpdateResult> {
     const steps: Array<[string, string[], number]> = [
       ["git", ["pull", "--ff-only", "origin", BRANCH], 120_000],
       ["pnpm", ["install", "--frozen-lockfile"], 600_000],
@@ -96,13 +131,35 @@ export function createUpdates(opts: {
       log += `$ ${cmd} ${args.join(" ")}\n${r.out.trim()}\n`;
       if (r.code !== 0) return { ok: false, restart: false, log: log.slice(-6000) };
     }
+    return { ok: true, restart: false, log };
+  }
+
+  async function applyRelease(): Promise<UpdateResult> {
+    if (!newer.length) await checkRelease();
+    const next = newer[0];
+    if (!next || !platform || !opts.app)
+      return { ok: false, restart: false, log: status.error ?? "Nothing newer to install." };
+    try {
+      const log = await installRelease({ app: opts.app, release: next, platform, fetch: fetchImpl, run: sh });
+      return { ok: true, restart: false, log };
+    } catch (err) {
+      return { ok: false, restart: false, log: errorMessage(err, 2000) };
+    }
+  }
+
+  async function apply(): Promise<UpdateResult> {
+    if (!git && !release)
+      return { ok: false, restart: false, log: "This APX updates with its desktop app, or by hand." };
+    const r = git ? await applyGit() : await applyRelease();
+    if (!r.ok) return { ...r, log: r.log.slice(-6000) };
+    if (release) newer = [];
     await check().catch(() => status);
     if (opts.supervised) {
       // The answer goes out first; then the supervisor brings the new code up.
       const t = setTimeout(() => opts.restart?.(), 500);
       t.unref?.();
     }
-    return { ok: true, restart: opts.supervised, log: log.slice(-6000) };
+    return { ok: true, restart: opts.supervised, log: r.log.slice(-6000) };
   }
 
   /** One check or update at a time: a second caller waits for the one running. */
@@ -117,7 +174,7 @@ export function createUpdates(opts: {
     check: () => serial(check),
     apply: () => serial(apply),
     start() {
-      if (!git) return;
+      if (!git && !release) return;
       const tick = (ms: number) => {
         timer = setTimeout(() => {
           void serial(check)

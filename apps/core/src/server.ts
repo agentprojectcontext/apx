@@ -266,6 +266,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     log,
     enabled: config.updates,
     supervised: config.supervised,
+    version: identity.version,
+    app: config.app,
+    feed: config.releases,
     ...(opts.updateRunner ? { run: opts.updateRunner } : {}),
     ...(opts.restart ? { restart: opts.restart } : {}),
   });

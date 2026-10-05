@@ -467,3 +467,19 @@ So the harnesses keep only their session mode: Claude Code always loads its own 
 Codex its own config, and no agent framing (`<apx_instructions>`), Codex lockdown or agent-only tool cut is left. A
 session runs its CLI and nothing else (`threads.model` refuses another engine there), so the engine-to-engine
 fallback and the recap of turns another engine answered are gone: a CLI that fails fails the turn.
+
+<a id="d-044"></a>
+## D-044 — 2026-10-05 — One `apx`; installed APX updates from a public release feed
+v2 replaces v1: the command is `apx` (no `apx2`), and installing v2 stops v1's daemon and removes v1's npm package while
+v1's files in `~/.apx` stay to import. Every release carries, per platform, the desktop installer and a daemon bundle
+(`apx-core-<v>-<os>-<arch>.tar.gz`: core, terminal, panel, `node_modules` and the Node that runs them), each with a
+`.sha256`, plus `install.sh` / `install.ps1`. A server installs the bundle with the script into `APX_APP`
+(`~/.apx/v2/app`: `versions/<v>/` and a `current` link the service runs through) without root and without a system
+Node. Installed APX learns of a newer one from the GitHub Releases of a public repo (`RELEASE_FEED`,
+`agentprojectcontext/apx`; `APX_RELEASES` overrides, `off` stops it) — the code repo stays private, only builds are
+published there. A bundle install downloads, checks and unpacks the newer bundle beside the running one, moves
+`current` and restarts (`system.update`), so a desktop connected to a server updates the server. The desktop app
+updates itself (it carries its own core): the AppImage replaces its file, the Windows installer runs, macOS opens the
+disk image to drag in (unsigned, so no silent install). Every platform is built from any computer (`pnpm package:<os>`):
+the only native module, sharp, comes prebuilt per platform (`npm --os/--cpu`), and Node comes from nodejs.org,
+checked against its SHASUMS256.txt.

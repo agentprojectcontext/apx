@@ -1,7 +1,16 @@
 // Bridge the desktop app (Electron preload) exposes to the panel. Absent in a plain browser.
-export {};
-
 type ConnectAnswer = { ok: true } | { ok: false; reason?: string; error?: string };
+
+/** The desktop app's own update (it carries its own core). */
+export type DesktopUpdate = {
+  current: string;
+  latest?: string;
+  notes: string[];
+  /** auto: it puts itself in place and restarts; drag: macOS opens the disk image for the owner. */
+  install: "auto" | "drag" | "none";
+  checked_at?: string;
+  error?: string;
+};
 
 declare global {
   interface Window {
@@ -32,6 +41,10 @@ declare global {
       setTitleBar?(mode: "light" | "dark"): void;
       /** The system's folder dialog; undefined when the owner cancels. */
       pickFolder?(): Promise<string | undefined>;
+      /** Whether a newer APX app is out; `check` asks the release feed now. */
+      updateStatus?(check?: boolean): Promise<DesktopUpdate | undefined>;
+      /** Downloads the newer app and puts it in place. */
+      installUpdate?(): Promise<{ ok: true; restarting: boolean } | { ok: false; error: string } | undefined>;
       /** What each of the app's processes takes in memory (the panel, each browser tab, the GPU…), biggest first. */
       memory?(): Promise<
         | {

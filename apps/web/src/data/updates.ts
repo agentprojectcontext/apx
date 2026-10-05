@@ -1,18 +1,31 @@
-// A newer APX: what the core says about the checkout (commits on main it lacks) and whether this panel is older than
-// the one the core serves now. Updating runs in the core; after it restarts, the panel reloads itself.
+// A newer APX: what the core says (commits on main a checkout lacks, or a newer release for a daemon installed from a
+// bundle, here or on a server), what the desktop app says about itself, and whether this panel is older than the one
+// the core serves now. The core updates itself and restarts; the desktop app downloads its installer and restarts.
 import type { Health, Result } from "@apx/protocol";
+import type { DesktopUpdate } from "../apx-desktop.d.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 
 type Status = Result<"system.updates">;
 type State = {
   status: Status | undefined;
+  /** The desktop app's own newer version (absent in a browser). */
+  app: DesktopUpdate | undefined;
+  /** What the dialog updates: the core this panel talks to, or the desktop app around it. */
+  target: "core" | "app";
   /** The core serves a newer panel than this page runs. */
   panelStale: boolean;
   phase: "idle" | "updating" | "restarting" | "done" | "failed";
   log: string;
 };
-const store = createStore<State>({ status: undefined, panelStale: false, phase: "idle", log: "" });
+const store = createStore<State>({
+  status: undefined,
+  app: undefined,
+  target: "core",
+  panelStale: false,
+  phase: "idle",
+  log: "",
+});
 export const useUpdates = <T>(select: (s: State) => T): T => useSlice(store, select);
 
 // Both answers are read from the core's memory (it asks git on its own schedule): cheap to ask often.
@@ -58,7 +71,14 @@ async function recheckPanel(): Promise<void> {
 window.addEventListener("focus", () => void recheckPanel());
 document.addEventListener("visibilitychange", () => void recheckPanel());
 
+/** Asks the desktop app (when there is one) whether a newer one is out. */
+async function loadApp(check: boolean): Promise<void> {
+  const app = await window.apxDesktop?.updateStatus?.(check).catch(() => undefined);
+  if (app) store.set({ app });
+}
+
 export async function loadUpdates(check = false): Promise<void> {
+  void loadApp(check);
   try {
     const [status, health] = await Promise.all([
       client.call("system.updates", { check }),
@@ -74,6 +94,7 @@ export async function loadUpdates(check = false): Promise<void> {
 
 export async function applyUpdate(): Promise<void> {
   store.set({ phase: "updating", log: "" });
+  if (store.get().target === "app") return applyAppUpdate();
   try {
     const r = await client.call("system.update", {});
     store.set({ phase: r.ok ? (r.restart ? "restarting" : "done") : "failed", log: r.log });
@@ -81,5 +102,19 @@ export async function applyUpdate(): Promise<void> {
     store.set({ phase: "failed", log: e instanceof Error ? e.message : String(e) });
   }
 }
+
+async function applyAppUpdate(): Promise<void> {
+  const r = await window.apxDesktop?.installUpdate?.().catch((e: unknown) => ({
+    ok: false as const,
+    error: e instanceof Error ? e.message : String(e),
+  }));
+  if (!r) store.set({ phase: "failed", log: "" });
+  else if (!r.ok) store.set({ phase: "failed", log: r.error });
+  // Restarting: the app quits and opens the new one. Otherwise (macOS) the owner drags it in.
+  else store.set({ phase: r.restarting ? "restarting" : "done" });
+}
+
+/** Opens the dialog on what is newer: the desktop app first (it carries its own core), then the core. */
+export const chooseTarget = (target: State["target"]) => store.set({ target, phase: "idle", log: "" });
 
 export const resetUpdate = () => store.set({ phase: "idle", log: "" });
