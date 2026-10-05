@@ -1254,4 +1254,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.archived": "Archivados",
   "error.updateChat": "No se pudo actualizar el chat: {error}",
   "error.deleteChat": "No se pudo borrar el chat: {error}",
+  "error.rewind": "No se pudo volver a enviar: {error}",
+  "rewind.edit": "Editar mensaje",
+  "rewind.send": "Enviar",
+  "rewind.regenerate": "Regenerar respuesta",
+  "rewind.confirmTitle": "¿Borrar lo que vino después?",
+  "rewind.confirmBody": "Se borran {count} mensajes posteriores y el agente los olvida. No se puede deshacer.",
+  "rewind.confirm": "Borrar y enviar",
 };

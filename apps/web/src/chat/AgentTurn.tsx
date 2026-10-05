@@ -30,6 +30,7 @@ export function AgentTurn({
   showAvatar,
   showTools,
   engine,
+  actions,
 }: {
   message: Msg;
   agent?: Agent;
@@ -37,6 +38,8 @@ export function AgentTurn({
   showTools: boolean;
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
+  /** Extra controls on its meta line (ask again). */
+  actions?: ReactNode;
 }) {
   const t = useT();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
@@ -66,7 +69,9 @@ export function AgentTurn({
       agent={engine?.label ?? agent?.name}
       model={message.model && baseRef(message.model)}
       effort={effort && effortLabel(effort)}
-    />
+    >
+      {actions}
+    </MessageMeta>
   );
 
   return (

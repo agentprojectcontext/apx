@@ -1242,6 +1242,13 @@ export const en = {
   "inbox.archived": "Archived",
   "error.updateChat": "Could not update the chat: {error}",
   "error.deleteChat": "Could not delete the chat: {error}",
+  "error.rewind": "Could not send it again: {error}",
+  "rewind.edit": "Edit message",
+  "rewind.send": "Send",
+  "rewind.regenerate": "Ask again",
+  "rewind.confirmTitle": "Remove what came after?",
+  "rewind.confirmBody": "{count} later messages go, and the agent forgets them. This cannot be undone.",
+  "rewind.confirm": "Remove and send",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -79,6 +79,42 @@ test("the answer names the reasoning effort it ran with; the run keeps the bare 
   assert.equal(messages.at(-1)?.model, "fake/fake-1#high");
 });
 
+test("the owner edits a message or asks again: the chat goes back there and the agent never sees what went", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "rewind" });
+  const send = async (text: string) => {
+    await env.client.call("threads.send", { thread: t.id, text });
+    return (await env.settle(t.id)).messages;
+  };
+  await send("first question");
+  const before = await send("second question, to be edited");
+  const asked = before.findLast((m) => m.author.kind === "user");
+  assert.ok(asked);
+
+  await env.client.call("threads.rewind", { thread: t.id, message: asked.id, text: "second question, edited" });
+  let { messages } = await env.settle(t.id);
+  const said = (ms: typeof messages) => ms.filter((m) => m.author.kind === "user").map((m) => texts([m]).join(""));
+  assert.deepEqual(said(messages), ["first question", "second question, edited"]);
+  assert.equal(messages.length, 4, "each question with one answer");
+  const seen = JSON.stringify(llm.calls.at(-1)?.messages);
+  assert.doesNotMatch(seen, /to be edited/, "the model no longer sees the old words");
+  assert.match(seen, /first question/);
+
+  // Asking again for the last answer sends the same words once more.
+  const answer = messages.at(-1);
+  assert.ok(answer);
+  await env.client.call("threads.rewind", { thread: t.id, message: answer.id });
+  ({ messages } = await env.settle(t.id));
+  assert.deepEqual(said(messages), ["first question", "second question, edited"]);
+  assert.notEqual(messages.at(-1)?.id, answer.id, "a new answer");
+  assert.equal(messages.length, 4);
+
+  // Not while a turn runs.
+  await env.client.call("threads.send", { thread: t.id, text: "slow one" });
+  const err = await env.client.call("threads.rewind", { thread: t.id, message: answer.id }).catch((e: unknown) => e);
+  assert.ok(err instanceof ApxError && err.code === "conflict", String(err));
+  await env.settle(t.id);
+});
+
 test("an answer keeps the order things happened: what it said, the tool, its widget, then the answer below them", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "order" });
   await env.client.call("threads.send", { thread: t.id, text: "in order" });

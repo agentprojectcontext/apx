@@ -154,6 +154,14 @@ function apply(ev: CoreEvent): void {
       });
       return;
     }
+    case "message.deleted": {
+      const gone = new Set(ev.message_ids);
+      data.set((s) => {
+        const list = s.messages[ev.thread_id];
+        return list ? { messages: { ...s.messages, [ev.thread_id]: list.filter((m) => !gone.has(m.id)) } } : {};
+      });
+      return;
+    }
     case "message.part":
       data.set((s) => {
         const list = s.messages[ev.thread_id];

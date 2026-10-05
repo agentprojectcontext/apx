@@ -54,3 +54,17 @@ export function forgetThreads(ids: string[]): void {
     return { threads, messages, threadLoad };
   });
 }
+
+/**
+ * Edits one of the owner's messages (`text`) or asks again for an answer: the chat goes back to it and sends again.
+ * The removed messages leave through the live event; the new turn arrives like any other.
+ */
+export async function rewindThread(thread: string, message: string, text?: string): Promise<boolean> {
+  try {
+    await client.call("threads.rewind", { thread, message, ...(text ? { text } : {}) });
+    return true;
+  } catch (e) {
+    notify(t("error.rewind", { error: errText(e) }));
+    return false;
+  }
+}

@@ -346,3 +346,27 @@
   background: var(--apx-fill-strong);
   color: var(--apx-fg-muted);
 }
+
+/* Edit a message / ask again: shown on the row's hover (or keyboard focus), never in the way of reading. */
+.rewind__actions,
+.rewind__regen {
+  opacity: 0;
+  transition: opacity var(--apx-duration);
+}
+.transcript__row:hover .rewind__actions,
+.transcript__row:hover .rewind__regen,
+.rewind__actions:focus-within,
+.rewind__regen:focus-visible {
+  opacity: 1;
+}
+.rewind__edit {
+  width: min(560px, 70vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rewind__bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

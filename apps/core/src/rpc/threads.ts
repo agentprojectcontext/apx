@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
-import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import { isInside } from "../paths.ts";
 import type { CallContext } from "./context.ts";
 
@@ -208,6 +208,30 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         trigger: "user",
         origin: { kind: "user" },
         ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
+      });
+    },
+    "threads.rewind": ({ thread, message, text }) => {
+      const { thread: t, agent } = threadAgent(thread);
+      if (t.channel) throw conflict("this chat's messages were delivered on a channel: they cannot be taken back");
+      if (t.engine) throw conflict("an engine session keeps its own history: it cannot be rewound");
+      if (store.threads.busy([thread])) throw conflict("a turn is running in this chat: stop it first");
+      const list = store.messages.list(thread, 100_000);
+      const at = list.findIndex((m) => m.id === message);
+      if (at < 0) throw notFound(`message ${message} in this chat`);
+      // An answer goes back to the owner's message that asked for it.
+      const from = list.slice(0, at + 1).findLast((m) => m.author.kind === "user");
+      if (!from) throw badRequest("there is no message of yours before it to send again");
+      const words = text ?? from.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
+      if (!words.trim()) throw badRequest("that message has no text to send again");
+      const files = from.parts.flatMap((p) =>
+        (p.type === "image" || p.type === "file") && p.media_id ? [p.media_id] : [],
+      );
+      store.tx(() => store.modelLog.dropRuns(thread, store.messages.cutFrom(thread, from.seq)));
+      return post(thread, words, { kind: "user" }, false, {
+        agent_id: agent.id,
+        trigger: "user",
+        origin: { kind: "user" },
+        ...(files.length ? { attachments: attachedFiles(store, thread, files) } : {}),
       });
     },
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),

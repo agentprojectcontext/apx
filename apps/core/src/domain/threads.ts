@@ -445,6 +445,17 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       bus.emit({ type: "message.updated", message });
       return message;
     },
+    /** Takes out the thread's messages from `seq` on; returns the runs that wrote them. */
+    cutFrom(threadId: string, seq: number): string[] {
+      const gone = all(
+        qb.selectFrom("messages").select(["id", "run_id"]).where("thread_id", "=", threadId).where("seq", ">=", seq),
+      );
+      if (!gone.length) return [];
+      // Through the table, so the search index triggers run.
+      run(qb.deleteFrom("messages").where("thread_id", "=", threadId).where("seq", ">=", seq));
+      bus.emit({ type: "message.deleted", thread_id: threadId, message_ids: gone.map((m) => m.id) });
+      return [...new Set(gone.flatMap((m) => (m.run_id ? [m.run_id] : [])))];
+    },
     /** Stores the parts and announces only the one that changed. */
     setPart(message: Message, index: number): void {
       run(
@@ -480,6 +491,19 @@ export function modelLogRepo({ one, all, run }: Sql) {
       return all(qb.selectFrom("model_log").select("item").where("run_id", "=", runId).orderBy("seq")).map((r) =>
         JSON.parse(r.item),
       );
+    },
+    /** Forgets what these runs logged and everything logged after them, so the model never sees it again. */
+    dropRuns(threadId: string, runIds: string[]): void {
+      if (!runIds.length) return;
+      const first = one(
+        qb
+          .selectFrom("model_log")
+          .select((eb) => eb.fn.min("seq").as("seq"))
+          .where("thread_id", "=", threadId)
+          .where("run_id", "in", runIds),
+      )?.seq;
+      if (first == null) return;
+      run(qb.deleteFrom("model_log").where("thread_id", "=", threadId).where("seq", ">=", Number(first)));
     },
     /** Appends items in order; returns the seq of the first one. */
     append(threadId: string, runId: string | undefined, items: unknown[]): number {

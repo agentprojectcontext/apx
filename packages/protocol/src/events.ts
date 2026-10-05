@@ -10,6 +10,8 @@ export const CoreEvent = z.discriminatedUnion("type", [
   /** The owner deleted the thread (and its sub-threads, listed in `children`). */
   z.object({ type: z.literal("thread.deleted"), thread_id: Id, children: z.array(Id) }),
   z.object({ type: z.literal("message.created"), message: Message }),
+  /** Messages taken out of a thread: the owner rewound it to edit a message or ask for another answer. */
+  z.object({ type: z.literal("message.deleted"), thread_id: Id, message_ids: z.array(Id) }),
   z.object({ type: z.literal("message.updated"), message: Message }),
   /** One part of a message changed (streaming text, a tool card): cheaper than resending the whole message. */
   z.object({

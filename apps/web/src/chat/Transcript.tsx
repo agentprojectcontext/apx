@@ -11,6 +11,7 @@ import { AgentTurn } from "./AgentTurn.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { Regenerate, UserMessage } from "./Rewind.tsx";
 
 const EMPTY: Msg[] = [];
 /** Distance from the bottom (px) under which new content keeps the view pinned to the end. */
@@ -103,10 +104,10 @@ export function Transcript({ thread }: { thread: Thread }) {
           <div key={key} className="transcript__row" data-msg={key}>
             {day && <DayDivider label={day} />}
             {msg.author.kind === "user" ? (
-              <Message from="user" className={msg.id.startsWith("local_") ? "is-pending" : undefined}>
+              <UserMessage thread={thread} message={msg} messages={messages} text={textOf(msg)}>
                 <p className="transcript__usertext">{textOf(msg)}</p>
                 <UserFiles message={msg} />
-              </Message>
+              </UserMessage>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
             ) : msg.author.kind === "person" ? (
@@ -129,6 +130,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 showAvatar={multiAgent}
                 showTools={showTools}
                 engine={engine}
+                actions={<Regenerate thread={thread} message={msg} messages={messages} />}
               />
             )}
           </div>
