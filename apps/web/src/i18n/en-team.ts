@@ -37,6 +37,10 @@ export const enTeam = {
   "team.import.warnRoots":
     "This project already has {top}: the team's lead will have no parent and the project will have two trees. Nobody is demoted.",
   "team.import.empty": "No templates found. Add folders to examples/agents/ or to your v1 vault.",
+  "team.import.doneRoutines.one": "Its routine is on: see it in Routines.",
+  "team.import.doneRoutines.other": "Their {n} routines are on: see them in Routines.",
+  "team.import.routines.one": "1 routine",
+  "team.import.routines.other": "{n} routines",
   "team.import.done": "Installed {n} agents.",
   "team.import.doneSkipped": "Installed {n} agents; {skipped} skipped (already in the project).",
   "team.import.error": "Could not import: {error}",

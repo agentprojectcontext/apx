@@ -1,10 +1,23 @@
 // Methods behind the Team screen: agent templates (APX's own and the v1 vault's, read-only) and installing them.
 import { z } from "zod";
 import { Agent, Id } from "./domain.ts";
+import { Routine, RoutineAction, Schedule } from "./office.ts";
 
 /** Where a template comes from: shipped with APX, or the owner's v1 vault (read, never written). */
 export const TemplateSource = z.enum(["apx", "v1"]);
 export type TemplateSource = z.infer<typeof TemplateSource>;
+
+/**
+ * A routine an agent template comes with, from `<slug>.routines.json` beside its file: installing the agent in a
+ * project adds it there, on, so an executive team runs its own rituals without any project profile.
+ */
+export const TemplateRoutine = z.object({
+  name: z.string().trim().min(1).max(80),
+  schedule: Schedule,
+  action: RoutineAction.extract(["agent", "watch"]).default("agent"),
+  prompt: z.string().min(1).max(8000),
+});
+export type TemplateRoutine = z.infer<typeof TemplateRoutine>;
 
 export const AgentTemplate = z.object({
   /** Opaque id to install it with (source, team and slug). */
@@ -19,6 +32,8 @@ export const AgentTemplate = z.object({
   area: z.string().optional(),
   /** The team's top: no parent inside the team. */
   lead: z.boolean(),
+  /** What it does on its own once installed: each routine's name and when it runs. */
+  routines: z.array(TemplateRoutine.pick({ name: true, schedule: true })).default([]),
 });
 export type AgentTemplate = z.infer<typeof AgentTemplate>;
 
@@ -54,6 +69,8 @@ export const teamMethods = {
       .strict(),
     result: z.object({
       installed: z.array(Agent),
+      /** The routines the installed agents came with, added to the project and on. */
+      routines: z.array(Routine).default([]),
       skipped: z.array(z.object({ template: z.string(), reason: z.string() })),
     }),
     effect: true,

@@ -362,6 +362,12 @@
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-xs);
 }
+.teamimport__routine {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
 .teamimport__warn {
   display: flex;
   gap: 8px;

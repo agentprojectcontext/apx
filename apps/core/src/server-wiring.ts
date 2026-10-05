@@ -191,7 +191,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...providerHandlers(d.providers, d.secrets),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
-    ...teamHandlers(d.store, d.apc, d.templateRoots),
+    ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop),
     ...terminalHandlers(d.store, d.terminals),
     ...sessionHandlers(d.store, d.native),

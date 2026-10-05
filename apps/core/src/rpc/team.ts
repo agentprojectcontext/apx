@@ -1,6 +1,7 @@
 // Team screen: agent templates and installing them into a project. Templates are read on each call (they are a
 // handful of small files) so a folder edited by hand shows up without a restart.
 
+import type { Routine, Schedule } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import { readTemplates, singlesOf, type TemplateFile, type TemplateRoot } from "../apc/templates.ts";
 import { writeAgentFromTemplate } from "../apc/write.ts";
@@ -9,7 +10,12 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
-export function teamHandlers(store: Store, apc: ApcSync, roots: TemplateRoot[]) {
+export function teamHandlers(
+  store: Store,
+  apc: ApcSync,
+  roots: TemplateRoot[],
+  nextFor: (s: Schedule) => string | undefined,
+) {
   return {
     "agents.templates": () => {
       const { teams, files } = readTemplates(roots);
@@ -53,7 +59,24 @@ export function teamHandlers(store: Store, apc: ApcSync, roots: TemplateRoot[]) 
         const a = store.agents.forFile(project_id, slug, []);
         return a ? [publicAgent(a)] : [];
       });
-      return { installed, skipped };
+      // Only agents written now bring their routines, so installing again never doubles them.
+      const routines: Routine[] = [];
+      for (const a of installed)
+        for (const r of toWrite.find((f) => f.slug === a.slug)?.routineSpecs ?? [])
+          routines.push(
+            store.routines.create({
+              name: r.name,
+              agent_id: a.id,
+              project_id,
+              schedule: r.schedule,
+              action: r.action,
+              prompt: r.prompt,
+              call_model: "always",
+              enabled: true,
+              next_run_at: nextFor(r.schedule),
+            }),
+          );
+      return { installed, routines, skipped };
     },
   } satisfies Partial<Handlers>;
 }

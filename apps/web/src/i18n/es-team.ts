@@ -39,6 +39,10 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import.warnRoots":
     "Este proyecto ya tiene a {top}: el líder del equipo queda sin padre y el proyecto pasa a tener dos árboles. Nadie pierde su lugar.",
   "team.import.empty": "No hay plantillas. Sumá carpetas en examples/agents/ o en tu bóveda de v1.",
+  "team.import.doneRoutines.one": "Su rutina quedó activa: la ves en Rutinas.",
+  "team.import.doneRoutines.other": "Sus {n} rutinas quedaron activas: las ves en Rutinas.",
+  "team.import.routines.one": "1 rutina",
+  "team.import.routines.other": "{n} rutinas",
   "team.import.done": "Se instalaron {n} agentes.",
   "team.import.doneSkipped": "Se instalaron {n} agentes; {skipped} quedaron afuera (ya estaban en el proyecto).",
   "team.import.error": "No se pudo importar: {error}",

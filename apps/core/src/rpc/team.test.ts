@@ -135,3 +135,53 @@ test("an agent's prompt, area and description are read and edited; its activity 
   assert.ok(threads.some((t) => t.id === th.id));
   await assert.rejects(env.client.call("agents.get", { agent: "nobody" }), /not found/);
 });
+
+test("install: an executive comes with its routines, on, in the project; installing again does not double them", async () => {
+  const { teams } = await env.client.call("agents.templates", {});
+  const ceo = teams.find((t) => t.id === "apx:executive-team")?.members.find((m) => m.slug === "ceo");
+  assert.deepEqual(
+    ceo?.routines.map((r) => r.name),
+    ["Weekly review", "Daily pulse"],
+    "the template lists what it does on its own",
+  );
+  const r = await env.client.call("agents.install", {
+    project_id: project,
+    templates: ["apx:executive-team:ceo", "apx:executive-team:cfo"],
+  });
+  const ceoId = r.installed.find((a) => a.slug === "ceo")?.id;
+  assert.ok(ceoId);
+  const names = r.routines.map((x) => `${x.name}:${x.agent_id === ceoId ? "ceo" : "other"}`).sort();
+  assert.deepEqual(names, ["Daily pulse:ceo", "Weekly money check:other", "Weekly review:ceo"]);
+  for (const x of r.routines) {
+    assert.equal(x.project_id, project, "the routine lives in the project");
+    assert.equal(x.enabled, true);
+    assert.ok(x.next_run_at, "it is scheduled");
+  }
+  const again = await env.client.call("agents.install", { project_id: project, templates: ["apx:executive-team:ceo"] });
+  assert.equal(again.routines.length, 0);
+  const listed = (await env.client.call("routines.list", {})).routines.filter((x) => x.agent_id === ceoId);
+  assert.equal(listed.length, 2);
+});
+
+test("projects.update: name, description and kind go to .apc/project.json, keeping its other keys", async () => {
+  const file = path.join(repo, ".apc", "project.json");
+  fs.writeFileSync(file, JSON.stringify({ tool: { x: 1 } }));
+  const id = project;
+  const r = await env.client.call("projects.update", {
+    project: id,
+    name: "Northwind",
+    description: "Wholesale for small shops",
+    kind: "company",
+  });
+  assert.equal(r.project.name, "Northwind");
+  assert.equal(r.project.kind, "company");
+  assert.equal(r.project.description, "Wholesale for small shops");
+  const saved = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.deepEqual(saved.tool, { x: 1 }, "keys APX does not own stay");
+
+  const cleared = await env.client.call("projects.update", { project: id, description: null, kind: null });
+  assert.equal(cleared.project.description, undefined);
+  assert.equal(cleared.project.kind, undefined);
+  assert.equal(cleared.project.name, "Northwind");
+  await assert.rejects(env.client.call("projects.update", { project: id, kind: "spaceship" as "app" }));
+});

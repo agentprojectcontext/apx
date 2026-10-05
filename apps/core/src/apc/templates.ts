@@ -3,14 +3,28 @@
 // v1 vault is read and never written.
 import fs from "node:fs";
 import path from "node:path";
-import type { AgentTemplate, TeamTemplate, TemplateSource } from "@apx/protocol";
+import { type AgentTemplate, type TeamTemplate, TemplateRoutine, type TemplateSource } from "@apx/protocol";
+import { z } from "zod";
 import { parseFrontmatter, textField } from "./frontmatter.ts";
 import { type ApcAgent, readAgentDir, readText, SLUG_RE } from "./read.ts";
 
 export type TemplateRoot = { source: TemplateSource; dir: string };
 
-/** A template with what installing needs: the file's text as written. */
-export type TemplateFile = AgentTemplate & { text: string };
+/** A template with what installing needs: the file's text as written, and the routines it comes with in full. */
+export type TemplateFile = AgentTemplate & { text: string; routineSpecs: TemplateRoutine[] };
+
+const RoutineFile = z.array(TemplateRoutine).max(10);
+
+/** `<slug>.routines.json` beside the agent's file; a missing or malformed one means no routines, never an error. */
+function routinesOf(dir: string, slug: string): TemplateRoutine[] {
+  const file = path.join(dir, `${slug}.routines.json`);
+  if (!small(file)) return [];
+  try {
+    return RoutineFile.parse(JSON.parse(readText(file) ?? "[]"));
+  } catch {
+    return [];
+  }
+}
 
 const TEAM_FILE = "TEAM.md";
 /** A template folder is small; a bigger one is not a template folder. */
@@ -46,6 +60,7 @@ function entries(dir: string): string[] {
 function toTemplate(source: TemplateSource, team: string, dir: string, a: ApcAgent, members: ApcAgent[]): TemplateFile {
   const inTeam = (slug: string | undefined) => Boolean(slug && members.some((m) => m.slug === slug));
   const area = textField(a.fields.area ?? a.fields.Area);
+  const routineSpecs = routinesOf(dir, a.slug);
   return {
     id: `${source}:${team}:${a.slug}`,
     source,
@@ -56,7 +71,9 @@ function toTemplate(source: TemplateSource, team: string, dir: string, a: ApcAge
     ...(inTeam(a.parent) ? { parent: a.parent } : {}),
     ...(area ? { area } : {}),
     lead: !inTeam(a.parent),
+    routines: routineSpecs.map((r) => ({ name: r.name, schedule: r.schedule })),
     text: readText(path.join(dir, `${a.slug}.md`)) ?? "",
+    routineSpecs,
   };
 }
 
@@ -79,7 +96,7 @@ export function readTemplates(roots: TemplateRoot[]): { teams: TeamTemplate[]; f
         source,
         name: textField(meta.name) ?? name,
         ...(textField(meta.description) ? { description: textField(meta.description) } : {}),
-        members: list.map(({ text: _t, ...m }) => m),
+        members: list.map(({ text: _t, routineSpecs: _r, ...m }) => m),
       });
       files.push(...list);
     }
@@ -110,6 +127,6 @@ export function singlesOf(files: TemplateFile[]): AgentTemplate[] {
   const seen = new Set<string>();
   return files
     .filter((f) => !seen.has(f.slug) && seen.add(f.slug))
-    .map(({ text: _t, parent: _p, ...f }) => ({ ...f, lead: true }))
+    .map(({ text: _t, routineSpecs: _r, parent: _p, ...f }) => ({ ...f, lead: true }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

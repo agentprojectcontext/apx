@@ -3,6 +3,7 @@ import type { AgentTemplate, Params, Result, TeamTemplate } from "@apx/protocol"
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
+import { loadRoutines } from "./routines.ts";
 import { data } from "./state.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -33,7 +34,7 @@ export async function installTemplates(
   projectId: string,
   templates: string[],
   hangUnder: string | undefined,
-): Promise<{ installed: number; skipped: Array<{ template: string; reason: string }> } | undefined> {
+): Promise<{ installed: number; routines: number; skipped: Array<{ template: string; reason: string }> } | undefined> {
   try {
     const r = await client.call("agents.install", {
       project_id: projectId,
@@ -41,7 +42,8 @@ export async function installTemplates(
       ...(hangUnder ? { hang_under: hangUnder } : {}),
     });
     data.set((s) => ({ agents: { ...s.agents, ...Object.fromEntries(r.installed.map((a) => [a.id, a])) } }));
-    return { installed: r.installed.length, skipped: r.skipped };
+    if (r.routines.length) void loadRoutines();
+    return { installed: r.installed.length, routines: r.routines.length, skipped: r.skipped };
   } catch (e) {
     notify(t("team.import.error", { error: errText(e) }));
     return undefined;

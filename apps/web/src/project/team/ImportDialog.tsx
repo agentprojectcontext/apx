@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { notify } from "../../data/notices.ts";
 import { installTemplates, loadTemplates } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
+import { scheduleText } from "../../routines/Schedule.tsx";
 
 type Templates = { teams: TeamTemplate[]; singles: AgentTemplate[] };
 
@@ -53,12 +54,12 @@ export function ImportDialog({
     const r = await installTemplates(projectId, [...picked], hang && bringsLead ? top?.slug : undefined);
     setBusy(false);
     if (!r) return;
-    notify(
-      r.skipped.length
-        ? t("team.import.doneSkipped", { n: r.installed, skipped: r.skipped.length })
-        : t("team.import.done", { n: r.installed }),
-      "info",
-    );
+    const done = r.skipped.length
+      ? t("team.import.doneSkipped", { n: r.installed, skipped: r.skipped.length })
+      : t("team.import.done", { n: r.installed });
+    const routines =
+      r.routines === 1 ? t("team.import.doneRoutines.one") : t("team.import.doneRoutines.other", { n: r.routines });
+    notify(r.routines ? `${done} ${routines}` : done, "info");
     onClose();
   };
 
@@ -208,11 +209,24 @@ function Member(props: {
           {t("team.orchestrator")}
         </span>
       )}
+      {m.routines.length > 0 && (
+        <span className="teamimport__leadtag" title={m.routines.map((r) => r.name).join(" · ")}>
+          <Icons.Repeat size={12} />
+          {m.routines.length === 1
+            ? t("team.import.routines.one")
+            : t("team.import.routines.other", { n: m.routines.length })}
+        </span>
+      )}
       {props.taken && <span className="teamimport__muted">{t("team.import.taken")}</span>}
       {props.open && (
         <p className="teamimport__preview">
           <strong>{m.role}</strong>
           {m.description ? ` · ${m.description}` : ""}
+          {m.routines.map((r) => (
+            <span key={r.name} className="teamimport__routine">
+              <Icons.Repeat size={12} /> {r.name} · {scheduleText(r.schedule, t)}
+            </span>
+          ))}
         </p>
       )}
     </li>
