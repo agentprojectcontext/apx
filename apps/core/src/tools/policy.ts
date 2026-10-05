@@ -9,7 +9,7 @@ export type Decision = { kind: "allow" } | { kind: "confirm"; why: ConfirmWhy; r
 /** Names an agent's `tools:` list may use instead of single tools. */
 const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
-  widgets: (n) => n === "show_widget",
+  widgets: (n) => n.endsWith("_widget"),
   agents: (n) => n === "list_agents" || n === "delegate",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_"),

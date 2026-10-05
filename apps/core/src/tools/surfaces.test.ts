@@ -8,16 +8,24 @@ const widget = (connect?: string[]) => ({
   html: "<div id=p></div><script>fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')</script>",
   ...(connect ? { connect } : {}),
 });
-const calls: Record<string, object> = {
+const calls: Record<string, object | [string, object]> = {
   "live widget": widget(["https://api.binance.com", "wss://stream.binance.com:9443"]),
   "same widget": widget(),
   "no network": widget([]),
   "bad origin": widget(["http://api.binance.com/v3"]),
+  "as an app": { ...widget(), app: true, pin: true },
+  "plain update": { ...widget(), app: false, pin: false },
+  "list widgets": ["read_widget", {}],
+  "read it": ["read_widget", { name: "btc-live" }],
+  "edit it": ["edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: "<div id=price>$&</div>" }] }],
+  "edit missing": ["edit_widget", { name: "btc-live", edits: [{ old: "<span>", new: "x" }] }],
+  "edit nothing": ["edit_widget", { name: "no-such", edits: [{ old: "a", new: "b" }] }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
   const c = calls[said];
-  return c ? callTool("w1", "show_widget", c) : say("ok");
+  if (!c) return say("ok");
+  return Array.isArray(c) ? callTool("w1", c[0], c[1]) : callTool("w1", "show_widget", c);
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -62,4 +70,28 @@ test("a widget reaches only the origins it declares for live data, in the chat a
 
   // Only a bare https or wss origin: no plain http, no path.
   assert.match(await said(t.id, "bad origin"), /invalid arguments for show_widget: connect\.0/);
+});
+
+test("an agent reads a widget and changes a piece of it; where the owner put it stays", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "edits" });
+  await said(t.id, "as an app");
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "btc-live")?.id ?? "";
+  // An update that says app=false or pin=false does not take the widget off the sidebar or the board.
+  await said(t.id, "plain update");
+  const placed = await env.client.call("surfaces.get", { surface: id });
+  assert.deepEqual([placed.app, placed.pinned], [true, true]);
+
+  assert.match(await said(t.id, "list widgets"), /- btc-live: BTC live \(v\d+, pinned, app\)/);
+  assert.match(await said(t.id, "read it"), /<html_source>\n<div id=p><\/div><script>/);
+  const before = placed.version;
+  assert.match(await said(t.id, "edit it"), new RegExp(`is now v${before + 1} \\(1 edit\\)`));
+  const edited = await env.client.call("surfaces.get", { surface: id });
+  assert.ok(edited.html.startsWith("<div id=price>$&</div><script>"), "the new text is written as is");
+  const { messages } = await env.settle(t.id);
+  const card = messages.at(-1)?.parts.find((p) => p.type === "surface");
+  assert.equal(card?.type === "surface" && card.version, before + 1);
+
+  assert.match(await said(t.id, "edit missing"), /edit 1: old was not found; nothing changed/);
+  assert.equal((await env.client.call("surfaces.get", { surface: id })).version, before + 1);
+  assert.match(await said(t.id, "edit nothing"), /no widget named no-such/);
 });

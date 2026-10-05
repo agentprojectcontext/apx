@@ -116,7 +116,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...agentTools(store),
     ...chatTools(store),
     ...browserTools(),
-    ...surfaceTools(),
+    ...surfaceTools(store),
     ...ownerTools(store),
     ...shellTools(store, home, port),
     ...fileTools(store, home),

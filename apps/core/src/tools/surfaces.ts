@@ -1,14 +1,36 @@
-// show_widget: the agent creates or updates a widget; pinned, it lives on its project's board; it can also be an app.
-import { SurfaceOrigin } from "@apx/protocol";
+// show_widget / read_widget / edit_widget: the agent makes a widget, reads it back and changes a piece of it; pinned,
+// it lives on its project's board; it can also be an app. Every change shows live wherever the widget is open.
+import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
-import { defineTool, type Tool } from "./types.ts";
+import type { Store } from "../domain/store.ts";
+import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
-export function surfaceTools(): Tool[] {
+const MAX_HTML = 400_000;
+
+const slug = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, 60) || "widget";
+
+/** The widget's card in this turn's answer: the newest version, wherever the widget was made. */
+function card(ctx: ToolContext, surface: SurfaceSummary) {
+  ctx.upsertPart((p) => p.type === "surface" && p.surface_id === surface.id, {
+    type: "surface",
+    surface_id: surface.id,
+    version: surface.version,
+    title: surface.title,
+  });
+}
+
+export function surfaceTools(store: Store): Tool[] {
+  const find = (ctx: ToolContext, name: string) => store.surfaces.byName(ctx.thread.project_id, slug(name));
   return [
     defineTool({
       name: "show_widget",
       description:
-        "Show a visual widget in the chat: self-contained HTML (inline CSS/JS/SVG). It makes no network requests except to the origins in connect (https:// or wss://, e.g. a public market API) for live data: fetch or WebSocket to them only, the owner sees which. Use the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand for the theme. The same name updates the existing widget (keep a board current by updating it, never by making a new one). pin=true puts it on this project's board (its overview) and in the sidebar; app=true lists it as a fullscreen app. An artifact (a standalone page to open or share) is a widget the owner publishes with its share button: make it with show_widget, never as an HTML file on disk. window.apx.sendPrompt(text) sends a message back to this chat.",
+        "Show a visual widget in the chat: self-contained HTML (inline CSS/JS/SVG). It makes no network requests except to the origins in connect (https:// or wss://, e.g. a public market API) for live data: fetch or WebSocket to them only, the owner sees which. Use the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand for the theme. The same name replaces the existing widget, and the owner sees the new version at once wherever it is open (chat, board, app): keep one widget current, never make a second one. To change part of a widget use edit_widget, not a full rewrite. pin=true puts it on this project's board (its overview) and in the sidebar; app=true lists it as a fullscreen app; only the owner takes a widget off either. An artifact (a standalone page to open or share) is a widget the owner publishes with its share button: make it with show_widget, never as an HTML file on disk. window.apx.sendPrompt(text) sends a message back to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
@@ -28,31 +50,81 @@ export function surfaceTools(): Tool[] {
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
         const surface = await ctx.call("surfaces.show", {
-          name:
-            a.name
-              .toLowerCase()
-              .replace(/[^a-z0-9-]+/g, "-")
-              .replace(/^-+/, "")
-              .slice(0, 60) || "widget",
+          name: slug(a.name),
           title: a.title.slice(0, 120) || a.name,
-          html: a.html.slice(0, 400_000),
+          html: a.html.slice(0, MAX_HTML),
           thread: ctx.thread.id,
-          ...(a.pin === undefined ? {} : { pinned: a.pin }),
-          ...(a.app === undefined ? {} : { app: a.app }),
+          // Where the widget lives is the owner's choice once made: an agent adds a place, never takes one away.
+          ...(a.pin ? { pinned: true } : {}),
+          ...(a.app ? { app: true } : {}),
           ...(a.connect === undefined ? {} : { connect: a.connect }),
         });
-        ctx.upsertPart((p) => p.type === "surface" && p.surface_id === surface.id, {
-          type: "surface",
-          surface_id: surface.id,
-          version: surface.version,
-          title: surface.title,
-        });
+        card(ctx, surface);
         const where = [
           surface.pinned ? "pinned to the project's board" : "",
           surface.app ? "listed as an app" : "",
           surface.connect ? `connecting to ${surface.connect.join(", ")}` : "",
         ].filter(Boolean);
         return `widget "${surface.name}" v${surface.version} shown${where.length ? `, ${where.join(", ")}` : ""}.`;
+      },
+    }),
+    defineTool({
+      name: "read_widget",
+      description:
+        "Read a widget of this project by its name: its title, version, the origins it connects to and its full HTML, to change it with edit_widget. Without a name it lists the widgets there are.",
+      args: z.object({ name: z.string().optional() }),
+      effect: "none",
+      deadlineMs: 10_000,
+      title: (a) => (a.name ? `Read the widget ${String(a.name)}` : "Listed the widgets"),
+      async run(a, ctx) {
+        if (!a.name) {
+          const list = store.surfaces.list(ctx.thread.project_id);
+          if (!list.length) return "no widgets yet: make one with show_widget.";
+          return list
+            .slice(0, 40)
+            .map((s) => `- ${s.name}: ${s.title} (v${s.version}${s.pinned ? ", pinned" : ""}${s.app ? ", app" : ""})`)
+            .join("\n");
+        }
+        const s = find(ctx, a.name);
+        if (!s) return `no widget named ${a.name}: read_widget without a name lists them.`;
+        const net = s.connect ? `, connects to ${s.connect.join(", ")}` : "";
+        return `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
+      },
+    }),
+    defineTool({
+      name: "edit_widget",
+      description:
+        "Change part of an existing widget without rewriting it: each edit replaces `old` (it must appear exactly once in the widget's HTML, spaces included) with `new`; all edits apply together or none does. The owner sees the new version at once wherever the widget is open. Read it first with read_widget when you do not have its HTML at hand.",
+      args: z.object({
+        name: z.string(),
+        edits: z
+          .array(z.object({ old: z.string().min(1), new: z.string() }))
+          .min(1)
+          .max(20),
+        title: z.string().optional().describe("a new title, if it changes"),
+      }),
+      effect: "local",
+      deadlineMs: 10_000,
+      title: (a) => `Edited the widget ${String(a.name ?? "")}`,
+      async run(a, ctx) {
+        const s = find(ctx, a.name);
+        if (!s) return `no widget named ${a.name}: make it with show_widget, or list them with read_widget.`;
+        let html = s.html;
+        for (const [i, e] of a.edits.entries()) {
+          const count = html.split(e.old).length - 1;
+          if (count !== 1)
+            return `edit ${i + 1}: old ${count ? `appears ${count} times` : "was not found"}; nothing changed. Copy it exactly from read_widget${count ? ", with more context around it" : ""}.`;
+          html = html.replace(e.old, () => e.new);
+        }
+        if (html.length > MAX_HTML) return `refused: the widget would pass ${MAX_HTML} characters`;
+        const surface = await ctx.call("surfaces.show", {
+          name: s.name,
+          title: a.title?.trim().slice(0, 120) || s.title,
+          html,
+          thread: ctx.thread.id,
+        });
+        card(ctx, surface);
+        return `widget "${surface.name}" is now v${surface.version} (${a.edits.length} edit${a.edits.length === 1 ? "" : "s"}).`;
       },
     }),
   ];
