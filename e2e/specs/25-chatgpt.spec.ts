@@ -67,3 +67,12 @@ test("a CLI is never offered as a model for agents or the router, and the core r
   await expect(list).toContainText("fake-1");
   await expect(list).not.toContainText("Claude Code");
 });
+
+test("a CLI's own screen sends its settings to External sessions", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Claude Code", exact: true }).first().click();
+  await page.getByRole("button", { name: "Configurar el motor" }).first().click();
+  const settings = page.getByRole("dialog", { name: "Configuración" });
+  await expect(settings.locator(".engine", { hasText: "Claude Code" })).toBeVisible();
+  await expect(settings.locator(".pcard--plan")).toHaveCount(0);
+});

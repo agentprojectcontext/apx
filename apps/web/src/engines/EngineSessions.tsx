@@ -96,7 +96,7 @@ export function EngineSessions() {
           <IconButton
             label={t("engine.settings")}
             icon={<Icons.Settings size={15} />}
-            onClick={() => go.config("engines")}
+            onClick={() => go.config("external")}
           />
           <IconButton
             label={t("engine.new")}
@@ -120,7 +120,7 @@ export function EngineSessions() {
             icon={<Icons.Plug />}
             title={t(engine?.installed ? "engine.signIn" : "engine.install", { engine: label })}
             action={
-              <Button size="sm" variant="secondary" onClick={() => go.config("engines")}>
+              <Button size="sm" variant="secondary" onClick={() => go.config("external")}>
                 {t("engine.settings")}
               </Button>
             }
