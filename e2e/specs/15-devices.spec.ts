@@ -34,7 +34,7 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
     .getByRole("textbox", { name: "Dirección de push para Teléfono de prueba" })
     .fill("https://ntfy.example.com/apx-e2e");
   await page.getByRole("button", { name: "Usar para push" }).click();
-  await expect(page.getByText("push (ntfy)")).toBeVisible();
+  await expect(page.getByText("Push (ntfy)")).toBeVisible();
   await page.getByRole("button", { name: "Quitar Teléfono de prueba" }).click();
   await expect(page.getByText("Teléfono de prueba")).toBeHidden();
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);

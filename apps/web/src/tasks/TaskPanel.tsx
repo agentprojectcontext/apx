@@ -1,7 +1,8 @@
 import type { Task, TaskEvent } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, IconButton, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
+import { AgentAvatar, Badge, Button, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
+import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
@@ -71,11 +72,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   };
 
   return (
-    <aside className="taskpanel" aria-label={task.title}>
-      <header className="taskpanel__head">
-        <h2 className="taskpanel__title">{task.title}</h2>
-        <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
-      </header>
+    <Drawer label={task.title} title={task.title} onClose={onClose}>
       <StateBar task={task} />
       <Properties task={task} />
       <Description task={task} />
@@ -115,7 +112,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
           {t("tasks.send")}
         </Button>
       </div>
-    </aside>
+    </Drawer>
   );
 }
 

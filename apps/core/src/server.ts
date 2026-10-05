@@ -216,6 +216,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     memory,
     skills,
     profileRoots,
+    build: { version: identity.version, code_sha: identity.code_sha },
     hooks,
     mcpTools: mcp.toolsFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)),

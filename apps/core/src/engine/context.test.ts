@@ -100,3 +100,14 @@ test("log entries from before runs were recorded are grouped per turn, so the bu
     ["old3", "old4"],
   );
 });
+
+test("an agent knows which APX it runs on, and a checkout reads as a development build", async () => {
+  const { apxBuild } = await import("./turn.ts");
+  assert.equal(apxBuild({ version: "2.1.1", code_sha: "75d71df30488" }), "2.1.1 (commit 75d71df)");
+  assert.equal(apxBuild({ version: "0.0.0", code_sha: "75d71df30488" }), "a development build (commit 75d71df)");
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const prompt = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "2.1.1 (commit 75d71df)");
+  assert.match(prompt, /You run on APX 2\.1\.1 \(commit 75d71df\)/);
+});

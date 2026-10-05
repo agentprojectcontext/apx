@@ -63,7 +63,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.search": "Buscar contactos",
   "ch.foot":
     "Conversaciones con otras personas. Lo que le escribís a {agent} por este canal queda en sus sesiones del Inbox.",
-  "ch.answers": "atiende {agent}",
+  "ch.answers": "Atiende {agent}",
   "ch.settings": "Configuración del canal",
   "ch.pick.title": "Elegí una conversación",
   "ch.pick.body": "Leela, decile al agente qué contestar o escribí vos.",
@@ -78,7 +78,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.writeMe": "Escribile a {name}…",
   "ch.hint.agent": "{agent} escribe la respuesta y se la manda a {name}.",
   "ch.hint.me": "Le llega a {name} tal cual lo escribís.",
-  "ch.muted": "silenciado",
+  "ch.muted": "Silenciado",
   "ch.name": "Nombre",
   "ch.nickname": "Apodo",
   "ch.relation": "Relación",

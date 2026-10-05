@@ -401,13 +401,19 @@ export function v1WhatsApp(home: string): V1WhatsApp | undefined {
   return { selfOwner, owner, contacts };
 }
 
-/** v1's variables (~/.apx/vars.json): names and values, for v2's secret store. */
-export function v1Vars(home: string): Array<{ name: string; value: string }> {
-  return Object.entries(obj(readJson(path.join(home, "vars.json")))).flatMap(([name, v]) => {
+/** Variables in v1's flat name → value file: the global one (~/.apx/vars.json) or a project's (its storage's). */
+function varsFile(file: string): Array<{ name: string; value: string }> {
+  return Object.entries(obj(readJson(file))).flatMap(([name, v]) => {
     const value = typeof v === "string" ? v : str(obj(v).value);
     return value && /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) ? [{ name, value }] : [];
   });
 }
+
+/** v1's global variables, for v2's secret store. */
+export const v1Vars = (home: string) => varsFile(path.join(home, "vars.json"));
+
+/** A v1 project's own variables (~/.apx/projects/<apx_id>/vars.json): v1 let them win over the global ones there. */
+export const v1ProjectVars = (storage: string) => (storage ? varsFile(path.join(storage, "vars.json")) : []);
 
 export type V1Embedder = { id: string; service: ServiceSettings; api_key?: string };
 

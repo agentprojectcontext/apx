@@ -16,6 +16,12 @@ test("tasks: imported, created, opened and done", async ({ page }) => {
 
   // Opened beside the list, marked done, and it leaves the open ones.
   await view.getByText("Call Northwind about the quote").click();
+  const drawer = page.getByRole("complementary", { name: "Call Northwind about the quote" });
+  await expect(drawer).toBeVisible();
+  // Escape closes the drawer; the list stays where it was.
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await view.getByText("Call Northwind about the quote").click();
   await page.getByRole("button", { name: "Hecha" }).first().click();
   await expect
     .poll(async () => {
@@ -38,9 +44,9 @@ test("a commitment: a new date agreed keeps it open, then it is marked kept", as
   const task = async () =>
     (await rpc<{ task: { renegotiated: number; outcome?: string } }>("tasks.get", { task: c.id })).task;
   await expect.poll(async () => (await task()).renegotiated).toBe(1);
-  await expect(page.getByText("fecha movida 1×")).toBeVisible();
+  await expect(page.getByText("Fecha movida 1×")).toBeVisible();
 
   await page.getByRole("button", { name: "Cumplido" }).click();
   await expect.poll(async () => (await task()).outcome).toBe("kept");
-  await expect(page.getByText("cumplido", { exact: true })).toBeVisible();
+  await expect(page.getByText("Cumplido", { exact: true })).toBeVisible();
 });

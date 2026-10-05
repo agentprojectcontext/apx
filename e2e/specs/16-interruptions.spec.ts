@@ -40,9 +40,9 @@ test("the daily cap is set in Interruptions, and a notice too soon after another
 
   const probes = dialog.locator(".nudge__item", { hasText: "Probe from the budget" });
   await expect(probes).toHaveCount(2);
-  await expect(probes.first().getByText("solo en la bandeja")).toBeVisible();
+  await expect(probes.first().getByText("Solo en la bandeja")).toBeVisible();
   await expect(probes.first().getByText(/too soon after another of this kind/)).toBeVisible();
-  await expect(probes.last().getByText("enviado", { exact: true })).toBeVisible();
+  await expect(probes.last().getByText("Enviado", { exact: true })).toBeVisible();
 
   // The owner rates what reached them; a second press takes it back.
   const down = probes.last().getByRole("button", { name: "No me sirve" });

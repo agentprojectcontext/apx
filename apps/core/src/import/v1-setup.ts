@@ -11,7 +11,7 @@ import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { dueOf } from "../domain/tasks.ts";
 import type { ProviderRegistry } from "../providers/registry.ts";
-import type { Secrets } from "../secrets.ts";
+import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { importSkills } from "./v1.ts";
 import { importV1Chats, v1AgentNotes, v1ChatCount, v1DefaultAgents } from "./v1-chats.ts";
@@ -26,6 +26,7 @@ import {
   v1OpenTasks,
   v1OrphanStorages,
   v1Projects,
+  v1ProjectVars,
   v1Routines,
   v1SkillCount,
   v1Telegram,
@@ -111,7 +112,10 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
     },
     { id: "skills", count: v1SkillCount(home) },
     { id: "keys", count: v1EngineCount(home) },
-    { id: "vars", count: v1Vars(home).length },
+    {
+      id: "vars",
+      count: v1Vars(home).length + all.reduce((n, s) => n + v1ProjectVars(s.storage).length, 0),
+    },
     { id: "memory", count: memory },
     {
       id: "identity",
@@ -199,13 +203,21 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
   run("skills", () => importSkills(path.join(home, "skills"), path.join(deps.v2Home, "skills")).length);
   // v1's engines with their keys, and its main model with its fallback chain (see v1-engines.ts).
   run("keys", () => importV1Engines(deps, home));
+  // A project's own values land in that project's scope (its MCP servers read them first); Default's are global.
+  // A name v2 already keeps, in that scope, is the owner's current value.
   run("vars", () => {
     let n = 0;
-    for (const v of v1Vars(home))
-      if (!deps.secrets.listed(v.name)) {
-        deps.secrets.set(v.name, v.value);
-        n++;
-      }
+    const put = (key: string, value: string) => {
+      if (deps.secrets.listed(key)) return;
+      deps.secrets.set(key, value);
+      n++;
+    };
+    for (const v of v1Vars(home)) put(v.name, v.value);
+    for (const s of spaces(home)) {
+      const project = s.path ? projectOf(s) : undefined;
+      if (s.path && !project) continue;
+      for (const v of v1ProjectVars(s.storage)) put(project ? projectSecretName(project, v.name) : v.name, v.value);
+    }
     return n;
   });
   // Counted by what is new: a note v2 already has (same scope and text) is not added twice.
@@ -291,8 +303,9 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     project: string | undefined,
     t: { title: string; description: string; due?: string; status: string; priority?: TaskPriority; tags: string[] },
     extra: { kind: "task" | "commitment" | "errand"; person_id?: string },
-  ) => {
-    if (!secretary) return;
+  ): boolean => {
+    // One already there (any state, the owner's or an earlier import's) is kept: importing again adds nothing.
+    if (!secretary || store.tasks.has({ kind: extra.kind, project_id: project, title: t.title })) return false;
     let due: string | null = null;
     try {
       due = t.due ? dueOf(t.due) : null;
@@ -320,6 +333,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
         by: "owner",
       });
     });
+    return true;
   };
   run("tasks", () => {
     let n = 0;
@@ -327,7 +341,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       const project = s.path ? projectOf(s) : undefined;
       if (s.path && !project) continue;
       for (const t of v1OpenTasks(s.storage)) {
-        addTask(
+        const added = addTask(
           project,
           {
             title: t.title,
@@ -339,7 +353,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
           },
           { kind: t.errand ? "errand" : "task" },
         );
-        n++;
+        if (added) n++;
       }
     }
     return n;
@@ -351,12 +365,12 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       if (s.path && !project) continue;
       for (const c of v1OpenCommitments(s.storage)) {
         const person = c.counterparty ? personFor(c.counterparty) : undefined;
-        addTask(
+        const added = addTask(
           project,
           { title: c.body, description: "", ...(c.due ? { due: c.due } : {}), status: "todo", tags: [] },
           { kind: "commitment", ...(person ? { person_id: person.id } : {}) },
         );
-        n++;
+        if (added) n++;
       }
     }
     return n;

@@ -22,6 +22,9 @@ async function linkAndTalk(page: Page, channel: "dc" | "sl", owner: { id: string
   await page.getByRole("textbox", { name: "Código" }).first().fill(code);
   await page.getByRole("button", { name: "Vincular" }).first().click();
   await expect(page.getByText("“hola bot”")).toBeHidden();
+  // Linked: no code to type any more, and with nobody waiting the approval list is gone too.
+  await expect(page.getByRole("textbox", { name: "Código" })).toHaveCount(0);
+  await expect(page.getByText("Esperando tu aprobación")).toHaveCount(0);
 
   await world.dm(channel, owner, "Remind me to call Northwind");
   await until(async () =>

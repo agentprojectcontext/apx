@@ -75,7 +75,7 @@ export const enChannels = {
   "ch.writeMe": "Write to {name}…",
   "ch.hint.agent": "{agent} writes the answer and sends it to {name}.",
   "ch.hint.me": "Sent to {name} as you wrote it.",
-  "ch.muted": "silenced",
+  "ch.muted": "Silenced",
   "ch.name": "Name",
   "ch.nickname": "Nickname",
   "ch.relation": "Relation",

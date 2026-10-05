@@ -14,6 +14,7 @@ import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
 import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
+import { installRuntimeSkills } from "./commands/runtime-skills.ts";
 import { service } from "./commands/service.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
@@ -42,6 +43,9 @@ Usage:
   apx2 chat "<text>" --code [--cwd <folder>] [--write ask|auto|read-only] [--agent <id>]   Code thread
   apx2 jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
   apx2 skills [project]    Skills agents can load
+  apx2 skills install-runtimes [--dry-run]
+                           Install (or refresh) the skills that teach Claude Code, Codex, Cursor and ~/.agents how to
+                           use APX; removes skills APX no longer ships, never anyone else's
   apx2 tasks [add|move|done|say]  The office board (apx2 tasks help)
   apx2 routines [add|run|on|off|rm|log]  Scheduled work (apx2 routines help)
   apx2 notifications [read]       What is waiting for you
@@ -140,6 +144,7 @@ const { values, positionals } = parseArgs({
     import: { type: "boolean" },
     expose: { type: "string" },
     home: { type: "string" },
+    "dry-run": { type: "boolean" },
   },
 });
 const [command, ...rest] = positionals;
@@ -186,7 +191,8 @@ try {
       await jobs(client, rest);
       break;
     case "skills":
-      await skills(client, rest);
+      if (rest[0] === "install-runtimes") installRuntimeSkills({ dryRun: values["dry-run"] });
+      else await skills(client, rest);
       break;
     case "channels":
       await channels(client, rest, { agent: values.agent });

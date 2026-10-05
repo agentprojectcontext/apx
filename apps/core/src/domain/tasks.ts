@@ -116,6 +116,13 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one(tasksQuery().where("tasks.thread_id", "=", threadId));
       return r ? toTask(r) : undefined;
     },
+    /** Whether a task of this kind and title is in the project (or in none), in any state. */
+    has(o: { kind: TaskKind; project_id: string | undefined; title: string }): boolean {
+      const q = qb.selectFrom("tasks").select("id").where("kind", "=", o.kind).where("title", "=", o.title);
+      const scoped =
+        o.project_id === undefined ? q.where("project_id", "is", null) : q.where("project_id", "=", o.project_id);
+      return Boolean(one(scoped.limit(1)));
+    },
     /** Newest activity first. `projects` limits to those projects (undefined in the list = tasks without one). */
     list(o: {
       projects?: Array<string | undefined>;

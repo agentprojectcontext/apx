@@ -71,10 +71,13 @@ export function systemPrompt(
   role = "",
   /** Who the owner is: their agents know them and never ask their name. */
   owner?: { name: string; about: string } | undefined,
+  /** Which APX this is ("2.1.1 (commit …)"): fixed for the life of the process, so the prompt stays cacheable. */
+  apx = "",
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
     `You are ${agent.name}${agent.role ? `, ${agent.role}` : ""}, an agent in APX: the system that runs your owner's projects and day.`,
+    apx ? `You run on APX ${apx}; say so when asked which version you are.` : "",
     agent.kind === "secretary"
       ? "You are the main secretary: understand the request, do it yourself or delegate it to the right agent, and answer with what happened."
       : "You are a specialist agent: do your part well and answer with the concrete result.",
