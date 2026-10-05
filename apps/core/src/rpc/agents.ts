@@ -47,14 +47,21 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       ...(next ? { model_choice: next } : {}),
     });
   };
-  /** A parent is another agent of the same project, and never one of the agent's own reports (no loops). */
+  /** How a parent names an agent: a project agent by its slug, a global one (which has none) by its id. */
+  const keyOf = (a: AgentRecord) => (a.project_id ? a.slug : (a.slug ?? a.id));
+  /**
+   * A parent is another agent of the same project (globals: another global, the super-agent included), and never one
+   * of the agent's own reports (no loops). The super-agent reports to nobody.
+   */
   const checkParent = (cur: AgentRecord, parent: string | undefined) => {
     if (!parent) return;
-    const team = store.agents.list().filter((a) => a.project_id === cur.project_id && a.slug);
-    const bySlug = new Map(team.map((a) => [a.slug as string, a]));
-    if (parent === cur.slug || !bySlug.has(parent)) throw badRequest(`${parent} is not another agent of this project`);
-    for (let p: string | undefined = parent, hops = 0; p && hops <= team.length; p = bySlug.get(p)?.parent, hops++)
-      if (p === cur.slug) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
+    if (cur.kind === "secretary") throw badRequest("the super-agent reports to nobody");
+    const me = keyOf(cur);
+    const team = store.agents.list().filter((a) => a.project_id === cur.project_id && keyOf(a));
+    const byKey = new Map(team.map((a) => [keyOf(a) as string, a]));
+    if (parent === me || !byKey.has(parent)) throw badRequest(`${parent} is not another agent of this project`);
+    for (let p: string | undefined = parent, hops = 0; p && hops <= team.length; p = byKey.get(p)?.parent, hops++)
+      if (p === me) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
   };
   const fresh = (id: string) => {
     const a = store.agents.get(id);
@@ -137,6 +144,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
           ...(p.role !== undefined ? { role: p.role } : {}),
           ...(p.description !== undefined ? { description: p.description } : {}),
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
+          ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),
           ...(p.blob ? { blob: p.blob } : {}),

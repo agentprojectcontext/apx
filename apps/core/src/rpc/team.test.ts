@@ -96,6 +96,18 @@ test("moving an agent: another agent of the project, never one of its own report
   assert.equal(root.parent, undefined, "an empty parent makes it a root");
 });
 
+test("global agents report to another global agent or to the super-agent, who reports to nobody", async () => {
+  const lead = await env.client.call("agents.create", { slug: "northwind-lead", name: "Lead" });
+  const analyst = await env.client.call("agents.create", { slug: "northwind-analyst", name: "Analyst" });
+  const moved = await env.client.call("agents.update", { agent: analyst.id, parent: lead.id });
+  assert.equal(moved.parent, lead.id);
+  assert.equal((await env.client.call("agents.get", { agent: analyst.id })).agent.parent, lead.id, "kept");
+  await assert.rejects(env.client.call("agents.update", { agent: lead.id, parent: analyst.id }), /loop/);
+  await assert.rejects(env.client.call("agents.update", { agent: "roby", parent: lead.id }), /reports to nobody/);
+  await assert.rejects(env.client.call("agents.update", { agent: analyst.id, parent: "boss" }), /not another agent/);
+  assert.equal((await env.client.call("agents.update", { agent: analyst.id, parent: "" })).parent, undefined);
+});
+
 test("install: a parent that is skipped never adopts a member; the member hangs under hang_under", async () => {
   // The project's own, unrelated "pm".
   fs.writeFileSync(path.join(repo, ".apc", "agents", "pm.md"), "---\nname: Someone else\n---\n\nNot the team's.\n");

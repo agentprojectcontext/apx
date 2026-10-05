@@ -25,11 +25,12 @@ export type AreaPill = { parent: string; area: string; count: number; x: number;
 export type TeamLayout = { nodes: PlacedNode[]; edges: Edge[]; pills: AreaPill[]; width: number; height: number };
 
 /**
- * Parents come from `parent:` (a slug of the same team). Anyone else hangs under `leadId` when given, so the team is
- * one tree like an org chart; a loop in `parent:` is broken where it closes.
+ * Parents come from `parent:` (a slug of the same team; a global agent, which has none, is named by its id). Anyone
+ * else hangs under `leadId` when given, so the team is one tree like an org chart; a loop in `parent:` is broken where
+ * it closes.
  */
 export function layoutTeam(members: TeamMember[], leadId?: string): TeamLayout {
-  const bySlug = new Map(members.flatMap((m) => (m.slug ? [[m.slug, m] as const] : [])));
+  const bySlug = new Map(members.map((m) => [m.slug ?? m.id, m] as const));
   const parentOf = new Map<string, string>();
   for (const m of members) {
     const p = m.parent ? bySlug.get(m.parent) : undefined;

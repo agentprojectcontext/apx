@@ -31,7 +31,7 @@ test("a global agent is created from the team, edited and deleted from its right
   await expect(card).toHaveCount(0);
 
   // The super-agent says why it cannot go.
-  await page.locator(".teamcanvas__node.is-lead, .teamcanvas__node:has(.is-lead)").first().click({ button: "right" });
+  await page.locator(".teamcanvas__node:has(.apx-agentnode.is-lead)").click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Borrar agente" })).toBeDisabled();
   await expect(page.getByText("El super-agente no se puede borrar")).toBeVisible();
   await page.keyboard.press("Escape");
@@ -73,4 +73,32 @@ test("a project agent is written to .apc/agents/ and, deleted, archived with its
   await expect(card).toHaveCount(0);
   expect(fs.existsSync(path.join(agents, "ana-perez.md"))).toBe(false);
   expect(fs.readdirSync(path.join(agents, ".archived")).some((f) => f.startsWith("ana-perez-"))).toBe(true);
+});
+
+test("in the base project the super-agent is on top and a global agent can report to another one", async ({ page }) => {
+  await rpc("setup.finish", {});
+  const lead = await rpc<{ id: string }>("agents.create", { slug: "northwind-ops", name: "Northwind Ops" });
+  await rpc("agents.create", { slug: "northwind-desk", name: "Northwind Desk" });
+  await open(page, "#project=~default&tab=team");
+
+  const desk = page.locator(".teamcanvas__node", { hasText: "Northwind Desk" });
+  await desk.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Ver detalle" }).click();
+  const detail = page.locator(".teamdetail");
+  const parent = detail.getByRole("button", { name: "Reporta a" });
+  await expect(parent).toHaveText(/el super-agente \(por defecto\)/);
+  await parent.click();
+  await page.getByRole("menuitem", { name: "Northwind Ops" }).click();
+  await page
+    .getByRole("dialog", { name: "¿Cambiar a quién reporta?" })
+    .getByRole("button", { name: "Cambiar" })
+    .click();
+  await expect(parent).toHaveText("Northwind Ops");
+  const saved = await rpc<{ agent: { parent?: string } }>("agents.get", { agent: "northwind-desk" });
+  expect(saved.agent.parent).toBe(lead.id);
+
+  // The super-agent's detail says it reports to nobody.
+  await page.locator(".teamcanvas__node:has(.apx-agentnode.is-lead)").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Ver detalle" }).click();
+  await expect(detail.getByText("A nadie: es el super-agente, arriba de todos.")).toBeVisible();
 });

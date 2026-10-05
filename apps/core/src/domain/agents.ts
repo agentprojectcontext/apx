@@ -194,6 +194,7 @@ export function agentsRepo({ one, all, run }: Sql) {
             created_at: now(),
             model_choice: a.model_choice ? JSON.stringify(a.model_choice) : null,
             description: a.description ?? null,
+            parent: a.parent ?? null,
             extra: extraOf(a),
           })
           .onConflict((c) =>
@@ -207,6 +208,7 @@ export function agentsRepo({ one, all, run }: Sql) {
               prompt: eb.ref("excluded.prompt"),
               model_choice: eb.ref("excluded.model_choice"),
               description: eb.ref("excluded.description"),
+              parent: eb.ref("excluded.parent"),
               extra: eb.ref("excluded.extra"),
             })),
           ),

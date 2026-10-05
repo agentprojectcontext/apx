@@ -58,36 +58,44 @@ export function AgentDetail({
     };
   }, [threads, tasks, routines, agent.id]);
   const fromFile = agent.source === "apc" && Boolean(agent.slug);
+  const isSuper = agent.kind === "secretary";
+  // A parent names a project agent by its slug and a global one (which has none) by its id.
+  const keyOf = (a: Agent) => a.slug ?? (a.project_id ? undefined : a.id);
+  const top = team.find((a) => a.kind === "secretary");
   // Its own reports cannot become its parent: the core refuses loops, the list does not offer them.
   const below = new Set<string>();
-  const walk = (slug: string | undefined) => {
-    for (const a of team)
-      if (slug && a.parent === slug && a.slug && !below.has(a.slug)) {
-        below.add(a.slug);
-        walk(a.slug);
+  const walk = (key: string | undefined) => {
+    for (const a of team) {
+      const k = keyOf(a);
+      if (key && a.parent === key && k && !below.has(k)) {
+        below.add(k);
+        walk(k);
       }
+    }
   };
-  walk(agent.slug);
-  const parents = team.filter((a) => a.slug && a.id !== agent.id && !below.has(a.slug));
-  const nameOf = (slug: string | undefined) => team.find((a) => a.slug === slug)?.name ?? t("team.parent.none");
+  walk(keyOf(agent));
+  const parents = team.filter((a) => keyOf(a) && a.id !== agent.id && !below.has(keyOf(a) as string));
+  // With no parent a global agent hangs under the super-agent; a project agent sits on top of its team.
+  const noParent = !fromFile && top ? t("team.parent.toSuper", { name: top.name }) : t("team.parent.none");
+  const nameOf = (key: string | undefined) => team.find((a) => key && keyOf(a) === key)?.name ?? noParent;
 
   const facts = (
     <dl className="teamdetail__facts">
       <dt>{t("team.parent")}</dt>
       <dd>
-        {fromFile ? (
+        {isSuper ? (
+          <span className="teamdetail__muted">{t("team.parent.super")}</span>
+        ) : (
           <Pick
             label={t("team.parent")}
             text={nameOf(agent.parent)}
             options={[
-              { value: "", text: t("team.parent.none") },
-              ...parents.map((p) => ({ value: p.slug ?? "", text: p.name })),
+              { value: "", text: noParent },
+              ...parents.filter((p) => p.kind !== "secretary").map((p) => ({ value: keyOf(p) ?? "", text: p.name })),
             ]}
             value={agent.parent ?? ""}
             onPick={(v) => v !== (agent.parent ?? "") && setPending(v)}
           />
-        ) : (
-          <span className="teamdetail__muted">{t("team.parent.global")}</span>
         )}
       </dd>
       {agent.area && (
@@ -205,12 +213,18 @@ export function AgentDetail({
           }
         >
           <p className="teamdetail__confirm">
-            {t("team.parent.confirmBody", {
-              name: agent.name,
-              from: nameOf(agent.parent),
-              to: nameOf(pending || undefined),
-              file: `.apc/agents/${agent.slug}.md`,
-            })}
+            {fromFile
+              ? t("team.parent.confirmBody", {
+                  name: agent.name,
+                  from: nameOf(agent.parent),
+                  to: nameOf(pending || undefined),
+                  file: `.apc/agents/${agent.slug}.md`,
+                })
+              : t("team.parent.confirmBodyGlobal", {
+                  name: agent.name,
+                  from: nameOf(agent.parent),
+                  to: nameOf(pending || undefined),
+                })}
           </p>
         </Dialog>
       )}
