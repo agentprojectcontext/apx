@@ -1,6 +1,7 @@
 // Lays out the core the installed app carries (resources/apx), in the repo's own shape so the core's relative paths
-// hold: apps/core, apps/terminal, apps/web/dist, examples/agents, and a node_modules of real files (no workspace links:
-// Node strips TypeScript only outside node_modules, so @apx/protocol goes in as a JavaScript bundle).
+// hold: apps/core, apps/terminal (with the skills it installs in other runtimes), apps/web/dist, examples/agents, and
+// a node_modules of real files (no workspace links: Node strips TypeScript only outside node_modules, so
+// @apx/protocol goes in as a JavaScript bundle).
 // Run it on the OS the installer is for: native modules (sharp) and the Codex binary are per platform.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -20,7 +21,8 @@ const copy = (rel: string) =>
 
 const web = path.join(repo, "apps/web/dist/index.html");
 if (!fs.existsSync(web)) throw new Error("build the panel first: pnpm build:web");
-for (const rel of ["apps/core/src", "apps/terminal/src", "apps/web/dist", "examples/agents"]) copy(rel);
+for (const rel of ["apps/core/src", "apps/terminal/src", "apps/terminal/skills", "apps/web/dist", "examples/agents"])
+  copy(rel);
 for (const app of ["core", "terminal"]) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repo, `apps/${app}/package.json`), "utf8")) as Record<
     string,
