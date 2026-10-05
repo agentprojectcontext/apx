@@ -254,7 +254,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "input.anAction": "una acción",
   "notice.info": "Nota",
   "notice.warn": "Aviso",
-  "notice.engine.fallback": "{model} no tiene disponibilidad ahora ({why}); siguió con {to}.",
+  "notice.engine.fallback": "{model} no respondió ({why}); siguió con {to}.",
   "notice.engine.fallback.title": "Cambió de modelo",
   "input.answerPlaceholder": "Escribí tu respuesta y apretá Enter",
   "error.respond": "No se pudo enviar tu respuesta: {error}",

@@ -28,14 +28,21 @@ export type Finish = "stop" | "tool_calls" | "length" | "other";
 /** `context`: the input of the last call alone, how much of the window the chat fills now. */
 export type Usage = { input: number; output: number; context?: number };
 
-/** `effort`: the reasoning effort the call asked for, when it asked for one. */
+/**
+ * `effort`: the reasoning effort the call asked for, when it asked for one. `failed`: models tried before the one
+ * that answered, with why each one did not.
+ */
 export type Completion = {
   message: AssistantItem;
   model: string;
   effort?: string | undefined;
   finish: Finish;
   usage?: Usage;
+  failed?: ModelFailure[] | undefined;
 };
+
+/** A model the gateway tried and moved past in one call. */
+export type ModelFailure = { model: string; why: string };
 
 export type ErrorKind =
   | "rate_limit"
@@ -45,7 +52,8 @@ export type ErrorKind =
   | "bad_request"
   | "model_gone"
   | "network"
-  | "empty";
+  | "empty"
+  | "context";
 
 /** A provider failure with what to do about it. */
 export class ProviderError extends Error {

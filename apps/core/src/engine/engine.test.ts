@@ -18,6 +18,8 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (said.includes("research") && !afterTool)
     return callTool("c2", "delegate", { agent: "scout", task: "find A2A info" });
   if (said.includes("slow")) await new Promise((r) => setTimeout(r, 400));
+  if (said.includes("first choice down"))
+    return { ...say("Answered by the backup."), failed: [{ model: "fake/first", why: "HTTP 429: quota" }] };
   if (said.includes("think hard")) return { ...say("Thought it through."), effort: "high" };
   if (said.includes("say nothing")) return { message: { role: "assistant", content: null }, finish: "stop" };
   if (said.includes("long answer") || said.includes("cut off by the length limit")) {
@@ -70,6 +72,17 @@ test("the answer names the reasoning effort it ran with; the run keeps the bare 
   assert.equal(done.model, "fake/fake-1");
   const { messages } = await env.settle(t.id);
   assert.equal(messages.at(-1)?.model, "fake/fake-1#high");
+});
+
+test("when the chosen model fails and another answers, the answer carries a notice saying which and why", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "fallback" });
+  await env.client.call("threads.send", { thread: t.id, text: "first choice down" });
+  const { messages } = await env.settle(t.id);
+  const notice = messages.at(-1)?.parts.find((p) => p.type === "notice");
+  assert.deepEqual(notice && { code: notice.code, vars: notice.vars }, {
+    code: "engine.fallback",
+    vars: { model: "fake/first", why: "HTTP 429: quota", to: "fake/fake-1" },
+  });
 });
 
 test("the system prompt stays byte-identical across turns; the roster is sent only when it changed", async () => {

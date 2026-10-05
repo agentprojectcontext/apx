@@ -1,7 +1,7 @@
 // The built-in loop: our model call, our tools, bounded steps. What the model says and every tool result are
 // logged as they happen.
 import type { Llm } from "../providers/llm.ts";
-import type { ChatItem, Usage } from "../providers/types.ts";
+import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import type { Harness } from "./types.ts";
 
 const MAX_STEPS = 14;
@@ -31,6 +31,7 @@ export function nativeHarness(llm: Llm): Harness {
       const seen = new Map<string, number>();
       let model = "";
       let effort: string | undefined;
+      const failed = new Map<string, ModelFailure>();
       let text = "";
       let prefix = "";
       let toolsOff = false;
@@ -47,6 +48,7 @@ export function nativeHarness(llm: Llm): Harness {
         io.signal.throwIfAborted();
         model = c.model;
         effort = c.effort;
+        for (const f of c.failed ?? []) if (!failed.has(f.model)) failed.set(f.model, f);
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
         if (c.usage?.input) usage.context = c.usage.input;
@@ -72,7 +74,7 @@ export function nativeHarness(llm: Llm): Harness {
             );
             continue;
           }
-          return { text, model, effort, finish: c.finish, usage };
+          return { text, model, effort, finish: c.finish, usage, failed: [...failed.values()] };
         }
         prefix = "";
         let stuck: string | undefined;
@@ -104,7 +106,7 @@ export function nativeHarness(llm: Llm): Harness {
         ),
       );
       const c = await step(false);
-      return { text, model, effort, finish: c.finish, usage };
+      return { text, model, effort, finish: c.finish, usage, failed: [...failed.values()] };
     },
   };
 }

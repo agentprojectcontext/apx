@@ -211,7 +211,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         run = store.runs.patch(run, { harness: h });
       },
     });
-    run = await finishRun(store, { run, thread, display, exec, outcome });
+    run = await finishRun(store, { run, thread, display, exec, outcome, log: deps.log });
   } catch (err) {
     run = failRun(deps, { run, turn, display, signal, err });
   }
@@ -487,12 +487,31 @@ async function runEngine(
 /** The answer is in: final text (or an honest notice), the code changes card, usage, and the thread back to idle. */
 async function finishRun(
   store: Store,
-  t: { run: RunRecord; thread: Thread; display: Display; exec: Executor; outcome: TurnOutcome },
+  t: { run: RunRecord; thread: Thread; display: Display; exec: Executor; outcome: TurnOutcome; log: Log },
 ): Promise<RunRecord> {
   const { display, thread, outcome } = t;
   display.close();
   // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
   display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
+  // The chosen model failed and another answered: the owner sees which and why, the log keeps it too.
+  const first = outcome.failed?.[0];
+  if (first) {
+    t.log.warn(
+      { run: t.run.id, failed: outcome.failed, answered: outcome.model },
+      "model failed, the next one answered",
+    );
+    display.notice(
+      "warn",
+      "engine.fallback",
+      `${first.model} did not answer (${first.why}); went on with ${outcome.model}.`,
+      {
+        vars: { model: first.model, why: first.why, to: outcome.model },
+        ...(outcome.failed && outcome.failed.length > 1
+          ? { detail: outcome.failed.map((f) => `${f.model}: ${f.why}`).join("\n") }
+          : {}),
+      },
+    );
+  }
   if (worksInFolder(thread) && thread.cwd) {
     const changes = await gitChanges(thread.cwd);
     if (changes) display.upsert((p) => p.type === "changes", changes);

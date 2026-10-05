@@ -2,7 +2,7 @@ import type { HarnessId, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { parseRef } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
-import type { ChatItem, Finish, ToolSpec, Usage } from "../providers/types.ts";
+import type { ChatItem, Finish, ModelFailure, ToolSpec, Usage } from "../providers/types.ts";
 
 /** Everything a harness needs for one turn. The engine owns persistence, cards and limits; the harness runs the loop. */
 export type TurnIO = {
@@ -58,6 +58,8 @@ export type TurnOutcome = {
   model: string;
   /** The reasoning effort the model ran with, when one was asked for. */
   effort?: string | undefined;
+  /** Models tried first that did not answer, with why (each once). */
+  failed?: ModelFailure[] | undefined;
   finish?: Finish;
   sessionId?: string | undefined;
   usage?: Usage | undefined;

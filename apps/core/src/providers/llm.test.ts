@@ -231,3 +231,60 @@ test("a call carries the newest 4 images of the chat; older ones stay references
   );
   assert.deepEqual(urls, ["i3", "i4", "i5", "i6"]);
 });
+
+test("a server that cuts a long chat to its small context does not answer it; the reasons of every model come back", async () => {
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      if (model === "m1") return new Response("You exceeded your current quota", { status: 429 });
+      return sse([
+        { choices: [{ delta: { content: "half-blind answer" }, finish_reason: "stop" }] },
+        { choices: [], usage: { prompt_tokens: 4096, completion_tokens: 3 } },
+      ]);
+    }) as typeof fetch,
+  });
+  const shown: string[] = [];
+  await assert.rejects(
+    llm.complete({
+      models: ["pa/m1", "pa/m2"],
+      messages: [{ role: "user", content: "x".repeat(200_000) }],
+      tools: [],
+      signal: new AbortController().signal,
+      onText: (t) => shown.push(t),
+    }),
+    (err: Error) => {
+      assert.match(err.message, /^pa\/m1: .*quota/m);
+      assert.match(err.message, /^pa\/m2: the server read only 4k tokens of this chat \(50k tokens\)/m);
+      return true;
+    },
+  );
+  assert.equal(shown.at(-1), "", "the cut answer does not stay on screen");
+});
+
+test("when the first model fails and the next answers, the answer says which failed and why", async () => {
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      if (model === "m1") return new Response("You exceeded your current quota", { status: 429 });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const out = await llm.complete({
+    models: ["pa/m1", "pa/m2"],
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    signal: new AbortController().signal,
+  });
+  assert.equal(out.model, "pa/m2");
+  assert.equal(out.failed?.length, 1);
+  assert.equal(out.failed?.[0]?.model, "pa/m1");
+  assert.match(out.failed?.[0]?.why ?? "", /quota/);
+});

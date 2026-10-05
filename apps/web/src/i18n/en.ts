@@ -249,7 +249,7 @@ export const en = {
   "input.anAction": "an action",
   "notice.info": "Note",
   "notice.warn": "Warning",
-  "notice.engine.fallback": "{model} has no capacity right now ({why}); went on with {to}.",
+  "notice.engine.fallback": "{model} did not answer ({why}); went on with {to}.",
   "notice.engine.fallback.title": "Switched model",
   "input.answerPlaceholder": "Type your answer and press Enter",
   "error.respond": "Could not send your answer: {error}",

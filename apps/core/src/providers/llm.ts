@@ -6,7 +6,16 @@ import type { Secrets } from "../secrets.ts";
 import { anthropicMessages } from "./anthropic-messages.ts";
 import { chatgptResponses } from "./chatgpt-responses.ts";
 import { openaiChat } from "./openai-chat.ts";
-import { type ChatItem, type Completion, ProviderError, type ToolSpec, type Transport } from "./types.ts";
+import {
+  type ChatItem,
+  type Completion,
+  type ModelFailure,
+  ProviderError,
+  type ToolSpec,
+  type Transport,
+  type Usage,
+} from "./types.ts";
+import { contextWindow } from "./windows.ts";
 
 export type LlmRequest = {
   /**
@@ -80,9 +89,28 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const skipped = new Set<string>();
+      const failed: ModelFailure[] = [];
+      const need = tokensOf(req);
       const messages = withImageBytes(req.messages, opts.media);
+      // A model that failed after streaming part of an answer must not leave that part on screen.
+      let streamed = false;
+      const onText =
+        req.onText &&
+        ((s: string) => {
+          streamed = true;
+          req.onText?.(s);
+        });
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
+        const ref = `${t.provider.id}/${t.model}`;
+        const window = contextWindow(ref);
+        if (window && need > window) {
+          failed.push({
+            model: ref,
+            why: `its context (${kTokens(window)}) is smaller than this chat (${kTokens(need)})`,
+          });
+          continue;
+        }
         // A local server (Ollama, LM Studio) needs no key; a signed-in plan gets a fresh token per call.
         const signIn = opts.signIns?.[t.provider.key];
         let headers: Record<string, string> | undefined;
@@ -94,10 +122,12 @@ export function createLlm(opts: {
             headers = c?.headers;
           } catch (err) {
             last = new ProviderError("auth", `${t.provider.id}: ${err instanceof Error ? err.message : String(err)}`);
+            failed.push({ model: ref, why: `signed out (${last.message.slice(t.provider.id.length + 2, 200)})` });
           }
         } else key = t.provider.key === NO_KEY ? "" : secrets.resolve(t.provider.key);
         if (key === undefined || (key === "" && t.provider.key !== NO_KEY)) {
           skipped.add(t.provider.id);
+          if (failed.at(-1)?.model !== ref) failed.push({ model: ref, why: signIn ? "not signed in" : "no API key" });
           continue;
         }
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -112,15 +142,21 @@ export function createLlm(opts: {
               messages,
               tools: req.tools,
               signal: req.signal,
-              onText: req.onText,
+              onText,
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,
             });
-            return { ...out, model: `${t.provider.id}/${t.model}`, ...(t.effort ? { effort: t.effort } : {}) };
+            if (t.provider.transport === "openai-chat") checkNotCut(out.usage, need);
+            return {
+              ...out,
+              model: ref,
+              ...(t.effort ? { effort: t.effort } : {}),
+              ...(failed.length ? { failed } : {}),
+            };
           } catch (err) {
             if (req.signal.aborted) throw req.signal.reason ?? err;
             last = err instanceof ProviderError ? err : new ProviderError("network", String(err));
-            last.message = `${t.provider.id}/${t.model}: ${last.message}`;
+            last.message = `${ref}: ${last.message}`;
             // Auth and a rejected request rule out the whole provider for this call; quota is often per model
             // (Gemini), so the provider's next model still gets a try.
             if (last.kind === "auth" || last.kind === "bad_request") skipped.add(t.provider.id);
@@ -128,10 +164,36 @@ export function createLlm(opts: {
             await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 800));
           }
         }
+        if (last) failed.push({ model: ref, why: last.message.slice(ref.length + 2, ref.length + 302) });
+        if (streamed) {
+          streamed = false;
+          req.onText?.("");
+        }
       }
-      throw last ?? new ProviderError("auth", "no usable model provider");
+      // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
+      const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
+      throw new ProviderError(last?.kind ?? "auth", reasons || last?.message || "no usable model provider");
     },
   };
+}
+
+/** A rough token count of a call (four characters each), enough to tell a 60k chat from a 4k window. */
+function tokensOf(req: LlmRequest): number {
+  return Math.ceil((JSON.stringify(req.messages).length + JSON.stringify(req.tools).length) / 4);
+}
+
+const kTokens = (n: number) => `${Math.round(n / 1000)}k tokens`;
+
+/**
+ * A local server (Ollama) cuts a prompt longer than its context length without saying so: the model then answers
+ * without the system prompt or the tools. A reported input far below what was sent is that cut.
+ */
+function checkNotCut(usage: Usage | undefined, need: number): void {
+  if (!usage?.input || need < 8_000 || usage.input * 3 > need) return;
+  throw new ProviderError(
+    "context",
+    `the server read only ${kTokens(usage.input)} of this chat (${kTokens(need)}): raise its context length`,
+  );
 }
 
 /** Images a call carries at most: the newest ones; older ones stay named in their message's text. */
