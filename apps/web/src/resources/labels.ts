@@ -18,9 +18,11 @@ export const STATUS_KEY: Record<McpServerStatus["status"], MessageKey> = {
   error: "mcp.status.error",
 };
 
-export function mcpDot(s: McpServerStatus): "on" | "off" | "error" | "warning" {
+/** A server that starts when an agent first uses it ("off" while enabled) is ready, not off: a ring, not grey. */
+export function mcpDot(s: McpServerStatus): "on" | "idle" | "off" | "error" | "warning" {
   if (s.off_here || s.status === "disabled") return "off";
   if (s.status === "error") return "error";
   if (s.status === "needs-approval") return "warning";
-  return s.status === "ready" ? "on" : "off";
+  if (s.status === "ready") return "on";
+  return s.status === "off" || s.status === "starting" ? "idle" : "off";
 }

@@ -9,8 +9,8 @@ export interface PickRowProps {
   leading?: ReactNode;
   /** After the title: chips, counters, a time. */
   trailing?: ReactNode;
-  /** A small status dot at the end: on (brand), off (subtle), error (danger), warning. */
-  dot?: "on" | "off" | "error" | "warning";
+  /** A small status dot at the end: on (brand), idle (brand ring: ready, not running), off (subtle), error, warning. */
+  dot?: "on" | "idle" | "off" | "error" | "warning";
   /** Monospace title (ids: skills, servers, variables). */
   mono?: boolean;
   selected?: boolean;
