@@ -13,6 +13,7 @@
   "dependencies": {
     "@apx/protocol": "workspace:*",
     "@apx/ui": "workspace:*",
+    "@base-ui/react": "^1.8.0",
     "qrcode-generator": "2.0.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

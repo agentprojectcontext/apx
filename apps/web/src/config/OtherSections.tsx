@@ -1,13 +1,12 @@
 import type { OwnerIdentity } from "@apx/protocol";
-import { Badge, Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Skeleton, Textarea } from "@apx/ui";
+import { Badge, EmptyState, Icons, Input, SegmentedControl, SettingRow, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, type ChannelKind } from "../channels/kinds.ts";
+import { LanguageSelect, TimezoneSelect } from "../common/pickers/LocaleSelect.tsx";
 import { client } from "../data/client.ts";
-import { loadHealth } from "../data/engines.ts";
 import { notify } from "../data/notices.ts";
 import { initialsOf, setPrefs, usePrefs } from "../data/prefs.ts";
-import { useData } from "../data/state.ts";
 import { isLanguage, LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { SectionHead } from "./SectionHead.tsx";
@@ -19,7 +18,6 @@ export function AccountSection() {
   const you = t("account.you");
   const [owner, setOwner] = useState<OwnerIdentity>();
   const [draft, setDraft] = useState(stored);
-  const local = Intl.DateTimeFormat().resolvedOptions().timeZone;
   useEffect(() => {
     void client
       .call("owner.get", {})
@@ -75,24 +73,17 @@ export function AccountSection() {
             />
           </SettingRow>
           <SettingRow title={t("account.agentLanguage")} description={t("account.agentLanguageHint")}>
-            <SegmentedControl
-              size="sm"
+            <LanguageSelect
               label={t("account.agentLanguage")}
               value={owner.language}
-              onValueChange={(v) => save({ language: v })}
-              options={LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_NAMES[l] }))}
+              onChange={(v) => save({ language: v })}
             />
           </SettingRow>
-          <SettingRow title={t("account.timezone")} description={t("account.timezoneHint", { local })}>
-            <Input
-              size="sm"
-              className="config__input"
-              defaultValue={owner.timezone}
-              placeholder={local}
-              onBlur={(e) =>
-                e.currentTarget.value.trim() !== owner.timezone && save({ timezone: e.currentTarget.value.trim() })
-              }
-              aria-label={t("account.timezone")}
+          <SettingRow title={t("account.timezone")} description={t("account.timezoneHint")}>
+            <TimezoneSelect
+              label={t("account.timezone")}
+              value={owner.timezone}
+              onChange={(v) => save({ timezone: v })}
             />
           </SettingRow>
         </>
@@ -192,82 +183,4 @@ export function ChannelSoon({ channel }: { channel: ChannelKind }) {
       </EmptyState>
     </div>
   );
-}
-
-/** Daemon and advanced: where the panel is connected and which code the core runs. */
-export function AdvancedSection() {
-  const t = useT();
-  const health = useData((s) => s.health);
-  const connection = useData((s) => s.connection);
-  useEffect(() => {
-    void loadHealth();
-  }, []);
-  const rows: [string, string][] = health
-    ? [
-        [t("advanced.core"), window.location.origin],
-        [t("advanced.version"), health.version],
-        [t("advanced.code"), health.code_sha],
-        [t("advanced.protocol"), String(health.protocol)],
-        [t("advanced.install"), health.home_id],
-        [t("advanced.uptime"), uptime(health.uptime_s)],
-      ]
-    : [[t("advanced.core"), window.location.origin]];
-  return (
-    <>
-      <SectionHead
-        title={t("config.advanced")}
-        lead={t("advanced.lead")}
-        actions={
-          <Button
-            size="sm"
-            variant="secondary"
-            leadingIcon={<Icons.RefreshCw size={14} />}
-            onClick={() => void loadHealth()}
-          >
-            {t("common.refresh")}
-          </Button>
-        }
-      />
-      <dl className="kv">
-        <div className="kv__row">
-          <dt>{t("advanced.connection")}</dt>
-          <dd>
-            <Badge tone={connection === "online" ? "brand" : connection === "offline" ? "danger" : "neutral"} dot>
-              {connection === "online"
-                ? t("connection.online")
-                : connection === "offline"
-                  ? t("connection.offline")
-                  : t("connection.connecting")}
-            </Badge>
-          </dd>
-        </div>
-        {rows.map(([k, v]) => (
-          <div key={k} className="kv__row">
-            <dt>{k}</dt>
-            <dd className="kv__mono">{v}</dd>
-          </div>
-        ))}
-      </dl>
-      {health ? (
-        <div className="subsys">
-          <h3 className="config__sub">{t("advanced.subsystems")}</h3>
-          {Object.entries(health.subsystems).map(([name, st]) => (
-            <SettingRow key={name} title={name} description={st.detail}>
-              <Badge tone={st.status === "ok" ? "brand" : st.status === "degraded" ? "warning" : "neutral"} dot>
-                {st.status}
-              </Badge>
-            </SettingRow>
-          ))}
-        </div>
-      ) : (
-        <Skeleton shape="block" height={120} />
-      )}
-    </>
-  );
-}
-
-function uptime(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return h ? `${h} h ${m} min` : `${m} min`;
 }
