@@ -1,6 +1,6 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
-import type { TabInfo } from "@apx/protocol";
+import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { cap, untrusted } from "./result.ts";
@@ -55,8 +55,10 @@ export function browserTools(): Tool[] {
 
   return [
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_open",
-      description: "Open a URL in a new tab of the owner's embedded browser (they can watch it). Returns the tab id.",
+      description:
+        "Open a URL in a new tab of the owner's embedded browser (they can watch it). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, a login, clicks or forms, when they failed, or when the owner wants to see it.",
       args: z.object({ url: z.string().describe("http(s) URL") }),
       effect: "external",
       deadlineMs: 30_000,
@@ -68,6 +70,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_navigate",
       description: "Navigate an open tab to a URL.",
       args: z.object({ tab: tabArg, url: z.string().describe("URL") }),
@@ -82,6 +85,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_snapshot",
       description:
         "Accessibility snapshot of a tab: interactive elements with refs (e12) for click/type. Untrusted web content.",
@@ -96,6 +100,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_text",
       description: "Visible text of the page, paginated. Use it to read content. Untrusted web content.",
       args: z.object({
@@ -113,6 +118,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_click",
       description: "Click an element by ref from the last snapshot.",
       args: z.object({ tab: tabArg, ref: refArg }),
@@ -127,6 +133,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_type",
       description:
         "Type text into a field by ref. Password, 2FA and card fields are refused: use browser_handoff instead.",
@@ -154,6 +161,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_use_my_login",
       description:
         "When a site asks to log in and the owner is likely already logged in there in their own browser (Chrome, Brave, Arc, Edge, Zen, Firefox): ask to copy that site's session cookies into your browser profile, then reload the tab. The owner approves it every time. Try this before browser_handoff for sites like Gmail, GitHub or Notion.",
@@ -194,6 +202,7 @@ export function browserTools(): Tool[] {
       },
     }),
     defineTool({
+      needsCap: BROWSER_CAP,
       name: "browser_handoff",
       description:
         "Hand the tab to the owner for login, password, 2FA or captcha, and wait until they finish (up to 5 min). Never ask for passwords in chat.",

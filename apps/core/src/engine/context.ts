@@ -160,7 +160,7 @@ const CHAT_STYLE =
 const HANDOFF_NOTE =
   "Here you only keep notes and hand work off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
 const ACK_NOTE =
-  "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line.";
+  "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line. They are not looking at the app: look things up with web_search and web_read; open the browser only when a page needs it (JavaScript, a login, clicks), and tell them it is open on the computer.";
 
 /** What the owner's turn on a phone chat adds: how to hand work off on WhatsApp, how to say "on it" elsewhere. */
 const ownerChannelNote = (channel: string) => (channel === "whatsapp" ? HANDOFF_NOTE : ACK_NOTE);
