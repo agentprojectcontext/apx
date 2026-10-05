@@ -220,3 +220,78 @@ test("importing again keeps what v2 has and the owner changed, and fills only wh
   const again = env.core.store.agents.list().find((a) => a.kind === "secretary");
   assert.deepEqual(again?.model_choice, { model: "gemini/gemini-test", router: true });
 });
+
+test("importing tasks and commitments twice leaves one of each", async () => {
+  const v1 = path.join(env.home, "v1", "projects", "default");
+  const ts = "2026-09-01T10:00:00.000Z";
+  write(
+    path.join(v1, "tasks", "tasks.jsonl"),
+    [
+      { id: "t1", op: "create", ts, title: "Send the Northwind invoice", description: "Before Friday" },
+      { id: "t2", op: "create", ts, title: "Renew the Acme domain" },
+    ]
+      .map((e) => JSON.stringify(e))
+      .join("\n"),
+  );
+  write(
+    path.join(v1, "commitments", "commitments.jsonl"),
+    JSON.stringify({ id: "c1", op: "create", ts, counterparty: "Acme", body: "Call back about the contract" }),
+  );
+  const count = () =>
+    env.core.store.tasks
+      .list({ projects: [undefined], limit: 500 })
+      .filter((t) =>
+        ["Send the Northwind invoice", "Renew the Acme domain", "Call back about the contract"].includes(t.title),
+      ).length;
+
+  const first = await env.client.call("setup.import_v1", { groups: ["tasks", "commitments"] });
+  assert.deepEqual(first.errors, []);
+  assert.deepEqual([first.imported.tasks, first.imported.commitments], [2, 1]);
+  assert.equal(count(), 3);
+  // A task the owner already finished is still the same task: it does not come back.
+  const done = env.core.store.tasks
+    .list({ projects: [undefined], limit: 500 })
+    .find((t) => t.title === "Renew the Acme domain");
+  if (done) env.core.store.tasks.change(done.id, { status: "done", state: "done" }, "owner");
+
+  const again = await env.client.call("setup.import_v1", { groups: ["tasks", "commitments"] });
+  assert.deepEqual([again.imported.tasks, again.imported.commitments], [0, 0]);
+  assert.equal(count(), 3);
+});
+
+test("a v1 project's own variables land in that project's scope; Default's and the global ones are global", async () => {
+  const v1 = path.join(env.home, "v1");
+  const dir = path.join(env.home, "work", "northwind");
+  write(path.join(dir, ".apc", "project.json"), { apx_id: "0b0b0b0b0b0b", name: "Northwind" });
+  write(path.join(dir, "AGENTS.md"), "# Northwind\n");
+  const config = JSON.parse(fs.readFileSync(path.join(v1, "config.json"), "utf8")) as Record<string, unknown>;
+  write(path.join(v1, "config.json"), { ...config, projects: [{ path: dir }] });
+  write(path.join(v1, "vars.json"), { ACME_TOKEN: "acme-global-0001" });
+  write(path.join(v1, "projects", "0b0b0b0b0b0b", "vars.json"), { ACME_TOKEN: "acme-northwind-0002", ZONE: "z-1" });
+  write(path.join(v1, "projects", "default", "vars.json"), { DEFAULT_KEY: "default-0003" });
+
+  const { groups } = await env.client.call("setup.v1_scan", {});
+  assert.equal(groups.find((g) => g.id === "vars")?.count, 4);
+  const r = await env.client.call("setup.import_v1", { groups: ["projects", "vars"] });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.imported.vars, 4);
+  const project = env.core.store.projects.byPath(dir)?.id ?? "";
+  const { secrets } = await env.client.call("secrets.list", {});
+  assert.deepEqual(
+    secrets
+      .filter((s) => ["ACME_TOKEN", "ZONE", "DEFAULT_KEY"].includes(s.name))
+      .map((s) => [s.name, s.project_id ?? null])
+      .sort(),
+    [
+      ["ACME_TOKEN", null],
+      ["ACME_TOKEN", project],
+      ["DEFAULT_KEY", null],
+      ["ZONE", project],
+    ],
+  );
+  // The project's own value wins there; elsewhere the global one answers.
+  assert.equal(env.core.secrets.resolveIn("secret://ACME_TOKEN", project), "acme-northwind-0002");
+  assert.equal(env.core.secrets.resolveIn("secret://ACME_TOKEN", undefined), "acme-global-0001");
+  // Importing again keeps what is there.
+  assert.equal((await env.client.call("setup.import_v1", { groups: ["vars"] })).imported.vars, 0);
+});

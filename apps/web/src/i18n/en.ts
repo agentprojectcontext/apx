@@ -761,7 +761,7 @@ export const en = {
   "tg.strangers.ignore": "Ignore",
   "tg.remove": "Remove this bot",
   "tg.pairing": "Waiting for your approval",
-  "tg.pairingEmpty": "Nobody is waiting.",
+  "tg.yourAccount": "Your account",
   "tg.itsMe": "This is my {channel}",
   "tg.ignore": "Ignore",
   "tg.people": "People on {channel}",

@@ -757,7 +757,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.strangers.ignore": "Ignorar",
   "tg.remove": "Quitar este bot",
   "tg.pairing": "Esperando tu aprobación",
-  "tg.pairingEmpty": "No hay nadie esperando.",
+  "tg.yourAccount": "Tu cuenta",
   "tg.itsMe": "Este es mi {channel}",
   "tg.ignore": "Ignorar",
   "tg.people": "Personas en {channel}",

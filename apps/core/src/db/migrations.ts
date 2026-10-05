@@ -557,4 +557,39 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE threads ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- Setup imports from v1 used to add every task and commitment again. A later copy goes only when nobody touched it:
+  -- the same kind, project and title as the oldest, no event but its creation, nothing in its chat, same fields.
+  CREATE TEMP TABLE import_dups AS
+    WITH ranked AS (
+      SELECT t.*, FIRST_VALUE(t.id) OVER (
+        PARTITION BY t.kind, COALESCE(t.project_id, ''), t.title ORDER BY t.created_at, t.id
+      ) AS kept_id
+      FROM tasks t
+    )
+    SELECT d.id AS task_id, d.thread_id AS thread_id
+    FROM ranked d JOIN tasks k ON k.id = d.kept_id
+    WHERE d.id <> k.id
+      AND d.status = k.status AND d.state = k.state AND d.description = k.description AND d.due_at IS k.due_at
+      AND NOT EXISTS (SELECT 1 FROM task_events e WHERE e.task_id = d.id AND e.op <> 'create')
+      AND NOT EXISTS (SELECT 1 FROM tasks c WHERE c.parent_id = d.id)
+      AND NOT EXISTS (SELECT 1 FROM messages m WHERE m.thread_id = d.thread_id)
+      AND NOT EXISTS (SELECT 1 FROM runs r WHERE r.thread_id = d.thread_id)
+      AND NOT EXISTS (SELECT 1 FROM threads s WHERE s.parent_id = d.thread_id)
+      AND NOT EXISTS (SELECT 1 FROM media x WHERE x.thread_id = d.thread_id)
+      AND NOT EXISTS (SELECT 1 FROM jobs j WHERE j.thread_id = d.thread_id);
+  DELETE FROM notifications
+    WHERE thread_id IN (SELECT thread_id FROM import_dups) OR (kind = 'task' AND ref IN (SELECT task_id FROM import_dups));
+  DELETE FROM pending_inputs WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  DELETE FROM routine_runs WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  UPDATE memories SET thread_id = NULL WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  UPDATE surfaces SET thread_id = NULL WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  UPDATE outbox SET thread_id = NULL WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  UPDATE nudges SET thread_id = NULL WHERE thread_id IN (SELECT thread_id FROM import_dups);
+  DELETE FROM task_events WHERE task_id IN (SELECT task_id FROM import_dups);
+  DELETE FROM tasks WHERE id IN (SELECT task_id FROM import_dups);
+  -- The model log and harness sessions cascade with the thread.
+  DELETE FROM threads WHERE id IN (SELECT thread_id FROM import_dups);
+  DROP TABLE import_dups;
+  `,
 ];

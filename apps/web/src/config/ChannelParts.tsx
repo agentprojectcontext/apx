@@ -1,9 +1,9 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
 import type { ChannelInfo, Person } from "@apx/protocol";
-import { Badge, Button, EmptyState, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
+import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { PairingRow } from "../channels/StartRows.tsx";
+import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import {
   type ChannelDraft,
@@ -99,7 +99,10 @@ export function Behavior({
   );
 }
 
-/** Who wrote and waits to be let in; on a bot channel the owner can also link their own chat with its code. */
+/**
+ * Who wrote and waits to be let in, shown only while someone does. On a bot channel whose owner is not linked yet,
+ * the owner links their own chat with the code the bot sent; once linked they show under People as themselves.
+ */
 export function Pairing({
   channelId,
   itsMe,
@@ -110,41 +113,43 @@ export function Pairing({
 }) {
   const t = useT();
   const all = useChannels((s) => s.pairing);
+  const linked = useChannels((s) => ownerOn(s.persons, channelId));
   const requests = useMemo(() => all.filter((r) => r.channel === channelId), [all, channelId]);
   const [code, setCode] = useState("");
   return (
     <>
-      <SubHead>{t("tg.pairing")}</SubHead>
-      {itsMe && (
-        <SettingRow title={itsMe.title} description={itsMe.hint}>
-          <div className="tgtoken">
-            <Input
-              aria-label={t("tg.code")}
-              inputMode="numeric"
-              placeholder="123456"
-              value={code}
-              onChange={(e) => setCode(e.currentTarget.value.replace(/\D/g, "").slice(0, 6))}
-            />
-            <Button
-              size="sm"
-              disabled={code.length !== 6}
-              onClick={() => void respondPairing(code, "owner").then(() => setCode(""))}
-            >
-              {t("tg.link")}
-            </Button>
-          </div>
-        </SettingRow>
+      {itsMe && !linked && (
+        <>
+          <SubHead>{t("tg.yourAccount")}</SubHead>
+          <SettingRow title={itsMe.title} description={itsMe.hint}>
+            <div className="tgtoken">
+              <Input
+                aria-label={t("tg.code")}
+                inputMode="numeric"
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.currentTarget.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <Button
+                size="sm"
+                disabled={code.length !== 6}
+                onClick={() => void respondPairing(code, "owner").then(() => setCode(""))}
+              >
+                {t("tg.link")}
+              </Button>
+            </div>
+          </SettingRow>
+        </>
       )}
-      {requests.length === 0 ? (
-        <EmptyState variant="dashed" size="sm" icon={<Icons.Users />}>
-          {t("tg.pairingEmpty")}
-        </EmptyState>
-      ) : (
-        <ul className="chan__rows">
-          {requests.map((r) => (
-            <PairingRow key={r.code} request={r} />
-          ))}
-        </ul>
+      {requests.length > 0 && (
+        <>
+          <SubHead>{t("tg.pairing")}</SubHead>
+          <ul className="chan__rows">
+            {requests.map((r) => (
+              <PairingRow key={r.code} request={r} />
+            ))}
+          </ul>
+        </>
       )}
     </>
   );
