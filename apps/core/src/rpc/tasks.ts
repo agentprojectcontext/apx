@@ -15,8 +15,16 @@ import type { Handlers } from "./router.ts";
 
 export function taskHandlers(store: Store, engine: Engine) {
   /** The agent's project (from its thread), or undefined for the owner. */
-  const agentScope = (ctx: CallContext) =>
-    ctx.agent ? { project: store.threads.get(ctx.agent.thread_id)?.project_id } : undefined;
+  /**
+   * An agent works on its chat's project. The super-agent outside any project keeps the owner's whole board, as in v1:
+   * opening and closing the day span every project.
+   */
+  const agentScope = (ctx: CallContext) => {
+    if (!ctx.agent) return undefined;
+    const project = store.threads.get(ctx.agent.thread_id)?.project_id;
+    if (!project && store.agents.get(ctx.agent.id)?.kind === "secretary") return undefined;
+    return { project };
+  };
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
 
   /** A task the caller may see and change. */

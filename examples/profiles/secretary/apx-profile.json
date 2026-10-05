@@ -164,7 +164,7 @@
         "cron": "{{day_open}}"
       },
       "pre_command": "{{calendar_command}}",
-      "prompt": "Open the owner's day in ONE message. Call task_list once (open tasks and commitments) and nothing else. Lead with promises due (who is owed what, by when), then what is due today, then today's calendar if a calendar block is below, then the single most important thing to do first. If the day is empty, ask one short question about what matters today instead. Short lines, no headers."
+      "prompt": "Open the owner's day in ONE message, across every project. Gather with task_list (open, no other arguments) and nothing else: it lists every project's board, each task with its project and when it last moved. Promises first and apart from tasks: commitments past due or due today, who is owed what (or what someone owes the owner), by when; a broken promise costs more than a late task. Then what is due today and what is overdue, with its project; then today's calendar if a calendar block is below (never name a meeting that is not written there); then the one thing to do first. Name a project quiet for more than {{stale_project_days}} days only when it matters. If nothing is pressing, say so in one line and ask what should go on today's list. Short lines; a few bold labels are fine, no headings. Say \"no data\" rather than guess."
     },
     {
       "key": "day-close",
@@ -179,7 +179,7 @@
         "kind": "cron",
         "cron": "{{day_close}}"
       },
-      "prompt": "Close the owner's day in ONE message: what moved today, what is stuck, what carries over to tomorrow. Call task_list once. Ask whether the commitments due today were kept; when the owner answers, record it with commitment_settle (kept, missed, dropped, or renegotiated with the new date), never on your own. Say \"no data\" rather than guess. Short lines, no headers."
+      "prompt": "Close the owner's day in ONE message, across every project. Gather with task_list twice and nothing else: the open tasks, then state \"done\" with limit 20 (what closed lately); each line says its project and when it last moved. Promises first and apart: for each commitment due today, ask whether it was kept; when the owner answers, record it with commitment_settle (kept, missed, dropped, or renegotiated with the new date), never on your own. Then what moved today (closed or changed today), what is stuck (waiting for the owner, overdue, or no activity for {{waiting_hours}} hours or more) and what carries over to tomorrow. Name a project quiet for more than {{stale_project_days}} days. If the day was quiet, say it in one line. Short lines; a few bold labels are fine, no headings. Say \"no data\" rather than guess."
     },
     {
       "key": "watch",

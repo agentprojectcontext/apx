@@ -41,6 +41,10 @@ test("no profile by default; APX's own are listed; the secretary seeds open, clo
   assert.deepEqual(by("day-open")?.schedule, { kind: "cron", cron: "30 8 * * 1-5" });
   assert.equal(by("day-open")?.anchor, true, "the day's open always arrives");
   assert.equal(by("day-close")?.anchor, true);
+  // The day's open and close span every project and come with the profile's thresholds filled in.
+  assert.match(by("day-close")?.prompt ?? "", /across every project.*quiet for more than 7 days/s);
+  assert.match(by("day-close")?.prompt ?? "", /no activity for 48 hours/);
+  assert.doesNotMatch(by("day-open")?.prompt ?? "", /\{\{/);
   assert.deepEqual(by("watch")?.schedule, { kind: "every", minutes: 120 });
   assert.equal(by("watch")?.action, "watch");
   assert.equal(by("watch")?.anchor, false, "the watch goes through the budget");
@@ -68,7 +72,8 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
   assert.equal(moved?.prompt, "My own morning brief", "the owner's words stay");
   assert.equal(moved?.pre_command, "echo agenda", "the calendar comes in before the brief");
   const restored = await env.client.call("profiles.restore", { routine: open.id });
-  assert.match(restored.prompt, /^Open the owner's day in ONE message/);
+  assert.match(restored.prompt, /^Open the owner's day in ONE message, across every project/);
+  assert.doesNotMatch(restored.prompt, /\{\{/, "restored with the profile's values filled in");
   await assert.rejects(set({ day_open: "whenever" }));
 });
 

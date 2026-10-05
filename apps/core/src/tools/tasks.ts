@@ -3,8 +3,9 @@ import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
 import { defineTool, type Tool } from "./types.ts";
 
-const line = (t: Task) =>
+const line = (t: Task, project?: string) =>
   `- [${t.id}] ${t.title} (${[
+    project ? `project ${project}` : "",
     t.state === "open" ? t.status : t.state,
     t.assignee,
     t.awaits_owner ? "waiting for the owner" : "",
@@ -12,6 +13,8 @@ const line = (t: Task) =>
     t.due_at ? `due ${t.due_at}` : "",
     t.outcome ?? "",
     t.renegotiated ? `date moved ${t.renegotiated}×` : "",
+    // When it last moved: what "moved today" and "quiet for days" are read from.
+    `last activity ${t.activity_at.slice(0, 16).replace("T", " ")}`,
   ]
     .filter(Boolean)
     .join(", ")})`;
@@ -44,11 +47,13 @@ export function taskTools(): Tool[] {
   return [
     defineTool({
       name: "task_list",
-      description: "List the open tasks of this project (or yours only, or closed ones), with their ids and columns.",
+      description:
+        'List the open tasks of this project (or yours only, or closed ones), newest activity first, with their ids, columns, project and when each last moved. Outside any project the super-agent sees every project\'s board. Commitments show who is owed ("owed to …" / "… owes it").',
       args: z.object({
         mine: z.boolean().optional(),
         state: z.enum(["open", "done", "dropped"]).optional(),
         commitments: z.boolean().optional().describe("Only commitments (tasks with a person on the other side)."),
+        limit: z.number().int().min(1).max(200).optional().describe("At most this many (default 200)."),
       }),
       effect: "none",
       deadlineMs: 5_000,
@@ -58,9 +63,16 @@ export function taskTools(): Tool[] {
           ...(a.state ? { state: a.state } : {}),
           ...(a.mine ? { assignee: ctx.agent.id } : {}),
           ...(a.commitments ? { commitments: true } : {}),
+          ...(a.limit ? { limit: a.limit } : {}),
         });
         const cols = `columns: ${r.columns.map((c) => c.id).join(", ")}`;
-        return r.tasks.length ? `${r.tasks.map(line).join("\n")}\n${cols}` : `no tasks. ${cols}`;
+        // Tasks from more than one place: each says which project it is in (by name, as the owner calls it).
+        const many = new Set(r.tasks.map((t) => t.project_id ?? "")).size > 1;
+        const listed = many ? await ctx.call("projects.list", {}) : undefined;
+        const names = new Map(listed?.projects.map((p) => [p.id, p.name]));
+        const where = (t: Task) =>
+          listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
+        return r.tasks.length ? `${r.tasks.map((t) => line(t, where(t))).join("\n")}\n${cols}` : `no tasks. ${cols}`;
       },
     }),
     defineTool({

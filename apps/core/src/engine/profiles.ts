@@ -137,7 +137,7 @@ export function applyProfile(
       schedule,
       action: spec.action,
       // The owner's edits to a profile routine stay; a v1 routine it adopts gets v2's prompt (v1's names v1's tools).
-      prompt: mine?.origin ? mine.prompt : spec.prompt,
+      prompt: mine?.origin ? mine.prompt : fill(spec.prompt, m, active.values),
       pre_command: pre || undefined,
       post_command: mine?.post_command,
       call_model: mine?.call_model ?? ("always" as const),
@@ -156,11 +156,12 @@ export function applyProfile(
 export function restoreProfileRoutine(store: Store, roots: readonly ProfileRoot[], id: string): Routine | undefined {
   const r = store.routines.get(id);
   const [profile, key] = r?.origin?.split(":") ?? [];
-  const spec = listProfiles(roots)
-    .find((p) => p.id === profile)
-    ?.routines.find((x) => x.key === key);
-  if (!r || !spec) return undefined;
-  return store.routines.update(id, { ...r, next_run_at: r.next_run_at, prompt: spec.prompt });
+  const m = listProfiles(roots).find((p) => p.id === profile);
+  const spec = m?.routines.find((x) => x.key === key);
+  if (!r || !m || !spec) return undefined;
+  // Its settings filled in, as the profile runs them now (stale days, waiting hours).
+  const prompt = fill(spec.prompt, m, valuesFor(m, activeProfile(store).values));
+  return store.routines.update(id, { ...r, next_run_at: r.next_run_at, prompt });
 }
 
 /** Copies a profile folder into the owner's profiles (replacing one of the same id). */

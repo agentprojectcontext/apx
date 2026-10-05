@@ -83,6 +83,19 @@ test("an agent's tasks go to its thread's project and it sees no other project's
   fs.rmSync(p2, { recursive: true, force: true });
 });
 
+test("outside any project the super-agent sees every project's board, each task with its project and last activity", async () => {
+  await env.client.call("tasks.create", { title: "Northwind invoice", project });
+  await env.client.call("tasks.create", { title: "Renew the base insurance" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "everything" });
+  await env.client.call("threads.send", { thread: t.id, text: "peek at the other projects" });
+  await env.settle(t.id);
+  const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  const name = (await env.client.call("projects.list", {})).projects.find((p) => p.id === project)?.name ?? "";
+  assert.ok(seen.includes(`Northwind invoice (project ${name}, backlog, last activity `), seen);
+  assert.match(seen, /last activity \d{4}-\d\d-\d\d \d\d:\d\d\)/);
+  assert.match(seen, /Renew the base insurance \(project Default, /);
+});
+
 test("what an agent wrote in a task reaches other turns as outside data", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a task" });
