@@ -298,7 +298,6 @@ export const go = {
   },
   /** Open a project. `threadId` picks the chat shown in its Chats tab. */
   project(projectId: string, tab: ProjectTab = "overview", threadId?: string) {
-    rememberSidebar("projectOrder", projectId);
     nav.set((s) => ({ view: "project", projectId, projectTab: tab, threadId: threadId ?? s.threadId }));
   },
   projectTab(tab: ProjectTab) {

@@ -1,5 +1,5 @@
 import { IconButton, Icons, ProjectTile } from "@apx/ui";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   inProject,
   isListed,
@@ -47,10 +47,6 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
   const [removing, setRemoving] = useState<ProjectEntry>();
   // The rail has no section header to unfold with, so it always lists them.
   const hidden = folded && !rail;
-  useEffect(() => {
-    if (view === "project" && projectId) rememberSidebar("projectOrder", projectId);
-  }, [view, projectId]);
-
   const { shown, rest, running, ordered } = useMemo(() => {
     const entries = projectEntries(projects);
     const live = Object.values(threads).filter(isListed);
@@ -78,6 +74,17 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
       running,
     };
   }, [projects, threads, saved]);
+  // Read when a project opens, not when the list reorders after it. The page coming back on a project (a reload)
+  // is not opening it.
+  const inView = useRef<string[]>([]);
+  inView.current = shown.map((p) => p.id);
+  const open = view === "project" ? projectId : undefined;
+  const lastOpen = useRef(open);
+  useEffect(() => {
+    if (open === lastOpen.current) return;
+    lastOpen.current = open;
+    if (open) rememberSidebar("projectOrder", open, inView.current);
+  }, [open]);
 
   const item = (p: ProjectEntry, onPick?: () => void) => (
     <SidebarNavRow

@@ -140,23 +140,25 @@ test("Proyectos: último acceso, arrastre, menús v1, copia y confirmación ante
   await page.getByRole("menuitem", { name: "Configuración del proyecto", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Configuración de Northwind" })).toBeVisible();
   await page.keyboard.press("Escape");
+  // Opened from "N más", a project comes first after the base space.
   await more.click();
   await overflow.locator(`[data-project-id="${northwind.id}"] .apx-nav`).click();
   await expect.poll(async () => (await orderedIds(page, "project"))[1]).toBe(northwind.id);
+  // One already in view keeps its place: opening it reorders nothing, not even after a reload.
+  const inView = (await orderedIds(page, "project")).slice(0, 5);
+  const third = page.locator(`.sidebar [data-project-id="${inView[3]}"]`);
+  await third.locator(".apx-nav").click();
+  await expect(third.locator(".apx-nav")).toHaveAttribute("aria-current", "page");
+  expect((await orderedIds(page, "project")).slice(0, 5)).toEqual(inView);
+  await page.reload();
+  await expect.poll(async () => (await orderedIds(page, "project")).slice(0, 5)).toEqual(inView);
   const row = page.locator(`.sidebar [data-project-id="${acme.id}"]`);
-  // Projects from earlier specs may leave Acme in the overflow: opened from wherever it is.
-  if (await row.isVisible()) await row.locator(".apx-nav").click();
-  else {
+  // Projects from earlier specs may leave Acme in the overflow: opened from wherever it is, it ends up in view.
+  if (!(await row.isVisible())) {
     await more.click();
     await overflow.locator(`[data-project-id="${acme.id}"] .apx-nav`).click();
+    await expect.poll(async () => (await orderedIds(page, "project"))[1]).toBe(acme.id);
   }
-  await expect
-    .poll(async () => (await orderedIds(page, "project")).slice(0, 3))
-    .toEqual(["~default", acme.id, northwind.id]);
-  await page.reload();
-  await expect
-    .poll(async () => (await orderedIds(page, "project")).slice(0, 3))
-    .toEqual(["~default", acme.id, northwind.id]);
   await row.hover();
   await row.getByRole("button", { name: "Opciones de Acme" }).click();
   await expect(page.getByRole("menuitem", { name: "Abrir", exact: true })).toBeVisible();
@@ -177,8 +179,11 @@ test("Proyectos: último acceso, arrastre, menús v1, copia y confirmación ante
   await expect(row).toBeVisible();
   await page.locator(`.sidebar [data-project-id="${northwind.id}"]`).dragTo(row, { targetPosition: { x: 20, y: 1 } });
   await expect
-    .poll(async () => (await orderedIds(page, "project")).slice(0, 3))
-    .toEqual(["~default", northwind.id, acme.id]);
+    .poll(async () => {
+      const ids = await orderedIds(page, "project");
+      return ids.indexOf(acme.id) - ids.indexOf(northwind.id);
+    })
+    .toBe(1);
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Quitar registro del proyecto" }).click();
   await confirm.getByRole("button", { name: "Quitar registro del proyecto" }).click();

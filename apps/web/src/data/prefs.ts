@@ -105,8 +105,14 @@ export function usePrefs<T>(select: (s: Prefs) => T): T {
 }
 
 /** Most recently opened first; old and removed ids cannot grow this device preference forever. */
-export function rememberSidebar(key: "projectOrder" | "engineOrder", id: string): void {
+export function rememberSidebar(key: "projectOrder" | "engineOrder", id: string, inView?: readonly string[]): void {
   const order = prefs.get()[key];
+  // One already in view keeps its place (and what is on screen is pinned as it is); one folded away comes first.
+  if (inView?.includes(id)) {
+    const pinned = [...inView, ...order.filter((current) => !inView.includes(current))].slice(0, 100);
+    if (pinned.some((current, i) => order[i] !== current)) setPrefs({ [key]: pinned });
+    return;
+  }
   if (order[0] === id) return;
   setPrefs({ [key]: [id, ...order.filter((current) => current !== id)].slice(0, 100) });
 }
