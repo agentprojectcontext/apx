@@ -1,5 +1,6 @@
 import type { Agent, Project, Thread } from "@apx/protocol";
 import { BLOB_NAMES, type TileTone } from "@apx/ui";
+import { data } from "./state.ts";
 
 function hash(s: string): number {
   let h = 0;
@@ -25,12 +26,12 @@ export function secretary(agents: Record<string, Agent>): Agent | undefined {
 }
 
 export function projectName(projects: Project[], id: string | undefined): string {
-  if (!id) return DEFAULT_PROJECT;
-  return projects.find((p) => p.id === id)?.name ?? DEFAULT_PROJECT;
+  if (!id) return baseName();
+  return projects.find((p) => p.id === id)?.name ?? baseName();
 }
 
-/** Group label for threads without a project. */
-export const DEFAULT_PROJECT = "Default";
+/** The base project's name as the owner set it ("Default" until then): the label of what has no project. */
+export const baseName = (): string => data.get().base.name;
 
 /** Threads the chat lists show: not archived, a sub-thread between agents, nor a task's or a routine's conversation. */
 export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): boolean {
@@ -71,15 +72,21 @@ export function projectInitial(name: string): string {
   return (name.trim()[0] ?? "?").toUpperCase();
 }
 
-export type ProjectEntry = { id: string; name: string; path: string | undefined; isDefault: boolean };
+export type ProjectEntry = {
+  id: string;
+  name: string;
+  path: string | undefined;
+  isDefault: boolean;
+  kind?: string | undefined;
+};
 
 /** Sidebar order: the base space first, then the real projects as the core lists them. */
 export function projectEntries(projects: Project[]): ProjectEntry[] {
   return [
-    { id: DEFAULT_PID, name: DEFAULT_PROJECT, path: undefined, isDefault: true },
+    { id: DEFAULT_PID, name: baseName(), path: undefined, isDefault: true, kind: data.get().base.kind },
     ...projects
       .filter((p) => p.registered !== false)
-      .map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false })),
+      .map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false, kind: p.kind })),
   ];
 }
 

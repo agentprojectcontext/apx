@@ -1,9 +1,13 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, BLOB_NAMES, Button, Dialog, Field, Input, Skeleton, Tabs, Textarea } from "@apx/ui";
+import { AgentAvatar, BLOB_NAMES, Button, Dialog, Field, Input, Select, Skeleton, Tabs, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { blobOf } from "../../data/identity.ts";
+import { blobOf, DEFAULT_PID } from "../../data/identity.ts";
+import { useOrg } from "../../data/org.ts";
 import { getAgent, updateAgent } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
+
+const NONE = "~none";
+const OTHER = "~other";
 
 type Draft = {
   name: string;
@@ -65,6 +69,9 @@ export function AgentEditor({
     if (ok) onClose();
   };
   const set = (k: keyof Draft) => (v: string) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
+  // A company project's areas and roles are offered as lists (a global agent: the base project's).
+  const org = useOrg(agent.project_id ?? DEFAULT_PID);
+  const pickedRole = d && org?.roles.find((r) => r.name === d.role);
   // The super-agent is one of a kind: no role, area or description to give it, and its prompt adds to its base role.
   const isSuper = agent.kind === "secretary";
 
@@ -115,13 +122,59 @@ export function AgentEditor({
                           )}
                         </Field>
                         <Field label={t("team.area")} hint={t("agent.edit.areaHint")}>
-                          {(id) => (
-                            <Input id={id} value={d.area} onChange={(e) => set("area")(e.currentTarget.value)} />
+                          {org?.areas.length ? (
+                            <Select
+                              label={t("team.area")}
+                              value={d.area || NONE}
+                              onValueChange={(v) => set("area")(!v || v === NONE ? "" : v)}
+                              options={[
+                                { value: NONE, label: t("agent.edit.noArea") },
+                                ...org.areas.map((a) => ({ value: a.slug, label: a.name })),
+                                // An area written by hand, not in the list, is kept as it is.
+                                ...(d.area && !org.areas.some((a) => a.slug === d.area)
+                                  ? [{ value: d.area, label: d.area }]
+                                  : []),
+                              ]}
+                            />
+                          ) : (
+                            (id) => (
+                              <Input id={id} value={d.area} onChange={(e) => set("area")(e.currentTarget.value)} />
+                            )
                           )}
                         </Field>
                       </div>
                       <Field label={t("agent.edit.role")} hint={t("agent.edit.roleHint")}>
-                        {(id) => <Input id={id} value={d.role} onChange={(e) => set("role")(e.currentTarget.value)} />}
+                        {org?.roles.length ? (
+                          <div className="agentedit__role">
+                            <Select
+                              label={t("agent.edit.role")}
+                              value={pickedRole?.slug ?? OTHER}
+                              onValueChange={(v) => {
+                                const r = org.roles.find((x) => x.slug === v);
+                                // A role brings its area; "Other" lets the owner write one.
+                                if (r) setD((cur) => (cur ? { ...cur, role: r.name, area: r.area ?? cur.area } : cur));
+                                else set("role")("");
+                              }}
+                              options={[
+                                ...org.roles.map((r) => ({
+                                  value: r.slug,
+                                  label: r.name,
+                                  ...(r.area ? { description: org.areas.find((a) => a.slug === r.area)?.name } : {}),
+                                })),
+                                { value: OTHER, label: t("agent.edit.otherRole") },
+                              ]}
+                            />
+                            {!pickedRole && (
+                              <Input
+                                aria-label={t("agent.edit.role")}
+                                value={d.role}
+                                onChange={(e) => set("role")(e.currentTarget.value)}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          (id) => <Input id={id} value={d.role} onChange={(e) => set("role")(e.currentTarget.value)} />
+                        )}
                       </Field>
                       <Field label={t("agent.edit.description")}>
                         {(id) => (

@@ -13,6 +13,8 @@ export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
   { id: "chats", label: "project.tab.chats" },
   { id: "team", label: "project.tab.team" },
+  // Only a company project shows it (ProjectScreen).
+  { id: "org", label: "project.tab.org" },
   { id: "tasks", label: "project.tab.tasks" },
   { id: "routines", label: "project.tab.routines" },
   { id: "files", label: "project.tab.files" },

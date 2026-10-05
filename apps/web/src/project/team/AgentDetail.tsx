@@ -6,7 +6,8 @@ import { AgentModelPicker } from "../../config/models/AgentModelPicker.tsx";
 import { setAgentBrowserProfile } from "../../data/actions.ts";
 import { client } from "../../data/client.ts";
 import { PROFILE_KEY } from "../../data/engines.ts";
-import { blobOf } from "../../data/identity.ts";
+import { blobOf, DEFAULT_PID } from "../../data/identity.ts";
+import { useOrg } from "../../data/org.ts";
 import { useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
@@ -61,6 +62,7 @@ export function AgentDetail({
     };
   }, [threads, tasks, routines, agent.id]);
   const fromFile = agent.source === "apc" && Boolean(agent.slug);
+  const org = useOrg(agent.project_id ?? DEFAULT_PID);
   const isSuper = agent.kind === "secretary";
   // A parent names a project agent by its slug and a global one (which has none) by its id.
   const keyOf = (a: Agent) => a.slug ?? (a.project_id ? undefined : a.id);
@@ -104,7 +106,7 @@ export function AgentDetail({
       {agent.area && (
         <>
           <dt>{t("team.area")}</dt>
-          <dd>{agent.area}</dd>
+          <dd>{org?.areas.find((a) => a.slug === agent.area)?.name ?? agent.area}</dd>
         </>
       )}
       <dt>{t("team.engine")}</dt>

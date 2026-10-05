@@ -1,6 +1,6 @@
 import { AgentAvatar, Select, type SelectOption } from "@apx/ui";
 import { useMemo } from "react";
-import { blobOf, DEFAULT_PROJECT } from "../../data/identity.ts";
+import { baseName, blobOf } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 
@@ -22,7 +22,7 @@ export function useAgentOptions(projectId?: string | undefined, all = false): Se
         value: a.id,
         label: a.name,
         icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
-        group: a.project_id ? name(a.project_id) : DEFAULT_PROJECT,
+        group: a.project_id ? name(a.project_id) : baseName(),
         ...(a.role ? { hint: a.role } : {}),
       }));
   }, [agents, projects, projectId, all]);

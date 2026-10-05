@@ -611,3 +611,31 @@
   color: var(--apx-fg-muted);
   overflow-wrap: anywhere;
 }
+
+/* Areas and roles of a company project. */
+.org__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.org__aside {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.org__count {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.org__roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.org__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}

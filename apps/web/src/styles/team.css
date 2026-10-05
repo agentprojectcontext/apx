@@ -668,3 +668,8 @@
   margin: 0;
   font-size: var(--apx-text-sm);
 }
+.agentedit__role {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,5 +1,5 @@
 import type { Project, Thread } from "@apx/protocol";
-import { DEFAULT_PROJECT, inProject, isListed, isTopLevel, isWorking } from "../data/identity.ts";
+import { baseName, inProject, isListed, isTopLevel, isWorking } from "../data/identity.ts";
 
 type Filter = { projectId?: string; query?: string };
 
@@ -47,7 +47,7 @@ export function groupByProject(threads: Record<string, Thread>, projects: Projec
     let g = groups.get(key);
     if (!g) {
       const project = t.project_id ? byId.get(t.project_id) : undefined;
-      g = { key, project, name: project?.name ?? DEFAULT_PROJECT, threads: [], running: 0 };
+      g = { key, project, name: project?.name ?? baseName(), threads: [], running: 0 };
       groups.set(key, g);
     }
     g.threads.push(t);
@@ -73,7 +73,7 @@ export function groupByAgent(threads: Record<string, Thread>, projects: Project[
     let tree = trees.get(key);
     if (!tree) {
       const project = t.project_id ? byId.get(t.project_id) : undefined;
-      tree = { key, project, name: project?.name ?? DEFAULT_PROJECT, agents: [] };
+      tree = { key, project, name: project?.name ?? baseName(), agents: [] };
       trees.set(key, tree);
     }
     // A Claude Code or Codex session belongs to that engine, not to the agent that holds the thread.

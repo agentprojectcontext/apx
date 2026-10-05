@@ -12,6 +12,7 @@ import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts"
 import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { FilesPane } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
+import { ProjectOrg } from "./ProjectOrg.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
@@ -93,7 +94,11 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
-        items={PROJECT_TABS.map((x) => ({ value: x.id, label: t(x.label), count: counts[x.id] }))}
+        items={PROJECT_TABS.filter((x) => x.id !== "org" || project.kind === "company").map((x) => ({
+          value: x.id,
+          label: t(x.label),
+          count: counts[x.id],
+        }))}
       />
       <ProjectSettings project={project} open={settings} onOpenChange={setSettings} />
     </header>
@@ -108,6 +113,8 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
       return <ChatWorkspace layout={layout} />;
     case "team":
       return <ProjectTeam project={project} />;
+    case "org":
+      return <ProjectOrg project={project} />;
     case "tasks":
       return <ProjectTasks projectId={project.id} />;
     case "routines":

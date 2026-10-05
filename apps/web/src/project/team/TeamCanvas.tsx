@@ -35,6 +35,7 @@ export function TeamCanvas({
   onOpen,
   onChat,
   menu,
+  areaName = (slug) => slug,
 }: {
   agents: Agent[];
   leadId: string | undefined;
@@ -46,6 +47,8 @@ export function TeamCanvas({
   onChat(a: Agent): void;
   /** A card's right-click menu. */
   menu(a: Agent): MenuEntry[];
+  /** An area's name for its pill (the project's areas), its slug when it has none. */
+  areaName?: (slug: string) => string;
 }) {
   const t = useT();
   const layout = useMemo(() => layoutTeam(agents, leadId), [agents, leadId]);
@@ -136,7 +139,7 @@ export function TeamCanvas({
                 className={`teamcanvas__pill tone-${toneOf(p.area)}`}
                 style={{ left: pad + p.x, top: pad + p.y }}
               >
-                {p.area} · {p.count}
+                {areaName(p.area)} · {p.count}
               </span>
             ))}
             {layout.nodes.map((n) => {

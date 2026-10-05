@@ -1,8 +1,8 @@
 import type { ProjectKind } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ProjectEntry } from "../data/identity.ts";
-import { updateProject } from "../data/projects.ts";
+import { updateBase, updateProject } from "../data/projects.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewProjectDialog } from "../shell/NewProjectDialog.tsx";
@@ -22,7 +22,13 @@ export function ProjectSettings({
   onOpenChange(open: boolean): void;
 }) {
   const t = useT();
-  const full = useData((s) => s.projects.find((p) => p.id === project.id));
+  const real = useData((s) => s.projects.find((p) => p.id === project.id));
+  const base = useData((s) => s.base);
+  // The base project has no folder: APX keeps its name, description and kind.
+  const full = useMemo(
+    () => (project.isDefault ? { ...base, id: project.id, present: true, path: undefined } : real),
+    [project.isDefault, project.id, base, real],
+  );
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [kind, setKind] = useState<string>(NONE);
@@ -52,30 +58,33 @@ export function ProjectSettings({
     if (!full || busy || !name.trim()) return;
     setBusy(true);
     const kindValue = kind === NONE ? null : (kind as ProjectKind);
-    const done = await updateProject({
-      project: full.id,
+    const patch = {
       ...(name.trim() !== full.name ? { name: name.trim() } : {}),
       ...(description.trim() !== (full.description ?? "") ? { description: description.trim() || null } : {}),
       ...(kind !== (full.kind ?? NONE) && (kindValue === null || KINDS.includes(kindValue)) ? { kind: kindValue } : {}),
-    });
+    };
+    const done = project.isDefault ? await updateBase(patch) : await updateProject({ project: full.id, ...patch });
     setBusy(false);
     if (done) close();
   };
 
-  if (project.isDefault || !full) {
-    return (
-      <>
-        <Dialog
-          open={open}
-          onOpenChange={onOpenChange}
-          title={t("project.settings.title", { name: project.name })}
-          description={t("project.settings.baseBody")}
-          footer={
-            <>
-              <Button variant="secondary" leadingIcon={<Icons.Bot size={14} />} onClick={agents}>
-                {t("project.agentSettings")}
-              </Button>
+  if (!full) return null;
+  const missing = !full.present;
+  return (
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={t("project.settings.title", { name: full.name })}
+        description={project.isDefault ? t("project.settings.baseBody") : t("project.settings.body")}
+        footer={
+          <>
+            <Button variant="secondary" leadingIcon={<Icons.Bot size={14} />} onClick={agents}>
+              {t("project.agentSettings")}
+            </Button>
+            {project.isDefault && (
               <Button
+                variant="secondary"
                 leadingIcon={<Icons.FolderOpen size={14} />}
                 onClick={() => {
                   close();
@@ -84,63 +93,51 @@ export function ProjectSettings({
               >
                 {t("project.settings.withFolder")}
               </Button>
-            </>
-          }
-        />
-        {newProject && <NewProjectDialog onClose={() => setNewProject(false)} />}
-      </>
-    );
-  }
-
-  const missing = !full.present;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={t("project.settings.title", { name: full.name })}
-      description={t("project.settings.body")}
-      footer={
-        <>
-          <Button variant="secondary" leadingIcon={<Icons.Bot size={14} />} onClick={agents}>
-            {t("project.agentSettings")}
-          </Button>
-          <Button disabled={!name.trim() || missing} loading={busy} onClick={() => void save()}>
-            {t("common.save")}
-          </Button>
-        </>
-      }
-    >
-      <div className="projsettings">
-        <Field label={t("project.settings.name")}>
-          {(id) => <Input id={id} value={name} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />}
-        </Field>
-        <Field label={t("project.settings.description")}>
-          {(id) => (
-            <Textarea
-              id={id}
-              rows={3}
-              maxLength={500}
-              value={description}
-              placeholder={t("project.settings.descriptionPlaceholder")}
-              onChange={(e) => setDescription(e.currentTarget.value)}
+            )}
+            <Button disabled={!name.trim() || missing} loading={busy} onClick={() => void save()}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="projsettings">
+          <Field
+            label={t("project.settings.name")}
+            hint={project.isDefault ? t("project.settings.baseNameHint") : undefined}
+          >
+            {(id) => <Input id={id} value={name} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />}
+          </Field>
+          <Field label={t("project.settings.description")}>
+            {(id) => (
+              <Textarea
+                id={id}
+                rows={3}
+                maxLength={500}
+                value={description}
+                placeholder={t("project.settings.descriptionPlaceholder")}
+                onChange={(e) => setDescription(e.currentTarget.value)}
+              />
+            )}
+          </Field>
+          <Field label={t("project.settings.kind")} hint={t("project.settings.kindHint")}>
+            <Select
+              label={t("project.settings.kind")}
+              value={kind}
+              onValueChange={(v) => setKind(v ?? NONE)}
+              options={kinds}
             />
+          </Field>
+          {full.path && (
+            <Field
+              label={t("project.settings.folder")}
+              hint={missing ? t("project.settings.folderMissing") : t("project.settings.folderHint")}
+            >
+              <code className="projsettings__path">{full.path}</code>
+            </Field>
           )}
-        </Field>
-        <Field label={t("project.settings.kind")} hint={t("project.settings.kindHint")}>
-          <Select
-            label={t("project.settings.kind")}
-            value={kind}
-            onValueChange={(v) => setKind(v ?? NONE)}
-            options={kinds}
-          />
-        </Field>
-        <Field
-          label={t("project.settings.folder")}
-          hint={missing ? t("project.settings.folderMissing") : t("project.settings.folderHint")}
-        >
-          <code className="projsettings__path">{full.path}</code>
-        </Field>
-      </div>
-    </Dialog>
+        </div>
+      </Dialog>
+      {newProject && <NewProjectDialog onClose={() => setNewProject(false)} />}
+    </>
   );
 }

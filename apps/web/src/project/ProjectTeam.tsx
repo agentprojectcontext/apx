@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry } from "../data/identity.ts";
+import { useOrg } from "../data/org.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
@@ -37,6 +38,7 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
     LEADS.map((re) => team.find((a) => re.test(`${a.role} ${a.id}`))).find(Boolean);
   const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
   const current = team.find((a) => a.id === selected);
+  const org = useOrg(project.id);
   const actions: AgentActions = {
     onOpen: (a) => {
       setMode("tree");
@@ -120,6 +122,7 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
             onOpen={(a) => setSelected(a.id === selected ? undefined : a.id)}
             onChat={(a) => void startChat(a, project.id)}
             menu={(a) => agentMenu(a, t, actions)}
+            areaName={(slug) => org?.areas.find((x) => x.slug === slug)?.name ?? slug}
           />
           {current && (
             <AgentDetail

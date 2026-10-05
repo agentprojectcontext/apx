@@ -31,6 +31,7 @@ export async function bootstrap(): Promise<void> {
   data.set({
     agents: Object.fromEntries(agents.agents.map((a) => [a.id, a])),
     projects: projects.projects,
+    base: projects.base,
     threads: { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) },
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
     ready: true,

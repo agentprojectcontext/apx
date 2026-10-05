@@ -7,7 +7,7 @@ import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { loadThread } from "../data/actions.ts";
-import { blobOf, DEFAULT_PROJECT } from "../data/identity.ts";
+import { baseName, blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { closeTask, commentTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -307,7 +307,7 @@ function History({ events }: { events: TaskEvent[] }) {
           return c ? columnLabel(c, t) : id;
         },
         agent: (id) => agents[id]?.name ?? id,
-        project: (id) => (id ? (projects.find((p) => p.id === id)?.name ?? id) : DEFAULT_PROJECT),
+        project: (id) => (id ? (projects.find((p) => p.id === id)?.name ?? id) : baseName()),
         priority: (p) => (p in PRIORITY_KEY ? t(PRIORITY_KEY[p as keyof typeof PRIORITY_KEY]) : p),
         when: (iso) => shortWhen(iso),
       }).reverse(),

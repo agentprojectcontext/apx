@@ -32,3 +32,18 @@ export async function unregisterProject(project: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Names, describes or types the base project. The project list is replaced too, so everything that lists projects
+ * (sidebar, pickers, groups) shows the new name.
+ */
+export async function updateBase(p: Params<"projects.update_base">): Promise<boolean> {
+  try {
+    const { base } = await client.call("projects.update_base", p);
+    data.set((s) => ({ base, projects: [...s.projects] }));
+    return true;
+  } catch (e) {
+    notify(t("error.change", { error: errText(e) }));
+    return false;
+  }
+}

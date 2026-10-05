@@ -1,5 +1,6 @@
 import type {
   Agent,
+  BaseProject,
   EngineStatus,
   Health,
   Job,
@@ -26,6 +27,8 @@ export type DataState = {
   ready: boolean;
   agents: Record<string, Agent>;
   projects: Project[];
+  /** The base project's name, description and kind, as the owner set them. */
+  base: BaseProject;
   threads: Record<string, Thread>;
   /** Messages per thread, ordered by seq. Only threads opened in this session are present. */
   messages: Record<string, Message[]>;
@@ -50,6 +53,7 @@ export const data = createStore<DataState>({
   ready: false,
   agents: {},
   projects: [],
+  base: { name: "Default" },
   threads: {},
   messages: {},
   threadLoad: {},
