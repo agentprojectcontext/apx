@@ -491,7 +491,8 @@ async function finishRun(
 ): Promise<RunRecord> {
   const { display, thread, outcome } = t;
   display.close();
-  display.setModel(outcome.model);
+  // The message names the effort too (a model ref); the run keeps the bare model for usage and context windows.
+  display.setModel(outcome.effort ? `${outcome.model}#${outcome.effort}` : outcome.model);
   if (worksInFolder(thread) && thread.cwd) {
     const changes = await gitChanges(thread.cwd);
     if (changes) display.upsert((p) => p.type === "changes", changes);

@@ -18,6 +18,7 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (said.includes("research") && !afterTool)
     return callTool("c2", "delegate", { agent: "scout", task: "find A2A info" });
   if (said.includes("slow")) await new Promise((r) => setTimeout(r, 400));
+  if (said.includes("think hard")) return { ...say("Thought it through."), effort: "high" };
   if (said.includes("say nothing")) return { message: { role: "assistant", content: null }, finish: "stop" };
   if (said.includes("long answer") || said.includes("cut off by the length limit")) {
     const cut = !req.messages.some((m) => m.role === "user" && String(m.content).includes("cut off"));
@@ -60,6 +61,15 @@ test("a message runs a turn whose answer lands in the thread, with the run retur
   assert.deepEqual(answer?.author, { kind: "agent", id: "roby" });
   assert.deepEqual(answer?.parts, [{ type: "text", text: "Hi, I'm Roby." }]);
   assert.ok(events.some((e) => e.type === "message.part"));
+});
+
+test("the answer names the reasoning effort it ran with; the run keeps the bare model", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "effort" });
+  const sent = await env.client.call("threads.send", { thread: t.id, text: "think hard" });
+  const done = await env.client.call("runs.wait", { run: sent.run.id, timeout_s: 5 });
+  assert.equal(done.model, "fake/fake-1");
+  const { messages } = await env.settle(t.id);
+  assert.equal(messages.at(-1)?.model, "fake/fake-1#high");
 });
 
 test("the system prompt stays byte-identical across turns; the roster is sent only when it changed", async () => {

@@ -56,6 +56,8 @@ export type TurnIO = {
 export type TurnOutcome = {
   text: string;
   model: string;
+  /** The reasoning effort the model ran with, when one was asked for. */
+  effort?: string | undefined;
   finish?: Finish;
   sessionId?: string | undefined;
   usage?: Usage | undefined;

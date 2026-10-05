@@ -159,6 +159,7 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
     signal: AbortSignal.timeout(5000),
   });
   assert.equal(first.model, "chatgpt/gpt-6-luna");
+  assert.equal(first.effort, "high");
   assert.deepEqual(first.message.tool_calls?.[0]?.function, { name: "task_list", arguments: '{"mine":true}' });
   const call = seen.filter((s) => s.url === "/codex/responses").at(-1);
   assert.equal(call?.headers["chatgpt-account-id"], "acct-1");

@@ -3,6 +3,7 @@ import { Badge, EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { contextOf } from "../chat/composer/context.ts";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
+import { baseRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
@@ -54,7 +55,8 @@ export function UsagePanel() {
     },
   );
   const failed = runs.filter((r) => r.state === "failed").length;
-  const model = [...messages].reverse().find((m) => m.model)?.model ?? "—";
+  const last = [...messages].reverse().find((m) => m.model)?.model;
+  const model = last ? baseRef(last) : "—";
   // Claude Code, Codex and ACP agents run on the owner's subscription; our own loop pays a provider per token.
   const engine = model.split("/")[0] ?? "";
   const included = engine === "claude" || engine === "codex" || engine.startsWith("acp:");

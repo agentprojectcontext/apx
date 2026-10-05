@@ -81,7 +81,7 @@ export function codexHarness(opts: {
           else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
           else if (ev.type === "error") throw new Error(`codex: ${ev.message}`);
         }
-        return { text, model: `codex/${chosen ?? "default"}`, sessionId, usage };
+        return { text, model: `codex/${chosen ?? "default"}`, effort, sessionId, usage };
       } finally {
         gate.close();
       }

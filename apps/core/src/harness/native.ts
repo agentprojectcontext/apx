@@ -30,6 +30,7 @@ export function nativeHarness(llm: Llm): Harness {
       const usage: Usage = { input: 0, output: 0 };
       const seen = new Map<string, number>();
       let model = "";
+      let effort: string | undefined;
       let text = "";
       let prefix = "";
       let toolsOff = false;
@@ -45,6 +46,7 @@ export function nativeHarness(llm: Llm): Harness {
         });
         io.signal.throwIfAborted();
         model = c.model;
+        effort = c.effort;
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
         if (c.usage?.input) usage.context = c.usage.input;
@@ -70,7 +72,7 @@ export function nativeHarness(llm: Llm): Harness {
             );
             continue;
           }
-          return { text, model, finish: c.finish, usage };
+          return { text, model, effort, finish: c.finish, usage };
         }
         prefix = "";
         let stuck: string | undefined;
@@ -102,7 +104,7 @@ export function nativeHarness(llm: Llm): Harness {
         ),
       );
       const c = await step(false);
-      return { text, model, finish: c.finish, usage };
+      return { text, model, effort, finish: c.finish, usage };
     },
   };
 }

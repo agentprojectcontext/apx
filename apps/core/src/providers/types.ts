@@ -28,7 +28,14 @@ export type Finish = "stop" | "tool_calls" | "length" | "other";
 /** `context`: the input of the last call alone, how much of the window the chat fills now. */
 export type Usage = { input: number; output: number; context?: number };
 
-export type Completion = { message: AssistantItem; model: string; finish: Finish; usage?: Usage };
+/** `effort`: the reasoning effort the call asked for, when it asked for one. */
+export type Completion = {
+  message: AssistantItem;
+  model: string;
+  effort?: string | undefined;
+  finish: Finish;
+  usage?: Usage;
+};
 
 export type ErrorKind =
   | "rate_limit"

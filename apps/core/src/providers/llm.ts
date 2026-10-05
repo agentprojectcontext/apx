@@ -116,7 +116,7 @@ export function createLlm(opts: {
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,
             });
-            return { ...out, model: `${t.provider.id}/${t.model}` };
+            return { ...out, model: `${t.provider.id}/${t.model}`, ...(t.effort ? { effort: t.effort } : {}) };
           } catch (err) {
             if (req.signal.aborted) throw req.signal.reason ?? err;
             last = err instanceof ProviderError ? err : new ProviderError("network", String(err));

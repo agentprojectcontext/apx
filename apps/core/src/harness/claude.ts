@@ -155,12 +155,13 @@ async function attempt(
         return {
           text: m.result || text,
           model: `claude/${model}`,
+          effort: o.effort,
           sessionId,
           usage: { input: m.usage.input_tokens ?? 0, output: m.usage.output_tokens ?? 0 },
         };
       }
     }
-    return { text, model: `claude/${model}`, sessionId };
+    return { text, model: `claude/${model}`, effort: o.effort, sessionId };
   } finally {
     io.signal.removeEventListener("abort", onAbort);
   }

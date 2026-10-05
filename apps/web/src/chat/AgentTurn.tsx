@@ -2,6 +2,7 @@ import type { Agent, Message as Msg, Part } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import type { ReactNode } from "react";
 import { blobOf } from "../data/identity.ts";
+import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -64,7 +65,14 @@ export function AgentTurn({
       <AgentAvatar name={agent.name} blob={blobOf(agent)} size={24} animated={false} />
     </button>
   ) : undefined;
-  const meta = <MessageMeta agent={engine?.label ?? agent?.name} model={message.model} />;
+  const effort = message.model ? splitRef(message.model).effort : undefined;
+  const meta = (
+    <MessageMeta
+      agent={engine?.label ?? agent?.name}
+      model={message.model && baseRef(message.model)}
+      effort={effort && effortLabel(effort)}
+    />
+  );
 
   return (
     <div className="turn">
