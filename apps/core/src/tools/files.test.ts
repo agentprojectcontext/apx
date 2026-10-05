@@ -9,6 +9,8 @@ const calls: Record<string, [string, object]> = {
   "edit once": ["file_edit", { path: "pages/btc.html", old: "<h1>BTC $1</h1>", new: "<h1>BTC $&2</h1>" }],
   "edit twice": ["file_edit", { path: "pages/btc.html", old: "$1", new: "$3" }],
   "edit all": ["file_edit", { path: "pages/btc.html", old: "$1", new: "$3", all: true }],
+  "write new": ["file_write", { path: "pages/new.html", content: "<p>$1</p>\n<p>$1</p>\n" }],
+  "edit new": ["file_edit", { path: "pages/new.html", old: "$1", new: "$2", all: true }],
   escape: ["file_write", { path: "../outside.txt", content: "no" }],
   absolute: ["file_write", { path: "/tmp/apx-absolute.txt", content: "no" }],
   git: ["file_write", { path: ".git/config", content: "no" }],
@@ -61,6 +63,25 @@ test("an agent writes and edits a file in the folder it works in, never outside 
     assert.match(await said(t.id, ask), why);
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
   assert.equal(fs.existsSync("/tmp/apx-absolute.txt"), false);
+});
+
+test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "card" });
+  await env.client.call("threads.send", { thread: t.id, text: "write new" });
+  let { messages } = await env.settle(t.id);
+  const card = () => messages.at(-1)?.parts.find((p) => p.type === "changes");
+  assert.deepEqual(card(), {
+    type: "changes",
+    cwd: path.join(env.home, "work"),
+    edits: true,
+    files: [{ path: "pages/new.html", status: "A", added: 2, removed: 0 }],
+  });
+  await env.client.call("threads.send", { thread: t.id, text: "edit new" });
+  ({ messages } = await env.settle(t.id));
+  const edit = card();
+  assert.deepEqual(edit?.type === "changes" && edit.files, [
+    { path: "pages/new.html", status: "M", added: 2, removed: 2 },
+  ]);
 });
 
 test("an agent reads a text file by lines, as data; a binary one or one outside the folder is not read", async () => {

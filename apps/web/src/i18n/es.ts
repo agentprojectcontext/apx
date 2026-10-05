@@ -330,6 +330,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "write.auto": "Edita libremente",
   "write.read-only": "Sólo lectura",
   "changes.title": "{n} sin commitear",
+  "changes.edited": "Archivos editados: {n}",
   "changes.more": "Y {n} más",
   "chat.new": "Nuevo chat",
   "chat.newWith": "Nuevo chat con…",

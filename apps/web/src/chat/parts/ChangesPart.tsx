@@ -2,7 +2,7 @@ import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { useT } from "../../i18n/index.ts";
 
-/** What a code thread's folder has uncommitted after the turn, as git sees it. */
+/** What a code thread's folder has uncommitted after the turn, as git sees it, or the files the agent wrote in it. */
 export function ChangesPart({ part }: { part: Extract<Part, { type: "changes" }> }) {
   const t = useT();
   const n = part.files.length + (part.more ?? 0);
@@ -10,7 +10,7 @@ export function ChangesPart({ part }: { part: Extract<Part, { type: "changes" }>
     <div className="changes">
       <div className="changes__head">
         <Icons.FileText size={14} />
-        <span>{t("changes.title", { n })}</span>
+        <span>{t(part.edits ? "changes.edited" : "changes.title", { n })}</span>
         <span className="changes__cwd" title={part.cwd}>
           {part.cwd}
         </span>

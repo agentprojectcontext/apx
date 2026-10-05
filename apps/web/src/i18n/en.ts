@@ -324,6 +324,7 @@ export const en = {
   "write.auto": "Edits freely",
   "write.read-only": "Read-only",
   "changes.title": "{n} uncommitted",
+  "changes.edited": "Files edited: {n}",
   "changes.more": "And {n} more",
   "chat.new": "New chat",
   "chat.newWith": "New chat with…",

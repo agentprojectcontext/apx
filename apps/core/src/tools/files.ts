@@ -7,12 +7,40 @@ import type { Store } from "../domain/store.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
 import { untrusted } from "./result.ts";
 import { workDir } from "./shell.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 /** Largest file an agent writes in one call. */
 const MAX_BYTES = 1_000_000;
+/** Runs whose edited files are remembered for their card; older ones are dropped. */
+const KEPT_RUNS = 20;
+
+type Edit = { path: string; status: string; added: number; removed: number };
+const lineCount = (s: string) => (s ? s.split("\n").length - (s.endsWith("\n") ? 1 : 0) : 0);
 
 export function fileTools(store: Store, home: string): Tool[] {
+  const edited = new Map<string, Map<string, Edit>>();
+  /** The turn's "files edited" card, one line per file, its lines added and removed summed over the turn. */
+  const noteEdit = (ctx: ToolContext, base: string, e: Edit) => {
+    let files = edited.get(ctx.run.id);
+    if (!files) {
+      files = new Map();
+      edited.set(ctx.run.id, files);
+      if (edited.size > KEPT_RUNS) edited.delete(edited.keys().next().value ?? "");
+    }
+    const was = files.get(e.path);
+    files.set(e.path, {
+      path: e.path,
+      status: was?.status === "A" ? "A" : e.status,
+      added: (was?.added ?? 0) + e.added,
+      removed: (was?.removed ?? 0) + e.removed,
+    });
+    ctx.upsertPart((p) => p.type === "changes", {
+      type: "changes",
+      cwd: base,
+      edits: true,
+      files: [...files.values()],
+    });
+  };
   /** The absolute path of `file` inside the work folder, or why it is refused. */
   const resolve = (thread: Parameters<typeof workDir>[2], file: string): { at: string } | { refused: string } => {
     const base = workDir(store, home, thread);
@@ -67,7 +95,15 @@ export function fileTools(store: Store, home: string): Tool[] {
         if ("refused" in r) return `refused: ${r.refused}`;
         if (fs.existsSync(r.at) && fs.statSync(r.at).isDirectory()) return `refused: ${a.path} is a folder`;
         const existed = fs.existsSync(r.at);
+        const before = existed ? fs.readFileSync(r.at, "utf8") : "";
         writeAtomic(r.at, a.content);
+        const base = workDir(store, home, ctx.thread);
+        noteEdit(ctx, base, {
+          path: path.relative(base, r.at),
+          status: existed ? "M" : "A",
+          added: lineCount(a.content),
+          removed: lineCount(before),
+        });
         return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(a.content)} bytes)`;
       },
     }),
@@ -98,6 +134,14 @@ export function fileTools(store: Store, home: string): Tool[] {
         const next = a.all ? text.split(a.old).join(a.new) : text.replace(a.old, () => a.new);
         if (Buffer.byteLength(next) > MAX_BYTES) return `refused: ${a.path} would pass ${MAX_BYTES} bytes`;
         writeAtomic(r.at, next);
+        const times = a.all ? count : 1;
+        const base = workDir(store, home, ctx.thread);
+        noteEdit(ctx, base, {
+          path: path.relative(base, r.at),
+          status: "M",
+          added: lineCount(a.new) * times,
+          removed: lineCount(a.old) * times,
+        });
         return `replaced ${a.all ? count : 1} occurrence${(a.all ? count : 1) === 1 ? "" : "s"} in ${r.at}`;
       },
     }),

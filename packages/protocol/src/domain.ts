@@ -300,10 +300,14 @@ const KnownPart = z.discriminatedUnion("type", [
   z.object({ type: z.literal("audio"), media_id: Id, mime: z.string(), transcript: z.string().optional() }),
   /** A file the owner attached to a message; the bytes come from media.get. */
   z.object({ type: z.literal("file"), media_id: Id, name: z.string(), mime: z.string(), bytes: z.number().int() }),
-  /** What changed in a code thread's folder (uncommitted, per git) when the turn ended. */
+  /**
+   * What changed in a code thread's folder (uncommitted, per git) when the turn ended; with `edits`, the files the
+   * agent wrote in this turn with its file tools.
+   */
   z.object({
     type: z.literal("changes"),
     cwd: z.string(),
+    edits: z.boolean().optional(),
     files: z.array(
       z.object({
         path: z.string(),
