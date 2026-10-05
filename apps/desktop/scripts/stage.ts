@@ -14,9 +14,10 @@ const repo = path.resolve(import.meta.dirname, "../../..");
 const target = targetOf(process.env.APX_TARGET, process.platform, process.arch);
 if (!target) throw new Error(`no build for ${process.env.APX_TARGET ?? `${process.platform}-${process.arch}`}`);
 const out = path.join(repo, "apps/desktop/.stage/apx");
-const version = (
-  JSON.parse(fs.readFileSync(path.join(repo, "apps/desktop/package.json"), "utf8")) as { version: string }
-).version;
+// pnpm package passes the version it builds (APX_VERSION); package.json's is a placeholder outside a release.
+const version =
+  process.env.APX_VERSION ||
+  (JSON.parse(fs.readFileSync(path.join(repo, "apps/desktop/package.json"), "utf8")) as { version: string }).version;
 
 fs.rmSync(out, { recursive: true, force: true });
 const notTest = (src: string) => !/\.test\.(ts|mjs)$/.test(src);

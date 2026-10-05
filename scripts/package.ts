@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { platformOf } from "../packages/protocol/src/releases.ts";
+import { buildVersion } from "./version.ts";
 
 const repo = path.resolve(import.meta.dirname, "..");
 const out = path.join(repo, "out");
@@ -34,10 +35,17 @@ const step = (cmd: string, cmdArgs: string[], cwd = repo, env: NodeJS.ProcessEnv
   execFileSync(cmd, cmdArgs, { cwd, env, stdio: "inherit", shell: win });
 };
 
+// A release's tag (CI sets package.json from it), or here the last tag and the commits past it.
+const version = buildVersion(
+  (JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8")) as { version: string }).version,
+  repo,
+);
+const env = { ...process.env, APX_VERSION: version };
+
 const before = new Set(fs.existsSync(out) ? fs.readdirSync(out) : []);
 step("pnpm", ["build:web"]);
 step("pnpm", ["--filter", "@apx/desktop", "build"]);
-step("node", ["apps/desktop/scripts/stage.ts"], repo, { ...process.env, APX_TARGET: `${os}-${arch}` });
+step("node", ["apps/desktop/scripts/stage.ts"], repo, { ...env, APX_TARGET: `${os}-${arch}` });
 // npx with a cache of its own: sharing npm's with stage.ts's install compromised its lock on Windows runners.
 step(
   "npx",
@@ -53,6 +61,7 @@ step(
     `--${os}`,
     `--${arch}`,
     `-c.directories.output=${out}`,
+    `-c.extraMetadata.version=${version}`,
   ],
   desktop,
 );
@@ -73,5 +82,5 @@ for (const f of fs.readdirSync(out)) {
   if (/-unpacked$|^mac(-arm64)?$|^builder-|\.blockmap$|\.yml$/.test(f))
     fs.rmSync(path.join(out, f), { recursive: true, force: true });
 }
-console.log(`\nAPX for ${os}-${arch} in out/:`);
+console.log(`\nAPX ${version} for ${os}-${arch} in out/:`);
 for (const f of fs.readdirSync(out).sort()) console.log(`  ${f}`);
