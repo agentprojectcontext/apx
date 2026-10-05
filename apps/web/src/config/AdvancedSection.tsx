@@ -4,12 +4,11 @@ import { client } from "../data/client.ts";
 import { loadHealth } from "../data/engines.ts";
 import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
-import { ClientsBlock } from "./ClientsBlock.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 const STATUS_TONE = { ok: "brand", degraded: "warning", down: "danger", off: "neutral" } as const;
 
-/** Advanced: where the panel is connected, which code the core runs, what each part is doing, and outside apps. */
+/** Advanced: where the panel is connected, which code the core runs, and what each part is doing. */
 export function AdvancedSection() {
   const t = useT();
   const health = useData((s) => s.health);
@@ -89,7 +88,6 @@ export function AdvancedSection() {
         <Skeleton shape="block" height={120} />
       )}
       <MemoryUsage />
-      <ClientsBlock />
     </>
   );
 }

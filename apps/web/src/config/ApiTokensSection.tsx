@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
-import { SubHead } from "./SectionHead.tsx";
+import { SectionHead } from "./SectionHead.tsx";
 
 const SCOPES: ClientScope[] = ["chat", "browser"];
 
-/** Outside apps (Claude Code, Codex…) with their own token: they act as a model within their scopes, never as you. */
-export function ClientsBlock() {
+/** API tokens for outside apps (Claude Code, Codex…): each acts as a model within its scopes, never as you. */
+export function ApiTokensSection() {
   const t = useT();
   const [list, setList] = useState<ApiClient[]>();
   const [name, setName] = useState("");
@@ -51,8 +51,7 @@ export function ClientsBlock() {
 
   return (
     <>
-      <SubHead>{t("clients.title")}</SubHead>
-      <p className="config__lead">{t("clients.lead")}</p>
+      <SectionHead title={t("clients.title")} lead={t("clients.lead")} />
       {list?.map((c) => (
         <div key={c.id} className="tgtoken">
           <span className="res__name">{c.name}</span>

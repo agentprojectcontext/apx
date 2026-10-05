@@ -316,10 +316,10 @@ export const enOffice = {
   "ext.plugin.network": "uses the internet",
   "ext.plugin.error": "Plugin stopped: {error}",
   "ext.runsCode": "It brings code that runs on this computer. Turn it on only if you trust its author.",
-  "error.clients": "Other apps: {error}",
-  "clients.title": "Connect other AI apps",
+  "error.clients": "API tokens: {error}",
+  "clients.title": "API tokens",
   "clients.lead":
-    "So Claude Code, Codex or another app can talk to your agents or use APX's browser: name it, create its token and paste the command shown into that app. It comes in as an outside model, never as you, and what it writes reaches your agents as outside data.",
+    "One token per outside app (Claude Code, Codex, a script…): with it the app connects to APX over MCP and can talk to your agents or use APX's browser, as you tick. It comes in as an outside model, never as you, and what it writes reaches your agents as outside data.",
   "clients.name": "App name",
   "clients.namePlaceholder": "e.g. Claude Code",
   "clients.scope.chat": "Chat",

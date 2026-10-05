@@ -35,6 +35,7 @@ export const CONFIG_SECTIONS = [
   "browser",
   "desktop",
   "devices",
+  "api",
   "advanced",
 ] as const;
 export type ConfigSection = (typeof CONFIG_SECTIONS)[number];

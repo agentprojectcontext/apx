@@ -1,10 +1,12 @@
 // Account: the owner picks their agents' language and their time zone from searchable lists; Advanced says in words
-// what each part of the core is doing and keeps the outside apps' tokens.
+// what each part of the core is doing; outside apps get their API token in a page of their own.
 import { expect, open, rpc, test } from "./kit.ts";
 
 type Owner = { language: string; timezone: string };
 
-test("time zone and language are picked by searching, and Advanced names each part of the core", async ({ page }) => {
+test("time zone and language are picked by searching, Advanced names each part of the core, and an API token is made in its own page", async ({
+  page,
+}) => {
   await open(page);
   await page.keyboard.press("ControlOrMeta+k");
   await page
@@ -27,5 +29,12 @@ test("time zone and language are picked by searching, and Advanced names each pa
 
   await dialog.getByRole("button", { name: /^Avanzado/ }).click();
   await expect(dialog.getByText("Conexión con las apps")).toBeVisible();
-  await expect(dialog.getByText("Conectar otras apps de IA")).toBeVisible();
+
+  await dialog.getByRole("button", { name: /^Tokens de API/ }).click();
+  await dialog.getByRole("textbox", { name: "Nombre de la app" }).fill("Northwind CLI");
+  await dialog.getByRole("button", { name: "Crear token" }).click();
+  await expect(dialog.getByText(/claude mcp add apx/)).toBeVisible();
+  await expect
+    .poll(async () => (await rpc<{ clients: Array<{ name: string }> }>("clients.list")).clients.map((c) => c.name))
+    .toContain("Northwind CLI");
 });

@@ -318,10 +318,10 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "ext.plugin.network": "usa internet",
   "ext.plugin.error": "El plugin se detuvo: {error}",
   "ext.runsCode": "Trae código que corre en esta computadora. Encendela sólo si confiás en quien la hizo.",
-  "error.clients": "Otras apps: {error}",
-  "clients.title": "Conectar otras apps de IA",
+  "error.clients": "Tokens de API: {error}",
+  "clients.title": "Tokens de API",
   "clients.lead":
-    "Para que Claude Code, Codex u otra app pueda hablar con tus agentes o usar el navegador de APX: ponele un nombre, creá su token y pegá en esa app el comando que aparece. Entra como un modelo externo, nunca como vos, y lo que escribe les llega a tus agentes como dato de afuera.",
+    "Un token por app externa (Claude Code, Codex, un script…): con él se conecta a APX por MCP y puede hablar con tus agentes o usar el navegador de APX, según lo que marques. Entra como un modelo externo, nunca como vos, y lo que escribe les llega a tus agentes como dato de afuera.",
   "clients.name": "Nombre de la app",
   "clients.namePlaceholder": "Ej.: Claude Code",
   "clients.scope.chat": "Chat",
