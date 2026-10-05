@@ -82,9 +82,7 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
     return { status, live };
   }, [runs]);
 
-  const superDesc = profileName
-    ? t("team.superDesc", { profile: profileName })
-    : t("team.superDescNone");
+  const superDesc = profileName ? t("team.superDesc", { profile: profileName }) : t("team.superDescNone");
 
   const info = useCallback(
     (a: Agent): NodeInfo => {
