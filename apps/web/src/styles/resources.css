@@ -121,7 +121,9 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
-.resv__grouptitle span {
+/* The count beside a group's title (only that: a switch in the title has spans of its own). */
+.resv__grouptitle:not(.resv__grouptitle--switch) > span,
+.resv__grouplabel > span {
   margin-left: 4px;
   font-variant-numeric: tabular-nums;
 }
