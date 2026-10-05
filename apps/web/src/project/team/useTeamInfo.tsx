@@ -1,10 +1,11 @@
 import type { Agent, Run } from "@apx/protocol";
 import { Icons } from "@apx/ui";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { client } from "../../data/client.ts";
 import { loadRoutines, useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { loadTasks, tasksLoaded, useTasks } from "../../data/tasks.ts";
-import { useT } from "../../i18n/index.ts";
+import { useLanguage, useT } from "../../i18n/index.ts";
 import type { NodeInfo } from "./TeamCanvas.tsx";
 
 const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working", "input-required"]);
@@ -20,21 +21,39 @@ export const engineLabelOf = (engine: string) => engine.split(/[/:]/)[0] ?? engi
 
 /**
  * What each card shows: live state from runs, counters (chats, open tasks, routines) and the engine; plus the
- * delegations in flight, as "caller>callee" pairs, for the moving dot on the curves.
+ * delegations in flight, as "caller>callee" pairs, for the moving dot on the curves. The super-agent also gets its
+ * active profile name for the two-line description when it has none of its own.
  */
 export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
   const t = useT();
+  const lang = useLanguage();
   const threads = useData((s) => s.threads);
   const runs = useData((s) => s.runs);
   const tasks = useTasks((s) => s.tasks);
   const routines = useRoutines((s) => s.routines);
   const routinesReady = useRoutines((s) => s.ready);
+  const [profileName, setProfileName] = useState<string | null>();
   useEffect(() => {
     if (!tasksLoaded()) void loadTasks();
   }, []);
   useEffect(() => {
     if (!routinesReady) void loadRoutines();
   }, [routinesReady]);
+  useEffect(() => {
+    let live = true;
+    void client
+      .call("profiles.list", {})
+      .then((r) => {
+        const p = r.profiles.find((x) => x.id === r.active.id);
+        if (live) setProfileName(p ? (p.name[lang] ?? p.name.en) : null);
+      })
+      .catch(() => {
+        if (live) setProfileName(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [lang]);
 
   const counts = useMemo(() => {
     const chats = new Map<string, number>();
@@ -63,6 +82,10 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
     return { status, live };
   }, [runs]);
 
+  const superDesc = profileName
+    ? t("team.superDesc", { profile: profileName })
+    : t("team.superDescNone");
+
   const info = useCallback(
     (a: Agent): NodeInfo => {
       const engine = engineOf(a);
@@ -71,6 +94,7 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
         engine,
         engineLabel: engine === "inherit" ? t("team.inherit") : engineLabelOf(engine),
         ...(a.id === leadId ? { lead: leadLabel } : {}),
+        ...(a.kind === "secretary" ? { superDesc } : {}),
         stats: [
           { icon: <Icons.MessageSquare />, value: counts.chats.get(a.id) ?? 0, label: t("team.stat.chats") },
           { icon: <Icons.ListChecks />, value: counts.open.get(a.id) ?? 0, label: t("team.stat.tasks") },
@@ -78,7 +102,7 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
         ],
       };
     },
-    [status, counts, leadId, leadLabel, t],
+    [status, counts, leadId, leadLabel, superDesc, t],
   );
   return { info, live };
 }

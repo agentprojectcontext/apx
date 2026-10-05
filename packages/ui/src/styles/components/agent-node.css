@@ -136,6 +136,7 @@
 .apx-agentnode__desc {
   display: -webkit-box;
   flex: none;
+  min-height: calc(var(--apx-text-xs) * 1.4 * 2);
   margin: 0;
   overflow: hidden;
   color: var(--apx-fg-muted);
@@ -143,6 +144,10 @@
   line-height: 1.4;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+.apx-agentnode__desc.is-empty {
+  color: var(--apx-fg-subtle);
+  font-style: italic;
 }
 .apx-agentnode__stats {
   display: flex;
@@ -235,10 +240,6 @@
     animation: none;
     transition: none;
   }
-}
-/* A lead's chip takes a line: its description gets one, so the footer never reaches the card's edge. */
-.apx-agentnode.is-lead .apx-agentnode__desc {
-  -webkit-line-clamp: 1;
 }
 .apx-agentnode__stats,
 .apx-agentnode__foot {

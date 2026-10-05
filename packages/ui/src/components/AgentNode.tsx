@@ -11,7 +11,10 @@ export interface AgentNodeProps {
   slug?: string;
   blob?: string;
   role?: string;
+  /** Up to two lines; the slot is always reserved so cards share one height. */
   description?: string;
+  /** Muted stand-in when there is no real description (keeps the two-line slot). */
+  descriptionEmpty?: boolean;
   /** Shown as a crowned badge: "Orchestrator", "Super-agent". */
   lead?: string;
   /** Engine id for the chip (`inherit`, `claude`, `acp:gemini`…) and its visible label. */
@@ -40,6 +43,7 @@ export function AgentNode({
   blob,
   role,
   description,
+  descriptionEmpty = false,
   lead,
   engine,
   engineLabel,
@@ -93,7 +97,7 @@ export function AgentNode({
           )}
         </div>
       )}
-      {description && <p className="apx-agentnode__desc">{description}</p>}
+      <p className={cx("apx-agentnode__desc", descriptionEmpty && "is-empty")}>{description || "\u00a0"}</p>
       {stats.length > 0 && (
         <ul className="apx-agentnode__stats">
           {stats.map((s) => (

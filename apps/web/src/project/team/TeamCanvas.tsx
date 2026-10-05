@@ -11,6 +11,8 @@ export type NodeInfo = {
   engine: string;
   engineLabel: string;
   lead?: string;
+  /** Fallback copy for the super-agent when it has no description of its own. */
+  superDesc?: string;
 };
 
 /** A few tones that read in both modes; an area keeps its tone wherever it appears. */
@@ -138,6 +140,9 @@ export function TeamCanvas({
               const a = byId.get(n.id);
               if (!a) return null;
               const i = info(a);
+              const own = a.description?.trim();
+              const description = own || i.superDesc || t("team.noDescription");
+              const descriptionEmpty = !own && !i.superDesc;
               return (
                 <div
                   key={n.id}
@@ -149,7 +154,8 @@ export function TeamCanvas({
                     {...(a.slug || a.id ? { slug: a.slug ?? a.id } : {})}
                     {...(blobOf(a) ? { blob: blobOf(a) } : {})}
                     {...(a.role ? { role: a.role } : {})}
-                    {...(a.description ? { description: a.description } : {})}
+                    description={description}
+                    descriptionEmpty={descriptionEmpty}
                     {...(i.lead ? { lead: i.lead } : {})}
                     engine={i.engine}
                     engineLabel={i.engineLabel}
