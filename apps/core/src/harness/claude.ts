@@ -17,7 +17,8 @@ export function zodShape(params: object): z.ZodRawShape {
   return s instanceof z.ZodObject ? s.shape : {};
 }
 
-// Claude Code's own web tools are useful to a secretary; its file and shell tools only in code threads.
+// Outside code threads Claude is the model with APX's tools only (APX searches and reads the web itself); a code
+// thread adds Claude Code's own web, file and shell tools, each asked through our policy.
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
@@ -67,15 +68,14 @@ function apxServer({ createSdkMcpServer, tool }: Sdk, io: TurnIO, counts: Counts
 }
 
 /**
- * Which of Claude Code's own tools may run. A contact's turn: none (only ours, already cut to that contact's flags). Outside code threads only the web tools and
- * ours. In a code thread every built-in tool (reads included: they may reach outside the folder) asks our policy
+ * Which of Claude Code's own tools may run. A contact's turn, and any turn outside a code thread: none, only ours (a
+ * contact's already cut to their flags). In a code thread every built-in tool (reads included: they may reach outside the folder) asks our policy
  * through canUseTool.
  */
 function toolOptions(io: TurnIO, counts: Counts) {
   const ours = io.tools.map((s) => `mcp__apx__${s.function.name}`);
   if (io.sealed) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
-  if (!worksInFolder(io.thread))
-    return { tools: CLAUDE_BUILTINS, allowedTools: [...CLAUDE_BUILTINS, ...ours], permissionMode: "dontAsk" as const };
+  if (!worksInFolder(io.thread)) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
   return {
     tools: [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE],
     allowedTools: ours,
