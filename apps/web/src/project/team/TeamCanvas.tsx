@@ -1,5 +1,5 @@
 import type { Agent } from "@apx/protocol";
-import { AgentNode, type AgentNodeStat, IconButton, Icons } from "@apx/ui";
+import { AgentNode, type AgentNodeStat, ContextMenu, IconButton, Icons, type MenuEntry } from "@apx/ui";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { blobOf } from "../../data/identity.ts";
 import { useT } from "../../i18n/index.ts";
@@ -34,6 +34,7 @@ export function TeamCanvas({
   selected,
   onOpen,
   onChat,
+  menu,
 }: {
   agents: Agent[];
   leadId: string | undefined;
@@ -43,6 +44,8 @@ export function TeamCanvas({
   selected: string | undefined;
   onOpen(a: Agent): void;
   onChat(a: Agent): void;
+  /** A card's right-click menu. */
+  menu(a: Agent): MenuEntry[];
 }) {
   const t = useT();
   const layout = useMemo(() => layoutTeam(agents, leadId), [agents, leadId]);
@@ -144,10 +147,15 @@ export function TeamCanvas({
               const description = own || i.superDesc || t("team.noDescription");
               const descriptionEmpty = !own && !i.superDesc;
               return (
-                <div
+                <ContextMenu
                   key={n.id}
-                  className="teamcanvas__node"
-                  style={{ left: pad + n.x, top: pad + n.y, width: NODE.w, height: NODE.h }}
+                  items={menu(a)}
+                  render={
+                    <div
+                      className="teamcanvas__node"
+                      style={{ left: pad + n.x, top: pad + n.y, width: NODE.w, height: NODE.h }}
+                    />
+                  }
                 >
                   <AgentNode
                     name={a.name}
@@ -170,7 +178,7 @@ export function TeamCanvas({
                     onChat={() => onChat(a)}
                     onHover={(on) => setHover(on ? a.id : undefined)}
                   />
-                </div>
+                </ContextMenu>
               );
             })}
           </div>

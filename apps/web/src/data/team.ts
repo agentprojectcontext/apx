@@ -1,5 +1,6 @@
-// Team screen writes: who an agent reports to, and installing agent templates into a project.
-import type { AgentTemplate, Params, Result, TeamTemplate } from "@apx/protocol";
+// Team screen writes: creating and removing agents, who one reports to, and installing templates into a project.
+import type { Agent, AgentTemplate, Params, Result, TeamTemplate } from "@apx/protocol";
+import { slugOf } from "../common/slug.ts";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
@@ -75,6 +76,43 @@ export async function updateAgent(agent: string, fields: Omit<Params<"agents.upd
   try {
     const next = await client.call("agents.update", { agent, ...fields });
     data.set((s) => ({ agents: { ...s.agents, [next.id]: next } }));
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
+  }
+}
+
+/** A new agent: in a project's `.apc/agents/` or, with no project, a global one. Undefined when the core refused. */
+export async function createAgent(
+  fields: Omit<Params<"agents.create">, "slug" | "role" | "prompt"> & { role?: string; prompt?: string },
+): Promise<Agent | undefined> {
+  const slug = slugOf(fields.name);
+  if (!slug) {
+    notify(t("team.new.badName"));
+    return undefined;
+  }
+  try {
+    const made = await client.call("agents.create", {
+      ...fields,
+      slug,
+      role: fields.role ?? "",
+      prompt: fields.prompt ?? "",
+    });
+    data.set((s) => ({ agents: { ...s.agents, [made.id]: made } }));
+    return made;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+/** Removes an agent (its file is archived, its chats stay); its reports move up to its own parent. */
+export async function archiveAgent(agent: Agent): Promise<boolean> {
+  try {
+    await client.call("agents.archive", { agent: agent.id });
+    const { agents } = await client.call("agents.list", {});
+    data.set({ agents: Object.fromEntries(agents.map((a) => [a.id, a])) });
     return true;
   } catch (e) {
     notify(t("error.save", { error: errText(e) }));

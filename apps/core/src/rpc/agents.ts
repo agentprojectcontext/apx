@@ -78,6 +78,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
           id: p.slug,
           name: p.name,
           role: p.role,
+          ...(p.description ? { description: p.description } : {}),
           kind: "agent",
           browser_profile: "shared",
           prompt: p.prompt,
@@ -155,7 +156,13 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       if (cur.source === "apc" && cur.project_id && cur.slug) {
         const root = rootOf(cur.project_id);
         const slug = cur.slug;
-        moved = onDisk(() => archiveAgentFile(root, slug));
+        // Its reports move up to its own parent (or the top), as in v1: nobody points at an archived file.
+        const reports = store.agents.list().filter((a) => a.project_id === cur.project_id && a.parent === slug);
+        moved = onDisk(() => {
+          for (const r of reports) if (r.slug) updateAgentFile(root, r.slug, { parent: cur.parent ?? "" });
+          return archiveAgentFile(root, slug);
+        });
+        apc.sync(cur.project_id);
       }
       store.agents.archive(cur.id);
       return { ok: true as const, ...(moved ? { moved_to: moved } : {}) };

@@ -1,5 +1,5 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Button, EmptyState, Icons, SegmentedControl } from "@apx/ui";
+import { AgentAvatar, Button, ContextMenu, EmptyState, IconButton, Icons, Menu, SegmentedControl } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
@@ -10,6 +10,9 @@ import { startChat } from "../inbox/NewChatMenu.tsx";
 import { go } from "../shell/nav.ts";
 import { teamOf } from "./ProjectOverview.tsx";
 import { AgentDetail } from "./team/AgentDetail.tsx";
+import { DeleteAgentDialog, NewAgentDialog } from "./team/AgentDialogs.tsx";
+import { AgentEditor } from "./team/AgentEditor.tsx";
+import { type AgentActions, agentMenu } from "./team/agentMenu.tsx";
 import { ImportDialog } from "./team/ImportDialog.tsx";
 import { TeamCanvas } from "./team/TeamCanvas.tsx";
 import { useTeamInfo } from "./team/useTeamInfo.tsx";
@@ -24,6 +27,9 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
   const [mode, setMode] = useState("tree");
   const [selected, setSelected] = useState<string>();
   const [importing, setImporting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Agent>();
+  const [deleting, setDeleting] = useState<Agent>();
   const team = useMemo(() => teamOf(agents, project.id), [agents, project.id]);
   const lead =
     team.find((a) => a.kind === "secretary") ??
@@ -31,6 +37,15 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
     LEADS.map((re) => team.find((a) => re.test(`${a.role} ${a.id}`))).find(Boolean);
   const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
   const current = team.find((a) => a.id === selected);
+  const actions: AgentActions = {
+    onOpen: (a) => {
+      setMode("tree");
+      setSelected(a.id);
+    },
+    onEdit: setEditing,
+    onChat: (a) => void startChat(a, project.id),
+    onDelete: setDeleting,
+  };
 
   return (
     <div className="team">
@@ -61,6 +76,9 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
             { value: "list", label: t("team.list") },
           ]}
         />
+        <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setCreating(true)}>
+          {t("team.new")}
+        </Button>
         {!project.isDefault && (
           <Button
             variant="secondary"
@@ -88,7 +106,7 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
       ) : mode === "list" ? (
         <ul className="team__list" aria-label={t("overview.agents")}>
           {team.map((a) => (
-            <AgentRow key={a.id} agent={a} lead={a === lead} projectId={project.id} />
+            <AgentRow key={a.id} agent={a} lead={a === lead} actions={actions} />
           ))}
         </ul>
       ) : (
@@ -101,6 +119,7 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
             selected={selected}
             onOpen={(a) => setSelected(a.id === selected ? undefined : a.id)}
             onChat={(a) => void startChat(a, project.id)}
+            menu={(a) => agentMenu(a, t, actions)}
           />
           {current && (
             <AgentDetail
@@ -112,6 +131,26 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
           )}
         </div>
       )}
+      {creating && (
+        <NewAgentDialog
+          project={project}
+          onClose={() => setCreating(false)}
+          onCreated={(a) => {
+            setCreating(false);
+            setSelected(a.id);
+          }}
+        />
+      )}
+      {editing && <AgentEditor agent={editing} onClose={() => setEditing(undefined)} />}
+      {deleting && (
+        <DeleteAgentDialog
+          agent={deleting}
+          onClose={() => {
+            if (selected === deleting.id) setSelected(undefined);
+            setDeleting(undefined);
+          }}
+        />
+      )}
       {importing && <ImportDialog projectId={project.id} top={lead} team={team} onClose={() => setImporting(false)} />}
     </div>
   );
@@ -121,10 +160,11 @@ function leadLabel(agent: Agent, t: T): string {
   return agent.kind === "secretary" ? t("agent.super") : t("team.orchestrator");
 }
 
-function AgentRow({ agent, lead, projectId }: { agent: Agent; lead: boolean; projectId: string }) {
+function AgentRow({ agent, lead, actions }: { agent: Agent; lead: boolean; actions: AgentActions }) {
   const t = useT();
+  const items = agentMenu(agent, t, actions);
   return (
-    <li className="team__row">
+    <ContextMenu items={items} render={<li className="team__row" />}>
       <AgentAvatar name={agent.name} blob={blobOf(agent)} size={28} animated={false} />
       <span className="team__cell team__cellname">
         <span className="agentcard__name">
@@ -138,9 +178,20 @@ function AgentRow({ agent, lead, projectId }: { agent: Agent; lead: boolean; pro
         <AgentModelPicker agent={agent} chip />
       </span>
       <span className="team__cell team__subtle">{t(PROFILE_KEY[agent.browser_profile])}</span>
-      <Button size="sm" variant="ghost" onClick={() => void startChat(agent, projectId)}>
+      <Button size="sm" variant="ghost" onClick={() => actions.onChat(agent)}>
         {t("team.chat")}
       </Button>
-    </li>
+      <Menu
+        align="end"
+        trigger={
+          <IconButton
+            size="sm"
+            label={t("team.menu.options", { name: agent.name })}
+            icon={<Icons.Ellipsis size={14} />}
+          />
+        }
+        items={items}
+      />
+    </ContextMenu>
   );
 }

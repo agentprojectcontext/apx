@@ -123,13 +123,21 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
     assert.match(fs.readFileSync(path.join(root, ".apc", "agents", "quality.md"), "utf8"), /aliases: qa/);
     assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.agent_ids[0], "abc123def456-qa");
 
+    await env.client.call("agents.update", { agent: "abc123def456-qa", parent: "arch" });
+    await env.client.call("agents.create", {
+      project_id: "p_abc123def456",
+      slug: "intern",
+      name: "Ivy",
+      parent: "quality",
+    });
     const gone = await env.client.call("agents.archive", { agent: "abc123def456-qa" });
     assert.match(gone.moved_to ?? "", /^\.apc\/agents\/\.archived\/quality-.*\.md$/);
     assert.ok(fs.existsSync(path.join(root, gone.moved_to ?? "")), "moved, not deleted");
     const { agents } = await env.client.call("agents.list", {});
     assert.ok(!agents.some((a) => a.id === "abc123def456-qa"));
+    assert.equal(agents.find((a) => a.slug === "intern")?.parent, "arch", "its report moved up to its own parent");
     const s = await env.client.call("projects.sync", { project: "p_abc123def456" });
-    assert.equal(s.agents, 2, "the archived file is not read back as an agent");
+    assert.equal(s.agents, 3, "the archived file is not read back as an agent");
   } finally {
     await env.core.close();
     env.cleanup();

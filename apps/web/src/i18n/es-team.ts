@@ -3,6 +3,22 @@ import type { MessageKey } from "./en.ts";
 
 export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import": "Importar",
+  "team.new": "Agente",
+  "team.new.title": "Nuevo agente",
+  "team.new.global": "Un agente global: trabaja en cualquier proyecto.",
+  "team.new.project": "Se suma a {project}: APX lo escribe en .apc/agents/ del proyecto.",
+  "team.new.create": "Crear agente",
+  "team.new.promptHint": "Cómo piensa y trabaja. Lo podés cambiar después.",
+  "team.new.badName": "El nombre necesita al menos una letra.",
+  "team.menu.open": "Ver detalle",
+  "team.menu.edit": "Editar",
+  "team.menu.delete": "Borrar agente",
+  "team.menu.superLocked": "El super-agente no se puede borrar",
+  "team.menu.options": "Opciones de {name}",
+  "team.delete.title": "¿Borrar a {name}?",
+  "team.delete.body": "Sus chats quedan. Quienes le reportaban pasan a reportarle a su jefe.",
+  "team.delete.bodyFile":
+    "Su archivo {file} pasa a .apc/agents/.archived/ (no se borra) y sus chats quedan. Quienes le reportaban pasan a reportarle a su jefe.",
   "team.view.open": "Ver",
   "team.waiting": "Espera tu respuesta",
   "team.zoom": "Zoom",

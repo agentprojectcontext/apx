@@ -1,6 +1,22 @@
 // UI strings, English: the Team screen (org chart, agent details, importing templates).
 export const enTeam = {
   "team.import": "Import",
+  "team.new": "Agent",
+  "team.new.title": "New agent",
+  "team.new.global": "A global agent: it works in any project.",
+  "team.new.project": "It joins {project}: APX writes it to the project's .apc/agents/.",
+  "team.new.create": "Create agent",
+  "team.new.promptHint": "How it thinks and works. You can change it later.",
+  "team.new.badName": "The name needs at least one letter.",
+  "team.menu.open": "See details",
+  "team.menu.edit": "Edit",
+  "team.menu.delete": "Delete agent",
+  "team.menu.superLocked": "The super-agent cannot be deleted",
+  "team.menu.options": "Options for {name}",
+  "team.delete.title": "Delete {name}?",
+  "team.delete.body": "Its chats stay. Agents that reported to it move up to its own manager.",
+  "team.delete.bodyFile":
+    "Its file {file} moves to .apc/agents/.archived/ (not erased) and its chats stay. Agents that reported to it move up to its own manager.",
   "team.view.open": "View",
   "team.waiting": "Waiting for you",
   "team.zoom": "Zoom",

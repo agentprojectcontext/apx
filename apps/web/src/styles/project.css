@@ -368,7 +368,7 @@
 }
 .team__row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 90px auto;
+  grid-template-columns: 28px minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 90px auto auto;
   gap: 14px;
   align-items: center;
   padding: 10px 8px;
