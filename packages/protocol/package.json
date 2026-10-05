@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./cdp": "./src/cdp.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

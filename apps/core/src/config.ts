@@ -58,6 +58,11 @@ export type CoreConfig = {
   slackApi: string | undefined;
   /** iMessage tools on a Mac; APX_IMESSAGE=off hides them (a sandbox must never reach the owner's Messages). */
   imessage: boolean;
+  /**
+   * The core's own headless Chrome when no desktop app lends a browser: `false` turns it off (APX_HEADLESS=off; a
+   * test core never starts one), a path picks the browser (APX_CHROME), true finds one.
+   */
+  headless: boolean | string;
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -157,6 +162,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     publicUrl: env.APX_PUBLIC_URL?.replace(/\/$/, "") || undefined,
     expoPushUrl: env.APX_EXPO_PUSH_URL || "https://exp.host/--/api/v2/push/send",
     imessage: env.APX_IMESSAGE !== "off",
+    headless: env.APX_HEADLESS === "off" ? false : env.APX_CHROME || true,
     native: {
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
       codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
@@ -190,6 +196,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     v1,
     native,
     updates: false,
+    headless: false,
     agentName: "Roby",
     ...over,
   };

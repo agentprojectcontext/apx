@@ -5,6 +5,7 @@ import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { LocalTranscription } from "./LocalTranscription.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServiceDialog } from "./ServiceDialog.tsx";
 
@@ -16,6 +17,8 @@ export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind;
   const [services, setServices] = useState<ServiceInfo[]>();
   const [defaults, setDefaults] = useState<ImageDefaults>();
   const [editing, setEditing] = useState<ServiceInfo | "new">();
+  const [transcriptionKey, setTranscriptionKey] = useState(0);
+  const refreshTranscription = useCallback(() => setTranscriptionKey((k) => k + 1), []);
 
   const load = useCallback(async () => {
     try {
@@ -135,7 +138,8 @@ export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind;
         <>
           <SubHead>{t("svc.transcription")}</SubHead>
           <p className="config__lead">{t("svc.transcription.lead")}</p>
-          <ServicesSection kind="transcription" embedded />
+          <LocalTranscription onInstalled={refreshTranscription} />
+          <ServicesSection key={transcriptionKey} kind="transcription" embedded />
         </>
       )}
       {!embedded && kind === "image" && defaults && <Defaults value={defaults} onSaved={setDefaults} />}

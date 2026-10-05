@@ -1,25 +1,9 @@
 // video_transcript: what a video says, without a browser: its title, description and captions through yt-dlp
 // (YouTube, Vimeo and most video sites). Nothing is downloaded or written; offered only where yt-dlp is installed.
 import { execFile } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { z } from "zod";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
-
-/** Where a package manager puts programs, for a core started without the login shell's PATH (launchd, systemd). */
-const USUAL_DIRS = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/home/linuxbrew/.linuxbrew/bin"];
-
-export function findProgram(name: string, envPath = process.env.PATH ?? ""): string | undefined {
-  for (const dir of [...envPath.split(path.delimiter), ...USUAL_DIRS].filter(Boolean)) {
-    const file = path.join(dir, name);
-    try {
-      fs.accessSync(file, fs.constants.X_OK);
-      return file;
-    } catch {}
-  }
-  return undefined;
-}
 
 type Track = { ext?: string; url?: string };
 type Info = {

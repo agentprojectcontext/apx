@@ -58,7 +58,7 @@ export function browserTools(): Tool[] {
       needsCap: BROWSER_CAP,
       name: "browser_open",
       description:
-        "Open a URL in a new tab of the owner's embedded browser (they can watch it). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, a login, clicks or forms, when they failed, or when the owner wants to see it.",
+        "Open a URL in a new browser tab: the owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed.",
       args: z.object({ url: z.string().describe("http(s) URL") }),
       effect: "external",
       deadlineMs: 30_000,

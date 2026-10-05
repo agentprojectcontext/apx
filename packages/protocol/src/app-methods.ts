@@ -14,6 +14,7 @@ import {
   Id,
   ImageDefaults,
   Job,
+  LocalTranscription,
   Memory,
   MemoryScope,
   MemorySettings,
@@ -704,6 +705,23 @@ export const appMethods = {
       })
       .strict(),
     result: z.object({ services: z.array(ServiceInfo) }),
+    effect: true,
+    access: "human",
+  },
+  /** Local transcription: this machine, the model that fits it, the models on disk and a download in progress. */
+  "transcription.local": {
+    params: z.object({}).strict(),
+    result: LocalTranscription,
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Gets a local model (downloaded now, in the background) and sets up the local transcription service with it, first
+   * in the order; one already on disk is only set up.
+   */
+  "transcription.install": {
+    params: z.object({ model: z.string().max(60) }).strict(),
+    result: LocalTranscription,
     effect: true,
     access: "human",
   },

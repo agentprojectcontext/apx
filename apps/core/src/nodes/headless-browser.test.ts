@@ -1,0 +1,91 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import type { TabInfo } from "@apx/protocol";
+import { createHeadlessBrowser, findChrome } from "./headless-browser.ts";
+
+// A real Chrome is needed; where there is none (a bare CI image) the test says so and skips.
+const chrome = findChrome();
+const PAGES: Record<string, string> = {
+  "/": `<html><head><title>Acme home</title></head><body><h1>Acme</h1><a href="/prices">Prices</a>
+    <form action="/search"><input name="q" aria-label="Search"><input type="password" aria-label="Password"></form></body></html>`,
+  "/prices": `<html><head><title>Prices</title></head><body><p>From 10 a month.</p></body></html>`,
+  "/to-apx": "",
+};
+let srv: http.Server;
+let base = "";
+let apxPort = "";
+let dir = "";
+let browser: ReturnType<typeof createHeadlessBrowser>;
+const seen: TabInfo[][] = [];
+
+before(async () => {
+  srv = http.createServer((req, res) => {
+    if (req.url === "/to-apx") return res.writeHead(302, { location: `http://127.0.0.1:${apxPort}/rpc` }).end();
+    const page = PAGES[req.url?.split("?")[0] ?? ""];
+    if (page === undefined) return res.writeHead(404).end();
+    res.writeHead(200, { "content-type": "text/html" }).end(page);
+  });
+  await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+  base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+  // Stands in for APX's own port: a tab must never reach it, not even through a redirect.
+  const apx = http.createServer((_q, r) => r.end("APX"));
+  await new Promise<void>((r) => apx.listen(0, "127.0.0.1", r));
+  apxPort = String((apx.address() as AddressInfo).port);
+  apx.unref();
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-headless-"));
+  browser = createHeadlessBrowser({
+    dir,
+    chrome,
+    blockedPorts: () => new Set([apxPort]),
+    onChange: (t) => seen.push(t),
+  });
+});
+after(() => {
+  browser?.close();
+  srv.closeAllConnections();
+  srv.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", {
+  skip: !chrome && "no Chrome here",
+}, async () => {
+  assert.ok(browser.available());
+  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "roby" })) as TabInfo;
+  assert.equal(tab.title, "Acme home");
+  assert.deepEqual(tab.control.kind, "agent");
+  const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };
+  assert.match(snap.tree, /^<untrusted_web source=/, "page content is marked as outside data");
+  const link = /link "Prices" \[(e\d+)\]/.exec(snap.tree)?.[1];
+  const search = /textbox "Search" \[(e\d+)\]/.exec(snap.tree)?.[1];
+  const password = /textbox "Password" \[(e\d+)\]/.exec(snap.tree)?.[1];
+  assert.ok(link && search && password, snap.tree);
+  await browser.handle("browser.type", { tab: tab.tab, ref: search, text: "plans", by: "roby" });
+  await assert.rejects(
+    browser.handle("browser.type", { tab: tab.tab, ref: password, text: "x", by: "roby" }),
+    /password/,
+  );
+  const clicked = (await browser.handle("browser.click", { tab: tab.tab, ref: link, by: "roby" })) as { url: string };
+  assert.equal(clicked.url, `${base}/prices`);
+  const text = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
+  assert.match(text.text, /From 10 a month/);
+  await assert.rejects(
+    browser.handle("browser.handoff", { tab: tab.tab, reason: "log in", by: "roby" }),
+    /nobody can take over/,
+  );
+  await assert.rejects(
+    browser.handle("browser.navigate", { tab: tab.tab, url: `http://127.0.0.1:${apxPort}/`, by: "roby" }),
+    /APX itself/,
+  );
+  await browser.handle("browser.navigate", { tab: tab.tab, url: `${base}/to-apx`, by: "roby" });
+  const after = (await browser.handle("browser.text", { tab: tab.tab })) as { text: string };
+  assert.doesNotMatch(after.text, /^APX$/, "a redirect to APX is blocked too");
+  assert.ok(seen.length > 0, "tab changes reach the panel");
+  await browser.handle("browser.close", { tab: tab.tab });
+  assert.deepEqual(browser.list(), []);
+});

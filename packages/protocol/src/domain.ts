@@ -630,6 +630,37 @@ export const ServiceDialect = z.enum([
   "openai-transcribe",
 ]);
 export type ServiceDialect = z.infer<typeof ServiceDialect>;
+
+/** Transcription on this machine: what it can run well, the models to pick from, and a download in progress. */
+export const LocalTranscription = z.object({
+  machine: z.object({
+    platform: z.string(),
+    arch: z.string(),
+    cores: z.number().int(),
+    memory_gb: z.number(),
+    accel: z.enum(["metal", "cpu"]),
+    /** whisper.cpp's server is installed. */
+    server: z.boolean(),
+    ffmpeg: z.boolean(),
+  }),
+  /** How to install what is missing on this system. */
+  install_hint: z.string().optional(),
+  recommended: z.string(),
+  models: z.array(
+    z.object({
+      id: z.string(),
+      mb: z.number(),
+      quality: z.enum(["basic", "good", "great"]),
+      installed: z.boolean(),
+    }),
+  ),
+  download: z
+    .object({ model: z.string(), received: z.number(), total: z.number(), error: z.string().optional() })
+    .optional(),
+  /** The model the local service uses now. */
+  active: z.string().optional(),
+});
+export type LocalTranscription = z.infer<typeof LocalTranscription>;
 export const ImageDefaults = z.object({
   width: z.number().int().min(64).max(4096),
   height: z.number().int().min(64).max(4096),

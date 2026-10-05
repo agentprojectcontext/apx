@@ -2,6 +2,7 @@
 // The node re-checks control on every agent call: it never trusts that the core already did.
 import { EventEmitter } from "node:events";
 import { type BrowserProfile, browserMethods, type TabControl, type TabInfo } from "@apx/protocol";
+import { assertNavigable as checkNavigable } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { app, type Session, session, WebContentsView } from "electron";
 import type { ProcessOwner } from "../memory.ts";
@@ -33,7 +34,6 @@ function partitionFor(profile: BrowserProfile, seq: number): string {
   return `persist:apx-agent-${profile.slice("agent:".length)}`;
 }
 
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
 let blockedPorts = new Set<string>();
 
 /** APX's own core and panel must never load inside a tab: a driven tab would hold the owner's controls. */
@@ -41,25 +41,7 @@ export function blockAppOrigins(urls: string[]): void {
   blockedPorts = new Set(urls.map((u) => new URL(u).port || "80"));
 }
 
-export function assertNavigable(url: string): void {
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    throw new ApxError({ code: "bad_request", message: `not a URL: ${url}` });
-  }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    throw new ApxError({ code: "bad_request", message: `navigation blocked: only http(s), got ${u.protocol}` });
-  }
-  if (u.username || u.password)
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: credentials in URL" });
-  if (LOOPBACK.has(u.hostname) && blockedPorts.has(u.port || "80")) {
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: that is APX itself" });
-  }
-  if (/^169\.254\./.test(u.hostname) || u.hostname === "metadata.google.internal") {
-    throw new ApxError({ code: "bad_request", message: "navigation blocked: link-local/metadata address" });
-  }
-}
+export const assertNavigable = (url: string): void => checkNavigable(url, blockedPorts);
 
 export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #tabs = new Map<string, Tab>();

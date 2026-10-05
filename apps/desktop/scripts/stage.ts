@@ -73,6 +73,7 @@ await build({
   entryPoints: {
     index: path.join(repo, "packages/protocol/src/index.ts"),
     client: path.join(repo, "packages/protocol/src/client.ts"),
+    cdp: path.join(repo, "packages/protocol/src/cdp.ts"),
   },
   outdir: protocol,
   bundle: true,
@@ -86,7 +87,12 @@ await build({
 fs.writeFileSync(
   path.join(protocol, "package.json"),
   JSON.stringify(
-    { name: "@apx/protocol", version, type: "module", exports: { ".": "./index.js", "./client": "./client.js" } },
+    {
+      name: "@apx/protocol",
+      version,
+      type: "module",
+      exports: { ".": "./index.js", "./client": "./client.js", "./cdp": "./cdp.js" },
+    },
     null,
     2,
   ),

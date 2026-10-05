@@ -21,6 +21,8 @@ import type { Identity } from "./identity.ts";
 import type { Log } from "./log.ts";
 import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
+import type { HeadlessBrowser } from "./nodes/headless-browser.ts";
+import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
@@ -52,6 +54,7 @@ import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
 import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
+import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
@@ -66,7 +69,7 @@ import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
-import { findProgram, videoTools } from "./tools/video.ts";
+import { videoTools } from "./tools/video.ts";
 import { webTools } from "./tools/web.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
@@ -129,6 +132,7 @@ type HandlerDeps = {
   log: Log;
   identity: Identity;
   broker: NodeBroker;
+  headless: HeadlessBrowser | undefined;
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2];
@@ -142,6 +146,7 @@ type HandlerDeps = {
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
   chatgpt: Parameters<typeof providerHandlers>[2];
+  localModels: Parameters<typeof transcriptionHandlers>[1];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
@@ -170,10 +175,12 @@ export function coreHandlers(d: HandlerDeps) {
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
         ? { status: "ok", detail: d.broker.withCap(BROWSER_CAP)?.name ?? "" }
-        : { status: "off", detail: "no desktop node connected" },
+        : d.headless?.available()
+          ? { status: "ok", detail: "headless Chrome (no desktop app connected)" }
+          : { status: "off", detail: "no desktop node connected" },
       agent: { status: "ok", detail: d.llmLabel() },
     })),
-    ...browserHandlers(d.broker),
+    ...browserHandlers(d.broker, d.headless),
     ...threadHandlers(d.store, d.engine, d.upkeep),
     ...threadAdminHandlers(d.store, d.app.home),
     ...runHandlers(d.store, d.engine),
@@ -181,6 +188,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...memoryHandlers(d.store, d.memory),
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
+    ...transcriptionHandlers(d.services, d.localModels),
     ...taskHandlers(d.store, d.engine),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),

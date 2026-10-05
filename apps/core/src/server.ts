@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { type HarnessId, TabInfo } from "@apx/protocol";
+import { BROWSER_CAP, type HarnessId, TabInfo } from "@apx/protocol";
 import { createAccess } from "./access.ts";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
@@ -34,12 +34,14 @@ import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
+import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
 import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
+import { useLocalModel } from "./rpc/transcription.ts";
 import { createSecrets } from "./secrets.ts";
 import {
   builtinTools,
@@ -51,6 +53,7 @@ import {
   reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
+import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
@@ -112,6 +115,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     });
     bus.emit({ type: "browser.tabs", tabs });
   });
+
+  // The core's own browser when no desktop app lends one; its tabs reach the panel like the desktop's.
+  const headless = config.headless
+    ? createHeadlessBrowser({
+        dir: path.join(config.home, "browser"),
+        chrome: typeof config.headless === "string" ? config.headless : undefined,
+        blockedPorts: () => new Set([String(listening)]),
+        onChange: (tabs) => {
+          if (!broker.withCap(BROWSER_CAP)) bus.emit({ type: "browser.tabs", tabs });
+        },
+      })
+    : undefined;
 
   let selfUrl = "";
   const providers = providerRegistry(store, config.providers);
@@ -178,6 +193,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({ store, secrets, home: config.home, log });
+  const localModels = createModelInstaller({
+    dir: path.join(config.home, "models"),
+    onReady: (_id, file) => useLocalModel(services, file, store.settings.get("owner_language") || "es"),
+  });
   const memory = createMemoryIndex({ store, services, log });
   const skills = createSkillPicker({ store, services, log });
   const attention = createAttention({ store, bus, ...(opts.clock ? { now: opts.clock } : {}) });
@@ -225,7 +244,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     build: { version: identity.version, code_sha: identity.code_sha },
     hooks,
     mcpTools: mcp.toolsFor,
-    hasCap: (cap) => Boolean(broker.withCap(cap)),
+    hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     afterRun: (run) => {
       upkeep.afterRun(run);
       channels.afterRun(run);
@@ -267,6 +286,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       log,
       identity,
       broker,
+      headless,
       llmLabel: () => llm.label(),
       engine,
       upkeep,
@@ -280,6 +300,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       providers,
       secrets,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
+      localModels,
       app: {
         harnesses,
         v1: config.v1,
@@ -334,6 +355,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       terminals.closeAll();
       updates.stop();
       chatgpt.stop();
+      localModels.cancel();
+      headless?.close();
       scheduler.stop();
       attention.stop();
       plugins.close();

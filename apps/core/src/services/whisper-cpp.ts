@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { findProgram } from "../programs.ts";
 
 const START_TIMEOUT_MS = 60_000;
 const IDLE_MS = 10 * 60_000;
@@ -14,15 +15,12 @@ const IDLE_MS = 10 * 60_000;
 /** A model path as the owner wrote it ("~/models/ggml-small.bin" works). */
 export const modelPath = (p: string) => path.resolve(p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p);
 
-/** The first `whisper-server` on PATH, if any. */
-function binary(command: string): string | undefined {
-  if (path.isAbsolute(command)) return fs.existsSync(command) ? command : undefined;
-  for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
-    const p = path.join(dir, command);
-    if (dir && fs.existsSync(p)) return p;
-  }
-  return undefined;
-}
+/** The program by absolute path, or the first one found (PATH, then where package managers put it). */
+const binary = (command: string): string | undefined =>
+  path.isAbsolute(command) ? (fs.existsSync(command) ? command : undefined) : findProgram(command);
+
+/** Threads for whisper on a CPU: most cores, leaving room for the rest of the machine. */
+export const whisperThreads = (cpus = os.cpus().length) => Math.max(2, Math.min(8, cpus - 2));
 
 const freePort = () =>
   new Promise<number>((resolve, reject) => {
@@ -58,7 +56,18 @@ export function createWhisperCpp(deps: { log: Log; command?: string; idleMs?: nu
     if (!fs.existsSync(model)) throw new Error(`no model file at ${model}`);
     const port = await freePort();
     const url = `http://127.0.0.1:${port}`;
-    const child = spawn(bin, ["-m", model, "--host", "127.0.0.1", "--port", String(port), "--convert"], {
+    const args = [
+      "-m",
+      model,
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(port),
+      "--convert",
+      "-t",
+      String(whisperThreads()),
+    ];
+    const child = spawn(bin, args, {
       stdio: ["ignore", "ignore", "pipe"],
     });
     let stderr = "";

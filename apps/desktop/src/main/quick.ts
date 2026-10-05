@@ -72,8 +72,7 @@ export function createQuick(opts: {
     if (fromTray) {
       const trayCenter =
         b && b.width > 0 ? { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) } : undefined;
-      const trayOnThisDisplay =
-        trayCenter != null && screen.getDisplayNearestPoint(trayCenter).id === display.id;
+      const trayOnThisDisplay = trayCenter != null && screen.getDisplayNearestPoint(trayCenter).id === display.id;
       centerX = trayOnThisDisplay && trayCenter ? trayCenter.x : cursor.x;
     }
     const x = Math.round(centerX - width / 2);
