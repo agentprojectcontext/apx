@@ -10,7 +10,7 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   page,
 }) => {
   await rpc("setup.finish", {});
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-e2e-ws-")));
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ws-")));
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "user.name=Acme", "-c", "user.email=dev@example.com", "-C", repo, ...args]);
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");

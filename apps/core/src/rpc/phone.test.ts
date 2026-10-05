@@ -41,7 +41,7 @@ let phone: ApxSocket | undefined;
 
 before(async () => {
   await new Promise<void>((r) => expo.listen(0, "127.0.0.1", r));
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-phone-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-phone-"));
   core = await createCore(
     {
       ...testConfig({ home }),

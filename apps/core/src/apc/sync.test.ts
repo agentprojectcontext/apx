@@ -28,7 +28,7 @@ test("a registered project's agents come from its files; edits and removals foll
     say(system.includes("Use metric units.") ? "saw AGENTS.md" : "no context"),
   );
   const env = await startCore({ llm });
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apc-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apc-"));
   try {
     makeProject(root);
     const reg = await env.client.call("projects.register", { path: root });
@@ -69,7 +69,7 @@ test("a registered project's agents come from its files; edits and removals foll
     assert.deepEqual(got.messages.at(-1)?.parts, [{ type: "text", text: "saw AGENTS.md" }]);
 
     // A folder that is not an APC project is refused with a reason.
-    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-notapc-"));
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx-notapc-"));
     const err = await env.client.call("projects.register", { path: empty }).catch((e: unknown) => e);
     assert.ok(err instanceof ApxError && /not an APC project/.test(err.message));
     fs.rmSync(empty, { recursive: true, force: true });
@@ -82,7 +82,7 @@ test("a registered project's agents come from its files; edits and removals foll
 
 test("editing from APX writes the agent's file: create, edit, rename (same id) and archive (file moved, never deleted)", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcw-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcw-"));
   try {
     makeProject(root);
     fs.appendFileSync(path.join(root, ".apc", "agents", "arch.md"), "");
@@ -139,8 +139,8 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
 
 test("review fixes: an old slug can be reused after a rename; a clone with the same apx_id is its own project; symlinks are refused", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcr-"));
-  const clone = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-apcc-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcr-"));
+  const clone = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcc-"));
   try {
     makeProject(root);
     await env.client.call("projects.register", { path: root });
@@ -161,7 +161,7 @@ test("review fixes: an old slug can be reused after a rename; a clone with the s
     const first = (await env.client.call("projects.list", {})).projects.find((p) => p.id === "p_abc123def456");
     assert.equal(first?.path, root, "the first folder keeps its project");
 
-    const outside = path.join(os.tmpdir(), `apx2-secret-${process.pid}.md`);
+    const outside = path.join(os.tmpdir(), `apx-secret-${process.pid}.md`);
     fs.writeFileSync(outside, "---\nname: Leak\n---\n\nsecret\n");
     fs.symlinkSync(outside, path.join(root, ".apc", "agents", "leak.md"));
     await env.client.call("projects.sync", { project: "p_abc123def456" });

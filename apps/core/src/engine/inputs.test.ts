@@ -41,7 +41,7 @@ let root = "";
 
 /** A project agent whose file says `autonomy: ask`: every call that changes something waits for the owner. */
 async function carefulAgent(client: ApxClient): Promise<string> {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-inputs-"));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-inputs-"));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "Northwind" }));
   fs.writeFileSync(

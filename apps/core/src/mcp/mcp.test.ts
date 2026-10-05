@@ -32,7 +32,7 @@ const writeServers = (extra: Record<string, unknown> = {}) =>
 before(async () => {
   process.env.OTHER_API_KEY = "must-not-leak";
   env = await startCore({ llm });
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-mcp-"));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mcp-"));
   fs.mkdirSync(path.join(root, ".apc"));
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\n");
   writeServers();

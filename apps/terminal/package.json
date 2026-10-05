@@ -2,11 +2,10 @@
   "name": "@apx/terminal",
   "version": "0.0.0",
   "private": true,
-  "description": "`apx` (also `apx2` while v1 is installed) — the terminal. A thin client of the core protocol plus a few local-only commands.",
+  "description": "`apx` — the terminal. A thin client of the core protocol plus a few local-only commands.",
   "type": "module",
   "bin": {
-    "apx": "./src/main.ts",
-    "apx2": "./src/main.ts"
+    "apx": "./src/main.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

@@ -1,5 +1,5 @@
 // Who may reach the core, as core.env says it: this computer only, the local network, or the owner's tailnet. Pure,
-// shared by `apx2 expose` and the core's access.* methods.
+// shared by `apx expose` and the core's access.* methods.
 
 import type { AccessMode } from "./device-methods.ts";
 

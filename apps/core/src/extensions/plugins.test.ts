@@ -36,7 +36,7 @@ const llm = scriptedLlm(() => say("ok"));
 let env: Awaited<ReturnType<typeof startCore>>;
 const dirs: string[] = [];
 const extension = (id: string, plugin: Record<string, unknown>) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `apx2-plugin-${id}-`));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `apx-plugin-${id}-`));
   dirs.push(dir);
   fs.writeFileSync(path.join(dir, "plugin.mjs"), PLUGIN);
   fs.writeFileSync(
@@ -147,7 +147,7 @@ test("a misbehaving plugin cannot stall turns or APX: odd answers are ignored, a
 });
 
 test("reinstalling changed files while on stops the plugin until approved again", async () => {
-  const dir = dirs.find((d) => d.includes("apx2-plugin-second-")) ?? "";
+  const dir = dirs.find((d) => d.includes("apx-plugin-second-")) ?? "";
   fs.appendFileSync(path.join(dir, "plugin.mjs"), "\n// changed\n");
   const again = await env.client.call("extensions.install", { path: dir });
   assert.equal(again.enabled, false);

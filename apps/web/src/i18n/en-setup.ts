@@ -167,7 +167,7 @@ export const enSetup = {
   "setup.done.takeOverDone": "Done: apx is now v2.",
   "setup.done.takeOver": "Make apx this version",
   "setup.done.takeOverBody":
-    "While v1 is installed, the apx command is v1's. One click makes it this version (apx2 too). Your v1 files stay in ~/.apx; v1's own commands (like apx company) stop being there.",
+    "While v1 is installed, the apx command is v1's. One click makes it this version (apx too). Your v1 files stay in ~/.apx; v1's own commands (like apx company) stop being there.",
   "setup.preview.engines": "ENGINES",
   "setup.preview.memory": "MEMORY",
   "setup.preview.channels": "CHANNELS",

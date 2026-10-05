@@ -76,7 +76,7 @@ let dir = "";
 before(async () => {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-chatgpt-"));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-chatgpt-"));
 });
 after(() => {
   server.close();

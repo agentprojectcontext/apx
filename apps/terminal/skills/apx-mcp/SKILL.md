@@ -62,7 +62,7 @@ codex mcp list
 ```
 
 Any other client: command `apx`, args `["mcp"]`, env `{"APX_CLIENT_TOKEN": "<token>"}`. If `apx` is not on the
-client's PATH, use the absolute path that `command -v apx` prints (where v1 still owns `apx`, use `apx2`; see [[apx]]). A core on another port or machine: set `APX_URL`
+client's PATH, use the absolute path that `command -v apx` prints. A core on another port or machine: set `APX_URL`
 too.
 
 ### When the tools do not show up

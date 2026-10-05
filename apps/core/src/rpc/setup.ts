@@ -67,7 +67,7 @@ export function setupHandlers(deps: V1ImportDeps) {
       await run("pnpm", ["remove", "-g", V1_PACKAGE]).catch(() => undefined);
       try {
         await run("pnpm", ["--dir", TERMINAL, "link", "--global"]);
-        return { ok: true, detail: "apx and apx2 now run this APX" };
+        return { ok: true, detail: "apx now runs this APX" };
       } catch (err) {
         return { ok: false, detail: errorMessage(err, 300) };
       }

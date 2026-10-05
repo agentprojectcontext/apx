@@ -9,7 +9,7 @@ import { exposedOrigins } from "../server-wiring.ts";
 
 const PUBLIC = "https://apx.example.ts.net";
 let core: Awaited<ReturnType<typeof createCore>>;
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-origins-"));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-origins-"));
 
 before(async () => {
   core = await createCore(testConfig({ home, publicUrl: PUBLIC }), { quiet: true });

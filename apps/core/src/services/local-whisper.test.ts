@@ -40,7 +40,7 @@ test("installing downloads the model in the background with its progress, then s
     res.end(body);
   });
   await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-models-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-models-"));
   const ready: string[] = [];
   const installer = createModelInstaller({
     dir,

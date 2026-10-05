@@ -19,10 +19,10 @@ const skill = (dir: string, name: string, description: string) => {
 };
 
 before(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-res-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-"));
   skill(path.join(home, "skills"), "brief", "Writes a morning brief.");
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-res-repo-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-repo-")));
   fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
@@ -124,7 +124,7 @@ test("a skill whose folder and name differ is edited in its own folder", async (
 test("a planted temp-file symlink cannot redirect a skill write", async () => {
   const dir = path.join(repo, ".apc", "skills", "safe");
   fs.mkdirSync(dir, { recursive: true });
-  const outside = path.join(os.tmpdir(), `apx2-outside-${process.pid}.txt`);
+  const outside = path.join(os.tmpdir(), `apx-outside-${process.pid}.txt`);
   fs.writeFileSync(outside, "untouched");
   for (let i = 0; i < 5; i++) fs.symlinkSync(outside, path.join(dir, `SKILL.md.tmp-${process.pid + i}`));
   await env.client.call("skills.save", {

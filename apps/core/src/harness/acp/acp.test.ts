@@ -22,7 +22,7 @@ after(async () => {
 
 test("an ACP agent's session runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
   // The executable is node itself; the agent's args point at the fake.
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-acp-")));
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const t = await env.client.call("threads.create", {
     kind: "code",

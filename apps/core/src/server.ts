@@ -63,7 +63,7 @@ import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
 
-/** `apx2 mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
+/** `apx mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
 
 /** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */

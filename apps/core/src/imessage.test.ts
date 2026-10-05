@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "./engine/testkit.ts";
 import { appleDate, attributedText, type IMessageOps, systemIMessage } from "./imessage.ts";
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-imessage-"));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-imessage-"));
 const db = path.join(dir, "chat.db");
 const NS = 1_000_000_000;
 

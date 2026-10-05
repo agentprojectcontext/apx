@@ -9,7 +9,7 @@ import { createWhisperCpp } from "./whisper-cpp.ts";
 const FAKE = path.join(import.meta.dirname, "fake-whisper-server.test-support.mjs");
 
 test("whisper.cpp starts on the first voice note and is reused", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-whisper-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-whisper-"));
   const model = path.join(dir, "ggml-small.bin");
   fs.writeFileSync(model, "model");
   const w = createWhisperCpp({ log: createLog("test", true), command: FAKE, idleMs: 200 });

@@ -99,7 +99,7 @@ export function createConnector(opts: {
     return { ok: true };
   }
 
-  /** The bundled terminal (`apx2`), run on Electron's own Node like the core. */
+  /** The bundled terminal (`apx`), run on Electron's own Node like the core. */
   function runCli(args: string[]): Answer {
     const main = app.isPackaged
       ? path.join(process.resourcesPath, "apx", "apps", "terminal", "src", "main.ts")

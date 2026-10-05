@@ -22,7 +22,7 @@ const line = (o: unknown) => `${JSON.stringify(o)}\n`;
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), harnesses: { claude } });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-native-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-native-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   const claudeDir = path.join(env.home, "claude-home", "projects", "-work-acme");
   fs.mkdirSync(claudeDir, { recursive: true });

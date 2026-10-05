@@ -9,7 +9,7 @@ import { createUpdates, type Runner } from "./updates.ts";
 
 const log = createLog("test", true);
 const checkout = () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-upd-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-upd-"));
   fs.mkdirSync(path.join(root, ".git"));
   return root;
 };
@@ -76,7 +76,7 @@ test("a pull that cannot fast-forward stops the update before installing anythin
 });
 
 test("the served panel is known by its entry file, read again when the build changes", () => {
-  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-dist-"));
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "apx-dist-"));
   const write = (entry: string, at: number) => {
     fs.writeFileSync(path.join(dist, "index.html"), `<script type="module" src="/assets/${entry}"></script>`);
     fs.utimesSync(path.join(dist, "index.html"), at, at);

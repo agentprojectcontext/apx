@@ -7,8 +7,7 @@ homepage: https://github.com/agentprojectcontext/apx
 # Building an APX extension
 
 An extension is a folder APX can read **without running anything**: a manifest (`apx-extension.json`) plus the files
-it names. It installs **off**; turning it on approves exactly those files. Use `apx2` instead of `apx` on a machine
-that still has APX v1 (see [[apx]]).
+it names. It installs **off**; turning it on approves exactly those files.
 
 ## Pick the smallest thing first
 

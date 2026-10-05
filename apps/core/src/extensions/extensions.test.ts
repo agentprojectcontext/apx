@@ -34,7 +34,7 @@ const refused = (p: Promise<unknown>, re: RegExp) =>
 before(async () => {
   process.env.OTHER_API_KEY = "must-not-leak";
   env = await startCore({ llm });
-  src = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-ext-"));
+  src = fs.mkdtempSync(path.join(os.tmpdir(), "apx-ext-"));
   fs.mkdirSync(path.join(src, "skills", "crm-notes"), { recursive: true });
   fs.writeFileSync(
     path.join(src, "skills", "crm-notes", "SKILL.md"),

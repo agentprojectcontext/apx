@@ -20,8 +20,8 @@ let project = "";
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), desktop });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-files-repo-")));
-  outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-files-out-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-repo-")));
+  outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-out-")));
   fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
   fs.mkdirSync(path.join(repo, "docs"));
   fs.mkdirSync(path.join(repo, ".git"));

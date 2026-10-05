@@ -6,7 +6,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("a project's tabs count its agents and chats, and its settings rename it and set its kind", async ({ page }) => {
   await rpc("setup.finish", {});
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-e2e-settings-")));
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-settings-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(repo, ".apc", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");

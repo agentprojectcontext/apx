@@ -7,8 +7,7 @@ export const CORE_ENV_FILE = "core.env";
 export const CORE_ENV_KEYS = ["APX_HOST", "APX_PORT", "APX_TOKEN", "APX_PUBLIC_URL", "APX_ALLOWED_ORIGINS"] as const;
 export type CoreEnvKey = (typeof CORE_ENV_KEYS)[number];
 
-const HEADER =
-  "# APX core settings (KEY=VALUE). Written by `apx2 expose`; the process environment wins over this file.";
+const HEADER = "# APX core settings (KEY=VALUE). Written by `apx expose`; the process environment wins over this file.";
 
 export function parseCoreEnv(text: string): Record<string, string> {
   const vars: Record<string, string> = {};

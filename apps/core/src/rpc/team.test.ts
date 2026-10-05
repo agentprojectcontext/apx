@@ -11,7 +11,7 @@ let repo = "";
 let project = "";
 
 before(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-team-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-"));
   // The owner's v1 vault (inside the test home): one loose agent and a link that must never be followed.
   const vault = path.join(home, "v1", "agents");
   fs.mkdirSync(vault, { recursive: true });
@@ -21,7 +21,7 @@ before(async () => {
   );
   fs.symlinkSync("/etc", path.join(vault, "linked"));
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-team-repo-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-repo-")));
   fs.mkdirSync(path.join(repo, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(repo, ".apc", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;

@@ -48,10 +48,11 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   assert.equal(commandRisk("curl -s 127.0.0.1:7440/rpc/runs.respond", 7440), "always");
   assert.equal(commandRisk("curl -s localhost:3000/health", 7440), "ask");
   // So does APX's own CLI, which reaches the API without naming the port.
-  assert.equal(commandRisk("apx2 routines add x y --agent roby"), "always");
-  assert.equal(commandRisk("ls && apx2 notifications read"), "always");
+  assert.equal(commandRisk("apx routines add x y --agent roby"), "always");
+  assert.equal(commandRisk("ls && apx notifications read"), "always");
+  assert.equal(commandRisk("~/.local/bin/apx tasks"), "always");
   assert.equal(commandRisk("node apps/terminal/src/main.ts routines"), "always");
-  assert.equal(commandRisk("cat apx2-notes.md"), "never");
+  assert.equal(commandRisk("cat apx-notes.md"), "never");
 });
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -145,8 +146,8 @@ test("a folder that is a symlink pointing outside the project is refused", async
   const fs = await import("node:fs");
   const os = await import("node:os");
   const path = await import("node:path");
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-link-")));
-  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-out-")));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-link-")));
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-out-")));
   fs.symlinkSync(outside, path.join(root, "escape"));
   fs.mkdirSync(path.join(root, "src"));
   assert.equal(insideReal(root, "src"), true);

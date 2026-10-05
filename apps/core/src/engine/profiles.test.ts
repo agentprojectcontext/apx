@@ -158,7 +158,7 @@ test("another profile takes over: the secretary's routines turn off, the new one
 });
 
 test("a profile installs from a folder, can run, and removing it while it runs leaves the super-agent with none", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-profile-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-profile-"));
   try {
     fs.writeFileSync(
       path.join(dir, "apx-profile.json"),

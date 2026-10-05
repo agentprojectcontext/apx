@@ -18,7 +18,7 @@ let repo = "";
 let project = "";
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-code-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-code-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   fs.mkdirSync(path.join(repo, "src"));
   execFileSync("git", ["init", "-q"], { cwd: repo });

@@ -12,7 +12,7 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 | Term | Means here | Not to be confused with |
 |---|---|---|
 | **core** | `apps/core`, the daemon: the only process that owns state. | "core logic" in general. |
-| **terminal** | `apps/terminal`, the `apx2` CLI. A thin protocol client. | A shell/PTY. |
+| **terminal** | `apps/terminal`, the `apx` CLI. A thin protocol client. | A shell/PTY. |
 | **protocol** | `packages/protocol`: frames, the method registry and the client SDK. The one contract. | Ad-hoc REST routes (there are none). |
 | **operator** | A client that shows/controls things (terminal, web, desktop, mobile). | A **node**. |
 | **node** | A client that *lends capabilities* to the core (desktop: `browser`, `fs`; mobile: `camera`, `notify`). The core routes tool calls to it. | A Node.js process. |
@@ -35,15 +35,15 @@ pnpm package                               # installers for this OS in apps/desk
 ```
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a
-  saved file restarts it. Always confirm with `apx2 status` that `code_sha` is the commit you expect.
-- v2 runs **beside** v1: port `7440`, home `~/.apx/v2` (inside v1's folder, never touching v1's files), binary `apx2` until
-  the owner moves on. Never write to v1's files in `~/.apx`.
+  saved file restarts it. Always confirm with `apx status` that `code_sha` is the commit you expect.
+- v2 runs **beside** v1: port `7440`, home `~/.apx/v2` (inside v1's folder, never touching v1's files), binary `apx` (it
+  replaces v1's). Never write to v1's files in `~/.apx`.
 
 ## Repo map
 
 ```
 apps/core        daemon — transport/ → rpc/ (single router) → engine/ (turns) · harness/ · providers/ · tools/ → domain/ (repos) · nodes/ · db/
-apps/terminal    apx2 CLI — protocol calls only
+apps/terminal    apx CLI — protocol calls only
 apps/web         React panel — served by core, renderer of desktop
 apps/desktop     Electron shell + embedded browser node (tabs, CDP, profiles, cookie import)
 apps/mobile      Expo                                               (F7)
@@ -104,7 +104,7 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     with a capital letter ("Router chain", "Por defecto (Medio)"); never all lowercase, and not Title Case Every Word.
     Only a fragment that continues a sentence on screen (after "·", a placeholder's tail) starts lowercase. Values
     from outside (provider ids, model ids, effort levels, status codes) never show raw as a label: they go through a
-    name (a provider's `label`, `effortLabel`) or show as code. Brand names keep their own case (iMessage, `apx2`).
+    name (a provider's `label`, `effortLabel`) or show as code. Brand names keep their own case (iMessage, `apx`).
     `[review]`
 
 ### Code comments
@@ -119,7 +119,7 @@ Non-trivial changes follow [`rules/WORKFLOW.md`](rules/WORKFLOW.md):
 plan → implement → independent review → security/risk review → test + runtime proof → architecture check →
 owner brief → release check. Commands for each level: [`rules/TESTING.md`](rules/TESTING.md).
 
-A green typecheck is not proof. Runtime changes are verified against the **running** core (`apx2 status` shows the
+A green typecheck is not proof. Runtime changes are verified against the **running** core (`apx status` shows the
 expected `code_sha`) and the changed path is exercised for real; anything not exercised is reported `UNVERIFIED`.
 
 ## Deep dives

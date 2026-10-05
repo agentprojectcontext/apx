@@ -19,7 +19,7 @@ before(async () => {
       !afterTool && said.includes("run echo") ? callTool("c1", "shell", { command: "echo from-agent" }) : say("ok"),
     ),
   });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-ws-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, "src"));
   fs.writeFileSync(path.join(repo, "src", "app.ts"), "one\ntwo\nthree\n");

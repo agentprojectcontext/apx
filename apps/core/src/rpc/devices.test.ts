@@ -15,7 +15,7 @@ let home = "";
 let owner: ApxClient;
 
 before(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-devices-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-devices-"));
   core = await createCore(
     { ...testConfig({ home }), token: TOKEN },
     { quiet: true, llm: scriptedLlm(() => say("ok")) },

@@ -96,7 +96,7 @@ export function ApiTokensSection() {
           <span className="res__name">{t("clients.tokenFor", { name: made.name })}</span>
           <code className="soon__code">{made.token}</code>
           <span className="pform__hint">{t("clients.tokenOnce")}</span>
-          <code className="soon__code">{`APX_CLIENT_TOKEN=${made.token} apx2 mcp`}</code>
+          <code className="soon__code">{`APX_CLIENT_TOKEN=${made.token} apx mcp`}</code>
           <div className="pcard__actions">
             <span className="pcard__spacer" />
             <Button

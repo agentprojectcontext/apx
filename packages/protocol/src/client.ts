@@ -53,7 +53,7 @@ export type ClientOptions = {
   timeoutMs?: number;
   /** Native runtimes inject their secure UUID source instead of a browser crypto global. */
   requestKey?: () => string;
-  /** "agent" for clients driven by a model (e.g. `apx2 mcp`): they never get the human's controls. */
+  /** "agent" for clients driven by a model (e.g. `apx mcp`): they never get the human's controls. */
   actor?: Actor;
   /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
   clientToken?: string;

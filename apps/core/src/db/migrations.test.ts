@@ -11,7 +11,7 @@ import { MIGRATIONS } from "./migrations.ts";
 function upgradeFrom(marker: string, fill: (db: DatabaseSync) => void) {
   const at = MIGRATIONS.findIndex((m) => m.includes(marker));
   assert.ok(at > 0, `no migration with ${marker}`);
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-migrate-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-migrate-"));
   const old = new DatabaseSync(path.join(home, "apx.db"));
   old.exec("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   for (const m of MIGRATIONS.slice(0, at)) old.exec(m);

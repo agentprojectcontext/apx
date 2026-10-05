@@ -22,7 +22,7 @@ let repo = "";
 let project = "";
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-tasks-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-tasks-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
@@ -73,7 +73,7 @@ test("an agent's tasks go to its thread's project and it sees no other project's
   assert.ok(tasks.some((x) => x.title === "Draft the launch post" && x.created_by === "roby"));
 
   await env.client.call("tasks.update", { task: other.id, title: "Secret elsewhere" });
-  const p2 = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-tasks2-")));
+  const p2 = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-tasks2-")));
   fs.writeFileSync(path.join(p2, "AGENTS.md"), "# Globex\n");
   const project2 = (await env.client.call("projects.register", { path: p2 })).project.id;
   await env.client.call("tasks.create", { title: "Globex only", project: project2 });
@@ -101,7 +101,7 @@ test("what an agent wrote in a task reaches other turns as outside data", async 
 });
 
 test("an agent of one project is not assigned another project's task", async () => {
-  const p2 = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-tasks3-")));
+  const p2 = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-tasks3-")));
   fs.writeFileSync(path.join(p2, "AGENTS.md"), "# Initech\n");
   const other = (await env.client.call("projects.register", { path: p2 })).project.id;
   const milton = await env.client.call("agents.create", { project_id: other, slug: "milton", name: "Milton" });

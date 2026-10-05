@@ -71,7 +71,7 @@ export function remoteApx(target: string): "installed" | "missing" | "unreachabl
       ...(sshPort ? ["-p", sshPort] : []),
       "--",
       hostPart,
-      "command -v apx2 || command -v apx",
+      "command -v apx",
     ],
     { timeout: 20_000, windowsHide: true },
   );

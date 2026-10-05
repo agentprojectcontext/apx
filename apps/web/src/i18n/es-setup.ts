@@ -168,7 +168,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.done.takeOverDo": "Usar v2 como apx",
   "setup.done.takeOverDone": "Listo: apx ahora es v2.",
   "setup.done.takeOverBody":
-    "Mientras v1 esté instalada, el comando apx es el de v1. Con un click pasa a ser esta versión (y apx2 también). Tus archivos de v1 quedan en ~/.apx; los comandos propios de v1 (como apx company) dejan de estar.",
+    "Mientras v1 esté instalada, el comando apx es el de v1. Con un click pasa a ser esta versión (y apx también). Tus archivos de v1 quedan en ~/.apx; los comandos propios de v1 (como apx company) dejan de estar.",
   "setup.preview.engines": "MOTORES",
   "setup.preview.memory": "MEMORIA",
   "setup.preview.channels": "CANALES",

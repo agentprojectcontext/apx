@@ -57,7 +57,7 @@ test("a deleted chat's messages leave the index", async () => {
 });
 
 test("an install from before the index gets its old messages indexed when it upgrades", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-search-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-search-"));
   try {
     const old = new DatabaseSync(path.join(home, "apx.db"));
     old.exec("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");

@@ -125,7 +125,7 @@ permanently only after the cause is proven.
 - **Review:** reject tests that read source files (rule 13) and any lint rule downgraded without a
   `DECISIONS.md` entry (rule 19).
 - **Test + runtime proof:** commands in [`TESTING.md`](TESTING.md). Core changes: prove the running core has
-  your `code_sha` (`apx2 status`) and exercise the method over HTTP **and** WS when the transport matters.
+  your `code_sha` (`apx status`) and exercise the method over HTTP **and** WS when the transport matters.
 - **Architecture check:** compare with [`HUMAN_MODEL.md`](HUMAN_MODEL.md) (system map) and
   `plan/01-arquitectura-v2.md` §2; update both when a module, process or boundary changes.
 - **Release check:** not yet deploy-sensitive (nothing ships before F1). When it is: v2 must never touch v1's

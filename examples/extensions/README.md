@@ -1,7 +1,7 @@
 # Extension examples
 
 An extension is a folder with an `apx-extension.json`: skills, MCP servers and routine templates in one piece,
-readable without running anything. Install one with `apx2 extensions install <folder>` (or Settings › Extensions);
+readable without running anything. Install one with `apx extensions install <folder>` (or Settings › Extensions);
 it arrives off, and turning it on approves exactly its files.
 
 | Field | What |

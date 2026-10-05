@@ -18,7 +18,7 @@ const fakeTailscale = (calls: string[][], connected = true): TailscaleRun => {
 };
 
 function setup(o: { tailscale?: TailscaleRun; restart?: () => void; running?: { host: string; publicUrl?: string } }) {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-access-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-access-"));
   const access = createAccess({
     home,
     running: { host: o.running?.host ?? "127.0.0.1", publicUrl: o.running?.publicUrl, token: undefined },

@@ -124,7 +124,7 @@ const list = (v: string | undefined) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** `<home>/core.env` (written by `apx2 expose`) as defaults under the process environment, which always wins. */
+/** `<home>/core.env` (written by `apx expose`) as defaults under the process environment, which always wins. */
 export function withCoreEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const home = env.APX_HOME ?? defaultHome();
   let text: string;

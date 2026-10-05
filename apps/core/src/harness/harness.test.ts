@@ -45,7 +45,7 @@ after(async () => {
 
 /** A Claude Code or Codex session of the owner's, in a fresh project folder. */
 async function session(engine: "claude" | "codex") {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-harness-")));
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   return env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, engine });
 }

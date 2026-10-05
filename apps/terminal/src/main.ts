@@ -20,7 +20,7 @@ import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
 
-const HELP = `apx — APX v2 terminal (also apx2)
+const HELP = `apx — the APX terminal
 
 Usage:
   apx status [--json]     Is the core up, and is it running my code?
@@ -150,10 +150,10 @@ const { values, positionals } = parseArgs({
 const [command, ...rest] = positionals;
 const connection = localConnection();
 const terminalClient = () =>
-  new ApxClient({ ...localConnection(), client: { name: "apx2-terminal", version: "0.0.0" } });
+  new ApxClient({ ...localConnection(), client: { name: "apx-terminal", version: "0.0.0" } });
 const client = terminalClient();
 /** MCP servers are driven by a model: the core never gives them the owner's controls. */
-const agentClient = new ApxClient({ ...connection, client: { name: "apx2-mcp", version: "0.0.0" }, actor: "agent" });
+const agentClient = new ApxClient({ ...connection, client: { name: "apx-mcp", version: "0.0.0" }, actor: "agent" });
 
 try {
   switch (values.help ? "help" : command) {
@@ -300,7 +300,7 @@ try {
       // An outside app's token (Settings › MCP › Outside apps) comes in the environment, never on the command line.
       const clientToken = process.env.APX_CLIENT_TOKEN;
       const mcpClient = clientToken
-        ? new ApxClient({ ...connection, client: { name: "apx2-mcp", version: "0.0.0" }, clientToken })
+        ? new ApxClient({ ...connection, client: { name: "apx-mcp", version: "0.0.0" }, clientToken })
         : agentClient;
       await runMcp(mcpClient, values.by ?? "mcp-client", Boolean(clientToken));
       break;

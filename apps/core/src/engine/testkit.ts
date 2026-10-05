@@ -65,7 +65,7 @@ export async function startCore(opts: {
   /** Built-in model APIs beside "fake" (as config.ts gives a real install). */
   providers?: ProviderConfig[];
 }) {
-  const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx2-engine-"));
+  const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
   const providers = [
     { id: "fake", transport: "openai-chat" as const, base_url: "http://fake.test", key: "env:NONE", models: [] },

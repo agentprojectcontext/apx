@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { loadConfig, testConfig } from "./config.ts";
 
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-config-"));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-config-"));
 after(() => fs.rmSync(home, { recursive: true, force: true }));
 fs.writeFileSync(
   path.join(home, "core.env"),
@@ -29,7 +29,7 @@ test("the process environment wins over core.env, and other keys in the file are
 });
 
 test("a home without core.env, and testConfig, read nothing from disk", () => {
-  const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-config-empty-"));
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), "apx-config-empty-"));
   try {
     assert.equal(loadConfig({ APX_HOME: empty }).host, "127.0.0.1");
   } finally {

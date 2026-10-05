@@ -37,7 +37,7 @@ before(async () => {
   await new Promise<void>((r) => apx.listen(0, "127.0.0.1", r));
   apxPort = String((apx.address() as AddressInfo).port);
   apx.unref();
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-headless-"));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-headless-"));
   browser = createHeadlessBrowser({
     dir,
     chrome,

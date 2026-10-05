@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { moveLegacyHome } from "./home.ts";
 
 test("the old home moves into ~/.apx/v2 once, leaving v1's files and an existing new home alone", () => {
-  const user = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-home-"));
+  const user = fs.mkdtempSync(path.join(os.tmpdir(), "apx-home-"));
   const legacy = path.join(user, ".apx2");
   const home = path.join(user, ".apx", "v2");
   fs.mkdirSync(legacy);

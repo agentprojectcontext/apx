@@ -13,7 +13,7 @@ let core: Awaited<ReturnType<typeof createCore>>;
 let home = "";
 
 before(async () => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-token-"));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-token-"));
   core = await createCore(
     { ...testConfig({ home }), token: TOKEN },
     { quiet: true, llm: scriptedLlm(() => say("ok")) },

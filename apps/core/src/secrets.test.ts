@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { createSecrets, keychainService, projectSecretName, splitSecretName } from "./secrets.ts";
 
 test("secrets resolve by reference, list names only, and live in a 0600 file with the file backend", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-secrets-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-secrets-"));
   try {
     const s = createSecrets(home, "file", { MY_KEY: "from-env" });
     s.set("gemini", "k-123");
@@ -26,7 +26,7 @@ test("secrets resolve by reference, list names only, and live in a 0600 file wit
 });
 
 test("a project's own value wins over the global one there, and only there", () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-secrets-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-secrets-"));
   try {
     const s = createSecrets(home, "file", {});
     s.set("GH_TOKEN", "global-value");

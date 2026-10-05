@@ -1,6 +1,6 @@
 ---
 name: apx
-description: Uses APX (the local agent office) from a coding CLI through the `apx` terminal — check the core, talk to an APX agent, read threads, runs and jobs, the task board, routines, memory notes, secrets, projects, and set up a server (service, expose, pair). Triggers: 'apx', 'apx2', 'ask an APX agent', 'APX task', 'APX routine', 'APX memory', 'is APX running'.
+description: Uses APX (the local agent office) from a coding CLI through the `apx` terminal — check the core, talk to an APX agent, read threads, runs and jobs, the task board, routines, memory notes, secrets, projects, and set up a server (service, expose, pair). Triggers: 'apx', 'ask an APX agent', 'APX task', 'APX routine', 'APX memory', 'is APX running'.
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
@@ -11,8 +11,7 @@ runs (one agent turn), tasks, routines, memory and channels. Every client — th
 and the `apx` terminal — talks to it through one protocol. You (Claude Code, Codex, …) reach it the same way: the
 `apx` command, or the MCP server described in [[apx-mcp]].
 
-On a machine that still has APX v1 installed, this command is called `apx2` (and `apx` is v1's): use `apx2` in
-every example below there. `apx status` printing a `code_sha` tells you it is this APX.
+`apx status` printing a `code_sha` tells you it is this APX (v1's `apx` never prints one).
 
 ## When to use this skill
 

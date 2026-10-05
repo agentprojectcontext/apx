@@ -18,7 +18,7 @@ export const ClientRole = z.enum(["operator", "node"]);
 export type ClientRole = z.infer<typeof ClientRole>;
 
 /**
- * Who is behind an operator connection. An agent client (e.g. `apx2 mcp` used by another tool) never gets the
+ * Who is behind an operator connection. An agent client (e.g. `apx mcp` used by another tool) never gets the
  * human's controls. Self-declared on loopback; scoped tokens replace it when pairing lands.
  */
 export const Actor = z.enum(["human", "agent"]);

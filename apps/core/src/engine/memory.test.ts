@@ -27,7 +27,7 @@ let repo = "";
 let project = "";
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-mem-")));
+  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   fs.mkdirSync(path.join(repo, ".apc"));
   fs.writeFileSync(path.join(repo, ".apc", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");

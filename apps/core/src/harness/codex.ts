@@ -1,5 +1,5 @@
 // Codex in its own sessions: the owner's own `codex` (their ChatGPT login and config). APX tools reach it through a
-// per-run MCP proxy (`apx2 mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
+// per-run MCP proxy (`apx mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { harnessEnv } from "./env.ts";

@@ -8,7 +8,7 @@ import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
 
 let core: Awaited<ReturnType<typeof createCore>>;
-const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-broker-"));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-broker-"));
 
 before(async () => {
   core = await createCore(testConfig({ home }), { quiet: true });

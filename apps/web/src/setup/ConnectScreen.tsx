@@ -205,7 +205,7 @@ export function ConnectScreen() {
                   </span>
                 )}
                 {install && (
-                  <pre className="connect__install">{"npm i -g @agentprojectcontext/apx\napx2 setup --headless"}</pre>
+                  <pre className="connect__install">{"npm i -g @agentprojectcontext/apx\napx setup --headless"}</pre>
                 )}
               </div>
               <div className="wiz__foot">

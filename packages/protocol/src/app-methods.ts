@@ -125,7 +125,7 @@ export const appMethods = {
   /** The setup is over: it does not open again by itself. */
   /**
    * Makes the `apx` command this APX: v1's global package is removed and this checkout's terminal is linked in its
-   * place (`apx` and `apx2`). v1's files stay where they are.
+   * place. v1's files stay where they are.
    */
   "setup.take_over_cli": {
     params: z.object({}).strict(),
