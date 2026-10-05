@@ -3,27 +3,15 @@ import { Badge, Button, EngineIcon, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { chatgptStatus } from "../data/chatgpt.ts";
 import { useModels } from "../data/models.ts";
-import { setProviderEnabled, useProviders } from "../data/providers.ts";
+import { setProviderEnabled } from "../data/providers.ts";
 import { useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
 import { PlanLogin } from "./PlanLogin.tsx";
-import { openProviderEditor } from "./ProvidersGrid.tsx";
 
 /**
- * The owner's subscriptions as engines of APX's own loop, above the model APIs: Codex (the ChatGPT plan, signed in
- * from APX) and Claude, whose plan runs only in Claude Code (DECISIONS.md#d-043).
+ * The ChatGPT plan as a model API of APX's own loop, shown as Codex: first among the APIs, fixed (signed in or out,
+ * switched on or off, never removed). Claude's plan has no counterpart: it runs only in Claude Code (D-043).
  */
-export function PlanCards() {
-  const plan = useProviders((s) => s.list.find((p) => p.sign_in === "chatgpt"));
-  return (
-    <div className="plans">
-      {plan && <CodexPlan p={plan} />}
-      <ClaudePlan />
-    </div>
-  );
-}
-
-function CodexPlan({ p }: { p: ProviderInfo }) {
+export function PlanCard({ p }: { p: ProviderInfo }) {
   const t = useT();
   const models = useModels((s) => s.catalog.find((e) => e.id === p.id));
   const [status, setStatus] = useState<ChatgptStatus>();
@@ -35,12 +23,12 @@ function CodexPlan({ p }: { p: ProviderInfo }) {
   const connected = p.key_set;
   const count = models?.available ? models.models.filter((m) => m.chat).length : 0;
   return (
-    <div className={p.enabled ? "plan" : "plan is-off"}>
-      <div className="plan__top">
-        <EngineIcon engine="codex" tile size={40} />
-        <div className="plan__titles">
-          <div className="plan__name">{p.label}</div>
-          <div className="plan__kind">{t("plans.codex.kind")}</div>
+    <div className={p.enabled ? "pcard pcard--plan" : "pcard pcard--plan is-off"}>
+      <div className="pcard__top">
+        <EngineIcon engine="codex" tile size={36} />
+        <div className="pcard__titles">
+          <div className="pcard__name">{p.label}</div>
+          <div className="pcard__plan">{t("plans.codex.kind")}</div>
         </div>
         <Badge tone={connected && p.enabled ? "brand" : connected ? "neutral" : "warning"} dot>
           {!connected ? t("plans.notConnected") : p.enabled ? t("providers.active") : t("providers.off")}
@@ -65,32 +53,6 @@ function CodexPlan({ p }: { p: ProviderInfo }) {
         </Button>
       </div>
       {login && <PlanLogin onClose={() => setLogin(false)} />}
-    </div>
-  );
-}
-
-function ClaudePlan() {
-  const t = useT();
-  return (
-    <div className="plan">
-      <div className="plan__top">
-        <EngineIcon engine="claude" tile size={40} />
-        <div className="plan__titles">
-          <div className="plan__name">Claude</div>
-          <div className="plan__kind">{t("plans.claude.kind")}</div>
-        </div>
-        <Badge tone="neutral">{t("plans.claude.only")}</Badge>
-      </div>
-      <p className="plan__body">{t("plans.claude.body")}</p>
-      <div className="pcard__actions">
-        <Button size="sm" variant="secondary" onClick={() => openProviderEditor("anthropic")}>
-          {t("plans.claude.useKey")}
-        </Button>
-        <span className="pcard__spacer" />
-        <Button size="sm" variant="ghost" onClick={() => go.config("external")}>
-          {t("plans.claude.external")}
-        </Button>
-      </div>
     </div>
   );
 }

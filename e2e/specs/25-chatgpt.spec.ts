@@ -1,11 +1,9 @@
-// Engines and models: the owner's plans first (Codex, signed in from APX; Claude's plan only in Claude Code), then the
-// model APIs, known ones shown even before they are set up. The CLIs live in External sessions, never in a picker of
-// models for agents.
+// Engines and models: the ChatGPT plan first among the model APIs (as Codex, signed in from APX, never removed), then
+// the APIs, known ones shown before they are set up (and removable from the list). The CLIs live in External sessions,
+// never in a picker of models for agents.
 import { expect, open, rpc, test } from "./kit.ts";
 
-test("the plans come first: Codex connects with its own sign-in, Claude's plan points to Claude Code", async ({
-  page,
-}) => {
+test("the ChatGPT plan comes first as Codex, fixed, and connects with its own sign-in", async ({ page }) => {
   await rpc("setup.finish", {});
   const status = await rpc<{ connected: boolean }>("chatgpt.status");
   expect(status.connected).toBe(false);
@@ -18,10 +16,12 @@ test("the plans come first: Codex connects with its own sign-in, Claude's plan p
 
   // No CLI card here and nothing to put a CLI in the router.
   await expect(settings.getByRole("button", { name: "Usarlo en el router" })).toHaveCount(0);
-  const codex = settings.locator(".plan", { hasText: "Codex" });
+  const codex = settings.locator(".pgrid > .pcard").first();
+  await expect(codex).toContainText("Codex");
   await expect(codex).toContainText("Plan de ChatGPT");
   await expect(codex).toContainText("Sin conectar");
-  await expect(settings.locator(".plan", { hasText: "Claude" })).toContainText("Solo en Claude Code");
+  await expect(codex.getByRole("button", { name: "Quitar" })).toHaveCount(0);
+  await expect(settings.getByText("Solo en Claude Code")).toHaveCount(0);
 
   // ChatGPT's setting comes first: the sign-in waits until the owner says it is on.
   await codex.getByRole("button", { name: "Conectar" }).click();
@@ -44,6 +44,10 @@ test("the plans come first: Codex connects with its own sign-in, Claude's plan p
   const dialog = page.getByRole("dialog", { name: "Nuevo proveedor" });
   await expect(dialog.getByRole("textbox", { name: "URL base" })).toHaveValue("https://api.groq.com/openai/v1");
   await dialog.getByRole("button", { name: "Cancelar" }).click();
+  // A suggestion the owner does not want goes off the list.
+  const mistral = settings.locator(".pcard.is-unset", { hasText: "Mistral" });
+  await mistral.getByRole("button", { name: "Quitar Mistral de la lista" }).click();
+  await expect(mistral).toHaveCount(0);
 
   // The CLIs are in External sessions.
   await settings.getByRole("button", { name: "Sesiones externas", exact: true }).click();

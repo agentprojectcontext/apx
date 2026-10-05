@@ -2,9 +2,9 @@
 export const enEngines = {
   "config.external": "External sessions",
   "engines.leadModels":
-    "What your agents think and work with: your plans and the model APIs. CLIs like Claude Code or Codex are in External sessions.",
-  "plans.title": "Your plans",
-  "plans.lead": "Your subscriptions in APX's own loop: agents use their models with APX's tools and rules.",
+    "What your agents think and work with: your ChatGPT plan and the model APIs. CLIs like Claude Code or Codex are in External sessions.",
+  "providers.hide": "Take {name} off the list",
+  "providers.modelsAuto": "Auto",
   "plans.codex.kind": "ChatGPT plan",
   "plans.connected": "Connected",
   "plans.notConnected": "Not connected",
@@ -13,12 +13,6 @@ export const enEngines = {
   "plans.modelsCount": "{count} available",
   "plans.connect": "Connect",
   "plans.manage": "Manage",
-  "plans.claude.kind": "Claude plan",
-  "plans.claude.only": "Only in Claude Code",
-  "plans.claude.body":
-    "Anthropic allows the Claude plan only inside Claude Code, which you have in External sessions. For your agents, connect an Anthropic API key.",
-  "plans.claude.useKey": "Use an Anthropic key",
-  "plans.claude.external": "Open External sessions",
   "plan.login.title": "Connect Codex",
   "plan.login.lead":
     "Your agents use your ChatGPT plan's models with APX's tools and rules. APX keeps its own sign-in, apart from the Codex app's.",

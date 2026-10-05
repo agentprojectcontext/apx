@@ -458,50 +458,17 @@
   width: 160px;
 }
 
-/* Plans: the owner's subscriptions in APX's own loop, above the model APIs (Config › Engines and models). */
-.plans {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  margin: 8px 0 24px;
+/* The ChatGPT plan among the model APIs: fixed, first, with a soft gradient that tells it apart. */
+.pcard--plan {
+  border-color: var(--apx-border-strong);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--apx-info) 14%, var(--apx-surface)) 0%,
+    var(--apx-surface) 65%
+  );
 }
-.plan {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--apx-border-strong);
-  border-radius: var(--apx-radius-lg);
-  background: linear-gradient(180deg, var(--apx-fill) 0%, var(--apx-surface) 70%);
-}
-.plan.is-off {
-  opacity: 0.6;
-}
-.plan__top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.plan__titles {
-  flex: 1;
-  min-width: 0;
-}
-.plan__name {
-  font-size: var(--apx-text-lg);
-  font-weight: var(--apx-weight-semibold);
-}
-.plan__kind {
+.pcard__plan {
   font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-}
-.plan .pcard__actions {
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.plan__body {
-  margin: 0;
-  font-size: var(--apx-text-xs);
-  line-height: 1.5;
   color: var(--apx-fg-muted);
 }
 
