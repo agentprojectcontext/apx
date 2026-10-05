@@ -6,6 +6,35 @@ export const Id = z.string().min(1).max(128);
 
 /** What a project is, as the owner picks it in its settings. A project's file may still name another kind. */
 export const ProjectKind = z.enum(["personal", "app", "company", "software", "other"]);
+
+/** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
+export const BaseProject = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(500).optional(),
+  kind: ProjectKind.optional(),
+});
+export type BaseProject = z.infer<typeof BaseProject>;
+
+const OrgSlug = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]*$/)
+  .max(40);
+/** An area of a company project ("Finance"): agents and roles belong to one. */
+export const OrgArea = z.object({
+  slug: OrgSlug,
+  name: z.string().trim().min(1).max(60),
+  goal: z.string().max(300).optional(),
+});
+/** A role the company has ("Chief Financial Officer"), in an area or general. An agent takes one. */
+export const OrgRole = z.object({
+  slug: OrgSlug,
+  name: z.string().trim().min(1).max(80),
+  area: OrgSlug.optional(),
+  description: z.string().max(500).optional(),
+});
+/** A project's areas and roles: `.apc/organization.json` (v1's format), the base project's in APX's settings. */
+export const Organization = z.object({ areas: z.array(OrgArea).max(40), roles: z.array(OrgRole).max(200) });
+export type Organization = z.infer<typeof Organization>;
 export type ProjectKind = z.infer<typeof ProjectKind>;
 
 export const Project = z.object({

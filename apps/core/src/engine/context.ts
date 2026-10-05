@@ -4,7 +4,7 @@
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 
 import { createHash } from "node:crypto";
-import type { Thread } from "@apx/protocol";
+import type { Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { LogEntry } from "../domain/threads.ts";
@@ -60,11 +60,34 @@ export function workerPrompt(
     .join("\n");
 }
 
+/** What the prompt says of the project a turn works in: its files, its kind and, for a company, its areas and roles. */
+export type ProjectBrief = {
+  name: string;
+  context?: string | undefined;
+  memory?: string | undefined;
+  kind?: string | undefined;
+  org?: Organization | undefined;
+};
+
+/** Areas with their goal and roles, one line each; nothing when the project has none. */
+export function orgText(org: Organization): string {
+  const areaName = new Map(org.areas.map((a) => [a.slug, a.name]));
+  return [
+    ...org.areas.map((a) => `- Area ${a.name}${a.goal ? `: ${a.goal}` : ""}`),
+    ...org.roles.map(
+      (r) =>
+        `- Role ${r.name}${r.area ? ` (${areaName.get(r.area) ?? r.area})` : ""}${r.description ? `: ${r.description}` : ""}`,
+    ),
+  ]
+    .join("\n")
+    .slice(0, 4000);
+}
+
 export function systemPrompt(
   agent: AgentRecord,
   thread: Pick<Thread, "kind" | "parent_id">,
   ownerLanguage: string,
-  project?: { name: string; context?: string | undefined; memory?: string | undefined } | undefined,
+  project?: ProjectBrief | undefined,
   /** The skills catalog (one line each); changes only when skills do, so the prompt stays cacheable. */
   skills = "",
   /** A profile's role block (the secretary's): changes only when its settings do. */
@@ -88,6 +111,8 @@ export function systemPrompt(
       ? `\n## Your owner\n${[owner.name ? `Your owner is ${owner.name}; you know them, never ask their name.` : "", owner.about].filter(Boolean).join("\n")}`
       : "",
     project ? `\n## Project: ${project.name}${project.context ? `\nIts AGENTS.md:\n\n${project.context}` : ""}` : "",
+    project?.kind ? `It is a${/^[aeiou]/.test(project.kind) ? "n" : ""} ${project.kind} project.` : "",
+    project?.org ? `\n### Its areas and roles\n${orgText(project.org)}` : "",
     project?.memory ? `\n### Project notes (.apc/memory.md)\n\n${project.memory}` : "",
     skills ? `\n${skills}` : "",
     "",

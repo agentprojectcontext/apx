@@ -1,6 +1,7 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@apx/protocol";
+import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
@@ -27,7 +28,15 @@ import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
 import { type Audience, audienceOf, contactPrompt, ownerInstruction, roomInput, roomPrompt } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
-import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput, workerPrompt } from "./context.ts";
+import {
+  HISTORY_BUDGET_CHARS,
+  type ProjectBrief,
+  project,
+  rosterBlock,
+  systemPrompt,
+  turnInput,
+  workerPrompt,
+} from "./context.ts";
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
 import { type Display, openDisplay } from "./display.ts";
 import { createExecutor, type Executor } from "./executor.ts";
@@ -415,7 +424,7 @@ function systemFor(
     turn.agent,
     turn.thread,
     lang,
-    projectId ? store.projects.get(projectId) : undefined,
+    projectBrief(store, projectId),
     skills,
     role,
     ownerIdentity(store),
@@ -556,4 +565,22 @@ function failRun(
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
   store.threads.patch(t.turn.thread.id, { state: canceled ? "canceled" : "failed", preview: previewOf(message) });
   return run;
+}
+
+/**
+ * The project a turn works in, for its prompt: a real one with its kind and areas; the base project only once the
+ * owner gave it a kind or areas (otherwise there is nothing to say about it).
+ */
+function projectBrief(store: Store, projectId: string | undefined): ProjectBrief | undefined {
+  if (projectId) {
+    const p = store.projects.get(projectId);
+    if (!p) return undefined;
+    const org = p.path && p.present ? readOrganization(p.path) : undefined;
+    return { ...p, ...(org && (org.areas.length || org.roles.length) ? { org } : {}) };
+  }
+  const base = store.settings.read("base_project");
+  const org = store.settings.read("base_org");
+  const hasOrg = org.areas.length > 0 || org.roles.length > 0;
+  if (!base.kind && !hasOrg) return undefined;
+  return { name: base.name, ...(base.kind ? { kind: base.kind } : {}), ...(hasOrg ? { org } : {}) };
 }

@@ -2,11 +2,13 @@
 // only through `store.settings.read`, so a bad stored value falls back here instead of reaching the code using it.
 import {
   ActiveProfile,
+  BaseProject,
   ChannelInfo,
   ImageDefaults,
   MemorySettings,
   ModelChoice,
   NoticePrefs,
+  Organization,
   ProviderInfo,
   RouterConfig,
   ServiceSettings,
@@ -71,6 +73,10 @@ export const SETTINGS = {
     about: "",
     timezone: "",
   }),
+  /** The base project's name, description and kind (it has no folder to keep them in). */
+  base_project: entry(BaseProject, { name: "Default" }),
+  /** The base project's areas and roles (a real project keeps them in its .apc/organization.json). */
+  base_org: entry(Organization, { areas: [], roles: [] }),
   /** The profile the super-agent runs and the owner's values for it (none until the owner picks one). */
   profile: entry(ActiveProfile, { id: null, values: {} }),
   /** iMessage on this Mac as tools: off until the owner turns it on. */

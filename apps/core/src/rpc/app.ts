@@ -4,6 +4,8 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { Organization } from "@apx/protocol";
+import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
@@ -35,6 +37,13 @@ export function appHandlers(deps: {
 }) {
   const { store, harnesses, secrets } = deps;
   const models = modelSettings(store);
+  /** A registered project's folder, when it is on disk. */
+  const folderOf = (id: string) => {
+    const p = store.projects.get(id);
+    if (!p) throw notFound(`project ${id}`);
+    if (!p.path || !p.present) throw badRequest(`the folder of ${p.name} is not on disk right now`);
+    return p.path;
+  };
   return {
     "owner.get": () => ownerIdentity(deps.store),
     "owner.set": (patch) => saveOwnerIdentity(deps.store, patch),
@@ -82,7 +91,37 @@ export function appHandlers(deps: {
     },
     "projects.list": ({ include_unregistered }) => ({
       projects: store.projects.list(include_unregistered).map(publicProject),
+      base: store.settings.read("base_project"),
     }),
+    "projects.update_base": ({ name, description, kind }) => {
+      const cur = store.settings.read("base_project");
+      const desc = description === undefined ? cur.description : description || undefined;
+      const k = kind === undefined ? cur.kind : (kind ?? undefined);
+      store.settings.write("base_project", {
+        name: name ?? cur.name,
+        ...(desc ? { description: desc } : {}),
+        ...(k ? { kind: k } : {}),
+      });
+      return { base: store.settings.read("base_project") };
+    },
+    "org.get": ({ project }) => {
+      if (!project) return store.settings.read("base_org");
+      return readOrganization(folderOf(project));
+    },
+    "org.set": ({ project, organization }) => {
+      const org = checkOrg(organization);
+      if (!project) {
+        store.settings.write("base_org", org);
+        return store.settings.read("base_org");
+      }
+      const root = folderOf(project);
+      try {
+        writeOrganization(root, org);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      return readOrganization(root);
+    },
     "projects.register": ({ path: dir, init }) => {
       let r: ReturnType<typeof deps.apc.register>;
       try {
@@ -181,4 +220,14 @@ function initProject(dir: string): void {
   const agents = path.join(abs, "AGENTS.md");
   if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${path.basename(abs)}\n`);
   fs.mkdirSync(path.join(abs, ".apc"), { recursive: true });
+}
+
+/** Slugs are unique, and a role's area is one of the areas (a removed area leaves its roles general, as in v1). */
+function checkOrg(org: Organization): Organization {
+  const areas = [...new Map(org.areas.map((a) => [a.slug, a])).values()];
+  const known = new Set(areas.map((a) => a.slug));
+  const roles = [...new Map(org.roles.map((r) => [r.slug, r])).values()].map(({ area, ...r }) =>
+    area && known.has(area) ? { ...r, area } : r,
+  );
+  return { areas, roles };
 }

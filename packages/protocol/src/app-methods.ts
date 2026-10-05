@@ -5,6 +5,7 @@ import {
   Agent,
   Author,
   Autonomy,
+  BaseProject,
   CatalogEngine,
   ChannelInfo,
   ChannelRooms,
@@ -23,6 +24,7 @@ import {
   ModelChoice,
   NoticePrefs,
   Nudge,
+  Organization,
   OutboxItem,
   OwnerIdentity,
   PairingRequest,
@@ -319,8 +321,35 @@ export const appMethods = {
   },
   "projects.list": {
     params: z.object({ include_unregistered: z.boolean().default(false) }).strict(),
-    result: z.object({ projects: z.array(Project) }),
+    /** `base`: how the owner named, described and typed the base project (it has no folder of its own). */
+    result: z.object({ projects: z.array(Project), base: BaseProject }),
     effect: false,
+  },
+  /** Names, describes or types the base project; "" or null removes a description or kind. */
+  "projects.update_base": {
+    params: z
+      .object({
+        name: z.string().trim().min(1).max(80).optional(),
+        description: z.string().trim().max(500).nullable().optional(),
+        kind: ProjectKind.nullable().optional(),
+      })
+      .strict(),
+    result: z.object({ base: BaseProject }),
+    effect: true,
+    access: "human",
+  },
+  /** A project's areas and roles (no project: the base project's). Empty until the owner or a team adds some. */
+  "org.get": {
+    params: z.object({ project: Id.optional() }).strict(),
+    result: Organization,
+    effect: false,
+  },
+  /** Replaces a project's areas and roles: written to its .apc/organization.json (the base project's: in APX). */
+  "org.set": {
+    params: z.object({ project: Id.optional(), organization: Organization }).strict(),
+    result: Organization,
+    effect: true,
+    access: "human",
   },
   /** Registers a folder as a project and reads its AGENTS.md and .apc/ (never writes them). */
   "projects.register": {
