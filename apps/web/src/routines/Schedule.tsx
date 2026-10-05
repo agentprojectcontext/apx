@@ -3,9 +3,8 @@ import { Button, Input, SegmentedControl, Select } from "@apx/ui";
 import { useState } from "react";
 import { aheadLabel } from "../common/format.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { WEEK, weeklyCron, weeklyOf } from "./cron.ts";
 
-/** Monday first, as people read a week; cron numbers Sunday 0. */
-const WEEK = [1, 2, 3, 4, 5, 6, 0] as const;
 const DAY_KEY: Record<number, MessageKey> = {
   0: "routines.day.sun",
   1: "routines.day.mon",
@@ -15,29 +14,6 @@ const DAY_KEY: Record<number, MessageKey> = {
   5: "routines.day.fri",
   6: "routines.day.sat",
 };
-
-/** "30 8 * * 1-5" → days and a time; undefined for a cron that says more (a day of the month, every N minutes). */
-export function weeklyOf(cron: string): { days: number[]; time: string } | undefined {
-  const m = /^(\d{1,2}) (\d{1,2}) \* \* ([\d,*-]+)$/.exec(cron.trim());
-  if (!m) return undefined;
-  const days = new Set<number>();
-  for (const part of (m[3] ?? "").split(",")) {
-    if (part === "*") for (const d of WEEK) days.add(d);
-    else if (/^\d-\d$/.test(part)) {
-      const [a = 0, b = 0] = part.split("-").map(Number);
-      for (let d = a; d <= b; d++) days.add(d % 7);
-    } else if (/^\d$/.test(part)) days.add(Number(part) % 7);
-    else return undefined;
-  }
-  return { days: WEEK.filter((d) => days.has(d)), time: `${m[2]?.padStart(2, "0")}:${m[1]?.padStart(2, "0")}` };
-}
-
-export function weeklyCron(days: number[], time: string): string {
-  const [h = "9", min = "0"] = time.split(":");
-  const all = days.length === 7;
-  const list = [...days].sort((a, b) => a - b).join(",");
-  return `${Number(min)} ${Number(h)} * * ${all ? "*" : list === "1,2,3,4,5" ? "1-5" : list || "*"}`;
-}
 
 const UNITS = [
   { id: "minutes", n: 1 },
@@ -70,6 +46,8 @@ export function scheduleText(s: Schedule, t: T): string {
     }
     case "every": {
       const { n, unit } = everyParts(s.minutes);
+      // "Every hour", not "every 1 hours".
+      if (n === 1) return t("routines.everyOne", { unit: t(`routines.unitOne.${unit}`) });
       return t("routines.everyUnit", { n, unit: t(`routines.unit.${unit}`) });
     }
     case "once":
@@ -202,7 +180,7 @@ function EveryInput({ minutes, onChange }: { minutes: number; onChange: (s: Sche
         label={t("routines.everyN.unit")}
         value={unit}
         onValueChange={(u) => u && onChange({ kind: "every", minutes: n * factor(u as Unit) })}
-        options={UNITS.map((u) => ({ value: u.id, label: t(`routines.unit.${u.id}`) }))}
+        options={UNITS.map((u) => ({ value: u.id, label: t(`routines.unitOption.${u.id}`) }))}
       />
       {minutes < 5 && <span className="pform__hint">{t("routines.minutes")}</span>}
     </div>

@@ -195,7 +195,7 @@ textarea.pipeline__cmd {
   align-self: flex-start;
 }
 
-/* ── Routines: one row each (flow, activation bars, next), opening in place ─ */
+/* ── Routines: one row each (flow, activation bars, next); its detail opens in a drawer ─ */
 .rtlist {
   display: flex;
   flex-direction: column;
@@ -222,7 +222,6 @@ textarea.pipeline__cmd {
 }
 .rtrow.is-open {
   background: var(--apx-fill);
-  border-radius: var(--apx-radius-md);
 }
 .rtrow__main {
   display: flex;
@@ -272,11 +271,14 @@ textarea.pipeline__cmd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rtrow__bars {
+/* A fixed row of slots: every routine shows a full strip, gray where nothing ran. */
+.rtbars {
   display: flex;
   align-items: flex-end;
   gap: 3px;
   height: 22px;
+  min-width: 0;
+  overflow: hidden;
 }
 .rtbar {
   display: inline-block;
@@ -285,8 +287,14 @@ textarea.pipeline__cmd {
   border-radius: 2px;
   background: var(--apx-border-strong);
 }
+.rtbar.is-none {
+  background: var(--apx-fill-strong);
+}
 .rtbar.is-ran {
   background: var(--apx-brand);
+}
+.rtbar.is-told {
+  background: var(--apx-info);
 }
 .rtbar.is-skipped {
   height: 8px;
@@ -296,7 +304,7 @@ textarea.pipeline__cmd {
   background: var(--apx-danger);
 }
 .rtbar.is-live {
-  background: var(--apx-info);
+  background: var(--apx-violet);
 }
 .rtrow__next {
   display: flex;
@@ -320,11 +328,17 @@ textarea.pipeline__cmd {
   height: 10px;
   margin-left: 10px;
 }
-.rtdetail {
+/* The routine's drawer: the cards a grid, then its prompt, then its activations; a run's chat fills the rest */
+.rtdrawer__title {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-md);
+}
+.rtdrawer__chat {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 12px 14px 44px;
+  border-top: 1px solid var(--apx-border);
 }
 .rtdetail__cards {
   display: grid;
@@ -403,7 +417,7 @@ textarea.pipeline__cmd {
 .rtdetail__runs {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .rtdetail__empty {
   margin: 0;
@@ -423,11 +437,27 @@ textarea.pipeline__cmd {
   text-align: left;
   cursor: pointer;
 }
-.rtrun:hover,
-.rtrun.is-on {
+.rtrun:hover {
   background: var(--apx-fill-hover);
 }
-.rtrun .rtbar {
+.rtrun__line {
+  flex: none;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+.rtrun > .rtrun__line {
+  flex: 1;
+  padding: 0;
+}
+.rtrun__go {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.rtrun__line .rtbar {
+  flex: none;
   height: 12px;
 }
 .rtrun__when {
@@ -438,6 +468,18 @@ textarea.pipeline__cmd {
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+/* The drawer's strip: wider bars spread over the width */
+.rtbars.is-large {
+  gap: 4px;
+  height: 28px;
+}
+.rtbars.is-large .rtbar {
+  width: 8px;
+  height: 26px;
+}
+.rtbars.is-large .rtbar.is-skipped {
+  height: 12px;
+}
 @media (max-width: 900px) {
   .rtlist__head {
     display: none;
@@ -446,12 +488,9 @@ textarea.pipeline__cmd {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .rtrow__flow,
-  .rtrow__bars,
+  .rtrow__line > .rtbars,
   .rtrow__next {
     display: none;
-  }
-  .rtdetail {
-    padding-left: 12px;
   }
 }
 

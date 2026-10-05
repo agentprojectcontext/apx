@@ -269,3 +269,51 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-2xs);
 }
+
+/* ── Drawer: a detail over the right edge; the list beside it keeps its place and width ─ */
+.drawer {
+  position: fixed;
+  top: calc(var(--shell-topbar-h) + 12px);
+  right: 12px;
+  bottom: 12px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, calc(100vw - 24px));
+  padding: 16px;
+  overflow-y: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: 16px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+}
+/* The drawer scrolls as a whole: its sections keep their height instead of squeezing to fit. */
+.drawer > * {
+  flex-shrink: 0;
+}
+.drawer__head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.drawer__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .drawer {
+    top: var(--shell-topbar-h);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    border: 0;
+    border-radius: 0;
+  }
+}
