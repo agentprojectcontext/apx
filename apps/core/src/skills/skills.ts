@@ -150,11 +150,17 @@ export function skillCatalog(skills: Skill[]): string {
 export function readSkillFile(skill: Skill, file?: string): string {
   const root = fs.realpathSync(skill.dir);
   const inside = (p: string) => isInside(root, p);
+  // Models often send an optional argument as "" or "."; both mean the skill itself.
+  const name = file?.trim().replace(/^\.\/?$/, "") || "SKILL.md";
   // Checked before touching the disk (no probing for files elsewhere) and again after links are resolved.
-  const asked = path.resolve(root, file ?? "SKILL.md");
-  if (!inside(asked)) throw new Error(`${file} is outside the skill`);
+  const asked = path.resolve(root, name);
+  if (!inside(asked)) throw new Error(`${name} is outside the skill`);
   const target = fs.realpathSync(asked);
-  if (!inside(target)) throw new Error(`${file} is outside the skill`);
+  if (!inside(target)) throw new Error(`${name} is outside the skill`);
+  if (fs.statSync(target).isDirectory()) {
+    const files = fs.readdirSync(target).filter((f) => !f.startsWith("."));
+    return `${name} is a folder, not a file. Its files: ${files.join(", ") || "none"}. Load one with file=${name}/<file>.`;
+  }
   return fs.readFileSync(target, "utf8");
 }
 

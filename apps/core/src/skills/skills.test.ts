@@ -7,6 +7,8 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Loaded: ${String(req.messages.at(-1)?.content).slice(0, 200)}`);
   if (said.includes("use the skill")) return callTool("k1", "load_skill", { name: "brief-writer" });
+  if (said.includes("empty file")) return callTool("k3", "load_skill", { name: "brief-writer", file: "" });
+  if (said.includes("folder")) return callTool("k4", "load_skill", { name: "brief-writer", file: "refs" });
   if (said.includes("escape"))
     return callTool("k2", "load_skill", { name: "brief-writer", file: "../../secrets.index.json" });
   return say("ok");
@@ -21,6 +23,8 @@ before(async () => {
     path.join(dir, "SKILL.md"),
     "---\nname: brief-writer\ndescription: Writes one-page briefs. Use it for client summaries.\n---\n\nStart with the goal.\n",
   );
+  fs.mkdirSync(path.join(dir, "refs"));
+  fs.writeFileSync(path.join(dir, "refs", "tone.md"), "Plain words.\n");
 });
 after(async () => {
   await env.core.close();
@@ -43,6 +47,21 @@ test("agents see a one-line catalog and load the body on demand; files outside t
   await env.client.call("threads.send", { thread: t.id, text: "escape" });
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /outside the skill/);
+});
+
+test("an empty file argument loads SKILL.md, and a folder lists its files instead of failing", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "skill args" });
+  await env.client.call("threads.send", { thread: t.id, text: "empty file" });
+  await env.settle(t.id);
+  const loaded = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(loaded, /Start with the goal/);
+  assert.match(loaded, /refs\/tone\.md/);
+  await env.client.call("threads.send", { thread: t.id, text: "folder" });
+  await env.settle(t.id);
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /refs is a folder, not a file\. Its files: tone\.md/,
+  );
 });
 
 test("v1 skills are copied once: folders without inner links, linked skills stay links, existing names kept", async () => {
