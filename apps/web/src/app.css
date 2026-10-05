@@ -6,8 +6,13 @@ body,
   height: 100%;
   margin: 0;
 }
-body {
+/* The shell has a min-height, so a short window must clip it: a scrollable page would let focus or scrollIntoView
+ * (e.g. a list bringing its selected item into view) shift the whole app and show a band of background. */
+html {
   overflow: hidden;
+}
+body {
+  overflow: clip;
 }
 :where(.apx) :where(button, input, textarea, select) {
   font: inherit;

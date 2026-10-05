@@ -825,6 +825,10 @@
   font: inherit;
   font-size: var(--apx-text-sm);
 }
+/* The search row is part of the menu, like a field's inner input: no focus ring of its own. */
+.apx .apx-searchselect__input:focus-visible {
+  outline: none;
+}
 .apx-searchselect__list {
   overflow-y: auto;
   overscroll-behavior: contain;
