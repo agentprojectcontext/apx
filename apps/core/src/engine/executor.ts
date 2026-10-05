@@ -17,6 +17,7 @@ import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
+import { confirmPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
@@ -173,7 +174,7 @@ export function createExecutor(o: {
         display,
         callId,
         kind: "confirm",
-        prompt: `${agent.name} wants to use ${name}: ${decision.reason}.`,
+        prompt: confirmPrompt(store, decision.why, agent.name, name),
         tool: name,
         args: raw,
         detail: describe(args),
@@ -269,7 +270,7 @@ export function createExecutor(o: {
       display,
       callId: req.callId,
       kind: "confirm",
-      prompt: `${agent.name} wants to ${req.kind === "other" ? "use a tool" : req.kind}: ${req.title}. ${decision.reason}.`,
+      prompt: confirmPrompt(store, decision.why, agent.name, req.title),
       tool: req.kind,
       ...(req.detail ? { detail: req.detail } : {}),
       waitMs: INPUT_WAIT_MS,

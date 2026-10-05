@@ -16,6 +16,13 @@ const line = (t: Task) =>
     .filter(Boolean)
     .join(", ")})`;
 
+/**
+ * Writing on the board is the owner's own record and runs even with outside content in the turn; handing the work to
+ * an agent (an assignee, an @mention) starts that agent's turn, so then it waits for the owner like any other action.
+ */
+const handsOff = (a: { assignee?: string | null | undefined; text?: string | undefined }) =>
+  (a.assignee ? "untrusted" : a.text && /(^|\s)@[\w-]/.test(a.text) ? "untrusted" : "never") as "untrusted" | "never";
+
 const commitmentArgs = {
   person: z.string().max(80).optional().describe("A commitment: the contact on the other side (name or id)."),
   owed_by: z
@@ -69,7 +76,7 @@ export function taskTools(): Tool[] {
         ...commitmentArgs,
       }),
       effect: "local",
-      confirm: "untrusted",
+      confirm: handsOff,
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -92,7 +99,7 @@ export function taskTools(): Tool[] {
         ...commitmentArgs,
       }),
       effect: "local",
-      confirm: "untrusted",
+      confirm: handsOff,
       deadlineMs: 5_000,
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
@@ -106,7 +113,7 @@ export function taskTools(): Tool[] {
         "Comment on a task's conversation. Mention an agent with @name to ask it something there: it answers in that conversation.",
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
       effect: "local",
-      confirm: "untrusted",
+      confirm: handsOff,
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {

@@ -2,7 +2,9 @@
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Confirm, Effect, Tool } from "./types.ts";
 
-export type Decision = { kind: "allow" } | { kind: "confirm"; reason: string };
+/** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
+export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every";
+export type Decision = { kind: "allow" } | { kind: "confirm"; why: ConfirmWhy; reason: string };
 
 /** Names an agent's `tools:` list may use instead of single tools. */
 const GROUPS: Record<string, (name: string) => boolean> = {
@@ -39,22 +41,25 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   return decide(tool.confirm(args), tool.effect, agent, untrusted);
 }
 
+const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
+
 /** The rule itself, for APX's tools and for what external agents ask to do with theirs. */
 export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untrusted: boolean): Decision {
   const autonomy = agent.autonomy ?? "standard";
-  if (level === "always") return { kind: "confirm", reason: "this action always needs your OK" };
+  if (level === "always") return { kind: "confirm", why: "always", reason: "this action always needs your OK" };
   // Total autonomy skips the question only while the turn holds nothing from outside that could be steering it.
   if (level === "ask" && (autonomy !== "total" || untrusted))
+    return untrusted
+      ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
+      : { kind: "confirm", why: "needs_ok", reason: `${agent.name} needs your OK for this kind of action` };
+  if (autonomy === "ask" && effect !== "none")
     return {
       kind: "confirm",
-      reason: untrusted
-        ? "content from outside (web, another agent or a message) is in this turn"
-        : `${agent.name} needs your OK for this kind of action`,
+      why: "asks_every",
+      reason: `${agent.name} asks before every action that changes something`,
     };
-  if (autonomy === "ask" && effect !== "none")
-    return { kind: "confirm", reason: `${agent.name} asks before every action that changes something` };
   if (autonomy !== "total" && level === "untrusted" && untrusted)
-    return { kind: "confirm", reason: "content from outside (web, another agent or a message) is in this turn" };
+    return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
   return { kind: "allow" };
 }
 

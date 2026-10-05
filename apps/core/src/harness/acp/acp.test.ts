@@ -29,7 +29,7 @@ test("an ACP agent runs the turn: model picked, its edit asks the owner, its too
     await new Promise((r) => setTimeout(r, 20));
   }
   assert.equal(inputs[0]?.tool, "edit");
-  assert.match(inputs[0]?.prompt ?? "", /wants to edit: Edit notes.md/);
+  assert.match(inputs[0]?.prompt ?? "", /para usar Edit notes.md/);
   await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "approve" });
   const done = await env.client.call("runs.wait", { run: sent.run.id, timeout_s: 10 });
   assert.equal(done.state, "completed");

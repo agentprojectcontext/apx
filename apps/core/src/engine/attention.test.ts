@@ -48,7 +48,7 @@ test("an agent waiting for the owner's OK is in the tray until answered", async 
   const n = (await tray()).notifications.find((x) => x.kind === "input");
   assert.equal(n?.level, "warn");
   assert.equal(n?.thread_id, t.id);
-  assert.match(n?.body ?? "", /Roby wants to use probe/);
+  assert.match(n?.body ?? "", /Roby quiere usar probe/);
 
   // Opening the chat does not clear a pending question; answering it does.
   await env.client.call("threads.read", { thread: t.id });
