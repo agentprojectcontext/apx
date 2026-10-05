@@ -29,9 +29,9 @@
 .apx :where(button:not(:disabled)) {
   cursor: pointer;
 }
+/* No focus rings: a focused field shows by its border, a focused control by its own hover look. */
 .apx :focus-visible {
-  outline: 2px solid var(--apx-ring);
-  outline-offset: 2px;
+  outline: none;
 }
 
 /* Tone helper: sets --apx-tone-* for any component that takes a `tone`. */

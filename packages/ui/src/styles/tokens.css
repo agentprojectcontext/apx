@@ -88,7 +88,6 @@
   --apx-danger-soft: #fce8e8;
   --apx-danger-soft-fg: #b02a2a;
 
-  --apx-ring: rgb(26 148 96 / 0.35);
   --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
   --apx-shadow-md: 0 1px 3px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
 
@@ -165,7 +164,6 @@
   --apx-danger-soft: rgb(240 100 100 / 0.15);
   --apx-danger-soft-fg: #f59393;
 
-  --apx-ring: rgb(62 201 139 / 0.4);
   --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
   --apx-shadow-md: 0 1px 3px rgb(0 0 0 / 0.35), 0 10px 30px rgb(0 0 0 / 0.4);
 
@@ -208,7 +206,6 @@
   --apx-danger-soft: hsl(0 80% 95%);
   --apx-danger-soft-fg: hsl(0 72% 40%);
 
-  --apx-ring: hsl(152 58% 36% / 0.45);
   --apx-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --apx-shadow-md: 0 2px 6px rgb(15 23 42 / 0.08), 0 12px 28px rgb(15 23 42 / 0.1);
 
@@ -284,7 +281,6 @@
   --apx-danger-soft: hsl(0 62% 50% / 0.16);
   --apx-danger-soft-fg: hsl(0 80% 70%);
 
-  --apx-ring: hsl(152 60% 45% / 0.5);
   --apx-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --apx-shadow-md: 0 2px 8px rgb(0 0 0 / 0.45), 0 12px 32px rgb(0 0 0 / 0.5);
 

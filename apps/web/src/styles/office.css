@@ -604,10 +604,6 @@ textarea.pipeline__cmd {
   background: var(--apx-fg);
   color: var(--apx-bg);
 }
-.sched__day:has(input:focus-visible) {
-  outline: 2px solid var(--apx-ring);
-  outline-offset: 2px;
-}
 .sched__time {
   width: 120px;
 }

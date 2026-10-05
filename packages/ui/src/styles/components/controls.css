@@ -375,7 +375,6 @@
 }
 .apx-field:focus-within {
   border-color: var(--apx-border-strong);
-  box-shadow: 0 0 0 3px var(--apx-ring);
   background: var(--apx-surface);
 }
 .apx-field.is-invalid {
@@ -431,7 +430,6 @@
 .apx-textarea:focus {
   outline: 0;
   border-color: var(--apx-border-strong);
-  box-shadow: 0 0 0 3px var(--apx-ring);
   background: var(--apx-surface);
 }
 .apx-textarea.is-invalid {

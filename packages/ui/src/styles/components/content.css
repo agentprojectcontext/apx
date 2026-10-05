@@ -450,10 +450,6 @@
   color: var(--apx-fg);
   box-shadow: var(--apx-shadow-sm);
 }
-.apx-btabs__tab:focus-visible {
-  outline: 2px solid var(--apx-ring);
-  outline-offset: -2px;
-}
 .apx-btabs__dot {
   flex-shrink: 0;
   width: 6px;
@@ -529,10 +525,6 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-.apx-subthread__head:focus-visible {
-  outline: 2px solid var(--apx-ring);
-  outline-offset: -2px;
 }
 .apx-subthread__avatar {
   display: inline-flex;

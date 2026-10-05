@@ -45,10 +45,6 @@
   background: transparent;
   cursor: pointer;
 }
-.apx-agentnode__hit:focus-visible {
-  outline: 2px solid var(--apx-brand);
-  outline-offset: -2px;
-}
 .apx-agentnode__top,
 .apx-agentnode__role,
 .apx-agentnode__desc,

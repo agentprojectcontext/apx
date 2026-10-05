@@ -435,7 +435,6 @@
 }
 .varfield:focus {
   border-color: var(--apx-border-strong);
-  box-shadow: 0 0 0 3px var(--apx-ring);
   background: var(--apx-surface);
 }
 .varfield:empty::before {
