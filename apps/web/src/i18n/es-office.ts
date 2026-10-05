@@ -333,15 +333,15 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "error.clients": "Tokens de API: {error}",
   "clients.title": "Tokens de API",
   "clients.lead":
-    "Un token por app externa (Claude Code, Codex, un script…): con él se conecta a APX por MCP y puede hablar con tus agentes o usar el navegador de APX, según lo que marques. Entra como un modelo externo, nunca como vos, y lo que escribe les llega a tus agentes como dato de afuera.",
+    "Para conectar una app o un servicio externo a APX. Creá un token, elegí qué puede hacer y pegalo en esa app: con Chat habla con tus agentes, con Navegador usa el navegador de APX. Entra como un modelo externo, nunca como vos, y tus agentes reciben lo que escribe como dato externo.",
   "clients.name": "Nombre de la app",
-  "clients.namePlaceholder": "Ej.: Claude Code",
+  "clients.namePlaceholder": "Ej.: integración de Northwind",
   "clients.scope.chat": "Chat",
   "clients.scope.browser": "Navegador",
   "clients.create": "Crear token",
   "clients.tokenFor": "Token para {name}",
   "clients.tokenOnce":
-    "Se muestra sólo ahora. Pegalo en la configuración MCP de la app; podés revocarlo acá cuando quieras.",
+    "Se muestra una sola vez. Pegalo en la configuración de la app; lo podés revocar acá cuando quieras.",
   "clients.used": "Usado {when}",
   "clients.never": "Nunca usado",
   "clients.revoke": "Revocar",

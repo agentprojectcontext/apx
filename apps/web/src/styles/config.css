@@ -72,11 +72,14 @@
   display: flex;
   gap: 8px;
 }
+/* A sub-heading sits apart from what comes before and close to what it heads. */
 .config__sub {
-  margin: 8px 0 0;
-  padding-bottom: 4px;
+  margin: 16px 0 -10px;
   font-size: var(--apx-text-md);
   font-weight: var(--apx-weight-semibold);
+}
+.config__sub + .config__lead {
+  margin-top: -4px;
 }
 .config__inner > .apx-setting:first-of-type,
 .config__head + .apx-setting {

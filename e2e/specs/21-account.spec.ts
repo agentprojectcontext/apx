@@ -28,12 +28,12 @@ test("time zone and language are picked by searching, Advanced names each part o
   await rpc("owner.set", { language: "es", timezone: "" });
 
   await dialog.getByRole("button", { name: /^Avanzado/ }).click();
-  await expect(dialog.getByText("Conexión con las apps")).toBeVisible();
+  await expect(dialog.getByText("Nodo de navegador")).toBeVisible();
 
   await dialog.getByRole("button", { name: /^Tokens de API/ }).click();
   await dialog.getByRole("textbox", { name: "Nombre de la app" }).fill("Northwind CLI");
   await dialog.getByRole("button", { name: "Crear token" }).click();
-  await expect(dialog.getByText(/claude mcp add apx/)).toBeVisible();
+  await expect(dialog.getByText(/APX_CLIENT_TOKEN=.* apx2 mcp/)).toBeVisible();
   await expect
     .poll(async () => (await rpc<{ clients: Array<{ name: string }> }>("clients.list")).clients.map((c) => c.name))
     .toContain("Northwind CLI");
