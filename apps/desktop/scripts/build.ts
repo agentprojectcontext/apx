@@ -34,6 +34,7 @@ await build({
   format: "cjs",
 });
 // The menu-bar icon (a macOS template image: black on transparent, tinted by the system).
-for (const f of ["trayTemplate.png", "trayTemplate@2x.png", "icon.png"])
-  fs.copyFileSync(path.join(root, "assets", f), path.join(out, f));
+for (const f of fs.readdirSync(path.join(root, "assets"))) {
+  if (/\.(png|svg)$/.test(f)) fs.copyFileSync(path.join(root, "assets", f), path.join(out, f));
+}
 console.log("built apps/desktop/dist");

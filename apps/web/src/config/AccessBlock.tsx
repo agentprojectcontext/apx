@@ -1,6 +1,6 @@
 import type { AccessState, Result } from "@apx/protocol";
-import { Badge, Button, Icons, SegmentedControl, SettingRow } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
+import { Badge, Button, Icons, SegmentedControl, SettingRow, Skeleton } from "@apx/ui";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -31,16 +31,39 @@ export function AccessBlock() {
   const [state, setState] = useState<AccessState>();
   const [busy, setBusy] = useState(false);
   const [restarting, setRestarting] = useState(false);
-  const load = useCallback(async () => {
-    try {
-      setState(await client.call("access.get", {}));
-    } catch (e) {
-      notify(t("access.failed", { error: e instanceof Error ? e.message : String(e) }));
-    }
-  }, [t]);
+  const refreshNow = useRef<() => void>(() => {});
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (busy || restarting) return;
+    let active = true;
+    let pending = false;
+    let first = true;
+    const refresh = async () => {
+      if (!active || pending || document.hidden) return;
+      pending = true;
+      try {
+        const next = await client.call("access.get", {});
+        if (active) setState(next);
+      } catch (e) {
+        if (active && first) notify(t("access.failed", { error: e instanceof Error ? e.message : String(e) }));
+      } finally {
+        first = false;
+        pending = false;
+      }
+    };
+    const wake = () => void refresh();
+    refreshNow.current = wake;
+    wake();
+    const timer = setInterval(wake, 5000);
+    window.addEventListener("focus", wake);
+    document.addEventListener("visibilitychange", wake);
+    return () => {
+      active = false;
+      refreshNow.current = () => {};
+      clearInterval(timer);
+      window.removeEventListener("focus", wake);
+      document.removeEventListener("visibilitychange", wake);
+    };
+  }, [t, busy, restarting]);
 
   const choose = async (mode: Mode) => {
     setBusy(true);
@@ -58,12 +81,13 @@ export function AccessBlock() {
     }
   };
 
-  if (!state) return null;
+  if (!state) return <Skeleton width="100%" height={160} />;
   const current = MODES.find((m) => m.id === state.saved) ?? MODES[0];
   const ts = state.tailscale;
   return (
     <>
       <SubHead>{t("access.title")}</SubHead>
+      <p className="config__lead">{t("access.coreHint")}</p>
       <SettingRow title={t("access.who")} description={current ? t(current.body) : undefined}>
         <SegmentedControl
           options={MODES.map((m) => ({ value: m.id, label: t(m.label) }))}
@@ -77,9 +101,14 @@ export function AccessBlock() {
         title="Tailscale"
         description={!ts.installed ? t("access.tsMissing") : ts.connected ? (ts.url ?? "") : t("access.tsDisconnected")}
       >
-        <Badge tone={ts.connected ? "brand" : "neutral"}>
-          {t(!ts.installed ? "access.tsOff" : ts.connected ? "access.tsOn" : "access.tsDown")}
-        </Badge>
+        <div className="config__headactions access__status">
+          <Badge tone={ts.connected ? "brand" : "neutral"}>
+            {t(!ts.installed ? "access.tsOff" : ts.connected ? "access.tsOn" : "access.tsDown")}
+          </Badge>
+          <Button size="sm" variant="secondary" disabled={busy || restarting} onClick={() => refreshNow.current()}>
+            {t("access.check")}
+          </Button>
+        </div>
       </SettingRow>
       {state.urls.length > 0 && (
         <SettingRow title={t("access.reach")} description={t("access.reachBody")}>
@@ -97,7 +126,7 @@ export function AccessBlock() {
           <Icons.RefreshCw size={14} />
           <span>{t(restarting ? "access.restarting" : "access.restartNeeded")}</span>
           {!restarting && (
-            <Button size="sm" variant="secondary" onClick={() => void load()}>
+            <Button size="sm" variant="secondary" onClick={() => refreshNow.current()}>
               {t("access.check")}
             </Button>
           )}

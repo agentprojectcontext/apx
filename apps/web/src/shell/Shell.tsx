@@ -95,6 +95,16 @@ export function Shell() {
 /** ⌘K searches, ⌘, opens Config, ⌘J jumps to the super-agent's chat, ⌘[ / ⌘] go back/forward. */
 function useShortcuts() {
   useEffect(() => {
+    const resetHints = () => document.documentElement.removeAttribute("data-shortcuts-active");
+    const updateHints = (e: KeyboardEvent) => {
+      document.documentElement.toggleAttribute(
+        "data-shortcuts-active",
+        (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey,
+      );
+    };
+    const onVisibility = () => {
+      if (document.hidden) resetHints();
+    };
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       // Alt+← / Alt+→ also step places (same idea as a browser).
@@ -125,7 +135,18 @@ function useShortcuts() {
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", updateHints, true);
+    window.addEventListener("keyup", updateHints, true);
+    window.addEventListener("blur", resetHints);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", updateHints, true);
+      window.removeEventListener("keyup", updateHints, true);
+      window.removeEventListener("blur", resetHints);
+      document.removeEventListener("visibilitychange", onVisibility);
+      resetHints();
+    };
   }, []);
 }
 

@@ -1,4 +1,4 @@
-// `apx2 mcp`: stdio MCP server that exposes the core's browser.* methods as tools, so any MCP client
+// `apx mcp`: stdio MCP server that exposes the core's browser.* methods as tools, so any MCP client
 // (Claude Code, Codex, …) can drive the APX embedded browser; with a client token, also chat with APX's agents.
 // It forwards through the protocol; no logic here.
 import { type BrowserMethod, browserMethods, methodAccess } from "@apx/protocol";

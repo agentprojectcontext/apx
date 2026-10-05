@@ -592,4 +592,5 @@ export const MIGRATIONS: readonly string[] = [
   DELETE FROM threads WHERE id IN (SELECT thread_id FROM import_dups);
   DROP TABLE import_dups;
   `,
+  `ALTER TABLE projects ADD COLUMN registered INTEGER NOT NULL DEFAULT 1;`,
 ];

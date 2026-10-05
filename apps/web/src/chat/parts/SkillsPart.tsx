@@ -9,8 +9,8 @@ import { go } from "../../shell/nav.ts";
 type SkillsPart = Extract<Part, { type: "skills" }>;
 type Kind = "loaded" | "hinted" | "considered";
 
-/** Near misses worth showing: close enough to read as "it weighed this", at most a few. */
-const CONSIDERED_MIN_SIM = 0.15;
+/** Near misses worth showing: at/above the picker's raw floor (0.30), so chips are close misses, not noise. */
+const CONSIDERED_MIN_SIM = 0.3;
 const MAX_CONSIDERED = 3;
 
 const LABEL: Record<Kind, (name: string) => string> = {

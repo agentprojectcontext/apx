@@ -14,6 +14,7 @@ const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   ...opt("description", r.description),
   ...opt("kind", r.kind),
   present: Boolean(r.present),
+  ...(r.registered ? {} : { registered: false }),
   ...opt("context", r.context),
   ...opt("memory", r.memory_md),
 });
@@ -23,8 +24,10 @@ export const publicProject = ({ context: _c, memory: _m, ...p }: ProjectRecord):
 
 export function projectsRepo({ one, all, run }: Sql) {
   return {
-    list(): ProjectRecord[] {
-      return all(qb.selectFrom("projects").selectAll().orderBy("name")).map(toProject);
+    list(includeUnregistered = false): ProjectRecord[] {
+      let query = qb.selectFrom("projects").selectAll().orderBy("name");
+      if (!includeUnregistered) query = query.where("registered", "=", 1);
+      return all(query).map(toProject);
     },
     get(id: string): ProjectRecord | undefined {
       const r = one(qb.selectFrom("projects").selectAll().where("id", "=", id));
@@ -73,6 +76,7 @@ export function projectsRepo({ one, all, run }: Sql) {
             context: p.context ?? null,
             memory_md: p.memory ?? null,
             present: p.present === false ? 0 : 1,
+            registered: 1,
             created_at: now(),
           })
           .onConflict((c) =>
@@ -85,6 +89,7 @@ export function projectsRepo({ one, all, run }: Sql) {
               context: eb.ref("excluded.context"),
               memory_md: eb.ref("excluded.memory_md"),
               present: eb.ref("excluded.present"),
+              registered: 1,
             })),
           ),
       );
@@ -96,6 +101,10 @@ export function projectsRepo({ one, all, run }: Sql) {
           .set({ present: present ? 1 : 0 })
           .where("id", "=", id),
       );
+    },
+    /** Retain the indexed record for existing chats and tasks, without listing or watching it. */
+    unregister(id: string): void {
+      run(qb.updateTable("projects").set({ registered: 0 }).where("id", "=", id));
     },
   };
 }

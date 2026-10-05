@@ -181,7 +181,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "pair.title": "Vinculá este",
   "pair.titleEnd": "dispositivo.",
   "pair.body":
-    "Este APX pide vincular este navegador o computadora antes de abrirse. Pedí un código en APX › Configuración › Dispositivos en la máquina donde corre, o con apx2 pair en un servidor.",
+    "Este APX pide vincular este navegador o computadora antes de abrirse. Pedí un código en APX › Configuración › Conexiones › Dispositivos en la máquina donde corre, o con apx pair en un servidor.",
   "pair.code": "Código de vinculación",
   "pair.placeholder": "ABCD2345",
   "pair.submit": "Vincular",
@@ -230,7 +230,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "connect.urlLabel": "Dirección del APX",
   "connect.sshLabel": "Servidor (usuario@servidor)",
   "connect.urlHint":
-    "Por ejemplo la de Tailscale. Te va a pedir un código: sacalo en ese APX en Config › Dispositivos, o con apx2 pair.",
+    "Por ejemplo la de Tailscale. Te va a pedir un código: sacalo en ese APX en Config › Conexiones › Dispositivos, o con apx pair.",
   "connect.sshHint": "Usa tu ssh y tus claves. El core queda en el servidor y no abre puertos.",
   "connect.connect": "Conectar",
   "connect.error.badUrl": "Escribí una dirección válida.",

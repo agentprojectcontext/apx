@@ -1,4 +1,4 @@
-// apx2 setup --headless: bring APX up on a server with no desktop, in the order a person would do it by hand.
+// apx setup --headless: bring APX up on a server with no desktop, in the order a person would do it by hand.
 import type { ApxClient } from "@apx/protocol/client";
 import { setExposure } from "./expose.ts";
 import { localConnection, waitForCore } from "./local.ts";
@@ -19,13 +19,13 @@ export async function setupHeadless(
   client: () => ApxClient,
   o: { headless?: boolean | undefined; import?: ImportOptions | undefined; expose?: string | undefined },
 ): Promise<void> {
-  if (!o.headless) throw new Error("usage: apx2 setup --headless [--import] [--expose tailscale|lan]");
+  if (!o.headless) throw new Error("usage: apx setup --headless [--import] [--expose tailscale|lan]");
   const mode = o.expose === "tailscale" || o.expose === "lan" ? o.expose : undefined;
   if (o.expose && !mode) throw new Error("--expose takes tailscale or lan");
   const step = (n: number, text: string) => console.log(`\n[${n}] ${text}`);
   const up = async () => {
     const { url } = localConnection();
-    if (!(await waitForCore(url))) throw new Error(`the core did not answer on ${url} (see apx2 service status)`);
+    if (!(await waitForCore(url))) throw new Error(`the core did not answer on ${url} (see apx service status)`);
   };
 
   step(1, "Run the core as a service");

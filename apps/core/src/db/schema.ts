@@ -264,6 +264,7 @@ export interface ProjectsTable {
   context: string | null;
   present: Generated<number>;
   memory_md: string | null;
+  registered: Generated<number>;
 }
 
 export interface RoutineRunsTable {

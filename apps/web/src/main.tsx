@@ -8,6 +8,7 @@ import "./styles/composer.css";
 import "./styles/inbox-views.css";
 import "./styles/quick.css";
 import "./styles/nav.css";
+import "./styles/topbar.css";
 import "./styles/setup.css";
 import "./styles/project.css";
 import "./styles/team.css";

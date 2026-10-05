@@ -39,7 +39,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const scope: ScopeFilter = inDefault ? "global" : picked;
   const res = useResources(
     projectId,
-    projects.filter((p) => p.path).map((p) => p.id),
+    projects.filter((p) => p.path && p.registered !== false).map((p) => p.id),
   );
   const { skills, servers, secrets, extensions } = res.data;
   const counts: Record<ResourceTab, number | undefined> = {
@@ -122,7 +122,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
               {[
                 { id: "all", label: t("res.scope.all") },
                 { id: "global", label: t("res.scope.global") },
-                ...projects.filter((p) => p.path).map((p) => ({ id: p.id, label: p.name })),
+                ...projects.filter((p) => p.path && p.registered !== false).map((p) => ({ id: p.id, label: p.name })),
               ].map((c) => (
                 <button
                   key={c.id}

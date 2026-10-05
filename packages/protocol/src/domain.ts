@@ -9,6 +9,8 @@ export const ProjectKind = z.enum(["personal", "app", "company", "software", "ot
 export type ProjectKind = z.infer<typeof ProjectKind>;
 
 export const Project = z.object({
+  /** False only in the optional history catalog after the owner unregisters a folder. */
+  registered: z.boolean().optional(),
   id: Id,
   name: z.string(),
   description: z.string().optional(),

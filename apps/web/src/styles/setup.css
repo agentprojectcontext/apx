@@ -962,3 +962,15 @@ input.wiz__name {
     opacity: 1;
   }
 }
+
+.pair__head {
+  justify-content: center;
+}
+.pair__version {
+  flex: none;
+  padding: 16px 24px;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  text-align: center;
+}

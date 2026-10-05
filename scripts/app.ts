@@ -2,6 +2,7 @@
 // `pnpm app`: builds the panel and the desktop shell, starts the core (which serves the panel) and opens the app.
 // Ctrl+C stops both.
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { compileCacheEnv } from "./compile-cache.ts";
@@ -68,9 +69,17 @@ function devBundle(): string | undefined {
       const plist = path.join(app, "Contents", "Info.plist");
       for (const key of ["CFBundleName", "CFBundleDisplayName"])
         spawnSync("plutil", ["-replace", key, "-string", "APX", plist]);
-      const icns = makeIcns(path.join(desktop, "assets", "icon.png"), path.join(desktop, ".dev"));
-      if (icns) fs.copyFileSync(icns, path.join(app, "Contents", "Resources", "electron.icns"));
       fs.writeFileSync(stamp, version);
+    }
+    const icon = path.join(desktop, "assets", "icon.png");
+    const iconStamp = path.join(desktop, ".dev", "icon-sha256");
+    const iconHash = createHash("sha256").update(fs.readFileSync(icon)).digest("hex");
+    if (!fs.existsSync(iconStamp) || fs.readFileSync(iconStamp, "utf8") !== iconHash) {
+      const icns = makeIcns(icon, path.join(desktop, ".dev"));
+      if (icns) {
+        fs.copyFileSync(icns, path.join(app, "Contents", "Resources", "electron.icns"));
+        fs.writeFileSync(iconStamp, iconHash);
+      }
     }
     return path.join(app, "Contents", "MacOS", "Electron");
   } catch {

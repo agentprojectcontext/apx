@@ -59,7 +59,7 @@ function Tile({ i, size = 32 }: { i: Pick<Integration, "id" | "label">; size?: n
 export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: TabProps) {
   const t = useT();
   const all = useData((s) => s.projects);
-  const projects = useMemo(() => all.filter((p) => p.path), [all]);
+  const projects = useMemo(() => all.filter((p) => p.path && p.registered !== false), [all]);
   const [list, setList] = useState<Integration[]>();
   const [picked, setPicked] = useState<string>();
   /** "Edit" from the list's menu: the detail opens with its form (a new number opens it again). */

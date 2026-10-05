@@ -310,7 +310,7 @@ export const appMethods = {
     effect: true,
   },
   "projects.list": {
-    params: z.object({}).strict(),
+    params: z.object({ include_unregistered: z.boolean().default(false) }).strict(),
     result: z.object({ projects: z.array(Project) }),
     effect: false,
   },
@@ -349,6 +349,13 @@ export const appMethods = {
     params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ projects: z.number().int(), agents: z.number().int(), archived: z.number().int() }),
     effect: true,
+  },
+  /** Removes a folder from the registry; its files and existing conversations remain available. */
+  "projects.unregister": {
+    params: z.object({ project: Id }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
   },
   "threads.list": {
     params: z

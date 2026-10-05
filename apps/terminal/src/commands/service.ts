@@ -1,4 +1,4 @@
-// apx2 service: keep the core running on this machine (systemd user unit, launchd agent, or a Windows login entry).
+// apx service: keep the core running on this machine (systemd user unit, launchd agent, or a Windows login entry).
 // Local only: it never asks the core anything beyond /health.
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
@@ -20,18 +20,28 @@ import {
   windowsRunCommand,
 } from "./service-files.ts";
 
-const USAGE = `apx2 service install     Run the core in the background, started at login and again if it dies
-apx2 service uninstall
-apx2 service status
-apx2 service restart`;
+const USAGE = `apx service install     Run the core in the background, started at login and again if it dies
+apx service uninstall
+apx service status
+apx service restart`;
 
 /** The core exits with this code to be started again after an update (apps/core/src/updates.ts). */
 const RESTART_CODE = 75;
 const RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
-export function sh(cmd: string, args: string[], inherit = false): { ok: boolean; out: string } {
+export function sh(
+  cmd: string,
+  args: string[],
+  inherit = false,
+  env: NodeJS.ProcessEnv = process.env,
+): { ok: boolean; out: string } {
   try {
-    const out = execFileSync(cmd, args, { encoding: "utf8", stdio: inherit ? "inherit" : "pipe", windowsHide: true });
+    const out = execFileSync(cmd, args, {
+      encoding: "utf8",
+      stdio: inherit ? "inherit" : "pipe",
+      windowsHide: true,
+      env,
+    });
     return { ok: true, out: out ?? "" };
   } catch (err) {
     const e = err as { stdout?: string; stderr?: string; message: string };
@@ -153,7 +163,7 @@ export async function status(): Promise<void> {
 }
 
 export async function restart(): Promise<void> {
-  if (!installed()) throw new Error("the service is not installed (apx2 service install)");
+  if (!installed()) throw new Error("the service is not installed (apx service install)");
   if (process.platform === "linux") must("systemctl", ["--user", "restart", SYSTEMD_UNIT]);
   else if (process.platform === "darwin") must("launchctl", ["kickstart", "-k", `${launchdTarget()}/${LAUNCHD_LABEL}`]);
   else {
@@ -196,7 +206,7 @@ function alive(pid: number): boolean {
   }
 }
 
-/** `apx2 service run`: keeps one core alive, started again with backoff whenever it exits. */
+/** `apx service run`: keeps one core alive, started again with backoff whenever it exits. */
 async function supervise(home: string): Promise<void> {
   process.env.APX_HOME = home;
   fs.mkdirSync(path.join(home, "logs"), { recursive: true });

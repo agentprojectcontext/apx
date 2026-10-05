@@ -1,4 +1,4 @@
-// apx2 notifications: the attention tray from the terminal.
+// apx notifications: the attention tray from the terminal.
 import type { ApxClient } from "@apx/protocol/client";
 
 const KIND: Record<string, string> = {
@@ -14,7 +14,7 @@ export async function notifications(client: ApxClient, [sub]: string[]): Promise
     console.log(`${r.unread} unread`);
     return;
   }
-  if (sub) throw new Error("usage: apx2 notifications [read]");
+  if (sub) throw new Error("usage: apx notifications [read]");
   const { notifications: list, unread } = await client.call("notifications.list", {});
   for (const n of list)
     console.log(

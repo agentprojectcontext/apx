@@ -77,7 +77,9 @@ export type ProjectEntry = { id: string; name: string; path: string | undefined;
 export function projectEntries(projects: Project[]): ProjectEntry[] {
   return [
     { id: DEFAULT_PID, name: DEFAULT_PROJECT, path: undefined, isDefault: true },
-    ...projects.map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false })),
+    ...projects
+      .filter((p) => p.registered !== false)
+      .map((p) => ({ id: p.id, name: p.name, path: p.path, isDefault: false })),
   ];
 }
 

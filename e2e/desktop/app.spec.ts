@@ -15,10 +15,36 @@ let app: ElectronApplication;
 let home: string;
 
 test.beforeAll(async () => {
+  await rpc("setup.finish");
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-desktop-"));
+  // Keep the native tray reachable by the test, without adding a bridge to the product.
+  const entry = path.join(home, "tray-test.cjs");
+  fs.writeFileSync(
+    entry,
+    `
+    const { Tray } = require("electron");
+    const on = Tray.prototype.on;
+    Tray.prototype.on = function (...args) {
+      globalThis.apxTestTray = this;
+      return on.apply(this, args);
+    };
+    const setImage = Tray.prototype.setImage;
+    Tray.prototype.setImage = function (image) {
+      globalThis.apxTestTrayImage = image.toDataURL();
+      globalThis.apxTestTrayTemplate = image.isTemplateImage();
+      return setImage.call(this, image);
+    };
+    const setToolTip = Tray.prototype.setToolTip;
+    Tray.prototype.setToolTip = function (text) {
+      globalThis.apxTestTrayTooltip = text;
+      return setToolTip.call(this, text);
+    };
+    void import(${JSON.stringify(path.join(root, "apps/desktop/dist/main.js"))});
+  `,
+  );
   app = await _electron.launch({
     args: [
-      path.join(root, "apps/desktop"),
+      entry,
       // Containers run as root, where Chromium's sandbox cannot start.
       ...(process.getuid?.() === 0 ? ["--no-sandbox"] : []),
     ],
@@ -53,6 +79,32 @@ async function page(which: "main" | "quick"): Promise<Page> {
 test("the window shows the panel the core serves", async () => {
   const main = await page("main");
   await expect(main.getByRole("textbox", { name: /^Escribile a|^Message/ }).or(main.getByRole("dialog"))).toBeVisible();
+});
+
+test("the desktop header shares the native title bar and keeps its search centered", async () => {
+  const main = await page("main");
+  await expect(main.locator(".topbar.is-desktop")).toBeVisible();
+  const geometry = await main.locator(".topbar").evaluate((bar) => {
+    const rect = bar.getBoundingClientRect();
+    const search = bar.querySelector(".topbar__search")?.getBoundingClientRect();
+    return {
+      y: rect.y,
+      height: rect.height,
+      center: search ? search.x + search.width / 2 : -1,
+      width: innerWidth,
+      drag: getComputedStyle(bar).getPropertyValue("-webkit-app-region"),
+    };
+  });
+  expect(geometry.y).toBe(0);
+  expect(geometry.height).toBe(46);
+  expect(geometry.center).toBeCloseTo(geometry.width / 2, 0);
+  expect(geometry.drag).toBe("drag");
+  const bounds = await app.evaluate(({ BaseWindow, BrowserWindow }) => {
+    const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
+    return { outer: main?.getBounds(), content: main?.getContentBounds() };
+  });
+  expect(Math.abs((bounds.outer?.height ?? 0) - (bounds.content?.height ?? 0))).toBeLessThanOrEqual(2);
+  await main.screenshot({ path: test.info().outputPath("unified-header.png") });
 });
 
 test("the app lends its browser to the core, and a tab opened through the core is listed", async () => {
@@ -97,4 +149,183 @@ test("closing the window hides it: APX keeps running, and Dock/activate brings i
   expect(await mainShown()).toEqual([false]);
   await app.evaluate(({ app }) => app.emit("activate"));
   expect(await mainShown()).toEqual([true]);
+});
+
+test("tray clicks keep their display even if the pointer moves during the double-click delay", async () => {
+  await page("quick");
+  const displays = await app.evaluate(({ screen }) =>
+    screen.getAllDisplays().map((d) => ({ id: d.id, area: d.workArea })),
+  );
+  test.info().annotations.push({ type: "displays", description: String(displays.length) });
+  fs.writeFileSync(test.info().outputPath("displays.json"), JSON.stringify(displays));
+  for (const display of displays) {
+    await app.evaluate(async ({ BrowserWindow, screen }, area) => {
+      const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
+      quick?.hide();
+      const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string, ...args: unknown[]) => void } })
+        .apxTestTray;
+      const point = { x: area.x + area.width / 2, y: area.y - 10 };
+      const original = screen.getCursorScreenPoint;
+      try {
+        screen.getCursorScreenPoint = () => point;
+        // macOS may report a local point; Linux may report the origin.
+        tray.emit(
+          "click",
+          {},
+          { x: point.x - 10, y: point.y - 10, width: 20, height: 20 },
+          process.platform === "darwin" ? { x: 10, y: 10 } : process.platform === "linux" ? { x: 0, y: 0 } : point,
+        );
+        screen.getCursorScreenPoint = () => ({ x: area.x + area.width * 3, y: area.y });
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      } finally {
+        screen.getCursorScreenPoint = original;
+      }
+    }, display.area);
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow, screen }) => {
+          const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
+          if (!quick?.isVisible()) return undefined;
+          return screen.getDisplayMatching(quick.getBounds()).id;
+        }),
+      )
+      .toBe(display.id);
+  }
+});
+
+test("one tray click closes a visible quick chat even when the native click blurs it first", async () => {
+  await page("quick");
+  const visible = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().includes("quick=1") && w.isVisible()),
+    );
+  await app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()
+      .find((w) => w.webContents.getURL().includes("quick=1"))
+      ?.hide();
+    const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string) => void } }).apxTestTray;
+    tray.emit("click");
+  });
+  await expect.poll(visible).toBe(true);
+  await app.evaluate(async ({ BrowserWindow }) => {
+    const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
+    quick?.emit("blur");
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string) => void } }).apxTestTray;
+    tray.emit("click");
+  });
+  await expect.poll(visible).toBe(false);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(await visible()).toBe(false);
+  await app.evaluate(() => {
+    (globalThis as unknown as { apxTestTray: { emit: (event: string) => void } }).apxTestTray.emit("click");
+  });
+  await expect.poll(visible).toBe(true);
+});
+
+test("a held tray click closes the popup with stale bounds; clicking outside still dismisses it", async () => {
+  const result = await app.evaluate(async ({ BaseWindow, BrowserWindow, screen }) => {
+    const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
+    const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
+    const tray = (globalThis as unknown as { apxTestTray: import("electron").Tray }).apxTestTray;
+    const originalPoint = screen.getCursorScreenPoint;
+    const originalBounds = tray.getBounds;
+    const area = screen.getPrimaryDisplay().workArea;
+    const point = { x: area.x + area.width / 2, y: area.y - 10 };
+    try {
+      screen.getCursorScreenPoint = () => point;
+      tray.getBounds = () => ({ x: point.x + 1000, y: point.y, width: 22, height: 22 });
+      quick?.show();
+      quick?.focus();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (process.platform === "darwin") tray.emit("mouse-down", {});
+      main?.focus();
+      quick?.emit("blur");
+      await new Promise((resolve) => setTimeout(resolve, process.platform === "darwin" ? 450 : 30));
+      tray.emit("click", {}, { x: point.x - 10, y: point.y, width: 22, height: 22 }, point);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const closedByTray = !quick?.isVisible();
+      screen.getCursorScreenPoint = () => ({ x: area.x + 50, y: area.y + 50 });
+      quick?.show();
+      quick?.focus();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      main?.focus();
+      quick?.emit("blur");
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return { closedByTray, closedOutside: !quick?.isVisible() };
+    } finally {
+      screen.getCursorScreenPoint = originalPoint;
+      tray.getBounds = originalBounds;
+    }
+  });
+  expect(result.closedByTray).toBe(true);
+  expect(result.closedOutside).toBe(true);
+});
+
+test("notifications add and clear the tray indicator and Dock count", async () => {
+  const main = await page("main");
+  const badge = async (count: number) => {
+    await main.evaluate(
+      (count) =>
+        (window as unknown as { apxDesktop: { setAttention: (count: number) => void } }).apxDesktop.setAttention(count),
+      count,
+    );
+    return app.evaluate(({ app }) => {
+      const state = globalThis as unknown as {
+        apxTestTray: import("electron").Tray;
+        apxTestTrayImage: string;
+        apxTestTrayTemplate: boolean;
+        apxTestTrayTooltip: string;
+      };
+      return {
+        title: process.platform === "darwin" ? state.apxTestTray.getTitle() : "",
+        tooltip: state.apxTestTrayTooltip,
+        image: state.apxTestTrayImage,
+        template: state.apxTestTrayTemplate,
+        dock: app.dock?.getBadge(),
+      };
+    });
+  };
+  const empty = await badge(0);
+  expect(empty.tooltip).toBe("APX");
+  const unread = await badge(3);
+  expect(unread.tooltip).toMatch(/^APX · 3 /);
+  expect(unread.image).not.toBe(empty.image);
+  if (process.platform === "darwin") {
+    expect(unread.title).toBe("3");
+    expect(unread.template).toBe(true);
+    expect(unread.dock).toBe("3");
+    expect((await badge(120)).dock).toBe("99+");
+  }
+  expect(await badge(0)).toEqual(empty);
+});
+
+test("double-click opens the existing main window in front and cancels the quick popup", async () => {
+  const state = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
+    const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
+    const id = main?.id;
+    main?.minimize();
+    const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string, ...args: unknown[]) => void } })
+      .apxTestTray;
+    tray.emit("click", {});
+    tray.emit("double-click", {});
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return {
+      ids: BaseWindow.getAllWindows()
+        .filter((w) => !(w instanceof BrowserWindow))
+        .map((w) => w.id),
+      id,
+      visible: main?.isVisible(),
+      minimized: main?.isMinimized(),
+      focused: main?.isFocused(),
+      quickVisible: BrowserWindow.getAllWindows().some(
+        (w) => w.webContents.getURL().includes("quick=1") && w.isVisible(),
+      ),
+    };
+  });
+  expect(state.ids).toEqual([state.id]);
+  expect(state.visible).toBe(true);
+  expect(state.minimized).toBe(false);
+  expect(state.focused).toBe(true);
+  expect(state.quickVisible).toBe(false);
 });

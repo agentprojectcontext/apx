@@ -1,5 +1,5 @@
-// apx2 skills install-runtimes: copies the skills that teach other agent runtimes (Claude Code, Codex, Cursor…) how
-// to use APX into their skills folders. Local files only, like `apx2 service`: the core is not involved.
+// apx skills install-runtimes: copies the skills that teach other agent runtimes (Claude Code, Codex, Cursor…) how
+// to use APX into their skills folders. Local files only, like `apx service`: the core is not involved.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

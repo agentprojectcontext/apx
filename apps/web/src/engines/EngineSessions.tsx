@@ -204,7 +204,9 @@ function NewSession(props: { engineId: string; label: string; onClose(): void; o
   const t = useT();
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
-  const [project, setProject] = useState<string | undefined>(() => projects.find((p) => p.path)?.id);
+  const [project, setProject] = useState<string | undefined>(
+    () => projects.find((p) => p.path && p.registered !== false)?.id,
+  );
   const [busy, setBusy] = useState(false);
   const folder = projects.find((p) => p.id === project)?.path;
   const start = async () => {

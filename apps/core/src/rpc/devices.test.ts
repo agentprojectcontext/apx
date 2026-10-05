@@ -60,6 +60,33 @@ test("a phone trades the panel's one-time code for a token of its own, and acts 
   assert.deepEqual((await owner.call("devices.list", {})).devices, []);
 });
 
+test("native clients supply secure request keys for pairing over HTTP and socket calls", async () => {
+  let generated = 0;
+  const mobile = new ApxClient({ url: core.url, requestKey: () => `native-${++generated}` });
+  const { code } = await owner.call("devices.pair_start", {});
+  const { device, token } = await mobile.call("devices.pair", { code, name: "Native", platform: "android" });
+  assert.equal(generated, 1);
+  const paired = new ApxClient({ url: core.url, token, requestKey: () => `native-${++generated}` });
+  const socket = await paired.connect();
+  assert.ok((await socket.call("devices.list", {})).devices.some((d) => d.id === device.id));
+  assert.equal(generated, 2);
+  socket.close();
+  await owner.call("devices.revoke", { id: device.id });
+});
+
+test("canceling a code refuses that pairing but preserves another pending code", async () => {
+  const first = await owner.call("devices.pair_start", {});
+  const second = await owner.call("devices.pair_start", {});
+  const phone = new ApxClient({ url: core.url });
+  await assert.rejects(phone.call("devices.pair_cancel", { code: second.code }), unauthorized);
+  const socket = await owner.connect();
+  assert.deepEqual(await socket.call("devices.pair_cancel", { code: first.code }), { canceled: true });
+  socket.close();
+  await assert.rejects(phone.call("devices.pair", { code: first.code, name: "Canceled" }), unauthorized);
+  const paired = await phone.call("devices.pair", { code: second.code, name: "Kept" });
+  await owner.call("devices.revoke", { id: paired.device.id });
+});
+
 test("wrong codes void every pending one and pause pairing for a while", async () => {
   const { code } = await owner.call("devices.pair_start", {});
   const phone = new ApxClient({ url: core.url });

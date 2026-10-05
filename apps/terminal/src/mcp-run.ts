@@ -1,4 +1,4 @@
-// `apx2 mcp --run <token>`: stdio MCP server bound to one agent run. External harnesses that cannot host APX
+// `apx mcp --run <token>`: stdio MCP server bound to one agent run. External harnesses that cannot host APX
 // tools in process (Codex) launch it; every call goes back to the core and runs inside that run's context.
 import type { ApxClient } from "@apx/protocol/client";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";

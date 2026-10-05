@@ -2,6 +2,7 @@
 import type { ApxMode } from "@apx/ui";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
+import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind = "browser" | "terminal" | "files" | "changes" | "widget" | "usage" | "agent";
@@ -164,6 +165,10 @@ type Place = Pick<
   | "engineId"
   | "resourcesTab"
   | "listInFront"
+  | "panel"
+  | "panelWide"
+  | "browserTab"
+  | "panelAgent"
 >;
 
 const MAX_HISTORY = 50;
@@ -180,6 +185,10 @@ function placeOf(s: NavState): Place {
     engineId: s.engineId,
     resourcesTab: s.resourcesTab,
     listInFront: s.listInFront,
+    panel: s.panel,
+    panelWide: s.panelWide,
+    browserTab: s.browserTab,
+    panelAgent: s.panelAgent,
   };
 }
 
@@ -211,7 +220,11 @@ function syncHist(): void {
 }
 
 function rememberPlace(next: Place): void {
-  if (applyingHistory || samePlace(next, currentPlace)) return;
+  if (applyingHistory) return;
+  if (samePlace(next, currentPlace)) {
+    currentPlace = next;
+    return;
+  }
   past.push(currentPlace);
   if (past.length > MAX_HISTORY) past.shift();
   future = [];
@@ -268,10 +281,10 @@ export function useNavHistory<T>(select: (s: HistState) => T): T {
 export const go = {
   /** Previous place (inbox / project / chat…), not the browser tab history. */
   back() {
-    const prev = past.pop();
-    if (!prev) return;
+    const previous = past.pop();
+    if (!previous) return;
     future.unshift(currentPlace);
-    applyPlace(prev);
+    applyPlace(previous);
   },
   /** Place undoing the last back. */
   forward() {
@@ -285,6 +298,7 @@ export const go = {
   },
   /** Open a project. `threadId` picks the chat shown in its Chats tab. */
   project(projectId: string, tab: ProjectTab = "overview", threadId?: string) {
+    rememberSidebar("projectOrder", projectId);
     nav.set((s) => ({ view: "project", projectId, projectTab: tab, threadId: threadId ?? s.threadId }));
   },
   projectTab(tab: ProjectTab) {
@@ -320,6 +334,7 @@ export const go = {
   },
   /** An engine's sessions (Claude Code, Codex…) beside the chat; `thread` opens one. */
   engine(engineId: string, thread?: string) {
+    rememberSidebar("engineOrder", engineId);
     nav.set((s) => ({
       view: "engine",
       engineId,

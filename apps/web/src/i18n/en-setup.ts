@@ -180,7 +180,7 @@ export const enSetup = {
   "pair.title": "Pair this",
   "pair.titleEnd": "device.",
   "pair.body":
-    "This APX asks to pair this browser or computer before it opens. Get a code in APX › Settings › Devices on the machine that runs it, or with apx2 pair on a server.",
+    "This APX asks to pair this browser or computer before it opens. Get a code in APX › Settings › Connections › Devices on the machine that runs it, or with apx pair on a server.",
   "pair.code": "Pairing code",
   "pair.placeholder": "ABCD2345",
   "pair.submit": "Pair",
@@ -228,7 +228,7 @@ export const enSetup = {
   "connect.urlLabel": "APX address",
   "connect.sshLabel": "Server (user@server)",
   "connect.urlHint":
-    "Its Tailscale one, for example. It asks for a code: get it on that APX in Config › Devices, or with apx2 pair.",
+    "Its Tailscale one, for example. It asks for a code: get it on that APX in Config › Connections › Devices, or with apx pair.",
   "connect.sshHint": "Uses your ssh and your keys. The core stays on the server and no port is opened.",
   "connect.connect": "Connect",
   "connect.error.badUrl": "Type a valid address.",

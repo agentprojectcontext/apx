@@ -36,6 +36,7 @@ export function deviceHandlers(
       codes.set(code, until);
       return { code, expires_at: new Date(until).toISOString(), urls: opts.addresses() };
     },
+    "devices.pair_cancel": ({ code }) => ({ canceled: codes.delete(code.toUpperCase().replace(/[\s-]/g, "")) }),
     "devices.pair": ({ code, name, platform }) => {
       sweep();
       if (clock() < lockedUntil)

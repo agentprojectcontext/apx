@@ -16,6 +16,15 @@ export type Prefs = {
   language: Language;
   /** Sidebar: the Projects section is folded. */
   projectsFolded: boolean;
+  /** Sidebar sections retain their folding independently. */
+  channelsFolded: boolean;
+  externalSessionsFolded: boolean;
+  /** Channels in the owner's sidebar order; the first three stay visible. */
+  channelOrder: string[];
+  /** A manual reorder stays in place until newer channel activity arrives. */
+  channelOrderAt: string;
+  projectOrder: string[];
+  engineOrder: string[];
   /** How the Inbox lists chats: project → agent → chats, by time, or by project. */
   inboxView: InboxView;
   /** Columns the owner resized (px; 0 = the default) or folded away. */
@@ -35,6 +44,12 @@ const DEFAULTS: Prefs = {
   transcriptWidth: "medium",
   language: defaultLanguage(),
   projectsFolded: false,
+  channelsFolded: false,
+  externalSessionsFolded: false,
+  channelOrder: [],
+  channelOrderAt: "",
+  projectOrder: [],
+  engineOrder: [],
   inboxView: "tree",
   sidebarW: 0,
   sidebarCollapsed: false,
@@ -52,6 +67,18 @@ function load(): Prefs {
         raw.transcriptWidth === "narrow" || raw.transcriptWidth === "wide" ? raw.transcriptWidth : "medium",
       language: isLanguage(raw.language) ? raw.language : DEFAULTS.language,
       projectsFolded: raw.projectsFolded === true,
+      channelsFolded: raw.channelsFolded === true,
+      externalSessionsFolded: raw.externalSessionsFolded === true,
+      channelOrder: Array.isArray(raw.channelOrder)
+        ? [...new Set(raw.channelOrder.filter((id): id is string => typeof id === "string"))]
+        : [],
+      channelOrderAt: typeof raw.channelOrderAt === "string" ? raw.channelOrderAt : "",
+      projectOrder: Array.isArray(raw.projectOrder)
+        ? [...new Set(raw.projectOrder.filter((id): id is string => typeof id === "string"))]
+        : [],
+      engineOrder: Array.isArray(raw.engineOrder)
+        ? [...new Set(raw.engineOrder.filter((id): id is string => typeof id === "string"))]
+        : [],
       inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
@@ -75,6 +102,13 @@ export function setPrefs(patch: Partial<Prefs>): void {
 
 export function usePrefs<T>(select: (s: Prefs) => T): T {
   return useSlice(prefs, select);
+}
+
+/** Most recently opened first; old and removed ids cannot grow this device preference forever. */
+export function rememberSidebar(key: "projectOrder" | "engineOrder", id: string): void {
+  const order = prefs.get()[key];
+  if (order[0] === id) return;
+  setPrefs({ [key]: [id, ...order.filter((current) => current !== id)].slice(0, 100) });
 }
 
 /** "Alex Lee" → "AL", "You" → "YO". */

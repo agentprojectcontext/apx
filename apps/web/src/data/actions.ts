@@ -16,7 +16,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export async function bootstrap(): Promise<void> {
   const [agents, projects, threads, surfaces] = await Promise.all([
     client.call("agents.list", {}),
-    client.call("projects.list", {}),
+    client.call("projects.list", { include_unregistered: true }),
     // Archived chats too: the Inbox keeps them apart, under Archived.
     client.call("threads.list", { include_archived: true }),
     client.call("surfaces.list", {}),

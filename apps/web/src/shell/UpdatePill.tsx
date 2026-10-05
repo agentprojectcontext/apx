@@ -14,17 +14,27 @@ export function UpdatePill() {
   const [open, setOpen] = useState(false);
   if (stale)
     return (
-      <button type="button" className="updatepill" onClick={() => window.location.reload()}>
+      <button
+        type="button"
+        className="updatepill"
+        aria-label={t("update.reload")}
+        onClick={() => window.location.reload()}
+      >
         <Icons.RefreshCw size={12} />
-        {t("update.reload")}
+        <span className="updatepill__label">{t("update.reload")}</span>
       </button>
     );
   if (!status?.behind) return null;
   return (
     <>
-      <button type="button" className="updatepill" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="updatepill"
+        aria-label={t("update.pill", { n: status.behind })}
+        onClick={() => setOpen(true)}
+      >
         <Icons.ArrowDown size={12} />
-        {t("update.pill", { n: status.behind })}
+        <span className="updatepill__label">{t("update.pill", { n: status.behind })}</span>
       </button>
       {open && <UpdateDialog onClose={() => setOpen(false)} />}
     </>

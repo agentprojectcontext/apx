@@ -3,7 +3,7 @@
     "name": "APX",
     "slug": "apx",
     "scheme": "apx",
-    "version": "0.0.0",
+    "version": "2.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "../desktop/assets/icon.png",
@@ -12,7 +12,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "dev.apx.mobile"
+      "package": "dev.apx.mobile",
+      "versionCode": 2
     },
     "plugins": [
       [

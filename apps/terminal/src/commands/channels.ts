@@ -1,19 +1,19 @@
-// apx2 channels / contacts / pairing: the owner's channels, the people on them and who is waiting to be approved.
+// apx channels / contacts / pairing: the owner's channels, the people on them and who is waiting to be approved.
 import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = {
-  channels: `apx2 channels                                  List channels and their state
-apx2 channels add telegram <id> --agent <agent>  Add a Telegram bot; reads its token from APX_CHANNEL_TOKEN
-apx2 channels rm <id>                            Remove a channel (and its token)
-apx2 channels outbox                             What was sent lately and how it went`,
-  contacts: `apx2 contacts                                  People and their addresses
-apx2 contacts add <name…>                        Add a contact (link addresses with pairing)
-apx2 contacts block|unblock <id>
-apx2 contacts rm <id>`,
-  pairing: `apx2 pairing                                   Strangers waiting for approval
-apx2 pairing me <code>                           This address is mine (the owner's)
-apx2 pairing ok <code> [name…]                   Approve as a contact
-apx2 pairing no <code>`,
+  channels: `apx channels                                  List channels and their state
+apx channels add telegram <id> --agent <agent>  Add a Telegram bot; reads its token from APX_CHANNEL_TOKEN
+apx channels rm <id>                            Remove a channel (and its token)
+apx channels outbox                             What was sent lately and how it went`,
+  contacts: `apx contacts                                  People and their addresses
+apx contacts add <name…>                        Add a contact (link addresses with pairing)
+apx contacts block|unblock <id>
+apx contacts rm <id>`,
+  pairing: `apx pairing                                   Strangers waiting for approval
+apx pairing me <code>                           This address is mine (the owner's)
+apx pairing ok <code> [name…]                   Approve as a contact
+apx pairing no <code>`,
 };
 
 export async function channels(client: ApxClient, [sub, ...rest]: string[], opts: { agent?: string | undefined }) {

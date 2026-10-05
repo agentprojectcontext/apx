@@ -1,6 +1,6 @@
 # @apx/mobile
 
-APX on the phone (Expo SDK 57, iOS + Android). It pairs with the owner's core by scanning the QR in Config › Devices
+APX on the phone (Expo SDK 57, iOS + Android). It pairs with the owner's core by scanning the QR in Settings › Connections › Devices
 (or an `apx://pair?…` link, or the address and code typed by hand), keeps its own key in the system's secure storage,
 and shows the super-agent's chat (Home) live over the socket. Revoking the device in the panel sends it back to
 pairing.
@@ -16,17 +16,19 @@ npx expo start                       # Expo Go or a dev build; the core must lis
 ```
 
 It reads the protocol's client from `packages/protocol/src` (no zod reaches the phone: the core validates).
+The native adapter injects `expo-crypto` UUIDs: Hermes does not provide the browser's global Web Crypto API.
 
 While paired it also:
 - **Lends the phone to the core as a node** (`location`, `camera`): agents get `phone_location` and `phone_photo`
   only while it is connected. A picture is always taken by the owner (the app shows why it is asked); location asks
   the system's permission once.
 - **Registers for push** with its Expo push token, when the app has an EAS project id (`extra.eas.projectId` in
-  `app.json`). Without one, paste an ntfy / UnifiedPush address for the device in Config › Devices. Then pick the phone
+  `app.json`). Without one, paste an ntfy / UnifiedPush address for the device in Settings › Connections › Devices. Then pick the phone
   in Config › Interruptions › Where notices go: the same budget decides what reaches it.
 
-A core on a VPS or reached through Tailscale: start it with `APX_HOST=0.0.0.0`, an `APX_TOKEN` and
-`APX_PUBLIC_URL=https://<its name>` (that address goes first in the pairing QR).
+A core on a VPS or reached through Tailscale: choose Tailscale in Settings › Connections › Devices, or run
+`apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
+the core on loopback; `apx pair` creates the one-time code. Network settings always belong to the core's machine.
 
 - **Shows the pinned widgets and apps** (Apps button): each opens full screen in a WebView with the panel's strict CSP
   (inline code only, no network, no navigation) and the phone's light or dark colors; a widget's `sendPrompt()` after

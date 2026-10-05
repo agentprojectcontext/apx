@@ -39,11 +39,20 @@ export function findTailscale(env: NodeJS.ProcessEnv = process.env): string | un
   return undefined;
 }
 
-const runWith =
+export const tailscaleRunner =
   (bin: string): TailscaleRun =>
   (args) => {
     try {
-      return { ok: true, out: execFileSync(bin, args, { encoding: "utf8", timeout: 5000, windowsHide: true }) };
+      return {
+        ok: true,
+        out: execFileSync(bin, args, {
+          encoding: "utf8",
+          timeout: 5000,
+          windowsHide: true,
+          // The macOS app binary otherwise tries to open its GUI when started by a daemon.
+          env: { ...process.env, TAILSCALE_BE_CLI: "1" },
+        }),
+      };
     } catch (err) {
       const e = err as { stdout?: string; stderr?: string; message: string };
       return { ok: false, out: `${e.stdout ?? ""}${e.stderr ?? ""}` || e.message };
@@ -72,7 +81,7 @@ export function createAccess(deps: {
   const tailscaleRun = (): TailscaleRun | undefined => {
     if (deps.tailscale) return deps.tailscale;
     const bin = findTailscale();
-    return bin ? runWith(bin) : undefined;
+    return bin ? tailscaleRunner(bin) : undefined;
   };
   const tailscaleName = (run: TailscaleRun | undefined): string | undefined => {
     const st = run?.(["status", "--json"]);

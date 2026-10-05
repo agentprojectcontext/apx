@@ -1,4 +1,4 @@
-// apx2 pair: a one-time code (and link) another device trades for its own token.
+// apx pair: a one-time code (and link) another device trades for its own token.
 import { type ApxClient, pairingLink } from "@apx/protocol/client";
 
 export async function pair(client: ApxClient): Promise<void> {
@@ -9,7 +9,7 @@ export async function pair(client: ApxClient): Promise<void> {
   console.log(`Expires at ${expires.toLocaleTimeString()} (in about ${minutes} min)`);
   if (!r.urls.length) {
     console.log("\nThe core only listens on this computer, so no other device can reach it yet.");
-    console.log("Expose it first (apx2 expose tailscale | lan), restart it, and run apx2 pair again.");
+    console.log("Expose it first (apx expose tailscale | lan), restart it, and run apx pair again.");
     return;
   }
   console.log("\nAddresses a device may reach this core on:");

@@ -1,10 +1,10 @@
-// apx2 clients: outside apps (Claude Code, Codex…) that talk to APX with their own token.
+// apx clients: outside apps (Claude Code, Codex…) that talk to APX with their own token.
 import type { ClientScope } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
-const USAGE = `apx2 clients                              Connected apps
-apx2 clients add <name> [--scopes chat,browser]   A token for one (shown once)
-apx2 clients rm <id>`;
+const USAGE = `apx clients                              Connected apps
+apx clients add <name> [--scopes chat,browser]   A token for one (shown once)
+apx clients rm <id>`;
 
 export async function clients(client: ApxClient, [sub, arg]: string[], opts: { scopes?: string | undefined }) {
   if (sub === "add" && arg) {
@@ -14,7 +14,7 @@ export async function clients(client: ApxClient, [sub, arg]: string[], opts: { s
     console.log("\nToken (shown only now; it lets this app act as a model within its scopes, never as you):");
     console.log(r.token);
     console.log("\nFor Claude Code:");
-    console.log(`  claude mcp add apx -e APX_CLIENT_TOKEN=<token> -- apx2 mcp`);
+    console.log(`  claude mcp add apx -e APX_CLIENT_TOKEN=<token> -- apx mcp`);
     return;
   }
   if (sub === "rm" && arg) {

@@ -133,6 +133,18 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
       watch(abs);
       return r;
     },
+    /** Stop watching before changing the registry, including a queued reindex. Files remain untouched. */
+    unregister(projectId: string): void {
+      const project = store.projects.get(projectId);
+      if (!project) return;
+      if (project.path) {
+        for (const watcher of watchers.get(project.path) ?? []) watcher.close();
+        watchers.delete(project.path);
+        clearTimeout(timers.get(project.path));
+        timers.delete(project.path);
+      }
+      store.projects.unregister(projectId);
+    },
     /** Re-reads one project, or every registered one. Missing folders are marked absent, not forgotten. */
     sync(projectId?: string): { projects: number; agents: number; archived: number } {
       const out = { projects: 0, agents: 0, archived: 0 };

@@ -885,6 +885,18 @@
   color: var(--apx-danger-soft-fg);
 }
 
+.devices__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+.devices__head .config__sub {
+  margin: 0;
+}
+
 /* Local transcription: the machine, the model that fits it, installing it with its progress. */
 .localstt {
   display: flex;
@@ -942,4 +954,84 @@
 }
 .localstt__progress small {
   color: var(--apx-fg-subtle);
+}
+
+.access__status {
+  align-items: center;
+}
+.devices__pair {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+}
+.devices__pair .devices__head {
+  margin-top: 0;
+}
+
+.devices__card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+}
+.devices__identity,
+.devices__title,
+.devices__notifications {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.devices__identity {
+  justify-content: space-between;
+}
+.devices__title {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.devices__title .res__name {
+  overflow-wrap: anywhere;
+}
+.devices__identity > button {
+  flex-shrink: 0;
+}
+.devices__seen {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.devices__notifications,
+.devices__push {
+  border-top: 1px solid var(--apx-border);
+  padding-top: 12px;
+  font-size: var(--apx-text-sm);
+}
+.devices__push summary {
+  cursor: pointer;
+  color: var(--apx-fg-muted);
+}
+.devices__pushBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+.devices__pushBody .pform__hint {
+  margin: 0;
+}
+.devices__pushControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.devices__pushControls > .apx-field {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.devices__pushControls > button {
+  flex-shrink: 0;
 }

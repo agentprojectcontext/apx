@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { parseCoreEnv } from "@apx/protocol";
-import { createAccess, type TailscaleRun } from "./access.ts";
+import { createAccess, type TailscaleRun, tailscaleRunner } from "./access.ts";
 
 const fakeTailscale = (calls: string[][], connected = true): TailscaleRun => {
   return (args) => {
@@ -77,4 +77,10 @@ test("what runs now is told apart from what was saved", () => {
   assert.equal(s.access.state().mode, "lan");
   assert.equal(s.access.state().restart_needed, true, "core.env does not say lan yet");
   s.done();
+});
+
+test("the Tailscale subprocess receives CLI mode when launched outside a shell", () => {
+  const run = tailscaleRunner(process.execPath);
+  const result = run(["-e", "process.stdout.write(process.env.TAILSCALE_BE_CLI ?? 'missing')"]);
+  assert.deepEqual(result, { ok: true, out: "1" });
 });

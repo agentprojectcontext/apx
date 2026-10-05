@@ -50,12 +50,17 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     ],
   },
   {
+    label: "config.group.connections",
+    items: [
+      { id: "devices", label: "config.devices", icon: <Icons.Smartphone /> },
+      { id: "api", label: "clients.title", icon: <Icons.KeyRound /> },
+    ],
+  },
+  {
     label: "config.group.computer",
     items: [
       { id: "browser", label: "config.browser", icon: <Icons.Globe /> },
       { id: "desktop", label: "config.desktop", icon: <Icons.Monitor /> },
-      { id: "devices", label: "config.devices", icon: <Icons.Smartphone /> },
-      { id: "api", label: "clients.title", icon: <Icons.KeyRound /> },
       { id: "advanced", label: "config.advanced", icon: <Icons.Wrench /> },
     ],
   },

@@ -1,7 +1,7 @@
 // The app's few words, in the phone's language (English, Spanish).
 const en = {
   pairTitle: "Pair with your computer",
-  pairLead: "In APX on your computer, open Config › Devices › Pair a device and scan the QR.",
+  pairLead: "In APX on your computer, open Config › Connections › Devices › Pair a device and scan the QR.",
   scan: "Scan the QR",
   orType: "Or type its address and code",
   address: "Address (http://…:7440)",
@@ -29,7 +29,8 @@ const en = {
 type Key = keyof typeof en;
 const es: Record<Key, string> = {
   pairTitle: "Vinculá con tu computadora",
-  pairLead: "En APX de tu computadora, abrí Config › Dispositivos › Vincular un dispositivo y escaneá el QR.",
+  pairLead:
+    "En APX de tu computadora, abrí Config › Conexiones › Dispositivos › Vincular un dispositivo y escaneá el QR.",
   scan: "Escanear el QR",
   orType: "O escribí su dirección y el código",
   address: "Dirección (http://…:7440)",

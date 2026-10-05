@@ -26,11 +26,10 @@ export function PairScreen() {
   };
 
   return (
-    <div className="wiz" data-apx-look="minimal" data-apx-mode="dark">
-      <header className="wiz__head">
+    <div className="wiz is-pair" data-apx-look="minimal" data-apx-mode="dark">
+      <header className="wiz__head pair__head">
         <div className="wiz__brand">
           <img src={logo} alt="" width={24} height={24} />
-          <span>APX</span>
         </div>
       </header>
       <div className="wiz__scroll">
@@ -70,6 +69,7 @@ export function PairScreen() {
           </form>
         </div>
       </div>
+      <footer className="pair__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
     </div>
   );
 }

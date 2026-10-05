@@ -3,6 +3,7 @@
 import path from "node:path";
 import { app, BrowserWindow, globalShortcut, Menu, nativeImage, screen, Tray } from "electron";
 import { setLaunchAtLogin } from "./autostart.ts";
+import { quickPlacement } from "./quick-placement.ts";
 
 const WIDTH = 400;
 /** How long a click on the menu-bar icon waits to see whether it is a double click. */
@@ -28,6 +29,29 @@ export function createQuick(opts: {
   let win: BrowserWindow | undefined;
   let tray: Tray | undefined;
   let shortcut: string | undefined;
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  let dismiss: ReturnType<typeof setTimeout> | undefined;
+  let menuPoint: Electron.Point | undefined;
+  let unreadCount = 0;
+  let pressedVisible: boolean | undefined;
+
+  function trayImage(): Electron.NativeImage {
+    const name = process.platform === "darwin" ? "trayTemplate" : "tray-color";
+    const image = nativeImage.createFromPath(
+      path.join(opts.assets, `${name}${unreadCount > 0 ? "-attention" : ""}.png`),
+    );
+    if (process.platform === "darwin") image.setTemplateImage(true);
+    return process.platform === "win32" ? image.resize({ width: 16 }) : image;
+  }
+
+  function updateBadge(): void {
+    const text = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
+    tray?.setImage(trayImage());
+    if (process.platform === "darwin") tray?.setTitle(text);
+    const suffix = app.getLocale().startsWith("es") ? "avisos pendientes" : "unread notifications";
+    tray?.setToolTip(unreadCount > 0 ? `APX · ${unreadCount} ${suffix}` : "APX");
+    app.dock?.setBadge(text);
+  }
 
   function window(): BrowserWindow {
     if (win && !win.isDestroyed()) return win;
@@ -53,75 +77,132 @@ export function createQuick(opts: {
     // Without skipTransformProcessType, macOS turns the whole app into a menu-bar-only one: no Dock icon.
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     win.on("blur", () => {
-      if (!win?.webContents.isDevToolsOpened()) win?.hide();
+      // A native tray click blurs the popup before its click event reaches Electron.
+      clearTimeout(dismiss);
+      if (pressedVisible !== undefined) return;
+      if (tray && process.platform !== "linux") {
+        const point = screen.getCursorScreenPoint();
+        const bounds = tray.getBounds();
+        if (
+          bounds.width > 0 &&
+          bounds.height > 0 &&
+          point.x >= bounds.x &&
+          point.x < bounds.x + bounds.width &&
+          point.y >= bounds.y &&
+          point.y < bounds.y + bounds.height
+        )
+          return;
+      }
+      dismiss = setTimeout(() => {
+        dismiss = undefined;
+        if (!win?.isFocused() && !win?.webContents.isDevToolsOpened()) win?.hide();
+      }, DOUBLE_CLICK_MS + 50);
     });
+    win.on("focus", () => clearTimeout(dismiss));
     void win.loadURL(`${opts.url()}/?quick=1`);
     return win;
   }
 
-  /** Under the menu-bar icon when opened from it; top-center of the display with the pointer otherwise.
-   * Display comes from the cursor so multi-monitor clicks land on the monitor that was clicked — tray.getBounds()
-   * can stick to one display on some setups. */
-  function place(w: BrowserWindow, fromTray: boolean): void {
-    const cursor = screen.getCursorScreenPoint();
-    const b = fromTray ? tray?.getBounds() : undefined;
-    const display = screen.getDisplayNearestPoint(cursor);
-    const area = display.workArea;
-    const [width = WIDTH] = w.getSize();
-    let centerX = area.x + area.width / 2;
-    if (fromTray) {
-      const trayCenter =
-        b && b.width > 0 ? { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) } : undefined;
-      const trayOnThisDisplay = trayCenter != null && screen.getDisplayNearestPoint(trayCenter).id === display.id;
-      centerX = trayOnThisDisplay && trayCenter ? trayCenter.x : cursor.x;
-    }
-    const x = Math.round(centerX - width / 2);
-    w.setPosition(Math.min(Math.max(x, area.x + 8), area.x + area.width - width - 8), area.y + 6);
+  /** Capture the clicked display before the double-click delay or a context menu moves the pointer. */
+  function placement(fromTray: boolean, point = screen.getCursorScreenPoint(), bounds?: Electron.Rectangle) {
+    const display = screen.getDisplayNearestPoint(point);
+    const center =
+      bounds && bounds.width > 0 && bounds.height > 0
+        ? { x: Math.round(bounds.x + bounds.width / 2), y: Math.round(bounds.y + bounds.height / 2) }
+        : undefined;
+    const anchor = fromTray
+      ? center && screen.getDisplayNearestPoint(center).id === display.id
+        ? center
+        : point
+      : undefined;
+    return { area: display.workArea, anchor };
   }
 
-  function toggle(fromTray: boolean): void {
+  function toggle(fromTray: boolean, target = placement(fromTray)): void {
+    clearTimeout(dismiss);
     const w = window();
-    if (w.isVisible() && w.isFocused()) {
+    if (w.isVisible()) {
       w.hide();
       return;
     }
-    place(w, fromTray);
+    const [width = WIDTH, height = HEIGHT] = w.getSize();
+    w.setBounds(quickPlacement(target.area, { width, height }, target.anchor));
     w.show();
     w.focus();
   }
 
   return {
     start(): void {
-      // macOS tints a black template image; Windows and Linux trays show the colour icon as it is.
-      tray = new Tray(
-        process.platform === "darwin"
-          ? path.join(opts.assets, "trayTemplate.png")
-          : nativeImage
-              .createFromPath(path.join(opts.assets, "icon.png"))
-              .resize({ width: process.platform === "win32" ? 16 : 22 }),
-      );
-      tray.setToolTip("APX");
+      tray = new Tray(trayImage());
+      updateBadge();
+      if (process.platform === "darwin") {
+        // Mouse-down precedes mouse-up's click, even when a secondary display reports stale tray bounds.
+        tray.on("mouse-down", () => {
+          clearTimeout(dismiss);
+          pressedVisible = Boolean(win?.isVisible());
+        });
+        tray.on("mouse-leave", () => {
+          if (pressedVisible === undefined) return;
+          pressedVisible = undefined;
+          if (!win?.isFocused() && !win?.webContents.isDevToolsOpened()) win?.hide();
+        });
+      }
       // One click opens the quick chat; a double click opens APX. The click waits a moment so a double click does
       // not flash the quick chat first.
-      let pending: ReturnType<typeof setTimeout> | undefined;
-      tray.on("click", () => {
+      tray.on("click", (_event, bounds, point) => {
+        clearTimeout(dismiss);
+        const wasVisible = pressedVisible ?? win?.isVisible();
+        pressedVisible = undefined;
+        if (process.platform === "linux" && pending) {
+          clearTimeout(pending);
+          pending = undefined;
+          win?.hide();
+          opts.openMain();
+          return;
+        }
         clearTimeout(pending);
-        pending = setTimeout(() => toggle(true), DOUBLE_CLICK_MS);
+        // Cocoa reports a local point and Linux can report (0, 0); capture the screen cursor before waiting.
+        const clickPoint =
+          process.platform === "win32" ? (point ?? screen.getCursorScreenPoint()) : screen.getCursorScreenPoint();
+        const target = placement(true, clickPoint, bounds);
+        pending = setTimeout(() => {
+          pending = undefined;
+          if (wasVisible) win?.hide();
+          else toggle(true, target);
+        }, DOUBLE_CLICK_MS);
       });
       tray.on("double-click", () => {
+        pressedVisible = undefined;
+        clearTimeout(dismiss);
         clearTimeout(pending);
+        pending = undefined;
         win?.hide();
         opts.openMain();
       });
       const text = app.getLocale().startsWith("es") ? MENU.es : MENU.en;
       const menu = Menu.buildFromTemplate([
-        { label: text.open, click: () => opts.openMain() },
-        { label: text.quick, click: () => toggle(true) },
+        {
+          label: text.open,
+          click: () => {
+            win?.hide();
+            opts.openMain();
+          },
+        },
+        { label: text.quick, click: () => toggle(true, placement(true, menuPoint)) },
         { type: "separator" },
         { label: text.quit, role: "quit" },
       ]);
       // Left click keeps opening the quick chat; the menu is on the right click.
-      tray.on("right-click", () => tray?.popUpContextMenu(menu));
+      if (process.platform === "linux") tray.setContextMenu(menu);
+      else
+        tray.on("right-click", () => {
+          pressedVisible = undefined;
+          clearTimeout(dismiss);
+          clearTimeout(pending);
+          pending = undefined;
+          menuPoint = screen.getCursorScreenPoint();
+          tray?.popUpContextMenu(menu);
+        });
       // Load it once now so the first open is instant.
       window();
     },
@@ -140,15 +221,20 @@ export function createQuick(opts: {
       return error;
     },
     hide(): void {
+      clearTimeout(pending);
+      pending = undefined;
+      clearTimeout(dismiss);
+      pressedVisible = undefined;
       win?.hide();
     },
     /** Opens it (centered under the top of the screen) or hides it when it is in front. */
     toggle,
     /** How many things wait for the owner, next to the menu-bar icon and on the Dock. */
     badge(unread: number): void {
-      const text = unread > 0 ? String(Math.min(unread, 99)) : "";
-      tray?.setTitle(text);
-      app.dock?.setBadge(text);
+      const count = Number.isFinite(unread) ? Math.max(0, Math.floor(unread)) : 0;
+      if (count === unreadCount) return;
+      unreadCount = count;
+      updateBadge();
     },
     /** Its renderer process, for the memory report (none until it was first opened). */
     processId(): number | undefined {
@@ -158,6 +244,8 @@ export function createQuick(opts: {
       return Boolean(win && !win.isDestroyed() && sender === win.webContents);
     },
     stop(): void {
+      clearTimeout(pending);
+      clearTimeout(dismiss);
       globalShortcut.unregisterAll();
       tray?.destroy();
     },

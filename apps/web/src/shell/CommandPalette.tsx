@@ -131,14 +131,16 @@ export function CommandPalette() {
         icon: <Icons.MessageSquare size={15} />,
         run: close(() => go.thread(th.id)),
       }));
-    const projectItems: Item[] = projects.map((p) => ({
-      key: `p:${p.id}`,
-      group: "palette.projects",
-      title: p.name,
-      ...(p.path ? { detail: p.path } : {}),
-      icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={18} />,
-      run: close(() => go.project(p.id)),
-    }));
+    const projectItems: Item[] = projects
+      .filter((p) => p.registered !== false)
+      .map((p) => ({
+        key: `p:${p.id}`,
+        group: "palette.projects",
+        title: p.name,
+        ...(p.path ? { detail: p.path } : {}),
+        icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={18} />,
+        run: close(() => go.project(p.id)),
+      }));
     const agentItems: Item[] = Object.values(agents).map((a) => ({
       key: `a:${a.id}`,
       group: "palette.agents",
@@ -205,6 +207,7 @@ export function CommandPalette() {
       bare
       size="lg"
       className="palette"
+      closeLabel={t("common.close")}
     >
       <div className="palette__box">
         <Icons.Search size={16} />

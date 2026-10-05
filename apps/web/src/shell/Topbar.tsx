@@ -72,6 +72,12 @@ export function Topbar() {
   return (
     <header className={`topbar${desktopClass()}`}>
       <div className="topbar__left">
+        <IconButton
+          size="sm"
+          label={folded ? t("nav.expand") : t("nav.collapse")}
+          icon={folded ? <Icons.PanelLeftOpen size={15} /> : <Icons.PanelLeftClose size={15} />}
+          onClick={() => setPrefs({ sidebarCollapsed: !folded })}
+        />
         <div className="topbar__nav">
           <IconButton
             size="sm"
@@ -89,12 +95,6 @@ export function Topbar() {
           />
         </div>
         <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
-        <IconButton
-          size="sm"
-          label={folded ? t("nav.expand") : t("nav.collapse")}
-          icon={folded ? <Icons.PanelLeftOpen size={15} /> : <Icons.PanelLeftClose size={15} />}
-          onClick={() => setPrefs({ sidebarCollapsed: !folded })}
-        />
         <nav className="topbar__crumbs" aria-label={t("topbar.location")}>
           {crumbs.map((c, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs are positional
@@ -108,7 +108,7 @@ export function Topbar() {
       <button type="button" className="topbar__search" onClick={() => go.palette(true)}>
         <Icons.Search size={14} />
         <span className="topbar__search-label">{t("topbar.search")}</span>
-        <Kbd keys={["⌘", "K"]} />
+        <Kbd keys={["⌘", "K"]} data-shortcut-modifier />
       </button>
       <div className="topbar__right">
         <UpdatePill />
@@ -192,7 +192,9 @@ export function Topbar() {
               <button type="button" className="topbar__agent" aria-label={sec.name}>
                 <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
                 <span className="topbar__agentname">{sec.name}</span>
-                <span className="topbar__agentkbd">⌘J</span>
+                <span className="topbar__agentkbd" data-shortcut-modifier>
+                  ⌘J
+                </span>
               </button>
             }
           />

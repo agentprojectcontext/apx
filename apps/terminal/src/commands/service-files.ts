@@ -1,4 +1,4 @@
-// What `apx2 service install` writes: a systemd user unit, a launchd agent, or a Windows login entry. Pure text.
+// What `apx service install` writes: a systemd user unit, a launchd agent, or a Windows login entry. Pure text.
 import path from "node:path";
 
 export const SYSTEMD_UNIT = "apx.service";
@@ -95,7 +95,7 @@ export function launchdPlist(spec: ServiceSpec): string {
 }
 
 /**
- * The Windows login entry: it starts `apx2 service run`, the terminal's own supervisor, since a Run value cannot
+ * The Windows login entry: it starts `apx service run`, the terminal's own supervisor, since a Run value cannot
  * restart what dies. Electron's binary only behaves as Node with ELECTRON_RUN_AS_NODE, set through cmd.
  */
 export function windowsRunCommand(o: { node: string; terminal: string; home: string; electron: boolean }): string {

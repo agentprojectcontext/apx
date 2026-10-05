@@ -1,4 +1,4 @@
-// apx2 expose: who may reach the core (this computer, the network, or the owner's tailnet). Edits <home>/core.env.
+// apx expose: who may reach the core (this computer, the network, or the owner's tailnet). Edits <home>/core.env.
 import fs from "node:fs";
 import path from "node:path";
 import { CORE_ENV_KEYS } from "@apx/protocol";
@@ -6,10 +6,10 @@ import { describeExposure, type ExposeMode, planExposure, tailscaleDnsName } fro
 import { apxHome, coreEnvPath, corePort, readCoreEnvFile, writeCoreEnvFile } from "./local.ts";
 import { sh } from "./service.ts";
 
-const USAGE = `apx2 expose tailscale   Reach the core at https://<this machine>.ts.net from your tailnet (the core stays on loopback)
-apx2 expose lan         Listen on every network address of this machine (needs a token, created if missing)
-apx2 expose off         Back to this computer only (the token is kept)
-apx2 expose status`;
+const USAGE = `apx expose tailscale   Reach the core at https://<this machine>.ts.net from your tailnet (the core stays on loopback)
+apx expose lan         Listen on every network address of this machine (needs a token, created if missing)
+apx expose off         Back to this computer only (the token is kept)
+apx expose status`;
 
 const MAC_TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
 
@@ -33,10 +33,11 @@ export async function setExposure(mode: ExposeMode): Promise<void> {
   const current = readCoreEnvFile(home);
   const port = corePort();
   const tailscale = findTailscale();
+  const cliEnv = { ...process.env, TAILSCALE_BE_CLI: "1" };
   let tailscaleUrl: string | undefined;
   if (mode === "tailscale") {
     if (!tailscale) throw new Error("Tailscale is not installed (https://tailscale.com/download), or not on PATH");
-    const st = sh(tailscale, ["status", "--json"]);
+    const st = sh(tailscale, ["status", "--json"], false, cliEnv);
     const dns = st.ok ? tailscaleDnsName(st.out) : undefined;
     if (!dns) throw new Error("Tailscale is not connected, or MagicDNS is off: run `tailscale up` and try again");
     tailscaleUrl = `https://${dns}`;
@@ -49,23 +50,23 @@ export async function setExposure(mode: ExposeMode): Promise<void> {
   }
 
   if (mode === "tailscale" && tailscale) {
-    const r = sh(tailscale, ["serve", "--bg", "--https=443", `http://127.0.0.1:${port}`], true);
+    const r = sh(tailscale, ["serve", "--bg", "--https=443", `http://127.0.0.1:${port}`], true, cliEnv);
     if (!r.ok)
       throw new Error("`tailscale serve` failed; HTTPS may need enabling for your tailnet in Tailscale's admin");
     console.log(`APX is at ${tailscaleUrl} for every device in your tailnet`);
   } else if (mode === "off" && tailscale && current.APX_PUBLIC_URL) {
     // Only undo what `expose tailscale` set up: other serve configs on this machine are not APX's.
-    sh(tailscale, ["serve", "--https=443", "off"]);
+    sh(tailscale, ["serve", "--https=443", "off"], false, cliEnv);
   }
   console.log(describeExposure(plan.vars));
   console.log(
     [
       "",
-      "The core reads this when it starts: restart it (apx2 service restart, when installed as a service).",
+      "The core reads this when it starts: restart it (apx service restart, when installed as a service).",
       mode === "off"
         ? "Local clients keep using the token: the terminal and the desktop app read it from core.env."
         : "Local clients now need the token: the terminal and the desktop app read it from core.env on their own.",
-      mode === "off" ? "" : "Then connect a phone or another computer with: apx2 pair",
+      mode === "off" ? "" : "Then connect a phone or another computer with: apx pair",
     ]
       .filter(Boolean)
       .join("\n"),

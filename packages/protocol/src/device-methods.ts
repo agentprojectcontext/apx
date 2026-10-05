@@ -68,6 +68,13 @@ export const deviceMethods = {
     access: "human",
     replay: false,
   },
+  /** Cancels a pending code: closing the QR also makes that code unusable. */
+  "devices.pair_cancel": {
+    params: z.object({ code: z.string().trim().min(6).max(16) }).strict(),
+    result: z.object({ canceled: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /** A device trades the code for its own token (shown once). Callable without the core's token: the code is the key. */
   "devices.pair": {
     params: z

@@ -1,4 +1,4 @@
-// How `apx2 expose` changes core.env: the plan itself is shared with the core (packages/protocol exposure.ts).
+// How `apx expose` changes core.env: the plan itself is shared with the core (packages/protocol exposure.ts).
 import { isLoopback } from "@apx/protocol";
 
 export { type ExposeMode, type Exposure, newToken, planExposure, tailscaleDnsName } from "@apx/protocol";

@@ -1,6 +1,6 @@
 {
   "name": "@apx/mobile",
-  "version": "0.0.0",
+  "version": "2.0.2",
   "private": true,
   "description": "APX on the phone (Expo, iOS + Android): paired with a QR, talks to the owner's core with a key of its own.",
   "main": "index.ts",
@@ -22,7 +22,8 @@
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-webview": "13.16.1"
+    "react-native-webview": "13.16.1",
+    "expo-crypto": "~57.0.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",

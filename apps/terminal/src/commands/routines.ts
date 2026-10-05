@@ -1,15 +1,15 @@
-// apx2 routines: an agent's scheduled work from the terminal.
+// apx routines: an agent's scheduled work from the terminal.
 import { CallModel, type Routine, type Schedule } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
-const USAGE = `apx2 routines                                   Routines and when they run next
-apx2 routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
+const USAGE = `apx routines                                   Routines and when they run next
+apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
-apx2 routines run <id>                          Run now
-apx2 routines on|off <id>
-apx2 routines rm <id>
-apx2 routines log <id>                          Recent runs`;
+apx routines run <id>                          Run now
+apx routines on|off <id>
+apx routines rm <id>
+apx routines log <id>                          Recent runs`;
 
 type Opts = {
   project?: string | undefined;

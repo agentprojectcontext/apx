@@ -1,4 +1,4 @@
-// apx2 chat: the one way to talk to an agent from the terminal. Sends with threads.send and prints the answer as
+// apx chat: the one way to talk to an agent from the terminal. Sends with threads.send and prints the answer as
 // it builds (tool steps, sub-threads, widgets, notices), until this send's own run ends.
 import { CoreEvent, type Part } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
@@ -24,7 +24,7 @@ async function pickThread(client: ApxClient, o: ChatOptions): Promise<string> {
   const { agents } = await client.call("agents.list", {});
   const agent =
     agents.find((a) => a.id === o.agent) ?? agents.filter((a) => a.name.toLowerCase() === o.agent?.toLowerCase())[0];
-  if (!agent) throw new Error(`unknown agent ${o.agent} (see apx2 agents)`);
+  if (!agent) throw new Error(`unknown agent ${o.agent} (see apx agents)`);
   if (!o.new) {
     if (agent.kind === "secretary") return "home";
     const mine = latestConversation((await client.call("threads.list", {})).threads, agent.id);
@@ -54,7 +54,7 @@ async function codeThread(client: ApxClient, o: ChatOptions): Promise<string> {
   const project = projects
     .filter((p) => p.path && inside(realpathSync(p.path)))
     .sort((a, b) => (b.path?.length ?? 0) - (a.path?.length ?? 0))[0];
-  if (!project?.path) throw new Error(`${dir} is not inside a registered project (apx2 projects register <folder>)`);
+  if (!project?.path) throw new Error(`${dir} is not inside a registered project (apx projects register <folder>)`);
   const { agents } = await client.call("agents.list", {});
   const agent = o.agent
     ? agents.find((a) => a.id === o.agent || a.name.toLowerCase() === o.agent?.toLowerCase())
@@ -91,7 +91,7 @@ function line(p: Part): string | undefined {
         .join(", ")}`;
     case "input":
       return p.state === "pending"
-        ? `  ? ${p.prompt}${p.detail ? `\n    ${p.detail}` : ""}${p.options?.length ? `\n    options: ${p.options.join(" / ")}` : ""}\n    answer: apx2 runs respond ${p.input_id} ${p.kind === "confirm" ? "approve|deny" : '"<text>"'}`
+        ? `  ? ${p.prompt}${p.detail ? `\n    ${p.detail}` : ""}${p.options?.length ? `\n    options: ${p.options.join(" / ")}` : ""}\n    answer: apx runs respond ${p.input_id} ${p.kind === "confirm" ? "approve|deny" : '"<text>"'}`
         : `  ? ${p.kind === "confirm" ? "confirmation" : "question"} ${p.state}${p.answer ? `: ${p.answer}` : ""}`;
     default:
       return undefined;
@@ -99,7 +99,7 @@ function line(p: Part): string | undefined {
 }
 
 export async function chat(client: ApxClient, text: string, o: ChatOptions): Promise<void> {
-  if (!text) throw new Error('usage: apx2 chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach]');
+  if (!text) throw new Error('usage: apx chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach]');
   const thread = await pickThread(client, o);
   const socket = await client.connect();
   const printed = new Set<string>();

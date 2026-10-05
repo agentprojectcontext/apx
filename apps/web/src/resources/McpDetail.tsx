@@ -167,7 +167,7 @@ export function McpDetail({
 /** Globally: one switch per project to turn this server off (or back on) there. */
 function AvailableIn({ server, onChanged }: { server: string; onChanged(): Promise<void> | void }) {
   const t = useT();
-  const projects = useData((s) => s.projects).filter((p) => p.path);
+  const projects = useData((s) => s.projects).filter((p) => p.path && p.registered !== false);
   const [off, setOff] = useState<Record<string, boolean>>({});
   const ids = projects.map((p) => p.id).join(",");
   useEffect(() => {

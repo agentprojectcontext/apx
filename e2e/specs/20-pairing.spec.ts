@@ -51,7 +51,7 @@ base.afterAll(() => {
   if (dir) fs.rmSync(dir, { recursive: true, force: true });
 });
 
-/** The owner, with the core's token (as `apx2 pair` on the server would be). */
+/** The owner, with the core's token (as `apx pair` on the server would be). */
 async function pairCode(): Promise<string> {
   const res = await fetch(`${core}/rpc/devices.pair_start`, {
     method: "POST",
@@ -82,8 +82,18 @@ const test = base.extend({
 });
 
 test("panel pairs with a code when the core asks for a token", async ({ page }) => {
+  // Android WebViews on HTTP origins expose getRandomValues without randomUUID.
+  await page.addInitScript(() => Object.defineProperty(crypto, "randomUUID", { value: undefined }));
   await page.goto(core);
   await expect(page.getByText("Vinculá este")).toBeVisible();
+  await expect(page.getByText(/^APX v\d+\.\d+\.\d+/)).toBeVisible();
+  await expect(page.getByText(/apx pair en un servidor/)).toBeVisible();
+  const logo = await page.locator(".pair__head img").boundingBox();
+  const footer = await page.locator(".pair__version").boundingBox();
+  const viewport = page.viewportSize();
+  expect(logo && viewport && Math.abs(logo.x + logo.width / 2 - viewport.width / 2) < 2).toBeTruthy();
+  expect(footer && viewport && Math.abs(footer.y + footer.height - viewport.height) < 2).toBeTruthy();
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: "e2e/.out/pairing.png" });
   const input = page.getByRole("textbox", { name: "Código de vinculación" });
 
   await input.fill("WRONG234");

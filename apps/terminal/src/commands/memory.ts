@@ -1,4 +1,4 @@
-// apx2 memory: the notes agents keep between threads, as the owner sees and manages them.
+// apx memory: the notes agents keep between threads, as the owner sees and manages them.
 import type { Memory, MemoryScope } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
@@ -17,7 +17,7 @@ export async function memory(
       const [scopeArg, ...words] = rest;
       const scope = SCOPES.includes(scopeArg as MemoryScope) ? (scopeArg as MemoryScope) : undefined;
       const text = (scope ? words : rest).join(" ").trim();
-      if (!text) throw new Error('usage: apx2 memory add [global|project|agent] "text" [--project p] [--agent a]');
+      if (!text) throw new Error('usage: apx memory add [global|project|agent] "text" [--project p] [--agent a]');
       const resolved = scope ?? (opts.agent ? "agent" : opts.project ? "project" : "global");
       const m = await client.call("memory.add", {
         text,
@@ -37,7 +37,7 @@ export async function memory(
       return;
     }
     default: {
-      // `apx2 memory`, `apx2 memory list`, or `apx2 memory search <words>`.
+      // `apx memory`, `apx memory list`, or `apx memory search <words>`.
       const query = sub === "search" ? rest.join(" ") : sub && sub !== "list" ? [sub, ...rest].join(" ") : undefined;
       const r = await client.call("memory.list", {
         ...(query ? { query } : {}),

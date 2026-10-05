@@ -80,7 +80,9 @@ export function appHandlers(deps: {
       models.save(p);
       return { default: models.defaultChoice(), router: models.router() };
     },
-    "projects.list": () => ({ projects: store.projects.list().map(publicProject) }),
+    "projects.list": ({ include_unregistered }) => ({
+      projects: store.projects.list(include_unregistered).map(publicProject),
+    }),
     "projects.register": ({ path: dir, init }) => {
       let r: ReturnType<typeof deps.apc.register>;
       try {
@@ -109,6 +111,11 @@ export function appHandlers(deps: {
       return { project: publicProject(now) };
     },
     "projects.sync": ({ project }) => deps.apc.sync(project),
+    "projects.unregister": ({ project: id }) => {
+      if (!store.projects.get(id)) throw notFound(`project ${id}`);
+      deps.apc.unregister(id);
+      return { ok: true as const };
+    },
     "surfaces.list": ({ project_id }) => ({ surfaces: store.surfaces.list(project_id) }),
     "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);

@@ -1,4 +1,4 @@
-// apx2 threads / runs / agents / secrets: reading and steering what the core holds.
+// apx threads / runs / agents / secrets: reading and steering what the core holds.
 import type { ApxClient } from "@apx/protocol/client";
 
 export async function threads(client: ApxClient, [sub, id]: string[]): Promise<void> {
@@ -7,7 +7,7 @@ export async function threads(client: ApxClient, [sub, id]: string[]): Promise<v
     for (const t of threads) console.log(`${t.id.padEnd(22)} ${t.state.padEnd(10)} ${t.kind.padEnd(6)} ${t.title}`);
     return;
   }
-  if (!id) throw new Error(`usage: apx2 threads ${sub} <thread>`);
+  if (!id) throw new Error(`usage: apx threads ${sub} <thread>`);
   if (sub === "get") {
     const t = await client.call("threads.get", { thread: id });
     console.log(`${t.thread.title} · ${t.thread.kind} · ${t.thread.state}`);
@@ -40,7 +40,7 @@ export async function runs(client: ApxClient, [sub, id, ...rest]: string[], time
   }
   if (sub === "respond") {
     const [answer, ...note] = rest;
-    if (!id || !answer) throw new Error('usage: apx2 runs respond <input> approve|deny ["note"] | "<answer text>"');
+    if (!id || !answer) throw new Error('usage: apx runs respond <input> approve|deny ["note"] | "<answer text>"');
     const decision = answer === "approve" || answer === "deny" ? answer : undefined;
     const text = decision ? note.join(" ") || undefined : [answer, ...note].join(" ");
     const r = await client.call("runs.respond", {
@@ -51,7 +51,7 @@ export async function runs(client: ApxClient, [sub, id, ...rest]: string[], time
     console.log(`${r.id} ${r.state}`);
     return;
   }
-  if (!id || (sub !== "get" && sub !== "wait")) throw new Error("usage: apx2 runs get|wait|pending|respond …");
+  if (!id || (sub !== "get" && sub !== "wait")) throw new Error("usage: apx runs get|wait|pending|respond …");
   const r =
     sub === "get"
       ? await client.call("runs.get", { run: id })
@@ -74,7 +74,7 @@ export async function secrets(client: ApxClient, [sub, name]: string[]): Promise
     if (!secrets.length) console.log("(none)");
     return;
   }
-  if (!name) throw new Error(`usage: apx2 secrets ${sub} <name>`);
+  if (!name) throw new Error(`usage: apx secrets ${sub} <name>`);
   if (sub === "rm") {
     await client.call("secrets.set", { name, value: null });
     console.log(`removed ${name}`);
@@ -85,7 +85,7 @@ export async function secrets(client: ApxClient, [sub, name]: string[]): Promise
   let value = "";
   for await (const chunk of process.stdin) value += String(chunk);
   value = value.trim();
-  if (!value) throw new Error("pipe the value in: … | apx2 secrets set <name>");
+  if (!value) throw new Error("pipe the value in: … | apx secrets set <name>");
   await client.call("secrets.set", { name, value });
   console.log(`stored ${name}`);
 }
@@ -104,7 +104,7 @@ export async function projects(client: ApxClient, [sub, arg]: string[]): Promise
     return;
   }
   if (sub === "register") {
-    if (!arg) throw new Error("usage: apx2 projects register <folder>");
+    if (!arg) throw new Error("usage: apx projects register <folder>");
     const { resolve } = await import("node:path");
     const r = await client.call("projects.register", { path: resolve(arg) });
     console.log(`${r.project.name} (${r.project.id}): ${r.agents} agents`);
@@ -127,7 +127,7 @@ export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void
     if (finished.length) console.log(`\nfinished:\n${finished.map(row).join("\n")}`);
     return;
   }
-  if (!id) throw new Error(`usage: apx2 jobs ${sub} <job>`);
+  if (!id) throw new Error(`usage: apx jobs ${sub} <job>`);
   if (sub === "get") {
     const r = await client.call("jobs.get", { job: id });
     console.log(`${r.job.title} · ${r.job.state}${r.job.cwd ? ` · ${r.job.cwd}` : ""}`);
@@ -142,7 +142,7 @@ export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void
   throw new Error(`unknown jobs command: ${sub}`);
 }
 
-/** apx2 mcps: MCP servers agents may use (list, approve a project's, add or remove the owner's own). */
+/** apx mcps: MCP servers agents may use (list, approve a project's, add or remove the owner's own). */
 export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): Promise<void> {
   if (!sub || sub === "list") {
     const { servers } = await client.call("mcp.list", a ? { project: a } : {});
@@ -154,21 +154,21 @@ export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): P
     return;
   }
   if (sub === "trust" || sub === "untrust") {
-    if (!a || !b) throw new Error(`usage: apx2 mcps ${sub} <project> <server>`);
+    if (!a || !b) throw new Error(`usage: apx mcps ${sub} <project> <server>`);
     const r = await client.call("mcp.trust", { project: a, server: b, trusted: sub === "trust" });
     console.log(`${r.server.name}: ${r.server.status}`);
     return;
   }
   if (sub === "add") {
-    // apx2 mcps add <name> <command> [args…]   or   apx2 mcps add <name> https://…
-    if (!a || !b) throw new Error("usage: apx2 mcps add <name> <command> [args…] | <url>");
+    // apx mcps add <name> <command> [args…]   or   apx mcps add <name> https://…
+    if (!a || !b) throw new Error("usage: apx mcps add <name> <command> [args…] | <url>");
     const server = /^https?:\/\//.test(b) ? { url: b } : { command: b, args: rest };
     await client.call("mcp.set", { name: a, server });
     console.log(`added ${a}`);
     return;
   }
   if (sub === "rm") {
-    if (!a) throw new Error("usage: apx2 mcps rm <name>");
+    if (!a) throw new Error("usage: apx mcps rm <name>");
     await client.call("mcp.set", { name: a, server: null });
     console.log(`removed ${a}`);
     return;

@@ -18,3 +18,17 @@ export async function updateProject(p: Params<"projects.update">): Promise<Proje
     return undefined;
   }
 }
+
+/** Stop listing a project; its history and folder stay in place. */
+export async function unregisterProject(project: string): Promise<boolean> {
+  try {
+    await client.call("projects.unregister", { project });
+    data.set((s) => ({
+      projects: s.projects.map((item) => (item.id === project ? { ...item, registered: false } : item)),
+    }));
+    return true;
+  } catch (e) {
+    notify(t("error.change", { error: errText(e) }));
+    return false;
+  }
+}

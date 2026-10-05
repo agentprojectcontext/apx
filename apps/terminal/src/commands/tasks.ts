@@ -1,12 +1,12 @@
-// apx2 tasks: the office board from the terminal.
+// apx tasks: the office board from the terminal.
 import type { ApxClient } from "@apx/protocol/client";
 
-const USAGE = `apx2 tasks [--project p]                 Open tasks by column
-apx2 tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
-apx2 tasks commitments                    What you owe and what you are owed
-apx2 tasks move <id> <column>
-apx2 tasks done|drop|reopen <id>
-apx2 tasks say <id> <text…>               Comment; @agent asks that agent there`;
+const USAGE = `apx tasks [--project p]                 Open tasks by column
+apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+apx tasks commitments                    What you owe and what you are owed
+apx tasks move <id> <column>
+apx tasks done|drop|reopen <id>
+apx tasks say <id> <text…>               Comment; @agent asks that agent there`;
 
 export async function tasks(
   client: ApxClient,

@@ -1,4 +1,4 @@
-// apx2 models / apx2 agents model: which models each engine offers, the install default, the router, and each
+// apx models / apx agents model: which models each engine offers, the install default, the router, and each
 // agent's choice. Every value is data in the core; nothing here knows a model name.
 import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
@@ -40,7 +40,7 @@ export async function models(client: ApxClient, [sub, ...args]: string[], o: { r
     return;
   }
   if (sub === "chain") {
-    if (!args.length) throw new Error("usage: apx2 models chain <ref> [<ref>…]");
+    if (!args.length) throw new Error("usage: apx models chain <ref> [<ref>…]");
     const router: RouterConfig = { ...cfg.router, chain: args };
     const out = await client.call("models.set_config", { router });
     console.log(`router chain: ${out.router.chain.join(" → ")}`);
@@ -58,12 +58,12 @@ export async function models(client: ApxClient, [sub, ...args]: string[], o: { r
 }
 
 export async function agentModel(client: ApxClient, [agent, ref]: string[], o: { router?: boolean }) {
-  if (!agent) throw new Error("usage: apx2 agents model <agent> <ref|router|default> [--router]");
+  if (!agent) throw new Error("usage: apx agents model <agent> <ref|router|default> [--router]");
   const a = await client.call("agents.update", { agent, model_choice: parseChoice(ref, o.router ?? false) });
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }
 
-/** apx2 agents new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
+/** apx agents new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
 export async function agentEdit(
   client: ApxClient,
   [sub, ...args]: string[],
@@ -72,7 +72,7 @@ export async function agentEdit(
   if (sub === "new") {
     const [slug, ...name] = args;
     if (!slug || !name.length)
-      throw new Error('usage: apx2 agents new <slug> "<Name>" [--project <id>] [--role "<role>"]');
+      throw new Error('usage: apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]');
     const a = await client.call("agents.create", {
       slug,
       name: name.join(" "),
@@ -84,7 +84,7 @@ export async function agentEdit(
   }
   if (sub === "set") {
     const [agent, ...pairs] = args;
-    if (!agent || !pairs.length) throw new Error("usage: apx2 agents set <agent> name=… role=… slug=… parent=… blob=…");
+    if (!agent || !pairs.length) throw new Error("usage: apx agents set <agent> name=… role=… slug=… parent=… blob=…");
     const patch: Record<string, string> = {};
     for (const p of pairs) {
       const i = p.indexOf("=");
@@ -96,7 +96,7 @@ export async function agentEdit(
     return;
   }
   if (sub === "archive") {
-    if (!args[0]) throw new Error("usage: apx2 agents archive <agent>");
+    if (!args[0]) throw new Error("usage: apx agents archive <agent>");
     const r = await client.call("agents.archive", { agent: args[0] });
     console.log(r.moved_to ? `archived; file moved to ${r.moved_to}` : "archived");
     return;

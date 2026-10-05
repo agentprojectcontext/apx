@@ -48,6 +48,7 @@ app.whenReady().then(() => {
     minWidth: 980,
     minHeight: 600,
     title: "APX",
+    autoHideMenuBar: true,
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 16, y: 14 } }
       : {

@@ -1,4 +1,4 @@
-// apx2 browser …: the embedded browser, by hand. The same methods the agents use.
+// apx browser …: the embedded browser, by hand. The same methods the agents use.
 import type { ApxClient } from "@apx/protocol/client";
 
 export async function browser(
@@ -8,7 +8,7 @@ export async function browser(
 ): Promise<void> {
   const by = values.by ?? "terminal";
   const need = (v: string | undefined, what: string): string => {
-    if (!v) throw new Error(`missing ${what} (see apx2 --help)`);
+    if (!v) throw new Error(`missing ${what} (see apx --help)`);
     return v;
   };
   switch (sub) {
@@ -93,6 +93,6 @@ export async function browser(
       console.log("closed");
       return;
     default:
-      throw new Error(`unknown browser command: ${sub ?? "(none)"} (see apx2 --help)`);
+      throw new Error(`unknown browser command: ${sub ?? "(none)"} (see apx --help)`);
   }
 }

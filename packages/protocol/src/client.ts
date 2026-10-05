@@ -1,9 +1,11 @@
 // Client SDK used by terminal, web, desktop, mobile and nodes. Uses only web-standard
 // fetch/WebSocket so the same file runs in Node 24, browsers, Electron and React Native.
 // It holds no zod: the core validates params and results, so a browser never downloads the schema registry.
+
 import { PROTOCOL_VERSION } from "./constants.ts";
 import type { Actor, ApxErrorShape, ClientRole, EventFrame, ServerFrame, WelcomeFrame } from "./frames.ts";
 import type { MethodName, Params, Result } from "./methods.ts";
+import { secureRequestKey } from "./request-key.ts";
 
 export { ErrorCode, PERSON_RELATIONS, PROTOCOL_VERSION, pairingLink, UPLOAD_LIMITS } from "./constants.ts";
 
@@ -49,6 +51,8 @@ export type ClientOptions = {
   token?: string;
   client?: { name: string; version: string };
   timeoutMs?: number;
+  /** Native runtimes inject their secure UUID source instead of a browser crypto global. */
+  requestKey?: () => string;
   /** "agent" for clients driven by a model (e.g. `apx2 mcp`): they never get the human's controls. */
   actor?: Actor;
   /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
@@ -63,6 +67,7 @@ export class ApxClient {
       client: { name: "apx-client", version: "0.0.0" },
       timeoutMs: 15_000,
       actor: "human",
+      requestKey: secureRequestKey,
       ...opts,
       url: opts.url.replace(/\/$/, ""),
     };
@@ -75,7 +80,7 @@ export class ApxClient {
     if (this.#opts.actor === "agent") headers["x-apx-actor"] = "agent";
     if (this.#opts.clientToken) headers["x-apx-client"] = this.#opts.clientToken;
     // Every call carries a key: the core uses it only for methods with effects, so the client needs no registry.
-    headers["idempotency-key"] = idem ?? crypto.randomUUID();
+    headers["idempotency-key"] = idem ?? this.#opts.requestKey();
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
       method: "POST",
       headers,
@@ -93,7 +98,7 @@ export class ApxClient {
   async connect(role: ClientRole = "operator", caps: string[] = []): Promise<ApxSocket> {
     const token = this.#opts.token ? `?token=${encodeURIComponent(this.#opts.token)}` : "";
     const wsUrl = `${this.#opts.url.replace(/^http/, "ws")}/ws${token}`;
-    const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs);
+    const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs, this.#opts.requestKey);
     await socket.open({
       t: "hello",
       protocol: PROTOCOL_VERSION,
@@ -132,10 +137,12 @@ export class ApxSocket {
   welcome: WelcomeFrame | undefined;
   readonly url: string;
   readonly timeoutMs: number;
+  readonly #requestKey: () => string;
 
-  constructor(url: string, timeoutMs: number) {
+  constructor(url: string, timeoutMs: number, requestKey = secureRequestKey) {
     this.url = url;
     this.timeoutMs = timeoutMs;
+    this.#requestKey = requestKey;
   }
 
   open(hello: unknown): Promise<WelcomeFrame> {
@@ -177,6 +184,7 @@ export class ApxSocket {
     const ws = this.#ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error("socket not open");
     const id = `r${++this.#seq}`;
+    const requestKey = idem ?? this.#requestKey();
     const raw = await new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(
         () => {
@@ -186,7 +194,7 @@ export class ApxSocket {
         clientDeadline(method, params, this.timeoutMs),
       );
       this.#pending.set(id, { resolve, reject, timer });
-      ws.send(JSON.stringify({ t: "req", id, method, params, idem: idem ?? crypto.randomUUID() }));
+      ws.send(JSON.stringify({ t: "req", id, method, params, idem: requestKey }));
     });
     return raw as Result<M>;
   }
