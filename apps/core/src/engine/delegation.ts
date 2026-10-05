@@ -64,7 +64,8 @@ export function createDelegations(deps: {
 
   function answerOf(run: RunRecord): string {
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
-    const text = msg?.parts.find((p): p is Extract<Part, { type: "text" }> => p.type === "text")?.text;
+    // The last text is the answer; earlier ones are what it said before its tool calls.
+    const text = msg?.parts.findLast((p): p is Extract<Part, { type: "text" }> => p.type === "text")?.text;
     return text ?? run.error ?? `(${run.state}, no answer)`;
   }
 

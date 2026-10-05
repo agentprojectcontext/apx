@@ -153,7 +153,7 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
   const state = await done;
   const { messages } = await socket.call("threads.get", { thread });
   const answer = messages.filter((m) => m.run_id === runId).at(-1);
-  const textPart = answer?.parts.find((p) => p.type === "text");
+  const textPart = answer?.parts.findLast((p) => p.type === "text");
   if (textPart?.type === "text") console.log(`\n${textPart.text}`);
   console.log(`— ${state}${answer?.model ? ` · ${answer.model}` : ""} · thread ${thread}`);
   socket.close();

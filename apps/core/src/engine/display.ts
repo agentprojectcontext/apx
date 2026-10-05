@@ -1,4 +1,6 @@
-// The answer the owner sees for one run: a message whose parts are added and replaced as the turn goes.
+// The answer the owner sees for one run: a message whose parts are added and replaced as the turn goes, in the order
+// things happened. Text comes in segments: once a card (a tool, an approval, a widget) lands after it, what the model
+// says next starts a new text part below that card instead of rewriting the one above.
 import type { Message, Part } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 
@@ -11,11 +13,11 @@ export function openDisplay(store: Store, message: Message) {
   let lastText = 0;
   let pendingText: string | undefined;
   let textTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The text part being written; undefined until the model says something, and again once a card follows it. */
+  let segment: number | undefined;
 
-  const upsert = (match: (p: Part) => boolean, part: Part) => {
+  const setAt = (index: number, part: Part) => {
     const parts = [...current.parts];
-    const i = parts.findIndex(match);
-    const index = i >= 0 ? i : parts.length;
     parts[index] = part;
     current = { ...current, parts };
     store.messages.setPart(current, index);
@@ -23,7 +25,24 @@ export function openDisplay(store: Store, message: Message) {
   const writeText = (text: string) => {
     pendingText = undefined;
     lastText = Date.now();
-    upsert((p) => p.type === "text", { type: "text", text });
+    if (segment === undefined) {
+      if (!text) return;
+      segment = current.parts.length;
+    }
+    setAt(segment, { type: "text", text });
+  };
+  const flush = () => {
+    if (textTimer) clearTimeout(textTimer);
+    textTimer = undefined;
+    if (pendingText !== undefined) writeText(pendingText);
+  };
+  const upsert = (match: (p: Part) => boolean, part: Part) => {
+    const i = current.parts.findIndex(match);
+    if (i >= 0) return setAt(i, part);
+    // A new card closes the text above it: what streamed so far is written first, so it stays above the card.
+    flush();
+    segment = undefined;
+    setAt(current.parts.length, part);
   };
 
   return {
@@ -40,10 +59,12 @@ export function openDisplay(store: Store, message: Message) {
         if (pendingText !== undefined) writeText(pendingText);
       }, TEXT_THROTTLE_MS);
     },
-    /** Final text: replaces whatever streamed. */
+    /** Final text: replaces what the last segment streamed (or adds it, when no segment says it already). */
     finalText(text: string) {
       if (textTimer) clearTimeout(textTimer);
       textTimer = undefined;
+      pendingText = undefined;
+      if (segment === undefined && current.parts.some((p) => p.type === "text" && p.text === text)) return;
       writeText(text);
     },
     notice(
@@ -58,10 +79,6 @@ export function openDisplay(store: Store, message: Message) {
       if (current.model === model) return;
       current = store.messages.update({ ...current, model });
     },
-    close() {
-      if (textTimer) clearTimeout(textTimer);
-      textTimer = undefined;
-      if (pendingText !== undefined) writeText(pendingText);
-    },
+    close: flush,
   };
 }

@@ -21,8 +21,8 @@ type ToolPart = Extract<Part, { type: "tool" }>;
 type SkillsPick = Extract<Part, { type: "skills" }>;
 
 /**
- * One agent message, in the design's order: the skills picked for it, tool calls folded into one group, sub-agent cards, the text,
- * then the rest of the cards (browser, widgets, images). The meta line closes the turn.
+ * One agent message: the skills picked for it and its tool calls folded into one group on top, then everything else
+ * in the order it happened (what it said, sub-agent cards, widgets, approvals, its answer). The meta line closes it.
  */
 export function AgentTurn({
   message,
@@ -41,18 +41,13 @@ export function AgentTurn({
   const t = useT();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
-  const subs = message.parts.filter((p) => p.type === "subthread");
-  const texts = message.parts.filter((p) => p.type === "text" && p.text.trim());
-  const rest = message.parts.filter(
-    (p) => p.type !== "text" && p.type !== "tool" && p.type !== "subthread" && p.type !== "skills",
-  );
   const skills = message.parts.find((p): p is SkillsPick => p.type === "skills");
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
-  const blocks: { key: string; part: Part }[] = [
-    ...subs.map((p, i) => ({ key: cardKey(p, i), part: p })),
-    ...texts.map((p, i) => ({ key: `x:${i}`, part: p })),
-    ...rest.map((p, i) => ({ key: cardKey(p, i), part: p })),
-  ];
+  const blocks: { key: string; part: Part }[] = message.parts.flatMap((p, i) =>
+    p.type === "tool" || p.type === "skills" || (p.type === "text" && !p.text.trim())
+      ? []
+      : [{ key: p.type === "text" ? `x:${i}` : cardKey(p, i), part: p }],
+  );
   const avatar = !showAvatar ? undefined : engine ? (
     <EngineIcon engine={engine.id} size={24} />
   ) : agent ? (

@@ -18,6 +18,11 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (said.includes("research") && !afterTool)
     return callTool("c2", "delegate", { agent: "scout", task: "find A2A info" });
   if (said.includes("slow")) await new Promise((r) => setTimeout(r, 400));
+  if (said.includes("in order") && !afterTool) {
+    const call = callTool("c9", "show_widget", { name: "order", title: "Order", html: "<b>1</b>" });
+    return { message: { ...call.message, content: "On it." } };
+  }
+  if (said.includes("in order")) return say("Here it is.");
   if (said.includes("first choice down"))
     return { ...say("Answered by the backup."), failed: [{ model: "fake/first", why: "HTTP 429: quota" }] };
   if (said.includes("think hard")) return { ...say("Thought it through."), effort: "high" };
@@ -72,6 +77,17 @@ test("the answer names the reasoning effort it ran with; the run keeps the bare 
   assert.equal(done.model, "fake/fake-1");
   const { messages } = await env.settle(t.id);
   assert.equal(messages.at(-1)?.model, "fake/fake-1#high");
+});
+
+test("an answer keeps the order things happened: what it said, the tool, its widget, then the answer below them", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "order" });
+  await env.client.call("threads.send", { thread: t.id, text: "in order" });
+  const { messages } = await env.settle(t.id);
+  const parts = (messages.at(-1)?.parts ?? []).filter((p) => p.type !== "skills");
+  assert.deepEqual(
+    parts.map((p) => (p.type === "text" ? `text:${p.text}` : p.type)),
+    ["text:On it.", "tool", "surface", "text:Here it is."],
+  );
 });
 
 test("when the chosen model fails and another answers, the answer carries a notice saying which and why", async () => {

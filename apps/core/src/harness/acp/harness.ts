@@ -42,6 +42,8 @@ export function acpHarness(opts: {
       const wanted = modelPart(io.models[0]);
       const gate = opts.gate(io);
       let text = "";
+      // What it says since its last tool call: the display starts a new text part after each card.
+      let said = "";
       // A loaded session replays its history as updates: only what comes after our prompt is this turn.
       let prompting = false;
       const titles = new Map<string, { title: string; kind: string }>();
@@ -65,9 +67,11 @@ export function acpHarness(opts: {
             const c = u.content as { type?: string; text?: string } | undefined;
             if (c?.type === "text" && c.text) {
               text += c.text;
-              io.onText(text);
+              said += c.text;
+              io.onText(said);
             }
           } else if (kind === "tool_call" || kind === "tool_call_update") {
+            if (kind === "tool_call") said = "";
             const t = u as ToolUpdate;
             if (!t.toolCallId) return;
             const known = titles.get(t.toolCallId);
@@ -128,7 +132,8 @@ export function acpHarness(opts: {
           io.signal.throwIfAborted();
           if (r.stopReason === "refusal") throw new Error(`${agent.label} refused to answer`);
           return {
-            text,
+            // The answer is what it said last; the earlier segments are already above their tool cards.
+            text: said || text,
             model: `${engine}/${model ?? "default"}`,
             sessionId: session.sessionId,
             ...(r.stopReason === "max_tokens" ? { finish: "length" as const } : {}),
