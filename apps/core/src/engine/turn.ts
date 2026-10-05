@@ -531,21 +531,14 @@ async function runEngines(
         { thread: t.thread.id, harness: g.harness, err: reason },
         "engine unavailable, trying the next one",
       );
-      t.display.notice(
-        "warn",
-        "engine.fallback",
-        // APX's own loop walks its whole chain itself: the reason names the model that failed, the group does not.
-        fallbackNotice(
-          store,
-          g.harness === "native"
-            ? undefined
-            : g.harness === "acp"
-              ? engineOf(g.refs[0] ?? "")
-              : HARNESS_LABEL[g.harness],
-          reason ?? "",
-          next.refs[0] ?? "",
-        ),
+      // APX's own loop walks its whole chain itself: the reason names the model that failed, the group does not.
+      const said = fallbackNotice(
+        store,
+        g.harness === "native" ? undefined : g.harness === "acp" ? engineOf(g.refs[0] ?? "") : HARNESS_LABEL[g.harness],
+        reason ?? "",
+        next.refs[0] ?? "",
       );
+      t.display.notice("warn", "engine.fallback", said.text, { vars: said.vars, detail: said.detail });
     }
   }
   throw new Error("no engine answered");
