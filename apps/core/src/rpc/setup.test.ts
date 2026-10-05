@@ -256,6 +256,7 @@ test("the setup finds v1 and counts what it has, reading only real projects", as
     projects: 1,
     skills: 1,
     keys: 0,
+    mcps: 0,
     vars: 1,
     memory: 3,
     embeddings: 2,

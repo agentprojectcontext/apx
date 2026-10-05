@@ -47,6 +47,8 @@ export const enSetup = {
     "Your model providers with their keys (stored securely), Ollama, ChatGPT and Claude, and your model chain",
   "setup.v1.vars": "Variables",
   "setup.v1.varsBody": "Tokens and keys your MCP servers use, stored securely",
+  "setup.v1.mcps": "MCP servers",
+  "setup.v1.mcpsBody": "Yours and each project's (those stay in their project); their keys move to your variables",
   "setup.v1.memory": "Memory",
   "setup.v1.memoryBody": "Your notes and each project's, one note per line",
   "setup.channels.waScan": "Link with QR",

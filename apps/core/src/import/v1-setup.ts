@@ -10,6 +10,7 @@ import { saveOwnerIdentity } from "../domain/owner.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
 import { dueOf } from "../domain/tasks.ts";
+import { mcpConfig } from "../mcp/config.ts";
 import type { ProviderRegistry } from "../providers/registry.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
@@ -34,6 +35,7 @@ import {
   v1WhatsApp,
 } from "./v1-data.ts";
 import { importV1Engines, v1EngineCount } from "./v1-engines.ts";
+import { v1McpFile, v1Mcps, v2Server } from "./v1-mcps.ts";
 import { importV1Media, v1MediaCount } from "./v1-services.ts";
 
 export const V1_GROUPS = [
@@ -41,6 +43,7 @@ export const V1_GROUPS = [
   "skills",
   "keys",
   "vars",
+  "mcps",
   "memory",
   "embeddings",
   "services",
@@ -116,6 +119,7 @@ export function scanV1(home: string): Array<{ id: V1Group; count: number; detail
       id: "vars",
       count: v1Vars(home).length + all.reduce((n, s) => n + v1ProjectVars(s.storage).length, 0),
     },
+    { id: "mcps", count: [home, ...all.map((s) => s.storage)].reduce((n, d) => n + v1Mcps(v1McpFile(d)).length, 0) },
     { id: "memory", count: memory },
     {
       id: "identity",
@@ -217,6 +221,32 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
       const project = s.path ? projectOf(s) : undefined;
       if (s.path && !project) continue;
       for (const v of v1ProjectVars(s.storage)) put(project ? projectSecretName(project, v.name) : v.name, v.value);
+    }
+    return n;
+  });
+  // v1's servers as the owner's own; a project's runs only there, with its credentials among that project's values.
+  // A name v2 already has is the owner's current server.
+  run("mcps", () => {
+    const config = mcpConfig(store);
+    const have = new Set(config.global().map((d) => d.name));
+    let n = 0;
+    const add = (file: string, project?: string) => {
+      for (const m of v1Mcps(file)) {
+        if (have.has(m.name)) continue;
+        const keep = (name: string, value: string) => {
+          const key = project ? projectSecretName(project, name) : name;
+          if (!deps.secrets.listed(key)) deps.secrets.set(key, value);
+        };
+        config.setGlobal(m.name, v2Server(m, keep, project));
+        have.add(m.name);
+        n++;
+      }
+    };
+    add(v1McpFile(home));
+    for (const s of spaces(home)) {
+      const project = s.path ? projectOf(s) : undefined;
+      if (s.path && !project) continue;
+      add(v1McpFile(s.storage), project);
     }
     return n;
   });

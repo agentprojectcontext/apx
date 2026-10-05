@@ -48,6 +48,9 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
     "Tus proveedores de modelos con sus claves (guardadas de forma segura), Ollama, ChatGPT y Claude, y tu cadena de modelos",
   "setup.v1.vars": "Variables",
   "setup.v1.varsBody": "Los tokens y claves que usan tus MCP, guardados de forma segura",
+  "setup.v1.mcps": "Servidores MCP",
+  "setup.v1.mcpsBody":
+    "Los de tu APX y los de cada proyecto (estos quedan solo en su proyecto); las claves pasan a tus variables",
   "setup.v1.memory": "Memoria",
   "setup.v1.memoryBody": "Tus notas y las de cada proyecto, una nota por línea",
   "setup.channels.waScan": "Vincular con QR",

@@ -98,6 +98,7 @@ export const GROUP: Record<V1Group, { label: MessageKey; body: MessageKey; icon:
   skills: { label: "setup.v1.skills", body: "setup.v1.skillsBody", icon: Icons.Sparkles },
   keys: { label: "setup.v1.keys", body: "setup.v1.keysBody", icon: Icons.KeyRound },
   vars: { label: "setup.v1.vars", body: "setup.v1.varsBody", icon: Icons.Lock },
+  mcps: { label: "setup.v1.mcps", body: "setup.v1.mcpsBody", icon: Icons.Plug },
   memory: { label: "setup.v1.memory", body: "setup.v1.memoryBody", icon: Icons.Brain },
   chats: { label: "setup.v1.chats", body: "setup.v1.chatsBody", icon: Icons.MessageCircle },
   identity: { label: "setup.v1.identity", body: "setup.v1.identityBody", icon: Icons.User },

@@ -45,6 +45,7 @@ export type McpStatus = {
   name: string;
   scope: "global" | "project";
   project_id?: string;
+  only: boolean;
   transport: "stdio" | "http";
   target: string;
   enabled: boolean;
@@ -111,7 +112,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     const client = new Client({ name: "apx", version: "2" });
     const transport = d.url
       ? new StreamableHTTPClientTransport(new URL(d.url), {
-          requestInit: { headers: resolve(d.headers, d.project_id) },
+          requestInit: { headers: resolve(d.headers, d.values_of) },
         })
       : new StdioClientTransport({
           command: d.command ?? "",
@@ -236,7 +237,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     return [
       ...config
         .global()
-        .filter((d) => !off.has(d.name))
+        .filter((d) => !off.has(d.name) && (!d.only || d.only === projectId))
         .map((d) => inProject(d, projectId)),
       ...(projectId ? config.project(projectId) : []),
     ];
@@ -268,7 +269,10 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
       const defs = [
-        ...config.global().map((d) => inProject(d, projectId)),
+        ...config
+          .global()
+          .filter((d) => !projectId || !d.only || d.only === projectId)
+          .map((d) => inProject(d, projectId ?? d.only)),
         ...projects.flatMap((p) => config.project(p)),
       ];
       const offHere = new Set(projectId ? config.offIn(projectId) : []);
@@ -279,7 +283,8 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         return {
           name: d.name,
           scope: d.scope,
-          ...(d.project_id ? { project_id: d.project_id } : {}),
+          ...(d.project_id || d.only ? { project_id: d.project_id ?? d.only } : {}),
+          only: Boolean(d.only),
           transport: d.url ? "http" : "stdio",
           target: d.url ?? [d.command, ...d.args].join(" "),
           enabled: d.enabled,
@@ -289,7 +294,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
           tool_names: live?.tools.map((t) => t.name) ?? [],
           vars: secretNames(d).map((name) => ({
             name,
-            set: deps.secrets.resolveIn(`secret://${name}`, projectId) !== undefined,
+            set: deps.secrets.resolveIn(`secret://${name}`, projectId ?? d.only) !== undefined,
           })),
           off_here: d.scope === "global" && offHere.has(d.name),
           ...(d.own || d.scope === "project"

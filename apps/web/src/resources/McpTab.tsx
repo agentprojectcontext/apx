@@ -12,6 +12,8 @@ import type { TabProps } from "./ResourcesView.tsx";
 import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 
 const keyOf = (s: McpServerStatus) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
+/** Every project gets it (an owner's server limited to one project belongs to that project). */
+const isGlobal = (s: McpServerStatus) => s.scope === "global" && !s.only;
 
 /** MCP servers: inside a project its own and the inherited global ones (each can be turned off here). */
 export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabProps) {
@@ -26,18 +28,18 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
     (s) =>
       (!query || `${s.name} ${s.target} ${s.tool_names.join(" ")}`.toLowerCase().includes(query)) &&
       (projectId ? s.scope === "global" || s.project_id === projectId : true) &&
-      (projectId || scope === "all" || (scope === "global" ? s.scope === "global" : s.project_id === scope)),
+      (projectId || scope === "all" || (scope === "global" ? isGlobal(s) : s.project_id === scope)),
   );
   const groups = projectId
     ? [
         {
           title: t("res.group.own", { name: projectName(projects, projectId) }),
-          items: shown.filter((s) => s.scope === "project"),
+          items: shown.filter((s) => !isGlobal(s)),
         },
-        { title: t("res.group.inherited"), items: shown.filter((s) => s.scope === "global") },
+        { title: t("res.group.inherited"), items: shown.filter(isGlobal) },
       ]
     : [
-        { title: t("res.scope.global"), items: shown.filter((s) => s.scope === "global") },
+        { title: t("res.scope.global"), items: shown.filter(isGlobal) },
         ...projects
           .filter((p) => shown.some((s) => s.project_id === p.id))
           .map((p) => ({ title: p.name, items: shown.filter((s) => s.project_id === p.id) })),
@@ -47,7 +49,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
   const changed = () => res.loadServers();
   /** What a right-click on a server offers: the same actions as its detail, without opening it first. */
   const actions = (s: McpServerStatus): MenuEntry[] => {
-    const inherited = Boolean(projectId) && s.scope === "global";
+    const inherited = Boolean(projectId) && isGlobal(s);
     return [
       { label: t("res.open"), icon: <Icons.PanelRight size={14} />, onSelect: () => setPicked(keyOf(s)) },
       ...(s.definition
@@ -80,7 +82,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
             },
           ]
         : []),
-      ...(s.definition && (s.scope === "project" || !projectId)
+      ...(s.definition && (!isGlobal(s) || !projectId)
         ? [
             { type: "separator" as const },
             { label: t("res.remove"), icon: <Icons.Trash2 size={14} />, danger: true, onSelect: () => setRemoving(s) },

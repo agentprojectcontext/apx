@@ -22,6 +22,8 @@ export type McpDef = {
   enabled: boolean;
   /** Folder a stdio server starts in (the project's). */
   cwd?: string | undefined;
+  /** An owner's server that runs only in this project (v1's per-project servers come in like this). */
+  only?: string | undefined;
   /** One the owner added in APX (not a project's file nor an extension's): the owner can edit it. */
   own?: boolean | undefined;
   /** Stable fingerprint of what would run: an approval is for this exact definition. */
@@ -37,6 +39,7 @@ type Raw = {
   headers?: unknown;
   enabled?: unknown;
   disabled?: unknown;
+  project?: unknown;
 };
 
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/;
@@ -122,7 +125,8 @@ export function mcpConfig(store: Store) {
       return [
         ...Object.entries(parse(store.settings.get("mcp_servers"))).flatMap(([n, r]) => {
           const d = toDef(n, r, { scope: "global" });
-          return d ? [{ ...d, own: true }] : [];
+          const only = typeof r.project === "string" && r.project ? r.project : undefined;
+          return d ? [{ ...d, own: true, ...(only ? { only } : {}) }] : [];
         }),
         ...extensionDefs(store),
       ];
@@ -193,8 +197,20 @@ export function mcpConfig(store: Store) {
     /** Adds, replaces or (null) removes one of the owner's global servers. */
     setGlobal(name: string, server: Record<string, unknown> | null): void {
       const all = parse(store.settings.get("mcp_servers"));
-      if (server) all[name] = server as Raw;
-      else delete all[name];
+      // As in a project's file: what the dialog does not edit (the project it is limited to) stays.
+      if (server) {
+        const {
+          command: _c,
+          args: _a,
+          env: _e,
+          url: _u,
+          headers: _h,
+          type: _t,
+          enabled: _o,
+          ...rest
+        } = all[name] ?? {};
+        all[name] = { ...rest, ...server } as Raw;
+      } else delete all[name];
       store.settings.set("mcp_servers", JSON.stringify({ mcpServers: all }));
     },
   };

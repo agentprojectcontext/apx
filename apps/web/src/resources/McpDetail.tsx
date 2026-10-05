@@ -34,7 +34,9 @@ export function McpDetail({
   const projects = useData((st) => st.projects);
   const [test, setTest] = useState<TestResult>();
   const [testing, setTesting] = useState(false);
-  const inherited = Boolean(projectId) && s.scope === "global";
+  /** Every project gets it; one limited to a project (`only`) belongs to it. */
+  const shared = s.scope === "global" && !s.only;
+  const inherited = Boolean(projectId) && shared;
   const tools = test?.tools.length ? test.tools : s.tool_names;
   const run = async () => {
     setTesting(true);
@@ -52,7 +54,7 @@ export function McpDetail({
     <article className="resd">
       <header className="resd__head">
         <h2 className="resd__name">{s.name}</h2>
-        <Badge>{s.scope === "project" ? t("res.scope.project") : t("res.scope.global")}</Badge>
+        <Badge>{shared ? t("res.scope.global") : t("res.scope.project")}</Badge>
         {inherited && <Badge>{t("res.inherited")}</Badge>}
         <span className="resd__spacer" />
         {inherited && projectId && (
@@ -150,14 +152,14 @@ export function McpDetail({
             {t("res.edit")}
           </Button>
         )}
-        {s.definition && (s.scope === "project" || !projectId) && (
+        {s.definition && (!shared || !projectId) && (
           <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={onRemove}>
             {t("res.remove")}
           </Button>
         )}
       </div>
 
-      {!projectId && s.scope === "global" && <AvailableIn server={s.name} onChanged={onChanged} />}
+      {!projectId && shared && <AvailableIn server={s.name} onChanged={onChanged} />}
     </article>
   );
 }

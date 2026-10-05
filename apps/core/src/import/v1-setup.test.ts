@@ -295,3 +295,65 @@ test("a v1 project's own variables land in that project's scope; Default's and t
   // Importing again keeps what is there.
   assert.equal((await env.client.call("setup.import_v1", { groups: ["vars"] })).imported.vars, 0);
 });
+
+test("v1's MCP servers become the owner's; a project's runs only there, and no credential stays in plain text", async () => {
+  const v1 = path.join(env.home, "v1");
+  const dir = path.join(env.home, "work", "northwind");
+  write(path.join(dir, ".apc", "project.json"), { apx_id: "0b0b0b0b0b0b", name: "Northwind" });
+  write(path.join(dir, "AGENTS.md"), "# Northwind\n");
+  const other = path.join(env.home, "work", "acme");
+  write(path.join(other, "AGENTS.md"), "# Acme\n");
+  const config = JSON.parse(fs.readFileSync(path.join(v1, "config.json"), "utf8")) as Record<string, unknown>;
+  write(path.join(v1, "config.json"), { ...config, projects: [{ path: dir }] });
+  write(path.join(v1, "mcps.json"), {
+    mcpServers: {
+      prices: { command: "npx", args: ["-y", "prices-mcp"], env: { PRICES_API_KEY: "plain-0004" }, enabled: true },
+      paused: { command: "npx", args: ["paused-mcp"], enabled: false },
+    },
+  });
+  write(path.join(v1, "projects", "0b0b0b0b0b0b", "mcps.json"), {
+    mcpServers: {
+      "nw-dns": {
+        command: "npx",
+        args: ["dns-mcp"],
+        // v1's own reference syntax, `${var.NAME}` (not a JS template).
+        env: { DNS_TOKEN: ["$", "{var.NW_DNS_TOKEN}"].join(""), DNS_URL: "https://dns.example.com" },
+      },
+      "nw-pay": { url: "https://pay.example.com/mcp", headers: { Authorization: "Bearer plain-0005" } },
+    },
+  });
+
+  const { groups } = await env.client.call("setup.v1_scan", {});
+  assert.equal(groups.find((g) => g.id === "mcps")?.count, 4);
+  const r = await env.client.call("setup.import_v1", { groups: ["projects", "mcps"] });
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.imported.mcps, 4);
+  const project = env.core.store.projects.byPath(dir)?.id ?? "";
+  const acme = (await env.client.call("projects.register", { path: other })).project.id;
+
+  const everywhere = (await env.client.call("mcp.list", {})).servers;
+  const prices = everywhere.find((s) => s.name === "prices");
+  assert.equal(prices?.only, false);
+  assert.deepEqual(prices?.definition?.env, { PRICES_API_KEY: "secret://PRICES_PRICES_API_KEY" });
+  assert.equal(env.core.secrets.resolveIn("secret://PRICES_PRICES_API_KEY", undefined), "plain-0004");
+  assert.equal(everywhere.find((s) => s.name === "paused")?.enabled, false);
+  const dns = everywhere.find((s) => s.name === "nw-dns");
+  assert.deepEqual([dns?.only, dns?.project_id], [true, project]);
+  assert.deepEqual(dns?.definition?.env, { DNS_TOKEN: "secret://NW_DNS_TOKEN", DNS_URL: "https://dns.example.com" });
+  assert.deepEqual(everywhere.find((s) => s.name === "nw-pay")?.definition?.headers, {
+    Authorization: "Bearer secret://NW_PAY_AUTHORIZATION",
+  });
+  assert.equal(env.core.secrets.resolveIn("secret://NW_PAY_AUTHORIZATION", project), "plain-0005");
+  assert.equal(env.core.secrets.resolveIn("secret://NW_PAY_AUTHORIZATION", undefined), undefined);
+
+  const names = async (p: string) => (await env.client.call("mcp.list", { project: p })).servers.map((s) => s.name);
+  assert.ok((await names(project)).includes("nw-dns"));
+  assert.ok((await names(project)).includes("prices"));
+  assert.ok(!(await names(acme)).includes("nw-dns"));
+  assert.ok((await names(acme)).includes("prices"));
+
+  // Editing one keeps it in its project; importing again adds nothing.
+  await env.client.call("mcp.set", { name: "nw-dns", server: { command: "npx", args: ["dns-mcp", "--v2"] } });
+  assert.ok(!(await names(acme)).includes("nw-dns"));
+  assert.equal((await env.client.call("setup.import_v1", { groups: ["mcps"] })).imported.mcps, 0);
+});

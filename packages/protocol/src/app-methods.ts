@@ -50,6 +50,7 @@ const V1Group = z.enum([
   "skills",
   "keys",
   "vars",
+  "mcps",
   "memory",
   "embeddings",
   "services",

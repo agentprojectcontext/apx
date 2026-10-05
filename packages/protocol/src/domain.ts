@@ -762,6 +762,8 @@ export const McpServerStatus = z.object({
   tool_names: z.array(z.string()).default([]),
   /** Stored secrets its definition names (`secret://NAME`), and whether each has a value. */
   vars: z.array(z.object({ name: z.string(), set: z.boolean() })).default([]),
+  /** One of the owner's servers that runs only in its project (`project_id`), like v1's per-project servers. */
+  only: z.boolean().default(false),
   /** A global server turned off inside the project asked about. */
   off_here: z.boolean().default(false),
   /**
