@@ -109,6 +109,35 @@ test("a project's own value reaches the owner's server only in that project's ch
   await env.client.call("secrets.set", { name: "notes", value: null, project });
 });
 
+test("an owner's server limited to a project runs only there, and its test uses that project's values", async () => {
+  const servers = JSON.parse(env.core.store.settings.get("mcp_servers") ?? "{}") as { mcpServers: object };
+  env.core.store.settings.set(
+    "mcp_servers",
+    JSON.stringify({
+      mcpServers: {
+        ...servers.mcpServers,
+        scoped: {
+          command: process.execPath,
+          args: [SERVER],
+          env: { REQUIRE_TOKEN: "1", NOTES_TOKEN: "secret://scoped_token" },
+          project,
+        },
+      },
+    }),
+  );
+  await env.client.call("secrets.set", { name: "scoped_token", value: "only-here", project });
+  const here = (await env.client.call("mcp.list", { project })).servers.find((s) => s.name === "scoped");
+  assert.deepEqual([here?.only, here?.project_id], [true, project]);
+  const r = await env.client.call("mcp.test", { scope: "global", server: "scoped" });
+  assert.equal(r.ok, true, r.error);
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "hello" });
+  await env.settle(t.id, 15_000);
+  assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_scoped_")), "not outside its project");
+  await env.client.call("mcp.set", { name: "scoped", server: null });
+  await env.client.call("secrets.set", { name: "scoped_token", value: null, project });
+});
+
 test("the owner edits a project's server: its file is written, approved as written, and secrets are refused", async () => {
   const { servers } = await env.client.call("mcp.list", { project });
   assert.deepEqual(servers.find((x) => x.name === "notes")?.definition?.args, [SERVER]);

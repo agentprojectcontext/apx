@@ -339,10 +339,11 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         .catch(() => {});
       conns.delete(key);
     },
+    /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {
-      return (scope === "global" ? config.global() : projectId ? config.project(projectId) : []).find(
-        (d) => d.name === name,
-      );
+      if (scope === "project") return projectId ? config.project(projectId).find((d) => d.name === name) : undefined;
+      const d = config.global().find((x) => x.name === name);
+      return d && inProject(d, projectId ?? d.only);
     },
     async close(): Promise<void> {
       clearInterval(idle);
