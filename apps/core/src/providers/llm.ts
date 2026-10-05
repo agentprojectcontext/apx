@@ -4,6 +4,7 @@ import type { ProviderConfig } from "../config.ts";
 import { parseRef } from "../domain/refs.ts";
 import type { Secrets } from "../secrets.ts";
 import { anthropicMessages } from "./anthropic-messages.ts";
+import { chatgptResponses } from "./chatgpt-responses.ts";
 import { openaiChat } from "./openai-chat.ts";
 import { type ChatItem, type Completion, ProviderError, type ToolSpec, type Transport } from "./types.ts";
 
@@ -28,9 +29,13 @@ export type Llm = {
 const TRANSPORTS: Record<ProviderConfig["transport"], Transport> = {
   "openai-chat": openaiChat,
   "anthropic-messages": anthropicMessages,
+  "chatgpt-responses": chatgptResponses,
 };
 
-type Target = { provider: ProviderConfig; model: string };
+type Target = { provider: ProviderConfig; model: string; effort?: string | undefined };
+
+/** A provider signed in rather than keyed (oauth:<name>): whether it is, and a fresh token with its headers. */
+export type SignIn = { has(): boolean; credentials(): Promise<{ token: string; headers: Record<string, string> }> };
 
 /** The key reference of a provider that needs none (a local server). */
 export const NO_KEY = "none";
@@ -44,15 +49,17 @@ export function createLlm(opts: {
   retryDelayMs?: number;
   /** Bytes of an image the log references (base64), read only right before a call. */
   media?: (id: string) => { mime: string; data: string } | undefined;
+  /** Sign-ins by key reference ("oauth:chatgpt"). */
+  signIns?: Record<string, SignIn>;
 }): Llm {
   const { secrets } = opts;
 
   function targets(refs: string[]): Target[] {
     return refs.flatMap((ref) => {
-      const { engine, model } = parseRef(ref);
+      const { engine, model, effort } = parseRef(ref);
       const provider = opts.providers().find((p) => p.id === engine);
       if (!provider) return [];
-      return model ? [{ provider, model }] : provider.models.map((m) => ({ provider, model: m }));
+      return model ? [{ provider, model, effort }] : provider.models.map((m) => ({ provider, model: m }));
     });
   }
 
@@ -60,7 +67,7 @@ export function createLlm(opts: {
     label() {
       const ids = opts
         .providers()
-        .filter((p) => p.key === NO_KEY || secrets.has(p.key))
+        .filter((p) => p.key === NO_KEY || secrets.has(p.key) || Boolean(opts.signIns?.[p.key]?.has()))
         .map((p) => p.id);
       return ids.length ? ids.join(", ") : "none";
     },
@@ -76,8 +83,19 @@ export function createLlm(opts: {
       const messages = withImageBytes(req.messages, opts.media);
       for (const t of list) {
         if (skipped.has(t.provider.id)) continue;
-        // A local server (Ollama, LM Studio) needs no key.
-        const key = t.provider.key === NO_KEY ? "" : secrets.resolve(t.provider.key);
+        // A local server (Ollama, LM Studio) needs no key; a signed-in plan gets a fresh token per call.
+        const signIn = opts.signIns?.[t.provider.key];
+        let headers: Record<string, string> | undefined;
+        let key: string | undefined;
+        if (signIn) {
+          try {
+            const c = signIn.has() ? await signIn.credentials() : undefined;
+            key = c?.token;
+            headers = c?.headers;
+          } catch (err) {
+            last = new ProviderError("auth", `${t.provider.id}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        } else key = t.provider.key === NO_KEY ? "" : secrets.resolve(t.provider.key);
         if (key === undefined || (key === "" && t.provider.key !== NO_KEY)) {
           skipped.add(t.provider.id);
           continue;
@@ -89,6 +107,8 @@ export function createLlm(opts: {
               baseUrl: t.provider.base_url,
               key,
               model: t.model,
+              effort: t.effort,
+              headers,
               messages,
               tools: req.tools,
               signal: req.signal,

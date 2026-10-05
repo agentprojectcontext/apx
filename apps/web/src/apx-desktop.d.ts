@@ -12,6 +12,8 @@ declare global {
       ssh(target: string): Promise<ConnectAnswer>;
     };
     apxDesktop?: {
+      /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */
+      platform?: string;
       /** The core's token, when the app knows it: the panel sends it on every call. */
       coreToken?: string;
       /** Where to place the real browser view, in viewport CSS pixels (integers); null hides it. */
@@ -26,6 +28,8 @@ declare global {
       applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean }): void;
       /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */
       setAttention?(unread: number): void;
+      /** Windows/Linux: match the native title-bar overlay to the panel theme. */
+      setTitleBar?(mode: "light" | "dark"): void;
       /** The system's folder dialog; undefined when the owner cancels. */
       pickFolder?(): Promise<string | undefined>;
       /** What each of the app's processes takes in memory (the panel, each browser tab, the GPU…), biggest first. */

@@ -13,9 +13,9 @@ export const defaultHome = () => path.join(os.homedir(), ".apx", "v2");
 /** Where v2 lived before it moved into ~/.apx (moved once, at start: see home.ts). */
 export const legacyHome = () => path.join(os.homedir(), ".apx2");
 
-export type ProviderTransport = "openai-chat" | "anthropic-messages";
+export type ProviderTransport = "openai-chat" | "anthropic-messages" | "chatgpt-responses";
 
-/** A model API. `key` is a reference (secret://name or env:VAR), never the value. */
+/** A model API. `key` is a reference (secret://name, env:VAR, or oauth:<login> for a sign-in), never the value. */
 export type ProviderConfig = {
   id: string;
   transport: ProviderTransport;
@@ -70,6 +70,9 @@ export type CoreConfig = {
   supervised: boolean;
 };
 
+/** The key reference of the ChatGPT plan's sign-in. */
+export const OAUTH_CHATGPT = "oauth:chatgpt";
+
 const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 
 const DEFAULT_PROVIDERS: ProviderConfig[] = [
@@ -92,6 +95,14 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
     transport: "openai-chat",
     base_url: "https://api.openai.com/v1",
     key: "secret://openai",
+    models: [],
+  },
+  // The owner's ChatGPT plan, signed in from APX (see providers/chatgpt-login.ts).
+  {
+    id: "chatgpt",
+    transport: "chatgpt-responses",
+    base_url: "https://chatgpt.com/backend-api/codex",
+    key: OAUTH_CHATGPT,
     models: [],
   },
 ];

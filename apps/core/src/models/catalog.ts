@@ -175,6 +175,8 @@ export function createCatalog(deps: {
   /** Tests replace the CLI-backed lists. */
   harnessLists?: Partial<Record<"claude" | "codex", () => Promise<CatalogModel[]>>>;
   acpList?: (agent: AcpAgent) => Promise<CatalogModel[]>;
+  /** Signed-in plans by key reference: their models are the ones Codex lists for the same plan. */
+  signIns?: Record<string, { has(): boolean }>;
 }) {
   const { store, secrets } = deps;
   const inflight = new Map<string, Promise<CatalogEngine>>();
@@ -216,6 +218,12 @@ export function createCatalog(deps: {
       out.push({
         base: { id: p.id, kind: "provider", label: (p as { label?: string }).label || p.id },
         list: async () => {
+          const signIn = deps.signIns?.[p.key];
+          if (signIn) {
+            if (!signIn.has()) throw new Error("not signed in");
+            const known = cached("codex")?.models;
+            return known?.length ? known : await (deps.harnessLists?.codex ?? codexModels)();
+          }
           const key = p.key === NO_KEY ? "" : secrets.resolve(p.key);
           if (key === undefined || (key === "" && p.key !== NO_KEY)) throw new Error(`no key (${p.key})`);
           // A provider configured with an explicit list (e.g. a local gateway) is taken as given.

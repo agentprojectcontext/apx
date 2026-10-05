@@ -4,6 +4,8 @@ import { contextBridge, ipcRenderer } from "electron";
 type Bounds = { x: number; y: number; width: number; height: number };
 
 contextBridge.exposeInMainWorld("apxDesktop", {
+  /** darwin | win32 | linux — panel pads the unified title bar for traffic lights / overlay. */
+  platform: process.platform,
   setBrowserBounds: (b: Bounds | null) => ipcRenderer.send("panel:browser-bounds", b),
   showBrowserTab: (tab: string) => ipcRenderer.send("panel:browser-tab", tab),
   openMain: (threadId?: string) =>
@@ -14,6 +16,7 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     }),
   applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean }) => ipcRenderer.send("desktop:prefs", prefs),
   setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
+  setTitleBar: (mode: "light" | "dark") => ipcRenderer.send("desktop:titlebar", mode),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   // The local core's token when it asks for one (it listens beyond this computer); asked once, at load.

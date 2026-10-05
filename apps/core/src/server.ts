@@ -13,7 +13,7 @@ import { slackAdapter } from "./channels/slack.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { whatsappAdapter } from "./channels/whatsapp.ts";
-import type { CoreConfig } from "./config.ts";
+import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { seed } from "./domain/seed.ts";
@@ -35,6 +35,7 @@ import { createCatalog } from "./models/catalog.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { officeScheduler } from "./office-wiring.ts";
+import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
 import { internalCaller } from "./rpc/internal.ts";
@@ -114,6 +115,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   let selfUrl = "";
   const providers = providerRegistry(store, config.providers);
+  const chatgpt = createChatgptLogin({ secrets });
+  const signIns = { [OAUTH_CHATGPT]: chatgpt };
   const llm =
     opts.llm ??
     createLlm({
@@ -121,6 +124,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       secrets,
       firstByteMs: config.llmTimeoutMs,
       media: (id) => mediaData(store, id),
+      signIns,
     });
   const harnesses = createHarnesses({
     store,
@@ -139,7 +143,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     }),
     ...(opts.harnesses ? { overrides: opts.harnesses } : {}),
   });
-  const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home });
+  const catalog = createCatalog({ store, secrets, providers: providers.active, home: config.home, signIns });
   const engineIds = knownEngines(store, providers);
   // Live: an ACP agent or a provider added later is recognized without a restart.
   const apc = createApcSync({ store, log, engines: { has: (id) => engineIds.harness.has(id) || providers.has(id) } });
@@ -275,6 +279,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       mcp,
       providers,
       secrets,
+      chatgpt: { login: chatgpt, v1Home: config.v1.home },
       app: {
         harnesses,
         v1: config.v1,
@@ -328,6 +333,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     async close() {
       terminals.closeAll();
       updates.stop();
+      chatgpt.stop();
       scheduler.stop();
       attention.stop();
       plugins.close();

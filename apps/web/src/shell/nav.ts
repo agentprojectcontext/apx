@@ -150,6 +150,82 @@ export const nav = createStore<NavState>({
   ...fromHash(),
 });
 
+/** A place the owner can go back to (overlays like config/palette stay out). */
+type Place = Pick<
+  NavState,
+  | "view"
+  | "projectId"
+  | "projectTab"
+  | "threadId"
+  | "appId"
+  | "channelId"
+  | "channelThread"
+  | "engineId"
+  | "resourcesTab"
+  | "listInFront"
+>;
+
+const MAX_HISTORY = 50;
+
+function placeOf(s: NavState): Place {
+  return {
+    view: s.view,
+    projectId: s.projectId,
+    projectTab: s.projectTab,
+    threadId: s.threadId,
+    appId: s.appId,
+    channelId: s.channelId,
+    channelThread: s.channelThread,
+    engineId: s.engineId,
+    resourcesTab: s.resourcesTab,
+    listInFront: s.listInFront,
+  };
+}
+
+function samePlace(a: Place, b: Place): boolean {
+  return (
+    a.view === b.view &&
+    a.projectId === b.projectId &&
+    a.projectTab === b.projectTab &&
+    a.threadId === b.threadId &&
+    a.appId === b.appId &&
+    a.channelId === b.channelId &&
+    a.channelThread === b.channelThread &&
+    a.engineId === b.engineId &&
+    a.resourcesTab === b.resourcesTab &&
+    a.listInFront === b.listInFront
+  );
+}
+
+type HistState = { canBack: boolean; canForward: boolean };
+const hist = createStore<HistState>({ canBack: false, canForward: false });
+let past: Place[] = [];
+let future: Place[] = [];
+let currentPlace = placeOf(nav.get());
+/** True while back/forward applies a place so that restore does not push itself. */
+let applyingHistory = false;
+
+function syncHist(): void {
+  hist.set({ canBack: past.length > 0, canForward: future.length > 0 });
+}
+
+function rememberPlace(next: Place): void {
+  if (applyingHistory || samePlace(next, currentPlace)) return;
+  past.push(currentPlace);
+  if (past.length > MAX_HISTORY) past.shift();
+  future = [];
+  currentPlace = next;
+  syncHist();
+}
+
+function applyPlace(place: Place): void {
+  applyingHistory = true;
+  nav.set(place);
+  currentPlace = place;
+  applyingHistory = false;
+  syncHist();
+}
+
 nav.subscribe(() => {
   const s = nav.get();
   const h = new URLSearchParams();
@@ -169,6 +245,7 @@ nav.subscribe(() => {
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   const next = `#${h.toString()}`;
   if (window.location.hash !== next) history.replaceState(null, "", next);
+  rememberPlace(placeOf(s));
 });
 
 // A deep link followed in place (a link in a message, the address bar); replaceState above never fires this.
@@ -183,7 +260,23 @@ export function useNav<T>(select: (s: NavState) => T): T {
   return useSlice(nav, select);
 }
 
+export function useNavHistory<T>(select: (s: HistState) => T): T {
+  return useSlice(hist, select);
+}
+
 export const go = {
+  /** Previous place (inbox / project / chat…), not the browser tab history. */
+  back() {
+    if (!past.length) return;
+    future.unshift(currentPlace);
+    applyPlace(past.pop()!);
+  },
+  /** Place undoing the last back. */
+  forward() {
+    if (!future.length) return;
+    past.push(currentPlace);
+    applyPlace(future.shift()!);
+  },
   inbox() {
     nav.set({ view: "inbox" });
   },
@@ -291,6 +384,7 @@ export const go = {
     } catch {
       // Not persisted: fine.
     }
+    window.apxDesktop?.setTitleBar?.(mode);
   },
   toggleMode() {
     go.setMode(nav.get().mode === "dark" ? "light" : "dark");

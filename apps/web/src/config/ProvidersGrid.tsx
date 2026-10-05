@@ -10,6 +10,7 @@ import {
   useProviders,
 } from "../data/providers.ts";
 import { useT } from "../i18n/index.ts";
+import { ChatgptSignIn } from "./ChatgptSignIn.tsx";
 import { PROVIDER_PRESETS, presetOf } from "./models/providerPresets.ts";
 
 /** Model APIs our own loop calls, as cards, plus a card to add one. */
@@ -31,12 +32,16 @@ export function ProvidersGrid() {
           <span>{t("providers.add")}</span>
         </button>
       </div>
-      {editing && (
-        <ProviderDialog
-          initial={editing === "new" ? undefined : editing}
-          taken={list.map((p) => p.id)}
-          onClose={() => setEditing(undefined)}
-        />
+      {editing && editing !== "new" && editing.sign_in === "chatgpt" ? (
+        <ChatgptSignIn onClose={() => setEditing(undefined)} />
+      ) : (
+        editing && (
+          <ProviderDialog
+            initial={editing === "new" ? undefined : editing}
+            taken={list.map((p) => p.id)}
+            onClose={() => setEditing(undefined)}
+          />
+        )
       )}
     </>
   );
@@ -46,6 +51,7 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
   const t = useT();
   const preset = presetOf(p.preset ?? p.id);
   const ready = p.enabled && p.key_set;
+  const signIn = p.sign_in === "chatgpt";
   return (
     <div className={p.enabled ? "pcard" : "pcard is-off"}>
       <div className="pcard__top">
@@ -55,18 +61,32 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
           <ProjectTile tone={preset?.tone ?? "neutral"} initial={p.label.slice(0, 1).toUpperCase()} size={36} />
         )}
         <div className="pcard__titles">
-          <div className="pcard__name">{p.label}</div>
+          <div className="pcard__name">{signIn && p.label === p.id ? t("chatgpt.name") : p.label}</div>
           <div className="pcard__id">{p.id}</div>
         </div>
         <Badge tone={ready ? "brand" : p.enabled ? "warning" : "neutral"} dot>
-          {ready ? t("providers.active") : p.enabled ? t("providers.noKey") : t("providers.off")}
+          {ready
+            ? t("providers.active")
+            : !p.enabled
+              ? t("providers.off")
+              : signIn
+                ? t("chatgpt.notConnected")
+                : t("providers.noKey")}
         </Badge>
       </div>
       <dl className="pcard__rows">
         <dt>{t("providers.url")}</dt>
         <dd title={p.base_url}>{p.base_url.replace(/^https?:\/\//, "")}</dd>
-        <dt>{t("providers.key")}</dt>
-        <dd>{!p.needs_key ? t("providers.keyNone") : p.key_set ? t("providers.keySet") : "—"}</dd>
+        <dt>{t(signIn ? "chatgpt.account" : "providers.key")}</dt>
+        <dd>
+          {signIn
+            ? t(p.key_set ? "chatgpt.connected" : "chatgpt.notConnected")
+            : !p.needs_key
+              ? t("providers.keyNone")
+              : p.key_set
+                ? t("providers.keySet")
+                : "—"}
+        </dd>
         <dt>{t("providers.models")}</dt>
         <dd>{p.models.length ? p.models.join(", ") : t("providers.modelsAsked")}</dd>
       </dl>
@@ -78,7 +98,13 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
           label={t("providers.on")}
         />
         <span className="pcard__spacer" />
-        <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={onEdit} />
+        {signIn ? (
+          <Button size="sm" variant="secondary" onClick={onEdit}>
+            {t(p.key_set ? "chatgpt.manage" : "chatgpt.connect")}
+          </Button>
+        ) : (
+          <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={onEdit} />
+        )}
         <IconButton
           size="sm"
           label={t("providers.remove")}

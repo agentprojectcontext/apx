@@ -845,3 +845,39 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-subtle);
 }
+
+/* ChatGPT sign-in: connected line, the code to type, or the ways to connect. */
+.chatgpt__ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--apx-brand-soft-fg);
+}
+.chatgpt__code,
+.chatgpt__start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.chatgpt__code p,
+.chatgpt__start p {
+  margin: 0;
+}
+.chatgpt__usercode {
+  padding: 8px 14px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+.chatgpt__hint {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.chatgpt__error {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-danger-soft-fg);
+}

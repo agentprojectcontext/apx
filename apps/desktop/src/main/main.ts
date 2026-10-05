@@ -41,10 +41,26 @@ app.whenReady().then(() => {
   if (!single) return;
   // Run straight from Electron (not the APX bundle `pnpm app` makes), the Dock still shows APX's face.
   app.dock?.setIcon(path.join(DIST, "icon.png"));
-  const win = new BaseWindow({ width: 1480, height: 920, minWidth: 980, minHeight: 600, title: "APX" });
+  // One chrome bar: native window controls sit in the topbar (hidden title bar on every OS).
+  const win = new BaseWindow({
+    width: 1480,
+    height: 920,
+    minWidth: 980,
+    minHeight: 600,
+    title: "APX",
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 16, y: 14 } }
+      : {
+          titleBarStyle: "hidden" as const,
+          titleBarOverlay: { color: "#1a1a19", symbolColor: "#c8c8c8", height: 46 },
+        }),
+  });
   const openMain = () => {
     if (win.isMinimized()) win.restore();
+    // Steal focus so a double-click on the tray brings APX above other apps on every display.
+    if (process.platform === "darwin") app.focus({ steal: true });
     win.show();
+    win.moveTop();
     win.focus();
   };
   // Closing the window hides it — its browser tabs and the core link stay alive; the Dock, the menu-bar icon or
@@ -174,6 +190,16 @@ app.whenReady().then(() => {
   ipcMain.on("desktop:attention", (e, unread: unknown) => {
     if (e.sender !== panel.webContents || typeof unread !== "number") return;
     quick.badge(unread);
+  });
+  // Windows/Linux window-control overlay follows the panel theme (mac uses native traffic lights).
+  ipcMain.on("desktop:titlebar", (e, mode: unknown) => {
+    if (e.sender !== panel.webContents || process.platform === "darwin") return;
+    if (mode !== "light" && mode !== "dark") return;
+    win.setTitleBarOverlay(
+      mode === "light"
+        ? { color: "#f4f3f0", symbolColor: "#444444", height: 46 }
+        : { color: "#1a1a19", symbolColor: "#c8c8c8", height: 46 },
+    );
   });
   app.on("will-quit", () => quick.stop());
 

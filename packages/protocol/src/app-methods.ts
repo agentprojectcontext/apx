@@ -9,6 +9,7 @@ import {
   ChannelRooms,
   ChannelStrangers,
   ChannelType,
+  ChatgptStatus,
   EngineStatus,
   Id,
   ImageDefaults,
@@ -30,6 +31,7 @@ import {
   Project,
   ProjectKind,
   ProviderInfo,
+  ProviderTransport,
   RouterConfig,
   Run,
   ServiceInfo,
@@ -455,6 +457,29 @@ export const appMethods = {
     result: z.object({ canceled: z.boolean() }),
     effect: true,
   },
+  /** Whether the ChatGPT plan is signed in for APX's own loop, and a sign-in in progress. */
+  "chatgpt.status": {
+    params: z.object({}).strict(),
+    result: ChatgptStatus,
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Signs the plan in: `device` gives a code to type at OpenAI's address (the core waits for it); `v1` takes over
+   * APX v1's own sign-in. Never Codex CLI's.
+   */
+  "chatgpt.connect": {
+    params: z.object({ via: z.enum(["device", "v1"]) }).strict(),
+    result: ChatgptStatus,
+    effect: true,
+    access: "human",
+  },
+  "chatgpt.disconnect": {
+    params: z.object({}).strict(),
+    result: ChatgptStatus,
+    effect: true,
+    access: "human",
+  },
   "providers.list": {
     params: z.object({}).strict(),
     result: z.object({ providers: z.array(ProviderInfo) }),
@@ -473,7 +498,7 @@ export const appMethods = {
           .object({
             label: z.string().max(60).optional(),
             preset: z.string().max(32).optional(),
-            transport: z.enum(["openai-chat", "anthropic-messages"]),
+            transport: ProviderTransport,
             base_url: z.string().url(),
             models: z.array(z.string().min(1)).max(200).optional(),
             enabled: z.boolean().optional(),

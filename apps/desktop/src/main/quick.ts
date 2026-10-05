@@ -59,13 +59,24 @@ export function createQuick(opts: {
     return win;
   }
 
-  /** Under the menu-bar icon when opened from it; top-center of the screen with the pointer otherwise. */
+  /** Under the menu-bar icon when opened from it; top-center of the display with the pointer otherwise.
+   * Display comes from the cursor so multi-monitor clicks land on the monitor that was clicked — tray.getBounds()
+   * can stick to one display on some setups. */
   function place(w: BrowserWindow, fromTray: boolean): void {
+    const cursor = screen.getCursorScreenPoint();
     const b = fromTray ? tray?.getBounds() : undefined;
-    const display = screen.getDisplayNearestPoint(b ? { x: b.x, y: b.y } : screen.getCursorScreenPoint());
+    const display = screen.getDisplayNearestPoint(cursor);
     const area = display.workArea;
     const [width = WIDTH] = w.getSize();
-    const x = b ? Math.round(b.x + b.width / 2 - width / 2) : Math.round(area.x + area.width / 2 - width / 2);
+    let centerX = area.x + area.width / 2;
+    if (fromTray) {
+      const trayCenter =
+        b && b.width > 0 ? { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) } : undefined;
+      const trayOnThisDisplay =
+        trayCenter != null && screen.getDisplayNearestPoint(trayCenter).id === display.id;
+      centerX = trayOnThisDisplay && trayCenter ? trayCenter.x : cursor.x;
+    }
+    const x = Math.round(centerX - width / 2);
     w.setPosition(Math.min(Math.max(x, area.x + 8), area.x + area.width - width - 8), area.y + 6);
   }
 

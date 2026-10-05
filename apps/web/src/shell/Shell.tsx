@@ -6,7 +6,7 @@ import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
-import { go, showsChat, useNav } from "./nav.ts";
+import { go, nav, showsChat, useNav } from "./nav.ts";
 import { OfflineBanner } from "./OfflineBanner.tsx";
 import { PhoneDialog } from "./PhoneDialog.tsx";
 import { Sidebar } from "./Sidebar.tsx";
@@ -92,11 +92,19 @@ export function Shell() {
   );
 }
 
-/** ⌘K searches, ⌘, opens Config, ⌘J jumps to the super-agent's chat. */
+/** ⌘K searches, ⌘, opens Config, ⌘J jumps to the super-agent's chat, ⌘[ / ⌘] go back/forward. */
 function useShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      const mod = e.metaKey || e.ctrlKey;
+      // Alt+← / Alt+→ also step places (same idea as a browser).
+      if (e.altKey && !mod && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        if (e.key === "ArrowLeft") go.back();
+        else go.forward();
+        return;
+      }
+      if (!mod || e.altKey || e.shiftKey) return;
       if (e.key === "k" || e.key === "K") {
         e.preventDefault();
         go.palette(true);
@@ -108,6 +116,12 @@ function useShortcuts() {
         if (!home) return;
         e.preventDefault();
         go.inboxThread(home.id);
+      } else if (e.key === "[" || e.code === "BracketLeft") {
+        e.preventDefault();
+        go.back();
+      } else if (e.key === "]" || e.code === "BracketRight") {
+        e.preventDefault();
+        go.forward();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -119,6 +133,7 @@ function useShortcuts() {
 function useDesktopBridge() {
   useEffect(() => {
     void applyDesktopPrefs();
+    window.apxDesktop?.setTitleBar?.(nav.get().mode);
     window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
 }

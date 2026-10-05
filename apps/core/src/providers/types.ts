@@ -60,7 +60,7 @@ export function classifyHttp(status: number, body: string): ProviderError {
   if (status === 404) return new ProviderError("model_gone", `HTTP 404: ${text}`);
   if (status === 429) {
     // Providers use 429 both for "slow down" and for "your plan is out"; the body tells them apart.
-    const quota = /quota|billing|credit|insufficient|exceeded your current/i.test(body);
+    const quota = /quota|billing|credit|insufficient|exceeded your current|usage limit|limit reached/i.test(body);
     return new ProviderError(quota ? "quota" : "rate_limit", `HTTP 429: ${text}`);
   }
   if (status === 0 || status >= 500)
@@ -72,6 +72,10 @@ export type TransportRequest = {
   baseUrl: string;
   key: string;
   model: string;
+  /** Reasoning effort the ref asked for ("#high"), for transports that take one. */
+  effort?: string | undefined;
+  /** Extra headers a signed-in provider needs (its account). */
+  headers?: Record<string, string> | undefined;
   messages: ChatItem[];
   tools: ToolSpec[];
   signal: AbortSignal;

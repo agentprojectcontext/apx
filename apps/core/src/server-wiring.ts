@@ -141,6 +141,7 @@ type HandlerDeps = {
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
+  chatgpt: Parameters<typeof providerHandlers>[2];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
@@ -192,7 +193,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...mcpHandlers(d.mcp, d.store),
     ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),
     ...resourceHandlers({ store: d.store, home: d.app.home, secrets: d.secrets, mcp: d.mcp.config }),
-    ...providerHandlers(d.providers, d.secrets),
+    ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),

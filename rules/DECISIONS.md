@@ -437,3 +437,16 @@ who wrote it (the owner checked by account). Answers go as a reply to that messa
 told to the owner, never posted. The import brings v1's bot token, the owner's ids, rooms, words, notes, rules,
 criterion and limits; direct messages from strangers wait for the owner (v1 never answered them). Not brought: v1's
 room summaries and similarity recall over older room messages, and a bot-role mention counting as a call.
+
+<a id="d-042"></a>
+## D-042 — 2026-10-05 — The ChatGPT plan as a model in APX's own loop; Claude and Codex harnesses keep to APX's tools
+Amends D-007. Running Codex as a harness meant an agent's turn ran the owner's whole Codex app: its own shell, search,
+browser and sub-agents, and the owner's own MCP servers and plugins, outside APX's policy. As v1 did, the plan is now
+also a provider (`chatgpt`, transport `chatgpt-responses`: the Responses API the plan serves at
+chatgpt.com/backend-api/codex, streamed, `store: false`, encrypted reasoning replayed to the same model) so the router
+can put `chatgpt/<model>` in its chain and the turn is APX's loop with the plan's model. Its sign-in is APX's own
+(the device code Codex uses), kept in the secret store and refreshed by the core; Codex CLI's tokens are never read,
+so the two never share a refresh family. v1's APX-owned sign-in is taken over once (read only). The Codex harness
+stays for code threads and the owner's own Codex sessions; outside them it now runs with the owner's servers,
+plugins, AGENTS.md and Codex's own tools off. Claude stays a harness only: Anthropic limits the subscription's
+sign-in to Claude Code; outside code threads it sees APX's tools only.

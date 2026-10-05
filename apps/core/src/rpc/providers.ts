@@ -1,11 +1,25 @@
 // Model APIs the owner adds or changes from the app. Keys go to the secret store under the provider's name.
-import type { ProviderInfo } from "@apx/protocol";
+import fs from "node:fs";
+import path from "node:path";
+import type { ChatgptStatus, ProviderInfo } from "@apx/protocol";
+import { OAUTH_CHATGPT } from "../config.ts";
+import { badRequest } from "../errors.ts";
+import type { ChatgptLogin } from "../providers/chatgpt-login.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { ProviderRegistry } from "../providers/registry.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Handlers } from "./router.ts";
 
-export function providerHandlers(providers: ProviderRegistry, secrets: Secrets) {
+export function providerHandlers(
+  providers: ProviderRegistry,
+  secrets: Secrets,
+  chatgpt: { login: ChatgptLogin; v1Home: string },
+) {
+  /** APX v1's own ChatGPT sign-in file (only read). */
+  const v1File = path.join(chatgpt.v1Home, "auth", "chatgpt-codex.json");
+  const status = (): ChatgptStatus => ({ ...chatgpt.login.status(), v1_available: fs.existsSync(v1File) });
+  const signedIn = (key: string) =>
+    key === OAUTH_CHATGPT ? { sign_in: "chatgpt", key_set: chatgpt.login.has() } : undefined;
   const list = (): ProviderInfo[] =>
     providers.all().map((p) => ({
       id: p.id,
@@ -18,8 +32,20 @@ export function providerHandlers(providers: ProviderRegistry, secrets: Secrets) 
       models: p.models,
       enabled: p.enabled !== false,
       builtin: p.builtin,
+      ...signedIn(p.key),
     }));
   return {
+    "chatgpt.status": () => status(),
+    "chatgpt.connect": async ({ via }) => {
+      if (via === "v1") {
+        if (!chatgpt.login.importV1(v1File)) throw badRequest("APX v1 has no ChatGPT sign-in to take over");
+      } else await chatgpt.login.start();
+      return status();
+    },
+    "chatgpt.disconnect": () => {
+      chatgpt.login.disconnect();
+      return status();
+    },
     "providers.list": () => ({ providers: list() }),
     "providers.set": ({ id, provider, api_key }) => {
       if (api_key) secrets.set(id, api_key);

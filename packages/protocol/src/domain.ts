@@ -411,15 +411,32 @@ export const Job = z.object({
 export type Job = z.infer<typeof Job>;
 
 /** A model API our own loop calls (Gemini, OpenCode Zen, Groq, a local Ollama…). The key never leaves the core. */
+export const ProviderTransport = z.enum(["openai-chat", "anthropic-messages", "chatgpt-responses"]);
+export type ProviderTransport = z.infer<typeof ProviderTransport>;
+
+/** The ChatGPT plan's sign-in for APX's own loop. */
+export const ChatgptStatus = z.object({
+  connected: z.boolean(),
+  account: z.string().optional(),
+  /** A sign-in in progress: the code the owner types at the address. */
+  pending: z.object({ user_code: z.string(), verification_url: z.string(), expires_at: z.string() }).optional(),
+  error: z.string().optional(),
+  /** APX v1 has a ChatGPT sign-in of its own that can be taken over. */
+  v1_available: z.boolean(),
+});
+export type ChatgptStatus = z.infer<typeof ChatgptStatus>;
+
 export const ProviderInfo = z.object({
   id: z.string(),
   label: z.string(),
   /** The kind of service, for its card's look (gemini, groq, ollama, openrouter…). */
   preset: z.string().optional(),
-  transport: z.enum(["openai-chat", "anthropic-messages"]),
+  transport: ProviderTransport,
   base_url: z.string(),
-  /** Whether a key is stored (or none is needed). */
+  /** Whether a key is stored (or none is needed); for a signed-in plan, whether it is signed in. */
   key_set: z.boolean(),
+  /** Signed in rather than keyed: the sign-in it uses ("chatgpt"). */
+  sign_in: z.string().optional(),
   needs_key: z.boolean(),
   /** A fixed model list, for servers that cannot list their own; empty = asked to the provider. */
   models: z.array(z.string()),

@@ -7,7 +7,7 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
-import { go, PROJECT_TABS, useNav } from "./nav.ts";
+import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill } from "./UpdatePill.tsx";
 
@@ -42,10 +42,20 @@ function useCrumbs(): string[] {
   return thread ? [inbox, projectName(projects, thread.project_id), thread.title] : [inbox];
 }
 
+function desktopClass(): string {
+  if (typeof window === "undefined" || !window.apxDesktop) return "";
+  const platform = window.apxDesktop.platform;
+  const os =
+    platform === "darwin" ? " is-mac" : platform === "win32" ? " is-win" : platform === "linux" ? " is-linux" : "";
+  return ` is-desktop${os}`;
+}
+
 export function Topbar() {
   const t = useT();
   const crumbs = useCrumbs();
   const mode = useNav((s) => s.mode);
+  const canBack = useNavHistory((s) => s.canBack);
+  const canForward = useNavHistory((s) => s.canForward);
   const lang = useLanguage();
   const agents = useData((s) => s.agents);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
@@ -60,116 +70,134 @@ export function Topbar() {
     })),
   ];
   return (
-    <header className="topbar">
-      <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
-      <IconButton
-        size="sm"
-        label={folded ? t("nav.expand") : t("nav.collapse")}
-        icon={folded ? <Icons.PanelLeftOpen size={15} /> : <Icons.PanelLeftClose size={15} />}
-        onClick={() => setPrefs({ sidebarCollapsed: !folded })}
-      />
-      <nav className="topbar__crumbs" aria-label={t("topbar.location")}>
-        {crumbs.map((c, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs are positional
-          <Fragment key={i}>
-            {i > 0 && <span className="topbar__sep">/</span>}
-            <span className={i === crumbs.length - 1 ? "topbar__crumb is-last" : "topbar__crumb"}>{c}</span>
-          </Fragment>
-        ))}
-      </nav>
-      <span className="topbar__spacer" />
+    <header className={`topbar${desktopClass()}`}>
+      <div className="topbar__left">
+        <div className="topbar__nav">
+          <IconButton
+            size="sm"
+            label={t("nav.back")}
+            icon={<Icons.ArrowLeft size={15} />}
+            disabled={!canBack}
+            onClick={go.back}
+          />
+          <IconButton
+            size="sm"
+            label={t("nav.forward")}
+            icon={<Icons.ArrowRight size={15} />}
+            disabled={!canForward}
+            onClick={go.forward}
+          />
+        </div>
+        <img className="topbar__logo" src={logoUrl} alt="APX" width={22} height={22} />
+        <IconButton
+          size="sm"
+          label={folded ? t("nav.expand") : t("nav.collapse")}
+          icon={folded ? <Icons.PanelLeftOpen size={15} /> : <Icons.PanelLeftClose size={15} />}
+          onClick={() => setPrefs({ sidebarCollapsed: !folded })}
+        />
+        <nav className="topbar__crumbs" aria-label={t("topbar.location")}>
+          {crumbs.map((c, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs are positional
+            <Fragment key={i}>
+              {i > 0 && <span className="topbar__sep">/</span>}
+              <span className={i === crumbs.length - 1 ? "topbar__crumb is-last" : "topbar__crumb"}>{c}</span>
+            </Fragment>
+          ))}
+        </nav>
+      </div>
       <button type="button" className="topbar__search" onClick={() => go.palette(true)}>
         <Icons.Search size={14} />
         <span className="topbar__search-label">{t("topbar.search")}</span>
         <Kbd keys={["⌘", "K"]} />
       </button>
-      <span className="topbar__spacer" />
-      <UpdatePill />
-      <RunningIndicator />
-      <AttentionTray />
-      <div className="topbar__extras">
-        <IconButton
-          size="sm"
-          label={t("phone.open")}
-          icon={<Icons.Smartphone size={14} />}
-          className="topbar__icon"
-          onClick={() => go.phone(true)}
-        />
-        <Menu
-          align="end"
-          items={languageItems}
-          trigger={
-            <button
-              type="button"
-              className="topbar__lang"
-              aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
-            >
-              <Icons.Languages size={14} />
-              {lang.toUpperCase()}
-            </button>
-          }
-        />
-        <IconButton
-          size="sm"
-          label={mode === "dark" ? t("theme.light") : t("theme.dark")}
-          icon={mode === "dark" ? <Icons.Sun size={14} /> : <Icons.Moon size={14} />}
-          className="topbar__icon"
-          onClick={go.toggleMode}
-        />
-      </div>
-      {/* Narrow windows fold phone, language and theme into one menu so the bar never scrolls sideways. */}
-      <Menu
-        align="end"
-        items={[
-          { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
-          {
-            label: mode === "dark" ? t("theme.light") : t("theme.dark"),
-            icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
-            onSelect: go.toggleMode,
-          },
-          { type: "separator" },
-          ...languageItems,
-        ]}
-        trigger={
+      <div className="topbar__right">
+        <UpdatePill />
+        <RunningIndicator />
+        <AttentionTray />
+        <div className="topbar__extras">
           <IconButton
             size="sm"
-            label={t("topbar.more")}
-            icon={<Icons.Ellipsis size={14} />}
-            className="topbar__icon topbar__more"
+            label={t("phone.open")}
+            icon={<Icons.Smartphone size={14} />}
+            className="topbar__icon"
+            onClick={() => go.phone(true)}
           />
-        }
-      />
-      {sec && (
+          <Menu
+            align="end"
+            items={languageItems}
+            trigger={
+              <button
+                type="button"
+                className="topbar__lang"
+                aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
+              >
+                <Icons.Languages size={14} />
+                {lang.toUpperCase()}
+              </button>
+            }
+          />
+          <IconButton
+            size="sm"
+            label={mode === "dark" ? t("theme.light") : t("theme.dark")}
+            icon={mode === "dark" ? <Icons.Sun size={14} /> : <Icons.Moon size={14} />}
+            className="topbar__icon"
+            onClick={go.toggleMode}
+          />
+        </div>
+        {/* Narrow windows fold phone, language and theme into one menu so the bar never scrolls sideways. */}
         <Menu
           align="end"
           items={[
+            { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
             {
-              label: t("topbar.chatWith", { name: sec.name }),
-              icon: <Icons.MessageCircle />,
-              disabled: !homeId,
-              onSelect: () => homeId && go.inboxThread(homeId),
+              label: mode === "dark" ? t("theme.light") : t("theme.dark"),
+              icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
+              onSelect: go.toggleMode,
             },
-            {
-              label: t("agent.openPanel", { name: sec.name }),
-              icon: <Icons.PanelRight />,
-              disabled: !homeId,
-              onSelect: () => {
-                if (homeId) go.inboxThread(homeId);
-                go.agent(sec.id);
-              },
-            },
-            { label: t("agent.super.profile"), icon: <Icons.Calendar />, onSelect: () => go.config("profile") },
-            { label: t("agent.super.owner"), icon: <Icons.User />, onSelect: () => go.config("account") },
+            { type: "separator" },
+            ...languageItems,
           ]}
           trigger={
-            <button type="button" className="topbar__agent" aria-label={sec.name}>
-              <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
-              <span className="topbar__agentname">{sec.name}</span>
-              <span className="topbar__agentkbd">⌘J</span>
-            </button>
+            <IconButton
+              size="sm"
+              label={t("topbar.more")}
+              icon={<Icons.Ellipsis size={14} />}
+              className="topbar__icon topbar__more"
+            />
           }
         />
-      )}
+        {sec && (
+          <Menu
+            align="end"
+            items={[
+              {
+                label: t("topbar.chatWith", { name: sec.name }),
+                icon: <Icons.MessageCircle />,
+                disabled: !homeId,
+                onSelect: () => homeId && go.inboxThread(homeId),
+              },
+              {
+                label: t("agent.openPanel", { name: sec.name }),
+                icon: <Icons.PanelRight />,
+                disabled: !homeId,
+                onSelect: () => {
+                  if (homeId) go.inboxThread(homeId);
+                  go.agent(sec.id);
+                },
+              },
+              { label: t("agent.super.profile"), icon: <Icons.Calendar />, onSelect: () => go.config("profile") },
+              { label: t("agent.super.owner"), icon: <Icons.User />, onSelect: () => go.config("account") },
+            ]}
+            trigger={
+              <button type="button" className="topbar__agent" aria-label={sec.name}>
+                <AgentAvatar name={sec.name} blob={blobOf(sec)} size={24} />
+                <span className="topbar__agentname">{sec.name}</span>
+                <span className="topbar__agentkbd">⌘J</span>
+              </button>
+            }
+          />
+        )}
+      </div>
     </header>
   );
 }
