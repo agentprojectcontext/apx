@@ -147,12 +147,6 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.varRemoveUsed": "Lo usan {where}: dejan de andar hasta que vuelva a tener valor.",
   "res.newVariable": "Nueva variable",
   "res.varDialogLead": "El valor va directo al core y no se vuelve a mostrar.",
-  "config.outsideApps": "Apps externas",
-  "config.movedMcp":
-    "Los MCP ahora viven en Recursos, junto con skills y variables. Acá: las apps que se conectan a APX.",
-  "config.movedExtensions": "Las extensiones ahora viven en Recursos, como su última tab.",
-  "config.openResourcesMcp": "Abrir Recursos › MCP",
-  "config.openResourcesExtensions": "Abrir Recursos › Extensiones",
   "res.skillOffEverywhere": "Está apagada en todos lados: volvé a prenderla desde Recursos (global).",
   "res.mcpRemoveTitle": "¿Quitar {name}?",
   "res.mcpRemoveBody": "Los agentes dejan de ver sus tools en todos los proyectos. Sus variables quedan.",

@@ -3,6 +3,7 @@ import { type CSSProperties, type ReactNode, useState } from "react";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { type ConfigSection, go, useNav } from "../shell/nav.ts";
+import { AdvancedSection } from "./AdvancedSection.tsx";
 import { AgentsSection } from "./AgentsSection.tsx";
 import { BrowserSection } from "./BrowserSection.tsx";
 import { ChannelsSection } from "./ChannelsSection.tsx";
@@ -10,9 +11,8 @@ import { DesktopSection } from "./DesktopSection.tsx";
 import { DevicesSection } from "./DevicesSection.tsx";
 import { EnginesSection } from "./EnginesSection.tsx";
 import { InterruptionsSection } from "./InterruptionsSection.tsx";
-import { ExtensionsMoved, McpSection } from "./McpSection.tsx";
 import { MemorySection } from "./MemorySection.tsx";
-import { AccountSection, AdvancedSection, AppearanceSection } from "./OtherSections.tsx";
+import { AccountSection, AppearanceSection } from "./OtherSections.tsx";
 import { ProfileSection } from "./ProfileSection.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
@@ -28,16 +28,20 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     ],
   },
   {
-    label: "config.group.agents",
+    label: "config.group.models",
     items: [
       { id: "engines", label: "config.engines", icon: <Icons.Sparkles /> },
       { id: "router", label: "config.router", icon: <Icons.Layers /> },
-      { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
-      { id: "profile", label: "config.profile", icon: <Icons.Calendar /> },
-      { id: "mcp", label: "config.outsideApps", icon: <Icons.Server /> },
       { id: "memory", label: "config.memory", icon: <Icons.Brain /> },
       { id: "voices", label: "config.voices", icon: <Icons.Mic /> },
       { id: "images", label: "config.images", icon: <Icons.Image /> },
+    ],
+  },
+  {
+    label: "config.group.agents",
+    items: [
+      { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
+      { id: "profile", label: "config.profile", icon: <Icons.Calendar /> },
       { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
       { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
     ],
@@ -125,8 +129,6 @@ function Body({ section }: { section: ConfigSection }) {
       return <EnginesSection />;
     case "agents":
       return <AgentsSection />;
-    case "mcp":
-      return <McpSection />;
     case "router":
       return <RouterSection />;
     case "memory":
@@ -147,8 +149,6 @@ function Body({ section }: { section: ConfigSection }) {
       return <DesktopSection />;
     case "devices":
       return <DevicesSection />;
-    case "extensions":
-      return <ExtensionsMoved />;
     case "advanced":
       return <AdvancedSection />;
   }
