@@ -11,30 +11,67 @@ const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">
   expired: "input.expired",
 };
 
-/** An agent waiting for the owner: approve or decline an action, or answer a question. */
-export function InputPart({ part }: { part: Extract<Part, { type: "input" }> }) {
+type InputPartData = Extract<Part, { type: "input" }>;
+
+const DONE_ICON = { approved: Icons.Check, answered: Icons.Check, denied: Icons.X, expired: Icons.Clock } as const;
+
+/** An agent waiting for the owner: approve or decline an action, or answer a question. Once settled, one line. */
+export function InputPart({ part }: { part: InputPartData }) {
+  const { state } = part;
+  if (state !== "pending") return <SettledInput part={part} state={state} />;
+  return <PendingInput part={part} />;
+}
+
+/** What was asked and how it ended, in a line that opens to show what it was. */
+function SettledInput({ part, state }: { part: InputPartData; state: Exclude<InputPartData["state"], "pending"> }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const Icon = DONE_ICON[state];
+  const what =
+    part.kind === "confirm" ? t("input.asked", { tool: part.tool ?? t("input.anAction") }) : t("input.askedQuestion");
+  return (
+    <div className={`inputline is-${state}`}>
+      <button type="button" className="inputline__toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {part.kind === "confirm" ? <Icons.Hand size={13} /> : <Icons.MessageCircle size={13} />}
+        <span className="inputline__what">{what}</span>
+        <span className={`inputline__state is-${state}`}>
+          <Icon size={12} />
+          {t(DONE[state])}
+          {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
+        </span>
+        <Icons.ChevronRight size={12} className="inputline__chev" />
+      </button>
+      {open && (
+        <div className="inputline__body">
+          <p className="inputcard__prompt">{part.prompt}</p>
+          {part.detail && <code className="inputcard__detail">{part.detail}</code>}
+          {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PendingInput({ part }: { part: InputPartData }) {
   const t = useT();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const pending = part.state === "pending";
   const send = async (a: { decision?: "approve" | "deny"; text?: string }) => {
     setBusy(true);
     await respond(part.input_id, a);
     setBusy(false);
   };
   return (
-    <div className={`inputcard is-${part.state}`} role={pending ? "alert" : undefined}>
+    <div className="inputcard is-pending" role="alert">
       <div className="inputcard__head">
         {part.kind === "confirm" ? <Icons.Hand size={16} /> : <Icons.MessageCircle size={16} />}
         <span className="inputcard__title">
           {t(part.kind === "confirm" ? "input.confirmTitle" : "input.questionTitle")}
         </span>
-        {part.state !== "pending" && <span className="inputcard__state">{t(DONE[part.state])}</span>}
       </div>
       <p className="inputcard__prompt">{part.prompt}</p>
       {part.detail && <code className="inputcard__detail">{part.detail}</code>}
-      {part.answer && !pending && <p className="inputcard__answer">“{part.answer}”</p>}
-      {pending && part.kind === "confirm" && (
+      {part.kind === "confirm" && (
         <div className="inputcard__actions">
           <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
             {t("input.approve")}
@@ -44,7 +81,7 @@ export function InputPart({ part }: { part: Extract<Part, { type: "input" }> }) 
           </Button>
         </div>
       )}
-      {pending && part.kind === "question" && (
+      {part.kind === "question" && (
         <form
           className="inputcard__reply"
           onSubmit={(e) => {
