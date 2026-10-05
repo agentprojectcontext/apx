@@ -5,7 +5,7 @@ import { rememberSidebar, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
-import { SidebarNavRow } from "./SidebarNavRow.tsx";
+import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
 import { SidebarSection } from "./SidebarSection.tsx";
 
 /** Last opened engine first, with the same row actions and manual ordering as the other sections. */
@@ -39,7 +39,7 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
         onToggle={() => setPrefs({ externalSessionsFolded: !folded })}
       />
       {(!folded || rail) &&
-        shown.map((engine, index) => (
+        shown.map((engine) => (
           <SidebarNavRow
             key={engine.id}
             id={engine.id}
@@ -56,24 +56,7 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
               { label: t("nav.open"), icon: <Icons.Terminal />, onSelect: () => go.engine(engine.id) },
               { label: t("nav.engineSettings"), icon: <Icons.Settings />, onSelect: () => go.config("external") },
               { type: "separator" },
-              {
-                label: t("nav.channelFirst"),
-                icon: <Icons.ChevronUp />,
-                disabled: index === 0,
-                onSelect: () => move(engine.id, 0),
-              },
-              {
-                label: t("nav.channelUp"),
-                icon: <Icons.ChevronUp />,
-                disabled: index === 0,
-                onSelect: () => move(engine.id, index - 1),
-              },
-              {
-                label: t("nav.channelDown"),
-                icon: <Icons.ChevronDown />,
-                disabled: index === order.length - 1,
-                onSelect: () => move(engine.id, index + 1),
-              },
+              ...orderItems(t, engine.id, order, move),
             ]}
           />
         ))}

@@ -1,5 +1,6 @@
 // The frame: the list is resized (never folded away), icon buttons say what they do, the language switches with no key
 // left untranslated, and Settings opens every section.
+import type { Page } from "@playwright/test";
 import { expect, open, rpc, test } from "./kit.ts";
 
 test("the chat list resizes from its edge and never folds away; an icon button says what it does", async ({ page }) => {
@@ -56,15 +57,20 @@ test("an agent picks its own model from the list, and one button leaves it on th
   await page.keyboard.press("Escape");
 });
 
+/** The language is in the top bar, or in its "more" menu when the bar has no room. */
+async function pickLanguage(page: Page, button: RegExp, more: string, language: string) {
+  const direct = page.getByRole("button", { name: button });
+  await ((await direct.isVisible()) ? direct : page.getByRole("button", { name: more })).click();
+  await page.getByRole("menuitem", { name: language }).click();
+}
+
 test("English and Spanish show text, never a raw key", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: /^Idioma/ }).click();
-  await page.getByRole("menuitem", { name: "English" }).click();
+  await pickLanguage(page, /^Idioma/, "Más opciones", "English");
   await expect(page.getByRole("button", { name: "Tasks" })).toBeVisible();
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(/\b[a-z]+\.[a-z]+\.[a-zA-Z.]+\b/);
-  await page.getByRole("button", { name: /^Language/ }).click();
-  await page.getByRole("menuitem", { name: "Español" }).click();
+  await pickLanguage(page, /^Language/, "More options", "Español");
   await expect(page.getByRole("button", { name: "Tareas" })).toBeVisible();
 });
 

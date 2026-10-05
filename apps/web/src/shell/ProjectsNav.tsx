@@ -1,5 +1,5 @@
 import { IconButton, Icons, ProjectTile } from "@apx/ui";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   inProject,
   isListed,
@@ -12,12 +12,19 @@ import {
 import { rememberSidebar, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ProjectSettings } from "../project/ProjectSettings.tsx";
-import { NewProjectDialog } from "./NewProjectDialog.tsx";
 import { go, useNav } from "./nav.ts";
-import { projectNavMenu, UnregisterProjectDialog } from "./ProjectNavActions.tsx";
+import { projectNavMenu } from "./ProjectNavActions.tsx";
 import { SidebarNavRow } from "./SidebarNavRow.tsx";
 import { SidebarOverflow, SidebarSection } from "./SidebarSection.tsx";
+
+// Opened rarely: loaded when first shown, so the sidebar adds nothing to the first screen's script.
+const NewProjectDialog = lazy(() => import("./NewProjectDialog.tsx").then((m) => ({ default: m.NewProjectDialog })));
+const UnregisterProjectDialog = lazy(() =>
+  import("./UnregisterProjectDialog.tsx").then((m) => ({ default: m.UnregisterProjectDialog })),
+);
+const ProjectSettings = lazy(() =>
+  import("../project/ProjectSettings.tsx").then((m) => ({ default: m.ProjectSettings })),
+);
 
 /** Projects shown before the rest folds into "N more". */
 const SHOWN = 5;
@@ -145,9 +152,13 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
           {rest.map((p) => item(p, () => setMoreOpen(false)))}
         </SidebarOverflow>
       )}
-      {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
-      {settings && <ProjectSettings project={settings} open onOpenChange={(open) => !open && setSettings(undefined)} />}
-      {removing && <UnregisterProjectDialog project={removing} onClose={() => setRemoving(undefined)} />}
+      <Suspense fallback={null}>
+        {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
+        {settings && (
+          <ProjectSettings project={settings} open onOpenChange={(open) => !open && setSettings(undefined)} />
+        )}
+        {removing && <UnregisterProjectDialog project={removing} onClose={() => setRemoving(undefined)} />}
+      </Suspense>
     </>
   );
 }

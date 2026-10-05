@@ -6,12 +6,12 @@ import { AgentPanel } from "./AgentPanel.tsx";
 import { BrowserPanel } from "./BrowserPanel.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
-import { UsagePanel } from "./UsagePanel.tsx";
 import { WidgetPanel } from "./WidgetPanel.tsx";
 import { useWorkspace } from "./workspace.ts";
 
 // The folder's panels load when first opened, not with the chat.
 const FilesPane = lazy(() => import("../project/files/FilesPane.tsx").then((m) => ({ default: m.FilesPane })));
+const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
 const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
 
@@ -48,7 +48,11 @@ export function SidePanel() {
             </span>
           </PanelHeader>
           {panel === "widget" && <WidgetPanel />}
-          {panel === "usage" && <UsagePanel />}
+          {panel === "usage" && (
+            <Suspense fallback={null}>
+              <UsagePanel />
+            </Suspense>
+          )}
           {folder && !ws && (
             <PlaceholderPanel icon={panelDef(panel).icon(20)} title={t("panel.noFolder")}>
               {t("panel.noFolderBody")}

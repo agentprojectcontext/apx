@@ -222,6 +222,24 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
 }
 @media (max-width: 639px) {
+  .topbar .running__count.is-light,
+  .topbar .running__div {
+    display: none;
+  }
+}
+
+/* A busy bar (update, running work, attention) keeps the update as an icon so nothing slides under the search. */
+@container topbar-actions (max-width: 640px) {
+  .updatepill__label {
+    display: none;
+  }
+  .updatepill {
+    width: 26px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+@container topbar-actions (max-width: 540px) {
   .topbar__extras,
   .topbar__agentkbd,
   .topbar__agentname {
@@ -232,30 +250,6 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
   .topbar__agent {
     padding: 0 4px;
-  }
-  .topbar .running__count.is-light,
-  .topbar .running__div {
-    display: none;
-  }
-}
-
-@container topbar-actions (max-width: 540px) {
-  .topbar__extras,
-  .topbar__agentkbd,
-  .topbar__agentname,
-  .updatepill__label {
-    display: none;
-  }
-  .topbar .topbar__more {
-    display: inline-grid;
-  }
-  .topbar__agent {
-    padding: 0 4px;
-  }
-  .updatepill {
-    width: 26px;
-    padding: 0;
-    justify-content: center;
   }
 }
 @container topbar-actions (max-width: 360px) {

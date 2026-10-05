@@ -403,12 +403,6 @@
   opacity: 0.55;
   cursor: default;
 }
-.teamimport__cardbody {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
 .teamimport__cardname {
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-medium);

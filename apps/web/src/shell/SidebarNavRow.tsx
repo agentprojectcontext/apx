@@ -1,6 +1,6 @@
 import { ContextMenu, IconButton, Icons, Menu, type MenuEntry, NavItem, Tooltip } from "@apx/ui";
 import { type ButtonHTMLAttributes, forwardRef, type ReactNode, useState } from "react";
-import { useT } from "../i18n/index.ts";
+import { type T, useT } from "../i18n/index.ts";
 
 /** One visual selection, with sibling buttons so navigation never contains another button. */
 export function SidebarNavRow({
@@ -125,3 +125,28 @@ export const SidebarTooltipButton = forwardRef<
     </Tooltip>
   );
 });
+
+/** "First", "Up" and "Down" for a row of a section the owner orders by hand. */
+export function orderItems(
+  t: T,
+  id: string,
+  order: string[],
+  onMove: (id: string, index: number) => void,
+): MenuEntry[] {
+  const index = order.indexOf(id);
+  return [
+    { label: t("nav.channelFirst"), icon: <Icons.ChevronUp />, disabled: index === 0, onSelect: () => onMove(id, 0) },
+    {
+      label: t("nav.channelUp"),
+      icon: <Icons.ChevronUp />,
+      disabled: index === 0,
+      onSelect: () => onMove(id, index - 1),
+    },
+    {
+      label: t("nav.channelDown"),
+      icon: <Icons.ChevronDown />,
+      disabled: index === order.length - 1,
+      onSelect: () => onMove(id, index + 1),
+    },
+  ];
+}

@@ -414,14 +414,6 @@ input.wiz__name {
   font-size: 13px;
   line-height: 1.45;
 }
-.wiz__signin {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-  color: var(--apx-fg-muted);
-  font-size: 12px;
-}
 .wiz__keyrow {
   display: flex;
   gap: 8px;
@@ -489,14 +481,6 @@ input.wiz__name {
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-mono);
   font-size: 12px;
-}
-.wiz__linkname {
-  font-family: var(--apx-font-mono);
-  font-size: 12px;
-}
-.wiz__linkmodel {
-  min-width: 0;
-  max-width: 280px;
 }
 .wiz__default {
   color: var(--apx-fg-subtle);

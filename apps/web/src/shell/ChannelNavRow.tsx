@@ -4,7 +4,7 @@ import { KindTile } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
-import { SidebarNavRow } from "./SidebarNavRow.tsx";
+import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
 
 export function ChannelNavRow({
   channel,
@@ -26,7 +26,6 @@ export function ChannelNavRow({
   const channelId = useNav((s) => s.channelId);
   const kind = isChannelKind(channel.type) ? channel.type : undefined;
   const label = channel.label || (kind ? t(CHANNEL_KINDS[kind].name) : channel.id);
-  const index = order.indexOf(channel.id);
   const pick = () => {
     onClose();
     go.channel(channel.id);
@@ -58,24 +57,7 @@ export function ChannelNavRow({
             ]
           : []),
         { type: "separator" },
-        {
-          label: t("nav.channelFirst"),
-          icon: <Icons.ChevronUp />,
-          disabled: index === 0,
-          onSelect: () => onMove(channel.id, 0),
-        },
-        {
-          label: t("nav.channelUp"),
-          icon: <Icons.ChevronUp />,
-          disabled: index === 0,
-          onSelect: () => onMove(channel.id, index - 1),
-        },
-        {
-          label: t("nav.channelDown"),
-          icon: <Icons.ChevronDown />,
-          disabled: index === order.length - 1,
-          onSelect: () => onMove(channel.id, index + 1),
-        },
+        ...orderItems(t, channel.id, order, onMove),
       ]}
     />
   );

@@ -131,7 +131,8 @@ test("Proyectos: último acceso, arrastre, menús v1, copia y confirmación ante
   if (!acme || !northwind) throw new Error("Missing project fixtures");
   await open(page, "#view=tasks");
   await expect.poll(async () => (await orderedIds(page, "project"))[0]).toBe("~default");
-  const more = page.locator(".sidebar .sidebar__more").filter({ hasText: /más/ });
+  // Projects' own "N más" (the channels section has its own "N canales más").
+  const more = page.getByRole("button", { name: /^\d+ más$/ });
   await more.click();
   const overflow = page.locator(".apx-popover");
   const hidden = overflow.locator(`[data-project-id="${northwind.id}"]`);
@@ -143,7 +144,12 @@ test("Proyectos: último acceso, arrastre, menús v1, copia y confirmación ante
   await overflow.locator(`[data-project-id="${northwind.id}"] .apx-nav`).click();
   await expect.poll(async () => (await orderedIds(page, "project"))[1]).toBe(northwind.id);
   const row = page.locator(`.sidebar [data-project-id="${acme.id}"]`);
-  await row.locator(".apx-nav").click();
+  // Projects from earlier specs may leave Acme in the overflow: opened from wherever it is.
+  if (await row.isVisible()) await row.locator(".apx-nav").click();
+  else {
+    await more.click();
+    await overflow.locator(`[data-project-id="${acme.id}"] .apx-nav`).click();
+  }
   await expect
     .poll(async () => (await orderedIds(page, "project")).slice(0, 3))
     .toEqual(["~default", acme.id, northwind.id]);

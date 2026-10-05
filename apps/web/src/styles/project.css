@@ -311,12 +311,6 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
 }
-.agentcard__names {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
 .agentcard__name {
   display: flex;
   align-items: center;
@@ -561,9 +555,6 @@
 }
 .res__mono {
   font-family: var(--apx-font-mono);
-}
-.resources__ext {
-  margin-bottom: 20px;
 }
 
 /* The project's board: pinned widgets across the whole overview, as many columns as fit. */

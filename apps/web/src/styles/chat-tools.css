@@ -101,10 +101,6 @@
   border-radius: var(--apx-radius-md);
   background: var(--apx-fill);
 }
-.notice--warn {
-  color: var(--apx-info-soft-fg);
-  background: var(--apx-info-soft);
-}
 .notice--error {
   color: var(--apx-danger-soft-fg);
   background: var(--apx-danger-soft);
@@ -146,10 +142,6 @@
   font-size: var(--apx-text-sm);
   font-weight: var(--apx-weight-semibold);
   color: var(--apx-fg);
-}
-.inputcard__state {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
 }
 .inputcard__prompt,
 .inputcard__answer {

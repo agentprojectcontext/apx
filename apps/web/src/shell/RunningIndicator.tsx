@@ -1,13 +1,15 @@
 import { AgentAvatar, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
 import { isBackground } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { JobList } from "./JobList.tsx";
 import { go } from "./nav.ts";
+
+// The jobs list shows only once its tab is opened: not part of the first screen's script.
+const JobList = lazy(() => import("./JobList.tsx").then((m) => ({ default: m.JobList })));
 
 /** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat or transcript. */
 export function RunningIndicator() {
@@ -121,15 +123,17 @@ export function RunningIndicator() {
           <p className="running__empty">{t("running.empty")}</p>
         )
       ) : (
-        <JobList
-          running={bgRunning}
-          finished={jobs.finished}
-          now={now}
-          onOpen={(j) => {
-            setOpen(false);
-            go.thread(j.thread_id);
-          }}
-        />
+        <Suspense fallback={<Spinner size={14} />}>
+          <JobList
+            running={bgRunning}
+            finished={jobs.finished}
+            now={now}
+            onOpen={(j) => {
+              setOpen(false);
+              go.thread(j.thread_id);
+            }}
+          />
+        </Suspense>
       )}
     </Popover>
   );

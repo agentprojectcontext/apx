@@ -150,7 +150,7 @@ for (const platform of ["web", "mac", "win", "linux"])
           };
         });
         expect(geometry.center).toBeCloseTo(width / 2, 0);
-        expect(geometry.overlaps).toEqual([]);
+        expect(geometry.overlaps, `overlaps at ${width}px`).toEqual([]);
         expect(geometry.outOfBounds).toEqual([]);
       }).toPass({ timeout: 3000 });
       await search.click();
@@ -250,7 +250,8 @@ test("Canales: tres visibles, orden persistente y sin leer visibles también en 
               channel: { id: "email", conversation: "email-e2e" },
               unread: unread ? 2 : 0,
             }
-          : thread,
+          : // Unread left by earlier specs on other channels would change the counts checked here.
+            { ...thread, unread: 0 },
     );
     await route.fulfill({ response, json: body });
   });

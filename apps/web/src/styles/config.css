@@ -293,10 +293,6 @@
   gap: 14px;
   padding-right: 32px;
 }
-.channelcfg__text {
-  flex: 1;
-  min-width: 0;
-}
 
 /* Advanced */
 .kv {
@@ -324,26 +320,6 @@
 .kv__mono {
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
-}
-
-/* ── MCP servers ───────────────────────────────────────────────────────────── */
-.mcp__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.mcp__tools {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.mcp__target {
-  display: block;
-  max-width: 460px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-2xs);
 }
 
 /* ── Providers (model APIs) as cards ──────────────────────────────────────── */
@@ -543,11 +519,6 @@
 }
 .tgremove {
   margin-top: 4px;
-}
-.tgcode {
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-sm);
-  letter-spacing: 0.08em;
 }
 
 .shortcut {

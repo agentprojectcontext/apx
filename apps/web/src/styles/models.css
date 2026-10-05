@@ -1,8 +1,5 @@
 /* Model pickers, router editor and model catalog (Config › Engines and models, Agents, team cards). Tokens only. */
 
-.selectbtn--wide {
-  max-width: 300px;
-}
 .selectbtn__warn {
   flex: none;
   color: var(--apx-warning);
@@ -211,15 +208,6 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-sm);
   background: var(--apx-surface);
-}
-.chain__ref {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-xs);
 }
 .rule {
   display: flex;

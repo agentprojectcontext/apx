@@ -18,6 +18,10 @@ export default defineConfig({
   build: {
     // Agent avatars stay files: fetched and cached as images, never inlined as base64 into the first script.
     assetsInlineLimit: (file) => (file.endsWith(".webp") ? false : undefined),
+    // The data layer is one chunk, not a dozen tiny ones the first screen fetches one by one.
+    rolldownOptions: {
+      output: { codeSplitting: { groups: [{ name: "data", test: /apps\/web\/src\/data\//, minShareCount: 2 }] } },
+    },
   },
   server: {
     port: 7441,
