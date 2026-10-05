@@ -1,11 +1,9 @@
-import { EmptyState, IconButton, Icons } from "@apx/ui";
+import { EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
-import { setSurfaceFlags } from "../data/actions.ts";
 import { inProject } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
-import { ShareMenu } from "../surfaces/ShareMenu.tsx";
+import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 
 /**
@@ -36,21 +34,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
             <article key={s.id} className="board__tile" aria-label={s.title}>
               <header className="widgets__head">
                 <span className="widgets__title">{s.title}</span>
-                <ShareMenu surface={s} variant="icon" />
-                {s.app && (
-                  <IconButton
-                    size="sm"
-                    label={t("widget.openApp")}
-                    icon={<Icons.AppWindow size={14} />}
-                    onClick={() => go.app(s.id)}
-                  />
-                )}
-                <IconButton
-                  size="sm"
-                  label={t("board.unpin")}
-                  icon={<Icons.PinOff size={14} />}
-                  onClick={() => void setSurfaceFlags(s.id, { pinned: false })}
-                />
+                <SurfaceActions surface={s} />
               </header>
               <SurfaceFrame surfaceId={s.id} />
             </article>

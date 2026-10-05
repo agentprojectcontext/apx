@@ -173,7 +173,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.failed": "La actualización se frenó y lo que corre ahora no cambió. Qué pasó:",
   "board.title": "Tablero",
   "board.empty": "Los widgets fijados a este proyecto aparecen acá, en vivo. Pedile uno a un agente.",
-  "board.unpin": "Sacar del tablero",
   "overview.appsOnly": "Apps",
   "palette.title": "Buscar",
   "palette.places": "Ir a",

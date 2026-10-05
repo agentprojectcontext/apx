@@ -6,7 +6,7 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   const northwind = projects.find((p) => p.name === "Northwind")?.id ?? "";
   const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby", project_id: northwind });
   const show = (sales: string) =>
-    rpc("surfaces.show", {
+    rpc<{ id: string }>("surfaces.show", {
       name: "monthly-sales",
       title: "Ventas del mes",
       html: `<h1>Ventas: ${sales}</h1>`,
@@ -26,6 +26,15 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await expect(tile.frameLocator("iframe").getByText("Ventas: 250")).toBeVisible();
   await expect(board.getByRole("article")).toHaveCount(1);
 
-  await tile.getByRole("button", { name: "Sacar del tablero" }).click();
+  // Installed as an app, its button lights up like the pin's, and the app shows in the sidebar.
+  await tile.getByRole("button", { name: "Instalar como app" }).click();
+  await expect(tile.getByRole("button", { name: "Abrir como app" })).toHaveAttribute("aria-pressed", "true");
+  await expect(tile.getByRole("button", { name: "Quitar del tablero" })).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("complementary", { name: "Navegación" }).getByRole("button", { name: "Ventas del mes" }),
+  ).toBeVisible();
+  await rpc("surfaces.update", { surface: (await show("250")).id, app: false });
+
+  await tile.getByRole("button", { name: "Quitar del tablero" }).click();
   await expect(board.getByRole("article")).toHaveCount(0);
 });

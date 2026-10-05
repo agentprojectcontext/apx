@@ -1,10 +1,9 @@
-import { EmptyState, IconButton, Icons } from "@apx/ui";
+import { EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
-import { setSurfaceFlags } from "../data/actions.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
-import { ShareMenu } from "../surfaces/ShareMenu.tsx";
+import { useNav } from "../shell/nav.ts";
+import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 
 /** The widgets made in the open chat, newest first; pinning one also puts it on its project's board. */
@@ -34,21 +33,7 @@ export function WidgetPanel() {
         <section key={s.id} className="widgets__item" aria-label={s.title}>
           <header className="widgets__head">
             <span className="widgets__title">{s.title}</span>
-            <ShareMenu surface={s} variant="icon" />
-            {s.app && (
-              <IconButton
-                size="sm"
-                label={t("widget.openApp")}
-                icon={<Icons.AppWindow size={14} />}
-                onClick={() => go.app(s.id)}
-              />
-            )}
-            <IconButton
-              size="sm"
-              label={s.pinned ? t("widget.unpin") : t("widget.pin")}
-              icon={s.pinned ? <Icons.PinOff size={14} /> : <Icons.Pin size={14} />}
-              onClick={() => void setSurfaceFlags(s.id, { pinned: !s.pinned })}
-            />
+            <SurfaceActions surface={s} />
           </header>
           <SurfaceFrame surfaceId={s.id} />
         </section>

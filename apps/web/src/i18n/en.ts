@@ -169,7 +169,6 @@ export const en = {
   "update.failed": "The update stopped and nothing changed in what runs now. What happened:",
   "board.title": "Board",
   "board.empty": "Widgets pinned to this project show here, live. Ask an agent for one.",
-  "board.unpin": "Take off the board",
   "overview.appsOnly": "Apps",
   "palette.title": "Search",
   "palette.places": "Go to",
