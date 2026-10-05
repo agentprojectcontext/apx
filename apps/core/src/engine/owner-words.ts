@@ -23,7 +23,7 @@ export const confirmPrompt = (store: Store, why: ConfirmWhy, agent: string, tool
   (store.settings.get("owner_language") === "en" ? en : es)[why](agent, tool);
 
 /** A model did not answer and the turn moves to the next one in its chain. */
-export const fallbackNotice = (store: Store, from: string, reason: string, to: string) =>
+export const fallbackNotice = (store: Store, from: string | undefined, reason: string, to: string) =>
   store.settings.get("owner_language") === "en"
-    ? `${from} did not answer (${reason}); trying ${to}.`
-    : `${from} no respondió (${reason}); sigo con ${to}.`;
+    ? `${from ?? "APX's models"} did not answer (${reason}); trying ${to}.`
+    : `${from ? `${from} no respondió` : "Los modelos de APX no respondieron"} (${reason}); sigo con ${to}.`;

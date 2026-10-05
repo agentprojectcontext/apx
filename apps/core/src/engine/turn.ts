@@ -534,9 +534,14 @@ async function runEngines(
       t.display.notice(
         "warn",
         "engine.fallback",
+        // APX's own loop walks its whole chain itself: the reason names the model that failed, the group does not.
         fallbackNotice(
           store,
-          g.refs[0] ?? (g.harness === "acp" ? engineOf("") : HARNESS_LABEL[g.harness]),
+          g.harness === "native"
+            ? undefined
+            : g.harness === "acp"
+              ? engineOf(g.refs[0] ?? "")
+              : HARNESS_LABEL[g.harness],
           reason ?? "",
           next.refs[0] ?? "",
         ),
