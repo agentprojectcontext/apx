@@ -105,7 +105,7 @@ export function MemorySection() {
           size="sm"
           checked={s.skill_picker}
           onCheckedChange={(on) => void save({ skill_picker: on })}
-          label={t("mem.skillPicker")}
+          aria-label={t("mem.skillPicker")}
         />
       </SettingRow>
       {s.skill_picker && !s.embedder && s.mode !== "semantic" && <ServicesSection kind="embedding" embedded />}
@@ -116,7 +116,7 @@ export function MemorySection() {
           size="sm"
           checked={s.auto_compact}
           onCheckedChange={(on) => void save({ auto_compact: on })}
-          label={t("mem.autoCompact")}
+          aria-label={t("mem.autoCompact")}
         />
       </SettingRow>
       <SettingRow title={t("mem.aux")} description={t(`mem.auxHint.${aux}`)}>

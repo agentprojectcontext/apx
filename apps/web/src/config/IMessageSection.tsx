@@ -27,7 +27,7 @@ export function IMessageSection() {
   return (
     <>
       <SettingRow title={t("im.toggle")} description={t("im.toggleHint")}>
-        <Switch checked={im.on} onCheckedChange={(on) => void setIMessage(on)} label={t("im.toggle")} />
+        <Switch checked={im.on} onCheckedChange={(on) => void setIMessage(on)} aria-label={t("im.toggle")} />
       </SettingRow>
       <ol className="tgsetup__steps">
         <li>{t("im.step1")}</li>
