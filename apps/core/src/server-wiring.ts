@@ -66,6 +66,7 @@ import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
+import { findProgram, videoTools } from "./tools/video.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
@@ -114,6 +115,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...mediaTools(),
     ...phoneTools(),
     ...taskTools(),
+    ...videoTools(findProgram("yt-dlp")),
     ...contactTools(store),
     ...requestTools(store),
     ...extra,
