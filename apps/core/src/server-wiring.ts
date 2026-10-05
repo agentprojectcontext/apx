@@ -58,6 +58,7 @@ import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
+import { chatTools } from "./tools/chats.ts";
 import { contactTools } from "./tools/contact.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -110,6 +111,7 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
 export function builtinTools(store: Store, home: string, port: () => number, extra: Tool[] = []): Tool[] {
   return [
     ...agentTools(store),
+    ...chatTools(store),
     ...browserTools(),
     ...surfaceTools(),
     ...ownerTools(store),
