@@ -20,7 +20,7 @@ test("the shipped skills each have a SKILL.md with a matching name", () => {
   const shipped = readSkills(sourceDir());
   assert.deepEqual(
     shipped.map((s) => s.name),
-    ["apc-context", "apx", "apx-mcp"],
+    ["apc-context", "apx", "apx-extensions", "apx-mcp"],
   );
   for (const s of shipped) assert.match(s.files["SKILL.md"] ?? "", new RegExp(`^---\\nname: ${s.name}\\n`));
 });
