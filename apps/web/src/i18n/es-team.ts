@@ -3,6 +3,8 @@ import type { MessageKey } from "./en.ts";
 
 export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import": "Importar",
+  "team.import.makesCompany":
+    "Este equipo convierte el proyecto en una empresa: suma sus áreas y roles, y sus rutinas empiezan a correr.",
   "org.note": "Las áreas agrupan al equipo; cada agente toma un área y un rol. Los agentes de este proyecto los leen.",
   "org.area": "Área",
   "org.role": "Rol",

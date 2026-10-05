@@ -179,10 +179,53 @@ test("install: an executive comes with its routines, on, in the project; install
     assert.equal(x.enabled, true);
     assert.ok(x.next_run_at, "it is scheduled");
   }
+  // The executive team makes the project a company, with its members' areas and a role each.
+  assert.equal(r.project_kind, "company");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(repo, ".apc", "project.json"), "utf8")).kind, "company");
+  const org = await env.client.call("org.get", { project });
+  assert.deepEqual(
+    org.areas.map((a) => [a.slug, a.name]),
+    [
+      ["leadership", "Leadership"],
+      ["finance", "Finance"],
+    ],
+  );
+  assert.deepEqual(
+    org.roles.map((x) => [x.slug, x.area]),
+    [
+      ["ceo", "leadership"],
+      ["cfo", "finance"],
+    ],
+  );
   const again = await env.client.call("agents.install", { project_id: project, templates: ["apx:executive-team:ceo"] });
   assert.equal(again.routines.length, 0);
   const listed = (await env.client.call("routines.list", {})).routines.filter((x) => x.agent_id === ceoId);
   assert.equal(listed.length, 2);
+});
+
+test("the base project takes a team as global agents: its shape, its routines, and it becomes a company", async () => {
+  const r = await env.client.call("agents.install", {
+    templates: ["apx:executive-team:ceo", "apx:executive-team:cfo", "apx:executive-team:coo"],
+  });
+  assert.deepEqual(
+    r.installed.map((a) => [a.id, a.project_id, a.parent ?? "", a.area]),
+    [
+      ["ceo", undefined, "", "leadership"],
+      ["cfo", undefined, "ceo", "finance"],
+      ["coo", undefined, "ceo", "operations"],
+    ],
+  );
+  assert.ok(r.routines.length > 0 && r.routines.every((x) => x.project_id === undefined), "global routines");
+  assert.equal(r.project_kind, "company");
+  assert.equal((await env.client.call("projects.list", {})).base.kind, "company");
+  assert.deepEqual(
+    (await env.client.call("org.get", {})).areas.map((a) => a.slug),
+    ["leadership", "finance", "operations"],
+  );
+  assert.match((await env.client.call("agents.get", { agent: "cfo" })).prompt, /finance lead/);
+  const again = await env.client.call("agents.install", { templates: ["apx:executive-team:cfo"] });
+  assert.deepEqual(again.installed, []);
+  assert.match(again.skipped[0]?.reason ?? "", /already has cfo/);
 });
 
 test("projects.update: name, description and kind go to .apc/project.json, keeping its other keys", async () => {

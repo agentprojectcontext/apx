@@ -1,6 +1,8 @@
 // UI strings, English: the Team screen (org chart, agent details, importing templates).
 export const enTeam = {
   "team.import": "Import",
+  "team.import.makesCompany":
+    "This team makes the project a company: its areas and roles are added, and its routines start running.",
   "org.note": "Areas group the team; each agent takes an area and a role. The agents of this project read them.",
   "org.area": "Area",
   "org.role": "Role",

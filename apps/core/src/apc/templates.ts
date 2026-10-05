@@ -3,15 +3,24 @@
 // v1 vault is read and never written.
 import fs from "node:fs";
 import path from "node:path";
-import { type AgentTemplate, type TeamTemplate, TemplateRoutine, type TemplateSource } from "@apx/protocol";
+import {
+  type AgentTemplate,
+  ProjectKind,
+  type TeamTemplate,
+  TemplateRoutine,
+  type TemplateSource,
+} from "@apx/protocol";
 import { z } from "zod";
 import { parseFrontmatter, textField } from "./frontmatter.ts";
 import { type ApcAgent, readAgentDir, readText, SLUG_RE } from "./read.ts";
 
 export type TemplateRoot = { source: TemplateSource; dir: string };
 
-/** A template with what installing needs: the file's text as written, and the routines it comes with in full. */
-export type TemplateFile = AgentTemplate & { text: string; routineSpecs: TemplateRoutine[] };
+/**
+ * A template with what installing needs: the file's text as written, the routines it comes with in full, and the
+ * kind of project its team makes.
+ */
+export type TemplateFile = AgentTemplate & { text: string; routineSpecs: TemplateRoutine[]; teamKind?: ProjectKind };
 
 const RoutineFile = z.array(TemplateRoutine).max(10);
 
@@ -90,13 +99,17 @@ export function readTemplates(roots: TemplateRoot[]): { teams: TeamTemplate[]; f
       const meta = head ? parseFrontmatter(head).fields : {};
       const members = readAgentDir(sub).filter((m) => small(path.join(sub, `${m.slug}.md`)));
       if (!members.length) continue;
-      const list = treeOrder(members.map((m) => toTemplate(source, name, sub, m, members)));
+      const kind = ProjectKind.safeParse(textField(meta.kind)).data;
+      const list = treeOrder(
+        members.map((m) => ({ ...toTemplate(source, name, sub, m, members), ...(kind ? { teamKind: kind } : {}) })),
+      );
       teams.push({
         id: `${source}:${name}`,
         source,
         name: textField(meta.name) ?? name,
         ...(textField(meta.description) ? { description: textField(meta.description) } : {}),
-        members: list.map(({ text: _t, routineSpecs: _r, ...m }) => m),
+        ...(kind ? { kind } : {}),
+        members: list.map(({ text: _t, routineSpecs: _r, teamKind: _k, ...m }) => m),
       });
       files.push(...list);
     }
@@ -127,6 +140,6 @@ export function singlesOf(files: TemplateFile[]): AgentTemplate[] {
   const seen = new Set<string>();
   return files
     .filter((f) => !seen.has(f.slug) && seen.add(f.slug))
-    .map(({ text: _t, routineSpecs: _r, parent: _p, ...f }) => ({ ...f, lead: true }))
+    .map(({ text: _t, routineSpecs: _r, parent: _p, teamKind: _k, ...f }) => ({ ...f, lead: true }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

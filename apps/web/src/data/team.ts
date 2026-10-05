@@ -3,7 +3,9 @@ import type { Agent, AgentTemplate, Params, Result, TeamTemplate } from "@apx/pr
 import { slugOf } from "../common/slug.ts";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
+import { realProjectId } from "./identity.ts";
 import { notify } from "./notices.ts";
+import { loadOrg } from "./org.ts";
 import { loadRoutines } from "./routines.ts";
 import { data } from "./state.ts";
 
@@ -37,13 +39,20 @@ export async function installTemplates(
   hangUnder: string | undefined,
 ): Promise<{ installed: number; routines: number; skipped: Array<{ template: string; reason: string }> } | undefined> {
   try {
+    const project = realProjectId(projectId);
     const r = await client.call("agents.install", {
-      project_id: projectId,
+      ...(project ? { project_id: project } : {}),
       templates,
       ...(hangUnder ? { hang_under: hangUnder } : {}),
     });
     data.set((s) => ({ agents: { ...s.agents, ...Object.fromEntries(r.installed.map((a) => [a.id, a])) } }));
     if (r.routines.length) void loadRoutines();
+    // A team with a kind made the project a company: its kind and its areas and roles changed too.
+    if (r.project_kind) {
+      const { projects, base } = await client.call("projects.list", { include_unregistered: true });
+      data.set({ projects, base });
+      void loadOrg(projectId);
+    }
     return { installed: r.installed.length, routines: r.routines.length, skipped: r.skipped };
   } catch (e) {
     notify(t("team.import.error", { error: errText(e) }));

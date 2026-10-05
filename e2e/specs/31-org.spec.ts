@@ -53,3 +53,26 @@ test("the base project is renamed and made a company, with areas and roles its a
   // Back to how other specs expect it.
   await rpc("projects.update_base", { name: "Default", kind: null });
 });
+
+test("importing the executive team into the base project sets the company up in one go", async ({ page }) => {
+  await rpc("setup.finish", {});
+  await open(page, "#project=~default&tab=team");
+  await page.getByRole("button", { name: "Importar" }).click();
+  const dialog = page.getByRole("dialog", { name: "Importar agentes" });
+  const team = dialog.locator(".teamimport__team", { hasText: "Executive team" });
+  await team.getByRole("button", { name: "Elegir todos" }).click();
+  await expect(dialog.getByText(/Este equipo convierte el proyecto en una empresa/)).toBeVisible();
+  await dialog.getByRole("button", { name: /^Instalar/ }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // The CEO leads its team under the super-agent; the project is a company with the team's areas.
+  await expect(page.locator('.apx-agentnode__name:text-is("Chief Financial Officer")')).toBeVisible();
+  const tab = page.locator(".project__tabs").getByRole("tab", { name: "Áreas y roles" });
+  await tab.click();
+  await expect(page.locator(".org__area", { hasText: "Finance" })).toContainText("Chief Financial Officer");
+  expect((await rpc<{ agent: { parent?: string } }>("agents.get", { agent: "cfo" })).agent.parent).toBe("ceo");
+  const routines = await rpc<{ routines: Array<{ agent_id: string }> }>("routines.list");
+  expect(routines.routines.some((r) => r.agent_id === "ceo")).toBe(true);
+
+  await rpc("projects.update_base", { kind: null });
+});

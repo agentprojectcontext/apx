@@ -14,11 +14,14 @@ type Templates = { teams: TeamTemplate[]; singles: AgentTemplate[] };
  */
 export function ImportDialog({
   projectId,
+  kind,
   top,
   team,
   onClose,
 }: {
   projectId: string;
+  /** The project's kind now: a team that makes it another one says so before installing. */
+  kind: string | undefined;
   /** The project's current top agent (its orchestrator), if any. */
   top: Agent | undefined;
   team: Agent[];
@@ -30,7 +33,8 @@ export function ImportDialog({
   const [open, setOpen] = useState<string>();
   const [hang, setHang] = useState(true);
   const [busy, setBusy] = useState(false);
-  const taken = useMemo(() => new Set(team.flatMap((a) => (a.slug ? [a.slug] : []))), [team]);
+  // A global agent (the base project's) has no slug: its id is what a template's slug would take.
+  const taken = useMemo(() => new Set(team.map((a) => a.slug ?? a.id)), [team]);
 
   useEffect(() => {
     void loadTemplates().then((r) => setData(r ?? { teams: [], singles: [] }));
@@ -42,6 +46,7 @@ export function ImportDialog({
   );
   const chosen = [...picked].flatMap((id) => (all.get(id) ? [all.get(id) as AgentTemplate] : []));
   const bringsLead = chosen.some((m) => m.lead || !m.parent || !chosen.some((c) => c.slug === m.parent));
+  const makes = data?.teams.find((tm) => tm.kind && tm.kind !== kind && tm.members.some((m) => picked.has(m.id)))?.kind;
   const toggle = (ids: string[], on: boolean) =>
     setPicked((s) => {
       const next = new Set(s);
@@ -102,6 +107,12 @@ export function ImportDialog({
         </EmptyState>
       ) : (
         <div className="teamimport">
+          {makes === "company" && (
+            <div className="noticeline is-info" role="status">
+              <Icons.Building2 size={14} />
+              <span>{t("team.import.makesCompany")}</span>
+            </div>
+          )}
           {data.teams.length > 0 && <h3 className="teamimport__label">{t("team.import.teams")}</h3>}
           {data.teams.map((tm) => {
             const free = tm.members.filter((m) => !taken.has(m.slug)).map((m) => m.id);

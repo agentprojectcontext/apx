@@ -81,16 +81,14 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
         <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setCreating(true)}>
           {t("team.new")}
         </Button>
-        {!project.isDefault && (
-          <Button
-            variant="secondary"
-            size="sm"
-            leadingIcon={<Icons.Download size={14} />}
-            onClick={() => setImporting(true)}
-          >
-            {t("team.import")}
-          </Button>
-        )}
+        <Button
+          variant="secondary"
+          size="sm"
+          leadingIcon={<Icons.Download size={14} />}
+          onClick={() => setImporting(true)}
+        >
+          {t("team.import")}
+        </Button>
         <Button
           variant="secondary"
           size="sm"
@@ -154,7 +152,15 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
           }}
         />
       )}
-      {importing && <ImportDialog projectId={project.id} top={lead} team={team} onClose={() => setImporting(false)} />}
+      {importing && (
+        <ImportDialog
+          projectId={project.id}
+          kind={project.kind}
+          top={lead}
+          team={team}
+          onClose={() => setImporting(false)}
+        />
+      )}
     </div>
   );
 }
