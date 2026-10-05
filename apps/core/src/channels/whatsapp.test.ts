@@ -108,6 +108,19 @@ test("the owner talks in 'Message yourself'; the answer comes back there once, i
   assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?")));
 });
 
+test("on WhatsApp the owner's turn keeps notes and hands work off: no other tools", async () => {
+  wa.fromOwner("look up the weather in Bariloche");
+  await until(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: look up the weather")), "the answer");
+  const req = llm.calls.at(-1);
+  const names = (req?.tools ?? []).map((t) => t.function.name).sort();
+  assert.ok(names.includes("delegate") && names.includes("remember"), names.join(", "));
+  assert.ok(
+    !names.some((n) => n.startsWith("shell") || n.startsWith("browser_") || n.startsWith("task_")),
+    names.join(", "),
+  );
+  assert.match(String(req?.messages.at(-1)?.content), /hand work off/);
+});
+
 test("a stranger gets nothing from the owner's number; approved, they get answers", async () => {
   const calls = llm.calls.length;
   wa.message(ANA, "hi, is this Ana's friend?");

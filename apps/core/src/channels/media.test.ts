@@ -79,12 +79,15 @@ after(async () => {
   env.cleanup();
 });
 
-test("a voice note is heard, the agent draws, and the answer returns as text, photo and voice", async () => {
+test("a voice note is heard, the agent draws, and the answer returns as a voice note with its words, and the photo", async () => {
   await env.client.call("threads.voice", { thread: "home", on: true });
   tg.voice(OWNER);
   await until(() => tg.sent.some((s) => s.method === "sendPhoto"), "the photo", 8000);
   await until(() => tg.sent.some((s) => s.method === "sendVoice" || s.method === "sendAudio"), "the voice", 8000);
-  assert.ok(tg.messagesTo(OWNER.id).some((m) => /fox, drawn/.test(String(m.body.text))));
+  // What the voice note says rides with it as its caption, not as a separate message.
+  const voice = tg.sent.find((s) => s.method === "sendVoice" || s.method === "sendAudio");
+  assert.match(String(voice?.body.caption), /fox, drawn/);
+  assert.ok(!tg.messagesTo(OWNER.id).some((m) => /fox, drawn/.test(String(m.body.text))));
   const home = await env.client.call("threads.get", { thread: "home" });
   assert.ok(
     home.messages.some(

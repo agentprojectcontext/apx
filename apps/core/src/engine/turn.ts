@@ -45,6 +45,7 @@ import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { ratingNote } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
+import { fallbackNotice } from "./owner-words.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { recallFor } from "./recall.ts";
@@ -104,6 +105,12 @@ export type ToolCall = <M extends MethodName>(
 ) => Promise<Result<M>>;
 
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
+/**
+ * The owner's turns on WhatsApp keep notes and hand work off, nothing else: a phone chat with no buttons is no place
+ * for tool cards and confirmations, so anything that needs tools goes to an agent of its own (delegate).
+ */
+const HANDOFF_ONLY = new Set(["whatsapp"]);
+const HANDOFF_TOOLS = new Set([...MEMORY_TOOLS, "delegate", "list_agents", "read_output", "load_skill"]);
 
 type Turn = {
   agent: AgentRecord;
@@ -344,6 +351,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
             timeZone: ownerTimeZone(store),
             channel: channelKindOf(store, o),
+            voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
             feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
           }),
   };
@@ -390,7 +398,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...mcpTools],
   );
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
-  const only = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
+  const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
+  const o = turn.input.origin;
+  const handoff = o.kind === "channel" && o.role === "owner" && HANDOFF_ONLY.has(channelKindOf(deps.store, o) ?? "");
+  const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const tools = policy.tools.filter(
     (t) =>
       ((callers.length < MAX_DEPTH && !turn.worker) || (t.name !== "delegate" && t.name !== "list_sessions")) &&
@@ -523,7 +534,12 @@ async function runEngines(
       t.display.notice(
         "warn",
         "engine.fallback",
-        `${g.harness === "acp" ? engineOf(g.refs[0] ?? "") : HARNESS_LABEL[g.harness]} is not available (${reason}); trying ${next.refs[0]}.`,
+        fallbackNotice(
+          store,
+          g.refs[0] ?? (g.harness === "acp" ? engineOf("") : HARNESS_LABEL[g.harness]),
+          reason ?? "",
+          next.refs[0] ?? "",
+        ),
       );
     }
   }

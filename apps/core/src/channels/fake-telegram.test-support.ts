@@ -37,7 +37,8 @@ export async function fakeTelegram(token: string) {
       if (method === "getMe") return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot" } });
       if (method === "getFile") return reply(200, { ok: true, result: { file_path: "voice/1.oga" } });
       if (multipart) {
-        sent.push({ method, body: { bytes: raw.length } });
+        const caption = /name="caption"\r\n\r\n([\s\S]*?)\r\n--/.exec(raw)?.[1];
+        sent.push({ method, body: { bytes: raw.length, ...(caption ? { caption } : {}) } });
         return reply(200, { ok: true, result: { message_id: nextMessage++ } });
       }
       if (method === "getUpdates") {

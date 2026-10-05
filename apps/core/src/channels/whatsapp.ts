@@ -359,10 +359,12 @@ export function whatsappAdapter(opts: {
       ]
         .filter(Boolean)
         .join("\n\n");
-      const steps: Array<() => Promise<string | undefined>> = [
-        ...(body ? chunks(body, 4000) : []).map((t) => () => sendOne(conversation, { text: t })),
-        ...files.map((f) => () => sendOne(conversation, fileContent(f))),
-      ];
+      const texts = (body ? chunks(body, 4000) : []).map((t) => () => sendOne(conversation, { text: t }));
+      const media = files.map((f) => () => sendOne(conversation, fileContent(f)));
+      // A voice note goes before the words it says.
+      const steps: Array<() => Promise<string | undefined>> = p.mediaFirst
+        ? [...media, ...texts]
+        : [...texts, ...media];
       let last: string | undefined;
       for (let i = p.skip ?? 0; i < steps.length; i++) {
         try {

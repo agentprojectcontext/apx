@@ -17,7 +17,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
-import { spokenPart } from "../services/audio.ts";
+import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
@@ -28,6 +28,8 @@ import { channelTexts } from "./texts.ts";
 import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 
 const TYPING_EVERY_MS = 4500;
+/** Longer than this, what came before the first tool is part of the answer, not an "on it" line. */
+const ACK_MAX = 300;
 
 type Live = {
   config: ChannelConfig;
@@ -70,6 +72,8 @@ export function createChannels(deps: {
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
+  /** Runs whose "on it" line already went out: the words written before their first tool call. */
+  const acked = new Map<string, string>();
   /** Per run: the answer's draft on the channel (its id, when it was last sent, a pending update). */
   const drafting = new Map<string, { id: number; at: number; timer: ReturnType<typeof setTimeout> | undefined }>();
   const announced = new Set<string>();
@@ -169,6 +173,8 @@ export function createChannels(deps: {
   }
 
   async function reply(run: RunRecord): Promise<void> {
+    const ack = acked.get(run.id);
+    acked.delete(run.id);
     const to = replyTo(run.thread_id);
     if (!to || run.trigger === "surface") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
@@ -176,6 +182,8 @@ export function createChannels(deps: {
       .map((p) => (p.type === "text" ? p.text : ""))
       .join("\n")
       .trim();
+    // The "on it" line already went out on its own (an engine may keep it in front of the answer, or replace it).
+    if (ack && out.startsWith(ack)) out = out.slice(ack.length).trim();
     const thread = store.threads.get(run.thread_id);
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
@@ -202,26 +210,33 @@ export function createChannels(deps: {
     if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     if (room) out = quietMentions(out);
+    const replyRef = room && to.message ? { reply_to: to.message } : {};
+    const send = (body: Presentation) =>
+      delivery.enqueue({
+        channel: to.channel,
+        conversation: to.conversation,
+        thread_id: run.thread_id,
+        kind: "reply",
+        body,
+      });
     const voice = out && run.state === "completed" ? await voiceFor(run.thread_id, out) : undefined;
-    delivery.enqueue({
-      channel: to.channel,
-      conversation: to.conversation,
-      thread_id: run.thread_id,
-      kind: "reply",
-      body: {
-        text: out,
-        media: [...images, ...(voice ? [voice] : [])],
-        ...(room && to.message ? { reply_to: to.message } : {}),
-      },
-    });
+    if (!voice) {
+      send({ text: out, media: images, ...replyRef });
+      return;
+    }
+    // A voice note with its transcript (only what it says), then the rest of the answer as its own message.
+    send({ text: voice.spoken, media: [voice.media], mediaFirst: true, ...replyRef });
+    if (voice.rest || images.length) send({ text: voice.rest, media: images });
   }
 
-  /** When the chat asked for spoken answers: the first paragraph as a voice note, shown in the app too. */
+  /** When the chat asked for spoken answers: the first part as a voice note (shown in the app too), and the rest. */
   async function voiceFor(threadId: string, text: string) {
     if (!store.threads.context(threadId).voice_replies || !deps.services.hasKind("speech")) return undefined;
+    const { spoken, rest } = splitSpoken(text);
+    if (!spoken) return undefined;
     try {
-      const m = await deps.services.voiceNote(spokenPart(text), threadId, AbortSignal.timeout(90_000));
-      return { id: m.id, kind: "audio" as const, mime: m.mime };
+      const m = await deps.services.voiceNote(spoken, threadId, AbortSignal.timeout(90_000));
+      return { media: { id: m.id, kind: "audio" as const, mime: m.mime }, spoken, rest };
     } catch (err) {
       log.warn({ thread: threadId, err: errorMessage(err, 200) }, "no voice note; the answer goes as text");
       return undefined;
@@ -267,6 +282,34 @@ export function createChannels(deps: {
     d.timer?.unref?.();
   }
 
+  /**
+   * The agent reached its first tool: what it wrote before it ("on it", in its words) goes to the owner at once, so a
+   * long turn does not leave them waiting in silence. Only for the owner, and once per run.
+   */
+  function onTool(threadId: string, messageId: string): void {
+    const to = replyTo(threadId);
+    const msg = store.messages.get(messageId);
+    const runId = msg?.run_id;
+    if (!to || !runId || acked.has(runId) || msg.author.kind !== "agent") return;
+    const thread = store.threads.get(threadId);
+    if (!thread || audienceOf(store, thread).kind !== "owner") return;
+    const first = msg.parts.findIndex((p) => p.type === "tool");
+    const said = msg.parts
+      .slice(0, Math.max(0, first))
+      .map((p) => (p.type === "text" ? p.text : ""))
+      .join("\n")
+      .trim();
+    if (!said || said.length > ACK_MAX) return;
+    acked.set(runId, said);
+    delivery.enqueue({
+      channel: to.channel,
+      conversation: to.conversation,
+      thread_id: threadId,
+      kind: "reply",
+      body: { text: said },
+    });
+  }
+
   function startTyping(runId: string, threadId: string): void {
     const to = replyTo(threadId);
     const l = to ? live.get(to.channel) : undefined;
@@ -302,6 +345,8 @@ export function createChannels(deps: {
     if (e.type === "run.updated") {
       if (e.run.state === "working" && e.run.trigger !== "surface") startTyping(e.run.id, e.run.thread_id);
       else if (e.run.state !== "working") stopTyping(e.run.id);
+    } else if (e.type === "message.part" && e.part.type === "tool") {
+      onTool(e.thread_id, e.message_id);
     } else if (e.type === "message.part" && e.part.type === "text") {
       onText(e.thread_id, e.message_id);
     } else if (e.type === "message.part" && e.part.type === "input" && e.part.state === "pending") {

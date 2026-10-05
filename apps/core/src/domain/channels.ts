@@ -39,6 +39,8 @@ export type Presentation = {
   skip?: number;
   /** Images and voice notes APX made, sent after the text. */
   media?: Array<{ id: string; kind: "image" | "audio"; mime: string }>;
+  /** A voice note and what it says: the audio first, the text as its caption where the channel allows one. */
+  mediaFirst?: boolean;
   /** In a room: the message this answers (shown as a reply to it). */
   reply_to?: string;
 };

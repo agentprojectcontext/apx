@@ -75,6 +75,9 @@ function nameOf(u: TgUser | undefined): string {
 }
 
 /** What a message without text was, so the agent can say it cannot read it yet. */
+/** Telegram's limit for a file's caption. */
+const CAPTION_MAX = 1024;
+
 function mediaNote(m: TgMessage): string | undefined {
   const kind = m.photo
     ? "photo"
@@ -202,7 +205,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file. */
-  async function sendFile(chat: string, f: OutFile, silent?: boolean): Promise<number> {
+  async function sendFile(chat: string, f: OutFile, silent?: boolean, caption?: string): Promise<number> {
     const [method, field, name] =
       f.kind === "image"
         ? ["sendPhoto", "photo", "image"]
@@ -213,6 +216,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     form.set("chat_id", chat);
     if (silent) form.set("disable_notification", "true");
     form.set(field, new Blob([new Uint8Array(f.data)], { type: f.mime }), name);
+    if (caption) form.set("caption", caption);
     if (!token) throw new TgError(401, "no bot token");
     const res = await fetch(`${apiBase}/bot${token}/${method}`, {
       method: "POST",
@@ -277,6 +281,14 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       await loop?.catch(() => {});
     },
     async send(conversation, p, files = []) {
+      // A voice note with its transcript: one message, the words as its caption (Telegram caps captions at 1024).
+      const [only] = files;
+      if (p.mediaFirst && only && files.length === 1 && p.text.trim().length <= CAPTION_MAX && !p.skip) {
+        const id = await sendFile(conversation, only, p.silent, p.text.trim()).catch((err) => {
+          throw toSendError(err, 0);
+        });
+        return { external_id: String(id) };
+      }
       const texts = p.text.trim() ? chunks(p.text) : [];
       // Text parts first, then each file; `skip` counts across both.
       const steps: Array<() => Promise<number>> = [

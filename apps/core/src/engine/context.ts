@@ -157,6 +157,17 @@ const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imes
 const CHAT_STYLE =
   "Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result.";
 
+const HANDOFF_NOTE =
+  "Here you only keep notes and hand work off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
+const ACK_NOTE =
+  "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line.";
+
+/** What the owner's turn on a phone chat adds: how to hand work off on WhatsApp, how to say "on it" elsewhere. */
+const ownerChannelNote = (channel: string) => (channel === "whatsapp" ? HANDOFF_NOTE : ACK_NOTE);
+
+const VOICE_STYLE =
+  "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";
+
 export function turnInput(opts: {
   origin: Origin;
   text: string;
@@ -177,6 +188,8 @@ export function turnInput(opts: {
   timeZone?: string | undefined;
   /** Where this message came from ("telegram", "whatsapp"…); none: the app. */
   channel?: string | undefined;
+  /** The chat gets spoken answers: the first paragraph becomes a voice note. */
+  voice?: boolean | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", {
     dateStyle: "full",
@@ -187,6 +200,10 @@ export function turnInput(opts: {
   const head = [
     `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`,
     CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : "",
+    CHAT_CHANNELS.has(channel) && opts.origin.kind === "channel" && opts.origin.role === "owner"
+      ? `[channel turn] ${ownerChannelNote(channel)}`
+      : "",
+    opts.voice ? `[voice] ${VOICE_STYLE}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.skills ? `[skills matched for this message]\n${opts.skills}` : "",
