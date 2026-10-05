@@ -37,23 +37,20 @@
 .topbar.is-desktop .updatepill {
   -webkit-app-region: no-drag;
 }
+/* Left and right share the room evenly, so the search sits centred; the actions never shrink under their content (the
+   crumbs give way first), so nothing ever slides under the search. */
 .topbar__left,
 .topbar__right {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
 }
 .topbar__right {
   justify-content: flex-end;
   gap: 4px;
-  /* Keep actions clear of the absolute-centered search. */
-  padding-left: calc(min(340px, 30vw) / 2 + 16px);
-}
-.topbar__left {
-  /* Same reserve on the left so long crumbs never shove the search. */
-  padding-right: calc(min(340px, 30vw) / 2 + 16px);
+  min-width: max-content;
 }
 .topbar__nav {
   display: flex;
@@ -91,14 +88,11 @@
   color: var(--apx-fg-subtle);
 }
 .topbar__search {
-  position: absolute;
-  left: 50%;
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
-  width: min(340px, 30vw);
+  flex: 0 1 340px;
+  min-width: 120px;
   height: 30px;
   padding: 0 8px 0 10px;
   border: 0;
@@ -107,7 +101,6 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-sm);
   cursor: default;
-  transform: translateX(-50%);
 }
 .topbar__search-label {
   flex: 1;
@@ -173,12 +166,6 @@
   .topbar {
     gap: 6px;
   }
-  .topbar__left {
-    padding-right: calc(var(--apx-control-h-sm) / 2 + 10px);
-  }
-  .topbar__right {
-    padding-left: calc(var(--apx-control-h-sm) / 2 + 10px);
-  }
   .topbar__crumb:not(.is-last),
   .topbar__sep,
   .topbar__search-label,
@@ -186,7 +173,9 @@
     display: none;
   }
   .topbar__search {
+    flex: none;
     width: var(--apx-control-h-sm);
+    min-width: 0;
     padding: 0;
     justify-content: center;
   }

@@ -199,7 +199,7 @@ function samePlace(a: Place, b: Place): boolean {
 
 type HistState = { canBack: boolean; canForward: boolean };
 const hist = createStore<HistState>({ canBack: false, canForward: false });
-let past: Place[] = [];
+const past: Place[] = [];
 let future: Place[] = [];
 let currentPlace = placeOf(nav.get());
 /** True while back/forward applies a place so that restore does not push itself. */
@@ -267,15 +267,17 @@ export function useNavHistory<T>(select: (s: HistState) => T): T {
 export const go = {
   /** Previous place (inbox / project / chat…), not the browser tab history. */
   back() {
-    if (!past.length) return;
+    const prev = past.pop();
+    if (!prev) return;
     future.unshift(currentPlace);
-    applyPlace(past.pop()!);
+    applyPlace(prev);
   },
   /** Place undoing the last back. */
   forward() {
-    if (!future.length) return;
+    const next = future.shift();
+    if (!next) return;
     past.push(currentPlace);
-    applyPlace(future.shift()!);
+    applyPlace(next);
   },
   inbox() {
     nav.set({ view: "inbox" });
