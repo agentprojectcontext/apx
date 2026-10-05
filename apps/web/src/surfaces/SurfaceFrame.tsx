@@ -65,7 +65,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   }, [nonce, maxHeight, surfaceId]);
 
   const srcdoc = useMemo(
-    () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce }) : undefined),
+    () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect }) : undefined),
     [doc, theme, mode, nonce],
   );
 

@@ -1,8 +1,14 @@
 // Builds the iframe document for a surface: theme tokens, a strict CSP and the window.apx bridge.
 
-/** Widgets are self-contained (show_widget contract): inline code only, no network. */
-const CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
+/**
+ * Widgets are self-contained (show_widget contract): inline code only, and no network but the origins they declared
+ * for live data (checked again here: a bare https/wss origin, nothing that could add a directive).
+ */
+const ORIGIN = /^(https|wss):\/\/[a-z0-9.-]+(:\d{1,5})?$/;
+const csp = (connect: readonly string[] = []) => {
+  const origins = connect.filter((o) => ORIGIN.test(o));
+  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:${origins.length ? `; connect-src ${origins.join(" ")}` : ""}`;
+};
 
 let tokenNames: string[] | undefined;
 
@@ -54,8 +60,11 @@ document.addEventListener("DOMContentLoaded",function(){size();if(window.ResizeO
 })();`;
 }
 
-export function buildSrcdoc(html: string, opts: { theme: string; mode: "light" | "dark"; nonce: string }): string {
-  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}">
+export function buildSrcdoc(
+  html: string,
+  opts: { theme: string; mode: "light" | "dark"; nonce: string; connect?: readonly string[] | undefined },
+): string {
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp(opts.connect)}">
 <style>${opts.theme}
 html{color-scheme:${opts.mode}}
 html,body{margin:0;background:transparent;color:var(--apx-fg);font-family:var(--apx-font-sans);font-size:14px;line-height:1.45}

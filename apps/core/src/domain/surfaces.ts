@@ -1,7 +1,7 @@
 // Widgets, sidebar panels and fullscreen apps: one primitive. Addressed by id; an agent updates its own by
 // stable name within a project (`upsert`).
 import { randomUUID } from "node:crypto";
-import type { Surface, SurfaceSummary } from "@apx/protocol";
+import { type Surface, SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import type { ExpressionBuilder, Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { Database, SurfacesTable } from "../db/schema.ts";
@@ -20,7 +20,15 @@ const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
   created_by: r.created_by,
   updated_at: r.updated_at,
   ...(r.share_token ? { share_path: `/a/${r.share_token}` } : {}),
+  ...connectOf(r.connect),
 });
+
+/** The stored origins, kept only while they still look like one (a hand-edited row cannot widen the CSP). */
+function connectOf(raw: string | null): { connect?: string[] } {
+  if (!raw) return {};
+  const parsed = SurfaceOrigin.array().max(5).safeParse(JSON.parse(raw));
+  return parsed.success && parsed.data.length ? { connect: parsed.data } : {};
+}
 
 /** The surface named `name` in a project, or among global ones when there is no project. */
 const named = (projectId: string | undefined, name: string) => (eb: ExpressionBuilder<Database, "surfaces">) =>
@@ -60,6 +68,8 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       created_by: string;
       pinned?: boolean | undefined;
       app?: boolean | undefined;
+      /** Absent keeps the current origins; [] removes them. */
+      connect?: string[] | undefined;
     }): Surface {
       const existing = one(qb.selectFrom("surfaces").selectAll().where(named(s.project_id, s.name)));
       const ts = now();
@@ -74,6 +84,9 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           app: s.app ?? cur.app,
           updated_at: ts,
         };
+        const connect = s.connect ?? cur.connect ?? [];
+        if (connect.length) next.connect = connect;
+        else delete next.connect;
         run(
           qb
             .updateTable("surfaces")
@@ -83,6 +96,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
               version: next.version,
               pinned: Number(next.pinned),
               app: Number(next.app),
+              connect: next.connect ? JSON.stringify(next.connect) : null,
               updated_at: ts,
             })
             .where("id", "=", cur.id),
@@ -102,6 +116,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
         ...(s.thread_id ? { thread_id: s.thread_id } : {}),
         created_by: s.created_by,
         updated_at: ts,
+        ...(s.connect?.length ? { connect: s.connect } : {}),
       };
       run(
         qb.insertInto("surfaces").values({
@@ -116,6 +131,7 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
           thread_id: created.thread_id ?? null,
           created_by: created.created_by,
           updated_at: ts,
+          connect: created.connect ? JSON.stringify(created.connect) : null,
         }),
       );
       emit(created);

@@ -838,6 +838,12 @@ export const McpServerStatus = z.object({
 export type McpServerStatus = z.infer<typeof McpServerStatus>;
 
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
+/** An origin a widget may read live data from: https or wss, a host and maybe a port, nothing else. */
+export const SurfaceOrigin = z
+  .string()
+  .max(200)
+  .regex(/^(https|wss):\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/);
+
 export const Surface = z.object({
   id: Id,
   /** Stable name an agent updates by ("ventas-mes"). Unique per project (or globally when no project). */
@@ -853,6 +859,8 @@ export const Surface = z.object({
   updated_at: z.string(),
   /** Path of the public link (/a/<token>) when published; absent when private. */
   share_path: z.string().optional(),
+  /** Origins it may connect to for live data (shown to the owner); absent: no network at all. */
+  connect: z.array(SurfaceOrigin).max(5).optional(),
 });
 export type Surface = z.infer<typeof Surface>;
 export const SurfaceSummary = Surface.omit({ html: true });

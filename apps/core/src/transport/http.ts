@@ -44,11 +44,16 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
   return true;
 }
 
-export type PublicPages = { artifact(token: string): { title: string; html: string } | undefined };
+export type PublicPages = {
+  artifact(token: string): { title: string; html: string; connect?: string[] | undefined } | undefined;
+};
 
-// Artifacts run with an opaque origin (CSP sandbox without allow-same-origin): no cookies, no API access.
-const ARTIFACT_CSP =
-  "sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src 'none'; frame-ancestors *";
+/**
+ * Artifacts run with an opaque origin (CSP sandbox without allow-same-origin): no cookies, no API access. They reach
+ * only the origins their widget declared for live data (already validated as bare https/wss origins).
+ */
+const artifactCsp = (connect: string[] = []) =>
+  `sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
 
 function artifactPage(title: string, html: string): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -135,7 +140,7 @@ export function httpHandler(
       if (!page) return send(res, 404, { ok: false, error: { code: "not_found", message: "not found" } });
       res.writeHead(200, {
         "content-type": "text/html; charset=utf-8",
-        "content-security-policy": ARTIFACT_CSP,
+        "content-security-policy": artifactCsp(page.connect),
         "cache-control": "no-store",
       });
       res.end(artifactPage(page.title, page.html));

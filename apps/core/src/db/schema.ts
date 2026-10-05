@@ -347,6 +347,7 @@ export interface SurfacesTable {
   created_by: string;
   updated_at: string;
   share_token: string | null;
+  connect: string | null;
 }
 
 export interface TaskEventsTable {

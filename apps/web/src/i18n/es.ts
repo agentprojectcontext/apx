@@ -370,6 +370,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   // Widgets, apps, compartir
   "widget.gone": "El widget “{title}” ya no existe.",
   "widget.eyebrow": "Widget · {title}",
+  "widget.connects": "Datos en vivo de {hosts}",
   "widget.pin": "Fijar al tablero",
   "widget.unpin": "Quitar del tablero",
   "widget.openApp": "Abrir como app",

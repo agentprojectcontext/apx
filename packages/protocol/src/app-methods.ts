@@ -40,6 +40,7 @@ import {
   ServiceKind,
   ServiceSettings,
   Surface,
+  SurfaceOrigin,
   SurfaceSummary,
   Thread,
   WritePolicy,
@@ -1042,6 +1043,8 @@ export const appMethods = {
         html: z.string().min(1).max(400_000),
         pinned: z.boolean().optional(),
         app: z.boolean().optional(),
+        /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
+        connect: z.array(SurfaceOrigin).max(5).optional(),
         thread: Id.optional(),
       })
       .strict(),

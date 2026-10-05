@@ -60,12 +60,12 @@ import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
 import { contactTools } from "./tools/contact.ts";
+import { fileTools } from "./tools/files.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
-import { fileTools } from "./tools/files.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -316,7 +316,7 @@ export async function listen(
       {
         artifact: (t) => {
           const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: s.html } : undefined;
+          return s ? { title: s.title, html: s.html, connect: s.connect } : undefined;
         },
       },
       (token) => d.store.clients.byToken(token),

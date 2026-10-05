@@ -364,6 +364,7 @@ export const en = {
   // Widgets, apps, sharing
   "widget.gone": "The widget “{title}” no longer exists.",
   "widget.eyebrow": "Widget · {title}",
+  "widget.connects": "Live data from {hosts}",
   "widget.pin": "Pin to the board",
   "widget.unpin": "Unpin from the board",
   "widget.openApp": "Open as app",

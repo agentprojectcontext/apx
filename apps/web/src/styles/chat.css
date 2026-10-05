@@ -196,6 +196,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.surfacecard__net {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .surfacecard__spacer {
   flex: 1;
 }

@@ -593,4 +593,6 @@ export const MIGRATIONS: readonly string[] = [
   DROP TABLE import_dups;
   `,
   `ALTER TABLE projects ADD COLUMN registered INTEGER NOT NULL DEFAULT 1;`,
+  // The origins a widget may read live data from (JSON array); none: it makes no requests at all.
+  `ALTER TABLE surfaces ADD COLUMN connect TEXT;`,
 ];

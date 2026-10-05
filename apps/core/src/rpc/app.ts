@@ -140,6 +140,7 @@ export function appHandlers(deps: {
           created_by: ctx.agent?.id ?? "owner",
           pinned: p.pinned,
           app: p.app,
+          connect: p.connect,
         }),
       );
     },

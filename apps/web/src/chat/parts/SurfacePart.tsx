@@ -23,6 +23,12 @@ export function SurfacePart({ part }: { part: Extract<Part, { type: "surface" }>
       <div className="surfacecard__head">
         <Icons.LayoutGrid size={12} />
         <span className="surfacecard__eyebrow">{t("widget.eyebrow", { title: surface.title })}</span>
+        {surface.connect && (
+          <span className="surfacecard__net" title={surface.connect.join("\n")}>
+            <Icons.Globe size={12} />
+            {t("widget.connects", { hosts: surface.connect.map((o) => new URL(o).hostname).join(", ") })}
+          </span>
+        )}
         <span className="surfacecard__spacer" />
         <IconButton
           size="sm"
