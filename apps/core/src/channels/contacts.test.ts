@@ -12,6 +12,9 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("buy oat milk"))
     return callTool("r1", "pass_request", { kind: "request", summary: "buy oat milk" });
   if (said.includes("your owner like")) return callTool("n1", "search_owner_notes", { query: "coffee" });
+  if (said.includes("tell the buyer"))
+    return callTool("m1", "message_contact", { to: "northwind", text: "Your order ships on Friday." });
+  if (said.includes("tell nobody")) return callTool("m2", "message_contact", { to: "Zed", text: "Hi" });
   return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
 });
 const toolsOf = (i: number) => (llm.calls.at(i)?.tools ?? []).map((t) => t.function.name);
@@ -183,4 +186,34 @@ test("the owner's own turns never get the contact-only tools", async () => {
   await until(() => llm.calls.at(-1)?.messages.some((m) => String(m.content).includes("hi")) ?? false, "home turn");
   const names = toolsOf(-1);
   assert.ok(!names.includes("pass_request") && !names.includes("search_owner_notes"));
+});
+
+test("the owner's agent writes to a contact on their channel, kept in the contact's chat; a contact's turn never can", async () => {
+  const before = tg.messagesTo(MAG.id).length;
+  await env.client.call("threads.send", { thread: "home", text: "tell the buyer the order ships on Friday" });
+  await env.settle("home");
+  await until(() => tg.messagesTo(MAG.id).length === before + 1, "the message on Telegram");
+  assert.equal(tg.messagesTo(MAG.id).at(-1)?.body.text, "Your order ships on Friday.");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to Northwind Buyer on Telegram/);
+  const chat = await env.client.call("threads.get", { thread });
+  const last = chat.messages.at(-1);
+  assert.deepEqual(
+    [last?.author.kind, last?.parts[0]],
+    ["agent", { type: "text", text: "Your order ships on Friday." }],
+  );
+
+  // The contact's words are now in the chat, so writing again asks first; at total autonomy the agent just acts.
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  // A name that is nobody: nothing goes out, and the agent hears who the contacts are.
+  await env.client.call("threads.send", { thread: "home", text: "tell nobody" });
+  await env.settle("home");
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /not sent: no contact named "Zed"\. Contacts: Northwind Buyer/,
+  );
+
+  // The contact's own turn has no way to write to anyone else.
+  tg.message(MAG, "thanks!");
+  await until(() => tg.messagesTo(MAG.id).length === before + 2, "the contact's answer");
+  assert.ok(!toolsOf(-1).includes("message_contact"));
 });

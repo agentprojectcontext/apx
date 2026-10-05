@@ -128,6 +128,7 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
     ...SAFETY,
     "- To show something visual (tables, charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables.",
+    "- To write to one of your owner's contacts on WhatsApp, Telegram or Discord, use message_contact: APX sends it on its own channel. Never drive a phone or a browser to send it.",
     BROWSING,
     "- Other agents: delegate with their id. Who is available is listed in the turn context when it changes; list_agents finds the rest.",
     "- Workers: for focused work that would fill your context (research, a review, a long search), delegate with worker {name, instructions} instead of an agent: a throwaway helper with your tools, under instructions you write for that one task.",

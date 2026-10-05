@@ -488,6 +488,74 @@ export function createChannels(deps: {
   }
 
   /**
+   * An agent writes to a contact for the owner: on the channel asked for, else the one with the contact's most recent
+   * chat, else the first running one that knows them. Kept in their chat (where their answer will come in) and in what
+   * that chat's agent reads, then sent through the outbox.
+   */
+  function messageContact(
+    personId: string,
+    text: string,
+    /** `by`: the agent writing; none: the owner themselves. */
+    o: { channel?: string | undefined; by?: string | undefined },
+  ): { thread: string; channel: string; recent: Array<{ from: "them" | "you" | "owner"; text: string }> } {
+    const person = store.persons.get(personId);
+    if (!person || person.role !== "contact") throw new Error(`${personId} is not one of the owner's contacts`);
+    const wanted = o.channel?.toLowerCase();
+    const options = person.addresses.flatMap((a) => {
+      const cfg = configs().find((c) => c.id === a.channel);
+      if (!cfg || (wanted && cfg.id !== wanted && cfg.type !== wanted)) return [];
+      const chat = store.threads.byConversation(cfg.id, a.external_id);
+      return [{ cfg, conversation: a.external_id, chat, running: live.get(cfg.id)?.status === "running" }];
+    });
+    if (!options.length)
+      throw new Error(
+        wanted
+          ? `${person.name} has no address on ${o.channel}`
+          : `${person.name} has no address on any channel APX runs`,
+      );
+    const pick = [...options].sort(
+      (a, b) =>
+        (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
+    )[0] as (typeof options)[number];
+    const thread =
+      pick.chat ??
+      store.threads.create({
+        kind: "channel",
+        title: person.name,
+        agent_ids: [pick.cfg.agent_id],
+        channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
+      });
+    const before = store.messages.list(thread.id, 6);
+    store.tx(() => {
+      store.messages.add({
+        thread_id: thread.id,
+        author: o.by ? { kind: "agent", id: o.by } : { kind: "user", direct: true },
+        parts: [{ type: "text", text }],
+      });
+      // The chat's agent answers the contact's reply knowing it wrote this first.
+      store.modelLog.append(thread.id, undefined, [{ role: "assistant", content: text }]);
+      store.threads.patch(thread.id, { preview: previewOf(text) });
+    });
+    delivery.enqueue({
+      channel: pick.cfg.id,
+      conversation: pick.conversation,
+      thread_id: thread.id,
+      kind: "reply",
+      body: { text },
+    });
+    const recent = before.flatMap((m) => {
+      const said = m.parts
+        .flatMap((p) => (p.type === "text" ? [p.text] : []))
+        .join("\n")
+        .trim();
+      if (!said) return [];
+      const from = m.author.kind === "person" ? "them" : m.author.kind === "user" ? "owner" : "you";
+      return [{ from, text: said.slice(0, 300) } as const];
+    });
+    return { thread: thread.id, channel: pick.cfg.label, recent };
+  }
+
+  /**
    * A person's profile picture from the first running channel that knows them and shows one, kept as media for a day
    * (a list asks for it on every screen; the platform is asked again only after that).
    */
@@ -523,6 +591,7 @@ export function createChannels(deps: {
     avatar,
     notifyOwner,
     sendAsOwner,
+    messageContact,
     approved: inbound.approved,
     afterRun,
     /** Adds, changes or removes a channel and (re)starts it. */

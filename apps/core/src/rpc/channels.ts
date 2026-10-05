@@ -30,6 +30,14 @@ export function channelHandlers(store: Store, channels: Channels) {
       }
       return { ok: true as const };
     },
+    // Open to agents (the owner's, never a contact's turn): their way to write to a contact for the owner.
+    "channels.message": ({ person, text, channel }, ctx) => {
+      try {
+        return channels.messageContact(person, text, { channel, by: ctx.agent?.id });
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     }),

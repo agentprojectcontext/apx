@@ -699,6 +699,28 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * An agent writes to one of the owner's contacts on a channel, for the owner ("tell Alex on WhatsApp…"): sent on
+   * the contact's channel (the one given, else the one they talked on last) and kept in their chat, where their answer
+   * arrives. `recent` is the end of that chat, so the agent knows what was already said. Never offered to a contact's
+   * own turn.
+   */
+  "channels.message": {
+    params: z
+      .object({
+        person: Id,
+        text: z.string().trim().min(1).max(4000),
+        /** A channel id or type ("whatsapp"); absent: the one the contact used last. */
+        channel: z.string().max(60).optional(),
+      })
+      .strict(),
+    result: z.object({
+      thread: Id,
+      channel: z.string(),
+      recent: z.array(z.object({ from: z.enum(["them", "you", "owner"]), text: z.string() })),
+    }),
+    effect: true,
+  },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
