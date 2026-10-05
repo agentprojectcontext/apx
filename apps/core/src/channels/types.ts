@@ -76,6 +76,20 @@ export interface ChannelAdapter {
 }
 
 /** A media file to send: an image goes as a photo, OGG audio as a voice note, other audio as an audio file. */
-export type OutFile = { kind: "image" | "audio"; mime: string; data: Buffer };
+export type OutFile = { kind: "image" | "audio" | "file"; mime: string; data: Buffer; name?: string | undefined };
+
+/** The name a file goes out with: its own, else one made from its kind and type ("image.png"). */
+export function fileName(f: OutFile): string {
+  if (f.name) return f.name;
+  const ext =
+    f.kind === "image"
+      ? (f.mime.split("/")[1] ?? "png")
+      : f.mime === "audio/ogg"
+        ? "ogg"
+        : f.kind === "audio"
+          ? "mp3"
+          : "bin";
+  return `${f.kind}.${ext}`;
+}
 
 export type AdapterFactory = (config: ChannelConfig, token: string | undefined) => ChannelAdapter;

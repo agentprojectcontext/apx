@@ -60,6 +60,7 @@ import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
 import { contactTools } from "./tools/contact.ts";
+import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -119,7 +120,8 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...ownerTools(store),
     ...shellTools(store, home, port),
     ...fileTools(store, home),
-    ...messageTools(store),
+    ...messageTools(store, home),
+    ...directoryTools(store),
     ...skillTools(store, home),
     ...memoryTools(),
     ...mediaTools(),

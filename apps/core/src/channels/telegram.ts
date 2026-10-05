@@ -10,6 +10,7 @@ import {
   type AdapterIO,
   type ChannelAdapter,
   ChannelRefused,
+  fileName,
   type OutFile,
   SendError,
 } from "./types.ts";
@@ -204,14 +205,16 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     }
   }
 
-  /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file. */
+  /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file, anything else as a document. */
   async function sendFile(chat: string, f: OutFile, silent?: boolean, caption?: string): Promise<number> {
     const [method, field, name] =
-      f.kind === "image"
-        ? ["sendPhoto", "photo", "image"]
-        : f.mime === "audio/ogg"
-          ? ["sendVoice", "voice", "voice.ogg"]
-          : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
+      f.kind === "file"
+        ? ["sendDocument", "document", fileName(f)]
+        : f.kind === "image"
+          ? ["sendPhoto", "photo", "image"]
+          : f.mime === "audio/ogg"
+            ? ["sendVoice", "voice", "voice.ogg"]
+            : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
     const form = new FormData();
     form.set("chat_id", chat);
     if (silent) form.set("disable_notification", "true");

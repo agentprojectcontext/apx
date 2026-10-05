@@ -10,6 +10,7 @@ import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
+import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
@@ -495,11 +496,16 @@ export function createChannels(deps: {
   function messageContact(
     personId: string,
     text: string,
-    /** `by`: the agent writing; none: the owner themselves. */
-    o: { channel?: string | undefined; by?: string | undefined },
+    /** `by`: the agent writing; none: the owner themselves. `files`: media ids sent with it. */
+    o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
   ): { thread: string; channel: string; recent: Array<{ from: "them" | "you" | "owner"; text: string }> } {
     const person = store.persons.get(personId);
-    if (!person || person.role !== "contact") throw new Error(`${personId} is not one of the owner's contacts`);
+    if (!person || person.role === "blocked") throw new Error(`${personId} is not one of the owner's contacts`);
+    const files = (o.files ?? []).map((id) => {
+      const m = store.media.get(id);
+      if (!m) throw new Error(`no file ${id}`);
+      return m;
+    });
     const wanted = o.channel?.toLowerCase();
     const options = person.addresses.flatMap((a) => {
       const cfg = configs().find((c) => c.id === a.channel);
@@ -517,8 +523,10 @@ export function createChannels(deps: {
       (a, b) =>
         (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
     )[0] as (typeof options)[number];
+    const owner = person.role === "owner";
     const thread =
       pick.chat ??
+      (owner ? store.threads.get(HOME_THREAD_ID) : undefined) ??
       store.threads.create({
         kind: "channel",
         title: person.name,
@@ -530,10 +538,17 @@ export function createChannels(deps: {
       store.messages.add({
         thread_id: thread.id,
         author: o.by ? { kind: "agent", id: o.by } : { kind: "user", direct: true },
-        parts: [{ type: "text", text }],
+        parts: [
+          { type: "text", text },
+          ...files.map((f) =>
+            f.kind === "image"
+              ? ({ type: "image", media_id: f.id, mime: f.mime, alt: f.prompt ?? "image" } as const)
+              : ({ type: "file", media_id: f.id, name: f.prompt ?? f.id, mime: f.mime, bytes: f.bytes } as const),
+          ),
+        ],
       });
-      // The chat's agent answers the contact's reply knowing it wrote this first.
-      store.modelLog.append(thread.id, undefined, [{ role: "assistant", content: text }]);
+      // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
+      if (!owner) store.modelLog.append(thread.id, undefined, [{ role: "assistant", content: text }]);
       store.threads.patch(thread.id, { preview: previewOf(text) });
     });
     delivery.enqueue({
@@ -541,7 +556,19 @@ export function createChannels(deps: {
       conversation: pick.conversation,
       thread_id: thread.id,
       kind: "reply",
-      body: { text },
+      body: {
+        text,
+        ...(files.length
+          ? {
+              media: files.map((f) => ({
+                id: f.id,
+                kind: f.kind,
+                mime: f.mime,
+                ...(f.kind === "file" && f.prompt ? { name: f.prompt } : {}),
+              })),
+            }
+          : {}),
+      },
     });
     const recent = before.flatMap((m) => {
       const said = m.parts

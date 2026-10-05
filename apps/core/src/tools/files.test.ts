@@ -12,6 +12,9 @@ const calls: Record<string, [string, object]> = {
   escape: ["file_write", { path: "../outside.txt", content: "no" }],
   absolute: ["file_write", { path: "/tmp/apx-absolute.txt", content: "no" }],
   git: ["file_write", { path: ".git/config", content: "no" }],
+  "read page": ["file_read", { path: "pages/btc.html", offset: 2, limit: 1 }],
+  "read binary": ["file_read", { path: "pages/blob.bin" }],
+  "read outside": ["file_read", { path: "../secrets.index.json" }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -58,4 +61,15 @@ test("an agent writes and edits a file in the folder it works in, never outside 
     assert.match(await said(t.id, ask), why);
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
   assert.equal(fs.existsSync("/tmp/apx-absolute.txt"), false);
+});
+
+test("an agent reads a text file by lines, as data; a binary one or one outside the folder is not read", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "read" });
+  fs.writeFileSync(path.join(env.home, "work", "pages", "btc.html"), "one\ntwo\nthree\n");
+  fs.writeFileSync(path.join(env.home, "work", "pages", "blob.bin"), Buffer.from([0, 1, 2, 3]));
+  const page = await said(t.id, "read page");
+  assert.match(page, /pages\/btc\.html: lines 2-2 of 4 \(more: offset=3\)/);
+  assert.match(page, /<file path="pages\/btc\.html" trust="untrusted">\ntwo\n<\/file>/);
+  assert.match(await said(t.id, "read binary"), /is not a text file/);
+  assert.match(await said(t.id, "read outside"), /outside the folder/);
 });

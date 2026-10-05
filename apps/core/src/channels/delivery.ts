@@ -64,7 +64,7 @@ export function createDelivery(deps: {
     try {
       const files = (o.body.media ?? []).flatMap((m) => {
         const f = deps.media(m.id);
-        return f ? [{ kind: m.kind, mime: f.mime, data: f.data }] : [];
+        return f ? [{ kind: m.kind, mime: f.mime, data: f.data, ...(m.name ? { name: m.name } : {}) }] : [];
       });
       const r = await target.adapter.send(o.conversation, o.body, files);
       store.channels.outbox.sent(o.id, r.external_id);

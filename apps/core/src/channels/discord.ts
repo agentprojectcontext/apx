@@ -10,6 +10,7 @@ import {
   type AdapterIO,
   type ChannelAdapter,
   ChannelRefused,
+  fileName,
   type OutFile,
   SendError,
 } from "./types.ts";
@@ -228,10 +229,10 @@ export const discordAdapter = ((
 
   async function sendFile(channel: string, f: OutFile): Promise<string> {
     if (!token) throw new DcError(401, "no bot token");
-    const ext = f.kind === "image" ? (f.mime.split("/")[1] ?? "png") : f.mime === "audio/ogg" ? "ogg" : "mp3";
+    const name = fileName(f);
     const form = new FormData();
-    form.set("payload_json", JSON.stringify({ attachments: [{ id: 0, filename: `${f.kind}.${ext}` }] }));
-    form.set("files[0]", new Blob([new Uint8Array(f.data)], { type: f.mime }), `${f.kind}.${ext}`);
+    form.set("payload_json", JSON.stringify({ attachments: [{ id: 0, filename: name }] }));
+    form.set("files[0]", new Blob([new Uint8Array(f.data)], { type: f.mime }), name);
     const res = await fetch(`${urls.api}/channels/${channel}/messages`, {
       method: "POST",
       headers: { authorization: `Bot ${token}` },

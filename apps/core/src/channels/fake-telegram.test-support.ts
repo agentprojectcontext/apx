@@ -38,7 +38,17 @@ export async function fakeTelegram(token: string) {
       if (method === "getFile") return reply(200, { ok: true, result: { file_path: "voice/1.oga" } });
       if (multipart) {
         const caption = /name="caption"\r\n\r\n([\s\S]*?)\r\n--/.exec(raw)?.[1];
-        sent.push({ method, body: { bytes: raw.length, ...(caption ? { caption } : {}) } });
+        const chat = /name="chat_id"\r\n\r\n([\s\S]*?)\r\n--/.exec(raw)?.[1];
+        const filename = /filename="([^"]*)"/.exec(raw)?.[1];
+        sent.push({
+          method,
+          body: {
+            bytes: raw.length,
+            ...(caption ? { caption } : {}),
+            ...(chat ? { chat_id: chat } : {}),
+            ...(filename ? { filename } : {}),
+          },
+        });
         return reply(200, { ok: true, result: { message_id: nextMessage++ } });
       }
       if (method === "getUpdates") {
@@ -119,6 +129,12 @@ export async function fakeTelegram(token: string) {
     },
     messagesTo(chat: number) {
       return sent.filter((s) => s.method === "sendMessage" && String(s.body.chat_id) === String(chat));
+    },
+    /** Files sent to a chat (photos, voice notes, documents), with the method that sent each. */
+    filesTo(chat: number) {
+      return sent.filter(
+        (s) => s.method !== "sendMessage" && s.body.filename && String(s.body.chat_id) === String(chat),
+      );
     },
     close: () => new Promise<void>((r) => server.close(() => r())),
   };

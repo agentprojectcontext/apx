@@ -14,6 +14,16 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("your owner like")) return callTool("n1", "search_owner_notes", { query: "coffee" });
   if (said.includes("tell the buyer"))
     return callTool("m1", "message_contact", { to: "northwind", text: "Your order ships on Friday." });
+  if (said.includes("send the quote"))
+    return callTool("m3", "message_contact", {
+      to: "Northwind Buyer",
+      text: "Here is the quote.",
+      files: ["quote.pdf"],
+    });
+  if (said.includes("send a secret"))
+    return callTool("m4", "message_contact", { to: "Northwind Buyer", text: "x", files: ["../secrets.index.json"] });
+  if (said.includes("who are my contacts")) return callTool("c1", "contact_list", { query: "north" });
+  if (said.includes("what routines")) return callTool("c2", "routine_list", {});
   if (said.includes("tell nobody")) return callTool("m2", "message_contact", { to: "Zed", text: "Hi" });
   return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
 });
@@ -216,4 +226,44 @@ test("the owner's agent writes to a contact on their channel, kept in the contac
   tg.message(MAG, "thanks!");
   await until(() => tg.messagesTo(MAG.id).length === before + 2, "the contact's answer");
   assert.ok(!toolsOf(-1).includes("message_contact"));
+});
+
+test("a file from the folder the agent works in goes with the message, as a document; one outside it never", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  fs.mkdirSync(path.join(env.home, "work"), { recursive: true });
+  fs.writeFileSync(path.join(env.home, "work", "quote.pdf"), "%PDF-1.4 quote");
+  await env.client.call("threads.send", { thread: "home", text: "send the quote to the buyer" });
+  await env.settle("home");
+  await until(() => tg.filesTo(MAG.id).length === 1, "the document on Telegram");
+  assert.deepEqual(
+    [tg.filesTo(MAG.id)[0]?.method, tg.filesTo(MAG.id)[0]?.body.filename],
+    ["sendDocument", "quote.pdf"],
+  );
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to Northwind Buyer on Telegram with 1 file/);
+  const chat = await env.client.call("threads.get", { thread });
+  assert.deepEqual(
+    chat.messages.at(-1)?.parts.map((p) => p.type),
+    ["text", "file"],
+  );
+
+  await env.client.call("threads.send", { thread: "home", text: "send a secret to the buyer" });
+  await env.settle("home");
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /not sent: \.\.\/secrets\.index\.json is outside the folder/,
+  );
+  assert.equal(tg.filesTo(MAG.id).length, 1);
+});
+
+test("the owner's agent can look up contacts and routines, read only", async () => {
+  await env.client.call("threads.send", { thread: "home", text: "who are my contacts?" });
+  await env.settle("home");
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /- Northwind Buyer \[per_[a-f0-9]+\] \("NB", client, on tg\): Buys for Northwind\./,
+  );
+  await env.client.call("threads.send", { thread: "home", text: "what routines do I have?" });
+  await env.settle("home");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no routines\./);
 });

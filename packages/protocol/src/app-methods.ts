@@ -700,7 +700,8 @@ export const appMethods = {
     access: "human",
   },
   /**
-   * An agent writes to one of the owner's contacts on a channel, for the owner ("tell Alex on WhatsApp…"): sent on
+   * An agent writes to one of the owner's contacts (or to the owner, on a channel) for the owner ("tell Alex on
+   * WhatsApp…", "send me the quote"): sent on
    * the contact's channel (the one given, else the one they talked on last) and kept in their chat, where their answer
    * arrives. `recent` is the end of that chat, so the agent knows what was already said. Never offered to a contact's
    * own turn.
@@ -712,6 +713,8 @@ export const appMethods = {
         text: z.string().trim().min(1).max(4000),
         /** A channel id or type ("whatsapp"); absent: the one the contact used last. */
         channel: z.string().max(60).optional(),
+        /** Files to send with it (media ids): images as images, anything else as a document. */
+        files: z.array(Id).max(5).optional(),
       })
       .strict(),
     result: z.object({

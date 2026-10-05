@@ -1,16 +1,74 @@
 // message_contact: the owner's agent writes to one of the owner's contacts on a channel ("tell Alex on WhatsApp…"),
-// as v1's send_whatsapp did. Contacts' own turns never get it (see CONTACT_TOOLS in turn.ts): a contact cannot make
-// the agent write to someone else.
+// or to the owner there ("send me the quote"), with files if asked, as v1's send_whatsapp and send_file did.
+// Contacts' own turns never get it (see CONTACT_TOOLS in turn.ts): a contact cannot make the agent write to someone.
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
+import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
+import { insideReal } from "../paths.ts";
 import { untrusted } from "./result.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { workDir } from "./shell.ts";
+import { defineTool, type Tool, type ToolContext } from "./types.ts";
+
+/** Largest file sent in one message (the channels take more; a bigger one is not something to send unasked). */
+const MAX_FILE = 20 * 1024 * 1024;
+const MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  json: "application/json",
+  html: "text/html",
+  zip: "application/zip",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  mp3: "audio/mpeg",
+  ogg: "audio/ogg",
+  m4a: "audio/mp4",
+  mp4: "video/mp4",
+};
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
-export function messageTools(store: Store): Tool[] {
-  /** The owner's contact a name (or id) points at; several or none: why, with the names that do exist. */
+export function messageTools(store: Store, home: string): Tool[] {
+  /** Files of the folder the agent works in, copied aside as media so what goes out is what was asked for. */
+  const attach = (ctx: ToolContext, files: string[]): { ids: string[] } | { problem: string } => {
+    const base = workDir(store, home, ctx.thread);
+    const ids: string[] = [];
+    for (const file of files) {
+      if (path.isAbsolute(file) || !insideReal(base, file))
+        return { problem: `${file} is outside the folder you work in` };
+      const at = path.resolve(base, file);
+      if (!fs.existsSync(at) || !fs.statSync(at).isFile()) return { problem: `no file ${file}` };
+      const bytes = fs.statSync(at).size;
+      if (bytes > MAX_FILE) return { problem: `${file} is over ${MAX_FILE / 1024 / 1024} MB` };
+      const ext = path.extname(at).slice(1).toLowerCase();
+      const mime = MIME[ext] ?? "application/octet-stream";
+      const kind = mime.startsWith("image/") ? "image" : mime.startsWith("audio/") ? "audio" : "file";
+      const dir = path.join(home, "media", "sent", new Date().toISOString().slice(0, 10));
+      fs.mkdirSync(dir, { recursive: true });
+      const copy = path.join(dir, `${randomUUID()}${ext ? `.${ext}` : ""}`);
+      fs.copyFileSync(at, copy);
+      ids.push(
+        store.media.add({ kind, mime, bytes, path: copy, thread_id: ctx.thread.id, prompt: path.basename(at) }).id,
+      );
+    }
+    return { ids };
+  };
+  /** The owner's contact a name (or id) points at ("me": the owner); several or none: why, with the names there are. */
   const resolve = (to: string): { id: string; name: string } | { problem: string } => {
+    if (/^(me|owner|yo|a mi|a mí)$/i.test(to.trim())) {
+      const owner = store.persons.get(OWNER_ID);
+      if (owner) return owner;
+    }
     const contacts = store.persons.list().filter((p) => p.role === "contact");
     const exact = contacts.find((p) => p.id === to);
     if (exact) return exact;
@@ -39,11 +97,12 @@ export function messageTools(store: Store): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        "Write to one of your owner's contacts on a channel (WhatsApp, Telegram, Discord) when the owner asks you to: 'tell Alex…', 'answer her on WhatsApp'. `to` is the contact's name (or id); `channel` is optional (whatsapp, telegram, discord: by default the one they talked on last). Plain text, as a person types it: no markdown. It is sent at once and cannot be taken back. Write it in first person as your owner's assistant; never invent what the owner did not say. The result shows the end of that chat: read it before telling the owner it went.",
+        "Send a message on WhatsApp, Telegram or Discord, through APX's own channels, when the owner asks: to one of their contacts ('tell Alex…', 'answer her on WhatsApp'), or to the owner with to=\"me\" ('send me the quote on WhatsApp'). `to`: the contact's name or id, or \"me\". `channel`: whatsapp, telegram or discord (default: the one they talked on last). `files`: paths in the folder you work in (images go as images, anything else as a document, 20 MB at most). Plain text as a person types it, no markdown; it goes out at once and cannot be taken back. Write it in first person as the owner's assistant and never add what the owner did not say. The result shows the end of that chat: read it before telling the owner it went. Never use a phone or a browser to send a message.",
       args: z.object({
         to: z.string().trim().min(1).max(120),
         text: z.string().trim().min(1).max(4000),
         channel: z.string().max(60).optional(),
+        files: z.array(z.string().min(1).max(500)).max(5).optional(),
       }),
       effect: "message",
       // Words go to someone else: asked while outside content is in the turn, unless the agent's autonomy is total.
@@ -53,13 +112,17 @@ export function messageTools(store: Store): Tool[] {
       async run(a, ctx) {
         const who = resolve(a.to);
         if ("problem" in who) return `not sent: ${who.problem}`;
+        const files = a.files?.length ? attach(ctx, a.files) : { ids: [] };
+        if ("problem" in files) return `not sent: ${files.problem}`;
         const r = await ctx.call("channels.message", {
           person: who.id,
           text: a.text,
           ...(a.channel ? { channel: a.channel } : {}),
+          ...(files.ids.length ? { files: files.ids } : {}),
         });
         const tail = r.recent.map((m) => `${m.from}: ${m.text}`).join("\n");
-        return `sent to ${who.name} on ${r.channel} (queued for delivery).${tail ? `\nThe chat before it:\n${untrusted("contact_chat", { with: who.name }, tail)}` : ""}`;
+        const with_ = files.ids.length ? ` with ${files.ids.length} file${files.ids.length > 1 ? "s" : ""}` : "";
+        return `sent to ${who.name} on ${r.channel}${with_} (queued for delivery).${tail ? `\nThe chat before it:\n${untrusted("contact_chat", { with: who.name }, tail)}` : ""}`;
       },
     }),
   ];

@@ -10,6 +10,7 @@ import {
   type AdapterIO,
   type ChannelAdapter,
   ChannelRefused,
+  fileName,
   type OutFile,
   SendError,
 } from "./types.ts";
@@ -218,8 +219,7 @@ export const slackAdapter = ((config, secret, apiBase = "https://slack.com/api")
   }
 
   async function sendFile(channel: string, f: OutFile): Promise<string> {
-    const ext = f.kind === "image" ? (f.mime.split("/")[1] ?? "png") : f.mime === "audio/ogg" ? "ogg" : "mp3";
-    const filename = `${f.kind}.${ext}`;
+    const filename = fileName(f);
     const up = await api<SlackReply & { upload_url: string; file_id: string }>("files.getUploadURLExternal", {
       filename,
       length: f.data.length,

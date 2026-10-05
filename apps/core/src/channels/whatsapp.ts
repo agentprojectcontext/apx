@@ -8,7 +8,7 @@ import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { chunks } from "./telegram-format.ts";
-import { type AdapterIO, type ChannelAdapter, ChannelRefused, type OutFile, SendError } from "./types.ts";
+import { type AdapterIO, type ChannelAdapter, ChannelRefused, fileName, type OutFile, SendError } from "./types.ts";
 
 /** The part of the library APX uses, so a test can hand in its own. */
 export type WaLib = {
@@ -316,11 +316,13 @@ export function whatsappAdapter(opts: {
   }
 
   const fileContent = (f: OutFile): Record<string, unknown> =>
-    f.kind === "image"
-      ? { image: f.data, mimetype: f.mime }
-      : f.mime === "audio/ogg"
-        ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
-        : { audio: f.data, mimetype: f.mime };
+    f.kind === "file"
+      ? { document: f.data, mimetype: f.mime, fileName: fileName(f) }
+      : f.kind === "image"
+        ? { image: f.data, mimetype: f.mime }
+        : f.mime === "audio/ogg"
+          ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
+          : { audio: f.data, mimetype: f.mime };
 
   return {
     caps: { typing: true, buttons: false, ownAccount: Boolean(opts.selfOwner) },

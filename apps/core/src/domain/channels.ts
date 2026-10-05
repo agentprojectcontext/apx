@@ -37,8 +37,8 @@ export type Presentation = {
   silent?: boolean;
   /** Parts already delivered by an earlier attempt (text chunks first, then media). */
   skip?: number;
-  /** Images and voice notes APX made, sent after the text. */
-  media?: Array<{ id: string; kind: "image" | "audio"; mime: string }>;
+  /** Images, voice notes and files (a document, sent as one, with its name), after the text. */
+  media?: Array<{ id: string; kind: "image" | "audio" | "file"; mime: string; name?: string | undefined }>;
   /** A voice note and what it says: the audio first, the text as its caption where the channel allows one. */
   mediaFirst?: boolean;
   /** In a room: the message this answers (shown as a reply to it). */
