@@ -65,6 +65,7 @@ import { memoryTools } from "./tools/memory.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
+import { fileTools } from "./tools/files.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -116,6 +117,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...surfaceTools(),
     ...ownerTools(store),
     ...shellTools(store, home, port),
+    ...fileTools(store, home),
     ...skillTools(store, home),
     ...memoryTools(),
     ...mediaTools(),

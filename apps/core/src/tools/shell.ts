@@ -75,12 +75,21 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   return segments.every(simple) ? "never" : "ask";
 }
 
+/**
+ * Where an agent works in a thread: a code thread's own folder, else its project's folder when it is on disk, else
+ * APX's work folder. Commands run and files are written only inside it.
+ */
+export function workDir(
+  store: Store,
+  home: string,
+  thread: { cwd?: string | undefined; project_id?: string | undefined },
+) {
+  if (thread.cwd) return thread.cwd;
+  const p = thread.project_id ? store.projects.get(thread.project_id) : undefined;
+  return p?.path && p.present ? p.path : path.join(home, "work");
+}
+
 export function shellTools(store: Store, home: string, apxPort: () => number): Tool[] {
-  /** The project's folder when the thread belongs to one that is on disk, else APX's own work folder. */
-  const baseDir = (projectId: string | undefined) => {
-    const p = projectId ? store.projects.get(projectId) : undefined;
-    return p?.path && p.present ? p.path : path.join(home, "work");
-  };
   return [
     defineTool({
       name: "shell",
@@ -98,8 +107,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        // A code thread works in its own folder; any other thread in its project's root.
-        const base = ctx.thread.cwd ?? baseDir(ctx.thread.project_id);
+        const base = workDir(store, home, ctx.thread);
         const cwd = path.resolve(base, a.cwd ?? ".");
         // Links resolved: a symlink inside the project must not run the command somewhere else.
         if (!insideReal(base, a.cwd ?? ".")) return `refused: ${a.cwd} is outside the project folder`;
