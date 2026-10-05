@@ -9,8 +9,7 @@
     "build": "node scripts/build.ts",
     "dev": "node scripts/build.ts && electron .",
     "typecheck": "tsc -p .",
-    "test": "node --test 'src/**/*.test.ts'",
-    "dist": "node scripts/stage.ts && npx --yes electron-builder@26.15.3 --config electron-builder.json --publish never"
+    "test": "node --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "@apx/protocol": "workspace:*"

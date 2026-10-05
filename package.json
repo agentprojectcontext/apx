@@ -22,7 +22,10 @@
     "e2e:desktop": "pnpm build:web && pnpm --filter @apx/desktop build && playwright test --project desktop",
     "perf": "pnpm build:web && node --no-warnings scripts/perf.ts",
     "verify": "pnpm preflight && pnpm e2e && pnpm e2e:desktop && node --no-warnings scripts/perf.ts",
-    "package": "pnpm build:web && pnpm --filter @apx/desktop build && pnpm --filter @apx/desktop dist"
+    "package": "node scripts/package.ts",
+    "package:mac": "node scripts/package.ts mac",
+    "package:linux": "node scripts/package.ts linux",
+    "package:win": "node scripts/package.ts win"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

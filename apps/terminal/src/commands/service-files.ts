@@ -1,5 +1,6 @@
 // What `apx service install` writes: a systemd user unit, a launchd agent, or a Windows login entry. Pure text.
 import path from "node:path";
+import { BUNDLE } from "@apx/protocol";
 
 export const SYSTEMD_UNIT = "apx.service";
 export const LAUNCHD_LABEL = "dev.apx.core";
@@ -11,6 +12,30 @@ export const coreMain = () => path.resolve(import.meta.dirname, "../../../core/s
 export const terminalMain = () => path.resolve(import.meta.dirname, "../main.ts");
 /** The folder holding apps/: the core runs from there, as the desktop app runs it. */
 export const appRoot = (main: string) => path.resolve(path.dirname(main), "../../..");
+
+/**
+ * The APX_APP a bundle's terminal lives in (<app>/versions/<version>/apps/terminal/src), for when it runs without the
+ * `apx` shim that sets it (the Windows login entry starts the terminal directly).
+ */
+export function bundleAppOf(terminalSrc: string): string | undefined {
+  const version = path.resolve(terminalSrc, "../../..");
+  const versions = path.dirname(version);
+  return path.basename(versions) === BUNDLE.versions ? path.dirname(versions) : undefined;
+}
+
+/**
+ * What runs, for a daemon installed from a bundle (APX_APP): always through `current`, never the version folder it
+ * points at today, so an update that moves `current` is what the service starts next.
+ */
+export function bundleRun(app: string, win = process.platform === "win32") {
+  const current = path.join(app, BUNDLE.current);
+  return {
+    node: path.join(current, ...BUNDLE.node(win)),
+    core: path.join(current, ...BUNDLE.core),
+    terminal: path.join(current, ...BUNDLE.terminal),
+    cwd: current,
+  };
+}
 
 export type ServiceSpec = {
   node: string;
@@ -28,7 +53,7 @@ export type ServiceSpec = {
  */
 export function serviceEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = { APX_SUPERVISED: "1" };
-  for (const k of ["APX_HOME", "ELECTRON_RUN_AS_NODE", "APX_WEB_DIST", "PATH"]) {
+  for (const k of ["APX_HOME", "APX_APP", "APX_RELEASES", "ELECTRON_RUN_AS_NODE", "APX_WEB_DIST", "PATH"]) {
     const v = env[k];
     if (v) out[k] = v;
   }

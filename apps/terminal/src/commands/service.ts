@@ -7,6 +7,7 @@ import path from "node:path";
 import { apxHome, corePort, coreUp, localConnection } from "./local.ts";
 import {
   appRoot,
+  bundleRun,
   coreMain,
   LAUNCHD_LABEL,
   launchdPlist,
@@ -68,15 +69,21 @@ function installed(): boolean {
 }
 
 function spec(home: string): ServiceSpec {
+  const env = serviceEnv(process.env);
+  const log = path.join(home, "logs", "core.log");
+  if (process.env.APX_APP) {
+    const b = bundleRun(process.env.APX_APP);
+    return { node: b.node, main: b.core, cwd: b.cwd, env, log };
+  }
   const main = coreMain();
-  return {
-    node: process.execPath,
-    main,
-    cwd: appRoot(main),
-    env: serviceEnv(process.env),
-    log: path.join(home, "logs", "core.log"),
-  };
+  return { node: process.execPath, main, cwd: appRoot(main), env, log };
 }
+
+/** The terminal and the Node that run `apx service run` on Windows (through `current` for a bundle install). */
+const supervisorRun = () =>
+  process.env.APX_APP
+    ? { node: bundleRun(process.env.APX_APP).node, terminal: bundleRun(process.env.APX_APP).terminal }
+    : { node: process.execPath, terminal: terminalMain() };
 
 export async function service(sub: string | undefined, opts: { home?: string | undefined } = {}) {
   if (sub === "install") return install();
@@ -120,8 +127,7 @@ export async function install(): Promise<void> {
     console.log(`logs: ${s.log}`);
   } else {
     const command = windowsRunCommand({
-      node: process.execPath,
-      terminal: terminalMain(),
+      ...supervisorRun(),
       home,
       electron: Boolean(process.env.ELECTRON_RUN_AS_NODE),
     });
@@ -176,7 +182,8 @@ export async function restart(): Promise<void> {
 }
 
 function startWindows(home: string) {
-  spawn(process.execPath, [...NODE_FLAGS, terminalMain(), "service", "run", "--home", home], {
+  const run = supervisorRun();
+  spawn(run.node, [...NODE_FLAGS, run.terminal, "service", "run", "--home", home], {
     detached: true,
     stdio: "ignore",
     windowsHide: true,

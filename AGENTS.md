@@ -31,7 +31,8 @@ pnpm dev                                   # core only, on 127.0.0.1:7440, home 
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
 pnpm preflight                             # check:private + lint + typecheck + test — must be green before push
-pnpm package                               # installers for this OS in apps/desktop/release (CI: push a v2.x.y tag)
+pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
+pnpm package:linux                         # …or another OS's (also :mac, :win), built from this computer
 ```
 
 - The core runs `.ts` directly (Node 24 type stripping): no build step. `pnpm dev` uses `node --watch`, so a

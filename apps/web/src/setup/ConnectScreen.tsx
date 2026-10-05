@@ -11,6 +11,9 @@ type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
 
 /** How long the intro holds the hero alone before the question unrolls under it. */
 const INTRO_MS = 3400;
+/** What puts the APX daemon on a server that has none (install.sh, attached to every release). */
+const INSTALL =
+  "curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash\napx setup --headless";
 
 const ACCESS: Array<{ id: Access; icon: typeof Icons.Lock; title: MessageKey; body: MessageKey }> = [
   { id: "none", icon: Icons.Lock, title: "connect.access.none", body: "connect.access.noneBody" },
@@ -204,9 +207,7 @@ export function ConnectScreen() {
                     {error}
                   </span>
                 )}
-                {install && (
-                  <pre className="connect__install">{"npm i -g @agentprojectcontext/apx\napx setup --headless"}</pre>
-                )}
+                {install && <pre className="connect__install">{INSTALL}</pre>}
               </div>
               <div className="wiz__foot">
                 <button type="button" className="wiz__back" onClick={back}>

@@ -35,19 +35,25 @@ packages/ui        the design system
 pnpm install
 pnpm app        # starts the core on 127.0.0.1:7440 and opens the desktop app
 pnpm preflight  # privacy check + lint + typecheck + tests
+pnpm package    # this OS's desktop installer and server bundle, in out/ (also package:mac, :linux, :win)
 ```
 
 ## Run APX on a server (VPS, no desktop)
 
-The core runs on its own; the desktop app and the phone connect to it. On the server (Node 24 and a checkout or the
-packaged `apps/` folder):
+The core runs on its own; the desktop app and the phone connect to it. On the server, the install script puts the
+daemon, the `apx` command and the Node that runs them in `~/.apx/v2/app` and starts it as a service (nothing needs
+root; your data stays in `~/.apx/v2`; an APX v1 there is stopped and its `apx` replaced, its files kept to import):
 
 ```bash
-pnpm install
-alias apx="node $PWD/apps/terminal/src/main.ts"
+curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+# a bundle you already have:  bash install.sh --file apx-core-<version>-linux-x64.tar.gz
+# Windows (PowerShell):       irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
 
 apx setup --headless --expose tailscale   # or --expose lan; add --import to bring a local APX v1's projects
 ```
+
+From then on it updates itself: it checks the releases every few hours, and the panel (here or on a desktop connected
+to it) offers the new version. From a checkout instead: `pnpm install` and `alias apx="node $PWD/apps/terminal/src/main.ts"`.
 
 `setup --headless` does, in order, what you can also run by hand:
 

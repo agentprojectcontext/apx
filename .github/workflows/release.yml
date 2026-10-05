@@ -1,5 +1,6 @@
-# A version tag (v2.0.1) builds the installers on each OS — native modules and the agent CLIs are per platform, so
-# nothing is cross-built — and attaches them to a GitHub Release of that tag. The tag is the version: no bump commit.
+# A version tag (v2.0.1) builds, on each OS, the desktop installer and the daemon bundle for servers (pnpm package) and
+# attaches them, with their .sha256 and the install scripts, to a GitHub Release of that tag. The tag is the version:
+# no bump commit.
 name: release
 
 on:
@@ -53,17 +54,16 @@ jobs:
       - name: Version from the tag
         shell: bash
         run: cd apps/desktop && npm pkg set version="${TAG#v}"
-      - name: Installers
-        # Once more on failure: npx's cache on the hosted runners fails now and then (ECOMPROMISED).
+      - name: Installer, daemon bundle and install scripts
         shell: bash
-        run: pnpm package || (npm cache clean --force && pnpm package)
+        run: pnpm package
       - name: Attach to the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
-          gh release upload "$TAG" apps/desktop/release/*.{AppImage,exe,dmg,zip} --clobber
+          gh release upload "$TAG" out/*.{AppImage,exe,dmg,zip,tar.gz,sha256,sh,ps1} --clobber
 
   # The phone app as an installable APK (Expo prebuild + Gradle; the release build signs with the template's debug
   # key, enough to sideload — the Play Store needs its own key later).

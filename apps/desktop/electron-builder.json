@@ -3,7 +3,7 @@
   "productName": "APX",
   "artifactName": "APX-${version}-${os}-${arch}.${ext}",
   "directories": {
-    "output": "release",
+    "output": "../../out",
     "buildResources": "assets"
   },
   "files": ["dist/**", "package.json", "!node_modules/**"],

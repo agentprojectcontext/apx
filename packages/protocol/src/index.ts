@@ -11,6 +11,7 @@ export * from "./files-methods.ts";
 export * from "./frames.ts";
 export * from "./methods.ts";
 export * from "./office.ts";
+export * from "./releases.ts";
 export * from "./resource-methods.ts";
 export * from "./team-methods.ts";
 export * from "./terminal-methods.ts";

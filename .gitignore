@@ -34,6 +34,9 @@ e2e/.out/
 # scratch scripts while developing e2e
 e2e/.*.ts
 
-# desktop installers (pnpm package)
+# release files (pnpm package[:mac|:linux|:win]): installers, daemon bundles, install scripts — out/ above
 apps/desktop/.stage/
+apps/desktop/.bundle/
+apps/desktop/.node-*/
+apps/desktop/.npx-cache/
 apps/desktop/release/

@@ -13,10 +13,20 @@ export function readIdentity(home: string, env: NodeJS.ProcessEnv = process.env)
   const pkg = JSON.parse(fs.readFileSync(path.join(APP_DIR, "package.json"), "utf8")) as { version: string };
   return {
     version: pkg.version,
-    code_sha: env.APX_CODE_SHA ?? gitSha(),
+    code_sha: env.APX_CODE_SHA ?? builtSha() ?? gitSha(),
     home_id: homeId(home),
     started_at: new Date(),
   };
+}
+
+/** A packaged APX (the desktop app's, a bundle install) has no git: stage.ts wrote its commit beside apps/. */
+function builtSha(): string | undefined {
+  try {
+    const build = JSON.parse(fs.readFileSync(path.join(APP_DIR, "../..", "build.json"), "utf8")) as { sha?: unknown };
+    return typeof build.sha === "string" && build.sha ? build.sha : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function gitSha(): string {

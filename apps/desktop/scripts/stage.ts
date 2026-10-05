@@ -2,13 +2,17 @@
 // hold: apps/core, apps/terminal (with the skills it installs in other runtimes), apps/web/dist, examples/agents, and
 // a node_modules of real files (no workspace links: Node strips TypeScript only outside node_modules, so
 // @apx/protocol goes in as a JavaScript bundle).
-// Run it on the OS the installer is for: native modules (sharp) and the Codex binary are per platform.
+// Native modules are per platform (sharp, as prebuilt optional packages): APX_TARGET=<os>-<arch> (linux-x64, win-x64,
+// mac-arm64) installs the target's instead of this machine's, so one computer can build for all three.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { nodeOs, targetOf } from "@apx/protocol";
 import { build } from "esbuild";
 
 const repo = path.resolve(import.meta.dirname, "../../..");
+const target = targetOf(process.env.APX_TARGET, process.platform, process.arch);
+if (!target) throw new Error(`no build for ${process.env.APX_TARGET ?? `${process.platform}-${process.arch}`}`);
 const out = path.join(repo, "apps/desktop/.stage/apx");
 const version = (
   JSON.parse(fs.readFileSync(path.join(repo, "apps/desktop/package.json"), "utf8")) as { version: string }
@@ -50,7 +54,12 @@ fs.writeFileSync(
   path.join(out, "package.json"),
   JSON.stringify({ name: "apx-bundle", version, private: true, type: "module", dependencies: deps }, null, 2),
 );
-execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund", "--no-package-lock"], {
+const platformFlags = [
+  `--os=${nodeOs(target)}`,
+  `--cpu=${target.arch}`,
+  ...(target.os === "linux" ? ["--libc=glibc"] : []),
+];
+execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund", "--no-package-lock", ...platformFlags], {
   cwd: out,
   stdio: "inherit",
   shell: process.platform === "win32",
@@ -104,5 +113,10 @@ if (!sha) {
     sha = execFileSync("git", ["rev-parse", "--short=12", "HEAD"], { cwd: repo }).toString().trim();
   } catch {}
 }
-fs.writeFileSync(path.join(out, "build.json"), JSON.stringify({ version, sha }, null, 2));
-console.log(`staged APX ${version} (${sha || "no sha"}) in ${path.relative(repo, out)}`);
+fs.writeFileSync(
+  path.join(out, "build.json"),
+  JSON.stringify({ version, sha, os: target.os, arch: target.arch }, null, 2),
+);
+console.log(
+  `staged APX ${version} (${sha || "no sha"}) for ${target.os}-${target.arch} in ${path.relative(repo, out)}`,
+);

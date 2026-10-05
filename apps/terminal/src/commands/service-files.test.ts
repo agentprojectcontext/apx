@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { appRoot, coreMain, launchdPlist, serviceEnv, systemdUnit, windowsRunCommand } from "./service-files.ts";
+import {
+  appRoot,
+  bundleAppOf,
+  bundleRun,
+  coreMain,
+  launchdPlist,
+  serviceEnv,
+  systemdUnit,
+  windowsRunCommand,
+} from "./service-files.ts";
 
 const spec = {
   node: "/opt/node 24/bin/node",
@@ -60,4 +69,14 @@ test("the Windows login entry runs the terminal's supervisor, through cmd only f
     '"C:\\Node\\node.exe" --disable-warning=ExperimentalWarning "C:\\apx\\apps\\terminal\\src\\main.ts" service run --home "C:\\Users\\u\\.apx\\v2"',
   );
   assert.match(windowsRunCommand({ ...o, electron: true }), /^cmd \/d \/c "set ELECTRON_RUN_AS_NODE=1&& "C:/);
+});
+
+test("a bundle install runs through current, and its terminal finds the install it lives in", () => {
+  const b = bundleRun("/home/u/.apx/v2/app", false);
+  assert.equal(b.node, "/home/u/.apx/v2/app/current/node/bin/node");
+  assert.equal(b.core, "/home/u/.apx/v2/app/current/apps/core/src/main.ts");
+  assert.equal(bundleRun("/home/u/.apx/v2/app", true).node, "/home/u/.apx/v2/app/current/node/node.exe");
+  assert.equal(bundleAppOf("/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src"), "/home/u/.apx/v2/app");
+  assert.equal(bundleAppOf("/home/u/work/apx-v2/apps/terminal/src"), undefined);
+  assert.ok(serviceEnv({ APX_APP: "/home/u/.apx/v2/app" }).APX_APP);
 });
