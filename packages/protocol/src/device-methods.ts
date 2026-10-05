@@ -28,7 +28,35 @@ export type PushTarget = z.infer<typeof PushTarget>;
 export const PHONE_LOCATION_CAP = "location";
 export const PHONE_CAMERA_CAP = "camera";
 
+export const AccessMode = z.enum(["local", "lan", "tailscale"]);
+export type AccessMode = z.infer<typeof AccessMode>;
+export const AccessState = z.object({
+  /** What this running core does now; `saved` is what it takes on its next start. */
+  mode: AccessMode,
+  saved: AccessMode,
+  restart_needed: z.boolean(),
+  /** Where other devices reach it now (empty: only this computer). */
+  urls: z.array(z.string()),
+  token_set: z.boolean(),
+  tailscale: z.object({ installed: z.boolean(), connected: z.boolean(), url: z.string().optional() }),
+});
+export type AccessState = z.infer<typeof AccessState>;
+
 export const deviceMethods = {
+  /** Who may reach this core: this computer only, the local network, or the owner's tailnet (Tailscale). */
+  "access.get": {
+    params: z.object({}).strict(),
+    result: AccessState,
+    effect: false,
+    access: "human",
+  },
+  /** Saves who may reach the core; a supervised core restarts to take it (`restarting`). */
+  "access.set": {
+    params: z.object({ mode: AccessMode }).strict(),
+    result: AccessState.extend({ restarting: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   /**
    * A one-time code (10 minutes) for the next device, and the addresses it may reach this core on. None when the core
    * listens only on this computer: a phone cannot reach it then.

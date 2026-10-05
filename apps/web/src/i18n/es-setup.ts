@@ -221,7 +221,8 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "connect.access.lanBody": "Otros equipos de tu casa u oficina.",
   "connect.access.tailscale": "Tailscale",
   "connect.access.tailscaleBody": "Tus equipos desde cualquier lado, con https. Necesita Tailscale instalado.",
-  "connect.importNext": "En el paso siguiente elegís empezar de cero o importar desde APX v1.",
+  "connect.importNext":
+    "Si es la primera vez, en el paso siguiente elegís empezar de cero o importar desde APX v1. Si ya lo usabas, está en el menú de tu cuenta › Configuración inicial.",
   "connect.start": "Empezar",
   "connect.clientTitle": "Conectate a",
   "connect.clientTitleEnd": "tu APX.",

@@ -4,6 +4,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { type HarnessId, TabInfo } from "@apx/protocol";
+import { createAccess } from "./access.ts";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { discordAdapter } from "./channels/discord.ts";
@@ -246,6 +247,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const dispatch = createRouter(
     coreHandlers({
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
+      access: createAccess({
+        home: config.home,
+        running: { host: config.host, publicUrl: config.publicUrl, token: config.token },
+        port: () => listening,
+        addresses: () => reachableAt(config.host, listening, config.publicUrl),
+        // Only a supervisor brings a stopped core back.
+        restart: config.supervised ? opts.restart : undefined,
+      }),
       store,
       log,
       identity,

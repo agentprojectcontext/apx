@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { parseCoreEnv } from "@apx/protocol";
+import { createAccess, type TailscaleRun } from "./access.ts";
+
+const fakeTailscale = (calls: string[][], connected = true): TailscaleRun => {
+  return (args) => {
+    calls.push(args);
+    if (args[0] === "status")
+      return connected
+        ? { ok: true, out: JSON.stringify({ Self: { DNSName: "box.tail0.ts.net." } }) }
+        : { ok: false, out: "" };
+    return { ok: true, out: "" };
+  };
+};
+
+function setup(o: { tailscale?: TailscaleRun; restart?: () => void; running?: { host: string; publicUrl?: string } }) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-access-"));
+  const access = createAccess({
+    home,
+    running: { host: o.running?.host ?? "127.0.0.1", publicUrl: o.running?.publicUrl, token: undefined },
+    port: () => 7440,
+    addresses: () => ["http://192.0.2.10:7440"],
+    restart: o.restart,
+    tailscale: o.tailscale,
+  });
+  const env = () => parseCoreEnv(fs.readFileSync(path.join(home, "core.env"), "utf8"));
+  return { home, access, env, done: () => fs.rmSync(home, { recursive: true, force: true }) };
+}
+
+test("the local network: saved with a token, and a supervised core restarts to take it", async () => {
+  let restarted = 0;
+  const s = setup({ tailscale: fakeTailscale([]), restart: () => restarted++ });
+  assert.equal(s.access.state().mode, "local");
+  const r = s.access.set("lan");
+  assert.deepEqual([r.mode, r.saved, r.restart_needed, r.restarting], ["local", "lan", true, true]);
+  assert.equal(s.env().APX_HOST, "0.0.0.0");
+  assert.ok(s.env().APX_TOKEN);
+  assert.equal((fs.statSync(path.join(s.home, "core.env")).mode & 0o777).toString(8), "600");
+  await new Promise((done) => setTimeout(done, 600));
+  assert.equal(restarted, 1);
+  s.done();
+});
+
+test("Tailscale: serves the core on the tailnet's https name, and back to local undoes only that", () => {
+  const calls: string[][] = [];
+  const s = setup({ tailscale: fakeTailscale(calls) });
+  const r = s.access.set("tailscale");
+  assert.equal(r.saved, "tailscale");
+  assert.equal(r.restarting, false, "nothing restarts an unsupervised core");
+  assert.equal(s.env().APX_PUBLIC_URL, "https://box.tail0.ts.net");
+  const serves = () => calls.filter((c) => c[0] === "serve");
+  assert.deepEqual(serves(), [["serve", "--bg", "--https=443", "http://127.0.0.1:7440"]]);
+  const token = s.env().APX_TOKEN;
+  s.access.set("local");
+  assert.deepEqual(serves().at(-1), ["serve", "--https=443", "off"]);
+  assert.equal(s.env().APX_PUBLIC_URL, undefined);
+  assert.equal(s.env().APX_TOKEN, token, "the token stays");
+  s.done();
+});
+
+test("Tailscale missing or disconnected is refused with a reason, and nothing is saved", () => {
+  const disconnected = setup({ tailscale: fakeTailscale([], false) });
+  assert.throws(() => disconnected.access.set("tailscale"), /not connected/);
+  assert.equal(fs.existsSync(path.join(disconnected.home, "core.env")), false);
+  assert.equal(disconnected.access.state().tailscale.installed, true);
+  assert.equal(disconnected.access.state().tailscale.connected, false);
+  disconnected.done();
+});
+
+test("what runs now is told apart from what was saved", () => {
+  const s = setup({ tailscale: fakeTailscale([]), running: { host: "0.0.0.0" } });
+  assert.deepEqual(s.access.state().urls, ["http://192.0.2.10:7440"]);
+  assert.equal(s.access.state().mode, "lan");
+  assert.equal(s.access.state().restart_needed, true, "core.env does not say lan yet");
+  s.done();
+});

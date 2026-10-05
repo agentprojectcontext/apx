@@ -39,3 +39,23 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
   await expect(page.getByText("Teléfono de prueba")).toBeHidden();
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);
 });
+
+test("who may reach this APX: the local network is saved for the next start, and this computer only undoes it", async ({
+  page,
+}) => {
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+k");
+  await page
+    .getByRole("combobox", { name: "Buscar" })
+    .or(page.getByRole("textbox", { name: "Buscar" }))
+    .fill("dispositivos");
+  await page.getByRole("option", { name: /Dispositivos/ }).click();
+  await expect(page.getByRole("heading", { name: "Acceso desde otros equipos" })).toBeVisible();
+  await page.getByRole("radio", { name: "Red local" }).click();
+  // The sandbox core has no supervisor: the choice waits for its next start.
+  await expect(page.getByText(/se aplica cuando el core vuelva a arrancar/)).toBeVisible();
+  expect((await rpc<{ saved: string }>("access.get", {})).saved).toBe("lan");
+  await page.getByRole("radio", { name: "Solo esta compu" }).click();
+  await expect(page.getByText(/se aplica cuando el core vuelva a arrancar/)).toBeHidden();
+  expect((await rpc<{ saved: string }>("access.get", {})).saved).toBe("local");
+});

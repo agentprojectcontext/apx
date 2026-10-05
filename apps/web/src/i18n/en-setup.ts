@@ -220,7 +220,8 @@ export const enSetup = {
   "connect.access.lanBody": "Other devices at home or at the office.",
   "connect.access.tailscale": "Tailscale",
   "connect.access.tailscaleBody": "Your devices from anywhere, over https. Needs Tailscale installed.",
-  "connect.importNext": "Next you choose to start fresh or import from APX v1.",
+  "connect.importNext":
+    "The first time, you next choose to start fresh or import from APX v1. Already using it? It is in your account menu › Initial setup.",
   "connect.start": "Start",
   "connect.clientTitle": "Connect to",
   "connect.clientTitleEnd": "your APX.",

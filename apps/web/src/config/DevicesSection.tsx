@@ -6,6 +6,7 @@ import { QrCode } from "../common/QrCode.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { AccessBlock } from "./AccessBlock.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 type Pairing = { code: string; expires_at: string; urls: string[] };
@@ -97,6 +98,7 @@ export function DevicesSection() {
           </div>
         </div>
       )}
+      <AccessBlock />
       <SubHead>{t("devices.paired")}</SubHead>
       {devices?.length === 0 && (
         <EmptyState variant="dashed" size="sm" icon={<Icons.Smartphone />}>

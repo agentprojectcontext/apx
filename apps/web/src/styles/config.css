@@ -789,3 +789,19 @@
     flex-wrap: wrap;
   }
 }
+
+/* Who may reach the core (Config › Devices): its addresses and the restart note. */
+.access__urls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+.access__note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 16px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}

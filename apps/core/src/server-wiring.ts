@@ -21,6 +21,7 @@ import type { Identity } from "./identity.ts";
 import type { Log } from "./log.ts";
 import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
+import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
 import { browserHandlers } from "./rpc/browser.ts";
@@ -149,6 +150,8 @@ type HandlerDeps = {
   panel: () => string | undefined;
   /** The addresses a paired device may reach this core on. */
   addresses: () => string[];
+  /** Who may reach this core (this computer, the network, the tailnet). */
+  access: Parameters<typeof accessHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -176,6 +179,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses }),
+    ...accessHandlers(d.access),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp, d.store),
