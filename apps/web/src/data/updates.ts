@@ -37,6 +37,27 @@ export function notePanel(health: Health): void {
   store.set({ panelStale: health.panel !== own });
 }
 
+const QUICK = new URLSearchParams(window.location.search).has("quick");
+const RECHECK_MS = 30_000;
+let checkedAt = 0;
+
+/**
+ * Asks again whether the panel on disk changed when the window is shown or put away, so a new build shows up without
+ * waiting. The quick window has no top bar to offer it, so it loads the new panel itself then.
+ */
+async function recheckPanel(): Promise<void> {
+  if (Date.now() - checkedAt < RECHECK_MS && !store.get().panelStale) return;
+  checkedAt = Date.now();
+  try {
+    notePanel(await client.call("system.health", {}));
+  } catch {
+    return;
+  }
+  if (QUICK && store.get().panelStale) window.location.reload();
+}
+window.addEventListener("focus", () => void recheckPanel());
+document.addEventListener("visibilitychange", () => void recheckPanel());
+
 export async function loadUpdates(check = false): Promise<void> {
   try {
     const [status, health] = await Promise.all([

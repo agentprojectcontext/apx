@@ -37,3 +37,12 @@ test("a newer panel on disk asks to reload", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: "Panel nuevo · Recargar" })).toBeVisible();
 });
+
+test("the quick window, with no top bar, loads a newer panel itself when shown again", async ({ page }) => {
+  await page.goto("/?quick=1");
+  await expect(page.locator("section.quick")).toBeVisible();
+  await answer(page, "system.health", (r) => ({ ...r, panel: "index-NEWER000.js" }));
+  const reloaded = page.waitForEvent("load");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await reloaded;
+});
