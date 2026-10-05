@@ -1,0 +1,200 @@
+import { randomUUID } from "expo-crypto";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Creds } from "../creds";
+import { ApxClient, ApxError, type ApxSocket, type CoreEvent, type Message } from "../protocol";
+import { isWorking } from "./chatSelectors";
+
+function upsert(messages: Message[], message: Message): Message[] {
+  const realText =
+    message.author.kind === "user" ? message.parts.find((part) => part.type === "text")?.text : undefined;
+  return [
+    ...messages.filter(
+      (item) =>
+        item.id !== message.id &&
+        !(
+          realText &&
+          item.id.startsWith("local_") &&
+          item.parts.some((part) => part.type === "text" && part.text === realText)
+        ),
+    ),
+    message,
+  ].sort((a, b) => a.seq - b.seq);
+}
+
+/** Subscribe before loading, fold streamed messages, and reconnect after interruptions. */
+function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [online, setOnline] = useState(false);
+  const [state, setState] = useState("idle");
+  const [error, setError] = useState("");
+  const reload = useRef<() => Promise<void>>(async () => {});
+  useEffect(() => {
+    let socket: ApxSocket | undefined;
+    let stopped = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let refetch: ReturnType<typeof setTimeout> | undefined;
+    let attempt = 0;
+    const changes = new Map<string, Message>();
+    const lastSeq = new Map<string, number>();
+    const deleted = new Set<string>();
+    let loadVersion = 0;
+    let stateVersion = 0;
+    const load = async () => {
+      const requestVersion = ++loadVersion;
+      const requestStateVersion = stateVersion;
+      try {
+        const result = await client.call("threads.get", { thread: threadId });
+        if (stopped || requestVersion !== loadVersion) return;
+        if (requestStateVersion === stateVersion) setState(result.thread.state);
+        setMessages((current) => {
+          let merged = [...result.messages, ...current.filter((message) => message.id.startsWith("local_"))];
+          for (const message of changes.values()) merged = upsert(merged, message);
+          return merged.filter((message) => !deleted.has(message.id)).sort((a, b) => a.seq - b.seq);
+        });
+        setError("");
+      } catch (err) {
+        if (!stopped) setError(err instanceof Error ? err.message : String(err));
+      }
+    };
+    reload.current = load;
+    const scheduleLoad = () => {
+      if (!refetch)
+        refetch = setTimeout(() => {
+          refetch = undefined;
+          void load();
+        }, 300);
+    };
+    const connect = async (): Promise<void> => {
+      try {
+        const connected = await client.connect();
+        if (stopped) {
+          connected.close();
+          return;
+        }
+        socket = connected;
+        attempt = 0;
+        lastSeq.clear();
+        socket.onEvent((frame) => {
+          if (stopped || frame.stream !== "core") return;
+          const previous = lastSeq.get(frame.stream);
+          lastSeq.set(frame.stream, frame.seq);
+          if (previous !== undefined && frame.seq !== previous + 1) scheduleLoad();
+          const event = frame.payload as CoreEvent;
+          if (event.type === "thread.updated" && event.thread.id === threadId) {
+            stateVersion++;
+            setState(event.thread.state);
+          } else if (
+            (event.type === "message.created" || event.type === "message.updated") &&
+            event.message.thread_id === threadId
+          ) {
+            changes.set(event.message.id, event.message);
+            setMessages((current) => upsert(current, event.message));
+          } else if (event.type === "message.part" && event.thread_id === threadId) {
+            setMessages((current) => {
+              const message = current.find((item) => item.id === event.message_id);
+              if (!message) {
+                scheduleLoad();
+                return current;
+              }
+              const parts = [...message.parts];
+              parts[event.index] = event.part;
+              const updated = { ...message, parts };
+              changes.set(updated.id, updated);
+              return upsert(current, updated);
+            });
+          } else if (event.type === "message.deleted" && event.thread_id === threadId) {
+            for (const id of event.message_ids) {
+              deleted.add(id);
+              changes.delete(id);
+            }
+            setMessages((current) => current.filter((message) => !deleted.has(message.id)));
+          }
+        });
+        await load();
+        if (stopped) return;
+        setOnline(true);
+        await socket.closed;
+      } catch (err) {
+        if (stopped) return;
+        if (err instanceof ApxError && err.code === "unauthorized") {
+          onUnpair();
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
+      }
+      if (!stopped) {
+        setOnline(false);
+        const waits = [1000, 2000, 5000, 10000];
+        retry = setTimeout(() => void connect(), waits[Math.min(attempt++, waits.length - 1)]);
+      }
+    };
+    setMessages([]);
+    setState("idle");
+    setError("");
+    setOnline(false);
+    void connect();
+    return () => {
+      stopped = true;
+      socket?.close();
+      if (retry) clearTimeout(retry);
+      if (refetch) clearTimeout(refetch);
+    };
+  }, [client, threadId, onUnpair]);
+
+  return { messages, setMessages, online, state, setState, error, setError, reload };
+}
+
+/** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
+export function useThread(creds: Creds, threadId: string, onUnpair: () => void) {
+  const client = useMemo(
+    () => new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-mobile", version: "2.0.2" } }),
+    [creds],
+  );
+  const sequence = useRef(0);
+  const { messages, setMessages, online, state, setState, error, setError, reload } = useThreadFeed(
+    client,
+    threadId,
+    onUnpair,
+  );
+  const send = useCallback(
+    async (text: string) => {
+      const local: Message = {
+        id: `local_${randomUUID()}`,
+        thread_id: threadId,
+        seq: Date.now() + sequence.current++ / 1000,
+        author: { kind: "user" },
+        parts: [{ type: "text", text }],
+        created_at: new Date().toISOString(),
+      };
+      setMessages((current) => upsert(current, local));
+      try {
+        const result = await client.call("threads.send", {
+          thread: threadId,
+          text,
+          mode: isWorking(state) ? "interrupt" : "queue",
+        });
+        setMessages((current) =>
+          upsert(
+            current.filter((message) => message.id !== local.id),
+            result.message,
+          ),
+        );
+        setState("submitted");
+        setError("");
+      } catch (err) {
+        setMessages((current) => current.filter((message) => message.id !== local.id));
+        setError(err instanceof Error ? err.message : String(err));
+        throw err;
+      }
+    },
+    [client, state, threadId, setMessages, setState, setError],
+  );
+  const respond = useCallback(
+    async (input: string, answer: { decision?: "approve" | "deny"; text?: string }) => {
+      await client.call("runs.respond", { input, ...answer });
+      await reload.current();
+    },
+    [client, reload],
+  );
+  return { messages, online, state, error, send, respond };
+}
