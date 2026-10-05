@@ -152,11 +152,14 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.project.titleGreen": "tu crew?",
   "setup.project.body":
     "Default es el espacio general de tu crew: como en v1, no tiene carpeta propia y sus agentes trabajan en una carpeta interna de APX. Tus proyectos de v1 ya vienen con sus carpetas. Si querés, sumá otro ahora.",
-  "setup.project.default": "Espacio general · sin carpeta propia · siempre está",
+  "setup.project.default": "Tu proyecto base · sin carpeta propia · siempre está",
+  "setup.project.baseName": "Nombre del proyecto base",
+  "setup.project.baseHint":
+    "Puede seguir siendo Default. ¿Es una empresa? Marcala así y después importás su equipo ejecutivo.",
   "setup.project.folder": "Con carpeta",
   "setup.project.folderBody": "Un repo o carpeta de trabajo. Los agentes leen y editan ahí.",
   "setup.project.later": "Por ahora no",
-  "setup.project.laterBody": "Seguís con Default y los proyectos que trajiste.",
+  "setup.project.laterBody": "Seguís con tu proyecto base y los proyectos que trajiste.",
   "setup.project.pick": "Elegir carpeta",
   "setup.project.pathPlaceholder": "/ruta/a/tu/proyecto",
   "setup.project.plain": "Es una carpeta común: se escribe ahí un AGENTS.md con su nombre.",

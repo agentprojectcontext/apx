@@ -4,12 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProjectEntry } from "../data/identity.ts";
 import { updateBase, updateProject } from "../data/projects.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
+import { type T, useT } from "../i18n/index.ts";
 import { NewProjectDialog } from "../shell/NewProjectDialog.tsx";
 import { go } from "../shell/nav.ts";
 
 const KINDS: readonly ProjectKind[] = ["personal", "app", "company", "software", "other"];
 const NONE = "~none";
+
+/** The kinds a project can take, as options (with "None"), shared with the setup's project step. */
+export const kindOptions = (t: T): SelectOption[] => [
+  { value: NONE, label: t("project.kind.none") },
+  ...KINDS.map((k) => ({ value: k, label: t(`project.kind.${k}`), description: t(`project.kind.${k}.hint`) })),
+];
+export const NO_KIND = NONE;
 
 /** A project's name, description and kind (kept in its .apc/project.json), and where its folder is. */
 export function ProjectSettings({
@@ -42,8 +49,7 @@ export function ProjectSettings({
   }, [open, full, project.name]);
 
   const kinds: SelectOption[] = [
-    { value: NONE, label: t("project.kind.none") },
-    ...KINDS.map((k) => ({ value: k, label: t(`project.kind.${k}`), description: t(`project.kind.${k}.hint`) })),
+    ...kindOptions(t),
     // A kind written by hand or by another tool is kept and shown as it is.
     ...(full?.kind && !(KINDS as readonly string[]).includes(full.kind)
       ? [{ value: full.kind, label: full.kind }]

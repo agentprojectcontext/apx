@@ -77,8 +77,18 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
   await expect(wizard.getByRole("textbox", { name: "Nombre" })).toHaveValue("Robina");
   for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
+  // The base project gets a name (it could stay Default) and a kind before any folder.
+  const baseName = wizard.getByRole("textbox", { name: "Nombre del proyecto base" });
+  await expect(baseName).toHaveValue("Default");
+  await baseName.fill("Northwind");
+  await wizard.getByRole("combobox", { name: "Tipo" }).click();
+  await page.getByRole("option", { name: /Empresa/ }).click();
   await wizard.getByRole("button", { name: /Por ahora no/ }).click();
   await wizard.getByRole("button", { name: "Crear crew" }).click();
   await wizard.getByRole("button", { name: "Abrir APX" }).click();
   await expect(wizard).toBeHidden();
+  const { base } = await rpc<{ base: { name: string; kind?: string } }>("projects.list");
+  expect(base).toEqual({ name: "Northwind", kind: "company" });
+  // Back to how the other specs expect it.
+  await rpc("projects.update_base", { name: "Default", kind: null });
 });

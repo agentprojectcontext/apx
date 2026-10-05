@@ -312,6 +312,13 @@
   gap: 2px;
   min-width: 0;
 }
+/* The base project's name and kind, side by side in its card. */
+.wiz__basefields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  gap: 8px;
+  margin: 6px 0;
+}
 .wiz__rowname {
   font-size: 14px;
   font-weight: 500;

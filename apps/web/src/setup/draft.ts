@@ -18,6 +18,10 @@ export type Draft = {
   importOn: Partial<Record<V1Group, boolean>>;
   projectChoice: "folder" | "later";
   path: string;
+  /** The base project's name and kind (it may stay "Default"); read in once from the install. */
+  baseName: string;
+  baseKind: string;
+  baseSet: boolean;
 };
 
 export const defaultDraft = (): Draft => ({
@@ -33,6 +37,9 @@ export const defaultDraft = (): Draft => ({
   importOn: {},
   projectChoice: "folder",
   path: "",
+  baseName: "Default",
+  baseKind: "",
+  baseSet: false,
 });
 
 export type StepProps = { draft: Draft; set: (p: Partial<Draft>) => void };

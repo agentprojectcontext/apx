@@ -1,4 +1,16 @@
-import { Badge, Button, Dialog, EngineIcon, IconButton, Icons, Input, ProjectTile, Spinner, Switch } from "@apx/ui";
+import {
+  Badge,
+  Button,
+  Dialog,
+  EngineIcon,
+  IconButton,
+  Icons,
+  Input,
+  ProjectTile,
+  Select,
+  Spinner,
+  Switch,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
@@ -13,6 +25,7 @@ import { loadProviders, saveProvider, useProviders } from "../data/providers.ts"
 import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
 import type { Draft, StepProps } from "./draft.ts";
 import { StepHead } from "./StepsIntro.tsx";
 
@@ -483,10 +496,24 @@ export function ProjectStep({ draft: d, set }: StepProps) {
         {t("setup.project.body")}
       </StepHead>
       <div className="wiz__card wiz__default">
-        <ProjectTile tone="brand" initial="D" size={30} />
+        <ProjectTile tone="brand" initial={(d.baseName.trim()[0] ?? "D").toUpperCase()} size={30} />
         <span className="wiz__rowmain">
-          <span className="wiz__rowname">Default</span>
           <span className="wiz__rowbody">{t("setup.project.default")}</span>
+          <span className="wiz__basefields">
+            <Input
+              aria-label={t("setup.project.baseName")}
+              value={d.baseName}
+              maxLength={80}
+              onChange={(e) => set({ baseName: e.currentTarget.value })}
+            />
+            <Select
+              label={t("project.settings.kind")}
+              value={d.baseKind || NO_KIND}
+              onValueChange={(v) => set({ baseKind: !v || v === NO_KIND ? "" : v })}
+              options={kindOptions(t)}
+            />
+          </span>
+          <span className="wiz__rowbody">{t("setup.project.baseHint")}</span>
         </span>
         <Icons.Lock size={14} />
       </div>

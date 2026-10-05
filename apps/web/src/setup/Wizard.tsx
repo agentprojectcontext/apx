@@ -1,4 +1,4 @@
-import type { ModelChoice } from "@apx/protocol";
+import type { ModelChoice, ProjectKind } from "@apx/protocol";
 import { AgentAvatar, Button, Icons } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo.png";
@@ -8,6 +8,7 @@ import { client } from "../data/client.ts";
 import { secretary } from "../data/identity.ts";
 import { loadModelsConfig, saveModelsConfig, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
+import { updateBase } from "../data/projects.ts";
 import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
@@ -69,6 +70,12 @@ export function Wizard() {
     const chain = [config.default.model, ...config.router.chain].filter((m): m is string => Boolean(m));
     setD((cur) => ({ ...cur, chain: [...new Set(chain)], chainSet: true }));
   }, [config, d.chainSet]);
+  // The base project as it is now, until the owner names it.
+  const base = useData((s) => s.base);
+  useEffect(() => {
+    if (d.baseSet) return;
+    setD((cur) => ({ ...cur, baseName: base.name, baseKind: base.kind ?? "", baseSet: true }));
+  }, [base, d.baseSet]);
   // The super-agent as it is now, until the owner changes it.
   useEffect(() => {
     if (!boss || d.nameSet) return;
@@ -137,6 +144,12 @@ export function Wizard() {
         });
       } catch {}
       return true;
+    }
+    if (step === "project") {
+      const name = d.baseName.trim() || base.name;
+      const kind = d.baseKind || null;
+      if (name !== base.name || (kind ?? "") !== (base.kind ?? ""))
+        if (!(await updateBase({ name, kind: kind as ProjectKind | null }))) return false;
     }
     if (step === "project" && d.projectChoice === "folder" && d.path.trim()) {
       const project = await addProject(d.path.trim());
@@ -266,7 +279,7 @@ function Preview({ draft: d, imports }: { draft: Draft; imports: V1Groups | unde
       {row("setup.preview.channels", channels.join(", "))}
       {row(
         "setup.preview.projects",
-        `Default${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
+        `${d.baseName.trim() || "Default"}${d.projectChoice === "folder" && d.path.trim() ? ` · ${d.path.trim().split("/").filter(Boolean).at(-1)}` : ""}`,
       )}
       {d.mode === "import" && row("setup.preview.imports", t("setup.preview.groups", { n: on, total: groups.length }))}
     </aside>
