@@ -3,6 +3,9 @@
 import { app, BrowserWindow } from "electron";
 import { APP_SCHEME } from "./app-scheme.ts";
 
+/** Set by the bundler (scripts/build.ts): the release's tag, or in a checkout the last tag and commits past it. */
+declare const APX_VERSION: string;
+
 let win: BrowserWindow | undefined;
 
 export function showAbout(partition: string): void {
@@ -30,7 +33,7 @@ export function showAbout(partition: string): void {
       win?.close();
     }
   });
-  // A checkout's version is the repo's placeholder; releases set the real one from their tag.
-  const version = app.isPackaged ? app.getVersion() : `${app.getVersion()}-dev`;
+  // A checkout's package.json version is a placeholder; releases set the real one from their tag.
+  const version = app.isPackaged ? app.getVersion() : APX_VERSION;
   void win.loadURL(`${APP_SCHEME}://app/index.html?about&v=${encodeURIComponent(version)}`);
 }

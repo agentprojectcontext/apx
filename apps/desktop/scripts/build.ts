@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type BuildOptions, build } from "esbuild";
+import { buildVersion } from "../../../scripts/version.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const out = path.join(root, "dist");
@@ -14,6 +15,11 @@ const common: BuildOptions = {
   external: ["electron"],
   sourcemap: true,
   logLevel: "warning",
+  define: {
+    APX_VERSION: JSON.stringify(
+      buildVersion(JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version, root),
+    ),
+  },
 };
 await build({
   ...common,
