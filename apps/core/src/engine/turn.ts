@@ -13,6 +13,7 @@ import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
+import { ProviderError } from "../providers/types.ts";
 import { contextWindow } from "../providers/windows.ts";
 import { askedSkill } from "../skills/picker.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
@@ -580,7 +581,14 @@ function failRun(
   const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;
   const message = canceled ? "Canceled." : `Could not finish: ${short}`;
   if (!canceled) deps.log.warn({ thread: t.turn.thread.id, agent: t.turn.agent.id, err: reason }, "run failed");
-  t.display.notice(canceled ? "info" : "error", canceled ? "run.canceled" : "run.failed", message);
+  // Every model tried and none answered (out of quota, signed out, down): said as such, the reasons below it.
+  const noModel = t.err instanceof ProviderError;
+  if (canceled) t.display.notice("info", "run.canceled", message);
+  else
+    t.display.notice("error", noModel ? "run.noModel" : "run.failed", noModel ? "No model could answer." : message, {
+      vars: {},
+      detail: reason.slice(0, 2000),
+    });
   closeTurnLog(store, t.run, canceled ? "The owner canceled this turn." : `This turn failed: ${reason}`);
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
   store.threads.patch(t.turn.thread.id, { state: canceled ? "canceled" : "failed", preview: previewOf(message) });

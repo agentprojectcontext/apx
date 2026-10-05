@@ -46,6 +46,7 @@ export const enEngines = {
     "The CLIs of your subscriptions. You use them from External sessions in the sidebar, each with its own chat and tools: they are not models for your agents or the router.",
   "external.models": "Their models",
   "external.modelsLead": "What each CLI offers in its own sessions, as it reports it.",
+  "notice.run.noModel": "No model available: none of the models could answer (out of quota, signed out or down).",
   "models.effortLevel.none": "None",
   "models.effortLevel.minimal": "Minimal",
   "models.effortLevel.low": "Low",
