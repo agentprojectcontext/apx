@@ -1,4 +1,4 @@
-import type { ChannelInfo, Person, Thread } from "@apx/protocol";
+import type { ChannelInfo, Person, RoomMode, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
@@ -36,9 +36,17 @@ export const initials = (name: string) =>
 
 type Row = { thread: Thread; person: Person | undefined };
 
+const ROOM_MODE_KEY: Record<RoomMode, MessageKey> = {
+  always: "rooms.mode.always",
+  mention: "rooms.mode.mention",
+  useful: "rooms.mode.useful",
+  read: "rooms.mode.read",
+};
+
 /**
  * A channel with its contacts built in: who wrote (unread first, silenced last), the chat with the one picked, and
- * their card (who they are, rules for answering them, what their chat may do). The same layout serves every channel.
+ * their card (who they are, rules for answering them, what their chat may do). The same layout serves every channel;
+ * a server's rooms (Discord) are listed too, each one a shared chat with no card.
  */
 export function ChannelScreen() {
   const t = useT();
@@ -87,6 +95,16 @@ export function ChannelScreen() {
       !query ||
       `${r.person?.name ?? r.thread.title} ${r.person?.nickname ?? ""}`.toLowerCase().includes(query.toLowerCase()),
   );
+  // A room's chat is the one chat with no person behind it: everyone there writes into it.
+  const rooms = useMemo(
+    () =>
+      Object.values(threads)
+        .filter((th) => th.channel?.id === channelId && !th.channel?.person_id)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    [threads, channelId],
+  );
+  const shownRooms = rooms.filter((th) => !query || th.title.toLowerCase().includes(query.toLowerCase()));
+  const roomOpen = Boolean(picked) && rooms.some((th) => th.id === picked);
   const current = rows.find((r) => r.thread.id === picked);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
@@ -109,7 +127,7 @@ export function ChannelScreen() {
 
   return (
     <section
-      className={`chan${current || ownerOpen ? " has-chat" : ""}${current && card && !ownerOpen ? " has-card" : ""}`}
+      className={`chan${current || ownerOpen || roomOpen ? " has-chat" : ""}${current && card && !ownerOpen ? " has-card" : ""}`}
       aria-label={channel.label}
     >
       <aside className="chan__list">
@@ -125,6 +143,15 @@ export function ChannelScreen() {
           {!query && !linked && channel.type === "whatsapp" && !channel.self_owner && <LinkPhone channel={channel} />}
           {!query && waiting.map((r) => <PairingRow key={r.code} request={r} />)}
           {!query && linked && <OwnerRow channel={channel} target={ownerTarget} selected={ownerOpen} />}
+          {shownRooms.map((th) => (
+            <RoomRow
+              key={th.id}
+              thread={th}
+              channel={channel}
+              selected={th.id === picked}
+              onPick={() => go.channel(channel.id, th.id)}
+            />
+          ))}
           {shown.map((r) => (
             <ContactRow
               key={r.thread.id}
@@ -133,12 +160,14 @@ export function ChannelScreen() {
               onPick={() => go.channel(channel.id, r.thread.id)}
             />
           ))}
-          {query && !shown.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
+          {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
         </ul>
         <p className="chan__foot">{t("ch.foot", { agent: agents[channel.agent_id]?.name ?? channel.agent_id })}</p>
       </aside>
       {ownerOpen && ownerTarget ? (
-        <OwnerChat threadId={ownerTarget} />
+        <OpenChat threadId={ownerTarget} />
+      ) : roomOpen && picked ? (
+        <OpenChat threadId={picked} />
       ) : current ? (
         <>
           <ChannelConversation
@@ -164,8 +193,8 @@ export function ChannelScreen() {
   );
 }
 
-/** The owner's chat, opened right here (the same chat as in the Inbox), so the channel stays in view. */
-function OwnerChat({ threadId }: { threadId: string }) {
+/** The owner's chat or a room's, opened right here (the same chat as in the Inbox), so the channel stays in view. */
+function OpenChat({ threadId }: { threadId: string }) {
   const shown = useNav((s) => s.threadId);
   const panel = useNav((s) => s.panel);
   useEffect(() => {
@@ -204,6 +233,46 @@ function ChannelHead({ channel }: { channel: ChannelInfo }) {
         onClick={() => go.channelConfig(isChannelKind(channel.type) ? channel.type : "telegram")}
       />
     </header>
+  );
+}
+
+function RoomRow({
+  thread,
+  channel,
+  selected,
+  onPick,
+}: {
+  thread: Thread;
+  channel: ChannelInfo;
+  selected: boolean;
+  onPick(): void;
+}) {
+  const t = useT();
+  const mode = channel.rooms?.rooms.find((r) => r.id === thread.channel?.conversation)?.mode;
+  return (
+    <li>
+      <button
+        type="button"
+        className={`chan__row${selected ? " is-selected" : ""}${thread.unread ? " is-unread" : ""}`}
+        aria-current={selected || undefined}
+        onClick={onPick}
+      >
+        <span className="chan__avatar is-owner">
+          <Icons.Hash size={16} />
+        </span>
+        <span className="chan__rowmain">
+          <span className="chan__rowtop">
+            <span className="chan__rowname">{thread.title}</span>
+            <span className="chan__rowtime">{shortWhen(thread.updated_at)}</span>
+          </span>
+          <span className="chan__rowtop">
+            <span className="chan__preview">{thread.preview}</span>
+            {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
+          </span>
+          {mode && <span className="chan__rel">{t(ROOM_MODE_KEY[mode])}</span>}
+        </span>
+      </button>
+    </li>
   );
 }
 

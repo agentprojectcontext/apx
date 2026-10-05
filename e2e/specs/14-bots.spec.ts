@@ -69,6 +69,12 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   expect(post.text).toContain("Got it");
   expect(post.reply).toBe(true);
   expect(await world.roomPosts("100000000000000001")).toHaveLength(1);
+
+  // The room is listed in the channel itself, beside its contacts, and opens its chat right there.
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /#general/ }).click();
+  await expect(page.getByText("roby what is Acme Notes?")).toBeVisible();
+  await expect(page.getByText("nice weather today")).toBeVisible();
 });
 
 test("Slack: the app connects with both tokens, the owner links their account and talks to the super-agent", async ({
