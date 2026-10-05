@@ -119,7 +119,7 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
           size="sm"
           checked={cur.owner_only}
           onCheckedChange={(on) => set({ owner_only: on })}
-          label={t("rooms.ownerOnly")}
+          aria-label={t("rooms.ownerOnly")}
         />
       </SettingRow>
       <div className="pform__field">

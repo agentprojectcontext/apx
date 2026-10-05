@@ -98,7 +98,7 @@ export function DesktopSection() {
           size="sm"
           checked={prefs.launch_at_login}
           onCheckedChange={(on) => void save({ ...prefs, launch_at_login: on })}
-          label={t("desktop.login")}
+          aria-label={t("desktop.login")}
         />
       </SettingRow>
     </>
