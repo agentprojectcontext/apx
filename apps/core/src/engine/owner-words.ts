@@ -21,27 +21,3 @@ const en: typeof es = {
 /** The question shown when an agent's action waits for the owner. */
 export const confirmPrompt = (store: Store, why: ConfirmWhy, agent: string, tool: string) =>
   (store.settings.get("owner_language") === "en" ? en : es)[why](agent, tool);
-
-/**
- * A model did not answer and the turn moves to the next one in its chain: which model had no room (named by the error
- * when APX's own loop walked its chain), why in a few words, and where it went. The whole error stays as the detail.
- */
-export function fallbackNotice(store: Store, from: string | undefined, reason: string, to: string) {
-  const named = /^((?:acp:)?[a-z0-9][\w.-]*\/[^\s:]+(?::[^\s:]+)?):\s*/i.exec(reason);
-  const model = named?.[1] ?? from ?? "APX";
-  const rest = named ? reason.slice(named[0].length) : reason;
-  const status = /\bHTTP (\d{3})\b/.exec(rest)?.[1];
-  const en = store.settings.get("owner_language") === "en";
-  const why =
-    status === "429"
-      ? en
-        ? "usage limit reached"
-        : "llegó a su límite de uso"
-      : status
-        ? `HTTP ${status}`
-        : rest.replace(/\s+/g, " ").slice(0, 80);
-  const text = en
-    ? `${model} has no capacity right now (${why}); trying ${to}.`
-    : `${model} no tiene disponibilidad ahora (${why}); sigo con ${to}.`;
-  return { text, vars: { model, why, to }, detail: reason };
-}

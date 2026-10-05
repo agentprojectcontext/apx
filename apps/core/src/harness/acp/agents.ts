@@ -70,7 +70,6 @@ export type AcpModel = { id: string; name: string };
 export type AcpSession = {
   rpc: Rpc;
   sessionId: string;
-  loaded: boolean;
   models: AcpModel[];
   currentModel: string | undefined;
   /** Picks a model by id; true when the agent accepted it. */
@@ -163,7 +162,6 @@ export async function openSession(
     );
     const params = { cwd: o.cwd, mcpServers: o.mcpServers ?? [] };
     let r: NewSessionResult;
-    let loaded = false;
     const open = async (): Promise<NewSessionResult> => {
       if (o.resume && init.agentCapabilities?.loadSession) {
         try {
@@ -172,10 +170,9 @@ export async function openSession(
             { ...params, sessionId: o.resume },
             SESSION_MS,
           );
-          loaded = true;
           return { ...res, sessionId: o.resume };
         } catch {
-          // A session the agent no longer has: a new one, and the recap carries the context.
+          // A session the agent no longer has: a new one.
         }
       }
       return rpc.request<NewSessionResult>("session/new", params, SESSION_MS);
@@ -195,7 +192,6 @@ export async function openSession(
     return {
       rpc,
       sessionId,
-      loaded,
       models: m.models,
       currentModel: m.current,
       async setModel(id) {

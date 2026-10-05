@@ -1,8 +1,6 @@
-// Claude Code as a harness: the turn runs in the owner's own `claude` (their login, their machine) through the
-// Agent SDK. APX keeps identity and tools: the system prompt is ours and every APX tool call comes back through
-// `io.execute`. See DECISIONS.md#d-007
+// Claude Code in its own sessions: the owner's own `claude` (their login, CLAUDE.md and settings) through the Agent
+// SDK; every APX tool call comes back through `io.execute`. See DECISIONS.md#d-007
 import { z } from "zod";
-import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
@@ -17,8 +15,7 @@ export function zodShape(params: object): z.ZodRawShape {
   return s instanceof z.ZodObject ? s.shape : {};
 }
 
-// Outside code threads Claude is the model with APX's tools only (APX searches and reads the web itself); a code
-// thread adds Claude Code's own web, file and shell tools, each asked through our policy.
+// Claude Code's own web, file and shell tools, each asked through our policy.
 const CLAUDE_BUILTINS = ["WebSearch", "WebFetch"];
 const CODE_READ = ["Read", "Glob", "Grep", "LS"];
 const CODE_WRITE = ["Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"];
@@ -67,15 +64,9 @@ function apxServer({ createSdkMcpServer, tool }: Sdk, io: TurnIO, counts: Counts
   });
 }
 
-/**
- * Which of Claude Code's own tools may run. A contact's turn, and any turn outside a code thread: none, only ours (a
- * contact's already cut to their flags). In a code thread every built-in tool (reads included: they may reach outside the folder) asks our policy
- * through canUseTool.
- */
+/** Every built-in tool (reads included: they may reach outside the folder) asks our policy through canUseTool. */
 function toolOptions(io: TurnIO, counts: Counts) {
   const ours = io.tools.map((s) => `mcp__apx__${s.function.name}`);
-  if (io.sealed) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
-  if (!worksInFolder(io.thread)) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
   return {
     tools: [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE],
     allowedTools: ours,
@@ -121,14 +112,10 @@ async function attempt(
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
         cwd: io.thread.cwd ?? o.cwd,
-        // An engine session is Claude Code itself: its own prompt and the owner's CLAUDE.md and settings, as in the
-        // CLI. An APX agent is isolated: its prompt only; the owner's CLAUDE.md, hooks, plugins, MCP servers and
-        // claude.ai connectors/skills are not part of it (this invocation only; the owner's config is untouched).
-        systemPrompt: io.direct
-          ? { type: "preset", preset: "claude_code", append: io.system }
-          : { type: "custom", prompt: io.system },
+        // Claude Code itself: its own prompt and the owner's CLAUDE.md and settings, as in the CLI.
+        systemPrompt: { type: "preset", preset: "claude_code", append: io.system },
         ...toolOptions(io, o.counts),
-        settingSources: io.direct ? ["user", "project", "local"] : [],
+        settingSources: ["user", "project", "local"],
         strictMcpConfig: true,
         settings: { disableClaudeAiConnectors: true, syncClaudeAiSkills: false, syncClaudeAiPlugins: false },
         mcpServers: { apx: apxServer(sdk, io, o.counts) },

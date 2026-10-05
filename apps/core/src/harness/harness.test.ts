@@ -105,17 +105,31 @@ test("a CLI is never an agent's model, the router or the install default; one sa
   assert.equal(t.runs[0]?.harness, "native");
 });
 
-test("switching a session to Claude Code hands it what another engine answered in the thread meanwhile", async () => {
+test("an engine session runs its own CLI only: another engine's model is refused there", async () => {
   const t = await session("claude");
-  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "fake/fake-1", router: false } });
-  await env.client.call("threads.send", { thread: t.id, text: "first question" });
-  await env.settle(t.id);
-  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "claude", router: false } });
-  await env.client.call("threads.send", { thread: t.id, text: "second question" });
-  await env.settle(t.id);
-  const input = seen.at(-1)?.io.input.content ?? "";
-  assert.match(input, /<earlier_turns[^>]*trust="untrusted">/);
-  assert.match(input, /Owner: first question\nYou \(answered with native\): native answer/);
+  for (const other of ["fake/fake-1", "codex"]) {
+    const err = await env.client
+      .call("threads.model", { thread: t.id, model_choice: { model: other, router: false } })
+      .catch((e: unknown) => e);
+    assert.ok(err instanceof ApxError && err.code === "bad_request", other);
+  }
+  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "claude/opus", router: false } });
+  const before_ = seen.length;
+  await env.client.call("threads.send", { thread: t.id, text: "hello" });
+  const done = await env.settle(t.id);
+  assert.equal(seen.length, before_ + 1);
+  assert.deepEqual(seen.at(-1)?.io.models, ["claude/opus"]);
+  assert.equal(seen.at(-1)?.io.input.content, "hello", "the owner's words as they are");
+  assert.equal(done.runs[0]?.harness, "claude");
+});
+
+test("a CLI that fails in its session fails the turn: no other engine answers for it", async () => {
+  const t = await session("codex");
+  await env.client.call("threads.send", { thread: t.id, text: "hello" });
+  const done = await env.settle(t.id);
+  assert.equal(done.runs[0]?.state, "failed");
+  assert.equal(done.runs[0]?.harness, "codex");
+  assert.ok(!texts(done.messages).includes("native answer"));
 });
 
 test("a model ref nothing can run is refused when it is set", async () => {

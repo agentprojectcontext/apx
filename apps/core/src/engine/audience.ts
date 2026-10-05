@@ -2,7 +2,7 @@
 // no tools of the engine's own, no memory, no projects, no other conversations, only this chat — plus, when the owner
 // allows it for that person, one of the narrow contact tools (tools/contact.ts).
 // See DECISIONS.md#d-014
-import { ChannelRooms, type HarnessId, type Message, type Person, type Thread } from "@apx/protocol";
+import { ChannelRooms, type Message, type Person, type Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";
@@ -28,9 +28,6 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
   if (person?.role === "owner") return { kind: "owner" };
   return { kind: "contact", name: person?.name ?? "someone", channel: ch.id, ...(person ? { person } : {}) };
 }
-
-/** Engines that can answer a sealed turn: ours, and Claude Code with every tool of its own off. */
-export const SEALED_HARNESSES: ReadonlySet<HarnessId> = new Set(["native", "claude"]);
 
 const LANGUAGES: Record<string, string> = { es: "Spanish", en: "English" };
 

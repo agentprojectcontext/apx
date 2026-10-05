@@ -3,7 +3,7 @@
 // policy, its own tool calls shown as cards.
 import { engineOf } from "../../domain/refs.ts";
 import type { McpCommand } from "../codex.ts";
-import { type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "../types.ts";
+import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "../types.ts";
 import { type AcpAgent, acpEngine, openSession } from "./agents.ts";
 import { RpcError } from "./rpc.ts";
 
@@ -107,7 +107,6 @@ export function acpHarness(opts: {
             throw new Error(`${agent.label} does not offer the model ${wanted}`);
           if (await session.setModel(wanted)) model = wanted;
         }
-        const content = withInstructions(io, session.loaded);
         const onAbort = () => session.rpc.notify("session/cancel", { sessionId: session.sessionId });
         io.signal.throwIfAborted();
         io.signal.addEventListener("abort", onAbort, { once: true });
@@ -116,7 +115,7 @@ export function acpHarness(opts: {
           const r = await Promise.race([
             session.rpc.request<{ stopReason?: string; usage?: { inputTokens?: number; outputTokens?: number } }>(
               "session/prompt",
-              { sessionId: session.sessionId, prompt: [{ type: "text", text: content }] },
+              { sessionId: session.sessionId, prompt: [{ type: "text", text: io.input.content }] },
               // The engine's run deadline ends the turn; this only guards a silent process.
               24 * 60 * 60_000,
             ),

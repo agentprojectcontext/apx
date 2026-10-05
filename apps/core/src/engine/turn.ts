@@ -25,15 +25,7 @@ import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
-import {
-  type Audience,
-  audienceOf,
-  contactPrompt,
-  ownerInstruction,
-  roomInput,
-  roomPrompt,
-  SEALED_HARNESSES,
-} from "./audience.ts";
+import { type Audience, audienceOf, contactPrompt, ownerInstruction, roomInput, roomPrompt } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import { HISTORY_BUDGET_CHARS, project, rosterBlock, systemPrompt, turnInput, workerPrompt } from "./context.ts";
 import { type Caller, type DelegateTo, resultCard } from "./delegation.ts";
@@ -46,28 +38,11 @@ import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { ratingNote } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
-import { fallbackNotice } from "./owner-words.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { recallFor } from "./recall.ts";
-import { recapFor, sessionKey } from "./recap.ts";
 import { closeTurnLog } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
-
-const HARNESS_LABEL: Record<HarnessId, string> = { native: "APX", claude: "Claude Code", codex: "Codex", acp: "ACP" };
-
-/** Consecutive provider refs go together (the native loop walks its list per call); every other ref is one attempt. */
-function byHarness(refs: string[]): Array<{ harness: HarnessId; refs: string[] }> {
-  const out: Array<{ harness: HarnessId; refs: string[] }> = [];
-  for (const ref of refs) {
-    const harness = harnessOf(ref);
-    const last = out.at(-1);
-    // Our loop walks its list per call; Claude Code and Codex get one model per attempt.
-    if (last && harness === "native" && last.harness === "native") last.refs.push(ref);
-    else out.push({ harness, refs: [ref] });
-  }
-  return out;
-}
 
 export type TurnDeps = {
   store: Store;
@@ -121,7 +96,8 @@ type Turn = {
   /** In a worker's session: the instructions its caller wrote (the agent is the caller itself). */
   worker?: Worker | undefined;
 };
-type Groups = Array<{ harness: HarnessId; refs: string[] }>;
+/** What runs a turn: our loop with its chain of model APIs, or a CLI in its own session with one model. */
+type Engine = { harness: HarnessId; refs: string[] };
 
 export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSignal): Promise<RunRecord> {
   const { store } = deps;
@@ -208,8 +184,6 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     thread,
     run,
     system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills, deps.profileRoots ?? [], deps.build),
-    sealed: turn.audience.kind === "contact",
-    direct: Boolean(thread.engine),
     history,
     input,
     tools: tools.map(toSpec),
@@ -225,13 +199,11 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   });
 
   try {
-    const groups = await engineGroups(deps, turn, start, history);
-    const outcome = await runEngines(deps, groups, {
+    const engine = enginePick(deps, turn, start, history);
+    const outcome = await runEngine(deps, engine, {
       io,
       input,
       signal,
-      exec,
-      display,
       thread,
       run: () => run,
       onHarness: (h) => {
@@ -451,11 +423,19 @@ function systemFor(
   );
 }
 
-/** The engines to try, in the router's order; a sealed turn only where no tool of the engine's own can run. */
-async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Promise<Groups> {
-  const settings = modelSettings(deps.store);
+/**
+ * An engine session runs its CLI with the model the chat picked (one of that CLI's), else the CLI's default. Any other
+ * chat runs our loop over the chosen model and the router's chain; a CLI ref saved before D-043 is skipped.
+ */
+function enginePick(deps: TurnDeps, turn: Turn, start: RunRecord, history: ChatItem[]): Engine {
   // The chat's own model (picked in its composer) first, then the agent's, then the install default.
   const chosen = deps.store.threads.context(turn.thread.id).model_choice ?? turn.agent.model_choice;
+  const own = turn.thread.engine;
+  if (own) {
+    const ref = chosen?.model && engineOf(chosen.model) === own ? chosen.model : own;
+    return { harness: harnessOf(ref), refs: [ref] };
+  }
+  const settings = modelSettings(deps.store);
   const refs = candidates(chosen ?? settings.defaultChoice(), settings.router(), {
     text: turn.input.text,
     context_chars: history.reduce((n, m) => n + String(m.content ?? "").length, 0),
@@ -466,79 +446,42 @@ async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, histor
     channel: turn.thread.channel?.id ?? "app",
     trigger: start.trigger,
     agent_kind: turn.agent.kind,
-  });
-  // A CLI runs only in its own session; anywhere else a choice saved before that rule is skipped (D-043).
-  const ready = turn.thread.engine ? refs : refs.filter((r) => !isCliRef(r));
-  const sealed = turn.audience.kind === "contact";
-  const groups = byHarness(sealed ? ready.filter((r) => SEALED_HARNESSES.has(harnessOf(r))) : ready);
-  if (!groups.length && sealed)
-    throw new Error("no engine here can answer a contact without tools: add a model API to this agent or the router");
-  if (!groups.length)
+  }).filter((r) => !isCliRef(r));
+  if (!refs.length)
     throw new Error(
       "no model chosen for this agent and the router has none; connect a model API in Settings → Engines and models",
     );
-  return groups;
+  return { harness: "native", refs };
 }
 
-/**
- * Tries each engine in turn. One that is out of quota or logged out before doing anything hands over to the next;
- * once a tool ran, a retry could repeat its effect, so the failure stands.
- */
-async function runEngines(
+/** Runs the turn on its engine. A CLI resumes its own session and keeps its id; our log keeps its answer too. */
+async function runEngine(
   deps: TurnDeps,
-  groups: Groups,
+  engine: Engine,
   t: {
     io: () => TurnIO;
     input: ChatItem & { role: "user" };
     signal: AbortSignal;
-    exec: Executor;
-    display: Display;
     thread: Thread;
     run: () => RunRecord;
     onHarness(h: HarnessId): void;
   },
 ): Promise<TurnOutcome> {
   const { store } = deps;
-  for (const [i, g] of groups.entries()) {
-    try {
-      t.onHarness(g.harness);
-      const external = g.harness !== "native";
-      // Each ACP agent keeps its own sessions; Claude Code and Codex one each.
-      const key = sessionKey(g.harness, g.refs[0]);
-      const sessionId = external ? store.harnessSessions.get(t.thread.id, key) : undefined;
-      const recap = external ? recapFor(store, t.thread.id, key, t.run().id) : "";
-      const outcome = await deps.harnesses.get(g.harness).run({
-        ...t.io(),
-        models: g.refs,
-        sessionId,
-        input: recap ? { ...t.input, content: `${recap}${t.input.content}` } : t.input,
-      });
-      if (external) {
-        if (outcome.sessionId) store.harnessSessions.set(t.thread.id, key, outcome.sessionId);
-        // External harnesses keep their own transcript; ours keeps the answer so a switch back has context.
-        store.modelLog.append(t.thread.id, t.run().id, [{ role: "assistant", content: outcome.text || null }]);
-      }
-      t.signal.throwIfAborted();
-      return outcome;
-    } catch (err) {
-      const next = groups[i + 1];
-      if (t.signal.aborted || t.exec.toolsRan > 0 || !next) throw err;
-      const reason = errorMessage(err).split("\n")[0]?.slice(0, 160);
-      deps.log.warn(
-        { thread: t.thread.id, harness: g.harness, err: reason },
-        "engine unavailable, trying the next one",
-      );
-      // APX's own loop walks its whole chain itself: the reason names the model that failed, the group does not.
-      const said = fallbackNotice(
-        store,
-        g.harness === "native" ? undefined : g.harness === "acp" ? engineOf(g.refs[0] ?? "") : HARNESS_LABEL[g.harness],
-        reason ?? "",
-        next.refs[0] ?? "",
-      );
-      t.display.notice("warn", "engine.fallback", said.text, { vars: said.vars, detail: said.detail });
-    }
+  t.onHarness(engine.harness);
+  const session = t.thread.engine;
+  const outcome = await deps.harnesses.get(engine.harness).run({
+    ...t.io(),
+    models: engine.refs,
+    sessionId: session ? store.harnessSessions.get(t.thread.id, session) : undefined,
+    input: t.input,
+  });
+  if (session) {
+    if (outcome.sessionId) store.harnessSessions.set(t.thread.id, session, outcome.sessionId);
+    store.modelLog.append(t.thread.id, t.run().id, [{ role: "assistant", content: outcome.text || null }]);
   }
-  throw new Error("no engine answered");
+  t.signal.throwIfAborted();
+  return outcome;
 }
 
 /** The answer is in: final text (or an honest notice), the code changes card, usage, and the thread back to idle. */

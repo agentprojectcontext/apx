@@ -463,3 +463,7 @@ The Claude plan has no counterpart in APX's loop: Anthropic limits the subscript
 stays an external session and agents use an Anthropic key. The plan's model list is asked to the plan
 (`<base>/models`, as Codex does), never read from a CLI's cache. Settings shows the plans and model APIs under
 Engines and models, and the CLIs under External sessions.
+So the harnesses keep only their session mode: Claude Code always loads its own prompt and the owner's settings,
+Codex its own config, and no agent framing (`<apx_instructions>`), Codex lockdown or agent-only tool cut is left. A
+session runs its CLI and nothing else (`threads.model` refuses another engine there), so the engine-to-engine
+fallback and the recap of turns another engine answered are gone: a CLI that fails fails the turn.

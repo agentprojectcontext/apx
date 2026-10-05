@@ -66,14 +66,14 @@ export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFea
 
 /**
  * Why a ref cannot run, or undefined when it can: the engine must exist, and a provider needs the model named
- * (only Claude Code and Codex have a default model of their own). A CLI runs only in its own session (`session`).
+ * (only the CLIs have a default model of their own). A CLI runs only in its own sessions, and a session (`session`,
+ * the CLI it belongs to) runs nothing else.
  */
-export function refProblem(ref: string, engines: EngineIds, session = false): string | undefined {
+export function refProblem(ref: string, engines: EngineIds, session?: string): string | undefined {
   const { engine, model } = parseRef(ref);
+  if (session) return engine === session ? undefined : `this chat is a ${session} session: it runs ${session} only`;
   if (engines.harness.has(engine))
-    return session
-      ? undefined
-      : `${engine} runs only in its own sessions (Sessions › ${engine}); agents and the router use model APIs`;
+    return `${engine} runs only in its own sessions (Sessions › ${engine}); agents and the router use model APIs`;
   if (!engines.providers.has(engine)) return `unknown engine "${engine}" in ${ref}`;
   if (!model) return `say which ${engine} model (${engine}/<model>)`;
   return undefined;

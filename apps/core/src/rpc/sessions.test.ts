@@ -122,7 +122,6 @@ test("going on with a session: Claude Code itself, in its folder, resuming its t
   await env.settle(t.id);
   const io = seen.at(-1);
   assert.equal(io?.sessionId, "s-mine", "the engine resumes its own session");
-  assert.equal(io?.direct, true);
   assert.equal(io?.input.content, "now the signup form", "the owner's words as they are, no agent framing");
   assert.doesNotMatch(String(io?.system), /Roby/, "no agent persona");
 });

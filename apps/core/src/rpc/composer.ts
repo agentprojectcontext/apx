@@ -9,8 +9,8 @@ export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
-  /** `session`: the chat is a CLI's own session, where that CLI may run. */
-  checkModel(ref: string, session: boolean): string | undefined;
+  /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
+  checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
   const { store } = deps;
   return {
@@ -41,7 +41,7 @@ export function composerHandlers(deps: {
     "threads.model": ({ thread, model_choice }) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
-      const why = model_choice?.model ? deps.checkModel(model_choice.model, Boolean(t.engine)) : undefined;
+      const why = model_choice?.model ? deps.checkModel(model_choice.model, t.engine) : undefined;
       if (why) throw badRequest(why);
       store.threads.mergeContext(thread, { model_choice: model_choice ?? undefined });
       return model_choice ? { model_choice } : {};
