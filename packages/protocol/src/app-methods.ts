@@ -28,6 +28,7 @@ import {
   PersonRelation,
   PersonRole,
   Project,
+  ProjectKind,
   ProviderInfo,
   RouterConfig,
   Run,
@@ -320,6 +321,23 @@ export const appMethods = {
       })
       .strict(),
     result: z.object({ project: Project, agents: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Renames a project, or changes its description or kind, in its .apc/project.json (every other key there stays).
+   * An empty string or null removes the field. The base project has no folder and cannot be changed.
+   */
+  "projects.update": {
+    params: z
+      .object({
+        project: Id,
+        name: z.string().trim().min(1).max(80).optional(),
+        description: z.string().trim().max(500).nullable().optional(),
+        kind: ProjectKind.nullable().optional(),
+      })
+      .strict(),
+    result: z.object({ project: Project }),
     effect: true,
     access: "human",
   },

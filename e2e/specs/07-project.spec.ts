@@ -5,7 +5,7 @@ import { expect, open, rpc, test, world } from "./kit.ts";
 test("the imported project shows its team", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: /^Northwind/ }).click();
-  await page.getByRole("tab", { name: "Equipo" }).click();
+  await page.getByRole("tab", { name: /^Agentes/ }).click();
   await expect(page.getByText("Dev").first()).toBeVisible();
   await expect(page.getByText("Ops").first()).toBeVisible();
 });

@@ -589,3 +589,24 @@
   padding: 8px 10px 8px 14px;
   border-bottom: 1px solid var(--apx-border);
 }
+
+/* The tabs' counts read as "Agents (10)". */
+.project__tabs .apx-tabs__count::before {
+  content: "(";
+}
+.project__tabs .apx-tabs__count::after {
+  content: ")";
+}
+
+.projsettings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-space-4);
+}
+.projsettings__path {
+  display: block;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  overflow-wrap: anywhere;
+}

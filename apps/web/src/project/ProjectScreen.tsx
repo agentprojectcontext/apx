@@ -1,5 +1,5 @@
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { findProject, inProject, isListed, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -13,7 +13,9 @@ import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { FilesPane } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
+import { ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectTeam } from "./ProjectTeam.tsx";
+import { useProjectCounts } from "./useProjectCounts.ts";
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
 export function ProjectScreen({ layout }: { layout: Layout }) {
@@ -57,6 +59,8 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
 
 function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTab }) {
   const t = useT();
+  const counts = useProjectCounts(project.id);
+  const [settings, setSettings] = useState(false);
   return (
     <header className="project__head">
       <div className="project__titlerow">
@@ -80,17 +84,18 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         <IconButton
           variant="secondary"
           size="lg"
-          label={t("project.agentSettings")}
+          label={t("project.settings")}
           icon={<Icons.Settings size={16} />}
-          onClick={() => go.config("agents")}
+          onClick={() => setSettings(true)}
         />
       </div>
       <Tabs
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
-        items={PROJECT_TABS.map((x) => ({ value: x.id, label: t(x.label) }))}
+        items={PROJECT_TABS.map((x) => ({ value: x.id, label: t(x.label), count: counts[x.id] }))}
       />
+      <ProjectSettings project={project} open={settings} onOpenChange={setSettings} />
     </header>
   );
 }

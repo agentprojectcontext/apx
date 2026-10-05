@@ -4,6 +4,10 @@ import { PERSON_RELATIONS } from "./constants.ts";
 
 export const Id = z.string().min(1).max(128);
 
+/** What a project is, as the owner picks it in its settings. A project's file may still name another kind. */
+export const ProjectKind = z.enum(["personal", "app", "company", "software", "other"]);
+export type ProjectKind = z.infer<typeof ProjectKind>;
+
 export const Project = z.object({
   id: Id,
   name: z.string(),

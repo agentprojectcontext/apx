@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
+import { writeProjectMeta } from "../apc/write.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
@@ -91,6 +92,21 @@ export function appHandlers(deps: {
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
+    },
+    "projects.update": ({ project: id, name, description, kind }) => {
+      const project = store.projects.get(id);
+      if (!project) throw notFound(`project ${id}`);
+      if (!project.path) throw badRequest(`${project.name} has no folder to keep its settings in`);
+      if (!project.present) throw badRequest(`the folder of ${project.name} is not on disk right now`);
+      try {
+        writeProjectMeta(project.path, { name, description, kind });
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      deps.apc.sync(id);
+      const now = store.projects.get(id);
+      if (!now) throw notFound(`project ${id}`);
+      return { project: publicProject(now) };
     },
     "projects.sync": ({ project }) => deps.apc.sync(project),
     "surfaces.list": ({ project_id }) => ({ surfaces: store.surfaces.list(project_id) }),

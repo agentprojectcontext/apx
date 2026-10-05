@@ -145,3 +145,29 @@ export function archiveAgentFile(root: string, slug: string): string {
   fs.renameSync(agentFile(root, slug), dest);
   return path.relative(root, dest);
 }
+
+export type ProjectMeta = { name?: string | undefined; description?: string | null; kind?: string | null };
+
+/**
+ * Changes .apc/project.json: given keys are set ("" or null removes one), every other key (apx_id, what other tools
+ * keep there) stays. Refuses a symlinked .apc or file, like the agent files.
+ */
+export function writeProjectMeta(root: string, meta: ProjectMeta): void {
+  const dir = path.join(root, ".apc");
+  const file = path.join(dir, "project.json");
+  for (const p of [dir, file])
+    if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
+  let current: Record<string, unknown> = {};
+  if (fs.existsSync(file)) {
+    const raw = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(".apc/project.json is not an object");
+    current = raw as Record<string, unknown>;
+  }
+  for (const [key, value] of Object.entries(meta)) {
+    if (value === undefined) continue;
+    if (value === null || value === "") delete current[key];
+    else current[key] = value;
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  writeAtomic(file, `${JSON.stringify(current, null, 2)}\n`);
+}

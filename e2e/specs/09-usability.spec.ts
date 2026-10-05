@@ -10,7 +10,7 @@ const SCREENS: Array<[string, Array<[role: "button" | "tab", name: string | RegE
     "team",
     [
       ["button", /^Northwind/],
-      ["tab", "Equipo"],
+      ["tab", /^Agentes/],
     ],
   ],
   [
