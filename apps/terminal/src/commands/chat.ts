@@ -26,12 +26,22 @@ async function pickThread(client: ApxClient, o: ChatOptions): Promise<string> {
     agents.find((a) => a.id === o.agent) ?? agents.filter((a) => a.name.toLowerCase() === o.agent?.toLowerCase())[0];
   if (!agent) throw new Error(`unknown agent ${o.agent} (see apx2 agents)`);
   if (!o.new) {
-    const { threads } = await client.call("threads.list", {});
-    const mine = threads.find((t) => t.kind !== "home" && t.agent_ids[0] === agent.id);
-    if (mine) return mine.id;
     if (agent.kind === "secretary") return "home";
+    const mine = latestConversation((await client.call("threads.list", {})).threads, agent.id);
+    if (mine) return mine;
   }
   return (await client.call("threads.create", { kind: "agent", agent_id: agent.id })).id;
+}
+
+/**
+ * The agent's latest conversation with the owner: a routine run, a task, a code session or a channel's chat is never
+ * one (a message there would land in the middle of that work).
+ */
+export function latestConversation(
+  threads: ReadonlyArray<{ id: string; kind: string; agent_ids: readonly string[] }>,
+  agentId: string,
+): string | undefined {
+  return threads.find((t) => (t.kind === "agent" || t.kind === "loose") && t.agent_ids[0] === agentId)?.id;
 }
 
 /** A new code thread for the agent (default: the secretary) in the registered project that holds the folder. */

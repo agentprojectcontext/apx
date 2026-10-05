@@ -81,6 +81,8 @@ export function createEngine(deps: {
   skills?: SkillPicker;
   /** Where profiles are found (APX's own and the owner's). */
   profileRoots?: readonly ProfileRoot[];
+  /** This core's version and commit, for the agents' prompt. */
+  build?: { version: string; code_sha: string };
   /** Extension points (a plugin's context for owner turns). */
   hooks?: Hooks;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */

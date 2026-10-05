@@ -83,6 +83,8 @@ export type TurnDeps = {
   skills?: SkillPicker | undefined;
   /** Where profiles are found: the running one adds its block to the super-agent's system prompt. */
   profileRoots?: readonly ProfileRoot[] | undefined;
+  /** This core's version and commit: agents can tell the owner which APX they run on. */
+  build?: { version: string; code_sha: string } | undefined;
   hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
@@ -197,7 +199,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills, deps.profileRoots ?? []),
+    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills, deps.profileRoots ?? [], deps.build),
     sealed: turn.audience.kind === "contact",
     direct: Boolean(thread.engine),
     history,
@@ -397,11 +399,24 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   return { policy, tools };
 }
 
+/** "2.1.1 (commit 75d71df)"; a checkout's placeholder version reads as a development build. */
+export function apxBuild(b: { version: string; code_sha: string }): string {
+  const sha = b.code_sha && b.code_sha !== "unknown" ? `commit ${b.code_sha.slice(0, 7)}` : "";
+  if (b.version === "0.0.0") return `a development build${sha ? ` (${sha})` : ""}`;
+  return `${b.version}${sha ? ` (${sha})` : ""}`;
+}
+
 /** All an engine session adds to the engine's own prompt (Claude Code appends it; the others take nothing). */
 const DIRECT_NOTE =
   "You are running inside APX, the owner's local assistant app; they talk to you directly in this chat. APX's own tools (mcp__apx__*) are there if useful.";
 
-function systemFor(store: Store, turn: Turn, skills: string, roots: readonly ProfileRoot[]): string {
+function systemFor(
+  store: Store,
+  turn: Turn,
+  skills: string,
+  roots: readonly ProfileRoot[],
+  build?: { version: string; code_sha: string },
+): string {
   const lang = store.settings.get("owner_language") || "es";
   if (turn.audience.kind === "contact")
     return turn.audience.room
@@ -420,6 +435,7 @@ function systemFor(store: Store, turn: Turn, skills: string, roots: readonly Pro
     skills,
     role,
     ownerIdentity(store),
+    build ? apxBuild(build) : "",
   );
 }
 
