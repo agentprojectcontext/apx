@@ -1,5 +1,5 @@
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
-import { Badge, Checkbox, Icons, SearchField } from "@apx/ui";
+import { Badge, Icons, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { baseRef, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -21,7 +21,10 @@ export function filterCatalog(catalog: readonly CatalogEngine[], q: string, all:
     .filter((g) => g.showDefault || g.models.length > 0);
 }
 
-/** Searchable catalog grouped by engine. An engine alone picks that engine's own default model. */
+/**
+ * Searchable catalog grouped by engine, chat models only (voice, image and embedding models never run a turn).
+ * An engine alone picks that engine's own default model.
+ */
 export function ModelList({
   value,
   onPick,
@@ -36,8 +39,7 @@ export function ModelList({
   const catalog = useModels((s) => s.catalog);
   const load = useModels((s) => s.catalogLoad);
   const [q, setQ] = useState("");
-  const [all, setAll] = useState(false);
-  const groups = useMemo(() => filterCatalog(catalog, q, all), [catalog, q, all]);
+  const groups = useMemo(() => filterCatalog(catalog, q, false), [catalog, q]);
   const picked = value ? baseRef(value) : undefined;
   /** Picking the same model again keeps the effort it had. */
   const sameModel = (ref: ModelRef) => (picked === ref && value ? splitRef(value).effort : undefined);
@@ -84,7 +86,6 @@ export function ModelList({
                   selected={picked === ref}
                   name={m.name}
                   sub={ref}
-                  muted={!m.chat}
                   onPick={() => onPick(withEffort(ref, sameModel(ref)))}
                 />
               );
@@ -93,20 +94,13 @@ export function ModelList({
         ))}
       </div>
       {value && onEffort && <EffortRow value={value} onChange={onEffort} />}
-      <Checkbox checked={all} onCheckedChange={setAll} label={t("models.showAll")} />
     </div>
   );
 }
 
-function Option(props: { selected: boolean; name: string; sub: string; muted?: boolean; onPick: () => void }) {
+function Option(props: { selected: boolean; name: string; sub: string; onPick: () => void }) {
   return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={props.selected}
-      className={props.muted ? "mlist__opt is-muted" : "mlist__opt"}
-      onClick={props.onPick}
-    >
+    <button type="button" role="option" aria-selected={props.selected} className="mlist__opt" onClick={props.onPick}>
       <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>
       <span className="mlist__name">{props.name}</span>
       <span className="mlist__ref">{props.sub}</span>

@@ -34,6 +34,32 @@ test("a chain entry picks one of its engine's models and, when the model takes i
   await page.keyboard.press("Escape");
 });
 
+test("an agent picks its own model from the list, and one button leaves it on the router alone", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await page.getByRole("dialog").getByRole("navigation").getByRole("button", { name: "Agentes" }).click();
+  await page
+    .getByRole("button", { name: /^Modelo de / })
+    .first()
+    .click();
+  await expect(page.getByText("En uso")).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /voz, imagen y embeddings/ })).toHaveCount(0);
+  await page.getByRole("option", { name: /GPT e2e/ }).click();
+  const choiceOf = async () =>
+    (await rpc<{ agents: Array<{ kind: string; model_choice?: { model: string } }> }>("agents.list")).agents.find(
+      (a) => a.kind === "secretary",
+    )?.model_choice?.model;
+  await expect.poll(choiceOf).toBe("codex/gpt-e2e");
+
+  await page
+    .getByRole("button", { name: /^Modelo de / })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Dejar solo el router" }).click();
+  await expect.poll(choiceOf).toBeUndefined();
+  await page.keyboard.press("Escape");
+});
+
 test("English and Spanish show text, never a raw key", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: /^Idioma/ }).click();

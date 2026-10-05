@@ -167,6 +167,7 @@ function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined
       none={{
         title: t("composer.agentModel"),
         desc: t("composer.agentModelDesc", { name: agent?.name ?? t("composer.yourAgent") }),
+        action: t("composer.backToAgentModel"),
       }}
       onChange={(choice) => void setThreadModel(thread.id, choice)}
     />

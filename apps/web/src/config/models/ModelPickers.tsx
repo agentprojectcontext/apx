@@ -1,5 +1,5 @@
 import type { ModelChoice, ModelRef } from "@apx/protocol";
-import { Icons, Popover } from "@apx/ui";
+import { Button, Icons, Popover } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { choiceLabel, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
@@ -78,8 +78,8 @@ export function ModelChoicePicker(props: {
   className?: string;
   /** Before the trigger text (the engine's mark in the composer). */
   icon?: ReactNode;
-  /** The first option, when null means something else than the router (a chat: "the agent's model"). */
-  none?: { title: string; desc: string };
+  /** The footer, when null means something else than the router (a chat: "the agent's model"). */
+  none?: { title: string; desc: string; action: string };
   align?: "start" | "end";
 }) {
   const t = useT();
@@ -110,31 +110,43 @@ export function ModelChoicePicker(props: {
       })}
     >
       <div className="mchoice">
-        <Mode
-          selected={!own}
-          title={props.none?.title ?? t("models.router")}
-          desc={props.none?.desc ?? t("models.routerOnlyDesc")}
-          onPick={() => pick(null)}
-        />
         <div className="mchoice__label">{t("models.ownModel")}</div>
         <ModelList
           value={own}
           onPick={(model) => pick({ model, router: true })}
           onEffort={(model) => props.onChange({ model, router: value?.router ?? true })}
         />
+        <Fallback
+          active={!own}
+          title={props.none?.title ?? t("models.router")}
+          desc={props.none?.desc ?? t("models.routerOnlyDesc")}
+          action={props.none?.action ?? t("models.routerOnly")}
+          onPick={() => pick(null)}
+        />
       </div>
     </Popover>
   );
 }
 
-function Mode(props: { selected: boolean; title: string; desc: string; onPick: () => void }) {
+/** What runs with no model of its own: a button goes back to it, or it reads "in use". */
+function Fallback(props: { active: boolean; title: string; desc: string; action: string; onPick: () => void }) {
+  const t = useT();
   return (
-    <button type="button" className="mchoice__mode" aria-pressed={props.selected} onClick={props.onPick}>
-      <span className="mlist__check">{props.selected && <Icons.Check size={14} />}</span>
+    <div className="mchoice__fallback">
       <span className="mchoice__text">
         <span className="mchoice__title">{props.title}</span>
         <span className="mchoice__desc">{props.desc}</span>
       </span>
-    </button>
+      {props.active ? (
+        <span className="mchoice__inuse">
+          <Icons.Check size={14} />
+          {t("models.inUse")}
+        </span>
+      ) : (
+        <Button size="sm" variant="secondary" onClick={props.onPick}>
+          {props.action}
+        </Button>
+      )}
+    </div>
   );
 }

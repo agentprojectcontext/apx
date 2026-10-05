@@ -24,6 +24,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "composer.modelOfChat": "Modelo de este chat",
   "composer.agentModel": "El modelo del agente",
   "composer.agentModelDesc": "Este chat usa lo que tiene configurado {name}.",
+  "composer.backToAgentModel": "Volver al del agente",
   "composer.contextOf": "{used} de {window} de contexto usado",
   "composer.spent": "En este chat: {input} tokens de entrada (lo que leyó) y {output} de salida (lo que escribió)",
   "composer.contextUsed": "{used} de contexto usado",

@@ -22,6 +22,7 @@ export const enChat = {
   "composer.modelOfChat": "Model of this chat",
   "composer.agentModel": "The agent's model",
   "composer.agentModelDesc": "This chat uses what {name} has set up.",
+  "composer.backToAgentModel": "Back to the agent's",
   "composer.contextOf": "{used} of {window} context used",
   "composer.spent": "In this chat: {input} tokens read (input), {output} written (output)",
   "composer.contextUsed": "{used} of context used",
