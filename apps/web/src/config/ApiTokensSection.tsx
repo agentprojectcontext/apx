@@ -8,7 +8,7 @@ import { SectionHead } from "./SectionHead.tsx";
 
 const SCOPES: ClientScope[] = ["chat", "browser"];
 
-/** API tokens for outside apps (Claude Code, Codex…): each acts as a model within its scopes, never as you. */
+/** API tokens for outside apps and services: each acts as a model within its scopes, never as you. */
 export function ApiTokensSection() {
   const t = useT();
   const [list, setList] = useState<ApiClient[]>();
@@ -96,7 +96,7 @@ export function ApiTokensSection() {
           <span className="res__name">{t("clients.tokenFor", { name: made.name })}</span>
           <code className="soon__code">{made.token}</code>
           <span className="pform__hint">{t("clients.tokenOnce")}</span>
-          <code className="soon__code">{`claude mcp add apx -e APX_CLIENT_TOKEN=${made.token} -- apx2 mcp`}</code>
+          <code className="soon__code">{`APX_CLIENT_TOKEN=${made.token} apx2 mcp`}</code>
           <div className="pcard__actions">
             <span className="pcard__spacer" />
             <Button
