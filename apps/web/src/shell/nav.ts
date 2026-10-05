@@ -24,6 +24,7 @@ export const CONFIG_SECTIONS = [
   "account",
   "appearance",
   "engines",
+  "external",
   "router",
   "agents",
   "profile",

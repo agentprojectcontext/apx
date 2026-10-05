@@ -1,7 +1,8 @@
 // Model catalog, install default and router (D-011). Model names only ever come from the core.
 import type { CatalogEngine, ModelChoice, ModelRef, RouterConfig } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
-import { t } from "../i18n/index.ts";
+import { registerProviderMarks } from "@apx/ui";
+import { isKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { notify } from "./notices.ts";
@@ -25,8 +26,19 @@ export function useModels<T>(select: (s: ModelsState) => T): T {
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const missing = (e: unknown) => e instanceof ApxError && e.code === "unknown_method";
 
+let marks: Promise<void> | undefined;
+/** The model APIs' marks: not needed before a list of models or providers shows, so they come with the catalog. */
+function loadProviderMarks(): void {
+  marks ??= import("@apx/ui/provider-marks")
+    .then((m) => registerProviderMarks(m.PROVIDER_MARKS))
+    .catch(() => {
+      marks = undefined;
+    });
+}
+
 /** Every engine and its models. `refresh` asks the engines again instead of the day cache. */
 export async function loadCatalog(refresh = false): Promise<void> {
+  loadProviderMarks();
   if (models.get().catalogLoad === "loading") return;
   models.set((s) => ({ catalogLoad: s.catalog.length ? s.catalogLoad : "loading" }));
   try {
@@ -105,14 +117,26 @@ export function refLabel(ref: ModelRef, catalog: readonly CatalogEngine[]): stri
   const label = model
     ? baseRef(ref)
     : t("models.engineDefault", { engine: catalog.find((x) => x.id === engine)?.label ?? engine });
-  return effort ? `${label} · ${effort}` : label;
+  return effort ? `${label} · ${effortLabel(effort)}` : label;
 }
 
 /** Short form for chips and summaries: an engine alone is just its label. */
 function shortRef(ref: ModelRef, catalog: readonly CatalogEngine[]): string {
   const { engine, model, effort } = splitRef(ref);
   const label = model ? baseRef(ref) : (catalog.find((x) => x.id === engine)?.label ?? engine);
-  return effort ? `${label} · ${effort}` : label;
+  return effort ? `${label} · ${effortLabel(effort)}` : label;
+}
+
+/**
+ * What agents, the router and a chat may run on: model APIs that answer now (the plans signed in from APX among
+ * them). Claude Code, Codex and ACP agents run only in their own sessions (DECISIONS.md#d-043).
+ */
+export const forAgents = (e: CatalogEngine): boolean => e.kind === "provider" && e.available;
+
+/** A reasoning effort as people read it ("high" → "Alto"); one this panel does not know, capitalised. */
+export function effortLabel(effort: string): string {
+  const key = `models.effortLevel.${effort}`;
+  return isKey(key) ? t(key) : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 
 /** "Router", "<model>", or "<model> → router". */

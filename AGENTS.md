@@ -100,6 +100,12 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 
 21. **English first.** Code, comments, docs, commits and UI strings are English; the UI is translated (Spanish
     first) through `apps/web/src/i18n`. Plans under `plan/` stay in Spanish. `[review]`
+22. **Sentence case in the UI, in every language.** Each title, label, button, badge, menu item and sentence starts
+    with a capital letter ("Router chain", "Por defecto (Medio)"); never all lowercase, and not Title Case Every Word.
+    Only a fragment that continues a sentence on screen (after "·", a placeholder's tail) starts lowercase. Values
+    from outside (provider ids, model ids, effort levels, status codes) never show raw as a label: they go through a
+    name (a provider's `label`, `effortLabel`) or show as code. Brand names keep their own case (iMessage, `apx2`).
+    `[review]`
 
 ### Code comments
 

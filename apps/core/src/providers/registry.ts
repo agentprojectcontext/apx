@@ -19,7 +19,13 @@ export function providerRegistry(store: Store, builtIn: ProviderConfig[]) {
   /** Built-ins first, each replaced by the owner's version of it; then the owner's new ones. */
   const all = (): Array<ProviderEntry & { builtin: boolean }> => {
     const mine = new Map(own().map((p) => [p.id, p]));
-    const out = builtIn.map((b) => ({ ...b, ...mine.get(b.id), builtin: true }));
+    // A saved label that is only the id is no name, and "custom" is no kind for a built-in: the built-in's own stay.
+    const out: Array<ProviderEntry & { builtin: boolean }> = builtIn.map((b) => {
+      const m = mine.get(b.id);
+      const label = m?.label && m.label !== b.id ? m.label : b.label;
+      const preset = m?.preset && m.preset !== "custom" ? m.preset : undefined;
+      return { ...b, ...m, label, preset, builtin: true };
+    });
     for (const p of mine.values()) if (!builtIn.some((b) => b.id === p.id)) out.push({ ...p, builtin: false });
     return out.filter((p) => !p.removed);
   };

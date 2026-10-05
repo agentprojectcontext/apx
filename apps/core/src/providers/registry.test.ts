@@ -55,3 +55,38 @@ test("only the owner manages providers", async () => {
     (e: unknown) => e instanceof ApxError && e.code === "unauthorized",
   );
 });
+
+test("built-in providers keep their brand's name and kind, even saved back as an older panel did", async () => {
+  const own = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    providers: [
+      {
+        id: "openai",
+        label: "OpenAI",
+        transport: "openai-chat",
+        base_url: "https://api.openai.com/v1",
+        key: "secret://openai",
+        models: [],
+      },
+    ],
+  });
+  try {
+    const r = await own.client.call("providers.set", {
+      id: "openai",
+      provider: {
+        label: "openai",
+        preset: "custom",
+        transport: "openai-chat",
+        base_url: "https://api.openai.com/v1",
+        enabled: false,
+      },
+    });
+    const openai = r.providers.find((p) => p.id === "openai");
+    assert.equal(openai?.label, "OpenAI");
+    assert.equal(openai?.preset, undefined);
+    assert.equal(openai?.enabled, false);
+  } finally {
+    await own.core.close();
+    own.cleanup();
+  }
+});

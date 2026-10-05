@@ -120,22 +120,19 @@ async function claudeModels(): Promise<CatalogModel[]> {
   }
 }
 
-async function codexModels(): Promise<CatalogModel[]> {
-  const bin = await which("codex");
-  if (!bin) throw new Error("not installed");
-  const { stdout } = await run(bin, ["debug", "models"], { timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
-  const body = JSON.parse(stdout) as {
-    models?: Array<{
-      slug: string;
-      display_name?: string;
-      description?: string;
-      visibility?: string;
-      priority?: number;
-      supported_reasoning_levels?: Array<{ effort?: string }>;
-      default_reasoning_level?: string;
-    }>;
-  };
-  return (body.models ?? [])
+/** A model as Codex's list gives it (`codex debug models`, or the plan's own /models). */
+type CodexListed = {
+  slug: string;
+  display_name?: string;
+  description?: string;
+  visibility?: string;
+  priority?: number;
+  supported_reasoning_levels?: Array<{ effort?: string }>;
+  default_reasoning_level?: string;
+};
+
+function fromCodexList(models: CodexListed[] | undefined): CatalogModel[] {
+  return (models ?? [])
     .filter((m) => m.visibility !== "hide")
     .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))
     .map((m) => ({
@@ -148,6 +145,37 @@ async function codexModels(): Promise<CatalogModel[]> {
         : {}),
       ...(m.default_reasoning_level ? { default_effort: m.default_reasoning_level } : {}),
     }));
+}
+
+async function codexModels(): Promise<CatalogModel[]> {
+  const bin = await which("codex");
+  if (!bin) throw new Error("not installed");
+  const { stdout } = await run(bin, ["debug", "models"], { timeout: 30_000, maxBuffer: 8 * 1024 * 1024 });
+  return fromCodexList((JSON.parse(stdout) as { models?: CodexListed[] }).models);
+}
+
+/**
+ * The plan's models, asked to the plan itself (the list Codex fetches). The server hides models newer than the
+ * client says it is, so it is told the Codex version installed here, or a recent one.
+ */
+async function planModels(base: string, creds: PlanCredentials, fetchImpl: typeof fetch): Promise<CatalogModel[]> {
+  const res = await fetchImpl(`${base.replace(/\/$/, "")}/models?client_version=${await codexVersion()}`, {
+    headers: { authorization: `Bearer ${creds.token}`, accept: "application/json", ...creds.headers },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return fromCodexList(((await res.json()) as { models?: CodexListed[] }).models);
+}
+
+const KNOWN_CODEX = "0.160.0";
+let codexVersionSeen: string | undefined;
+async function codexVersion(): Promise<string> {
+  if (codexVersionSeen) return codexVersionSeen;
+  const bin = await which("codex");
+  const out = bin ? await run(bin, ["--version"], { timeout: 10_000 }).catch(() => undefined) : undefined;
+  const v = out?.stdout.match(/\d+\.\d+\.\d+/)?.[0];
+  codexVersionSeen = v && v.localeCompare(KNOWN_CODEX, undefined, { numeric: true }) > 0 ? v : KNOWN_CODEX;
+  return codexVersionSeen;
 }
 
 /** Opens a session in an empty folder only to read the models it offers, then closes it. */
@@ -164,6 +192,9 @@ async function acpModels(agent: AcpAgent, home: string): Promise<CatalogModel[]>
   }
 }
 
+/** A signed-in plan's token and the headers its API wants. */
+export type PlanCredentials = { token: string; headers: Record<string, string> };
+
 export type Catalog = ReturnType<typeof createCatalog>;
 
 export function createCatalog(deps: {
@@ -175,8 +206,8 @@ export function createCatalog(deps: {
   /** Tests replace the CLI-backed lists. */
   harnessLists?: Partial<Record<"claude" | "codex", () => Promise<CatalogModel[]>>>;
   acpList?: (agent: AcpAgent) => Promise<CatalogModel[]>;
-  /** Signed-in plans by key reference: their models are the ones Codex lists for the same plan. */
-  signIns?: Record<string, { has(): boolean }>;
+  /** Signed-in plans by key reference: their models are asked to the plan with its sign-in. */
+  signIns?: Record<string, { has(): boolean; credentials(): Promise<PlanCredentials> }>;
 }) {
   const { store, secrets } = deps;
   const inflight = new Map<string, Promise<CatalogEngine>>();
@@ -216,13 +247,12 @@ export function createCatalog(deps: {
     ];
     for (const p of deps.providers()) {
       out.push({
-        base: { id: p.id, kind: "provider", label: (p as { label?: string }).label || p.id },
+        base: { id: p.id, kind: "provider", label: p.label || p.id },
         list: async () => {
           const signIn = deps.signIns?.[p.key];
           if (signIn) {
             if (!signIn.has()) throw new Error("not signed in");
-            const known = cached("codex")?.models;
-            return known?.length ? known : await (deps.harnessLists?.codex ?? codexModels)();
+            return planModels(p.base_url, await signIn.credentials(), deps.fetchImpl ?? fetch);
           }
           const key = p.key === NO_KEY ? "" : secrets.resolve(p.key);
           if (key === undefined || (key === "" && p.key !== NO_KEY)) throw new Error(`no key (${p.key})`);

@@ -450,3 +450,16 @@ so the two never share a refresh family. v1's APX-owned sign-in is taken over on
 stays for code threads and the owner's own Codex sessions; outside them it now runs with the owner's servers,
 plugins, AGENTS.md and Codex's own tools off. Claude stays a harness only: Anthropic limits the subscription's
 sign-in to Claude Code; outside code threads it sees APX's tools only.
+
+<a id="d-043"></a>
+## D-043 — 2026-10-05 — Agents and the router run on model APIs; CLIs run only in their own sessions
+Amends D-007 and D-042. An agent on Claude Code, Codex or an ACP agent ran that CLI's whole turn, so a chat with an
+agent behaved like the CLI and not like APX. Agents, the router (rules and chain) and the install default now take
+model APIs only: the providers APX's own loop calls, including the ChatGPT plan (`chatgpt`, shown as Codex) signed in
+from APX. Claude Code, Codex and ACP agents run only in their own sessions (`Thread.engine`, D-023), where the owner
+talks to the CLI itself; `models.set_config`, `agents.update` and `threads.model` outside a session refuse a CLI ref,
+and a choice an older APX saved is skipped when read (the router drops it, the default falls back to the router).
+The Claude plan has no counterpart in APX's loop: Anthropic limits the subscription's sign-in to Claude Code, so it
+stays an external session and agents use an Anthropic key. The plan's model list is asked to the plan
+(`<base>/models`, as Codex does), never read from a CLI's cache. Settings shows the plans and model APIs under
+Engines and models, and the CLIs under External sessions.

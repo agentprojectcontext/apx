@@ -32,7 +32,13 @@ export {
 export { DayDivider, type DayDividerProps } from "./components/DayDivider";
 export { Dialog, type DialogProps } from "./components/Dialog";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
-export { type EngineBrand, EngineIcon, type EngineIconProps, engineBrand } from "./components/EngineIcon";
+export {
+  type EngineBrand,
+  EngineIcon,
+  type EngineIconProps,
+  engineBrand,
+  registerProviderMarks,
+} from "./components/EngineIcon";
 export { EntityCard, type EntityCardProps } from "./components/EntityCard";
 export { Field, type FieldProps } from "./components/Field";
 export { IconButton, type IconButtonProps } from "./components/IconButton";

@@ -45,7 +45,7 @@ test("a registered project's agents come from its files; edits and removals foll
     // The owner picks another model in APX; the file is edited; the owner's pick survives the reindex.
     await env.client.call("agents.update", {
       agent: "abc123def456-arch",
-      model_choice: { model: "claude", router: false },
+      model_choice: { model: "fake/fake-pro", router: false },
     });
     fs.writeFileSync(
       path.join(root, ".apc", "agents", "arch.md"),
@@ -57,7 +57,7 @@ test("a registered project's agents come from its files; edits and removals foll
     ({ agents } = await env.client.call("agents.list", {}));
     const again = agents.find((a) => a.id === "abc123def456-arch");
     assert.equal(again?.role, "Principal Architect");
-    assert.deepEqual(again?.model_choice, { model: "claude", router: false });
+    assert.deepEqual(again?.model_choice, { model: "fake/fake-pro", router: false });
     assert.ok(!agents.some((a) => a.id === "abc123def456-ceo"), "removed file → archived, not listed");
 
     // A project agent works with its project's AGENTS.md in context.

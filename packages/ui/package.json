@@ -13,6 +13,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./provider-marks": {
+      "types": "./dist/provider-marks.d.ts",
+      "import": "./dist/provider-marks.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "sideEffects": [

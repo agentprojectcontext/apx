@@ -14,10 +14,13 @@
   border-right: 1px solid var(--apx-border);
   overflow-y: auto;
 }
-.config__nav > .apx-search {
+/* A nav taller than the dialog scrolls; nothing in it shrinks to fit (the search box was squashed). */
+.config__nav > .apx-field {
+  flex: none;
   margin-bottom: 6px;
 }
 .config__group {
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 2px;

@@ -9,7 +9,8 @@ export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
-  checkModel(ref: string): string | undefined;
+  /** `session`: the chat is a CLI's own session, where that CLI may run. */
+  checkModel(ref: string, session: boolean): string | undefined;
 }) {
   const { store } = deps;
   return {
@@ -38,8 +39,9 @@ export function composerHandlers(deps: {
       }
     },
     "threads.model": ({ thread, model_choice }) => {
-      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
-      const why = model_choice?.model ? deps.checkModel(model_choice.model) : undefined;
+      const t = store.threads.get(thread);
+      if (!t) throw notFound(`thread ${thread}`);
+      const why = model_choice?.model ? deps.checkModel(model_choice.model, Boolean(t.engine)) : undefined;
       if (why) throw badRequest(why);
       store.threads.mergeContext(thread, { model_choice: model_choice ?? undefined });
       return model_choice ? { model_choice } : {};

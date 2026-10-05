@@ -16,21 +16,17 @@ test("the chat list resizes from its edge and never folds away; an icon button s
   expect(await handle.getAttribute("aria-valuenow")).not.toBe(before);
 });
 
-test("a chain entry picks one of its engine's models and, when the model takes it, its reasoning effort", async ({
-  page,
-}) => {
+test("a chain entry picks one of the model APIs' models; the CLIs are not offered", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "Config", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Router" }).click();
   await page.getByRole("button", { name: "Agregar un modelo" }).click();
-  await page.getByRole("option", { name: /GPT e2e/ }).click();
-  await expect(page.getByRole("combobox", { name: "Effort" })).toBeVisible();
-  await page.getByRole("combobox", { name: "Effort" }).click();
-  await page.getByRole("option", { name: "high" }).click();
+  await expect(page.getByRole("option", { name: /GPT e2e/ })).toHaveCount(0);
+  await page.getByRole("option", { name: /fake-2/ }).click();
   await page.getByRole("button", { name: "Guardar router" }).click();
   await expect
     .poll(async () => (await rpc<{ router: { chain: string[] } }>("models.config")).router.chain)
-    .toContain("codex/gpt-e2e#high");
+    .toContain("custom/fake-2");
   await page.keyboard.press("Escape");
 });
 
@@ -44,12 +40,12 @@ test("an agent picks its own model from the list, and one button leaves it on th
     .click();
   await expect(page.getByText("En uso")).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /voz, imagen y embeddings/ })).toHaveCount(0);
-  await page.getByRole("option", { name: /GPT e2e/ }).click();
+  await page.getByRole("option", { name: /fake-2/ }).click();
   const choiceOf = async () =>
     (await rpc<{ agents: Array<{ kind: string; model_choice?: { model: string } }> }>("agents.list")).agents.find(
       (a) => a.kind === "secretary",
     )?.model_choice?.model;
-  await expect.poll(choiceOf).toBe("codex/gpt-e2e");
+  await expect.poll(choiceOf).toBe("custom/fake-2");
 
   await page
     .getByRole("button", { name: /^Modelo de / })

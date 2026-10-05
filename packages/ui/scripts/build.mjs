@@ -9,9 +9,10 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
 
+// The model APIs' marks are an entry of their own: the panel loads them with the model catalog, not at start.
 await build({
-  entryPoints: ["src/index.ts"],
-  outfile: "dist/index.js",
+  entryPoints: { index: "src/index.ts", "provider-marks": "src/provider-marks.ts" },
+  outdir: "dist",
   bundle: true,
   format: "esm",
   platform: "browser",

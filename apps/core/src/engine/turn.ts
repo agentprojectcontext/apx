@@ -4,7 +4,7 @@ import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@ap
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
-import { engineOf, harnessOf } from "../domain/refs.ts";
+import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
@@ -466,19 +466,15 @@ async function engineGroups(deps: TurnDeps, turn: Turn, start: RunRecord, histor
     trigger: start.trigger,
     agent_kind: turn.agent.kind,
   });
-  // Nothing chosen anywhere yet (a fresh install): the engines signed in on this machine, in their own order.
-  const ready = refs.length
-    ? refs
-    : (await deps.harnesses.status()).filter((e) => e.id !== "native" && e.installed && e.logged_in).map((e) => e.id);
+  // A CLI runs only in its own session; anywhere else a choice saved before that rule is skipped (D-043).
+  const ready = turn.thread.engine ? refs : refs.filter((r) => !isCliRef(r));
   const sealed = turn.audience.kind === "contact";
   const groups = byHarness(sealed ? ready.filter((r) => SEALED_HARNESSES.has(harnessOf(r))) : ready);
   if (!groups.length && sealed)
-    throw new Error(
-      "no engine here can answer a contact without tools: add an API model or Claude Code to this agent's models",
-    );
+    throw new Error("no engine here can answer a contact without tools: add a model API to this agent or the router");
   if (!groups.length)
     throw new Error(
-      "no model chosen for this agent, the router has none and no engine is signed in; pick one in Settings → Engines and models",
+      "no model chosen for this agent and the router has none; connect a model API in Settings → Engines and models",
     );
   return groups;
 }

@@ -89,10 +89,6 @@ export const enSetup = {
   "setup.engines.titleGreen": "you already pay for.",
   "setup.engines.body":
     "Sign in with your subscription or paste an API key. The first in the chain is the default; if it fails, the next one takes over.",
-  "setup.engines.subscription": "Subscription · your account",
-  "setup.engines.notInstalled": "Not installed on this computer",
-  "setup.engines.signInHint": "Run {command} in a terminal and sign in, then come back.",
-  "setup.engines.signedIn": "I signed in",
   "setup.engines.addKey": "Add API key",
   "setup.engines.save": "Save",
   "setup.engines.local": "Local · no key",

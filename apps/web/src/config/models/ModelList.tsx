@@ -1,7 +1,7 @@
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
-import { Badge, Icons, SearchField } from "@apx/ui";
+import { Badge, EngineIcon, Icons, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { baseRef, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
+import { baseRef, forAgents, refLabel, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { EffortRow } from "./RefSelect.tsx";
 
@@ -29,17 +29,20 @@ export function ModelList({
   value,
   onPick,
   onEffort,
+  only = forAgents,
 }: {
   value?: ModelRef;
   onPick: (ref: ModelRef) => void;
   /** Changes the picked model's effort (the list stays open); without it, no effort row. */
   onEffort?: (ref: ModelRef) => void;
+  /** Which engines it offers; by default what agents may run on (model APIs that answer now). */
+  only?: (e: CatalogEngine) => boolean;
 }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
   const load = useModels((s) => s.catalogLoad);
   const [q, setQ] = useState("");
-  const groups = useMemo(() => filterCatalog(catalog, q, false), [catalog, q]);
+  const groups = useMemo(() => filterCatalog(catalog.filter(only), q, false), [catalog, only, q]);
   const picked = value ? baseRef(value) : undefined;
   /** Picking the same model again keeps the effort it had. */
   const sameModel = (ref: ModelRef) => (picked === ref && value ? splitRef(value).effort : undefined);
@@ -62,6 +65,7 @@ export function ModelList({
         {groups.map(({ engine: e, showDefault, models }) => (
           <div key={e.id} className="mlist__group">
             <div className="mlist__engine">
+              <EngineIcon engine={e.id} size={14} />
               <span>{e.label}</span>
               {!e.available && (
                 <Badge tone="warning" title={e.detail}>
@@ -69,7 +73,8 @@ export function ModelList({
                 </Badge>
               )}
             </div>
-            {showDefault && (
+            {/* Only a CLI has a default model of its own; a model API runs with its model named. */}
+            {showDefault && e.kind === "harness" && (
               <Option
                 selected={picked === e.id}
                 name={refLabel(e.id, catalog)}

@@ -1,7 +1,7 @@
 import type { ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
 import { Badge, Button, IconButton, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { inCatalog, saveModelsConfig, useModels } from "../../data/models.ts";
+import { forAgents, inCatalog, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelRefPicker } from "./ModelPickers.tsx";
 import { RefSelect } from "./RefSelect.tsx";
@@ -72,7 +72,10 @@ export function RouterEditor() {
   const unknown = catalog.length ? refs.filter((r) => !inCatalog(r, catalog)).length : 0;
   const setChain = (chain: ModelRef[]) => setEdit({ ...edit, router: { ...draft, chain } });
   const setRules = (rules: RouterRule[], keys: number[]) => setEdit({ router: { ...draft, rules }, keys });
-  const firstRef = draft.chain[0] ?? catalog.find((e) => e.available)?.id;
+  // A model API runs only with its model named: a new rule starts on the first one that answers.
+  const firstApi = catalog.filter(forAgents).find((e) => e.models.some((m) => m.chat));
+  const firstModel = firstApi?.models.find((m) => m.chat);
+  const firstRef = draft.chain[0] ?? (firstApi && firstModel ? `${firstApi.id}/${firstModel.id}` : undefined);
 
   const save = async () => {
     setSaving(true);

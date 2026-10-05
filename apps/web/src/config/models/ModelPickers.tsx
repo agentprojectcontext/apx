@@ -1,4 +1,4 @@
-import type { ModelChoice, ModelRef } from "@apx/protocol";
+import type { CatalogEngine, ModelChoice, ModelRef } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { choiceLabel, inCatalog, refLabel, useModels } from "../../data/models.ts";
@@ -81,6 +81,8 @@ export function ModelChoicePicker(props: {
   /** The footer, when null means something else than the router (a chat: "the agent's model"). */
   none?: { title: string; desc: string; action: string };
   align?: "start" | "end";
+  /** Which engines it offers (a CLI's own session: that CLI); by default the model APIs agents run on. */
+  only?: (e: CatalogEngine) => boolean;
 }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
@@ -113,6 +115,7 @@ export function ModelChoicePicker(props: {
         <div className="mchoice__label">{t("models.ownModel")}</div>
         <ModelList
           value={own}
+          {...(props.only ? { only: props.only } : {})}
           onPick={(model) => pick({ model, router: true })}
           onEffort={(model) => props.onChange({ model, router: value?.router ?? true })}
         />

@@ -14,12 +14,15 @@ after(async () => {
   env.cleanup();
 });
 
-test("an engine's list holds its own sessions only, never an agent's chat that runs on its model", async () => {
+test("an engine's list holds its own sessions only, and a CLI runs nowhere else", async () => {
   const ran = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: ran.id, text: "hello" });
   await env.settle(ran.id);
-  const set = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
-  await env.client.call("threads.model", { thread: set.id, model_choice: { model: "claude", router: false } });
+  // Outside its own sessions a CLI is no chat's model.
+  await assert.rejects(
+    env.client.call("threads.model", { thread: ran.id, model_choice: { model: "claude", router: false } }),
+    /own sessions/,
+  );
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-eng-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const session = await env.client.call("threads.create", {
@@ -31,11 +34,8 @@ test("an engine's list holds its own sessions only, never an agent's chat that r
 
   const ids = async (engine: string) => (await env.client.call("threads.list", { engine })).threads.map((t) => t.id);
   assert.deepEqual(await ids("fake"), [], "the scripted model answered in Roby's chat: still Roby's");
-  assert.deepEqual(await ids("claude"), [session.id], "a chat set to Claude Code's model is not a session of it");
+  assert.deepEqual(await ids("claude"), [session.id]);
   const all = (await env.client.call("threads.list", {})).threads.map((t) => t.id);
-  assert.ok(
-    [ran.id, set.id].every((id) => all.includes(id)),
-    "both stay in the Inbox",
-  );
+  assert.ok(all.includes(ran.id), "Roby's chat stays in the Inbox");
   fs.rmSync(repo, { recursive: true, force: true });
 });

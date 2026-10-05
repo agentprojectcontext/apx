@@ -1,5 +1,5 @@
 import type { CatalogEngine } from "@apx/protocol";
-import { Badge, Button, Checkbox, Icons, SearchField, Skeleton } from "@apx/ui";
+import { Badge, Button, Checkbox, EngineIcon, Icons, SearchField, Skeleton } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { dayLabel } from "../../common/format.ts";
 import { loadCatalog, useModels } from "../../data/models.ts";
@@ -10,10 +10,18 @@ import { filterCatalog } from "./ModelList.tsx";
 /** The core caches each engine's list for a day; older than that it is stale. */
 const STALE_MS = 24 * 60 * 60 * 1000;
 
-/** Every engine and the models it offers, as the engines report them. */
-export function ModelCatalog() {
+/**
+ * The engines of one kind and the models each offers, as they report them: the model APIs (`provider`, plans among
+ * them) under Engines and models, the CLIs (`harness`) under External sessions.
+ */
+export function ModelCatalog({ kind, title, lead }: { kind: CatalogEngine["kind"]; title?: string; lead?: string }) {
   const t = useT();
-  const catalog = useModels((s) => s.catalog);
+  const every = useModels((s) => s.catalog);
+  // An ACP agent that is not installed here has nothing to list.
+  const catalog = useMemo(
+    () => every.filter((e) => e.kind === kind && (e.available || !e.id.startsWith("acp:"))),
+    [every, kind],
+  );
   const load = useModels((s) => s.catalogLoad);
   const [q, setQ] = useState("");
   const [all, setAll] = useState(false);
@@ -28,7 +36,7 @@ export function ModelCatalog() {
   return (
     <div className="config__section">
       <div className="catalog__head">
-        <SubHead>{t("models.catalog")}</SubHead>
+        <SubHead>{title ?? t("models.catalog")}</SubHead>
         <Button
           size="sm"
           variant="secondary"
@@ -39,7 +47,7 @@ export function ModelCatalog() {
           {t("common.refresh")}
         </Button>
       </div>
-      <p className="config__hint">{t("models.catalogLead")}</p>
+      <p className="config__hint">{lead ?? t("models.catalogLead")}</p>
       <div className="catalog__tools">
         <SearchField
           size="sm"
@@ -90,6 +98,7 @@ function EngineModels(props: {
     >
       <summary className="catalog__summary">
         <Icons.ChevronRight size={14} className="catalog__chev" />
+        <EngineIcon engine={e.id} size={16} />
         <span className="catalog__label">{e.label}</span>
         <span className="catalog__id">{e.id}</span>
         <span className="catalog__meta">

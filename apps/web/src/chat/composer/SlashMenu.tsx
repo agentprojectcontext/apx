@@ -3,7 +3,7 @@ import { Icons } from "@apx/ui";
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useMemo, useState } from "react";
 import { cancel, compactThread, createThread } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
-import { loadCatalog, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
+import { forAgents, loadCatalog, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { notify } from "../../data/notices.ts";
 import { listSkills } from "../../data/resources.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -57,7 +57,7 @@ export function useSlashMenu(o: {
   const items = useMemo(() => {
     if (!open) return [];
     const models = catalog
-      .filter((e) => e.available)
+      .filter((e) => (direct ? e.id === thread.engine : forAgents(e)))
       .flatMap((e) => e.models.filter((m) => m.chat).map((m) => ({ ref: `${e.id}/${m.id}`, label: m.name })));
     return slashItems(text, {
       busy: o.busy,
@@ -67,7 +67,7 @@ export function useSlashMenu(o: {
       efforts: current ? (modelOf(current, catalog)?.efforts ?? []) : [],
       currentEffort: current ? splitRef(current).effort : undefined,
     }).filter((i) => !(direct && i.kind === "command" && (i.id === "compact" || i.id === "skills")));
-  }, [open, text, catalog, skills, direct, current, o.busy]);
+  }, [open, text, catalog, skills, direct, thread.engine, current, o.busy]);
 
   // A new list starts at its first row.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on every change of the typed text

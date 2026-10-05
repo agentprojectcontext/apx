@@ -232,7 +232,7 @@ export function coreHandlers(d: HandlerDeps) {
       store: d.store,
       home: d.app.home,
       services: d.services,
-      checkModel: (ref) => refProblem(ref, d.engines),
+      checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),
   };
 }

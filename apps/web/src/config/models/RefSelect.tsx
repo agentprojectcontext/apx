@@ -1,6 +1,6 @@
 import type { CatalogEngine, ModelRef } from "@apx/protocol";
 import { Select, type SelectOption } from "@apx/ui";
-import { baseRef, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
+import { baseRef, effortLabel, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 
 /** The models one chain entry can be: its engine's own default, then each chat model the engine offers. */
@@ -53,10 +53,10 @@ export function RefSelect({ value, onChange }: { value: ModelRef; onChange(ref: 
             {
               value: "",
               label: model?.default_effort
-                ? t("models.effortDefaultIs", { effort: model.default_effort })
+                ? t("models.effortDefaultIs", { effort: effortLabel(model.default_effort) })
                 : t("models.effortDefault"),
             },
-            ...efforts.map((e) => ({ value: e, label: e })),
+            ...efforts.map((e) => ({ value: e, label: effortLabel(e) })),
           ]}
           onValueChange={(v) => onChange(withEffort(value, v || undefined))}
         />
@@ -83,10 +83,10 @@ export function EffortRow({ value, onChange }: { value: ModelRef; onChange(ref: 
           {
             value: "",
             label: model.default_effort
-              ? t("models.effortDefaultIs", { effort: model.default_effort })
+              ? t("models.effortDefaultIs", { effort: effortLabel(model.default_effort) })
               : t("models.effortDefault"),
           },
-          ...model.efforts.map((e) => ({ value: e, label: e })),
+          ...model.efforts.map((e) => ({ value: e, label: effortLabel(e) })),
         ]}
         onValueChange={(v) => onChange(withEffort(value, v || undefined))}
       />

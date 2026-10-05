@@ -4,10 +4,10 @@ import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
 import { RefSelect } from "../config/models/RefSelect.tsx";
+import { PlanLogin } from "../config/PlanLogin.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
-import { loadEngines } from "../data/engines.ts";
-import { loadCatalog, splitRef } from "../data/models.ts";
+import { loadCatalog, models, splitRef } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { loadProviders, saveProvider, useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
@@ -19,47 +19,42 @@ import { StepHead } from "./StepsIntro.tsx";
 type Engine = {
   id: string;
   label: string;
-  kind: "cli" | "key" | "local";
+  /** `plan`: a subscription signed in from APX (Codex); `key`: a model API with a key; `local`: a server here. */
+  kind: "plan" | "key" | "local";
   ready: boolean;
-  installed: boolean;
-  /** The command that signs a CLI in. */
-  login?: string;
 };
-const LOGIN: Record<string, string> = { claude: "claude", codex: "codex login" };
 
-/** The engines this Mac has and the model APIs: sign in or paste a key, then put them in order. */
+/**
+ * What the agents will run on: the ChatGPT plan (as Codex) and the model APIs; sign in or paste a key, then put them
+ * in order. The CLIs (Claude Code, Codex…) are external sessions, never the router (DECISIONS.md#d-043).
+ */
 export function EnginesStep({ draft: d, set }: StepProps) {
   const t = useT();
-  const cli = useData((s) => s.engines);
   const providers = useProviders((s) => s.list);
   useEffect(() => {
     void loadProviders();
-    void loadEngines(true);
     void loadCatalog();
   }, []);
-  const engines: Engine[] = [
-    ...cli
-      .filter((e) => e.id !== "native")
-      .map((e) => ({
-        id: e.id,
-        label: e.label,
-        kind: "cli" as const,
-        ready: e.installed && e.logged_in,
-        installed: e.installed,
-        ...(LOGIN[e.id] ? { login: LOGIN[e.id] } : {}),
-      })),
-    ...providers.map((p) => ({
-      id: p.id,
-      label: p.label,
-      kind: p.needs_key ? ("key" as const) : ("local" as const),
-      ready: p.enabled && p.key_set,
-      installed: true,
-    })),
-  ];
-  // A chain entry is an engine alone (its own default model) or one of its models ("gemini/gemini-3.6-flash").
+  const engines: Engine[] = providers.map((p) => ({
+    id: p.id,
+    label: p.label,
+    kind: p.sign_in ? "plan" : p.needs_key ? "key" : "local",
+    ready: p.enabled && p.key_set,
+  }));
+  // A model API runs with its model named: one is added with the first model it offers (changed below).
+  const firstRef = (id: string) => {
+    const m = models
+      .get()
+      .catalog.find((e) => e.id === id)
+      ?.models.find((x) => x.chat);
+    return m ? `${id}/${m.id}` : undefined;
+  };
   const uses = (id: string) => d.chain.some((r) => splitRef(r).engine === id);
-  const toggle = (id: string, on: boolean) =>
-    set({ chain: on ? [...d.chain, id] : d.chain.filter((r) => splitRef(r).engine !== id) });
+  const toggle = (id: string, on: boolean) => {
+    const ref = on ? firstRef(id) : undefined;
+    if (on && !ref) return void loadCatalog(true);
+    set({ chain: ref ? [...d.chain, ref] : d.chain.filter((r) => splitRef(r).engine !== id) });
+  };
   const replace = (i: number, ref: string) =>
     set({ chain: d.chain.map((r, j) => (j === i ? ref : r)).filter((r, j, all) => all.indexOf(r) === j) });
   const drop = (i: number) => set({ chain: d.chain.filter((_, j) => j !== i) });
@@ -122,6 +117,7 @@ function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; 
   const providers = useProviders((s) => s.list);
   const [key, setKey] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [login, setLogin] = useState(false);
   const saveKey = async () => {
     const p = providers.find((x) => x.id === e.id);
     if (!p || !key?.trim()) return;
@@ -142,11 +138,13 @@ function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; 
     setBusy(false);
     if (ok) {
       setKey(undefined);
+      // Its models are listed once the key is in: the first one joins the chain.
+      await loadCatalog(true);
       onToggle(true);
     }
   };
   const kind: Record<Engine["kind"], MessageKey> = {
-    cli: "setup.engines.subscription",
+    plan: "plans.codex.kind",
     key: "setup.engines.apiKey",
     local: "setup.engines.local",
   };
@@ -156,7 +154,7 @@ function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; 
         <EngineIcon engine={e.id} tile size={34} />
         <span className="wiz__enginetitles">
           <b>{e.label}</b>
-          <span>{e.installed ? t(kind[e.kind]) : t("setup.engines.notInstalled")}</span>
+          <span>{t(kind[e.kind])}</span>
         </span>
         {on && (
           <Badge tone="brand" dot>
@@ -168,15 +166,13 @@ function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; 
         <Button size="sm" variant={on ? "ghost" : "secondary"} onClick={() => onToggle(!on)}>
           {on ? t("setup.engines.remove") : t("setup.engines.useIt")}
         </Button>
-      ) : e.kind === "cli" ? (
-        e.installed && (
-          <div className="wiz__signin">
-            <span>{t("setup.engines.signInHint", { command: e.login ?? e.label })}</span>
-            <Button size="sm" variant="secondary" onClick={() => void loadEngines(true)}>
-              {t("setup.engines.signedIn")}
-            </Button>
-          </div>
-        )
+      ) : e.kind === "plan" ? (
+        <>
+          <Button size="sm" variant="secondary" onClick={() => setLogin(true)}>
+            {t("plans.connect")}
+          </Button>
+          {login && <PlanLogin onClose={() => setLogin(false)} />}
+        </>
       ) : key === undefined ? (
         <Button size="sm" variant="secondary" onClick={() => setKey("")}>
           {t("setup.engines.addKey")}

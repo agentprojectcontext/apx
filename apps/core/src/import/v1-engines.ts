@@ -1,7 +1,7 @@
 // v1's model engines (config.json `engines`) as v2's: model APIs become providers with their key in the secret store
-// (v2's built-in gemini, anthropic and openai just get theirs), Ollama a keyless local one, and the ChatGPT and Claude
-// logins the Codex and Claude Code harnesses. v1's main model and its fallback chain become the install default and
-// the router's chain. v1's folder is only read.
+// (v2's built-in gemini, anthropic and openai just get theirs), Ollama a keyless local one, and the ChatGPT plan v2's
+// built-in `chatgpt`. v1's main model and its fallback chain become the install default and the router's chain.
+// v1's folder is only read.
 import fs from "node:fs";
 import path from "node:path";
 import { ModelRef, type RouterConfig } from "@apx/protocol";
@@ -21,9 +21,9 @@ type V1Engine = {
   is_active?: unknown;
 };
 
-/** What v2 makes of one v1 engine: a model API, or a harness that runs on the owner's own CLI login. */
+/** What v2 makes of one v1 engine: a model API, or the ChatGPT plan (v2's built-in `chatgpt`, signed in from APX). */
 type Plan =
-  | { slug: string; kind: "harness"; id: "codex" | "claude" }
+  | { slug: string; kind: "plan"; id: "chatgpt" }
   | { slug: string; kind: "provider"; id: string; entry: Omit<ProviderEntry, "id">; key?: string | undefined };
 
 /** v1 adapters that speak OpenAI's chat API, with v1's own default address for each. */
@@ -37,7 +37,12 @@ const OPENAI_COMPAT: Record<string, string> = {
   ollama: "http://127.0.0.1:11434",
   custom: "",
 };
-const HARNESS: Record<string, "codex" | "claude"> = { "codex-plus": "codex", "claude-subscription": "claude" };
+/**
+ * v1's ChatGPT plan engine. Its Claude plan has no v2 counterpart: the Claude subscription runs only in Claude Code,
+ * an external session (DECISIONS.md#d-043).
+ */
+const CHATGPT_PLAN = "codex-plus";
+const CLAUDE_PLAN = "claude-subscription";
 /** The panel's preset for each v1 adapter (the provider card's look). */
 const PRESET: Record<string, string> = { zen: "opencode-zen" };
 const LABEL: Record<string, string> = {
@@ -73,8 +78,8 @@ function keyOf(e: V1Engine): string | undefined {
 /** What v2 can take of one v1 engine, or undefined when it lacks what it needs (a key, an address). */
 function planOne(slug: string, e: V1Engine): Plan | undefined {
   const adapter = (str(e.engine) ?? slug).toLowerCase();
-  const harness = HARNESS[adapter];
-  if (harness) return { slug, kind: "harness", id: harness };
+  if (adapter === CHATGPT_PLAN) return { slug, kind: "plan", id: "chatgpt" };
+  if (adapter === CLAUDE_PLAN) return undefined;
   const id = slug.toLowerCase().replaceAll("_", "-");
   if (!ID.test(id) || RESERVED.has(id)) return undefined;
   const key = keyOf(e);
@@ -150,10 +155,9 @@ export function v1Ref(ref: string, engines: ReadonlyMap<string, string>): string
   const at = model.lastIndexOf("@");
   const effort = at > 0 && EFFORTS.has(model.slice(at + 1).toLowerCase()) ? model.slice(at + 1).toLowerCase() : "";
   if (effort) model = model.slice(0, at);
-  const harness = engine === "codex" || engine === "claude";
-  // Our own loop cannot run a provider without a model; only Claude Code and Codex take an effort.
-  if (!model && !harness) return undefined;
-  const out = `${engine}${model ? `/${model}` : ""}${effort && harness ? `#${effort}` : ""}`;
+  // Our own loop cannot run a provider without a model; of v1's engines only the ChatGPT plan takes an effort.
+  if (!model) return undefined;
+  const out = `${engine}/${model}${effort && engine === "chatgpt" ? `#${effort}` : ""}`;
   return ModelRef.safeParse(out).success ? out : undefined;
 }
 
@@ -173,7 +177,7 @@ export function importV1Engines(deps: EngineImportDeps, home: string): number {
   /** v1 slug → v2 engine id, for the ones v2 can run now. */
   const usable = new Map<string, string>();
   for (const p of plans(config)) {
-    if (p.kind === "harness") {
+    if (p.kind === "plan") {
       usable.set(p.slug.toLowerCase(), p.id);
       continue;
     }

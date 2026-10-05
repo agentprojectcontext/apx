@@ -26,6 +26,8 @@ export type ProviderConfig = {
    * Which model runs is never decided here: see models/choice.ts.
    */
   models: string[];
+  /** The name people read; built-in providers carry their brand's. */
+  label?: string | undefined;
 };
 
 export type CoreConfig = {
@@ -83,6 +85,7 @@ const LOOPBACK = new Set(["127.0.0.1", "::1", "localhost"]);
 const DEFAULT_PROVIDERS: ProviderConfig[] = [
   {
     id: "gemini",
+    label: "Gemini",
     transport: "openai-chat",
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
     key: "secret://gemini",
@@ -90,6 +93,7 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
   },
   {
     id: "anthropic",
+    label: "Anthropic",
     transport: "anthropic-messages",
     base_url: "https://api.anthropic.com",
     key: "secret://anthropic",
@@ -97,14 +101,16 @@ const DEFAULT_PROVIDERS: ProviderConfig[] = [
   },
   {
     id: "openai",
+    label: "OpenAI",
     transport: "openai-chat",
     base_url: "https://api.openai.com/v1",
     key: "secret://openai",
     models: [],
   },
-  // The owner's ChatGPT plan, signed in from APX (see providers/chatgpt-login.ts).
+  // The owner's ChatGPT plan, signed in from APX the way Codex signs in (see providers/chatgpt-login.ts).
   {
     id: "chatgpt",
+    label: "Codex",
     transport: "chatgpt-responses",
     base_url: "https://chatgpt.com/backend-api/codex",
     key: OAUTH_CHATGPT,
@@ -138,6 +144,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     ? [
         {
           id: "custom",
+          label: "Custom",
           transport: "openai-chat",
           base_url: env.APX_LLM_BASE_URL,
           key: env.APX_LLM_KEY_REF ?? "env:APX_LLM_KEY",

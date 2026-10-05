@@ -1,4 +1,4 @@
-import type { Agent, Run, Thread } from "@apx/protocol";
+import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu } from "@apx/ui";
 import { useMemo, useRef, useState } from "react";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
@@ -169,6 +169,8 @@ function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined
         desc: t("composer.agentModelDesc", { name: agent?.name ?? t("composer.yourAgent") }),
         action: t("composer.backToAgentModel"),
       }}
+      // A CLI's own session offers that CLI's models; any other chat, the model APIs agents run on.
+      {...(thread.engine ? { only: (e: CatalogEngine) => e.id === thread.engine } : {})}
       onChange={(choice) => void setThreadModel(thread.id, choice)}
     />
   );

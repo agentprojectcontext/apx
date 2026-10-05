@@ -457,3 +457,107 @@
 .mlist__effort .apx-select {
   width: 160px;
 }
+
+/* Plans: the owner's subscriptions in APX's own loop, above the model APIs (Config › Engines and models). */
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin: 8px 0 24px;
+}
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  background: linear-gradient(180deg, var(--apx-fill) 0%, var(--apx-surface) 70%);
+}
+.plan.is-off {
+  opacity: 0.6;
+}
+.plan__top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.plan__titles {
+  flex: 1;
+  min-width: 0;
+}
+.plan__name {
+  font-size: var(--apx-text-lg);
+  font-weight: var(--apx-weight-semibold);
+}
+.plan__kind {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.plan .pcard__actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plan__body {
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  line-height: 1.5;
+  color: var(--apx-fg-muted);
+}
+
+/* A known model API not set up yet: quiet until it is. */
+.pcard.is-unset {
+  border-style: dashed;
+  background: transparent;
+}
+.pcard.is-unset .pcard__name {
+  color: var(--apx-fg-muted);
+}
+.pcard__hint {
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+
+/* Connecting Codex: the setting ChatGPT asks for first, then the code to type. */
+.planlogin__pre {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-warning-soft);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+}
+.planlogin__pre p {
+  margin: 0;
+  color: var(--apx-fg-muted);
+}
+.planlogin__pretitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--apx-weight-semibold);
+}
+.planlogin__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+.planlogin__code {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.planlogin__v1 {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.mlist__engine .apx-engine,
+.catalog__summary .apx-engine {
+  flex: none;
+}

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
@@ -18,10 +20,17 @@ after(async () => {
   env.cleanup();
 });
 
-test("an ACP agent runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
+test("an ACP agent's session runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
   // The executable is node itself; the agent's args point at the fake.
-  await env.client.call("agents.update", { agent: "scout", model_choice: { model: "acp:fake/m2", router: false } });
-  const t = await env.client.call("threads.create", { kind: "agent", agent_id: "scout" });
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-acp-")));
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  const t = await env.client.call("threads.create", {
+    kind: "code",
+    agent_id: "scout",
+    project_id: project,
+    engine: "acp:fake",
+  });
+  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "acp:fake/m2", router: false } });
   const sent = await env.client.call("threads.send", { thread: t.id, text: "edit the notes" });
   let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
   for (let i = 0; i < 200 && !inputs.length; i++) {
@@ -36,12 +45,13 @@ test("an ACP agent runs the turn: model picked, its edit asks the owner, its too
   assert.equal(done.harness, "acp");
   assert.equal(done.model, "acp:fake/m2");
   const { messages } = await env.settle(t.id);
-  assert.ok(texts(messages).includes("model=m2 edit=allowed instructions=true"));
+  // A session is the agent itself: no agent's instructions go in (DECISIONS.md#d-023).
+  assert.ok(texts(messages).includes("model=m2 edit=allowed instructions=false"));
   const card = messages.at(-1)?.parts.find((p) => p.type === "tool");
   assert.equal(card?.type === "tool" && card.status, "ok");
   assert.equal(env.core.store.harnessSessions.get(t.id, "acp:fake"), "fake-session-1");
 
-  // The next turn loads the same session: no instructions again.
+  // The next turn loads the same session.
   const again = await env.client.call("threads.send", { thread: t.id, text: "again" });
   for (let i = 0; i < 200; i++) {
     const p = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];

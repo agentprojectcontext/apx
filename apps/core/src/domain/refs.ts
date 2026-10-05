@@ -27,5 +27,11 @@ export const harnessOf = (ref: string): HarnessId => {
   return HARNESS_ENGINES.has(e) ? (e as HarnessId) : "native";
 };
 
+/**
+ * Whether a ref names an agent CLI (Claude Code, Codex, an ACP agent). Those run only in their own sessions; agents,
+ * the router and the install default run on model APIs. See DECISIONS.md#d-043
+ */
+export const isCliRef = (ref: string): boolean => harnessOf(ref) !== "native";
+
 /** Which engines exist now: the agent CLIs found on this machine and the model APIs set up. */
 export type EngineIds = { harness: { has(id: string): boolean }; providers: { has(id: string): boolean } };

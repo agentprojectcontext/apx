@@ -90,10 +90,6 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.engines.titleGreen": "que ya pagás.",
   "setup.engines.body":
     "Iniciá sesión con tu suscripción o pegá una API key. El primero de la cadena es el default; si falla, sigue el próximo.",
-  "setup.engines.subscription": "Suscripción · tu cuenta",
-  "setup.engines.notInstalled": "No está instalado en esta computadora",
-  "setup.engines.signInHint": "Corré {command} en una terminal e iniciá sesión; después volvé acá.",
-  "setup.engines.signedIn": "Ya inicié sesión",
   "setup.engines.addKey": "Agregar API key",
   "setup.engines.save": "Guardar",
   "setup.engines.local": "Local · sin key",

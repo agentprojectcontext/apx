@@ -1,14 +1,17 @@
 import { Bot } from "lucide-react";
-import { type CSSProperties, useId } from "react";
+import { type CSSProperties, useId, useSyncExternalStore } from "react";
 import { ACP_MARKS, type AcpBrand, type AcpMark } from "../acp-marks";
 import { cx } from "../cx";
 import { ENGINE_MARKS } from "../engine-marks";
+import type { ProviderBrand } from "../provider-marks";
 
-export type EngineBrand = keyof typeof ENGINE_MARKS | AcpBrand;
+export type EngineBrand = keyof typeof ENGINE_MARKS | AcpBrand | ProviderBrand;
 
 /** An ACP agent's engine id ("acp:qwen", "qwen-code") → its mark. */
 const ACP_IDS: Record<string, AcpBrand> = {
   opencode: "opencode",
+  "opencode-zen": "opencode",
+  zen: "opencode",
   qwen: "qwen",
   "qwen-code": "qwen",
   cursor: "cursor",
@@ -31,22 +34,65 @@ const ACP_IDS: Record<string, AcpBrand> = {
   poolside: "poolside",
 };
 
+/** Model APIs by the words in their id or a model's name. */
+const PROVIDER_WORDS: Array<[string, ProviderBrand]> = [
+  ["openrouter", "openrouter"],
+  ["groq", "groq"],
+  ["cerebras", "cerebras"],
+  ["deepseek", "deepseek"],
+  ["mistral", "mistral"],
+  ["lmstudio", "lmstudio"],
+  ["lm-studio", "lmstudio"],
+];
+
 /**
- * The brand behind an engine or provider id: `claude`, `claude-code`, `anthropic` → claude; `codex` → codex;
- * `gemini`, `acp:gemini`, `google` → gemini; `openai` → openai; `ollama` → ollama; an ACP agent (`acp:opencode`,
- * `acp:qwen`, `acp:cursor`, `acp:copilot`…) → its own mark. Anything else has no mark.
+ * The brand behind an engine, provider or model id: `claude`, `claude-code` → claude; `anthropic` → anthropic;
+ * `codex`, `chatgpt` (the plan, signed in as Codex) → codex; `gemini`, `google` → gemini; `openai`, `gpt-…` → openai;
+ * `ollama`, `groq`, `openrouter`… → their own mark; an ACP agent (`acp:opencode`, `acp:qwen`…) or OpenCode Zen → its
+ * mark. Anything else has no mark.
  */
 export function engineBrand(id: string | undefined): EngineBrand | undefined {
   const k = (id ?? "").toLowerCase();
-  if (k.includes("claude") || k.includes("anthropic")) return "claude";
-  if (k.includes("codex")) return "codex";
+  const acp = ACP_IDS[k.replace(/^acp:/, "").split("/")[0] ?? ""];
+  if (acp) return acp;
+  if (k.includes("anthropic")) return "anthropic";
+  if (k.includes("claude")) return "claude";
+  if (k.includes("codex") || k === "chatgpt") return "codex";
   if (k.includes("gemini") || k === "google") return "gemini";
+  const word = PROVIDER_WORDS.find(([w]) => k.includes(w));
+  if (word) return word[1];
   if (k.includes("openai") || k.startsWith("gpt")) return "openai";
   if (k.includes("ollama")) return "ollama";
-  return ACP_IDS[k.replace(/^acp:/, "").split("/")[0] ?? ""];
+  return undefined;
 }
 
+/**
+ * The model APIs' marks arrive later (`@apx/ui/provider-marks`, loaded with the model catalog): until then a model API
+ * shows the neutral bot, then every icon draws its mark.
+ */
+let providerMarks: Partial<Record<ProviderBrand, AcpMark>> = {};
+const markListeners = new Set<() => void>();
+export function registerProviderMarks(marks: Partial<Record<ProviderBrand, AcpMark>>): void {
+  providerMarks = { ...providerMarks, ...marks };
+  for (const l of markListeners) l();
+}
+const subscribeMarks = (fn: () => void) => {
+  markListeners.add(fn);
+  return () => markListeners.delete(fn);
+};
+
 const isAcp = (b: EngineBrand): b is AcpBrand => b in ACP_MARKS;
+/** Every model API with a mark; typed against the marks module, so a mark added there must be named here. */
+const PROVIDER_BRANDS: Record<ProviderBrand, true> = {
+  groq: true,
+  anthropic: true,
+  openrouter: true,
+  cerebras: true,
+  deepseek: true,
+  mistral: true,
+  lmstudio: true,
+};
+const isProvider = (b: EngineBrand): b is ProviderBrand => b in PROVIDER_BRANDS;
 
 export interface EngineIconProps {
   /** Engine or provider id (`claude`, `codex`, `acp:gemini`, `openai`…). Unknown ids show a neutral bot. */
@@ -60,9 +106,11 @@ export interface EngineIconProps {
   className?: string;
 }
 
-/** The official mark of Claude Code, Codex, Gemini, OpenAI or Ollama, so each app reads at a glance. */
+/** The official mark of an engine or a model API, so each one reads at a glance. */
 export function EngineIcon({ engine, size = 16, tile = false, label, className }: EngineIconProps) {
-  const brand = engineBrand(engine);
+  const marks = useSyncExternalStore(subscribeMarks, () => providerMarks);
+  const named = engineBrand(engine);
+  const brand = named && isProvider(named) && !marks[named] ? undefined : named;
   const gid = useId().replace(/:/g, "");
   const box: CSSProperties = { width: size, height: size };
   const a11y = label ? { role: "img" as const, "aria-label": label } : { "aria-hidden": true as const };
@@ -73,15 +121,17 @@ export function EngineIcon({ engine, size = 16, tile = false, label, className }
         <Bot size={Math.round(size * (tile ? 0.6 : 0.9))} />
       </span>
     );
-  if (isAcp(brand)) {
-    // One-colour marks in the text colour; on a tile, centred on the neutral round tile.
-    const m: AcpMark = ACP_MARKS[brand];
+  if (isAcp(brand) || isProvider(brand)) {
+    // One-colour marks in the text colour (brand colours kept where the mark has them); on a tile, centred on the
+    // neutral round tile.
+    const m = (isAcp(brand) ? ACP_MARKS[brand] : marks[brand]) as AcpMark;
     const paths = m.paths.map((p) => (
       <path
         key={p.d.slice(0, 24)}
         d={p.d}
-        fill="currentColor"
+        fill={p.fill ?? "currentColor"}
         {...(p.evenodd ? { fillRule: "evenodd" as const } : {})}
+        {...(p.opacity !== undefined ? { fillOpacity: p.opacity } : {})}
       />
     ));
     return (

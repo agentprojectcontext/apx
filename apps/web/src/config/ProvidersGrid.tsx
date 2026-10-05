@@ -1,6 +1,7 @@
 import type { ProviderInfo } from "@apx/protocol";
 import { Badge, Button, Dialog, EngineIcon, engineBrand, IconButton, Icons, Input, ProjectTile, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { createStore, useSlice } from "../data/createStore.ts";
 import {
   loadProviders,
   type ProviderDraft,
@@ -10,38 +11,84 @@ import {
   useProviders,
 } from "../data/providers.ts";
 import { useT } from "../i18n/index.ts";
-import { ChatgptSignIn } from "./ChatgptSignIn.tsx";
 import { PROVIDER_PRESETS, presetOf } from "./models/providerPresets.ts";
 
-/** Model APIs our own loop calls, as cards, plus a card to add one. */
+/** Which provider dialog is open: an existing provider, a new one of a kind (preset), or none. */
+const editor = createStore<{ open: { id?: string; preset?: string } | undefined }>({ open: undefined });
+
+/** Opens the dialog of a provider (by id), or a new one of a kind when none has that id yet. */
+export function openProviderEditor(id: string): void {
+  editor.set({ open: { id, preset: id } });
+}
+
+/** The look of a provider: its brand's mark, or a tile with its initial. */
+function ProviderMark({ id, label, size }: { id: string; label: string; size: number }) {
+  return engineBrand(id) ? (
+    <EngineIcon engine={id} tile size={size} />
+  ) : (
+    <ProjectTile tone={presetOf(id)?.tone ?? "neutral"} initial={label.slice(0, 1).toUpperCase()} size={size} />
+  );
+}
+
+/** The kind a provider is for its look: its preset, or its own id for a built-in. */
+const kindOf = (p: ProviderInfo) => p.preset ?? p.id;
+/** Ready first, then on but missing its key, then off. */
+const rank = (p: ProviderInfo) => (p.enabled && p.key_set ? 0 : p.enabled ? 1 : 2);
+
+/**
+ * Model APIs our own loop calls, as cards: the ones set up (ready first), then every known kind not set up yet, then
+ * a card to add any OpenAI-compatible one. A signed-in plan has its own card above (PlanCards).
+ */
 export function ProvidersGrid() {
   const t = useT();
   const list = useProviders((s) => s.list);
-  const [editing, setEditing] = useState<ProviderInfo | "new" | undefined>();
+  const open = useSlice(editor, (s) => s.open);
   useEffect(() => {
     void loadProviders();
   }, []);
+  const apis = list.filter((p) => !p.sign_in).sort((a, b) => rank(a) - rank(b));
+  const taken = new Set(apis.flatMap((p) => [p.id, kindOf(p)]));
+  const unset = PROVIDER_PRESETS.filter((k) => k.id !== "custom" && !taken.has(k.id));
+  const close = () => editor.set({ open: undefined });
+  const editing = open?.id ? list.find((p) => p.id === open.id) : undefined;
   return (
     <>
       <div className="pgrid">
-        {list.map((p) => (
-          <ProviderCard key={p.id} p={p} onEdit={() => setEditing(p)} />
+        {apis.map((p) => (
+          <ProviderCard key={p.id} p={p} onEdit={() => editor.set({ open: { id: p.id } })} />
         ))}
-        <button type="button" className="pcard pcard--add" onClick={() => setEditing("new")}>
+        {unset.map((k) => (
+          <div key={k.id} className="pcard is-unset">
+            <div className="pcard__top">
+              <ProviderMark id={k.id} label={k.label} size={36} />
+              <div className="pcard__titles">
+                <div className="pcard__name">{k.label}</div>
+                <div className="pcard__id">{k.id}</div>
+              </div>
+              <Badge tone="neutral">{t("providers.unset")}</Badge>
+            </div>
+            <p className="pcard__hint">{t(k.needs_key ? "providers.unsetKey" : "providers.unsetLocal")}</p>
+            <div className="pcard__actions">
+              <span className="pcard__spacer" />
+              <Button size="sm" variant="secondary" onClick={() => editor.set({ open: { preset: k.id } })}>
+                {t("providers.setUp")}
+              </Button>
+            </div>
+          </div>
+        ))}
+        <button type="button" className="pcard pcard--add" onClick={() => editor.set({ open: { preset: "custom" } })}>
           <Icons.Plus size={18} />
           <span>{t("providers.add")}</span>
         </button>
       </div>
-      {editing && editing !== "new" && editing.sign_in === "chatgpt" ? (
-        <ChatgptSignIn onClose={() => setEditing(undefined)} />
-      ) : (
-        editing && (
-          <ProviderDialog
-            initial={editing === "new" ? undefined : editing}
-            taken={list.map((p) => p.id)}
-            onClose={() => setEditing(undefined)}
-          />
-        )
+      {open && (
+        <ProviderDialog
+          key={`${open.id ?? ""}:${open.preset ?? ""}`}
+          initial={editing}
+          preset={open.preset}
+          taken={list.map((p) => p.id)}
+          onClose={close}
+        />
       )}
     </>
   );
@@ -49,44 +96,24 @@ export function ProvidersGrid() {
 
 function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
   const t = useT();
-  const preset = presetOf(p.preset ?? p.id);
   const ready = p.enabled && p.key_set;
-  const signIn = p.sign_in === "chatgpt";
   return (
     <div className={p.enabled ? "pcard" : "pcard is-off"}>
       <div className="pcard__top">
-        {engineBrand(p.preset ?? p.id) ? (
-          <EngineIcon engine={p.preset ?? p.id} tile size={36} />
-        ) : (
-          <ProjectTile tone={preset?.tone ?? "neutral"} initial={p.label.slice(0, 1).toUpperCase()} size={36} />
-        )}
+        <ProviderMark id={kindOf(p)} label={p.label} size={36} />
         <div className="pcard__titles">
-          <div className="pcard__name">{signIn && p.label === p.id ? t("chatgpt.name") : p.label}</div>
+          <div className="pcard__name">{p.label}</div>
           <div className="pcard__id">{p.id}</div>
         </div>
         <Badge tone={ready ? "brand" : p.enabled ? "warning" : "neutral"} dot>
-          {ready
-            ? t("providers.active")
-            : !p.enabled
-              ? t("providers.off")
-              : signIn
-                ? t("chatgpt.notConnected")
-                : t("providers.noKey")}
+          {ready ? t("providers.active") : !p.enabled ? t("providers.off") : t("providers.noKey")}
         </Badge>
       </div>
       <dl className="pcard__rows">
         <dt>{t("providers.url")}</dt>
         <dd title={p.base_url}>{p.base_url.replace(/^https?:\/\//, "")}</dd>
-        <dt>{t(signIn ? "chatgpt.account" : "providers.key")}</dt>
-        <dd>
-          {signIn
-            ? t(p.key_set ? "chatgpt.connected" : "chatgpt.notConnected")
-            : !p.needs_key
-              ? t("providers.keyNone")
-              : p.key_set
-                ? t("providers.keySet")
-                : "—"}
-        </dd>
+        <dt>{t("providers.key")}</dt>
+        <dd>{!p.needs_key ? t("providers.keyNone") : p.key_set ? t("providers.keySet") : "—"}</dd>
         <dt>{t("providers.models")}</dt>
         <dd>{p.models.length ? p.models.join(", ") : t("providers.modelsAsked")}</dd>
       </dl>
@@ -98,13 +125,7 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
           label={t("providers.on")}
         />
         <span className="pcard__spacer" />
-        {signIn ? (
-          <Button size="sm" variant="secondary" onClick={onEdit}>
-            {t(p.key_set ? "chatgpt.manage" : "chatgpt.connect")}
-          </Button>
-        ) : (
-          <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={onEdit} />
-        )}
+        <IconButton size="sm" label={t("providers.edit")} icon={<Icons.Pencil size={14} />} onClick={onEdit} />
         <IconButton
           size="sm"
           label={t("providers.remove")}
@@ -127,15 +148,18 @@ const slug = (s: string) =>
 /** Add or edit one provider: pick its kind, check the address, paste the key (stored in the Keychain). */
 function ProviderDialog({
   initial,
+  preset,
   taken,
   onClose,
 }: {
   initial: ProviderInfo | undefined;
+  /** For a new one: the kind it starts as. */
+  preset?: string | undefined;
   taken: string[];
   onClose: () => void;
 }) {
   const t = useT();
-  const start = presetOf(initial?.preset ?? initial?.id ?? "opencode-zen");
+  const start = presetOf(initial?.preset ?? initial?.id ?? preset ?? "opencode-zen");
   const [draft, setDraft] = useState<ProviderDraft>(() => ({
     id: initial?.id ?? "",
     label: initial?.label ?? start?.label ?? "",
@@ -203,7 +227,7 @@ function ProviderDialog({
               className={draft.preset === p.id ? "pform__preset is-on" : "pform__preset"}
               onClick={() => pickPreset(p.id)}
             >
-              <ProjectTile tone={p.tone} initial={p.label.slice(0, 1)} size={18} />
+              <ProviderMark id={p.id} label={p.label} size={18} />
               {p.label}
             </button>
           ))}

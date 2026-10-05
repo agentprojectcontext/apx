@@ -3,6 +3,7 @@
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
+import { esEngines } from "./es-engines.ts";
 import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
@@ -17,6 +18,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esChat,
   ...esFiles,
   ...esResources,
+  ...esEngines,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",
@@ -571,25 +573,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mcp.status.error": "Error",
   "config.router": "Router",
   "router.default": "Por defecto",
-  "chatgpt.name": "ChatGPT (tu plan)",
-  "chatgpt.title": "ChatGPT para el loop de APX",
-  "chatgpt.lead":
-    "Tus agentes usan los modelos de tu plan de ChatGPT con las herramientas y reglas de APX, no la app de Codex. APX tiene su propio login, separado del de Codex.",
-  "chatgpt.signIn": "Conectar con un código",
-  "chatgpt.fromV1": "Traer el login de APX v1",
-  "chatgpt.deviceHint":
-    "Te damos un código para escribir en la página de OpenAI. Si OpenAI no te deja seguir, activá «Device code authorization for Codex» en chatgpt.com › Configuración › Seguridad.",
-  "chatgpt.step1": "1. Abrí esta dirección e iniciá sesión con tu cuenta de ChatGPT:",
-  "chatgpt.step2": "2. Escribí este código:",
-  "chatgpt.waiting": "Esperando que termines… se conecta solo.",
-  "chatgpt.connected": "Conectado",
-  "chatgpt.connectedAs": "Conectado como {account}",
-  "chatgpt.notConnected": "Sin conectar",
-  "chatgpt.failed": "No se pudo conectar: {error}",
-  "chatgpt.disconnect": "Desconectar",
-  "chatgpt.connect": "Conectar",
-  "chatgpt.manage": "Cuenta",
-  "chatgpt.account": "Cuenta",
   "local.title": "Transcripción en esta máquina",
   "local.active": "En uso: {model}",
   "local.machine.metal": "Esta Mac usa su GPU (Metal): puede correr el modelo grande y contesta en segundos.",
@@ -638,8 +621,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "providers.idTaken": "Ya hay un proveedor {id}",
   "providers.create": "Crear",
   "error.saveProvider": "No se pudo guardar el proveedor: {error}",
-  "engines.lead":
-    "Quién corre los turnos de tus agentes: las CLIs de tus suscripciones y las APIs de modelos. Abajo, los modelos de cada uno.",
   "router.lead":
     "Todos los agentes usan el router: primero el #1 y, si falla, los siguientes. Un agente con modelo propio lo prueba antes. Las reglas de abajo pueden elegir otro modelo para algunos mensajes.",
   "providers.on": "Activo",
@@ -670,9 +651,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engine.loggedIn": "Sesión iniciada",
   "engine.noSession": "Sin sesión",
   "engine.install": "Instalar",
-  "engine.kind.native": "Motor propio de APX",
   "engine.kind.cli": "Sesión externa · CLI",
-  "engine.login.native": "Configurá una clave de modelo en el core.",
   "engine.kind.acp": "CLI con Agent Client Protocol",
   "engine.login.acp": "Iniciá sesión con el propio CLI y después actualizá la lista de modelos.",
   "engine.login.claude": "Abrí Claude Code en una terminal e iniciá sesión con tu cuenta.",
@@ -686,8 +665,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engines.copySignIn": "Copiar el comando para iniciar sesión",
   "engines.copySignOut": "Copiar el comando para cerrar sesión",
   "engines.copied": "Copiado: {command}. Corrélo en una terminal.",
-  "engines.useInRouter": "Usarlo en el router",
-  "engines.leaveRouter": "Sacarlo del router",
   "engines.installed": "Instalado",
   "agents.lead":
     "Modelo: con qué corre cada agente. Navegador: Compartido usa tus sesiones, Aislado tiene su propio perfil, Incógnito arranca vacío.",

@@ -76,3 +76,65 @@ test("the catalog asks each engine for its models, caches them and keeps the las
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
+
+test("a signed-in plan's models are asked to the plan with its sign-in, never read from a CLI", async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx2-catalog-plan-"));
+  const db = openDb(home);
+  try {
+    const store = createStore(db, createBus());
+    const asked: Array<{ url: string; headers: Headers }> = [];
+    const catalog = createCatalog({
+      store,
+      secrets: createSecrets(home, "file", {}),
+      providers: () => [
+        {
+          id: "chatgpt",
+          transport: "chatgpt-responses",
+          base_url: "http://plan.test/codex",
+          key: "oauth:plan",
+          models: [],
+        },
+      ],
+      fetchImpl: (async (url: string, init: RequestInit) => {
+        asked.push({ url, headers: new Headers(init.headers) });
+        return new Response(
+          JSON.stringify({
+            models: [
+              { slug: "gpt-b", display_name: "GPT-B", priority: 2 },
+              { slug: "gpt-a", display_name: "GPT-A", priority: 1, supported_reasoning_levels: [{ effort: "high" }] },
+              { slug: "gpt-hidden", visibility: "hide" },
+            ],
+          }),
+        );
+      }) as unknown as typeof fetch,
+      home: "/nonexistent",
+      acpList: async () => [],
+      harnessLists: {
+        claude: async () => [],
+        codex: async () => {
+          throw new Error("the CLI is not asked for a plan's models");
+        },
+      },
+      signIns: {
+        "oauth:plan": {
+          has: () => true,
+          credentials: async () => ({ token: "tok", headers: { "chatgpt-account-id": "acct-1" } }),
+        },
+      },
+    });
+    const plan = (await catalog.list()).find((e) => e.id === "chatgpt");
+    assert.deepEqual(
+      plan?.models.map((m) => [m.id, m.efforts]),
+      [
+        ["gpt-a", ["high"]],
+        ["gpt-b", undefined],
+      ],
+    );
+    const call = asked.find((a) => a.url.startsWith("http://plan.test/codex/models?client_version="));
+    assert.equal(call?.headers.get("authorization"), "Bearer tok");
+    assert.equal(call?.headers.get("chatgpt-account-id"), "acct-1");
+  } finally {
+    db.close();
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});

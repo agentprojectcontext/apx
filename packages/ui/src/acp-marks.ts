@@ -2,7 +2,11 @@
 // (cdn.agentclientprotocol.com/registry), one-colour by design: drawn in the text colour. They only identify each
 // app; the marks belong to their owners.
 
-export type AcpMark = { viewBox: string; paths: ReadonlyArray<{ d: string; evenodd?: true }> };
+/** `fill` keeps a brand colour that is part of the mark; without it the path takes the text colour. */
+export type AcpMark = {
+  viewBox: string;
+  paths: ReadonlyArray<{ d: string; evenodd?: true; fill?: string; opacity?: number }>;
+};
 
 export const ACP_MARKS = {
   opencode: {

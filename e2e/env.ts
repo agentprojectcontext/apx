@@ -55,7 +55,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     CODEX_HOME: fx.codex,
     APX_LLM_BASE_URL: llm.url,
     APX_LLM_KEY: "e2e",
-    APX_LLM_MODELS: "fake-1",
+    APX_LLM_MODELS: "fake-1,fake-2",
     APX_TELEGRAM_API: tg.url,
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,

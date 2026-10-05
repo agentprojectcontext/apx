@@ -72,7 +72,7 @@ export async function setProviderEnabled(p: ProviderInfo, enabled: boolean): Pro
     {
       id: p.id,
       label: p.label,
-      preset: p.preset ?? "custom",
+      preset: p.preset ?? p.id,
       transport: p.transport,
       base_url: p.base_url,
       needs_key: p.needs_key,

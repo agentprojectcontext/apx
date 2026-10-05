@@ -1,5 +1,6 @@
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
+import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
@@ -15,6 +16,7 @@ export const en = {
   ...enChat,
   ...enFiles,
   ...enResources,
+  ...enEngines,
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",
@@ -563,25 +565,6 @@ export const en = {
   "mcp.status.error": "Error",
   "config.router": "Router",
   "router.default": "Default",
-  "chatgpt.name": "ChatGPT (your plan)",
-  "chatgpt.title": "ChatGPT for APX's own loop",
-  "chatgpt.lead":
-    "Your agents use your ChatGPT plan's models with APX's tools and rules, not the Codex app. APX keeps its own sign-in, separate from Codex's.",
-  "chatgpt.signIn": "Connect with a code",
-  "chatgpt.fromV1": "Bring APX v1's sign-in",
-  "chatgpt.deviceHint":
-    "You get a code to type on OpenAI's page. If OpenAI does not let you continue, turn on “Device code authorization for Codex” in chatgpt.com › Settings › Security.",
-  "chatgpt.step1": "1. Open this address and sign in with your ChatGPT account:",
-  "chatgpt.step2": "2. Type this code:",
-  "chatgpt.waiting": "Waiting for you to finish… it connects on its own.",
-  "chatgpt.connected": "Connected",
-  "chatgpt.connectedAs": "Connected as {account}",
-  "chatgpt.notConnected": "Not connected",
-  "chatgpt.failed": "Could not connect: {error}",
-  "chatgpt.disconnect": "Disconnect",
-  "chatgpt.connect": "Connect",
-  "chatgpt.manage": "Account",
-  "chatgpt.account": "Account",
   "local.title": "Transcription on this machine",
   "local.active": "In use: {model}",
   "local.machine.metal": "This Mac uses its GPU (Metal): it can run the big model and answers in seconds.",
@@ -629,8 +612,6 @@ export const en = {
   "providers.idTaken": "There is already a provider {id}",
   "providers.create": "Create",
   "error.saveProvider": "Could not save the provider: {error}",
-  "engines.lead":
-    "Who runs your agents' turns: the CLIs on your subscriptions and the model APIs. Below, the models each one offers.",
   "router.lead":
     "Every agent uses the router: #1 first, then the next ones if it fails. An agent with its own model tries that one first. Rules below can pick another model for some messages.",
   "providers.on": "Active",
@@ -661,9 +642,7 @@ export const en = {
   "engine.loggedIn": "Signed in",
   "engine.noSession": "Not signed in",
   "engine.install": "Install",
-  "engine.kind.native": "APX's own engine",
   "engine.kind.cli": "External session · CLI",
-  "engine.login.native": "Set a model key in the core.",
   "engine.kind.acp": "Agent Client Protocol CLI",
   "engine.login.acp": "Sign in with the CLI itself, then refresh the model list.",
   "engine.login.claude": "Open Claude Code in a terminal and sign in with your account.",
@@ -677,8 +656,6 @@ export const en = {
   "engines.copySignIn": "Copy the command to sign in",
   "engines.copySignOut": "Copy the command to sign out",
   "engines.copied": "Copied: {command} — run it in a terminal.",
-  "engines.useInRouter": "Use it in the router",
-  "engines.leaveRouter": "Take it out of the router",
   "engines.installed": "Installed",
   "agents.lead":
     "Model: what each agent runs on. Browser: Shared uses your sessions, Isolated has its own profile, Incognito starts empty.",

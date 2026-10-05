@@ -3,7 +3,7 @@
 // tries until one engine answers. Nothing here names a model: they all come from settings.
 import type { ModelChoice, ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import { type EngineIds, parseRef } from "../domain/refs.ts";
+import { type EngineIds, isCliRef, parseRef } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 
 export type TurnFeatures = {
@@ -20,12 +20,14 @@ export function modelSettings(store: Store) {
     /** The install default. Before one was saved, the engine picked in Settings → Engines and models, with the router behind it. */
     defaultChoice(): ModelChoice {
       const saved = store.settings.read("model_default");
-      if (saved) return saved;
-      const legacy = store.settings.get("default_harness");
-      return legacy && legacy !== "native" ? { model: legacy, router: true } : { router: true };
+      // A CLI saved before D-043 is not a default any more: the router decides.
+      if (saved) return saved.model && isCliRef(saved.model) ? { router: true } : saved;
+      return { router: true };
     },
+    /** The router as saved, without the CLIs an older APX let it name (they run only in their own sessions). */
     router(): RouterConfig {
-      return store.settings.read("model_router");
+      const r = store.settings.read("model_router");
+      return { rules: r.rules.filter((x) => !isCliRef(x.model)), chain: r.chain.filter((x) => !isCliRef(x)) };
     },
     save(p: { default?: ModelChoice | undefined; router?: RouterConfig | undefined }): void {
       if (p.default) store.settings.write("model_default", p.default);
@@ -64,11 +66,14 @@ export function candidates(choice: ModelChoice, router: RouterConfig, f: TurnFea
 
 /**
  * Why a ref cannot run, or undefined when it can: the engine must exist, and a provider needs the model named
- * (only Claude Code and Codex have a default model of their own).
+ * (only Claude Code and Codex have a default model of their own). A CLI runs only in its own session (`session`).
  */
-export function refProblem(ref: string, engines: EngineIds): string | undefined {
+export function refProblem(ref: string, engines: EngineIds, session = false): string | undefined {
   const { engine, model } = parseRef(ref);
-  if (engines.harness.has(engine)) return undefined;
+  if (engines.harness.has(engine))
+    return session
+      ? undefined
+      : `${engine} runs only in its own sessions (Sessions › ${engine}); agents and the router use model APIs`;
   if (!engines.providers.has(engine)) return `unknown engine "${engine}" in ${ref}`;
   if (!model) return `say which ${engine} model (${engine}/<model>)`;
   return undefined;

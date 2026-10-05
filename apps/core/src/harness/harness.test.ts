@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
@@ -41,58 +43,79 @@ after(async () => {
   env.cleanup();
 });
 
-test("an agent on an external harness runs there, with APX tools, cards, usage and its own session kept", async () => {
-  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "claude", router: false } });
-  await env.client.call("threads.send", { thread: "home", text: "hello" });
-  const t = await env.settle("home");
+/** A Claude Code or Codex session of the owner's, in a fresh project folder. */
+async function session(engine: "claude" | "codex") {
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx2-harness-")));
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  return env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, engine });
+}
+
+test("a Claude Code session runs there, with APX tools, cards, usage and its own session kept", async () => {
+  const t0 = await session("claude");
+  await env.client.call("threads.send", { thread: t0.id, text: "hello" });
+  const t = await env.settle(t0.id);
   const answer = t.messages.at(-1);
   assert.equal(answer?.model, "claude/model");
   assert.ok(answer?.parts.some((p) => p.type === "tool" && p.tool === "show_widget" && p.status === "ok"));
   assert.ok(answer?.parts.some((p) => p.type === "text" && p.text === "widget ok=true"));
   assert.equal(t.runs[0]?.harness, "claude");
   assert.deepEqual(t.runs[0]?.usage, { input: 10, output: 5 });
-  assert.match(seen[0]?.io.system ?? "", /^You are Roby/);
-  await env.client.call("threads.send", { thread: "home", text: "again" });
-  await env.settle("home");
-  assert.equal(seen[1]?.io.sessionId, "sess-1");
+  assert.match(seen.at(-1)?.io.system ?? "", /running inside APX/);
+  await env.client.call("threads.send", { thread: t0.id, text: "again" });
+  await env.settle(t0.id);
+  assert.equal(seen.at(-1)?.io.sessionId, "sess-1");
   // Its tool calls left step records like the native loop's.
   assert.equal(env.core.store.runs.steps(t.runs[0]?.id ?? "")[0]?.tool, "show_widget");
 });
 
-test("a harness that fails before any tool hands the turn to the router's next engine, with a visible notice", async () => {
-  await env.client.call("models.set_config", { router: { rules: [], chain: ["fake/fake-1"] } });
-  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "codex", router: true } });
-  await env.client.call("threads.send", { thread: "home", text: "and now" });
+test("a CLI is never an agent's model, the router or the install default; one saved by an older APX is skipped", async () => {
+  for (const bad of ["claude", "codex/gpt-x"]) {
+    const asRouter = await env.client
+      .call("models.set_config", { router: { rules: [], chain: [bad] } })
+      .catch((e: unknown) => e);
+    assert.ok(asRouter instanceof ApxError && /own sessions/.test(asRouter.message), bad);
+    const asDefault = await env.client
+      .call("models.set_config", { default: { model: bad, router: false } })
+      .catch((e: unknown) => e);
+    assert.ok(asDefault instanceof ApxError && asDefault.code === "bad_request", bad);
+    const asAgent = await env.client
+      .call("agents.update", { agent: "roby", model_choice: { model: bad, router: false } })
+      .catch((e: unknown) => e);
+    assert.ok(asAgent instanceof ApxError && asAgent.code === "bad_request", bad);
+    const inChat = await env.client
+      .call("threads.model", { thread: "home", model_choice: { model: bad, router: false } })
+      .catch((e: unknown) => e);
+    assert.ok(inChat instanceof ApxError && inChat.code === "bad_request", bad);
+  }
+  // As an older APX saved them: the router and the default name CLIs; the turn runs on the model API behind them.
+  env.core.store.settings.write("model_default", { model: "claude", router: true });
+  env.core.store.settings.write("model_router", {
+    rules: [{ when: {}, model: "codex" }],
+    chain: ["codex", "fake/fake-1"],
+  });
+  const config = await env.client.call("models.config", {});
+  assert.deepEqual(config, { default: { router: true }, router: { rules: [], chain: ["fake/fake-1"] } });
+  const { engines } = await env.client.call("engines.status", {});
+  assert.equal(engines.find((e) => e.default)?.id, "native");
+  const before_ = seen.length;
+  await env.client.call("threads.send", { thread: "home", text: "who answers?" });
   const t = await env.settle("home");
-  const parts = t.messages.at(-1)?.parts ?? [];
-  assert.ok(parts.some((p) => p.type === "notice" && p.code === "engine.fallback" && /usage limit/.test(p.text)));
-  assert.deepEqual(texts(t.messages).at(-1), "native answer");
+  assert.equal(seen.length, before_, "no CLI ran");
+  assert.equal(texts(t.messages).at(-1), "native answer");
   assert.equal(t.runs[0]?.harness, "native");
 });
 
-test("the install default decides for agents without their own harness", async () => {
-  await env.client.call("agents.update", { agent: "roby", model_choice: null });
-  await env.client.call("models.set_config", { default: { model: "claude", router: false } });
-  const { engines } = await env.client.call("engines.status", {});
-  assert.equal(engines.find((e) => e.default)?.id, "claude");
-  const before_ = seen.length;
-  await env.client.call("threads.send", { thread: "home", text: "who answers?" });
-  await env.settle("home");
-  assert.equal(seen.length, before_ + 1);
-});
-
-test("switching to Claude Code hands it what another engine answered in the thread meanwhile", async () => {
-  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "fake/fake-1", router: false } });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "switch" });
+test("switching a session to Claude Code hands it what another engine answered in the thread meanwhile", async () => {
+  const t = await session("claude");
+  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "fake/fake-1", router: false } });
   await env.client.call("threads.send", { thread: t.id, text: "first question" });
   await env.settle(t.id);
-  await env.client.call("agents.update", { agent: "roby", model_choice: { model: "claude", router: false } });
+  await env.client.call("threads.model", { thread: t.id, model_choice: { model: "claude", router: false } });
   await env.client.call("threads.send", { thread: t.id, text: "second question" });
   await env.settle(t.id);
   const input = seen.at(-1)?.io.input.content ?? "";
   assert.match(input, /<earlier_turns[^>]*trust="untrusted">/);
   assert.match(input, /Owner: first question\nYou \(answered with native\): native answer/);
-  await env.client.call("agents.update", { agent: "roby", model_choice: null });
 });
 
 test("a model ref nothing can run is refused when it is set", async () => {
