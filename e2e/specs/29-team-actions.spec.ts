@@ -101,4 +101,12 @@ test("in the base project the super-agent is on top and a global agent can repor
   await page.locator(".teamcanvas__node:has(.apx-agentnode.is-lead)").click({ button: "right" });
   await page.getByRole("menuitem", { name: "Ver detalle" }).click();
   await expect(detail.getByText("A nadie: es el super-agente, arriba de todos.")).toBeVisible();
+
+  // Its autonomy is the owner's to set: total, it acts without asking.
+  const autonomy = detail.getByRole("button", { name: "Autonomía" });
+  await expect(autonomy).toHaveText("Pregunta si hay contenido de afuera");
+  await autonomy.click();
+  await page.getByRole("menuitem", { name: "Total: actúa sin preguntar" }).click();
+  await expect(autonomy).toHaveText("Total: actúa sin preguntar");
+  expect((await rpc<{ agent: { autonomy?: string } }>("agents.get", { agent: "roby" })).agent.autonomy).toBe("total");
 });

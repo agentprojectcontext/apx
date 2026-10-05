@@ -124,6 +124,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
         icon: p.blob,
         area: p.area,
         personality: p.personality,
+        autonomy: p.autonomy,
       };
       const edits =
         Object.values(definition).some((v) => v !== undefined) || p.prompt !== undefined || p.slug !== undefined;
@@ -145,6 +146,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
           ...(p.description !== undefined ? { description: p.description } : {}),
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
           ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
+          ...(p.autonomy ? { autonomy: p.autonomy } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),
           ...(p.blob ? { blob: p.blob } : {}),

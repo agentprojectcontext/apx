@@ -4,6 +4,7 @@ import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
   Author,
+  Autonomy,
   CatalogEngine,
   ChannelInfo,
   ChannelRooms,
@@ -260,6 +261,8 @@ export const appMethods = {
         prompt: z.string().max(100_000).optional(),
         /** How it comes across, apart from its instructions ("" clears it). */
         personality: z.string().max(1000).optional(),
+        /** How often it stops for the owner's yes. Only the owner sets it (this method is human-only). */
+        autonomy: Autonomy.optional(),
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
         /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */

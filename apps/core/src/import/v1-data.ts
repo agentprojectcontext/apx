@@ -499,6 +499,8 @@ export type V1Identity = {
   blob?: string;
   personality?: string;
   prompt?: string;
+  /** v1's `permission_mode` (total | automatico | permiso) as v2's autonomy. */
+  autonomy?: "total" | "standard" | "ask";
   /** The profile v1 ran, with its settings in v2's names. */
   profile?: { id: string; values: Record<string, string | number> };
   /** v1's nudge budget and quiet hours. */
@@ -520,6 +522,9 @@ export function v1Identity(home: string): V1Identity {
   const user = obj(config.user);
   const sa = obj(config.super_agent);
   const personality = str(id.personality);
+  const autonomy = ({ total: "total", automatico: "standard", permiso: "ask" } as const)[
+    str(sa.permission_mode) as "total" | "automatico" | "permiso"
+  ];
   const prompt = str(sa.system) ?? str(sa.instructions);
   const blob = str(sa.icon);
   const prof = obj(config.profile);
@@ -557,6 +562,7 @@ export function v1Identity(home: string): V1Identity {
     ...(str(id.agent_name) ? { agent_name: str(id.agent_name) } : {}),
     ...(blob && /^[a-z]{2,20}$/.test(blob) ? { blob } : {}),
     ...(personality ? { personality } : {}),
+    ...(autonomy ? { autonomy } : {}),
     ...(prompt ? { prompt } : {}),
     ...(active ? { profile: { id: active, values } } : {}),
     ...(Object.keys(notices).length ? { notices } : {}),

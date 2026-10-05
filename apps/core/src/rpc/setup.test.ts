@@ -50,7 +50,7 @@ before(async () => {
     },
     skills: { inspector: { enabled: false } },
     user: { language: "es", timezone: "America/Argentina/Buenos_Aires" },
-    super_agent: { system: "Never book meetings before 10.", icon: "noche" },
+    super_agent: { system: "Never book meetings before 10.", icon: "noche", permission_mode: "total" },
     profile: {
       active: "secretary",
       config: {
@@ -350,6 +350,7 @@ test("importing the identity brings who the owner is, the super-agent's personal
   const roby = await env.client.call("agents.get", { agent: "roby" });
   assert.equal(roby.prompt, "Never book meetings before 10.");
   assert.deepEqual([roby.agent.name, roby.agent.blob, roby.agent.personality], ["Roby", "noche", "warm and direct"]);
+  assert.equal(roby.agent.autonomy, "total", "v1's permission_mode: it acts without asking, as it did there");
   const { active, routines } = await env.client.call("profiles.list", {});
   assert.equal(active.id, "secretary");
   assert.equal(active.values.day_open, "0 9 * * 1-5");

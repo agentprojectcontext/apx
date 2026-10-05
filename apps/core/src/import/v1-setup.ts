@@ -296,13 +296,14 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
     });
     let n = [who.owner_name, who.owner_about, who.timezone].filter(Boolean).length;
     // The super-agent as v1 had it: its name, face, personality and the owner's extra instructions.
-    if (secretary && (who.agent_name || who.blob || who.personality || who.prompt)) {
+    if (secretary && (who.agent_name || who.blob || who.personality || who.prompt || who.autonomy)) {
       const { harness: _h, ...rest } = secretary;
       store.agents.upsert({
         ...rest,
         ...(who.agent_name ? { name: who.agent_name } : {}),
         ...(who.blob ? { blob: who.blob } : {}),
         ...(who.personality ? { personality: who.personality } : {}),
+        ...(who.autonomy ? { autonomy: who.autonomy } : {}),
         ...(who.prompt && !secretary.prompt.trim() ? { prompt: who.prompt } : {}),
       });
       n++;

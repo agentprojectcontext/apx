@@ -108,6 +108,16 @@ test("global agents report to another global agent or to the super-agent, who re
   assert.equal((await env.client.call("agents.update", { agent: analyst.id, parent: "" })).parent, undefined);
 });
 
+test("the owner sets an agent's autonomy: kept for a global agent, written to a project agent's file", async () => {
+  assert.equal((await env.client.call("agents.update", { agent: "roby", autonomy: "total" })).autonomy, "total");
+  assert.equal((await env.client.call("agents.get", { agent: "roby" })).agent.autonomy, "total");
+  const { agents } = await env.client.call("agents.list", {});
+  const boss = agents.find((a) => a.project_id === project && a.slug === "boss");
+  assert.ok(boss);
+  assert.equal((await env.client.call("agents.update", { agent: boss.id, autonomy: "ask" })).autonomy, "ask");
+  assert.match(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), /^autonomy: ask$/m);
+});
+
 test("install: a parent that is skipped never adopts a member; the member hangs under hang_under", async () => {
   // The project's own, unrelated "pm".
   fs.writeFileSync(path.join(repo, ".apc", "agents", "pm.md"), "---\nname: Someone else\n---\n\nNot the team's.\n");

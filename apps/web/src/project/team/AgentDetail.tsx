@@ -10,13 +10,16 @@ import { blobOf } from "../../data/identity.ts";
 import { useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
-import { getAgent, setAgentParent } from "../../data/team.ts";
+import { getAgent, setAgentParent, updateAgent } from "../../data/team.ts";
 import { useLanguage, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
 import { AgentEditor } from "./AgentEditor.tsx";
 import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
+
+/** How often it stops for the owner's yes, strictest first. */
+const AUTONOMY = ["ask", "standard", "total"] as const;
 
 const PROFILES = ["shared", "isolated", "incognito"] as const;
 
@@ -117,6 +120,16 @@ export function AgentDetail({
           options={PROFILES.map((p) => ({ value: p, text: t(PROFILE_KEY[p]) }))}
           value={agent.browser_profile}
           onPick={(v) => void setAgentBrowserProfile(agent.id, v as (typeof PROFILES)[number])}
+        />
+      </dd>
+      <dt>{t("team.autonomy")}</dt>
+      <dd>
+        <Pick
+          label={t("team.autonomy")}
+          text={t(`team.autonomy.${agent.autonomy ?? "standard"}`)}
+          options={AUTONOMY.map((a) => ({ value: a, text: t(`team.autonomy.${a}`) }))}
+          value={agent.autonomy ?? "standard"}
+          onPick={(v) => void updateAgent(agent.id, { autonomy: v as (typeof AUTONOMY)[number] })}
         />
       </dd>
       {fromFile && (
