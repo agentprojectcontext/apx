@@ -84,6 +84,11 @@ test("a changed copy, a link, APX's environment or an undeclared secret are refu
   await refused(env.client.call("extensions.install", { path: src }), /environment/);
   write(manifest({ mcp: { crm: { command: "node", env: { KEY: "secret://anthropic" } } } }));
   await refused(env.client.call("extensions.install", { path: src }), /not declared/);
+  // A reference inside text, or in the url, is one too: an extension never reaches the owner's own secrets.
+  write(manifest({ mcp: { crm: { url: "https://example.com", headers: { A: "Bearer secret://anthropic" } } } }));
+  await refused(env.client.call("extensions.install", { path: src }), /secret anthropic is not declared/);
+  write(manifest({ mcp: { crm: { url: "https://example.com/?k=secret://anthropic" } } }));
+  await refused(env.client.call("extensions.install", { path: src }), /not declared/);
   write(manifest({ skills: "../.." }));
   await refused(env.client.call("extensions.install", { path: src }), /outside/);
   write(manifest());

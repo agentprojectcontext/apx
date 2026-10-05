@@ -19,6 +19,9 @@ const MAX_BYTES = 50 * 1024 * 1024;
 /** The name an extension's own secret is stored under. Names have no "-", so `ext-<id>-<name>` cannot be read two ways. */
 export const extSecret = (id: string, name: string) => `ext-${id}-${name}`;
 
+/** A `secret://name` anywhere in a value (the same names the MCP manager resolves). */
+export const SECRET_REF = /secret:\/\/([a-zA-Z0-9_.-]+)/g;
+
 /**
  * Every regular file under `root`, relative and sorted; links and oversized trees are refused. Copying from a source
  * leaves out `.git` and `node_modules`; an installed copy is read whole, so nothing added there goes unnoticed.
@@ -73,10 +76,12 @@ export function readManifest(dir: string): ExtensionManifest {
   const declared = new Set(m.secrets.map((s) => s.name));
   for (const [name, server] of Object.entries(m.mcp)) {
     if (!server.command && !server.url) throw badRequest(`mcp ${name} needs a command or a url`);
-    for (const v of [...Object.values(server.env), ...Object.values(server.headers), ...server.args]) {
+    const values = [...Object.values(server.env), ...Object.values(server.headers), ...server.args, server.url ?? ""];
+    for (const v of values) {
       if (v.startsWith("env:")) throw badRequest(`mcp ${name}: an extension cannot read APX's environment`);
-      const ref = /^secret:\/\/(.+)$/.exec(v)?.[1];
-      if (ref && !declared.has(ref)) throw badRequest(`mcp ${name}: secret ${ref} is not declared under secrets`);
+      // Every reference, also inside text ("Bearer secret://token"), must be one of its own.
+      for (const [, ref] of v.matchAll(SECRET_REF))
+        if (!declared.has(ref ?? "")) throw badRequest(`mcp ${name}: secret ${ref} is not declared under secrets`);
     }
   }
   return m;

@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
-import { extSecret } from "../extensions/extensions.ts";
+import { extSecret, SECRET_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
 
 export type McpDef = {
@@ -101,7 +101,8 @@ function readProjectFile(root: string): string | undefined {
 function extensionDefs(store: Store): McpDef[] {
   return store.extensions.enabled().flatMap((e) =>
     Object.entries(e.manifest.mcp).flatMap(([name, server]) => {
-      const own = (v: string) => v.replace(/^secret:\/\/(.+)$/, (_m, n: string) => `secret://${extSecret(e.id, n)}`);
+      // A whole value or inside text ("Bearer secret://token"): always the extension's own secret, never the owner's.
+      const own = (v: string) => v.replace(SECRET_REF, (_m, n: string) => `secret://${extSecret(e.id, n)}`);
       const map = (r: Record<string, string>) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, own(v)]));
       const raw: Raw = {
         ...(server.command
@@ -109,7 +110,7 @@ function extensionDefs(store: Store): McpDef[] {
           : {}),
         args: server.args.map(own),
         env: map(server.env),
-        ...(server.url ? { url: server.url } : {}),
+        ...(server.url ? { url: own(server.url) } : {}),
         headers: map(server.headers),
       };
       const d = toDef(`${e.id}-${name}`, raw, { scope: "global", cwd: e.dir });
