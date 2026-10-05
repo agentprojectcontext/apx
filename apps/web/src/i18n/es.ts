@@ -106,6 +106,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "agent.edit.avatar": "Avatar",
   "agent.edit.prompt": "Prompt",
   "agent.edit.promptHint": "Cómo piensa y se comporta. ⌘S guarda.",
+  "agent.edit.superTitle": "Editar super-agente",
+  "agent.edit.superNote":
+    "El agente principal de APX: está en todos tus proyectos, coordina al resto y te habla por todos los canales. No se puede borrar.",
+  "agent.edit.superPrompt": "Instrucciones extra",
+  "agent.edit.superPromptHint": "Se suman a su rol de super-agente, no lo reemplazan. ⌘S guarda.",
   "engine.new": "Nueva sesión",
   "engine.newWith": "Nueva sesión de {engine}",
   "engine.start": "Empezar",

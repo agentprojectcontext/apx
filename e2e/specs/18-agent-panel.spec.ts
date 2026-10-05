@@ -18,8 +18,16 @@ test("the super-agent's face opens its block beside the chat; its prompt and pro
   await block.getByRole("tab", { name: "Prompt" }).click();
 
   await block.getByRole("button", { name: "Editar prompt" }).click();
-  const editor = page.getByRole("dialog", { name: /^Editar a / });
-  await editor.getByRole("textbox").last().fill("Sign every message with a lemon.");
+  // The super-agent's own editor: what it is, no role, area or description, and its prompt adds to its role.
+  const editor = page.getByRole("dialog", { name: "Editar super-agente" });
+  await expect(editor.getByText(/El agente principal de APX/)).toBeVisible();
+  await editor.getByRole("tab", { name: "Identidad" }).click();
+  await expect(editor.getByLabel("Nombre")).toBeVisible();
+  await expect(editor.getByLabel("Rol")).toHaveCount(0);
+  await expect(editor.getByLabel("Área")).toHaveCount(0);
+  await expect(editor.getByLabel("Descripción")).toHaveCount(0);
+  await editor.getByRole("tab", { name: "Instrucciones extra" }).click();
+  await editor.getByRole("textbox", { name: "Instrucciones extra" }).fill("Sign every message with a lemon.");
   await editor.getByRole("button", { name: "Guardar" }).click();
   await expect(block.getByText("Sign every message with a lemon.")).toBeVisible();
 

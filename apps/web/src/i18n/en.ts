@@ -103,6 +103,11 @@ export const en = {
   "agent.edit.avatar": "Avatar",
   "agent.edit.prompt": "Prompt",
   "agent.edit.promptHint": "How it thinks and behaves. ⌘S saves.",
+  "agent.edit.superTitle": "Edit the super-agent",
+  "agent.edit.superNote":
+    "APX's main agent: it is in every project, coordinates the others and talks to you on every channel. It cannot be deleted.",
+  "agent.edit.superPrompt": "Extra instructions",
+  "agent.edit.superPromptHint": "They add to its super-agent role, never replace it. ⌘S saves.",
   "engine.new": "New session",
   "engine.newWith": "New {engine} session",
   "engine.start": "Start",

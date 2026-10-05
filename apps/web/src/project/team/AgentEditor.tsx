@@ -65,13 +65,16 @@ export function AgentEditor({
     if (ok) onClose();
   };
   const set = (k: keyof Draft) => (v: string) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
+  // The super-agent is one of a kind: no role, area or description to give it, and its prompt adds to its base role.
+  const isSuper = agent.kind === "secretary";
 
   return (
     <Dialog
       open
       size="lg"
       onOpenChange={(o) => !o && onClose()}
-      title={t("agent.edit.title", { name: agent.name })}
+      title={isSuper ? t("agent.edit.superTitle") : t("agent.edit.title", { name: agent.name })}
+      {...(isSuper ? { description: t("agent.edit.superNote") } : {})}
       footer={
         <>
           {agent.source === "apc" && agent.slug && (
@@ -99,27 +102,39 @@ export function AgentEditor({
               label: t("agent.edit.identity"),
               content: (
                 <div className="taskform">
-                  <div className="taskform__row">
+                  {isSuper ? (
                     <Field label={t("agent.edit.name")}>
                       {(id) => <Input id={id} value={d.name} onChange={(e) => set("name")(e.currentTarget.value)} />}
                     </Field>
-                    <Field label={t("team.area")} hint={t("agent.edit.areaHint")}>
-                      {(id) => <Input id={id} value={d.area} onChange={(e) => set("area")(e.currentTarget.value)} />}
-                    </Field>
-                  </div>
-                  <Field label={t("agent.edit.role")} hint={t("agent.edit.roleHint")}>
-                    {(id) => <Input id={id} value={d.role} onChange={(e) => set("role")(e.currentTarget.value)} />}
-                  </Field>
-                  <Field label={t("agent.edit.description")}>
-                    {(id) => (
-                      <Textarea
-                        id={id}
-                        rows={3}
-                        value={d.description}
-                        onChange={(e) => set("description")(e.currentTarget.value)}
-                      />
-                    )}
-                  </Field>
+                  ) : (
+                    <>
+                      <div className="taskform__row">
+                        <Field label={t("agent.edit.name")}>
+                          {(id) => (
+                            <Input id={id} value={d.name} onChange={(e) => set("name")(e.currentTarget.value)} />
+                          )}
+                        </Field>
+                        <Field label={t("team.area")} hint={t("agent.edit.areaHint")}>
+                          {(id) => (
+                            <Input id={id} value={d.area} onChange={(e) => set("area")(e.currentTarget.value)} />
+                          )}
+                        </Field>
+                      </div>
+                      <Field label={t("agent.edit.role")} hint={t("agent.edit.roleHint")}>
+                        {(id) => <Input id={id} value={d.role} onChange={(e) => set("role")(e.currentTarget.value)} />}
+                      </Field>
+                      <Field label={t("agent.edit.description")}>
+                        {(id) => (
+                          <Textarea
+                            id={id}
+                            rows={3}
+                            value={d.description}
+                            onChange={(e) => set("description")(e.currentTarget.value)}
+                          />
+                        )}
+                      </Field>
+                    </>
+                  )}
                   <Field label={t("agent.edit.personality")} hint={t("agent.edit.personalityHint")}>
                     {(id) => (
                       <Textarea
@@ -152,9 +167,12 @@ export function AgentEditor({
             },
             {
               value: "prompt",
-              label: t("agent.edit.prompt"),
+              label: isSuper ? t("agent.edit.superPrompt") : t("agent.edit.prompt"),
               content: (
-                <Field label={t("agent.edit.prompt")} hint={t("agent.edit.promptHint")}>
+                <Field
+                  label={isSuper ? t("agent.edit.superPrompt") : t("agent.edit.prompt")}
+                  hint={isSuper ? t("agent.edit.superPromptHint") : t("agent.edit.promptHint")}
+                >
                   {(id) => (
                     <Textarea
                       id={id}
