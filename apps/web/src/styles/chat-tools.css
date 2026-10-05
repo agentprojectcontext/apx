@@ -288,57 +288,52 @@
   min-width: 0;
 }
 
-/* A settled note or warning, and a settled OK or question: one quiet line that opens on click. */
-.noticeline,
-.inputline {
+/* A settled note or warning, and a settled OK or question: the actions' line (ActionGroup), its text in the tone. */
+.noticeline {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  max-width: 560px;
-}
-.noticeline__toggle,
-.inputline__toggle {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 2px 6px;
-  margin-left: -6px;
-  border-radius: var(--apx-radius-sm);
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-  text-align: left;
-}
-.noticeline__toggle:hover,
-.inputline__toggle:hover {
-  background: var(--apx-fill);
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--apx-group-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-group-bg);
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-medium);
   color: var(--apx-fg-muted);
 }
-.noticeline--warn .noticeline__toggle {
+.noticeline > svg {
+  flex: none;
+}
+.noticeline.is-warn,
+.turn__notice.is-warn .apx-actions__icon,
+.turn__notice.is-warn .apx-actions__title {
   color: var(--apx-warning-soft-fg);
 }
-.noticeline__label,
-.inputline__what {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.turn__notice-to {
+  margin-left: 8px;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-muted);
 }
-.noticeline__chev,
-.inputline__chev {
-  flex: none;
-  transition: transform 120ms ease;
-}
-.noticeline__toggle[aria-expanded="true"] .noticeline__chev,
-.inputline__toggle[aria-expanded="true"] .inputline__chev {
-  transform: rotate(90deg);
+.turn__notice-body,
+.inputline__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 10px 34px;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+  color: var(--apx-fg-muted);
 }
 .inputline__state {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  flex: none;
+  margin-left: 8px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
 }
 .inputline__state.is-approved,
 .inputline__state.is-answered {
@@ -346,13 +341,4 @@
 }
 .inputline__state.is-denied {
   color: var(--apx-danger-soft-fg);
-}
-.inputline__body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: var(--apx-radius-md);
-  background: var(--apx-fill);
 }

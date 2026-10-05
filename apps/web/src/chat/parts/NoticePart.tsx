@@ -1,15 +1,16 @@
 import type { Part } from "@apx/protocol";
-import { Icons } from "@apx/ui";
-import { useState } from "react";
+import { ActionGroup, Icons } from "@apx/ui";
 import { isKey, useT } from "../../i18n/index.ts";
+
+type NoticeData = Extract<Part, { type: "notice" }>;
 
 /**
  * Something the system says about a turn (interrupted, another model took over, no answer). Never the agent's words.
- * An error shows in full; a note or a warning is one small line that opens on click, so turns are not boxed in.
+ * An error shows in full. A note or a warning is one line in the actions' design: it folds only when it has more to
+ * say (the error behind a model switch), otherwise the line is the whole notice.
  */
-export function NoticePart({ part }: { part: Extract<Part, { type: "notice" }> }) {
+export function NoticePart({ part }: { part: NoticeData }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
   const key = `notice.${part.code}`;
   // The core's English text carries details (e.g. the error); the translation is used when it is the plain case.
   const text = isKey(key) && (part.vars || !part.text.includes(":")) ? t(key, part.vars) : part.text;
@@ -20,22 +21,31 @@ export function NoticePart({ part }: { part: Extract<Part, { type: "notice" }> }
         {part.detail && <pre className="notice__detail">{part.detail}</pre>}
       </div>
     );
-  const shortKey = `notice.${part.code}.short`;
-  const short = isKey(shortKey) ? t(shortKey, part.vars) : t(part.level === "warn" ? "notice.warn" : "notice.info");
   const Icon = part.level === "warn" ? Icons.TriangleAlert : Icons.Info;
+  const titleKey = `notice.${part.code}.title`;
+  if (!isKey(titleKey) && !part.detail)
+    return (
+      <div className={`noticeline is-${part.level}`} role="status">
+        <Icon size={14} />
+        <span>{text}</span>
+      </div>
+    );
+  const to = part.vars?.to;
   return (
-    <div className={`noticeline noticeline--${part.level}`} role="status">
-      <button type="button" className="noticeline__toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <Icon size={13} />
-        <span className="noticeline__label">{short}</span>
-        <Icons.ChevronRight size={12} className="noticeline__chev" />
-      </button>
-      {open && (
-        <div className={`notice notice--${part.level}`}>
-          {text}
-          {part.detail && <pre className="notice__detail">{part.detail}</pre>}
-        </div>
-      )}
-    </div>
+    <ActionGroup
+      className={`turn__tools turn__notice is-${part.level}`}
+      icon={<Icon size={14} />}
+      title={
+        <>
+          {isKey(titleKey) ? t(titleKey) : t(part.level === "warn" ? "notice.warn" : "notice.info")}
+          {to ? <span className="turn__notice-to">{to}</span> : null}
+        </>
+      }
+    >
+      <div className="turn__notice-body">
+        {text}
+        {part.detail && <pre className="notice__detail">{part.detail}</pre>}
+      </div>
+    </ActionGroup>
   );
 }

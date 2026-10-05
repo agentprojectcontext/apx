@@ -17,6 +17,9 @@ test("an approved request shrinks to one line saying what was asked and how it e
   await expect(line).toContainText("Pidió permiso para usar shell");
   await expect(line).toContainText("Aprobado");
   await expect(page.locator(".inputcard")).toHaveCount(0);
+  // The actions' line (the tools group's design), folded until clicked.
+  await expect(line).toHaveClass(/apx-actions/);
+  await expect(line).not.toContainText("touch e2e-note.txt");
   await line.getByRole("button").click();
   await expect(line).toContainText("touch e2e-note.txt");
 });

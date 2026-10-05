@@ -1,5 +1,5 @@
 import type { Part } from "@apx/protocol";
-import { Button, Icons } from "@apx/ui";
+import { ActionGroup, Button, Icons } from "@apx/ui";
 import { useState } from "react";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
@@ -22,33 +22,33 @@ export function InputPart({ part }: { part: InputPartData }) {
   return <PendingInput part={part} />;
 }
 
-/** What was asked and how it ended, in a line that opens to show what it was. */
+/** What was asked and how it ended, in the actions' design: a line that opens to show what it was. */
 function SettledInput({ part, state }: { part: InputPartData; state: Exclude<InputPartData["state"], "pending"> }) {
   const t = useT();
-  const [open, setOpen] = useState(false);
   const Icon = DONE_ICON[state];
   const what =
     part.kind === "confirm" ? t("input.asked", { tool: part.tool ?? t("input.anAction") }) : t("input.askedQuestion");
   return (
-    <div className={`inputline is-${state}`}>
-      <button type="button" className="inputline__toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {part.kind === "confirm" ? <Icons.Hand size={13} /> : <Icons.MessageCircle size={13} />}
-        <span className="inputline__what">{what}</span>
-        <span className={`inputline__state is-${state}`}>
-          <Icon size={12} />
-          {t(DONE[state])}
-          {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
-        </span>
-        <Icons.ChevronRight size={12} className="inputline__chev" />
-      </button>
-      {open && (
-        <div className="inputline__body">
-          <p className="inputcard__prompt">{part.prompt}</p>
-          {part.detail && <code className="inputcard__detail">{part.detail}</code>}
-          {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
-        </div>
-      )}
-    </div>
+    <ActionGroup
+      className={`turn__tools inputline is-${state}`}
+      icon={part.kind === "confirm" ? <Icons.Hand size={14} /> : <Icons.MessageCircle size={14} />}
+      title={
+        <>
+          {what}
+          <span className={`inputline__state is-${state}`}>
+            <Icon size={12} />
+            {t(DONE[state])}
+            {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
+          </span>
+        </>
+      }
+    >
+      <div className="inputline__body">
+        <p className="inputcard__prompt">{part.prompt}</p>
+        {part.detail && <code className="inputcard__detail">{part.detail}</code>}
+        {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
+      </div>
+    </ActionGroup>
   );
 }
 
