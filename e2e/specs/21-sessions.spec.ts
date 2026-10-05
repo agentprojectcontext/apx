@@ -8,6 +8,8 @@ test("right-click a session: pin it to the top, rename it, archive and unarchive
   // Alone (without the setup spec first) the sandbox is a fresh install: its first-run setup would cover the panel.
   await rpc("setup.finish", {});
   const alfa = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Sesión Alfa" });
+  // Beta is the newer one (created apart from Alfa, so the two never tie on their time).
+  await new Promise((r) => setTimeout(r, 1100));
   const beta = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Sesión Beta" });
   await open(page);
   const menuItem = (name: string) => page.getByRole("menuitem", { name });

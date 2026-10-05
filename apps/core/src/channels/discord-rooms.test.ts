@@ -86,6 +86,8 @@ after(async () => {
 });
 
 test("with rooms the bot also reads servers; an unlisted room does not exist for it", async () => {
+  // "running" can come a moment before the gateway's identify frame reaches the fake server.
+  await until(() => dc.identified.length > 0, "identified");
   assert.equal(dc.identified.at(-1)?.intents, (1 << 12) | (1 << 15) | (1 << 9));
   dc.message(ANA, "roby are you there?", { room: "9999" });
   await pause(200);
