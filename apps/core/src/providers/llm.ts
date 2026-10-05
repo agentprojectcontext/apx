@@ -186,13 +186,16 @@ const kTokens = (n: number) => `${Math.round(n / 1000)}k tokens`;
 
 /**
  * A local server (Ollama) cuts a prompt longer than its context length without saying so: the model then answers
- * without the system prompt or the tools. A reported input far below what was sent is that cut.
+ * without the system prompt or the tools. The cut reports exactly its context length (4096, 8192…) as the input, far
+ * below what was sent. Any other small figure is a prompt cache counting only new tokens, not a cut.
  */
 function checkNotCut(usage: Usage | undefined, need: number): void {
-  if (!usage?.input || need < 8_000 || usage.input * 3 > need) return;
+  const n = usage?.input ?? 0;
+  const contextSized = n >= 2048 && (n & (n - 1)) === 0;
+  if (!contextSized || need < 8_000 || n * 3 > need) return;
   throw new ProviderError(
     "context",
-    `the server read only ${kTokens(usage.input)} of this chat (${kTokens(need)}): raise its context length`,
+    `the server read only ${kTokens(n)} of this chat (${kTokens(need)}): raise its context length`,
   );
 }
 

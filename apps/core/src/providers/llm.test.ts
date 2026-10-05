@@ -265,6 +265,27 @@ test("a server that cuts a long chat to its small context does not answer it; th
   assert.equal(shown.at(-1), "", "the cut answer does not stay on screen");
 });
 
+test("a small input figure that is not a context length is a prompt cache, not a cut: the answer stands", async () => {
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    fetchImpl: (async () =>
+      sse([
+        { choices: [{ delta: { content: "cached answer" }, finish_reason: "stop" }] },
+        { choices: [], usage: { prompt_tokens: 812, completion_tokens: 3 } },
+      ])) as typeof fetch,
+  });
+  const out = await llm.complete({
+    models: ["pa/m2"],
+    messages: [{ role: "user", content: "x".repeat(200_000) }],
+    tools: [],
+    signal: new AbortController().signal,
+    onText: () => {},
+  });
+  assert.equal(out.message.content, "cached answer");
+});
+
 test("when the first model fails and the next answers, the answer says which failed and why", async () => {
   const llm = createLlm({
     providers: () => providers,
