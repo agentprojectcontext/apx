@@ -436,7 +436,8 @@
 .memory {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -445,6 +446,15 @@
   padding: 24px;
   box-sizing: border-box;
   width: 100%;
+}
+/* Only the list scrolls: the header, the search box and "Add note" stay in view. */
+.memory > * {
+  flex: none;
+}
+.memory > .memory__list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .memory__file {
   display: flex;

@@ -16,7 +16,6 @@
 }
 /* A nav taller than the dialog scrolls; nothing in it shrinks to fit (the search box was squashed). */
 .config__nav > .apx-field {
-  flex: none;
   margin-bottom: 6px;
 }
 .config__group {

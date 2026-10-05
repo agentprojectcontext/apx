@@ -360,16 +360,20 @@
 }
 .apx-field--sm {
   height: var(--apx-control-h-sm);
+  /* Never squashed by a flex column (a scrolling list, a sidebar); its width may still shrink in a row. */
+  min-height: var(--apx-control-h-sm);
   padding: 0 10px;
   font-size: var(--apx-text-sm);
 }
 .apx-field--md {
   height: var(--apx-control-h-md);
+  min-height: var(--apx-control-h-md);
   padding: 0 12px;
   font-size: var(--apx-text-md);
 }
 .apx-field--lg {
   height: var(--apx-control-h-lg);
+  min-height: var(--apx-control-h-lg);
   padding: 0 16px;
   font-size: var(--apx-text-lg);
 }
