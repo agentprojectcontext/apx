@@ -30,7 +30,7 @@ type TreeCtx = {
  * images, video, audio and PDFs. Right-click a file or folder to show it in Finder, copy its path, rename it or move
  * it to the trash.
  */
-export function FilesPane({ project }: { project: ProjectEntry }) {
+export function FilesPane({ project, stacked = false }: { project: ProjectEntry; stacked?: boolean }) {
   const t = useT();
   const [picked, setPicked] = useState<string>();
   const [version, setVersion] = useState(0);
@@ -60,24 +60,37 @@ export function FilesPane({ project }: { project: ProjectEntry }) {
     onPick: setPicked,
     onAct: (kind, entry) => setActing({ kind, entry }),
   };
+  // Narrow (the chat's side panel): the tree, or the open file with a way back to it.
+  const showTree = !stacked || !picked;
+  const showView = !stacked || Boolean(picked);
   return (
-    <div className="files">
-      <nav className="files__tree" aria-label={t("files.tree")}>
-        <div className="files__root">
-          <Icons.FolderOpen size={14} />
-          <span>{t("files.repo")}</span>
-        </div>
-        <Folder ctx={ctx} dir="" depth={0} />
-      </nav>
-      <section className="files__view" aria-label={picked ?? t("files.none")}>
-        {picked ? (
-          <FileView key={`${picked}:${version}`} project={project.id} path={picked} />
-        ) : (
-          <EmptyState icon={<Icons.FileText />} title={t("files.none")}>
-            {t("files.noneBody")}
-          </EmptyState>
-        )}
-      </section>
+    <div className={stacked ? "files files--stacked" : "files"}>
+      {showTree && (
+        <nav className="files__tree" aria-label={t("files.tree")}>
+          <div className="files__root">
+            <Icons.FolderOpen size={14} />
+            <span>{t("files.repo")}</span>
+          </div>
+          <Folder ctx={ctx} dir="" depth={0} />
+        </nav>
+      )}
+      {showView && (
+        <section className="files__view" aria-label={picked ?? t("files.none")}>
+          {stacked && (
+            <button type="button" className="files__back" onClick={() => setPicked(undefined)}>
+              <Icons.ChevronLeft size={14} />
+              {t("files.back")}
+            </button>
+          )}
+          {picked ? (
+            <FileView key={`${picked}:${version}`} project={project.id} path={picked} />
+          ) : (
+            <EmptyState icon={<Icons.FileText />} title={t("files.none")}>
+              {t("files.noneBody")}
+            </EmptyState>
+          )}
+        </section>
+      )}
       {acting?.kind === "rename" && (
         <RenameDialog project={project.id} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
       )}

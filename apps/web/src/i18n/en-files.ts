@@ -1,6 +1,7 @@
 // UI strings, English: a project's files, read-only.
 export const enFiles = {
   "files.tree": "Project files",
+  "files.back": "Files",
   "files.repo": "Repository",
   "files.none": "Pick a file",
   "files.noneBody": "Its text shows here. Markdown reads as a page, as its source, or both.",

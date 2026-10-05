@@ -4,6 +4,7 @@ import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { terminalMethods } from "./terminal-methods.ts";
 import { threadMethods } from "./thread-methods.ts";
 
 export const SubsystemStatus = z.object({
@@ -56,6 +57,7 @@ export const methods = {
   ...appMethods,
   ...deviceMethods,
   ...threadMethods,
+  ...terminalMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

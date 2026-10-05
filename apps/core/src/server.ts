@@ -54,6 +54,7 @@ import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { skillsFor } from "./skills/skills.ts";
+import { createTerminals } from "./terminal/terminals.ts";
 import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
@@ -91,6 +92,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
   const bus = createBus();
+  const terminals = createTerminals({ bus });
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
   seed(store, config.agentName);
@@ -248,6 +250,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const dispatch = createRouter(
     coreHandlers({
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
+      terminals,
       access: createAccess({
         home: config.home,
         running: { host: config.host, publicUrl: config.publicUrl, token: config.token },
@@ -323,6 +326,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     async close() {
+      terminals.closeAll();
       updates.stop();
       scheduler.stop();
       attention.stop();

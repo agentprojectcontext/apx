@@ -1,6 +1,7 @@
 // Codex as a harness: the owner's own `codex` (their ChatGPT login). APX tools reach it through a per-run MCP
 // proxy (`apx2 mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
+import { worksInFolder } from "../domain/threads.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome, withInstructions } from "./types.ts";
 
@@ -29,7 +30,7 @@ export function codexHarness(opts: {
         });
         // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto", and then its
         // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen).
-        const writes = io.thread.kind === "code" && io.thread.write === "auto";
+        const writes = worksInFolder(io.thread) && io.thread.write === "auto";
         const threadOptions = {
           workingDirectory: io.thread.cwd ?? opts.cwd,
           skipGitRepoCheck: true,

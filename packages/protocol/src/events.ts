@@ -25,5 +25,9 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("notification.updated"), notification: Notification }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(TabInfo) }),
+  /** What a terminal printed (text as it came: escape codes and all). */
+  z.object({ type: z.literal("terminal.output"), terminal: Id, data: z.string() }),
+  /** Its shell ended. */
+  z.object({ type: z.literal("terminal.exited"), terminal: Id, exit_code: z.number().int().optional() }),
 ]);
 export type CoreEvent = z.infer<typeof CoreEvent>;

@@ -7,7 +7,7 @@ import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf, type Worker } from "../domain/threads.ts";
+import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import type { Log } from "../log.ts";
@@ -538,7 +538,7 @@ async function finishRun(
   const { display, thread, outcome } = t;
   display.close();
   display.setModel(outcome.model);
-  if (thread.kind === "code" && thread.cwd) {
+  if (worksInFolder(thread) && thread.cwd) {
     const changes = await gitChanges(thread.cwd);
     if (changes) display.upsert((p) => p.type === "changes", changes);
   }

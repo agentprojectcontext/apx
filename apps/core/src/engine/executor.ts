@@ -6,6 +6,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
@@ -160,7 +161,7 @@ export function createExecutor(o: {
 
     // A read-only code thread refuses anything that would need an OK, before anyone is asked.
     const level = tool.confirm(args);
-    if (thread.kind === "code" && thread.write === "read-only" && (level === "ask" || level === "always")) {
+    if (worksInFolder(thread) && thread.write === "read-only" && (level === "ask" || level === "always")) {
       card("error", "read-only thread");
       return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
     }
@@ -241,7 +242,7 @@ export function createExecutor(o: {
   function externalLevel(kind: string, inside: boolean, command: unknown): Confirm {
     if (READING.has(kind)) return inside ? "never" : "ask";
     // Fetching sends something out; in a code thread it could carry the code with it.
-    if (kind === "fetch") return thread.kind === "code" ? "ask" : "untrusted";
+    if (kind === "fetch") return worksInFolder(thread) ? "ask" : "untrusted";
     if (kind === "execute" && typeof command === "string") return commandRisk(command, o.apxPort());
     return "ask";
   }
@@ -255,7 +256,7 @@ export function createExecutor(o: {
     const level = externalLevel(req.kind, inside, command);
     // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
     // never to git's config, APC files or AGENTS.md.
-    if (thread.kind === "code" && level !== "never") {
+    if (worksInFolder(thread) && level !== "never") {
       if (thread.write === "read-only") return false;
       const editable = paths.length > 0 && inside && !paths.some((p) => guarded(base, p));
       if (thread.write === "auto" && req.kind === "edit" && editable) return true;

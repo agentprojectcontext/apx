@@ -1,5 +1,5 @@
 import { IconButton, Icons } from "@apx/ui";
-import type { ReactNode } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { AgentPanel } from "./AgentPanel.tsx";
@@ -8,12 +8,21 @@ import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
 import { UsagePanel } from "./UsagePanel.tsx";
 import { WidgetPanel } from "./WidgetPanel.tsx";
+import { useWorkspace } from "./workspace.ts";
+
+// The folder's panels load when first opened, not with the chat.
+const FilesPane = lazy(() => import("../project/files/FilesPane.tsx").then((m) => ({ default: m.FilesPane })));
+const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
+const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
 export function SidePanel() {
   const t = useT();
   const panel = useNav((s) => s.panel);
+  const wide = useNav((s) => s.panelWide);
+  const ws = useWorkspace();
   if (!panel) return null;
+  const folder = panelDef(panel).folder;
   return (
     <aside className="sidepanel" aria-label={t("panel.side")}>
       {panel === "browser" ? (
@@ -22,7 +31,17 @@ export function SidePanel() {
         <AgentPanel />
       ) : (
         <>
-          <PanelHeader>
+          <PanelHeader
+            actions={
+              folder && (
+                <IconButton
+                  label={wide ? t("panel.narrow") : t("panel.widen")}
+                  icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
+                  onClick={() => go.togglePanelWide()}
+                />
+              )
+            }
+          >
             <span className="sidepanel__title">
               {panelDef(panel).icon(14)}
               {t(panelDef(panel).label)}
@@ -30,15 +49,17 @@ export function SidePanel() {
           </PanelHeader>
           {panel === "widget" && <WidgetPanel />}
           {panel === "usage" && <UsagePanel />}
-          {panel === "terminal" && (
-            <PlaceholderPanel icon={<Icons.Terminal />} title={t("panel.terminal")}>
-              {t("panel.terminalSoon")}
+          {folder && !ws && (
+            <PlaceholderPanel icon={panelDef(panel).icon(20)} title={t("panel.noFolder")}>
+              {t("panel.noFolderBody")}
             </PlaceholderPanel>
           )}
-          {panel === "files" && (
-            <PlaceholderPanel icon={<Icons.FileText />} title={t("panel.files")}>
-              {t("panel.filesSoon")}
-            </PlaceholderPanel>
+          {ws && folder && (
+            <Suspense fallback={null}>
+              {panel === "terminal" && <TerminalPanel key={ws.thread.id} ws={ws} />}
+              {panel === "files" && <FilesPane key={ws.project.id} project={ws.project} stacked={!wide} />}
+              {panel === "changes" && <ChangesPanel key={ws.thread.id} ws={ws} />}
+            </Suspense>
           )}
         </>
       )}

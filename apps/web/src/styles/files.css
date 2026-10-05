@@ -5,6 +5,27 @@
   display: grid;
   grid-template-columns: minmax(200px, 280px) 1fr;
 }
+.files--stacked {
+  grid-template-columns: 1fr;
+}
+.files__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 10px 0;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.files__back:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
 .files--empty {
   display: flex;
   align-items: flex-start;
@@ -16,6 +37,9 @@
   overflow: auto;
   padding: 10px 6px;
   border-right: 1px solid var(--apx-border);
+}
+.files--stacked .files__tree {
+  border-right: 0;
 }
 .files__root {
   display: flex;
@@ -97,6 +121,14 @@
   white-space: nowrap;
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
+}
+/* Narrow: the path takes its own line over the size and the view's controls. */
+.files--stacked .files__head {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.files--stacked .files__path {
+  flex-basis: 100%;
 }
 .files__size {
   flex: none;

@@ -61,12 +61,12 @@ export function computeLayout(
   panelOpen: boolean,
   chatShown: boolean,
   transcript: keyof typeof LAYOUT.transcriptW = "medium",
-  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number } = {},
+  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number; panelWide?: boolean } = {},
 ): Layout {
   const rail = Boolean(own.sidebarCollapsed) || width < BREAKPOINTS.sidebarFull;
   const compact = width < BREAKPOINTS.compact;
   const narrow = width < BREAKPOINTS.panelWide;
-  const hideList = narrow && panelOpen && chatShown;
+  const hideList = (narrow || Boolean(own.panelWide)) && panelOpen && chatShown;
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
   const sidebarW = rail
     ? LAYOUT.sidebarRailW
@@ -82,7 +82,14 @@ export function computeLayout(
         : width >= BREAKPOINTS.listWide
           ? LAYOUT.listW
           : LAYOUT.listWNarrow;
-  const panelW = compact ? width - sidebarW : narrow ? LAYOUT.panelWNarrow : LAYOUT.panelW;
+  // Wide: half of what the list leaves (it hides), never under the usual width.
+  const panelW = compact
+    ? width - sidebarW
+    : own.panelWide
+      ? Math.max(LAYOUT.panelW, Math.min(Math.round((width - sidebarW) / 2), width - sidebarW - LAYOUT.chatMinW))
+      : narrow
+        ? LAYOUT.panelWNarrow
+        : LAYOUT.panelW;
   const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
   return {
     rail,

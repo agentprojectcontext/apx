@@ -91,6 +91,12 @@ export type ThreadContext = {
 export type Worker = { name: string; instructions: string; tools?: string[] | undefined };
 
 /** What a thread list shows of the last thing said. */
+/**
+ * A chat that works in a folder with a write policy: a code session, or any project chat the owner set to work in its
+ * project's folder. Its tools and outside engines follow that policy.
+ */
+export const worksInFolder = (t: Pick<Thread, "cwd" | "write">) => Boolean(t.cwd && t.write);
+
 export const PREVIEW_CHARS = 160;
 export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
 
@@ -218,6 +224,11 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       if (a.pinned !== undefined) set.pinned = a.pinned ? 1 : 0;
       if (a.archived !== undefined) set.archived = a.archived ? 1 : 0;
       return repo.write(id, set);
+    },
+    /** Works in `cwd` with that write policy, or (null) stops working in a folder. */
+    workIn(id: string, w: { cwd: string; write: NonNullable<Thread["write"]> } | null): Thread {
+      if (!repo.get(id)) throw new Error(`unknown thread ${id}`);
+      return repo.write(id, w ? { cwd: w.cwd, write_policy: w.write } : { cwd: null, write_policy: null });
     },
     write(id: string, set: Updateable<ThreadsTable>): Thread {
       if (Object.keys(set).length) run(qb.updateTable("threads").set(set).where("id", "=", id));

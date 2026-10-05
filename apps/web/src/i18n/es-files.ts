@@ -3,6 +3,7 @@ import type { MessageKey } from "./en.ts";
 
 export const esFiles: Partial<Record<MessageKey, string>> = {
   "files.tree": "Archivos del proyecto",
+  "files.back": "Archivos",
   "files.repo": "Repositorio",
   "files.none": "Elegí un archivo",
   "files.noneBody": "Su texto aparece acá. El Markdown se lee como página, como fuente o las dos cosas.",

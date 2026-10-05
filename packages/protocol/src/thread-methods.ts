@@ -1,6 +1,6 @@
 // The owner's arrangement of a chat: its name, pinned, archived, and deleting it.
 import { z } from "zod";
-import { Id, Thread } from "./domain.ts";
+import { Id, Thread, WritePolicy } from "./domain.ts";
 
 export const threadMethods = {
   /**
@@ -14,6 +14,11 @@ export const threadMethods = {
         title: z.string().trim().max(200).nullable().optional(),
         pinned: z.boolean().optional(),
         archived: z.boolean().optional(),
+        /**
+         * The chat works in its project's folder with this write policy, like a code session (its tools and engines
+         * follow it); null: it stops. A code session always keeps its folder.
+         */
+        write: WritePolicy.nullable().optional(),
       })
       .strict(),
     result: Thread,

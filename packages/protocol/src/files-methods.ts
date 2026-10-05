@@ -16,7 +16,33 @@ export const FILE_READ_LIMIT = 256 * 1024;
 /** The largest image, video, audio or PDF the viewer previews; bigger ones are opened from Finder. */
 export const FILE_MEDIA_LIMIT = 15 * 1024 * 1024;
 
+/** An uncommitted file in a chat's folder, per git: its status letters and the lines added and removed. */
+export const ChangedFile = z.object({
+  path: z.string(),
+  status: z.string(),
+  added: z.number().int().optional(),
+  removed: z.number().int().optional(),
+});
+export type ChangedFile = z.infer<typeof ChangedFile>;
+
 export const filesMethods = {
+  /**
+   * What is uncommitted in the folder a chat works in (its own, or its project's), per git; `git` false when the
+   * folder is not in a repository.
+   */
+  "files.changes": {
+    params: z.object({ thread: Id }).strict(),
+    result: z.object({ cwd: z.string(), git: z.boolean(), files: z.array(ChangedFile) }),
+    effect: false,
+    access: "human",
+  },
+  /** One changed file's unified diff against the last commit (a new file shows whole, as added). */
+  "files.diff": {
+    params: z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
+    result: z.object({ path: z.string(), diff: z.string(), truncated: z.boolean() }),
+    effect: false,
+    access: "human",
+  },
   /** One folder of the project (folders first, by name); `truncated` when it holds more than the list shows. */
   "files.tree": {
     params: z.object({ project: Id, dir: z.string().max(1000).default("") }).strict(),

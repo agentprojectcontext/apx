@@ -1,26 +1,34 @@
-// What a code thread's folder has uncommitted, per git, for the card at the end of a turn.
+// What a folder has uncommitted, per git: the card at the end of a code turn and the chat's Changes panel.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { Part } from "@apx/protocol";
+import type { ChangedFile, Part } from "@apx/protocol";
 
 const run = promisify(execFile);
 const MAX_FILES = 50;
+/** The most of one file's diff the panel shows. */
+const MAX_DIFF = 200 * 1024;
 
-/** Undefined when the folder is not in a git work tree, or nothing is uncommitted. */
-export async function gitChanges(cwd: string): Promise<Extract<Part, { type: "changes" }> | undefined> {
-  // The repo's own config must not make this run anything: no fsmonitor, hooks, external diff or text conversion.
-  const git = (args: string[]) =>
-    run(
-      "git",
-      ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
-      { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 },
-    ).then((r) => r.stdout);
+/** git, with the repo's own config unable to make it run anything: no fsmonitor, hooks, external diff or textconv. */
+const git = (cwd: string, args: string[]) =>
+  run(
+    "git",
+    ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
+    { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 },
+  ).then((r) => r.stdout);
+
+/**
+ * Every uncommitted file under `cwd` (paths relative to it, git gives them from the repo's root) with its lines added
+ * and removed; undefined outside a git work tree.
+ */
+export async function gitStatus(cwd: string): Promise<ChangedFile[] | undefined> {
   let status: string;
   let numstat: string;
+  let prefix: string;
   try {
-    [status, numstat] = await Promise.all([
-      git(["status", "--porcelain=v1", "--untracked-files=all", "--", "."]),
-      git(["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--numstat", "--", "."]).catch(() => ""),
+    [prefix, status, numstat] = await Promise.all([
+      git(cwd, ["rev-parse", "--show-prefix"]).then((x) => x.trim()),
+      git(cwd, ["status", "--porcelain=v1", "--untracked-files=all", "--", "."]),
+      git(cwd, ["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--numstat", "--", "."]).catch(() => ""),
     ]);
   } catch {
     return undefined;
@@ -28,21 +36,42 @@ export async function gitChanges(cwd: string): Promise<Extract<Part, { type: "ch
   const counts = new Map<string, { added: number; removed: number }>();
   for (const line of numstat.split("\n")) {
     const [a, r, file] = line.split("\t");
-    if (file && a !== "-") counts.set(file, { added: Number(a), removed: Number(r) });
+    if (file && a !== "-") counts.set(file.split(" => ").at(-1) ?? file, { added: Number(a), removed: Number(r) });
   }
-  const files = status
+  return status
     .split("\n")
     .filter(Boolean)
     .map((line) => {
       const file = line.slice(3).split(" -> ").at(-1) ?? "";
       const c = counts.get(file);
-      return { path: file, status: line.slice(0, 2).trim() || "M", ...(c ?? {}) };
+      const rel = file.startsWith(prefix) ? file.slice(prefix.length) : file;
+      return { path: rel.replace(/^"|"$/g, ""), status: line.slice(0, 2).trim() || "M", ...(c ?? {}) };
     });
-  if (!files.length) return undefined;
+}
+
+/** Undefined when the folder is not in a git work tree, or nothing is uncommitted. */
+export async function gitChanges(cwd: string): Promise<Extract<Part, { type: "changes" }> | undefined> {
+  const files = await gitStatus(cwd);
+  if (!files?.length) return undefined;
   return {
     type: "changes",
     cwd,
     files: files.slice(0, MAX_FILES),
     ...(files.length > MAX_FILES ? { more: files.length - MAX_FILES } : {}),
   };
+}
+
+/** One file's unified diff against HEAD (a new file: all of it as added), cut at MAX_DIFF. */
+export async function gitDiff(cwd: string, file: string): Promise<{ diff: string; truncated: boolean }> {
+  const tracked = await git(cwd, ["ls-files", "--", file]).catch(() => "");
+  let diff: string;
+  if (tracked.trim()) {
+    diff = await git(cwd, ["diff", "--no-ext-diff", "--no-textconv", "HEAD", "--", file]).catch(() => "");
+  } else {
+    // `--no-index` exits 1 when the files differ, which they always do here.
+    diff = await git(cwd, ["diff", "--no-ext-diff", "--no-textconv", "--no-index", "--", "/dev/null", file]).catch(
+      (e: { stdout?: string }) => e.stdout ?? "",
+    );
+  }
+  return diff.length > MAX_DIFF ? { diff: diff.slice(0, MAX_DIFF), truncated: true } : { diff, truncated: false };
 }

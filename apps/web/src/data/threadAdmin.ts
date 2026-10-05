@@ -1,5 +1,5 @@
 // The owner's arrangement of chats (rename, pin, archive) and deleting one, plus which of their dialogs is open.
-import type { Thread } from "@apx/protocol";
+import type { Thread, WritePolicy } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -17,7 +17,7 @@ export const useThreadDialog = () => useSlice(dialogs, (s) => s.open);
 /** Renames (`title: null` = the automatic title again), pins or archives; the list follows at once. */
 export async function updateThread(
   id: string,
-  patch: { title?: string | null; pinned?: boolean; archived?: boolean },
+  patch: { title?: string | null; pinned?: boolean; archived?: boolean; write?: WritePolicy | null },
 ): Promise<boolean> {
   try {
     const thread = await client.call("threads.update", { thread: id, ...patch });

@@ -98,6 +98,13 @@ function schedule(): void {
   }, wait);
 }
 
+/** Views that follow a stream of their own (a terminal's output, a chat's commands) without going through the store. */
+const watchers = new Set<(ev: CoreEvent) => void>();
+export function watchEvents(listener: (ev: CoreEvent) => void): () => void {
+  watchers.add(listener);
+  return () => watchers.delete(listener);
+}
+
 function onFrame(frame: EventFrame): void {
   const prev = lastSeq.get(frame.stream);
   lastSeq.set(frame.stream, frame.seq);
@@ -105,7 +112,10 @@ function onFrame(frame: EventFrame): void {
   if (frame.stream !== "core") return;
   // The core built and validated the event; an unknown type (a newer core) falls through apply's switch.
   const ev = frame.payload as CoreEvent | undefined;
-  if (ev && typeof ev === "object" && typeof ev.type === "string") apply(ev);
+  if (ev && typeof ev === "object" && typeof ev.type === "string") {
+    apply(ev);
+    for (const w of watchers) w(ev);
+  }
 }
 
 function scheduleRefetch(): void {

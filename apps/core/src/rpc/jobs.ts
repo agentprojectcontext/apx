@@ -47,7 +47,14 @@ export function jobHandlers(store: Store, engine: Engine) {
         })),
       };
     },
-    "jobs.list": ({ finished }) => {
+    "jobs.list": ({ finished, thread }) => {
+      if (thread) {
+        const mine = store.jobs.ofThread(thread, finished + 20).map(publicJob);
+        return {
+          running: mine.filter((j) => j.state === "working"),
+          finished: mine.filter((j) => j.state !== "working").slice(0, finished),
+        };
+      }
       const runs = store.runs.jobs(finished);
       return {
         running: [...runs.running.map(view), ...store.jobs.running().map(publicJob)].sort(newest),

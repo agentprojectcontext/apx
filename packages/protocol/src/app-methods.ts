@@ -391,8 +391,9 @@ export const appMethods = {
     effect: true,
   },
   /** Running work plus the most recently finished, newest first (the background view). */
+  /** With `thread`: that chat's commands only (the agent's terminal), running and finished, newest first. */
   "jobs.list": {
-    params: z.object({ finished: z.number().int().min(0).max(100).default(30) }).strict(),
+    params: z.object({ finished: z.number().int().min(0).max(100).default(30), thread: Id.optional() }).strict(),
     result: z.object({ running: z.array(Job), finished: z.array(Job) }),
     effect: false,
   },

@@ -91,6 +91,12 @@ export function jobsRepo({ one, all, run }: Sql, bus: Bus) {
         toJob,
       );
     },
+    /** A chat's terminal jobs, newest first. */
+    ofThread(threadId: string, limit: number): JobRecord[] {
+      return all(
+        qb.selectFrom("jobs").selectAll().where("thread_id", "=", threadId).orderBy("started_at", "desc").limit(limit),
+      ).map(toJob);
+    },
     finished(limit: number): JobRecord[] {
       return all(
         qb.selectFrom("jobs").selectAll().where("state", "!=", "working").orderBy("ended_at", "desc").limit(limit),

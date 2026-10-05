@@ -49,6 +49,7 @@ import { setupHandlers } from "./rpc/setup.ts";
 import { systemHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
+import { terminalHandlers } from "./rpc/terminal.ts";
 import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import type { Secrets } from "./secrets.ts";
@@ -152,6 +153,8 @@ type HandlerDeps = {
   addresses: () => string[];
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
+  /** The owner's shells in a chat's folder. */
+  terminals: Parameters<typeof terminalHandlers>[1];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -190,6 +193,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots),
     ...fileHandlers(d.store, d.desktop),
+    ...terminalHandlers(d.store, d.terminals),
     ...sessionHandlers(d.store, d.native),
     ...setupHandlers({
       store: d.store,

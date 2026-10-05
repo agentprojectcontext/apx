@@ -4,7 +4,7 @@ import type { ChannelKind } from "../channels/kinds.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
-export type PanelKind = "browser" | "terminal" | "files" | "widget" | "usage" | "agent";
+export type PanelKind = "browser" | "terminal" | "files" | "changes" | "widget" | "usage" | "agent";
 
 export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
 
@@ -51,6 +51,8 @@ export type NavState = {
   threadId: string | undefined;
   appId: string | undefined;
   panel: PanelKind | null;
+  /** The side panel takes half the chat area (files, changes, a terminal), instead of its usual column. */
+  panelWide: boolean;
   browserTab: string | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
   panelAgent: string | undefined;
@@ -90,7 +92,7 @@ function initialMode(): ApxMode {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-const PANELS: readonly PanelKind[] = ["browser", "terminal", "files", "widget", "usage"];
+const PANELS: readonly PanelKind[] = ["browser", "terminal", "files", "changes", "widget", "usage"];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
 const VIEWS: readonly string[] = ["tasks", "resources"];
 
@@ -130,6 +132,7 @@ export const nav = createStore<NavState>({
   threadId: "home",
   appId: undefined,
   panel: null,
+  panelWide: false,
   browserTab: undefined,
   panelAgent: undefined,
   mode: initialMode(),
@@ -264,6 +267,9 @@ export const go = {
   },
   panel(panel: PanelKind | null) {
     nav.set({ panel });
+  },
+  togglePanelWide() {
+    nav.set((s) => ({ panelWide: !s.panelWide }));
   },
   togglePanel(panel: PanelKind) {
     nav.set((s) => ({ panel: s.panel === panel ? null : panel }));

@@ -1,16 +1,48 @@
-import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, ProjectTile, Tag } from "@apx/ui";
+import type { Agent, Thread, WritePolicy } from "@apx/protocol";
+import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag } from "@apx/ui";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
+import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
 import { go, useNav } from "../shell/nav.ts";
+
+const POLICIES: WritePolicy[] = ["ask", "auto", "read-only"];
+
+/**
+ * Whether the chat works in its project's folder and how freely: the same switch a code session has. Off, its agent
+ * still runs commands there, asking as usual; on, its tools and outside engines follow the chosen policy.
+ */
+function folderMenu(thread: Thread, t: ReturnType<typeof useT>): MenuEntry {
+  return {
+    type: "submenu",
+    label: t("chat.folder"),
+    icon: <Icons.FolderCode size={14} />,
+    items: [
+      ...(thread.kind === "code"
+        ? []
+        : [
+            {
+              label: t("chat.folderOff"),
+              checked: !thread.write,
+              onSelect: () => void updateThread(thread.id, { write: null }),
+            },
+            { type: "separator" as const },
+          ]),
+      ...POLICIES.map((w) => ({
+        label: t(`write.${w}`),
+        checked: thread.write === w,
+        onSelect: () => void updateThread(thread.id, { write: w }),
+      })),
+    ],
+  };
+}
 
 export function ChatHeader({
   thread,
@@ -100,7 +132,7 @@ export function ChatHeader({
               {t("chat.viaChannel", { channel: channelLabel })}
             </Tag>
           )}
-          {thread.kind === "code" && thread.cwd && (
+          {thread.cwd && thread.write && (
             <span className="chat__code" title={thread.cwd}>
               {thread.engine || agent?.harness ? (
                 <EngineIcon engine={thread.engine ?? agent?.harness ?? ""} size={12} />
@@ -130,6 +162,9 @@ export function ChatHeader({
               t,
               agent,
               extra: [
+                ...(project?.path && project.present && ["loose", "agent", "code"].includes(thread.kind)
+                  ? [folderMenu(thread, t)]
+                  : []),
                 {
                   label: t("chat.compact"),
                   icon: <Icons.Layers size={14} />,

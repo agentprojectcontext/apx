@@ -2,6 +2,7 @@
 // Agent SDK. APX keeps identity and tools: the system prompt is ours and every APX tool call comes back through
 // `io.execute`. See DECISIONS.md#d-007
 import { z } from "zod";
+import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
@@ -73,7 +74,7 @@ function apxServer({ createSdkMcpServer, tool }: Sdk, io: TurnIO, counts: Counts
 function toolOptions(io: TurnIO, counts: Counts) {
   const ours = io.tools.map((s) => `mcp__apx__${s.function.name}`);
   if (io.sealed) return { tools: [], allowedTools: ours, permissionMode: "dontAsk" as const };
-  if (io.thread.kind !== "code")
+  if (!worksInFolder(io.thread))
     return { tools: CLAUDE_BUILTINS, allowedTools: [...CLAUDE_BUILTINS, ...ours], permissionMode: "dontAsk" as const };
   return {
     tools: [...CLAUDE_BUILTINS, ...CODE_READ, ...CODE_WRITE],

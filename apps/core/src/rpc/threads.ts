@@ -21,7 +21,7 @@ import type { Handlers } from "./router.ts";
  * A code thread's folder: inside its project's folder on disk, symlinks resolved, so the agent cannot be pointed
  * outside the project.
  */
-function codeFolder(store: Store, projectId: string | undefined, cwd: string | undefined): string {
+export function codeFolder(store: Store, projectId: string | undefined, cwd: string | undefined): string {
   const project = projectId ? store.projects.get(projectId) : undefined;
   if (!project?.path || !project.present) throw badRequest("a code thread needs a project whose folder is on disk");
   let root: string;

@@ -5,6 +5,7 @@ import path from "node:path";
 import { FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
 import type { DesktopOps } from "../desktop.ts";
 import type { Store } from "../domain/store.ts";
+import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
 import type { Handlers } from "./router.ts";
@@ -38,6 +39,16 @@ const MEDIA: Record<string, string> = {
 };
 export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
 
+/** The folder a chat works in: a code session's own, else its project's. */
+export function threadFolder(store: Store, threadId: string): string {
+  const t = store.threads.get(threadId);
+  if (!t) throw notFound(`thread ${threadId}`);
+  if (t.cwd) return t.cwd;
+  const p = t.project_id ? store.projects.get(t.project_id) : undefined;
+  if (!p?.path || !p.present) throw badRequest("this chat has no folder on this machine");
+  return p.path;
+}
+
 export function fileHandlers(store: Store, desktop: DesktopOps) {
   /** The project's folder, and `rel` inside it resolved (refused when it, or what a link points to, leaves it). */
   const locate = (project: string, rel: string) => {
@@ -53,7 +64,20 @@ export function fileHandlers(store: Store, desktop: DesktopOps) {
     return { root, abs, rel: clean };
   };
 
+  const folderOf = (threadId: string) => threadFolder(store, threadId);
+
   return {
+    "files.changes": async ({ thread }) => {
+      const cwd = folderOf(thread);
+      const files = await gitStatus(cwd);
+      return { cwd, git: files !== undefined, files: (files ?? []).filter((f) => !hidden(f.path)) };
+    },
+    "files.diff": async ({ thread, path: rel }) => {
+      const cwd = folderOf(thread);
+      if (!insideReal(cwd, rel) || hidden(rel) || path.isAbsolute(rel))
+        throw badRequest(`${rel} is outside the folder`);
+      return { path: rel, ...(await gitDiff(cwd, rel)) };
+    },
     "files.tree": ({ project, dir }) => {
       const { root, abs } = locate(project, dir);
       let folder: fs.Dir;

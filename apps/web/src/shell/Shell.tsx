@@ -40,7 +40,8 @@ export function Shell() {
   const config = useNav((s) => s.config != null);
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
-  const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, own);
+  const panelWide = useNav((s) => s.panelWide);
+  const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
   useShortcuts();
   useDesktopBridge();
 

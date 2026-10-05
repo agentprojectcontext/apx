@@ -317,3 +317,311 @@
     border-radius: 0;
   }
 }
+
+/* Changes: the chat's folder against its last commit, one folding row per file */
+.wchanges__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--apx-border);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.wchanges__where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wchanges__stat,
+.wchanges__add,
+.wchanges__del {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.wchanges__add {
+  color: var(--apx-brand);
+}
+.wchanges__del {
+  color: var(--apx-danger);
+}
+.wchanges__list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+.wchanges__file {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  overflow: hidden;
+}
+.wchanges__file + .wchanges__file {
+  margin-top: 4px;
+}
+.wchanges__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 10px 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.wchanges__row:hover {
+  background: var(--apx-fill-hover);
+}
+.wchanges__row svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.wchanges__name {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+}
+.wchanges__dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__spacer {
+  flex: 1;
+}
+.wchanges__badge {
+  padding: 0 6px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 11px;
+}
+.wchanges__error {
+  margin: 8px 12px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.wchanges__loading {
+  height: 60px;
+  margin: 8px;
+}
+.diff {
+  border-top: 1px solid var(--apx-border);
+  overflow-x: auto;
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.diff__line {
+  display: grid;
+  grid-template-columns: 40px 16px max-content;
+  min-width: 100%;
+}
+.diff__n {
+  padding-right: 8px;
+  color: var(--apx-fg-subtle);
+  text-align: right;
+  user-select: none;
+}
+.diff__sign {
+  color: var(--apx-fg-subtle);
+  user-select: none;
+}
+.diff__text {
+  padding-right: 12px;
+  white-space: pre;
+}
+.diff__line--add {
+  background: color-mix(in srgb, var(--apx-brand) 14%, transparent);
+}
+.diff__line--add .diff__sign {
+  color: var(--apx-brand);
+}
+.diff__line--del {
+  background: color-mix(in srgb, var(--apx-danger) 14%, transparent);
+}
+.diff__line--del .diff__sign {
+  color: var(--apx-danger);
+}
+.diff__line--hunk {
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+}
+.diff__line--hunk .diff__text {
+  padding: 2px 0;
+}
+
+/* Terminal: the agent's commands, then the owner's shells, one tab each */
+.term {
+  overflow: hidden;
+}
+.term__tabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--apx-border);
+}
+.term__tab,
+.term__tab > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 26px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: var(--apx-text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.term__tab {
+  padding: 0 8px;
+}
+.term__tab:has(> button) {
+  gap: 0;
+  padding: 0 0 0 8px;
+}
+.term__tab > button {
+  padding: 0;
+}
+.term__tab:hover {
+  color: var(--apx-fg);
+  background: var(--apx-fill-hover);
+}
+.term__tab.is-on {
+  color: var(--apx-fg);
+  background: var(--apx-fill);
+}
+.term__ended {
+  color: var(--apx-fg-subtle);
+}
+.term__loading {
+  height: 80px;
+  margin: 10px;
+}
+.term__view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.term__xterm {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 4px 4px 10px;
+}
+.term__note {
+  margin: 8px 10px 0;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.term__link {
+  margin-top: 8px;
+  border: 0;
+  background: none;
+  color: var(--apx-brand);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  cursor: pointer;
+}
+.term__jobs {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+}
+.term__job {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  overflow: hidden;
+}
+.term__job + .term__job {
+  margin-top: 4px;
+}
+.term__jobrow {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+}
+.term__jobtoggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.term__jobtoggle:hover {
+  background: var(--apx-fill-hover);
+}
+.term__jobtoggle svg {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.term__cmd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+}
+.term__chip {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 11px;
+}
+.term__status {
+  flex: none;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.term__status.is-running {
+  color: var(--apx-brand);
+}
+.term__status.is-failed {
+  color: var(--apx-danger);
+}
+.term__out {
+  max-height: 360px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
