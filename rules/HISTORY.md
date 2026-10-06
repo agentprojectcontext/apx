@@ -205,3 +205,18 @@ enabled extension, and every restart re-checks approval and fingerprint. Where: 
 The idempotency cache stored `clients.create`'s token in plain text and replayed a key to any caller. Keys are now
 scoped to the caller (client, run or actor) and methods marked `replay: false` are not cached. Where:
 `apps/core/src/rpc/router.ts`, `packages/protocol/src/methods.ts`.
+
+<a id="optional-tools-and-channel-continuations"></a>
+### Optional tool arguments and channel destinations remain explicit
+Responses may normalize an omitted `strict` into a schema with all properties required. An optional worker then
+became a mandatory placeholder alongside the named agent. The transport now sends `strict: false`; the executor
+still validates arguments and rejects conflicting delegation targets before showing a successful action.
+See [OpenAI's function calling guide](https://developers.openai.com/api/docs/guides/function-calling).
+
+Total autonomy now applies to `ask` tools even when outside data is in context, matching the owner's explicit
+selection; `always` still requires approval. Each run stores its reply destination, including room message references,
+so queued inputs cannot redirect an earlier answer. Resumed approvals and asynchronous results inherit that destination.
+
+Telegram connection timeouts, including aggregate IPv4/IPv6 connect failures, are retried because nothing was sent.
+Timeouts after connecting remain uncertain and are never resent blindly. Where: `apps/core/src/providers/chatgpt-responses.ts`,
+`tools/agents.ts`, `tools/policy.ts`, `engine/engine.ts`, `channels/manager.ts`, `channels/net.ts`.

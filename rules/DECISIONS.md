@@ -94,7 +94,8 @@ with `z.fromJSONSchema`, never a hand-made copy) and the check the model's argum
 core state call protocol methods through the router as the agent, so the router's rules (validation, owner-only
 methods) apply to agents too. Whether a call runs is decided in one place, `authorize`: the agent's `tools:` list,
 its `autonomy:` (`ask` / `standard` / `total`, from its APC file), the tool's confirm level for those arguments
-(`never` / `untrusted` / `ask` / `always`) and whether untrusted content is in the turn. A delegated run gets the
+(`never` / `untrusted` / `ask` / `always`) and whether untrusted content is in the turn. The owner's explicit `total`
+choice skips `ask` and `untrusted` confirmations even with outside content; `always` remains mandatory. A delegated run gets the
 intersection of its callers' tools and the strictest autonomy. Confirmations, questions and (later) browser handoffs
 share one durable machine (`pending_inputs` + `runs.respond`): a wait survives restarts, a timeout counts as a no,
 and an approval that arrives after its turn ended allows exactly one identical call. Agents' own commands
@@ -126,7 +127,9 @@ no memory, no projects, only that chat, input marked untrusted, reply filtered f
 pairing code the owner approves (as themselves, as a contact, or not at all), which replaces v1's
 first-writer-is-owner. Everything a channel sends goes through a durable outbox (`queued → sending → sent`, retried
 only when nothing went out, `uncertain` when it may have, never resent blind). Answers return to the channel the
-thread's last message came from until the owner writes in the app; confirmations and options reach the owner as
+run's stored destination, so queued messages from the app or another channel cannot redirect an earlier turn.
+Approval on a channel redirects only the run being approved; resumed approvals, jobs and delegation results inherit
+their original run's destination. Confirmations and options reach the owner as
 buttons only the owner's address can press.
 
 <a id="d-015"></a>

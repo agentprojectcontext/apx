@@ -49,7 +49,7 @@ gets the types. There is no other way into a handler.
 ## 4. State and persistence
 
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
-`model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, depth,
+`model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, reply destination, depth,
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
 idempotency. `~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
@@ -74,6 +74,11 @@ notice when there is no text. Tools that touch core state call protocol methods 
 - **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
   rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
   wakes the agent with a new run.
+- **Conversation retrieval** (`tools/chats.ts`): global specialists can search the owner's global chats;
+  project agents keep their project/participation scope. External-client chats remain private to their client.
+  Other agents' channel chats, rooms and subthreads are not shared with global specialists. Search applies
+  visibility before ranking limits, interprets agent names as participants, and includes archived history.
+  A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
 - **a2a** (`engine/delegation.ts`): `delegate` opens a named session (an a2a sub-thread) or continues one by name;
   the child works with no more than its callers (`inherit`); if the caller stopped waiting, the result comes back as
   an `a2a_result` run. Limits live in `engine/limits.ts`; `engine/breaker.ts` pauses chains that run without the
