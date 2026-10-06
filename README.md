@@ -146,6 +146,53 @@ for V2 progress and release news.
 - [Discord community](https://discord.gg/vxdZuT5WuE)
 - [Report a bug or suggest an improvement](https://github.com/agentprojectcontext/apx/issues)
 
+<details>
+<summary>Technical reference: v1 channels and coding runtimes</summary>
+
+## Message channels
+
+Activity belongs to APX runtime state, not `.apc/`. Message storage is local to APX, under
+`~/.apx/`:
+
+JSONL messages include `type` (`user`, `agent`, `tool`, or `system`) plus `actor_id`, so chat views
+can distinguish Telegram users from APX agents and future subagents.
+
+A **channel** is the surface a turn arrived on. The canonical list lives in
+`src/core/constants/channels.js`; `voice` is a *mode*, not a channel.
+
+| Channel | What it captures |
+|---------|-----------------|
+| `cli` | `apx exec` / `apx run` from the terminal |
+| `telegram` | Telegram bot messages |
+| `api` | Direct daemon HTTP calls |
+| `web` | The admin panel's main chat |
+| `web_sidebar` | The panel's side assistant |
+| `web_code` | The panel's coding surface |
+| `code` | `apx code` sessions |
+| `deck` | The tablet/phone dashboard |
+| `desktop` | The floating voice capsule (always voice mode) |
+| `routine` | Scheduled routine runs |
+
+## Runtimes
+
+| Runtime | Description |
+|---------|-------------|
+| `claude-code` | Spawns Claude Code CLI with the agent's system prompt injected |
+| `codex` | OpenAI Codex CLI via non-interactive `codex exec --sandbox workspace-write --skip-git-repo-check` |
+| `opencode` | OpenCode CLI |
+| `aider` | Aider CLI |
+| `cursor-agent` | Cursor's headless agent |
+| `gemini-cli` | Google Gemini CLI |
+| `qwen-code` | Qwen Code CLI |
+| `antigravity` | Antigravity CLI |
+
+Global APX skill installation also writes named helper skills for `codex-cli`, `claude-code`,
+`opencode-cli`, and `openrouter`. They are intentionally narrow and should activate only when those
+tools/providers are explicitly mentioned.
+
+
+</details>
+
 ## Where APX started
 
 APX began as a way to make **APC — Agent Project Context** work in practice: portable agent definitions,
