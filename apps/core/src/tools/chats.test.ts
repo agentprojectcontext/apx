@@ -4,7 +4,12 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`seen: ${String(req.messages.at(-1)?.content)}`);
-  if (said === "find it") return callTool("s1", "search_chats", { query: "dentist appointment" });
+  if (said.startsWith("search:")) return callTool("q1", "search_chats", { query: said.slice(7) });
+  if (said.startsWith("read:")) return callTool("q2", "read_chat", { chat: said.slice(5) });
+  if (said === "find participant") return callTool("p1", "search_chats", { query: "Roby dentist appointment" });
+  if (said === "read participant") return callTool("p2", "read_chat", { chat: "Roby" });
+  if (said === "ask colleague" && !afterTool) return callTool("p3", "delegate", { agent: "roby", task: "find it" });
+  if (said.includes("find it")) return callTool("s1", "search_chats", { query: "dentist appointment" });
   if (said === "read it") return callTool("r1", "read_chat", { chat: "Errands" });
   if (said === "read nothing") return callTool("r2", "read_chat", { chat: "no such chat" });
   return say("noted");
@@ -50,4 +55,106 @@ test("an agent reads another chat by its title, each message with who said it", 
 test("a chat that does not exist lists the ones the agent can read", async () => {
   await env.client.call("threads.send", { thread: "home", text: "read nothing" });
   assert.match(await lastText(), /no chat named "no such chat"[\s\S]*Errands/);
+});
+
+test("a global specialist finds another agent's owner conversation by participant and topic", async () => {
+  env.core.store.agents.upsert({
+    id: "editor",
+    name: "Editor",
+    role: "editor",
+    kind: "agent",
+    browser_profile: "shared",
+    source: "local",
+    prompt: "",
+  });
+  const chat = await env.client.call("threads.create", {
+    kind: "loose",
+    title: "Conversation with Roby",
+    agent_id: "editor",
+  });
+  await env.client.call("threads.send", { thread: chat.id, text: "find participant" });
+  assert.match(
+    (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "",
+    /Errands/,
+  );
+  await env.client.call("threads.send", { thread: chat.id, text: "read participant" });
+  assert.match(
+    (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "",
+    /id="home"/,
+  );
+});
+
+test("a project specialist can ask the global agent to retrieve context through A2A", async () => {
+  env.core.store.projects.upsert({ id: "team", name: "Team" });
+  env.core.store.agents.upsert({
+    id: "team-editor",
+    name: "Team editor",
+    role: "editor",
+    kind: "agent",
+    project_id: "team",
+    browser_profile: "shared",
+    source: "local",
+    prompt: "",
+  });
+  const chat = env.core.store.threads.create({ kind: "loose", title: "Team review", agent_ids: ["team-editor"] });
+  await env.client.call("threads.send", { thread: chat.id, text: "find participant" });
+  assert.match(
+    (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "",
+    /delegate/,
+  );
+  await env.client.call("threads.send", { thread: chat.id, text: "ask colleague" });
+  const done = await env.settle(chat.id);
+  assert.match(
+    done.messages
+      .at(-1)
+      ?.parts.filter((p) => p.type === "text")
+      .map((p) => p.text)
+      .join(" ") ?? "",
+    /dentist appointment/,
+  );
+  assert.equal(env.core.store.threads.sessions(chat.id)[0]?.agent_ids[0], "roby");
+});
+
+test("search scopes before ranking limits and excludes external clients, rooms and other projects", async () => {
+  const store = env.core.store;
+  const review = store.threads.create({ kind: "loose", title: "Search review", agent_ids: ["editor"] });
+  const visible = store.threads.create({ kind: "loose", title: "Older owner chat", agent_ids: ["roby"] });
+  store.threads.arrange(visible.id, { archived: true });
+  store.messages.add({
+    thread_id: visible.id,
+    author: { kind: "user" },
+    parts: [{ type: "text", text: "uniquecontext evidence" }],
+  });
+  for (let i = 0; i < 55; i++) {
+    const hidden = store.threads.create({
+      kind: "loose",
+      title: `Private ${i}`,
+      project_id: "team",
+      agent_ids: ["team-editor"],
+    });
+    store.messages.add({
+      thread_id: hidden.id,
+      author: { kind: "user" },
+      parts: [{ type: "text", text: "uniquecontext evidence" }],
+    });
+  }
+  const client = store.threads.create({ kind: "loose", title: "External client", agent_ids: ["editor"] });
+  store.threads.mergeContext(client.id, { client: "external" });
+  const room = store.threads.create({ kind: "loose", title: "Room", agent_ids: ["roby"] });
+  store.threads.mergeContext(room.id, { room: { name: "Room" } });
+  for (const t of [client, room]) {
+    store.messages.add({
+      thread_id: t.id,
+      author: { kind: "user" },
+      parts: [{ type: "text", text: "uniquecontext evidence" }],
+    });
+    await env.client.call("threads.send", { thread: review.id, text: `read:${t.id}` });
+    const done = await env.settle(review.id);
+    assert.match(done.messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "", /no chat named/);
+  }
+  await env.client.call("threads.send", { thread: review.id, text: "search:uniquecontext evidence" });
+  const done = await env.settle(review.id);
+  const result = done.messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "";
+  assert.match(result, /Older owner chat/);
+  assert.doesNotMatch(result, /Private \d|External client|\[Contact|\[Room/);
 });

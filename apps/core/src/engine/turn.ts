@@ -332,7 +332,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
             timeZone: ownerTimeZone(store),
-            channel: channelKindOf(store, o),
+            channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
             voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
             feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
           }),
@@ -348,9 +348,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
 }
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
-function channelKindOf(store: Store, o: Origin) {
-  if (o.kind !== "channel") return undefined;
-  return store.settings.read("channels").find((c) => c.id === o.channel)?.type ?? o.channel;
+function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
+  const channel = replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
+  if (!channel) return undefined;
+  return store.settings.read("channels").find((c) => c.id === channel)?.type ?? channel;
 }
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */

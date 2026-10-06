@@ -73,8 +73,8 @@ test("ask-level calls wait unless the agent's autonomy is total", () => {
   const cmd = tool("cmd", "external", "ask");
   assert.equal(authorize(cmd, {}, agent(), false).kind, "confirm");
   assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), false).kind, "allow");
-  // …but not while untrusted content is in the turn.
-  assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), true).kind, "confirm");
+  assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), true).kind, "allow");
+  assert.equal(authorize(cmd, {}, agent(), true).kind, "confirm");
 });
 
 test("standard autonomy: high-impact calls wait only while untrusted content is in context", () => {

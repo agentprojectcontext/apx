@@ -78,7 +78,8 @@ export function createInbound(deps: {
     }
     if (!owner && overLimit(person.id, person.name)) return "ignored";
     const text = m.voice ? await heard(m, thread.id) : m.text;
-    if (owner && (await answerPending(thread.id, text, rowId))) return "done";
+    if (owner && (await answerPending(thread.id, text, rowId, { channel: cfg.id, conversation: m.conversation })))
+      return "done";
     await call(
       "threads.send",
       { thread: thread.id, text, mode: owner ? cfg.concurrency : "queue" },
@@ -234,9 +235,16 @@ export function createInbound(deps: {
   }
 
   /** The owner's text answers an open question of that thread, when one is waiting for words. */
-  async function answerPending(threadId: string, words: string, rowId: string): Promise<boolean> {
+  async function answerPending(
+    threadId: string,
+    words: string,
+    rowId: string,
+    to: { channel: string; conversation: string },
+  ): Promise<boolean> {
     const open = store.inputs.pending(threadId).find((i) => i.kind === "question");
     if (!open) return false;
+    store.threads.mergeContext(threadId, { reply_to: to });
+    store.runs.setReplyTo(open.run_id, to);
     await call("runs.respond", { input: open.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
     return true;
   }
@@ -263,6 +271,7 @@ export function createInbound(deps: {
       const input = store.inputs.get(button.inputId);
       if (input?.state !== "pending") return;
       store.threads.mergeContext(input.thread_id, { reply_to: { channel, conversation: a.conversation } });
+      store.runs.setReplyTo(input.run_id, { channel, conversation: a.conversation });
       if (button.kind === "input") {
         await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });
         reply(button.answer === "approve" ? t.approved : t.denied);

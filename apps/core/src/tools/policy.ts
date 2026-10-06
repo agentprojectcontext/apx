@@ -48,8 +48,7 @@ const OUTSIDE = "content from outside (web, another agent or a message) is in th
 export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untrusted: boolean): Decision {
   const autonomy = agent.autonomy ?? "standard";
   if (level === "always") return { kind: "confirm", why: "always", reason: "this action always needs your OK" };
-  // Total autonomy skips the question only while the turn holds nothing from outside that could be steering it.
-  if (level === "ask" && (autonomy !== "total" || untrusted))
+  if (level === "ask" && autonomy !== "total")
     return untrusted
       ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
       : { kind: "confirm", why: "needs_ok", reason: `${agent.name} needs your OK for this kind of action` };

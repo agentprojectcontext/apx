@@ -132,7 +132,10 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       store.threads.patch(threadId, { preview: previewOf(text) });
       // Attachments need a turn of their own: a steer only carries words.
       const into = steer && !files.length ? engine.steer(threadId, text) : undefined;
-      if (into) return { message, run: publicRun(into), steered: true };
+      if (into) {
+        store.runs.setReplyTo(into.id, store.threads.context(threadId).reply_to);
+        return { message, run: publicRun(into), steered: true };
+      }
       return { message, run: publicRun(engine.admit({ ...admit, thread_id: threadId, text })) };
     });
   }
@@ -142,7 +145,9 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     const owner = ch.role === "owner";
     if (owner && mode === "interrupt") engine.interrupt(threadId);
     // Answers go back where this message came from, until the owner writes somewhere else.
-    store.threads.mergeContext(threadId, { reply_to: { channel: ch.id, conversation: ch.conversation } });
+    store.threads.mergeContext(threadId, {
+      reply_to: { channel: ch.id, conversation: ch.conversation, ...(ch.message ? { message: ch.message } : {}) },
+    });
     return post(
       threadId,
       text,

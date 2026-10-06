@@ -210,6 +210,7 @@ export function createRooms(deps: {
         channel: {
           id: cfg.id,
           conversation: room.id,
+          message: p.m.external_id,
           person_id: who.id,
           name: who.name,
           role: who.owner ? "owner" : "contact",
@@ -217,9 +218,6 @@ export function createRooms(deps: {
       },
       `channel:${p.rowId}`,
     );
-    // The answer goes to the room as a reply to this message.
-    const to = store.threads.context(thread.id).reply_to;
-    if (to) store.threads.mergeContext(thread.id, { reply_to: { ...to, message: p.m.external_id } });
   }
 
   return {

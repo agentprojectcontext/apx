@@ -5,6 +5,7 @@ import { sql as raw, type Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { RunsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
+import type { ThreadContext } from "./threads.ts";
 
 /** Who a run's input comes from. Stamped by the core, never parsed from text. */
 export type Origin =
@@ -37,7 +38,13 @@ export type Origin =
 
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "file"; mime: string; name: string };
-export type RunInput = { origin: Origin; text: string; attachments?: Attachment[] };
+export type RunInput = {
+  origin: Origin;
+  text: string;
+  attachments?: Attachment[];
+  /** The turn's destination; null means the app. Kept across waits and restarts. */
+  reply_to?: ThreadContext["reply_to"] | null;
+};
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 
 export const TERMINAL: ReadonlySet<RunState> = new Set(["completed", "failed", "canceled"]);
@@ -227,6 +234,16 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("r.state", "in", LIVE),
       );
       return Number(r?.n ?? 0);
+    },
+    setReplyTo(id: string, replyTo: RunInput["reply_to"]): void {
+      const input = repo.get(id)?.input;
+      if (input)
+        run(
+          qb
+            .updateTable("runs")
+            .set({ input: JSON.stringify({ ...input, reply_to: replyTo ?? null }) })
+            .where("id", "=", id),
+        );
     },
     setState(cur: RunRecord, state: RunState, error?: string): RunRecord {
       const terminal = TERMINAL.has(state);

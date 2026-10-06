@@ -95,6 +95,7 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
         exit_code: job.exit_code ?? null,
       },
       text: read(job.id, undefined, WAKE_TAIL).output || "(no output)",
+      reply_to: job.run_id ? store.runs.get(job.run_id)?.input?.reply_to : undefined,
     });
   }
 

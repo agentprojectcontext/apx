@@ -18,6 +18,8 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (said.includes("continue it") && !afterTool)
     return callTool("w3", "delegate", { session: "researcher", task: "and one more" });
   if (said.includes("delegate to me") && !afterTool) return callTool("w4", "delegate", { agent: "roby", task: "x" });
+  if (said.includes("ambiguous delegation") && !afterTool)
+    return callTool("w5", "delegate", { agent: "roby", worker, task: "x" });
   return say(afterTool ? `Done: ${String(req.messages.at(-1)?.content).slice(0, 60)}` : "ok");
 });
 
@@ -100,4 +102,14 @@ test("an agent still cannot delegate to itself", async () => {
   await env.client.call("threads.send", { thread: t.id, text: "delegate to me" });
   const { messages } = await env.settle(t.id);
   assert.match(texts(messages).at(-1) ?? "", /cannot delegate to yourself/);
+});
+
+test("an ambiguous delegation is an invalid call, not a successful tool card", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "ambiguous delegation" });
+  const { messages } = await env.settle(t.id);
+  const tool = messages.at(-1)?.parts.find((p) => p.type === "tool");
+  assert.equal(tool?.type === "tool" && tool.status, "error");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /give agent or worker, not both/);
+  assert.equal(env.core.store.threads.sessions(t.id).length, 0);
 });

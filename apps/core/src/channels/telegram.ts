@@ -3,7 +3,7 @@
 // dropped by the inbox's unique key.
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
-import { causeCode, NEVER_SENT, sleep } from "./net.ts";
+import { neverSent, sleep } from "./net.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 import {
   type AdapterFactory,
@@ -351,7 +351,6 @@ function toSendError(err: unknown, sent: number): SendError {
     if (err.code >= 500) return new SendError("uncertain", msg);
     return new SendError(sent ? "uncertain" : "fatal", msg);
   }
-  const code = causeCode(err);
-  if (code && NEVER_SENT.has(code)) return new SendError("retry", msg, undefined, sent);
+  if (neverSent(err)) return new SendError("retry", msg, undefined, sent);
   return new SendError("uncertain", msg);
 }

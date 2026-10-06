@@ -1,5 +1,5 @@
 // Channels: the owner's Telegram bots (later WhatsApp…). This module runs their adapters and sends what goes out:
-// the answer of a turn whose last words came from a channel, confirmations with buttons, and notices to the owner.
+// the answer of a turn started on a channel, confirmations with buttons, and notices to the owner.
 // What comes in is handled by inbound.ts; sending goes through the durable outbox (delivery.ts).
 // See DECISIONS.md#d-014
 
@@ -162,11 +162,17 @@ export function createChannels(deps: {
   }
 
   // ── replies, confirmations, typing ────────────────────────────────────
-  const replyTo = (threadId: string) => store.threads.context(threadId).reply_to;
+  const replyTo = (runId: string) => {
+    const run = store.runs.get(runId);
+    if (!run) return undefined;
+    if (run.input && "reply_to" in run.input) return run.input.reply_to ?? undefined;
+    const origin = run.input?.origin;
+    if (origin?.kind === "channel") return { channel: origin.channel, conversation: origin.conversation };
+    return store.threads.context(run.thread_id).reply_to;
+  };
 
   /**
-   * A run ended: while the thread's last words from the owner (or contact) came from a channel, the answer goes back
-   * there. Writing in the app clears that, so app turns answer in the app.
+   * A run ended: its answer returns to its own destination, even if another message changed the thread's channel.
    */
   function afterRun(run: RunRecord): void {
     stopTyping(run.id);
@@ -176,7 +182,7 @@ export function createChannels(deps: {
   async function reply(run: RunRecord): Promise<void> {
     const ack = acked.get(run.id);
     acked.delete(run.id);
-    const to = replyTo(run.thread_id);
+    const to = replyTo(run.id);
     if (!to || run.trigger === "surface") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     let out = (msg?.parts ?? [])
@@ -258,12 +264,12 @@ export function createChannels(deps: {
    * never drafted.
    */
   function onText(threadId: string, messageId: string): void {
-    const to = replyTo(threadId);
-    const l = to ? live.get(to.channel) : undefined;
-    if (!to || !l?.adapter.caps.drafts || !l.adapter.draft) return;
     const msg = store.messages.get(messageId);
     const runId = msg?.run_id;
     if (!runId || msg.author.kind !== "agent") return;
+    const to = replyTo(runId);
+    const l = to ? live.get(to.channel) : undefined;
+    if (!to || !l?.adapter.caps.drafts || !l.adapter.draft) return;
     const thread = store.threads.get(threadId);
     if (!thread || audienceOf(store, thread).kind !== "owner") return;
     const d = drafting.get(runId) ?? { at: 0, timer: undefined, id: draftId(messageId) };
@@ -288,10 +294,11 @@ export function createChannels(deps: {
    * long turn does not leave them waiting in silence. Only for the owner, and once per run.
    */
   function onTool(threadId: string, messageId: string): void {
-    const to = replyTo(threadId);
     const msg = store.messages.get(messageId);
     const runId = msg?.run_id;
-    if (!to || !runId || acked.has(runId) || msg.author.kind !== "agent") return;
+    if (!runId || acked.has(runId) || msg.author.kind !== "agent") return;
+    const to = replyTo(runId);
+    if (!to) return;
     const thread = store.threads.get(threadId);
     if (!thread || audienceOf(store, thread).kind !== "owner") return;
     const first = msg.parts.findIndex((p) => p.type === "tool");
@@ -311,8 +318,8 @@ export function createChannels(deps: {
     });
   }
 
-  function startTyping(runId: string, threadId: string): void {
-    const to = replyTo(threadId);
+  function startTyping(runId: string): void {
+    const to = replyTo(runId);
     const l = to ? live.get(to.channel) : undefined;
     if (!to || !l?.adapter.caps.typing || !l.adapter.typing || typing.has(runId)) return;
     const ping = () => void l.adapter.typing?.(to.conversation).catch(() => {});
@@ -326,7 +333,8 @@ export function createChannels(deps: {
     if (announced.has(part.input_id)) return;
     const thread = store.threads.get(threadId);
     if (!thread || audienceOf(store, thread).kind !== "owner") return;
-    const to = replyTo(threadId);
+    const runId = store.inputs.get(part.input_id)?.run_id;
+    const to = runId ? replyTo(runId) : undefined;
     // Asked from the app: it waits there first, then follows the owner.
     if (!to) {
       followUp(part, threadId);
@@ -344,7 +352,7 @@ export function createChannels(deps: {
 
   function onEvent(e: CoreEvent): void {
     if (e.type === "run.updated") {
-      if (e.run.state === "working" && e.run.trigger !== "surface") startTyping(e.run.id, e.run.thread_id);
+      if (e.run.state === "working" && e.run.trigger !== "surface") startTyping(e.run.id);
       else if (e.run.state !== "working") stopTyping(e.run.id);
     } else if (e.type === "message.part" && e.part.type === "tool") {
       onTool(e.thread_id, e.message_id);

@@ -66,6 +66,7 @@ export function createInputs(deps: {
       trigger: "user",
       origin: { kind: "input_answer", input_id: r.id },
       text,
+      reply_to: store.runs.get(r.run_id)?.input?.reply_to,
     });
   }
 

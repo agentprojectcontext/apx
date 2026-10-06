@@ -109,6 +109,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         project_id?: string | undefined;
         include_subthreads?: boolean;
         include_archived?: boolean;
+        limit?: number | null;
         engine?: string | undefined;
       } = {},
     ): Thread[] {
@@ -125,7 +126,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           // Pinned first, so the cap never drops one.
           .orderBy("pinned", "desc")
           .orderBy("updated_at", "desc")
-          .limit(300),
+          .$if(opts.limit !== null, (q) => q.limit(opts.limit ?? 300)),
       ).map(toThread);
     },
     children(parentId: string): string[] {
@@ -351,15 +352,16 @@ export type MessageHit = { message: Message; snippet: string };
 export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
     /** Messages whose text has every word of `query`, best match first, newest among equals. */
-    search(query: string, limit = 30): MessageHit[] {
+    search(query: string, limit = 30, threadIds?: string[]): MessageHit[] {
       const match = messageQuery(query);
-      if (!match) return [];
+      if (!match || threadIds?.length === 0) return [];
       const rows = all(
         qb
           .selectFrom("messages_fts")
           .innerJoin("messages_n", "messages_n.n", "messages_fts.rowid")
           .innerJoin("messages", "messages.id", "messages_n.id")
           .selectAll("messages")
+          .$if(threadIds !== undefined, (q) => q.where("messages.thread_id", "in", threadIds ?? []))
           .where(sql<boolean>`messages_fts MATCH ${match}`)
           .orderBy(sql`bm25(messages_fts)`)
           .orderBy("messages.created_at", "desc")

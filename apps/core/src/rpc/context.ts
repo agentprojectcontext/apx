@@ -17,6 +17,13 @@ export type CallContext = {
   agent?: { id: string; run_id: string; thread_id: string } | undefined;
   /** Set by the channel manager only (never from a request): who wrote on which channel conversation. */
   channel?:
-    | { id: string; conversation: string; person_id: string; name: string; role: "owner" | "contact" }
+    | {
+        id: string;
+        conversation: string;
+        message?: string | undefined;
+        person_id: string;
+        name: string;
+        role: "owner" | "contact";
+      }
     | undefined;
 };

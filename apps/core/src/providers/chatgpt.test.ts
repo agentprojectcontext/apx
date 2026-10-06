@@ -145,7 +145,11 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   const tools = [
     {
       type: "function" as const,
-      function: { name: "task_list", description: "tasks", parameters: { type: "object" } },
+      function: {
+        name: "task_list",
+        description: "tasks",
+        parameters: { type: "object", properties: { mine: { type: "boolean" } }, additionalProperties: false },
+      },
     },
   ];
   const messages = [
@@ -170,6 +174,9 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
     ((call?.body.tools ?? []) as Array<{ name: string }>).map((t) => t.name),
     ["task_list"],
   );
+  const sentTool = ((call?.body.tools ?? []) as Array<Record<string, unknown>>)[0];
+  assert.equal(sentTool?.strict, false, "Responses must not turn optional arguments into mandatory placeholders");
+  assert.deepEqual(sentTool?.parameters, tools[0]?.function.parameters);
 
   const second = await llm.complete({
     models: ["chatgpt/gpt-6-luna"],

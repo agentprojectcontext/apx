@@ -8,6 +8,21 @@ export const NEVER_SENT = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EN
 export const causeCode = (err: unknown): string | undefined =>
   (err as { cause?: { code?: string } } | undefined)?.cause?.code;
 
+/** Connect timeouts are retryable; a timeout after connecting may already have delivered the message. */
+export function neverSent(err: unknown, depth = 0): boolean {
+  if (!err || typeof err !== "object" || depth > 8) return false;
+  const e = err as { code?: string; syscall?: string; cause?: unknown; errors?: unknown[] };
+  if (Array.isArray(e.errors) && e.errors.length) return e.errors.every((x) => neverSent(x, depth + 1));
+  if (
+    e.code &&
+    (NEVER_SENT.has(e.code) ||
+      e.code === "UND_ERR_CONNECT_TIMEOUT" ||
+      (e.code === "ETIMEDOUT" && e.syscall === "connect"))
+  )
+    return true;
+  return neverSent(e.cause, depth + 1);
+}
+
 /** Waits, unless the adapter is stopped first. */
 export function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {

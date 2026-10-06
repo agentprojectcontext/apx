@@ -2,7 +2,7 @@
 // thread from the durable queue (the runs table), and reports its end to whoever waits for it.
 // See DECISIONS.md#d-009
 import type { RunTrigger, Thread } from "@apx/protocol";
-import { type Attachment, type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
+import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { Canceled, DeadlineExceeded, Shutdown } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
@@ -62,6 +62,7 @@ export type Admit = {
   text: string;
   /** Files and images the owner attached (the run's input keeps them). */
   attachments?: Attachment[];
+  reply_to?: RunInput["reply_to"];
   depth?: number;
 };
 
@@ -146,6 +147,7 @@ export function createEngine(deps: {
         },
         text: answer,
         depth: parent.depth,
+        reply_to: parent.input?.reply_to,
       });
     },
   });
@@ -168,7 +170,12 @@ export function createEngine(deps: {
       thread_id: a.thread_id,
       agent_id: a.agent_id,
       trigger: a.trigger,
-      input: { origin: a.origin, text: a.text, ...(a.attachments?.length ? { attachments: a.attachments } : {}) },
+      input: {
+        origin: a.origin,
+        text: a.text,
+        ...(a.attachments?.length ? { attachments: a.attachments } : {}),
+        reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
+      },
       depth: a.depth ?? 0,
       deadline_at: new Date(Date.now() + RUN_DEADLINE_MS).toISOString(),
     });
