@@ -109,8 +109,8 @@ USB access lasts while the cable is connected; LAN access stays within your netw
 The v1 commands above install the current application, not V2.
 
 <p align="center">
-  <img src="assets/apx-v2-preview.png" alt="APX V2 development build: main agent, image conversation, visible tool actions, agent and project inbox, external coding sessions and browser side panel" width="1100"><br>
-  <sub>Screenshot of a working V2 development build, not a mockup. The installation shown uses the Spanish UI.</sub>
+  <img src="assets/apx-v2-preview.png" alt="APX V2 dark-mode demo: main agent delegates to Scout, creates an interactive launch widget and opens the source page in the browser panel" width="1100"><br>
+  <sub>Real V2 interface running a scripted demo with fictional data: agent-to-agent delegation, an interactive widget and a live browser page. <a href="assets/apx-v2-preview-light.png">View the light-mode capture.</a></sub>
 </p>
 
 
