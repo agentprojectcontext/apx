@@ -1134,6 +1134,7 @@ export const en = {
   "access.check": "Check",
   "access.failed": "Could not change access: {error}",
   "devices.new": "New device",
+  "devices.pairedOk": "Paired: {name}",
   "devices.pair": "Pair a device",
   "devices.scan": "Scan this code with the APX app",
   "devices.scanHint":

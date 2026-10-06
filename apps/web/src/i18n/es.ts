@@ -1145,6 +1145,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "access.check": "Revisar",
   "access.failed": "No se pudo cambiar el acceso: {error}",
   "devices.new": "Nuevo dispositivo",
+  "devices.pairedOk": "Vinculado: {name}",
   "devices.pair": "Vincular un dispositivo",
   "devices.scan": "Escaneá este código con la app de APX",
   "devices.scanHint":

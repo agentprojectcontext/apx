@@ -43,7 +43,10 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
   const body = (await res.json()) as { ok: boolean; result: { token: string } };
   expect(body.ok).toBe(true);
 
-  await expect(page.getByText("Teléfono de prueba")).toBeVisible();
+  await expect(page.getByText("Teléfono de prueba", { exact: true })).toBeVisible();
+  // The code was used: the QR goes away on its own and says so.
+  await expect(page.locator(".devices__code")).toBeHidden();
+  await expect(page.getByText("Vinculado: Teléfono de prueba")).toBeVisible();
   await expect(page.getByText("Android", { exact: true })).toBeVisible();
   // Manual push configuration stays separate from device identity and is optional.
   await expect(page.getByRole("textbox", { name: "Dirección de push para Teléfono de prueba" })).toBeHidden();
@@ -59,7 +62,7 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
   await page.getByRole("button", { name: "Usar para push" }).click();
   await expect(page.getByText("Push (ntfy)")).toBeVisible();
   await page.getByRole("button", { name: "Quitar Teléfono de prueba" }).click();
-  await expect(page.getByText("Teléfono de prueba")).toBeHidden();
+  await expect(page.getByText("Teléfono de prueba", { exact: true })).toBeHidden();
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);
 });
 

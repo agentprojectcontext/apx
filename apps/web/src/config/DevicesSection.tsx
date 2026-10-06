@@ -1,7 +1,7 @@
 import type { Device } from "@apx/protocol";
 import { pairingLink } from "@apx/protocol/client";
 import { Badge, Button, EmptyState, IconButton, Icons, Input, Skeleton } from "@apx/ui";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { QrCode } from "../common/QrCode.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
@@ -24,31 +24,42 @@ export function DevicesSection() {
     (e: unknown) => notify(t("error.devices", { error: e instanceof Error ? e.message : String(e) })),
     [t],
   );
+  /** The devices there were when the code was shown: one more means the code was used. */
+  const known = useRef<Set<string>>(new Set());
   const load = useCallback(async () => {
     try {
-      setDevices((await client.call("devices.list", {})).devices);
+      const list = (await client.call("devices.list", {})).devices;
+      setDevices(list);
+      return list;
     } catch (e) {
       fail(e);
+      return undefined;
     }
   }, [fail]);
   useEffect(() => {
     void load();
   }, [load]);
-  // While a code waits, the list is read again now and then: the new device shows up once it paired.
+  // While a code waits, the list is read again now and then: once the new device shows up, the code is done.
   useEffect(() => {
     if (!pairing) return;
-    const id = setInterval(() => void load(), 3000);
+    const id = setInterval(async () => {
+      const added = (await load())?.find((d) => !known.current.has(d.id));
+      if (!added) return;
+      setPairing(undefined);
+      notify(t("devices.pairedOk", { name: added.name }), "info");
+    }, 3000);
     const done = setTimeout(() => setPairing(undefined), Date.parse(pairing.expires_at) - Date.now());
     return () => {
       clearInterval(id);
       clearTimeout(done);
     };
-  }, [pairing, load]);
+  }, [pairing, load, t]);
 
   const start = async () => {
     if (busy || pairing) return;
     setBusy(true);
     try {
+      known.current = new Set(((await load()) ?? devices ?? []).map((d) => d.id));
       setPairing(await client.call("devices.pair_start", {}));
     } catch (e) {
       fail(e);
@@ -129,7 +140,7 @@ export function DevicesSection() {
         </EmptyState>
       )}
       {devices?.map((d) => (
-        <DeviceCard key={d.id} device={d} onSaved={load} onRemove={remove} />
+        <DeviceCard key={d.id} device={d} onSaved={async () => void (await load())} onRemove={remove} />
       ))}
       <AccessBlock />
     </>
