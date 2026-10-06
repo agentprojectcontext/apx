@@ -72,8 +72,10 @@ export function createInputs(deps: {
 
   store.approvals.subscribe(() => {
     for (const r of store.inputs.pending()) {
-      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id)) continue;
-      const grant = store.approvals.list(r.thread_id).find((g) => g.key === r.approval?.key);
+      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id, r.agent_id)) continue;
+      const grant = store.approvals
+        .list(r.thread_id)
+        .find((g) => g.key === r.approval?.key && (!g.agent_id || g.agent_id === r.agent_id));
       const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
       if (!settled) continue;
       const listener = waiting.get(r.id);
@@ -171,7 +173,8 @@ export function createInputs(deps: {
       }
       const settled = store.tx(() => {
         const r = store.inputs.settle(id, state, text, state === "approved" ? scope : undefined);
-        if (r && state === "approved" && rec.approval) store.approvals.grant(rec.approval, scope, rec.thread_id);
+        if (r && state === "approved" && rec.approval)
+          store.approvals.grant(rec.approval, scope, rec.thread_id, rec.agent_id);
         return r;
       });
       if (!settled) throw conflict(`input ${id} was answered already`);

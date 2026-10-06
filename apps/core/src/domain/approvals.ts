@@ -1,8 +1,7 @@
-// Owner grants: durable across agents and chats, or limited to one chat in this core process.
+// Owner grants: durable for every agent or for one, or limited to one chat in this core process.
 import { createHash } from "node:crypto";
 import { type ApprovalScope, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
-import { badRequest } from "../errors.ts";
 import { settingsRepo } from "./settings.ts";
 import type { Sql } from "./sql.ts";
 
@@ -10,11 +9,11 @@ export type ApprovalTarget = {
   key: string;
   server: string;
   tool: string;
+  /** Declared read-only: shown as such; any tool can be approved for good, the owner decides. */
   permanent: boolean;
   project_id?: string | undefined;
 };
-export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
-  a.permanent ? ["once", "session", "always"] : ["once", "session"];
+export const approvalScopes = (_a: ApprovalTarget): ApprovalScope[] => ["once", "session", "always"];
 
 export function approvalsRepo(q: Sql) {
   const settings = settingsRepo(q);
@@ -54,15 +53,15 @@ export function approvalsRepo(q: Sql) {
   const write = (rows: ToolApproval[]) => settings.set("tool_approvals", JSON.stringify(rows));
   const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
   const repo = {
-    allows(a: ApprovalTarget, thread?: string): boolean {
+    /** Without `agent`, only grants for every agent count. */
+    allows(a: ApprovalTarget, thread?: string, agent?: string): boolean {
       return (
-        read().some((g) => g.scope === "always" && g.key === a.key && a.permanent) ||
+        read().some((g) => g.scope === "always" && g.key === a.key && (!g.agent_id || g.agent_id === agent)) ||
         (!!thread && sessions.has(sessionKey(a.key, thread)))
       );
     },
-    grant(a: ApprovalTarget, scope: ApprovalScope, thread: string): void {
+    grant(a: ApprovalTarget, scope: ApprovalScope, thread: string, agent?: string): void {
       if (scope === "once") return;
-      if (scope === "always" && !a.permanent) throw badRequest("this tool can only be approved for this session");
       const g: ToolApproval = {
         key: a.key,
         server: a.server,
@@ -70,9 +69,10 @@ export function approvalsRepo(q: Sql) {
         ...(a.project_id ? { project_id: a.project_id } : {}),
         scope,
         ...(scope === "session" ? { thread_id: thread } : {}),
+        ...(scope === "always" && agent ? { agent_id: agent } : {}),
       };
       if (scope === "session") sessions.set(sessionKey(a.key, thread), g);
-      else write([...read().filter((r) => r.key !== a.key), g]);
+      else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
       for (const listener of listeners) listener();
     },
     subscribe(listener: () => void): () => void {
@@ -102,8 +102,8 @@ export function approvalsRepo(q: Sql) {
     list(thread?: string): ToolApproval[] {
       return [...read(), ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread)];
     },
-    revoke(key: string, thread?: string): void {
-      if (!thread) write(read().filter((g) => g.key !== key));
+    revoke(key: string, thread?: string, agent?: string): void {
+      if (!thread) write(read().filter((g) => g.key !== key || (agent !== undefined && g.agent_id !== agent)));
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.binding !== key)));
       for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
     },

@@ -11,6 +11,9 @@ import { createMcp } from "./manager.ts";
 const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
 const llm = () =>
   scriptedLlm((req, { said, afterTool }) => {
+    if (said.startsWith("grant") && !afterTool)
+      return callTool("g", "grant_tool", { agent: said === "grant" ? "reader" : "roby", tools: ["mcp_notes_*"] });
+    if (said.startsWith("grant")) return say("Granted");
     if (!afterTool) return callTool("first", "mcp_notes_echo", { text: `first:${said}` });
     if (String(req.messages.at(-1)?.content).includes("echo: first:"))
       return callTool("second", "mcp_notes_echo", { text: `second:${said}` });
@@ -95,7 +98,7 @@ test("session approval covers changed arguments and later turns, not another cha
   }
 });
 
-test("permanent owner approval reaches another agent and survives a core restart", async () => {
+test("always from a chat is that agent's, in every chat and after a restart; other agents still ask", async () => {
   const e = await setup();
   let next: Awaited<ReturnType<typeof startCore>> | undefined;
   try {
@@ -104,15 +107,22 @@ test("permanent owner approval reaches another agent and survives a core restart
     const i = await pending(e.client, t.id);
     await e.client.call("runs.respond", { input: i.id, decision: "approve", scope: "always" });
     await e.settle(t.id);
+    const again = await chat(e);
+    await e.client.call("threads.send", { thread: again.id, text: "read" });
+    await e.settle(again.id);
     const a = await e.client.call("agents.create", { slug: "reader", name: "Reader" });
     const other = await chat(e, a.id);
     await e.client.call("threads.send", { thread: other.id, text: "read" });
+    const asked = await pending(e.client, other.id);
+    await e.client.call("runs.respond", { input: asked.id, decision: "deny" });
     await e.settle(other.id);
     await e.core.close();
     next = await startCore({ llm: llm(), home: e.home });
-    await next.client.call("threads.send", { thread: other.id, text: "read after restart" });
-    await next.settle(other.id);
-    assert.equal((await next.client.call("tools.approvals", {})).approvals[0]?.scope, "always");
+    await next.client.call("threads.send", { thread: again.id, text: "read after restart" });
+    await next.settle(again.id);
+    const [grant] = (await next.client.call("tools.approvals", {})).approvals;
+    assert.equal(grant?.scope, "always");
+    assert.equal(grant?.agent_id, "roby");
   } finally {
     if (next) await next.core.close();
     else await e.core.close();
@@ -121,19 +131,18 @@ test("permanent owner approval reaches another agent and survives a core restart
   }
 });
 
-test("Resources approves reading tools only; global trust can be revoked and restored", async () => {
+test("Resources allows any tool for every agent; global trust can be revoked and restored", async () => {
   const e = await setup();
   try {
     await e.client.call("mcp.set", { name: "mine", server: { command: process.execPath, args: [SERVER] } });
     const tools = (await e.client.call("mcp.tools", { scope: "global", server: "mine" })).tools;
     assert.equal(tools.find((t) => t.name === "echo")?.permanent, true);
     assert.equal(tools.find((t) => t.name === "token")?.permanent, false);
-    await assert.rejects(
-      e.client.call("mcp.approveTool", { scope: "global", server: "mine", tool: "token" }),
-      /session/,
-    );
+    await e.client.call("mcp.approveTool", { scope: "global", server: "mine", tool: "token" });
     await e.client.call("mcp.approveTool", { scope: "global", server: "mine", tool: "echo" });
-    assert.equal((await e.client.call("tools.approvals", {})).approvals.length, 1);
+    const rows = (await e.client.call("tools.approvals", {})).approvals;
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every((r) => r.agent_id === undefined));
     await e.client.call("mcp.trust", { server: "mine", trusted: false });
     assert.equal(
       (await e.client.call("mcp.list", {})).servers.find((s) => s.name === "mine")?.status,
@@ -171,7 +180,7 @@ test("a denied approval or a question cannot acquire broader scope; agents canno
   }
 });
 
-test("a permanent approval releases other agents already waiting on the same tool", async () => {
+test("a permanent approval releases the agent's other chats already waiting on the same tool", async () => {
   const e = await setup();
   try {
     const first = await chat(e);
@@ -326,6 +335,33 @@ test("archiving a chat ends its session approval and expired confirmations stay 
       e.client.call("runs.respond", { input: expired.id, decision: "approve", scope: "always" }),
       /expired/,
     );
+  } finally {
+    await e.clean();
+  }
+});
+
+test("an agent hands its MCP tools to another one for good, never to itself", async () => {
+  const e = await setup();
+  try {
+    const reader = await e.client.call("agents.create", { slug: "reader", name: "Reader" });
+    const roby = await chat(e);
+    await e.client.call("threads.send", { thread: roby.id, text: "grant" });
+    await e.settle(roby.id);
+    const grants = (await e.client.call("tools.approvals", {})).approvals;
+    assert.deepEqual(
+      grants.map((g) => [g.tool, g.agent_id]),
+      [
+        ["echo", reader.id],
+        ["token", reader.id],
+      ],
+    );
+    const theirs = await chat(e, reader.id);
+    await e.client.call("threads.send", { thread: theirs.id, text: "read" });
+    await e.settle(theirs.id);
+    assert.deepEqual((await e.client.call("runs.pending", {})).inputs, []);
+    await e.client.call("threads.send", { thread: roby.id, text: "grant myself" });
+    await e.settle(roby.id);
+    assert.equal((await e.client.call("tools.approvals", {})).approvals.length, 2);
   } finally {
     await e.clean();
   }

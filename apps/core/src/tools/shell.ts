@@ -63,7 +63,10 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   if (/(^|[\s;&|(`])([\w./~-]*\/)?(apx|[\w./-]*apps\/terminal\/src\/main\.ts)(\s|$)/.test(c)) return "always";
   // Pipes and && between simple commands are fine; any other shell syntax is not judged, it is asked.
   const segments = c.split(/&&|\|\||\|/).map((x) => x.trim());
-  const simple = (seg: string): boolean => {
+  const simple = (raw: string): boolean => {
+    // Quoted plain text ('*.png', "two words") is an argument like any other; `\(` `\)` only group find's tests.
+    let seg = raw.replace(/'([^'"]*)'|"([^'"$`\\]*)"/g, (_m, s?: string, d?: string) => s ?? d ?? "");
+    if (/^find\s/.test(seg)) seg = seg.replace(/(^|\s)\\[()](?=\s|$)/g, " ");
     if (!seg || SHELL_SYNTAX.test(seg) || /["']/.test(seg)) return false;
     const [word = "", ...args] = seg.split(/\s+/);
     if (/=/.test(word)) return false;
@@ -103,6 +106,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
+      local: (a) => !a.background && commandRisk(a.command, apxPort()) === "never",
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,

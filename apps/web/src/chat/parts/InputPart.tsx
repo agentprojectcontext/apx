@@ -39,7 +39,7 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
             <Icon size={12} />
             {t(DONE[state])}
             {part.approval_scope === "session" && ` · ${t("input.sessionScope")}`}
-            {part.approval_scope === "always" && ` · ${t("input.alwaysScope")}`}
+            {part.approval_scope === "always" && ` · ${t("input.agentScope")}`}
             {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
           </span>
         </>

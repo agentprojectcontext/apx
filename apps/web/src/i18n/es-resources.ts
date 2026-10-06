@@ -6,9 +6,9 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.noApprovedTools": "Sin permisos guardados para tools",
   "res.permissions": "Permisos de tools",
   "res.loadTools": "Cargar tools y permisos",
-  "res.sessionOnly": "Solo aprobación durante sesión",
+  "res.allowAll": "Permitir a todos los agentes",
   "res.approvalHelp":
-    "Lecturas aprobadas para todos los agentes. Cambios de servidor o tool requieren otra aprobación.",
+    "Una tool permitida acá no pide permiso a ningún agente. Si el servidor o la tool cambian, hay que aprobarla de nuevo.",
 
   "res.error": "Recursos: {error}",
   "res.lead":

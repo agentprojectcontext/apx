@@ -230,7 +230,10 @@ export const Author = z.discriminatedUnion("kind", [
 ]);
 export type Author = z.infer<typeof Author>;
 
-/** Repeated approvals belong to the owner; a session lasts in one chat until the core restarts. */
+/**
+ * Repeated approvals belong to the owner; a session lasts in one chat until the core restarts. `always` with an
+ * `agent_id` is that agent's; without one, every agent's.
+ */
 export const ApprovalScope = z.enum(["once", "session", "always"]);
 export type ApprovalScope = z.infer<typeof ApprovalScope>;
 export const ToolApproval = z.object({
@@ -240,6 +243,7 @@ export const ToolApproval = z.object({
   tool: z.string(),
   scope: z.enum(["session", "always"]),
   thread_id: Id.optional(),
+  agent_id: Id.optional(),
 });
 export type ToolApproval = z.infer<typeof ToolApproval>;
 

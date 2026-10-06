@@ -40,13 +40,9 @@ export function McpPermissions({ server, projectId }: { server: McpServerStatus;
           {tools.map((tool) => (
             <li key={tool.key}>
               <code>{tool.name}</code>
-              {tool.permanent ? (
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => void change(tool)}>
-                  {t(tool.approved ? "mcp.revoke" : "input.approveAlways")}
-                </Button>
-              ) : (
-                <span className="resd__muted">{t("res.sessionOnly")}</span>
-              )}
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void change(tool)}>
+                {t(tool.approved ? "mcp.revoke" : "res.allowAll")}
+              </Button>
             </li>
           ))}
         </ul>

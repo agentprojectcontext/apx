@@ -18,6 +18,7 @@ export function ApprovedTools() {
     }
   };
   const threads = useData((s) => s.threads);
+  const agents = useData((s) => s.agents);
   const [rows, setRows] = useState<ToolApproval[]>();
   const [busy, setBusy] = useState(false);
   const load = async () => {
@@ -33,12 +34,17 @@ export function ApprovedTools() {
       {rows?.length === 0 && <p className="resd__muted">{t("res.noApprovedTools")}</p>}
       <ul className="resd__toggles">
         {rows?.map((r) => (
-          <li key={`${r.key}:${r.thread_id ?? ""}`}>
+          <li key={`${r.key}:${r.thread_id ?? ""}:${r.agent_id ?? ""}`}>
             <span>
               <code>
                 {serverLabel(r)}: {r.tool}
               </code>{" "}
-              · {t(r.scope === "always" ? "input.alwaysScope" : "input.sessionScope")}
+              ·{" "}
+              {r.scope === "session"
+                ? t("input.sessionScope")
+                : r.agent_id
+                  ? (agents[r.agent_id]?.name ?? r.agent_id)
+                  : t("input.alwaysScope")}
               {r.thread_id && <span> · {threads[r.thread_id]?.title ?? t("input.sessionScope")}</span>}
             </span>
             <Button
@@ -47,7 +53,7 @@ export function ApprovedTools() {
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                await revokeApproval(r.key, r.thread_id);
+                await revokeApproval(r.key, r.thread_id, r.agent_id);
                 setRows(await listApprovals());
                 setBusy(false);
               }}

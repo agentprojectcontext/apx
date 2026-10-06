@@ -10,7 +10,7 @@ export type Decision = { kind: "allow" } | { kind: "confirm"; why: ConfirmWhy; r
 const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
   widgets: (n) => n.endsWith("_widget"),
-  agents: (n) => n === "list_agents" || n === "delegate",
+  agents: (n) => n === "list_agents" || n === "delegate" || n === "grant_tool",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_"),
   mcp: (n) => n.startsWith("mcp_"),

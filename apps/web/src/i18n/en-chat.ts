@@ -2,10 +2,12 @@
 export const enChat = {
   "input.approveOnce": "Approve once",
   "input.approveSession": "Approve for this session",
-  "input.approveAlways": "Always approve",
+  "input.approveAlways": "Always allow for this agent",
   "input.sessionScope": "This session",
+  "input.agentScope": "Always for this agent",
   "input.alwaysScope": "All agents and chats",
-  "input.scopeHelp": "Session: this chat until archive or restart. Permanent: all agents. Writes: session only.",
+  "input.scopeHelp":
+    "Session: this chat until archive or restart. Always: this agent, in every chat; revoke it in Resources.",
 
   "composer.offline": "No connection to the core…",
   "composer.placeholder": "Message {name}…",

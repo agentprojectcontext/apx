@@ -6,7 +6,20 @@ import { commandRisk } from "./shell.ts";
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of ["ls -la", "git status", "cat a.txt | grep x | wc -l", "find . -name x.ts -type f", "pwd && date"])
     assert.equal(commandRisk(c), "never", c);
+  // Quoted globs and find's grouping are how these commands are normally written.
+  for (const c of [
+    "find public/marketing -type f \\( -iname '*.png' -o -iname '*.mp4' \\) | head -30",
+    `grep -rn "two words" src`,
+    "ls -lh 'reels/reel 143.mp4'",
+  ])
+    assert.equal(commandRisk(c), "never", c);
   const asks = [
+    "find . -name '*.png' -exec rm {} +",
+    "find . '-delete'",
+    `grep "$HOME" x`,
+    "cat '/etc/passwd'",
+    "ls '../x'",
+    `for f in a b; do [ -f "$f" ] && ls "$f"; done`,
     "touch x",
     "npm install",
     "ls > out.txt",
@@ -57,7 +70,10 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("<job_output")) return say(`Job ended: ${said.includes("bg-done") ? "saw bg-done" : "no output"}`);
+  if (said.includes("list then write") && afterTool && String(req.messages.at(-1)?.content).includes("<command_output"))
+    return callTool("w1", "file_write", { path: "notes.txt", content: "listed" });
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
+  if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
   if (said.includes("background please"))
     return callTool("s2", "shell", { command: "sleep 0.2 && echo bg-done", background: true });
@@ -155,4 +171,12 @@ test("a folder that is a symlink pointing outside the project is refused", async
   assert.equal(insideReal(root, "escape/deeper/not-there"), false);
   fs.rmSync(root, { recursive: true, force: true });
   fs.rmSync(outside, { recursive: true, force: true });
+});
+
+test("reading the agent's own folder does not count as outside content: a write after it runs without asking", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "list then write" });
+  await env.settle(t);
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
+  assert.match(lastSeen(), /Wrote|notes\.txt/);
 });

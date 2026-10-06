@@ -27,6 +27,9 @@ export type ToolContext = {
   signal: AbortSignal;
   /** Whether outside content (web, another agent, a message) is in this turn's context right now. */
   untrusted(): boolean;
+  /** The owner-approvable tools of this turn (MCP), by name: what an agent may hand to another one. */
+  approvalFor?(name: string): ApprovalTarget | undefined;
+  approvalTools?(): string[];
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */
@@ -62,6 +65,11 @@ export type Tool = {
   confirm(args: Record<string, unknown>): Confirm;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
+  /**
+   * The result only shows the owner's own folder (a file, a command that only reads): still framed as data, but it
+   * does not count as outside content for confirmations.
+   */
+  local?: ((args: Record<string, unknown>) => boolean) | undefined;
   /** A node capability it needs ("location"): offered only while a node lending it is connected. */
   needsCap?: string | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
@@ -81,6 +89,7 @@ export function defineTool<S extends Args>(def: {
   effect: Effect;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   deadlineMs: number;
+  local?: (args: z.output<S>) => boolean;
   needsCap?: string;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
@@ -94,6 +103,7 @@ export function defineTool<S extends Args>(def: {
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
+    ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };

@@ -62,6 +62,8 @@ export function fileTools(store: Store, home: string): Tool[] {
         limit: z.number().int().min(1).max(2000).optional(),
       }),
       effect: "none",
+      // Only files under the folder it works in.
+      local: () => true,
       deadlineMs: 10_000,
       title: (a) => `Read ${String(a.path ?? "a file")}`,
       async run(a, ctx) {

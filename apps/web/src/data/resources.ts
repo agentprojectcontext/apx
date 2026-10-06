@@ -71,8 +71,8 @@ export const setInheritance = (project: string, kind: "skills" | "mcp", on: bool
   attempt(() => client.call("resources.inherit", { project, kind, on }));
 
 export const listApprovals = () => attempt(async () => (await client.call("tools.approvals", {})).approvals);
-export const revokeApproval = (key: string, thread?: string) =>
-  attempt(() => client.call("tools.revoke", { key, ...(thread ? { thread } : {}) }));
+export const revokeApproval = (key: string, thread?: string, agent?: string) =>
+  attempt(() => client.call("tools.revoke", { key, ...(thread ? { thread } : {}), ...(agent ? { agent } : {}) }));
 export const mcpPermissions = (s: McpServerStatus, project?: string) =>
   attempt(async () => (await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) })).tools);
 export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>

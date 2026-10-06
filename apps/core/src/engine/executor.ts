@@ -169,7 +169,7 @@ export function createExecutor(o: {
     const decision = authorize(tool, args, agent, untrusted);
     if (
       decision.kind === "confirm" &&
-      !(level !== "always" && tool.approval && store.approvals.allows(tool.approval, thread.id)) &&
+      !(level !== "always" && tool.approval && store.approvals.allows(tool.approval, thread.id, agent.id)) &&
       !o.inputs.takeGrant(thread.id, agent.id, name, raw, tool.approval?.key)
     ) {
       const answer = await o.inputs.ask({
@@ -206,6 +206,8 @@ export function createExecutor(o: {
       run,
       signal,
       untrusted: () => untrusted,
+      approvalFor: (n) => byName.get(n)?.approval,
+      approvalTools: () => o.tools.filter((t) => t.approval).map((t) => t.name),
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
       // Only after the owner's OK on a tool that always asks for it (the confirmation above ran for this call).
@@ -227,7 +229,7 @@ export function createExecutor(o: {
         }),
     };
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
-    if (out.text.includes(UNTRUSTED_MARK)) untrusted = true;
+    if (out.text.includes(UNTRUSTED_MARK) && !tool.local?.(args)) untrusted = true;
     const full = out.text.slice(0, STORED_OUTPUT_CHARS);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, STEP_SUMMARY_CHARS), full);
     signal.throwIfAborted();

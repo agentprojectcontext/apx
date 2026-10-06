@@ -7,8 +7,8 @@ import type { Handlers } from "./router.ts";
 export function mcpHandlers(mcp: Mcp, store: Store) {
   return {
     "tools.approvals": ({ thread }) => ({ approvals: store.approvals.list(thread) }),
-    "tools.revoke": ({ key, thread }) => {
-      store.approvals.revoke(key, thread);
+    "tools.revoke": ({ key, thread, agent }) => {
+      store.approvals.revoke(key, thread, agent);
       return { ok: true };
     },
     "mcp.tools": async ({ scope, server, project }) => {

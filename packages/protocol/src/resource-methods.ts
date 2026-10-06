@@ -119,7 +119,7 @@ export const resourceMethods = {
     access: "human",
   },
   "tools.revoke": {
-    params: z.object({ key: z.string().min(1), thread: Id.optional() }).strict(),
+    params: z.object({ key: z.string().min(1), thread: Id.optional(), agent: Id.optional() }).strict(),
     result: z.object({ ok: z.literal(true) }),
     effect: true,
     access: "human",

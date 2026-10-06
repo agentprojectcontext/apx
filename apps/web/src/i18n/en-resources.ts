@@ -4,8 +4,9 @@ export const enResources = {
   "res.noApprovedTools": "No saved tool approvals",
   "res.permissions": "Tool permissions",
   "res.loadTools": "Load tools and permissions",
-  "res.sessionOnly": "Session approval only",
-  "res.approvalHelp": "Read approvals cover all agents. Server or tool changes require approval again.",
+  "res.allowAll": "Allow for all agents",
+  "res.approvalHelp":
+    "A tool allowed here asks no agent for permission. Server or tool changes require approval again.",
 
   "res.error": "Resources: {error}",
   "res.lead":
