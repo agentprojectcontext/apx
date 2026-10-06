@@ -91,6 +91,11 @@ El acceso USB depende del cable; LAN funciona dentro de tu red; Tailscale conect
 **V2 está en desarrollo.** Lleva APX más lejos como aplicación independiente para tu equipo.
 Los comandos anteriores instalan la versión actual, no V2.
 
+<p align="center">
+  <img src="assets/apx-v2-preview.png" alt="APX V2 en desarrollo: agente principal, conversación con imagen, acciones visibles, inbox de agentes y proyectos, sesiones de código y navegador lateral" width="1100"><br>
+  <sub>Captura real de una versión V2 en desarrollo, no un mockup.</sub>
+</p>
+
 | Experiencia | APX v1 actual | Dirección de V2 |
 |---|---|---|
 | Agente principal | Asistente local desde panel y canales | Espacio central para trabajar con agente principal y especialistas en tareas personales y proyectos |
