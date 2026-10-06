@@ -1,11 +1,13 @@
 // What agents wait on from the owner. A row is written before the agent starts waiting, so a restart never loses
 // the question; answering is a compare-and-set on `pending`, so two answers cannot both win.
-import type { InputKind, InputState, PendingInput } from "@apx/protocol";
+import { ApprovalScope, type InputKind, type InputState, type PendingInput } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { PendingInputsTable } from "../db/schema.ts";
+import { type ApprovalTarget, approvalScopes } from "./approvals.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 export type InputRecord = PendingInput & {
+  approval?: ApprovalTarget;
   call_id: string;
   message_id?: string;
   args?: Record<string, unknown>;
@@ -17,6 +19,13 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   thread_id: r.thread_id,
   agent_id: r.agent_id,
   call_id: r.call_id,
+  ...(r.approval
+    ? {
+        approval: JSON.parse(r.approval) as ApprovalTarget,
+        approval_scopes: approvalScopes(JSON.parse(r.approval) as ApprovalTarget),
+      }
+    : {}),
+  ...(r.approval_scope ? { approval_scope: ApprovalScope.parse(r.approval_scope) } : {}),
   ...opt("message_id", r.message_id),
   kind: r.kind as InputKind,
   prompt: r.prompt,
@@ -31,7 +40,13 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...opt("answered_at", r.answered_at),
 });
 
-export const publicInput = ({ call_id: _c, message_id: _m, args: _a, ...rest }: InputRecord): PendingInput => rest;
+export const publicInput = ({
+  call_id: _c,
+  message_id: _m,
+  args: _a,
+  approval: _p,
+  ...rest
+}: InputRecord): PendingInput => rest;
 
 export function inputsRepo({ one, all, run }: Sql) {
   const repo = {
@@ -48,6 +63,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       detail?: string | undefined;
       options?: string[] | undefined;
       waitMs: number;
+      approval?: ApprovalTarget | undefined;
     }): InputRecord {
       const id = newId("inp");
       run(
@@ -59,6 +75,8 @@ export function inputsRepo({ one, all, run }: Sql) {
           message_id: i.message_id ?? null,
           call_id: i.call_id,
           kind: i.kind,
+          approval: i.approval ? JSON.stringify(i.approval) : null,
+          approval_scope: null,
           prompt: i.prompt,
           tool: i.tool ?? null,
           args: i.args ? JSON.stringify(i.args) : null,
@@ -86,11 +104,16 @@ export function inputsRepo({ one, all, run }: Sql) {
       return all(q.orderBy("created_at")).map(toInput);
     },
     /** Moves a pending input to its final state; undefined when it was no longer pending (someone else won). */
-    settle(id: string, state: Exclude<InputState, "pending">, answer?: string): InputRecord | undefined {
+    settle(
+      id: string,
+      state: Exclude<InputState, "pending">,
+      answer?: string,
+      scope?: ApprovalScope,
+    ): InputRecord | undefined {
       const changes = run(
         qb
           .updateTable("pending_inputs")
-          .set({ state, answer: answer ?? null, answered_at: now() })
+          .set({ state, answer: answer ?? null, answered_at: now(), approval_scope: scope ?? null })
           .where("id", "=", id)
           .where("state", "=", "pending"),
       );

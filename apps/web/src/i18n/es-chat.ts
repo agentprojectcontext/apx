@@ -2,6 +2,14 @@
 import type { MessageKey } from "./en.ts";
 
 export const esChat: Partial<Record<MessageKey, string>> = {
+  "input.approveOnce": "Aceptar una vez",
+  "input.approveSession": "Aceptar durante esta sesión",
+  "input.approveAlways": "Aceptar siempre",
+  "input.sessionScope": "Esta sesión",
+  "input.alwaysScope": "Todos los agentes y chats",
+  "input.scopeHelp":
+    "Sesión: este chat hasta archivarlo o reiniciar. Permanente: todos los agentes. Escrituras: solo sesión.",
+
   "composer.offline": "Sin conexión con el core…",
   "composer.placeholder": "Escribile a {name}…",
   "composer.yourAgent": "tu agente",

@@ -2,6 +2,14 @@
 import type { MessageKey } from "./en.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
+  "res.approvedTools": "Tools aprobadas",
+  "res.noApprovedTools": "Sin permisos guardados para tools",
+  "res.permissions": "Permisos de tools",
+  "res.loadTools": "Cargar tools y permisos",
+  "res.sessionOnly": "Solo aprobación durante sesión",
+  "res.approvalHelp":
+    "Lecturas aprobadas para todos los agentes. Cambios de servidor o tool requieren otra aprobación.",
+
   "res.error": "Recursos: {error}",
   "res.lead":
     "Skills, MCP, integraciones y variables. Viven globales o dentro de un proyecto; cada proyecto hereda las globales y puede apagarlas o pisarlas sin tocar la original.",

@@ -207,7 +207,10 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
 }
 
 /** The owner's answer to something an agent is waiting on (a confirmation or a question). */
-export async function respond(input: string, a: { decision?: "approve" | "deny"; text?: string }): Promise<void> {
+export async function respond(
+  input: string,
+  a: { decision?: "approve" | "deny"; text?: string; scope?: "once" | "session" | "always" },
+): Promise<void> {
   try {
     await client.call("runs.respond", { input, ...a });
   } catch (e) {

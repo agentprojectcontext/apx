@@ -10,7 +10,7 @@ import type { Handlers } from "./router.ts";
 export function runHandlers(store: Store, engine: Engine) {
   return {
     "runs.pending": ({ thread }) => ({ inputs: engine.pending(thread) }),
-    "runs.respond": ({ input, decision, text }) => publicInput(engine.respond(input, { decision, text })),
+    "runs.respond": ({ input, decision, text, scope }) => publicInput(engine.respond(input, { decision, text, scope })),
     "runs.list": ({ agent, limit, before }) => {
       const runs = store.runs.byAgent(agent, limit, before);
       const threads = [...new Set(runs.map((r) => r.thread_id))].flatMap((id) => {

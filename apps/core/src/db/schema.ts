@@ -237,6 +237,8 @@ export interface PendingInputsTable {
   created_at: string;
   expires_at: string;
   answered_at: string | null;
+  approval: string | null;
+  approval_scope: string | null;
 }
 
 export interface PersonsTable {

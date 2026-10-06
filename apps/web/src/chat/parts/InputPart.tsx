@@ -38,6 +38,8 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
           <span className={`inputline__state is-${state}`}>
             <Icon size={12} />
             {t(DONE[state])}
+            {part.approval_scope === "session" && ` · ${t("input.sessionScope")}`}
+            {part.approval_scope === "always" && ` · ${t("input.alwaysScope")}`}
             {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
           </span>
         </>
@@ -56,7 +58,7 @@ function PendingInput({ part }: { part: InputPartData }) {
   const t = useT();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const send = async (a: { decision?: "approve" | "deny"; text?: string }) => {
+  const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: "once" | "session" | "always" }) => {
     setBusy(true);
     await respond(part.input_id, a);
     setBusy(false);
@@ -71,11 +73,32 @@ function PendingInput({ part }: { part: InputPartData }) {
       </div>
       <p className="inputcard__prompt">{part.prompt}</p>
       {part.detail && <code className="inputcard__detail">{part.detail}</code>}
+      {part.approval_scopes && <p className="resd__note">{t("input.scopeHelp")}</p>}
       {part.kind === "confirm" && (
         <div className="inputcard__actions">
           <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
-            {t("input.approve")}
+            {t(part.approval_scopes ? "input.approveOnce" : "input.approve")}
           </Button>
+          {part.approval_scopes?.includes("session") && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => send({ decision: "approve", scope: "session" })}
+            >
+              {t("input.approveSession")}
+            </Button>
+          )}
+          {part.approval_scopes?.includes("always") && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => send({ decision: "approve", scope: "always" })}
+            >
+              {t("input.approveAlways")}
+            </Button>
+          )}
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => send({ decision: "deny" })}>
             {t("input.deny")}
           </Button>

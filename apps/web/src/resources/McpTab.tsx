@@ -5,6 +5,7 @@ import { projectName } from "../data/identity.ts";
 import { setMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ApprovedTools } from "./ApprovedTools.tsx";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpDetail } from "./McpDetail.tsx";
 import { McpDialog } from "./McpDialog.tsx";
@@ -64,15 +65,14 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
           setTestRequest((n) => n + 1);
         },
       },
-      ...(s.scope === "project" && s.project_id
-        ? [
-            {
-              label: s.trusted ? t("mcp.revoke") : t("mcp.approve"),
-              icon: <Icons.ShieldCheck size={14} />,
-              onSelect: () => void trustMcp(s.project_id ?? "", s.name, !s.trusted).then(changed),
-            },
-          ]
-        : []),
+      ...[
+        {
+          label: s.trusted ? t("mcp.revoke") : t("mcp.approve"),
+          icon: <Icons.ShieldCheck size={14} />,
+          onSelect: () =>
+            void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, !s.trusted).then(changed),
+        },
+      ],
       ...(inherited && projectId
         ? [
             {
@@ -134,6 +134,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
     );
   return (
     <>
+      <ApprovedTools />
       <MasterDetail
         resizeKey="mcp"
         listLabel={t("res.tab.mcp")}

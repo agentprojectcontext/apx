@@ -35,8 +35,8 @@ export const listMcp = (project?: string) =>
 export const toggleMcp = (project: string, server: string, on: boolean) =>
   attempt(async () => (await client.call("mcp.toggle", { project, server, on })).servers);
 
-export const trustMcp = (project: string, server: string, trusted: boolean) =>
-  attempt(async () => (await client.call("mcp.trust", { project, server, trusted })).server);
+export const trustMcp = (project: string | undefined, server: string, trusted: boolean) =>
+  attempt(async () => (await client.call("mcp.trust", { ...scoped(project), server, trusted })).server);
 
 export const testMcp = (s: McpServerStatus) =>
   attempt(() =>
@@ -69,3 +69,11 @@ export const getInheritance = (project: string) => attempt(() => client.call("re
 
 export const setInheritance = (project: string, kind: "skills" | "mcp", on: boolean) =>
   attempt(() => client.call("resources.inherit", { project, kind, on }));
+
+export const listApprovals = () => attempt(async () => (await client.call("tools.approvals", {})).approvals);
+export const revokeApproval = (key: string, thread?: string) =>
+  attempt(() => client.call("tools.revoke", { key, ...(thread ? { thread } : {}) }));
+export const mcpPermissions = (s: McpServerStatus, project?: string) =>
+  attempt(async () => (await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) })).tools);
+export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>
+  attempt(() => client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) }));

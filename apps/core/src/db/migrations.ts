@@ -595,4 +595,6 @@ export const MIGRATIONS: readonly string[] = [
   `ALTER TABLE projects ADD COLUMN registered INTEGER NOT NULL DEFAULT 1;`,
   // The origins a widget may read live data from (JSON array); none: it makes no requests at all.
   `ALTER TABLE surfaces ADD COLUMN connect TEXT;`,
+  `ALTER TABLE pending_inputs ADD COLUMN approval TEXT;
+   ALTER TABLE pending_inputs ADD COLUMN approval_scope TEXT;`,
 ];

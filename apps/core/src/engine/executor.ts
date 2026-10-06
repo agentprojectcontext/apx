@@ -167,7 +167,11 @@ export function createExecutor(o: {
       return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
     }
     const decision = authorize(tool, args, agent, untrusted);
-    if (decision.kind === "confirm" && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
+    if (
+      decision.kind === "confirm" &&
+      !(level !== "always" && tool.approval && store.approvals.allows(tool.approval, thread.id)) &&
+      !o.inputs.takeGrant(thread.id, agent.id, name, raw, tool.approval?.key)
+    ) {
       const answer = await o.inputs.ask({
         run,
         agent,
@@ -176,6 +180,7 @@ export function createExecutor(o: {
         kind: "confirm",
         prompt: confirmPrompt(store, decision.why, agent.name, name),
         tool: name,
+        approval: level === "always" ? undefined : tool.approval,
         args: raw,
         detail: describe(args),
         waitMs: o.external() ? EXTERNAL_INPUT_WAIT_MS : INPUT_WAIT_MS,

@@ -3,6 +3,7 @@
 import type { Bus } from "../bus.ts";
 import type { Db } from "../db/db.ts";
 import { agentsRepo } from "./agents.ts";
+import { approvalsRepo } from "./approvals.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
 import { devicesRepo } from "./devices.ts";
@@ -25,15 +26,17 @@ import { messagesRepo, modelLogRepo, threadsRepo } from "./threads.ts";
 
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
+  const approvals = approvalsRepo(q);
   return {
     tx: q.tx,
     projects: projectsRepo(q),
     agents: agentsRepo(q),
-    threads: threadsRepo(q, bus),
+    threads: threadsRepo(q, bus, approvals.endSession),
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
     runs: runsRepo(q, bus),
     inputs: inputsRepo(q),
+    approvals,
     jobs: jobsRepo(q, bus),
     memories: memoriesRepo(q),
     media: mediaRepo(q),

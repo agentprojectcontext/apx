@@ -230,6 +230,19 @@ export const Author = z.discriminatedUnion("kind", [
 ]);
 export type Author = z.infer<typeof Author>;
 
+/** Repeated approvals belong to the owner; a session lasts in one chat until the core restarts. */
+export const ApprovalScope = z.enum(["once", "session", "always"]);
+export type ApprovalScope = z.infer<typeof ApprovalScope>;
+export const ToolApproval = z.object({
+  key: z.string(),
+  server: z.string(),
+  project_id: Id.optional(),
+  tool: z.string(),
+  scope: z.enum(["session", "always"]),
+  thread_id: Id.optional(),
+});
+export type ToolApproval = z.infer<typeof ToolApproval>;
+
 export const InputKind = z.enum(["confirm", "question"]);
 export type InputKind = z.infer<typeof InputKind>;
 /** `expired` = nobody answered in time or the run ended first; for a confirmation it counts as a no. */
@@ -247,6 +260,8 @@ export const PendingInput = z.object({
   tool: z.string().optional(),
   detail: z.string().optional(),
   options: z.array(z.string()).optional(),
+  approval_scopes: z.array(ApprovalScope).optional(),
+  approval_scope: ApprovalScope.optional(),
   state: InputState,
   answer: z.string().optional(),
   created_at: z.string(),
@@ -328,6 +343,8 @@ const KnownPart = z.discriminatedUnion("type", [
     tool: z.string().optional(),
     detail: z.string().optional(),
     options: z.array(z.string()).optional(),
+    approval_scopes: z.array(ApprovalScope).optional(),
+    approval_scope: ApprovalScope.optional(),
     state: InputState,
     answer: z.string().optional(),
   }),

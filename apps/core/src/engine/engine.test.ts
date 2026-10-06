@@ -17,6 +17,12 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return callTool("c1", "show_widget", { name: "monthly-sales", title: "Sales", html: "<b>42</b>", pin: true });
   if (said.includes("research") && !afterTool)
     return callTool("c2", "delegate", { agent: "scout", task: "find A2A info" });
+  if (said.includes("something slow")) {
+    req.signal.throwIfAborted();
+    await new Promise<void>((_, reject) =>
+      req.signal.addEventListener("abort", () => reject(req.signal.reason), { once: true }),
+    );
+  }
   if (said.includes("slow")) await new Promise((r) => setTimeout(r, 400));
   if (said.includes("in order") && !afterTool) {
     const call = callTool("c9", "show_widget", { name: "order", title: "Order", html: "<b>1</b>" });

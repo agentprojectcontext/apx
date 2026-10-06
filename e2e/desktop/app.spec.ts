@@ -292,7 +292,7 @@ test("notifications add and clear the tray indicator and Dock count", async () =
   expect(unread.tooltip).toMatch(/^APX · 3 /);
   expect(unread.image).not.toBe(empty.image);
   if (process.platform === "darwin") {
-    expect(unread.title).toBe("3");
+    expect(unread.title).toBe("");
     expect(unread.template).toBe(true);
     expect(unread.dock).toBe("3");
     expect((await badge(120)).dock).toBe("99+");

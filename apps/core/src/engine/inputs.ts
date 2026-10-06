@@ -1,8 +1,9 @@
 // One machine for everything an agent waits on from the owner: confirmations before a tool runs and questions.
 // The row is written before the wait starts; an answer that arrives after its run is gone (a restart, a deadline)
 // wakes the agent with a new run instead of being lost.
-import type { InputKind, Part } from "@apx/protocol";
+import type { ApprovalScope, InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import type { ApprovalTarget } from "../domain/approvals.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -23,14 +24,11 @@ const partOf = (r: InputRecord): Part => ({
   ...(r.tool ? { tool: r.tool } : {}),
   ...(r.detail ? { detail: r.detail } : {}),
   ...(r.options ? { options: r.options } : {}),
+  ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
+  ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
   state: r.state,
   ...(r.answer ? { answer: r.answer } : {}),
 });
-
-const grantKey = (thread: string, agent: string, tool: string, args: unknown) =>
-  `${thread}\u0000${agent}\u0000${tool}\u0000${JSON.stringify(args)}`;
-/** An approval that outlived its turn is good for one identical call, soon: not days later in another context. */
-const GRANT_MS = 30 * 60_000;
 
 export function createInputs(deps: {
   store: Store;
@@ -40,8 +38,6 @@ export function createInputs(deps: {
 }) {
   const { store } = deps;
   const waiting = new Map<string, (r: InputRecord) => void>();
-  /** Calls the owner approved after their run was gone: the agent's next identical call runs without asking again. */
-  const grants = new Map<string, number>();
 
   /** Rewrites the input's card in the message that asked, for answers that arrive with no turn listening. */
   function settleCard(r: InputRecord): void {
@@ -59,7 +55,8 @@ export function createInputs(deps: {
     let text: string;
     if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
     else if (r.state === "approved") {
-      if (r.tool) grants.set(grantKey(r.thread_id, r.agent_id, r.tool, r.args ?? {}), Date.now() + GRANT_MS);
+      if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
+        store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, r.approval?.key, r.approval?.server);
       text = `The owner approved ${r.tool} (${r.detail ?? r.prompt}), but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
       text = `The owner declined ${r.tool} (${r.detail ?? r.prompt}). Do not try it again.${r.answer ? ` Their note: ${r.answer}` : ""}`;
@@ -72,6 +69,18 @@ export function createInputs(deps: {
     });
   }
 
+  store.approvals.subscribe(() => {
+    for (const r of store.inputs.pending()) {
+      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id)) continue;
+      const grant = store.approvals.list(r.thread_id).find((g) => g.key === r.approval?.key);
+      const settled = store.inputs.settle(r.id, "approved", undefined, grant?.scope);
+      if (!settled) continue;
+      const listener = waiting.get(r.id);
+      if (listener) listener(settled);
+      else wake(settled);
+    }
+  });
+
   return {
     /** Writes the input, shows it, marks the run as waiting and resolves when it is answered, expires or the run stops. */
     async ask(o: {
@@ -80,6 +89,7 @@ export function createInputs(deps: {
       display: Display;
       callId: string;
       kind: InputKind;
+      approval?: ApprovalTarget | undefined;
       prompt: string;
       tool?: string | undefined;
       args?: Record<string, unknown> | undefined;
@@ -95,6 +105,7 @@ export function createInputs(deps: {
         message_id: o.display.message.id,
         call_id: o.callId,
         kind: o.kind,
+        approval: o.approval,
         prompt: o.prompt,
         tool: o.tool,
         args: o.args,
@@ -108,13 +119,14 @@ export function createInputs(deps: {
       store.threads.patch(o.run.thread_id, { state: "input-required" });
       const release = deps.hold(o.run.id);
       let timer: ReturnType<typeof setTimeout> | undefined;
+      let stop: (() => void) | undefined;
       const expire = () => store.inputs.settle(rec.id, "expired") ?? (store.inputs.get(rec.id) as InputRecord);
       try {
         const settled = await new Promise<InputRecord>((resolve) => {
           waiting.set(rec.id, resolve);
           timer = setTimeout(() => resolve(expire()), o.waitMs);
           // A shutdown keeps the input open (the answer wakes the agent after the restart); anything else closes it.
-          const stop = () =>
+          stop = () =>
             resolve(o.signal.reason instanceof Shutdown ? (store.inputs.get(rec.id) as InputRecord) : expire());
           if (o.signal.aborted) stop();
           o.signal.addEventListener("abort", stop, { once: true });
@@ -123,6 +135,7 @@ export function createInputs(deps: {
         return settled;
       } finally {
         clearTimeout(timer);
+        if (stop) o.signal.removeEventListener("abort", stop);
         release();
         waiting.delete(rec.id);
         if (!o.signal.aborted) {
@@ -132,12 +145,20 @@ export function createInputs(deps: {
       }
     },
 
-    respond(id: string, a: { decision?: "approve" | "deny" | undefined; text?: string | undefined }): InputRecord {
+    respond(
+      id: string,
+      a: { decision?: "approve" | "deny" | undefined; text?: string | undefined; scope?: ApprovalScope | undefined },
+    ): InputRecord {
       const rec = store.inputs.get(id);
       if (!rec) throw notFound(`input ${id}`);
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);
+      const scope = a.scope ?? "once";
+      if (a.scope && (rec.kind !== "confirm" || a.decision !== "approve"))
+        throw badRequest("approval scope requires approving a confirmation");
+      if (scope !== "once" && (!rec.approval || !rec.approval_scopes?.includes(scope)))
+        throw badRequest("this approval scope is not available for this tool");
       const text = a.text?.trim() || undefined;
       let state: "approved" | "denied" | "answered";
       if (rec.kind === "confirm") {
@@ -147,7 +168,11 @@ export function createInputs(deps: {
         if (!text) throw badRequest("a question needs an answer text");
         state = "answered";
       }
-      const settled = store.inputs.settle(id, state, text);
+      const settled = store.tx(() => {
+        const r = store.inputs.settle(id, state, text, state === "approved" ? scope : undefined);
+        if (r && state === "approved" && rec.approval) store.approvals.grant(rec.approval, scope, rec.thread_id);
+        return r;
+      });
       if (!settled) throw conflict(`input ${id} was answered already`);
       const listener = waiting.get(id);
       if (listener) listener(settled);
@@ -156,11 +181,8 @@ export function createInputs(deps: {
     },
 
     /** True once for a call the owner approved after its turn had ended. */
-    takeGrant(thread: string, agent: string, tool: string, args: Record<string, unknown>): boolean {
-      const key = grantKey(thread, agent, tool, args);
-      const until = grants.get(key);
-      grants.delete(key);
-      return until !== undefined && until > Date.now();
+    takeGrant(thread: string, agent: string, tool: string, args: Record<string, unknown>, binding?: string): boolean {
+      return store.approvals.takeOnce(thread, agent, tool, args, binding);
     },
 
     /**

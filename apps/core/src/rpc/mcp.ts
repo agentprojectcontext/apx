@@ -6,13 +6,32 @@ import type { Handlers } from "./router.ts";
 
 export function mcpHandlers(mcp: Mcp, store: Store) {
   return {
+    "tools.approvals": ({ thread }) => ({ approvals: store.approvals.list(thread) }),
+    "tools.revoke": ({ key, thread }) => {
+      store.approvals.revoke(key, thread);
+      return { ok: true };
+    },
+    "mcp.tools": async ({ scope, server, project }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      const tools = await mcp.toolPermissions(d);
+      return { tools: tools.map(({ name, key, permanent, approved }) => ({ name, key, permanent, approved })) };
+    },
+    "mcp.approveTool": async ({ scope, server, project, tool }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      const target = (await mcp.toolPermissions(d)).find((t) => t.name === tool);
+      if (!target) throw notFound(`MCP tool ${tool}`);
+      store.approvals.grant(target, "always", "");
+      return { ok: true };
+    },
     "mcp.list": ({ project }) => ({ servers: mcp.status(project) }),
     "mcp.trust": ({ project, server, trusted }) => {
-      const d = mcp.find("project", server, project);
+      const d = mcp.find(project ? "project" : "global", server, project);
       if (!d) throw badRequest(`no server ${server} in that project's .apc/mcps.json`);
       mcp.config.setTrust(d, trusted);
       if (!trusted) mcp.drop(d);
-      const s = mcp.status(project).find((x) => x.scope === "project" && x.name === server);
+      const s = mcp.status(project).find((x) => x.scope === (project ? "project" : "global") && x.name === server);
       if (!s) throw new Error("server vanished");
       return { server: s };
     },

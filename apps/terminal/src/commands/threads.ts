@@ -1,4 +1,5 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
+import { ApprovalScope } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 export async function threads(client: ApxClient, [sub, id]: string[]): Promise<void> {
@@ -28,7 +29,12 @@ export async function threads(client: ApxClient, [sub, id]: string[]): Promise<v
   throw new Error(`unknown threads command: ${sub}`);
 }
 
-export async function runs(client: ApxClient, [sub, id, ...rest]: string[], timeoutS = 60): Promise<void> {
+export async function runs(
+  client: ApxClient,
+  [sub, id, ...rest]: string[],
+  timeoutS = 60,
+  approvalScope?: string,
+): Promise<void> {
   if (sub === "pending") {
     const { inputs } = await client.call("runs.pending", id ? { thread: id } : {});
     for (const i of inputs)
@@ -46,9 +52,10 @@ export async function runs(client: ApxClient, [sub, id, ...rest]: string[], time
     const r = await client.call("runs.respond", {
       input: id,
       ...(decision ? { decision } : {}),
+      ...(approvalScope ? { scope: ApprovalScope.parse(approvalScope) } : {}),
       ...(text ? { text } : {}),
     });
-    console.log(`${r.id} ${r.state}`);
+    console.log(`${r.id} ${r.state}${r.approval_scope ? ` (${r.approval_scope})` : ""}`);
     return;
   }
   if (!id || (sub !== "get" && sub !== "wait")) throw new Error("usage: apx runs get|wait|pending|respond …");

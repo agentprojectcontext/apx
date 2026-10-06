@@ -12,19 +12,12 @@ import type { Log } from "../log.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
+import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
 import { type McpDef, mcpConfig } from "./config.ts";
 
 const CONNECT_MS = 20_000;
 const CALL_MS = 120_000;
 const IDLE_MS = 10 * 60_000;
-
-type McpTool = {
-  name: string;
-  title?: string;
-  description?: string;
-  inputSchema: Record<string, unknown>;
-  annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean; title?: string };
-};
 
 type Conn = {
   key: string;
@@ -177,7 +170,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   }
 
   function adapt(d: McpDef, t: McpTool, name: string): Tool {
-    const ro = t.annotations?.readOnlyHint === true;
+    const ro = t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint !== true;
     const effect: Effect = ro ? "none" : "external";
     const confirm = mcpConfirm(ro, t.annotations?.destructiveHint, d.scope);
     let check: z.ZodType | undefined;
@@ -189,6 +182,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     const label = t.annotations?.title ?? t.title ?? t.name;
     return {
       name,
+      approval: mcpApproval(d, t),
       description: `[${d.name}] ${t.description ?? label}`.slice(0, 1024),
       parameters: t.inputSchema,
       effect,
@@ -203,10 +197,24 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       },
       title: () => `${d.name}: ${label}`,
       async run(args, ctx) {
+        const current = defsFor(ctx.thread.project_id).find((x) => keyOf(x) === keyOf(d));
+        if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
+          throw new Error("MCP server approval or definition changed; start a new turn");
         // The connection may have been closed while the turn waited (an owner's long confirmation): reopen it.
         const c = ensure(d);
         await c.ready;
         if (!c.client) throw new Error(`${d.name} is not connected${c.error ? `: ${c.error}` : ""}`);
+        const next = defsFor(ctx.thread.project_id).find((x) => keyOf(x) === keyOf(d));
+        const liveTool = c.tools.find((x) => x.name === t.name);
+        if (
+          !next ||
+          next.hash !== d.hash ||
+          !next.enabled ||
+          !config.trusted(next) ||
+          !liveTool ||
+          mcpApproval(next, liveTool).key !== mcpApproval(d, t).key
+        )
+          throw new Error("MCP approval or tool contract changed; start a new turn");
         const r = (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
           timeout: CALL_MS,
           signal: ctx.signal,
@@ -265,6 +273,20 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         }
       }
       return out;
+    },
+    async toolPermissions(d: McpDef) {
+      if (!d.enabled || !config.trusted(d)) throw new Error("approve and enable this server before listing tools");
+      const c = ensure(d);
+      await c.ready;
+      if (!c.client) throw new Error(c.error ?? "MCP server is not connected");
+      const current = this.find(d.scope, d.name, d.values_of ?? d.project_id ?? d.only);
+      if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
+        throw new Error("MCP server definition changed");
+      return c.tools.map((t) => ({
+        ...mcpApproval(d, t),
+        name: t.name,
+        approved: deps.store.approvals.allows(mcpApproval(d, t)),
+      }));
     },
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
@@ -332,12 +354,14 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
     drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {
-      const key = keyOf(d as McpDef);
-      void conns
-        .get(key)
-        ?.client?.close()
-        .catch(() => {});
-      conns.delete(key);
+      deps.store.approvals.revokeServer(serverApprovalId(d));
+      for (const [key, c] of conns) {
+        const prefix = `${d.scope}:${d.project_id ?? ""}:`;
+        if (key.startsWith(prefix) && key.endsWith(`:${d.name}`)) {
+          void c.client?.close().catch(() => {});
+          conns.delete(key);
+        }
+      }
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {

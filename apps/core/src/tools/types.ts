@@ -1,6 +1,7 @@
 import type { MethodName, Params, Part, Result, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
+import type { ApprovalTarget } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -51,6 +52,7 @@ export type ToolContext = {
 };
 
 export type Tool = {
+  approval?: ApprovalTarget;
   name: string;
   description: string;
   /** JSON Schema of the arguments, derived from the zod schema. */

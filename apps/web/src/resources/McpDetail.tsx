@@ -7,6 +7,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { STATUS_KEY } from "./labels.ts";
+import { McpPermissions } from "./McpPermissions.tsx";
 
 type TestResult = { ok: boolean; ms: number; tools: string[]; error?: string | undefined };
 
@@ -79,14 +80,19 @@ export function McpDetail({
         <p className="resd__note">{t("res.mcpInheritedNote", { name: projectName(projects, projectId) })}</p>
       )}
 
-      {s.status === "needs-approval" && s.project_id && (
+      {s.status === "needs-approval" && (
         <div className="resd__callout">
           <Icons.ShieldAlert size={16} />
           <div>
             <strong>{t("res.approveTitle")}</strong>
             <p>{t("res.approveBody")}</p>
           </div>
-          <Button size="sm" onClick={() => void trustMcp(s.project_id ?? "", s.name, true).then(() => onChanged())}>
+          <Button
+            size="sm"
+            onClick={() =>
+              void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, true).then(() => onChanged())
+            }
+          >
             {t("mcp.approve")}
           </Button>
         </div>
@@ -127,6 +133,8 @@ export function McpDetail({
         <p className="resd__muted">{t("res.toolsUnknown")}</p>
       )}
 
+      <McpPermissions server={s} projectId={projectId} />
+
       <div className="resd__row">
         <Button
           size="sm"
@@ -138,11 +146,13 @@ export function McpDetail({
         >
           {t("res.test")}
         </Button>
-        {s.scope === "project" && s.trusted && s.project_id && (
+        {s.trusted && (
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => void trustMcp(s.project_id ?? "", s.name, false).then(() => onChanged())}
+            onClick={() =>
+              void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, false).then(() => onChanged())
+            }
           >
             {t("mcp.revoke")}
           </Button>

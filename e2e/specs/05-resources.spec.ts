@@ -95,7 +95,7 @@ test("a new MCP server takes a variable for its token from the + list, or a new 
   await expect(edit.getByRole("textbox", { name: "Valor" }).nth(1)).toHaveText("Bearer NORTHWIND_API×");
   await edit.getByRole("button", { name: "Cancelar" }).click();
   await row.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Quitar" }).click();
+  await page.getByRole("menuitem", { name: "Quitar", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Quitar" }).click();
   await expect
     .poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.map((s) => s.name))

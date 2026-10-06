@@ -38,6 +38,13 @@ const REPORT = [
 
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
+  if (/^read MCP twice/i.test(said)) {
+    const last = messages.at(-1);
+    if (last?.role !== "tool") return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "first" }) };
+    if (String(last.content).includes("echo: first"))
+      return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "second" }) };
+    return undefined;
+  }
   if (messages.at(-1)?.role === "tool") return undefined;
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))

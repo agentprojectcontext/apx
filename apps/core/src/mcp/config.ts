@@ -142,11 +142,11 @@ export function mcpConfig(store: Store) {
     },
     /** The owner's own servers are trusted; a project's only for the definition the owner approved. */
     trusted(d: McpDef): boolean {
-      return d.scope === "global" || (!!d.project_id && store.settings.get(trustKey(d.project_id, d.name)) === d.hash);
+      const stored = store.settings.get(trustKey(d.project_id ?? "global", d.name));
+      return d.scope === "global" ? stored === undefined || stored === d.hash : stored === d.hash;
     },
     setTrust(d: McpDef, trusted: boolean): void {
-      if (!d.project_id) return;
-      store.settings.set(trustKey(d.project_id, d.name), trusted ? d.hash : "");
+      store.settings.set(trustKey(d.project_id ?? "global", d.name), trusted ? d.hash : "");
     },
     /** Global servers the owner turned off inside a project (all of them when it takes none). */
     offIn(projectId: string): string[] {

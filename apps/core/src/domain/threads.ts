@@ -102,7 +102,7 @@ export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
 
 export type LogEntry = { seq: number; run_id: string | undefined; item: unknown };
 
-export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
+export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
   const repo = {
     list(
       opts: {
@@ -223,6 +223,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
       if (a.custom_title !== undefined) set.custom_title = a.custom_title || null;
       if (a.pinned !== undefined) set.pinned = a.pinned ? 1 : 0;
       if (a.archived !== undefined) set.archived = a.archived ? 1 : 0;
+      if (a.archived) endSession(id);
       return repo.write(id, set);
     },
     /** Works in `cwd` with that write policy, or (null) stops working in a folder. */
@@ -262,6 +263,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus) {
      * messages, nudges) keep their content and lose the link. Returns the files left to remove.
      */
     remove(ids: string[]): { media: string[]; jobs: string[] } {
+      for (const id of ids) endSession(id);
       if (!ids.length) return { media: [], jobs: [] };
       const media = all(qb.selectFrom("media").select("path").where("thread_id", "in", ids)).map((r) => r.path);
       const jobs = all(qb.selectFrom("jobs").select("id").where("thread_id", "in", ids)).map((r) => r.id);

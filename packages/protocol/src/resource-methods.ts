@@ -1,7 +1,11 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
-import { Id, McpServerStatus } from "./domain.ts";
+import { Id, McpServerStatus, ToolApproval } from "./domain.ts";
+
+const McpTarget = z
+  .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
+  .strict();
 
 const SkillName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/);
 
@@ -108,6 +112,32 @@ export const resourceMethods = {
     access: "human",
   },
   /** MCP servers: the owner's and each project's, with whether they are approved, running and on here. */
+  "tools.approvals": {
+    params: z.object({ thread: Id.optional() }).strict(),
+    result: z.object({ approvals: z.array(ToolApproval) }),
+    effect: false,
+    access: "human",
+  },
+  "tools.revoke": {
+    params: z.object({ key: z.string().min(1), thread: Id.optional() }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  "mcp.tools": {
+    params: McpTarget,
+    result: z.object({
+      tools: z.array(z.object({ name: z.string(), key: z.string(), permanent: z.boolean(), approved: z.boolean() })),
+    }),
+    effect: true,
+    access: "human",
+  },
+  "mcp.approveTool": {
+    params: McpTarget.extend({ tool: z.string() }),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   "mcp.list": {
     params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ servers: z.array(McpServerStatus) }),
@@ -116,7 +146,7 @@ export const resourceMethods = {
   },
   /** Approves (or withdraws) a project's server as its file defines it now; a changed file needs approving again. */
   "mcp.trust": {
-    params: z.object({ project: Id, server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
+    params: z.object({ project: Id.optional(), server: z.string().min(1).max(64), trusted: z.boolean() }).strict(),
     result: z.object({ server: McpServerStatus }),
     effect: true,
     access: "human",

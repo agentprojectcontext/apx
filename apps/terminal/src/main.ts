@@ -65,7 +65,7 @@ Usage:
   apx threads [list] | get <thread> | cancel <thread>
   apx runs get <run> | wait <run> [--timeout 60]
   apx runs pending [thread]   What agents are waiting on from you
-  apx runs respond <input> approve|deny ["note"] | "<answer>"
+  apx runs respond <input> approve|deny ["note"] [--scope once|session|always] | "<answer>"
   apx projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx agents              Agents and the model each one runs on
@@ -132,6 +132,7 @@ const { values, positionals } = parseArgs({
     cron: { type: "string" },
     clear: { type: "boolean" },
     scopes: { type: "string" },
+    scope: { type: "string" },
     person: { type: "string" },
     owed: { type: "string" },
     due: { type: "string" },
@@ -189,7 +190,7 @@ try {
       await threads(client, rest);
       break;
     case "runs":
-      await runs(client, rest, Number(values.timeout ?? 60));
+      await runs(client, rest, Number(values.timeout ?? 60), values.scope);
       break;
     case "jobs":
       await jobs(client, rest);

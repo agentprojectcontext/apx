@@ -1,5 +1,12 @@
 // UI strings, English: Resources (skills, MCP servers, integrations, variables, extensions).
 export const enResources = {
+  "res.approvedTools": "Approved tools",
+  "res.noApprovedTools": "No saved tool approvals",
+  "res.permissions": "Tool permissions",
+  "res.loadTools": "Load tools and permissions",
+  "res.sessionOnly": "Session approval only",
+  "res.approvalHelp": "Read approvals cover all agents. Server or tool changes require approval again.",
+
   "res.error": "Resources: {error}",
   "res.lead":
     "Skills, MCP servers, integrations and variables. They live globally or inside a project; each project inherits the global ones and can turn them off or override them without touching the original.",

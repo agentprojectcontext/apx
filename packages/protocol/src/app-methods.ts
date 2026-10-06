@@ -3,6 +3,7 @@ import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
+  ApprovalScope,
   Author,
   Autonomy,
   BaseProject,
@@ -477,6 +478,7 @@ export const appMethods = {
       .object({
         input: Id,
         decision: z.enum(["approve", "deny"]).optional(),
+        scope: ApprovalScope.optional(),
         text: z.string().max(4000).optional(),
       })
       .strict(),

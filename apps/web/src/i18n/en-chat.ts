@@ -1,5 +1,12 @@
 // UI strings, English: the chat's composer and its Usage panel.
 export const enChat = {
+  "input.approveOnce": "Approve once",
+  "input.approveSession": "Approve for this session",
+  "input.approveAlways": "Always approve",
+  "input.sessionScope": "This session",
+  "input.alwaysScope": "All agents and chats",
+  "input.scopeHelp": "Session: this chat until archive or restart. Permanent: all agents. Writes: session only.",
+
   "composer.offline": "No connection to the core…",
   "composer.placeholder": "Message {name}…",
   "composer.yourAgent": "your agent",
