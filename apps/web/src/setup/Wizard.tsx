@@ -185,7 +185,7 @@ export function Wizard() {
   };
 
   return (
-    <div className="wiz" data-apx-look="minimal" data-apx-mode="dark">
+    <div className="wiz">
       <header className="wiz__head">
         <div className="wiz__brand">
           <img src={logo} alt="" width={24} height={24} />

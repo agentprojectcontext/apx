@@ -57,7 +57,7 @@ const rank = (p: ProviderInfo) => (p.enabled && p.key_set ? 0 : p.enabled ? 1 : 
  * Model APIs our own loop calls, as cards: the ChatGPT plan first (fixed), the ones set up (ready first), then the
  * known kinds not set up yet (each can be taken off the list), then a card to add any OpenAI-compatible one.
  */
-export function ProvidersGrid() {
+export function ProvidersGrid({ compact = false }: { compact?: boolean }) {
   const t = useT();
   const list = useProviders((s) => s.list);
   const open = useSlice(editor, (s) => s.open);
@@ -68,15 +68,21 @@ export function ProvidersGrid() {
   }, []);
   const apis = list.filter((p) => !p.sign_in).sort((a, b) => rank(a) - rank(b));
   const taken = new Set(apis.flatMap((p) => [p.id, kindOf(p)]));
-  const unset = PROVIDER_PRESETS.filter((k) => k.id !== "custom" && !taken.has(k.id) && !hiddenIds.includes(k.id));
+  const unset = PROVIDER_PRESETS.filter(
+    (k) =>
+      k.id !== "custom" &&
+      !taken.has(k.id) &&
+      !hiddenIds.includes(k.id) &&
+      (!compact || ["gemini", "anthropic", "openai"].includes(k.id)),
+  );
   const close = () => editor.set({ open: undefined });
   const editing = open?.id ? list.find((p) => p.id === open.id) : undefined;
   return (
     <>
-      <div className="pgrid">
-        {plan && <PlanCard p={plan} />}
+      <div className={compact ? "pgrid pgrid--compact" : "pgrid"}>
+        {plan && <PlanCard p={plan} compact={compact} />}
         {apis.map((p) => (
-          <ProviderCard key={p.id} p={p} onEdit={() => editor.set({ open: { id: p.id } })} />
+          <ProviderCard key={p.id} p={p} compact={compact} onEdit={() => editor.set({ open: { id: p.id } })} />
         ))}
         {unset.map((k) => (
           <div key={k.id} className="pcard is-unset">
@@ -121,13 +127,13 @@ export function ProvidersGrid() {
   );
 }
 
-function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
+function ProviderCard({ p, onEdit, compact }: { p: ProviderInfo; onEdit: () => void; compact: boolean }) {
   const t = useT();
   const ready = p.enabled && p.key_set;
   return (
     <div className={p.enabled ? "pcard" : "pcard is-off"}>
       <div className="pcard__top">
-        <ProviderMark id={kindOf(p)} label={p.label} size={36} />
+        <ProviderMark id={kindOf(p)} label={p.label} size={compact ? 28 : 36} />
         <div className="pcard__titles">
           <div className="pcard__name">{p.label}</div>
           <div className="pcard__id">{p.id}</div>
@@ -140,11 +146,15 @@ function ProviderCard({ p, onEdit }: { p: ProviderInfo; onEdit: () => void }) {
         <dt>{t("providers.url")}</dt>
         <dd title={p.base_url}>{p.base_url.replace(/^https?:\/\//, "")}</dd>
         <dt>{t("providers.key")}</dt>
-        <dd>{!p.needs_key ? t("providers.keyNone") : p.key_set ? t("providers.keySet") : "—"}</dd>
-        <dt>{t("providers.models")}</dt>
-        <dd>
-          <ModelCount p={p} />
-        </dd>
+        <dd>{!p.needs_key ? t("providers.keyNone") : p.key_set ? `****${p.key_hint ?? ""}` : "—"}</dd>
+        {!compact && (
+          <>
+            <dt>{t("providers.models")}</dt>
+            <dd>
+              <ModelCount p={p} />
+            </dd>
+          </>
+        )}
       </dl>
       <div className="pcard__actions">
         <Switch
@@ -305,7 +315,7 @@ function ProviderDialog({
               type="password"
               autoComplete="off"
               value={key}
-              placeholder={initial?.key_set ? t("providers.keyKeep") : "sk-…"}
+              placeholder={initial?.key_set ? `****${initial.key_hint ?? ""} — ${t("providers.keyKeep")}` : "sk-…"}
               onChange={(e) => setKey(e.currentTarget.value)}
             />
             <span className="pform__hint">{t("providers.keyHint")}</span>

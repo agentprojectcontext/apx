@@ -11,7 +11,7 @@ import { PlanLogin } from "./PlanLogin.tsx";
  * The ChatGPT plan as a model API of APX's own loop, shown as Codex: first among the APIs, fixed (signed in or out,
  * switched on or off, never removed). Claude's plan has no counterpart: it runs only in Claude Code (D-043).
  */
-export function PlanCard({ p }: { p: ProviderInfo }) {
+export function PlanCard({ p, compact = false }: { p: ProviderInfo; compact?: boolean }) {
   const t = useT();
   const models = useModels((s) => s.catalog.find((e) => e.id === p.id));
   const [status, setStatus] = useState<ChatgptStatus>();
@@ -25,7 +25,7 @@ export function PlanCard({ p }: { p: ProviderInfo }) {
   return (
     <div className={p.enabled ? "pcard pcard--plan" : "pcard pcard--plan is-off"}>
       <div className="pcard__top">
-        <EngineIcon engine="codex" tile size={36} />
+        <EngineIcon engine="codex" tile size={compact ? 28 : 36} />
         <div className="pcard__titles">
           <div className="pcard__name">{p.label}</div>
           <div className="pcard__plan">{t("plans.codex.kind")}</div>
@@ -37,8 +37,12 @@ export function PlanCard({ p }: { p: ProviderInfo }) {
       <dl className="pcard__rows">
         <dt>{t("plans.account")}</dt>
         <dd>{connected ? (status?.account ?? t("plans.connected")) : "—"}</dd>
-        <dt>{t("plans.models")}</dt>
-        <dd>{count ? t("plans.modelsCount", { count }) : "—"}</dd>
+        {!compact && (
+          <>
+            <dt>{t("plans.models")}</dt>
+            <dd>{count ? t("plans.modelsCount", { count }) : "—"}</dd>
+          </>
+        )}
       </dl>
       <div className="pcard__actions">
         <Switch

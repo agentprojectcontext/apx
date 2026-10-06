@@ -50,3 +50,40 @@ test("a default handed out is a copy: changing it never changes the next read", 
   settings.read("skills_off")["*"] = ["brief"];
   assert.deepEqual(settings.read("skills_off"), {});
 });
+
+test("provider key replacement exposes only a suffix and preserves the replacement on edits", async () => {
+  const provider = { label: "Acme", transport: "openai-chat" as const, base_url: "http://127.0.0.1:9", models: ["m1"] };
+  const first = "example-private-key-1234";
+  const second = "example-private-key-5678";
+  const created = await env.client.call("providers.set", { id: "acme-key", provider, api_key: first });
+  assert.equal(created.providers.find((p) => p.id === "acme-key")?.key_hint, "1234");
+  assert.ok(!JSON.stringify(created).includes(first));
+  const changed = await env.client.call("providers.set", { id: "acme-key", provider, api_key: second });
+  assert.equal(changed.providers.find((p) => p.id === "acme-key")?.key_hint, "5678");
+  const kept = await env.client.call("providers.set", { id: "acme-key", provider: { ...provider, enabled: false } });
+  assert.equal(kept.providers.find((p) => p.id === "acme-key")?.key_hint, "5678");
+  assert.ok(!JSON.stringify(kept).includes(second));
+  const short = await env.client.call("providers.set", { id: "acme-key", provider, api_key: "short" });
+  assert.equal(short.providers.find((p) => p.id === "acme-key")?.key_hint, undefined);
+  await env.client.call("providers.set", { id: "acme-key", provider: null });
+});
+
+test("replacing a provider's environment key switches to the saved credential", async () => {
+  const provider = {
+    label: "Northwind",
+    transport: "openai-chat" as const,
+    base_url: "http://127.0.0.1:9",
+    models: ["m1"],
+  };
+  env.core.store.settings.write("providers", [{ ...provider, id: "northwind-key", key: "env:APX_TEST_MISSING_KEY" }]);
+  const result = await env.client.call("providers.set", {
+    id: "northwind-key",
+    provider,
+    api_key: "example-replacement-key-9012",
+  });
+  assert.equal(result.providers.find((p) => p.id === "northwind-key")?.key_hint, "9012");
+  assert.equal(
+    env.core.store.settings.read("providers").find((p) => p.id === "northwind-key")?.key,
+    "secret://northwind-key",
+  );
+});

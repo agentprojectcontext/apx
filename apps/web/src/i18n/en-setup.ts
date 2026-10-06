@@ -103,7 +103,7 @@ export const enSetup = {
   "setup.engines.model": "Model",
   "setup.engines.drop": "Take out of the chain",
   "setup.engines.default": "Default",
-  "setup.engines.needOne": "Connect at least one engine",
+  "setup.engines.needOne": "Add at least one model to the chain",
   "setup.memory.kicker": "MEMORY",
   "setup.memory.title": "A crew",
   "setup.memory.titleGreen": "that remembers.",

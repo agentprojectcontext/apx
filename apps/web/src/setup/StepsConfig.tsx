@@ -1,27 +1,15 @@
-import {
-  Badge,
-  Button,
-  Dialog,
-  EngineIcon,
-  IconButton,
-  Icons,
-  Input,
-  ProjectTile,
-  Select,
-  Spinner,
-  Switch,
-} from "@apx/ui";
+import { Badge, Button, Dialog, Icons, Input, ProjectTile, Select, Spinner, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
-import { RefSelect } from "../config/models/RefSelect.tsx";
-import { PlanLogin } from "../config/PlanLogin.tsx";
+import { RouterChain } from "../config/models/RouterChain.tsx";
+import { ProvidersGrid } from "../config/ProvidersGrid.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
-import { loadCatalog, models, splitRef } from "../data/models.ts";
+import { loadCatalog, splitRef } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
-import { loadProviders, saveProvider, useProviders } from "../data/providers.ts";
+import { useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -29,54 +17,21 @@ import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
 import type { Draft, StepProps } from "./draft.ts";
 import { StepHead } from "./StepsIntro.tsx";
 
-type Engine = {
-  id: string;
-  label: string;
-  /** `plan`: a subscription signed in from APX (Codex); `key`: a model API with a key; `local`: a server here. */
-  kind: "plan" | "key" | "local";
-  ready: boolean;
-};
-
-/**
- * What the agents will run on: the ChatGPT plan (as Codex) and the model APIs; sign in or paste a key, then put them
- * in order. The CLIs (Claude Code, Codex…) are external sessions, never the router (DECISIONS.md#d-043).
- */
+/** Provider management is shared with settings; the wizard saves its router on Continue. */
 export function EnginesStep({ draft: d, set }: StepProps) {
   const t = useT();
   const providers = useProviders((s) => s.list);
+  const loaded = useProviders((s) => s.load);
   useEffect(() => {
-    void loadProviders();
     void loadCatalog();
   }, []);
-  const engines: Engine[] = providers.map((p) => ({
-    id: p.id,
-    label: p.label,
-    kind: p.sign_in ? "plan" : p.needs_key ? "key" : "local",
-    ready: p.enabled && p.key_set,
-  }));
-  // A model API runs with its model named: one is added with the first model it offers (changed below).
-  const firstRef = (id: string) => {
-    const m = models
-      .get()
-      .catalog.find((e) => e.id === id)
-      ?.models.find((x) => x.chat);
-    return m ? `${id}/${m.id}` : undefined;
-  };
-  const uses = (id: string) => d.chain.some((r) => splitRef(r).engine === id);
-  const toggle = (id: string, on: boolean) => {
-    const ref = on ? firstRef(id) : undefined;
-    if (on && !ref) return void loadCatalog(true);
-    set({ chain: ref ? [...d.chain, ref] : d.chain.filter((r) => splitRef(r).engine !== id) });
-  };
-  const replace = (i: number, ref: string) =>
-    set({ chain: d.chain.map((r, j) => (j === i ? ref : r)).filter((r, j, all) => all.indexOf(r) === j) });
-  const drop = (i: number) => set({ chain: d.chain.filter((_, j) => j !== i) });
-  const up = (i: number) => {
-    if (i < 1) return;
-    const c = [...d.chain];
-    [c[i - 1], c[i]] = [c[i] as string, c[i - 1] as string];
-    set({ chain: c });
-  };
+  useEffect(() => {
+    if (loaded !== "ready") return;
+    const chain = d.chain.filter((ref) =>
+      providers.some((p) => p.id === splitRef(ref).engine && p.enabled && p.key_set),
+    );
+    if (chain.length !== d.chain.length) set({ chain });
+  }, [providers, loaded, d.chain, set]);
   return (
     <>
       <StepHead
@@ -87,126 +42,11 @@ export function EnginesStep({ draft: d, set }: StepProps) {
       >
         {t("setup.engines.body")}
       </StepHead>
-      <div className="wiz__engines">
-        {engines.map((e) => (
-          <EngineCard key={e.id} engine={e} on={uses(e.id)} onToggle={(on) => toggle(e.id, on)} />
-        ))}
-      </div>
+      <ProvidersGrid compact />
       <div className="wiz__card wiz__chain">
-        <div className="wiz__chainhead">
-          <b>{t("setup.engines.chain")}</b>
-          <span>{t("setup.engines.chainHint")}</span>
-        </div>
-        {d.chain.length === 0 && <p className="wiz__unset">{t("setup.engines.chainEmpty")}</p>}
-        {d.chain.map((ref, i) => (
-          <div key={ref} className="wiz__link">
-            <span className="wiz__linkn">#{i + 1}</span>
-            <EngineIcon engine={splitRef(ref).engine} size={14} />
-            <RefSelect value={ref} onChange={(v) => v !== ref && replace(i, v)} />
-            {i === 0 && <Badge tone="brand">{t("setup.engines.default")}</Badge>}
-            <span className="wiz__spacer" />
-            <IconButton
-              size="sm"
-              label={t("setup.engines.up")}
-              icon={<Icons.ArrowUp size={13} />}
-              disabled={i === 0}
-              onClick={() => up(i)}
-            />
-            <IconButton
-              size="sm"
-              label={t("setup.engines.drop")}
-              icon={<Icons.X size={13} />}
-              onClick={() => drop(i)}
-            />
-          </div>
-        ))}
+        <RouterChain chain={d.chain} onChange={(chain) => set({ chain })} />
       </div>
     </>
-  );
-}
-
-function EngineCard({ engine: e, on, onToggle }: { engine: Engine; on: boolean; onToggle(on: boolean): void }) {
-  const t = useT();
-  const providers = useProviders((s) => s.list);
-  const [key, setKey] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const [login, setLogin] = useState(false);
-  const saveKey = async () => {
-    const p = providers.find((x) => x.id === e.id);
-    if (!p || !key?.trim()) return;
-    setBusy(true);
-    const ok = await saveProvider(
-      {
-        id: p.id,
-        label: p.label,
-        preset: p.preset ?? p.id,
-        transport: p.transport,
-        base_url: p.base_url,
-        needs_key: p.needs_key,
-        models: p.models,
-        enabled: true,
-      },
-      key.trim(),
-    );
-    setBusy(false);
-    if (ok) {
-      setKey(undefined);
-      // Its models are listed once the key is in: the first one joins the chain.
-      await loadCatalog(true);
-      onToggle(true);
-    }
-  };
-  const kind: Record<Engine["kind"], MessageKey> = {
-    plan: "plans.codex.kind",
-    key: "setup.engines.apiKey",
-    local: "setup.engines.local",
-  };
-  return (
-    <div className={`wiz__engine${on ? " is-on" : ""}`}>
-      <div className="wiz__enginehead">
-        <EngineIcon engine={e.id} tile size={34} />
-        <span className="wiz__enginetitles">
-          <b>{e.label}</b>
-          <span>{t(kind[e.kind])}</span>
-        </span>
-        {on && (
-          <Badge tone="brand" dot>
-            {t("setup.engines.active")}
-          </Badge>
-        )}
-      </div>
-      {e.ready ? (
-        <Button size="sm" variant={on ? "ghost" : "secondary"} onClick={() => onToggle(!on)}>
-          {on ? t("setup.engines.remove") : t("setup.engines.useIt")}
-        </Button>
-      ) : e.kind === "plan" ? (
-        <>
-          <Button size="sm" variant="secondary" onClick={() => setLogin(true)}>
-            {t("plans.connect")}
-          </Button>
-          {login && <PlanLogin onClose={() => setLogin(false)} />}
-        </>
-      ) : key === undefined ? (
-        <Button size="sm" variant="secondary" onClick={() => setKey("")}>
-          {t("setup.engines.addKey")}
-        </Button>
-      ) : (
-        <div className="wiz__keyrow">
-          <Input
-            type="password"
-            autoFocus
-            autoComplete="off"
-            placeholder="sk-…"
-            value={key}
-            onChange={(ev) => setKey(ev.currentTarget.value)}
-            onKeyDown={(ev) => ev.key === "Enter" && void saveKey()}
-          />
-          <Button size="sm" loading={busy} disabled={!key.trim()} onClick={() => void saveKey()}>
-            {t("setup.engines.save")}
-          </Button>
-        </div>
-      )}
-    </div>
   );
 }
 

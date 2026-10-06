@@ -104,7 +104,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.engines.model": "Modelo",
   "setup.engines.drop": "Sacar de la cadena",
   "setup.engines.default": "Default",
-  "setup.engines.needOne": "Conectá al menos un motor",
+  "setup.engines.needOne": "Agregá al menos un modelo a la cadena",
   "setup.memory.kicker": "MEMORIA",
   "setup.memory.title": "Un crew",
   "setup.memory.titleGreen": "que recuerda.",

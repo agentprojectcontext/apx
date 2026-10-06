@@ -967,3 +967,42 @@ input.wiz__name {
   font-size: 12px;
   text-align: center;
 }
+
+/* Shared provider cards, reduced for the first-run wizard. */
+.pgrid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.pgrid--compact .pcard {
+  padding: 12px;
+  gap: 8px;
+}
+.pgrid--compact .pcard__name {
+  font-size: 14px;
+}
+.pgrid--compact .pcard__rows {
+  font-size: 11px;
+  gap: 3px 8px;
+}
+.pgrid--compact .pcard--add {
+  min-height: 110px;
+}
+.wiz__chain .chain__item {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .pgrid--compact {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pgrid--compact .pcard__id {
+  display: none;
+}
+.pgrid--compact .pcard {
+  padding: 10px;
+  gap: 6px;
+}
+.pgrid--compact .pcard--add {
+  min-height: 96px;
+}

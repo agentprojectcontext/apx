@@ -479,6 +479,8 @@ export const ChatgptStatus = z.object({
 export type ChatgptStatus = z.infer<typeof ChatgptStatus>;
 
 export const ProviderInfo = z.object({
+  /** Only a masked key suffix, never a credential. */
+  key_hint: z.string().max(4).optional(),
   id: z.string(),
   label: z.string(),
   /** The kind of service, for its card's look (gemini, groq, ollama, openrouter…). */

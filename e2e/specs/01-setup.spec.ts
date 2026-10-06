@@ -26,6 +26,34 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   // v1's fallback came in with its Ollama, keyless.
   await expect(wizard.getByText("ollama/gemma-e2e").first()).toBeVisible();
   await expect(wizard.getByRole("combobox", { name: "Modelo" }).first()).toBeVisible();
+  // Provider management works before leaving the wizard, including correcting a saved key.
+  await wizard.getByRole("button", { name: "Agregar proveedor", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Nombre", exact: true }).fill("Acme wizard");
+  await dialog.getByRole("textbox", { name: "URL base" }).fill("http://127.0.0.1:9/v1");
+  await dialog.getByRole("textbox", { name: "Clave de API" }).fill("example-wizard-key-1234");
+  await dialog.getByRole("button", { name: "Crear", exact: true }).click();
+  const card = wizard.locator(".pcard").filter({ hasText: "Acme wizard" });
+  await expect(card.getByText("****1234", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "Editar", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Clave de API" }).fill("example-wizard-key-5678");
+  await dialog.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(card.getByText("****5678", { exact: true })).toBeVisible();
+  await card.getByRole("switch", { name: "Activo", exact: true }).click();
+  await expect(card.getByRole("switch")).not.toBeChecked();
+  await card.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(card).toHaveCount(0);
+  const ollama = wizard.locator(".pcard").filter({ hasText: /^Ollama/ });
+  await ollama.getByRole("switch").click();
+  await expect(wizard.locator(".chain__item")).toHaveCount(1);
+  await ollama.getByRole("switch").click();
+  await wizard.getByRole("button", { name: "Agregar un modelo", exact: true }).click();
+  await page.getByRole("option").filter({ hasText: "ollama/fake-1" }).click();
+  await expect(wizard.locator(".chain__item")).toHaveCount(2);
+  await wizard.locator(".chain__item").last().getByRole("button", { name: "Subir", exact: true }).click();
+  await expect(wizard.locator(".chain__item").first().getByRole("combobox")).toContainText("fake-1");
+  await wizard.locator(".chain__item").first().getByRole("button", { name: "Bajar", exact: true }).click();
+
   await wizard.getByRole("button", { name: "Continuar" }).click();
   // Memory: by meaning, with v1's engine, and skills picked by meaning on.
   await expect(wizard.getByText("Motor de embeddings: Ollama · embeddinggemma:300m.")).toBeVisible();
@@ -92,3 +120,36 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   // Back to how the other specs expect it.
   await rpc("projects.update_base", { name: "Default", kind: null });
 });
+
+for (const look of ["minimal", "classic"]) {
+  for (const mode of ["light", "dark"]) {
+    test(`the wizard and its menus inherit ${look} ${mode}`, async ({ page }) => {
+      await page.addInitScript(
+        ({ look, mode }) => {
+          localStorage.setItem("apx.prefs", JSON.stringify({ look, language: "es" }));
+          localStorage.setItem("apx.mode", mode);
+        },
+        { look, mode },
+      );
+      await page.goto("/");
+      await page.getByRole("button", { name: /^Cuenta/ }).click();
+      await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+      const wizard = page.locator(".wiz");
+      await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
+      for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
+      await wizard.getByRole("combobox", { name: "Tipo" }).click();
+      const popup = page.locator(".apx-select__popup");
+      await expect(popup).toBeVisible();
+      const theme = (element: Element) => {
+        const root = element.closest("[data-apx-look]");
+        return {
+          look: root?.getAttribute("data-apx-look"),
+          mode: root?.getAttribute("data-apx-mode"),
+          surface: getComputedStyle(element).getPropertyValue("--apx-surface"),
+        };
+      };
+      expect(await wizard.evaluate(theme)).toEqual(await popup.evaluate(theme));
+      expect(await wizard.evaluate(theme)).toMatchObject({ look, mode });
+    });
+  }
+}

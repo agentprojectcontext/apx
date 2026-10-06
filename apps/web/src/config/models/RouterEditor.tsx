@@ -1,10 +1,9 @@
 import type { ModelRef, RouterConfig, RouterRule } from "@apx/protocol";
-import { Badge, Button, IconButton, Icons } from "@apx/ui";
+import { Button, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { forAgents, inCatalog, saveModelsConfig, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-import { ModelRefPicker } from "./ModelPickers.tsx";
-import { RefSelect } from "./RefSelect.tsx";
+import { RouterChain } from "./RouterChain.tsx";
 import { cleanWhen, RuleCard } from "./RuleCard.tsx";
 
 const move = <T,>(list: readonly T[], i: number, delta: number): T[] => {
@@ -86,68 +85,7 @@ export function RouterEditor() {
 
   return (
     <div className="config__section router">
-      <div className="router__block">
-        <div className="router__blockhead">
-          <span className="router__blocktitle">{t("router.chain")}</span>
-          <span className="router__blockhint">{t("router.chainHint")}</span>
-        </div>
-        {draft.chain.length === 0 ? (
-          <p className="router__empty">{t("router.noChain")}</p>
-        ) : (
-          <ol className="chain">
-            {draft.chain.map((ref, i) => (
-              <li key={ref} className="chain__item">
-                <span className="rule__n">#{i + 1}</span>
-                {i === 0 && (
-                  <Badge tone="brand" dot>
-                    {t("router.default")}
-                  </Badge>
-                )}
-                <RefSelect
-                  value={ref}
-                  onChange={(next) =>
-                    !draft.chain.includes(next) && setChain(draft.chain.map((r, j) => (j === i ? next : r)))
-                  }
-                />
-                {catalog.length > 0 && !inCatalog(ref, catalog) && (
-                  <span className="chain__warn" title={t("models.notInCatalog")}>
-                    <Icons.TriangleAlert size={12} />
-                    {t("models.notInCatalogShort")}
-                  </span>
-                )}
-                <IconButton
-                  size="sm"
-                  label={t("router.moveUp")}
-                  icon={<Icons.ArrowUp size={14} />}
-                  disabled={i === 0}
-                  onClick={() => setChain(move(draft.chain, i, -1))}
-                />
-                <IconButton
-                  size="sm"
-                  label={t("router.moveDown")}
-                  icon={<Icons.ArrowDown size={14} />}
-                  disabled={i === draft.chain.length - 1}
-                  onClick={() => setChain(move(draft.chain, i, 1))}
-                />
-                <IconButton
-                  size="sm"
-                  label={t("router.removeFromChain")}
-                  icon={<Icons.X size={14} />}
-                  onClick={() => setChain(draft.chain.filter((_, j) => j !== i))}
-                />
-              </li>
-            ))}
-          </ol>
-        )}
-        <div>
-          <ModelRefPicker
-            label={t("router.addToChain")}
-            placeholder={t("router.addToChain")}
-            onChange={(ref) => !draft.chain.includes(ref) && setChain([...draft.chain, ref])}
-          />
-        </div>
-      </div>
-
+      <RouterChain chain={draft.chain} onChange={setChain} />
       <div className="router__block">
         <div className="router__blockhead">
           <span className="router__blocktitle">{t("router.rules")}</span>
