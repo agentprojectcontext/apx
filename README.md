@@ -1,283 +1,163 @@
 <p align="center">
-  <a href="https://discord.gg/vxdZuT5WuE"><img src="assets/discord-ribbon.svg" alt="Join the APX community on Discord — discord.gg/vxdZuT5WuE" width="820"></a>
-</p>
-
-<p align="center">
-  <img src="assets/banner.webp" alt="APX — Meet your crew. Your crew of AI agents, running on your machine" width="820">
+  <img src="assets/banner.webp" alt="APX — Meet your crew" width="820">
 </p>
 
 <h3 align="center">Meet your crew.</h3>
 
 <p align="center">
-  <b>APX</b> (<b>A</b>gent <b>P</b>roject e<b>X</b>ecutable) is an <b>open-source Agent OS</b> for running AI agents on your own machine.<br>
-  Your crew remembers in plain files, hands work to each other, and works from Claude Code, Codex, Telegram, WhatsApp and your phone.<br>
-  One machine. One context. Your whole crew. Built on the
-  <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC protocol</a>.
+  <b>APX is an open-source Agent OS: your own team of AI agents, running on your machine.</b><br>
+  Give them roles, memory and tools. Talk to them, let them work together, and follow what they do.<br>
+  Research, writing, everyday plans, business operations or code — build a crew around your life and work.
 </p>
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-agentprojectcontext.github.io-3fb950?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
+  <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-meet_your_crew-3fb950?style=flat-square" alt="Visit the APX website"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/Node.js-22%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22+">
-  <a href="https://github.com/agentprojectcontext/agentprojectcontext"><img src="https://img.shields.io/badge/Protocol-APC-3fb950?style=flat-square" alt="APC protocol"></a>
-  <a href="https://discord.gg/vxdZuT5WuE"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
+  <img src="https://img.shields.io/badge/Node.js-22%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="APX v1 requires Node.js 22+">
+  <a href="https://discord.gg/vxdZuT5WuE"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Join the community"></a>
 </p>
 
 <p align="center">
-  <b><a href="https://agentprojectcontext.github.io/apx/">🌐 Visit the website</a></b> &nbsp;&middot;&nbsp;
-  <a href="#quick-start">Quick start</a> &middot;
-  <a href="#examples">Examples</a> &middot;
-  <a href="#web-admin">Web admin</a> &middot;
-  <a href="#use-cases">Use cases</a> &middot;
-  <a href="#android-app">Android app</a> &middot;
-  <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC spec</a>
+  <b><a href="https://agentprojectcontext.github.io/apx/">See APX working →</a></b> ·
+  <a href="#quick-start">Install v1</a> · <a href="#coming-next-apx-v2">V2 preview</a> ·
+  <a href="README_ES.md">Español</a> · <a href="https://discord.gg/vxdZuT5WuE">Discord</a>
 </p>
 
-> APX is the reference implementation of the [APC protocol](https://github.com/agentprojectcontext/agentprojectcontext).
-> APX is to APC what a language SDK is to a protocol spec.
-
-## What APX is
-
-APX is a daemon + CLI that brings the APC convention to life:
-
-- **Daemon** — a local HTTP server that manages projects, agents, sessions, and message logs
-- **CLI** (`apx`) — commands for running agents, reading memory, tailing messages, managing sessions
-- **Web admin** — a local web UI served by the daemon to browse projects, agents, sessions, and MCPs from the browser
-- **Runtimes** — bridges to Claude Code, Codex, OpenCode, Aider
-- **Engines** — direct LLM calls via Anthropic, OpenAI, Gemini, Ollama, or a mock
-- **Plugins** — Telegram bot integration out of the box
-- **MCP support** — each agent can expose or consume MCP servers
-
-APX is opinionated about storage: the filesystem is the source of truth. Project definitions and curated memory live in the repo. Runtime state such as sessions, conversations, messages, and caches lives in `~/.apx/` and is never committed.
+## See your crew in action
 
 <p align="center">
-  <a href="https://agentprojectcontext.github.io/apx/"><img src="assets/demo-group-chat.gif" alt="The APX web panel: a group chat where Lucía plans a Black Friday campaign and mentions Vera and Tomás, who answer in the same thread" width="820"></a><br>
-  <sub>Your crew in a group chat: mention one agent and it pulls in the others. <a href="https://agentprojectcontext.github.io/apx/">See more of your crew on the website →</a></sub>
+  <a href="https://agentprojectcontext.github.io/apx/">
+    <img src="assets/demo-group-chat.gif" alt="Real APX v1 recording: agents working together in a group chat" width="820">
+  </a><br>
+  <sub>A real recording of APX v1 running a demo crew. <a href="https://agentprojectcontext.github.io/apx/">Watch more recorded workflows on the website.</a></sub>
 </p>
+
+Each agent gets a **blobo** — its own face — alongside a role, memory, skills and tools.
+Mention one in a conversation and it can pick up the work or ask another agent for help.
+The faces make your crew easy to recognize; the recorded workflows show what it actually does.
+
+## What you can do
+
+- **Keep a crew for each part of your work.** A researcher, a writer, an organizer or a coding agent: choose the roles you need and group them by project.
+- **Give work to the team.** Start a group chat, mention an agent in a task, and follow its reply. Agents can ask each other for help.
+- **Put recurring work on a schedule.** Daily briefings, reports and check-ins can run as routines while APX stays running.
+- **Reach the same crew from different places.** Use the web panel, Telegram, WhatsApp or your phone; your agents keep their roles and access to their tools.
+- **See the work as it happens.** Conversations show agent actions, and the panel brings chats, tasks, routines and code sessions together.
+- **Bring your models and tools.** Connect model providers, local Ollama models, skills and MCP servers. For coding work, delegate to Claude Code, Codex or another supported CLI.
+
+APX runs on your machine. Connected cloud models and services receive the data needed for the requests you send them; local operation does not mean every model runs offline.
+
+## Why APX?
+
+The reason to try APX is the **crew workflow**: recognizable agents, roles organized around your projects,
+shared conversations, delegated work, tasks and routines in one place. A project can be a business, a creative
+project, a personal workspace or a codebase. You do not need a Git repository to start using APX.
+
+If you already use OpenClaw or another agent app, local execution, markdown files and messaging integrations
+alone are not a reason to switch. Compare the experience: does APX make your particular team easier to organize,
+work with and follow? [Watch a real workflow](https://agentprojectcontext.github.io/apx/) and try it with one task
+that matters to you.
+
+For code projects, agent definitions, skills and shared project context can travel with the repository.
+Conversations, sessions, credentials and private runtime memory stay outside it.
 
 ## Quick start
 
-Three steps from nothing to your crew in the browser:
+**This repository and these installation commands are for APX v1. Requires Node.js 22+ on macOS, Linux or Windows.**
 
 ```bash
-# 1 · Install (Node.js 22+)
 npm install -g @agentprojectcontext/apx
-
-# 2 · Set up — interactive wizard: provider → model → channels → starts the daemon.
-#     It ends by printing the address of your panel.
 apx setup
-
-# 3 · Open the web panel
-open http://localhost:7430        # macOS · on Linux: xdg-open · or paste it in any browser
 ```
 
-That's the panel: chats, agents, tasks, routines and code sessions, all local. Want it on your
-phone too? `apx panel share` prints an address for your network (or `apx panel tailscale on`
-to reach it from anywhere on your tailnet) — open it and add it to your home screen.
+The setup wizard helps you choose a provider, a model and your channels, starts APX, and prints your panel address.
+Open **[http://localhost:7430](http://localhost:7430)** in your browser.
 
-Prefer the terminal? Everything the panel does, the CLI does too:
+Start with one agent and one real task. Add specialists and routines as you need them.
+Cloud providers require their own access or credentials; local models require a configured local provider.
+
+Prefer the terminal? From a project folder:
 
 ```bash
-# In any directory with an AGENTS.md, register the project
 apx init
-
-# Spawn an agent with a full external runtime
-apx run sofia --runtime claude-code "Review the open PRs and summarize them"
-
-# Or a quick one-shot LLM exec
-apx exec sofia "What is my role in this project?"
-
-# Watch what's happening
-apx messages tail
+apx agent list
+# Replace <agent> with an agent listed above.
+apx exec <agent> "Help me plan the next steps for this project"
+apx run <agent> --runtime claude-code "Review this project and suggest improvements"
+apx run <agent> --runtime codex "Add tests for the parser"
 ```
 
-## Examples
+Coding commands require the selected external CLI to be installed and authenticated.
 
-Real commands — copy one, point it at an agent like `sofia`, and APX routes it to the right
-runtime. The session transcript and its summary land in `~/.apx/`; only curated
-memory and the agent definition live in `.apc/`.
+## On your phone
 
-| What | Command |
-|------|---------|
-| Register a project | `apx init` |
-| Spawn an agent (full runtime) | `apx run sofia --runtime claude-code "Review the open PRs and summarize them"` |
-| Ask a quick question (one-shot) | `apx exec sofia "What is my role in this project?"` |
-| Read an agent's memory | `apx memory sofia` |
-| Switch runtime, same context | `apx run sofia --runtime codex "Add tests for the parser"` |
-| Watch what's happening | `apx messages tail` |
+The panel fits your phone too. `apx panel share` gives you a network address;
+`apx panel tailscale on` lets you reach it through your tailnet. Open the panel on your phone and add it to your home screen.
 
-## Use cases
+There is also a native **Android app**, with notifications, a floating mascot and Android Auto:
 
-- **Review PRs across any runtime** — point an agent at your repo; APX routes to Claude Code and falls back to Codex or OpenCode if one isn't installed. The session and its summary land in `~/.apx/`.
-- **Operate your agents from Telegram** — talk to project agents from your phone. Identity roles gate who can do what, and every message is logged per channel for a full audit trail.
-- **Memory that lives in your repo** — curated, per-agent memory is plain markdown, committed and reviewable alongside your code. No vendor database, no hidden state, no lock-in.
-- **Run the same prompt across engines** — send one prompt through Anthropic, OpenAI, Gemini or a local Ollama model with `apx exec`, configured per project or globally.
+- [Download the Android APK](https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk).
+- Or connect your phone by USB and run `apx android install`.
+- [Read the installation guide](https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/).
 
-## Installation
+The Android app installs from a file, outside Google Play. On iPhone, use the web panel.
+USB access lasts while the cable is connected; LAN access stays within your network; Tailscale connects devices on your tailnet.
 
-```bash
-npm install -g @agentprojectcontext/apx
+## Coming next: APX V2
+
+**V2 is in development.** It takes APX further as a standalone application for your crew.
+The v1 commands above install the current application, not V2.
+
+
+| Experience | APX v1 today | Direction of V2 |
+|---|---|---|
+| Your main agent | A local assistant reached through the panel and channels | A central place to work with the main agent and specialists across personal and project work |
+| Conversations | Chats, group conversations and code sessions | A unified inbox organized by project, agent and channel, alongside external coding sessions |
+| Working on the web | Browser tools through integrations | An embedded desktop browser: watch agents navigate and take over yourself |
+| Following the work | Agent actions, tasks and routines in the panel | Conversations, delegated work, tools, files and apps brought together around the active workspace |
+| Devices | Web panel, messaging, desktop and Android surfaces | Desktop and phone clients connected to the same core, including a core hosted on your own server |
+
+These are the direction and current development experience, not a promise that every v1 feature has already reached parity.
+
+### How V2 works
+
+```mermaid
+flowchart TB
+    You[You: desktop, phone or messaging] --> Main[Your main agent]
+    Main <--> Crew[Specialists and project crews]
+    Main --> Core[One APX core]
+    Crew --> Core
+    Core <--> Tools[Models, skills and connected tools]
+    Core <--> Browser[Desktop browser: watch or take over]
+    Core <--> Work[Conversations, tasks, routines and apps]
 ```
 
-Requires Node.js 22+. The daemon starts automatically on first `apx` call.
+One core owns the work and history; the app, phone and messaging channels connect to it.
+Your main agent can work directly or delegate to a specialist. The desktop supplies its browser,
+where you can see the page and take control. This keeps the crew together as you move between devices.
 
-## Android app
+Follow [the website](https://agentprojectcontext.github.io/apx/) and [Discord](https://discord.gg/vxdZuT5WuE)
+for V2 progress and release news.
 
-APX has a native Android app — the phone surface, plus notifications, the floating mascot
-and Android Auto. It is **not on Google Play**: it installs from a file.
+## Documentation and community
 
-```bash
-apx android install     # phone plugged in: installs, opens the USB tunnel and pairs
-```
+- [Website and recorded demos](https://agentprojectcontext.github.io/apx/)
+- [User documentation](https://agentprojectcontext.github.io/apx/docs/)
+- [Discord community](https://discord.gg/vxdZuT5WuE)
+- [Report a bug or suggest an improvement](https://github.com/agentprojectcontext/apx/issues)
 
-Or download it straight to the phone — this link always points at the newest signed build:
+## Where APX started
 
-**[github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk](https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk)**
+APX began as a way to make **APC — Agent Project Context** work in practice: portable agent definitions,
+skills and project instructions in `AGENTS.md` and `.apc/`. It grew into an application with its own crew,
+conversations, tasks, routines, channels and interfaces. **APX is the product you use today; APC is part of its origin and project-context foundation.**
 
-Which address the app connects to is the decision that matters: the USB tunnel
-(`127.0.0.1`) dies with the cable, your LAN (`apx panel share`) stops at the front door, and
-Tailscale (`apx panel tailscale on`) works from anywhere with a real certificate.
-[Install on Android](https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/)
-walks through all three. iPhone has no APK — the panel installs as a web app instead.
+You do not need to learn the protocol to use APX. If you want the technical background,
+read the [APC specification](https://github.com/agentprojectcontext/agentprojectcontext).
 
-## Web admin
-
-APX ships a local **web admin** — the same runtime, in your browser. The daemon serves a
-single-page app so you can browse and manage everything the CLI does without leaving the UI:
-
-- **Projects & agents** — see registered projects, open agents, edit roles, models, and skills
-- **Sessions & messages** — read past sessions and tail live activity across every channel
-- **MCPs, engines & channels** — review MCP servers, configure engines, and manage Telegram/desktop
-
-It runs entirely on your machine. Start the daemon (any `apx` call does this) and open:
-
-```bash
-apx            # ensures the daemon is up
-open http://localhost:7430   # macOS — or just visit it in any browser
-```
-
-The web admin is served from `src/interfaces/web/dist` at the daemon port (`7430` by default,
-override with `APX_PORT`). Nothing is sent anywhere — it talks to the local daemon only.
-
-## Project layout
-
-Project context — committed to the repository:
-
-```text
-project-root/
-├── AGENTS.md              ← agent definitions
-└── .apc/
-    ├── project.json       ← project metadata + stable "id"
-    ├── agents/
-    │   └── <slug>.md      ← agent definition (role, model, skills…)
-    ├── mcps.json          ← MCP servers available to this project
-    ├── skills/            ← reusable skill prompts
-    └── commands/          ← custom slash commands
-```
-
-Runtime state — local machine only, never committed:
-
-```text
-~/.apx/projects/<project-id>/
-├── messages/              ← local message history
-└── agents/
-    ├── <slug>/
-    │   ├── sessions/      ← one .md per runtime invocation
-    │   └── conversations/ ← LLM conversation threads
-    └── default/           ← fallback when no agent role is active
-        └── sessions/
-```
-
-## Core commands
-
-```bash
-apx init [path]                          # initialize a project
-apx agent list                           # list agents
-apx agent add <slug> --role R --model M  # add an agent
-apx memory <slug>                        # read agent memory
-apx memory <slug> --append "<note>"      # append to memory
-
-apx run   <slug> --runtime claude-code "<prompt>"   # full runtime session
-apx run   <slug> --runtime cursor-agent "<prompt>"  # Cursor Agent runtime
-apx exec  <slug> "<prompt>"                          # quick LLM call
-
-apx session list <slug>                  # list past sessions
-apx messages tail                        # last 50 messages, all channels
-apx messages chat --channel telegram     # chat view with user/agent/system type
-apx messages tail --channel runtime      # only agent invocations
-```
-
-## Message channels
-
-Activity belongs to APX runtime state, not `.apc/`. Message storage is local to APX, under
-`~/.apx/`:
-
-JSONL messages include `type` (`user`, `agent`, `tool`, or `system`) plus `actor_id`, so chat views
-can distinguish Telegram users from APX agents and future subagents.
-
-A **channel** is the surface a turn arrived on. The canonical list lives in
-`src/core/constants/channels.js`; `voice` is a *mode*, not a channel.
-
-| Channel | What it captures |
-|---------|-----------------|
-| `cli` | `apx exec` / `apx run` from the terminal |
-| `telegram` | Telegram bot messages |
-| `api` | Direct daemon HTTP calls |
-| `web` | The admin panel's main chat |
-| `web_sidebar` | The panel's side assistant |
-| `web_code` | The panel's coding surface |
-| `code` | `apx code` sessions |
-| `deck` | The tablet/phone dashboard |
-| `desktop` | The floating voice capsule (always voice mode) |
-| `routine` | Scheduled routine runs |
-
-## Runtimes
-
-| Runtime | Description |
-|---------|-------------|
-| `claude-code` | Spawns Claude Code CLI with the agent's system prompt injected |
-| `codex` | OpenAI Codex CLI via non-interactive `codex exec --sandbox workspace-write --skip-git-repo-check` |
-| `opencode` | OpenCode CLI |
-| `aider` | Aider CLI |
-| `cursor-agent` | Cursor's headless agent |
-| `gemini-cli` | Google Gemini CLI |
-| `qwen-code` | Qwen Code CLI |
-| `antigravity` | Antigravity CLI |
-
-Global APX skill installation also writes named helper skills for `codex-cli`, `claude-code`,
-`opencode-cli`, and `openrouter`. They are intentionally narrow and should activate only when those
-tools/providers are explicitly mentioned.
-
-## Engines (for `apx exec`)
-
-Configured in `~/.apx/config.json`:
-
-```json
-{
-  "engines": {
-    "anthropic": { "api_key": "sk-ant-..." },
-    "openai":    { "api_key": "sk-..." },
-    "ollama":    { "base_url": "http://localhost:11434" },
-    "gemini":    { "api_key": "..." }
-  }
-}
-```
-
-## Architecture
-
-<p align="center">
-  <img src="assets/diagram.png" alt="APX architecture diagram" width="720">
-</p>
-
-## APC protocol
-
-APX implements the [APC specification](https://github.com/agentprojectcontext/agentprojectcontext). The spec defines the on-disk layout; APX provides the tooling to use it.
-
-## Community
-
-Questions, what other people are wiring up, and where new releases land first:
-**[discord.gg/vxdZuT5WuE](https://discord.gg/vxdZuT5WuE)**
+For contributors, start with [AGENTS.md](AGENTS.md). APX v1 has a local daemon, a CLI, a web panel and bridges to external tools.
+Project context can live in the project folder; runtime state lives under `~/.apx/`, outside the repository.
 
 ## License
 
-MIT
+[MIT](LICENSE)
