@@ -1,5 +1,6 @@
 import { IconButton, Icons } from "@apx/ui";
 import { lazy, type ReactNode, Suspense } from "react";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { AgentPanel } from "./AgentPanel.tsx";
@@ -13,6 +14,10 @@ import { useWorkspace } from "./workspace.ts";
 const FilesPane = lazy(() => import("../project/files/FilesPane.tsx").then((m) => ({ default: m.FilesPane })));
 const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
+const ProcessesPanel = lazy(() => import("./ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })));
+const ReportedChangesPanel = lazy(() =>
+  import("./ReportedChangesPanel.tsx").then((m) => ({ default: m.ReportedChangesPanel })),
+);
 const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
@@ -21,19 +26,25 @@ export function SidePanel() {
   const panel = useNav((s) => s.panel);
   const wide = useNav((s) => s.panelWide);
   const ws = useWorkspace();
+  const threadId = useNav((s) => s.threadId);
+  const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   if (!panel) return null;
   const folder = panelDef(panel).folder;
   return (
     <aside className="sidepanel" aria-label={t("panel.side")}>
       {panel === "browser" ? (
         <BrowserPanel />
+      ) : panel === "processes" ? (
+        <Suspense fallback={null}>
+          <ProcessesPanel key={threadId} />
+        </Suspense>
       ) : panel === "agent" ? (
         <AgentPanel />
       ) : (
         <>
           <PanelHeader
             actions={
-              folder && (
+              (folder || panel === "terminal" || panel === "changes") && (
                 <IconButton
                   label={wide ? t("panel.narrow") : t("panel.widen")}
                   icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
@@ -58,11 +69,19 @@ export function SidePanel() {
               {t("panel.noFolderBody")}
             </PlaceholderPanel>
           )}
+          {thread && panel === "terminal" && (
+            <Suspense fallback={null}>
+              <TerminalPanel key={thread.id} thread={thread} ws={ws} />
+            </Suspense>
+          )}
+          {thread && panel === "changes" && (
+            <Suspense fallback={null}>
+              {ws ? <ChangesPanel key={thread.id} ws={ws} /> : <ReportedChangesPanel thread={thread} />}
+            </Suspense>
+          )}
           {ws && folder && (
             <Suspense fallback={null}>
-              {panel === "terminal" && <TerminalPanel key={ws.thread.id} ws={ws} />}
               {panel === "files" && <FilesPane key={ws.project.id} project={ws.project} stacked={!wide} />}
-              {panel === "changes" && <ChangesPanel key={ws.thread.id} ws={ws} />}
             </Suspense>
           )}
         </>

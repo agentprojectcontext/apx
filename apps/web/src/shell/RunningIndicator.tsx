@@ -6,7 +6,7 @@ import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts
 import { isBackground } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go } from "./nav.ts";
+import { go, showsChat, useNav } from "./nav.ts";
 
 // The jobs list shows only once its tab is opened: not part of the first screen's script.
 const JobList = lazy(() => import("./JobList.tsx").then((m) => ({ default: m.JobList })));
@@ -14,6 +14,7 @@ const JobList = lazy(() => import("./JobList.tsx").then((m) => ({ default: m.Job
 /** Topbar pill: agents working (or waiting for you) · background jobs. The popover jumps to each chat or transcript. */
 export function RunningIndicator() {
   const t = useT();
+  const chatShown = useNav(showsChat);
   const threads = useData((s) => s.threads);
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
@@ -76,6 +77,18 @@ export function RunningIndicator() {
         </button>
       }
     >
+      {chatShown && (
+        <button
+          type="button"
+          className="jobs__fold"
+          onClick={() => {
+            setOpen(false);
+            go.processes();
+          }}
+        >
+          {t("panel.processes")}
+        </button>
+      )}
       <SegmentedControl
         size="sm"
         className="running__tabs"

@@ -398,6 +398,15 @@ export const es: Partial<Record<MessageKey, string>> = {
 
   // Panel lateral
   "panel.browser": "Navegador",
+  "panel.processes": "Procesos del chat",
+  "panel.processes.hint": "Subagentes y comandos de este chat",
+  "processes.active": "Activos ({n})",
+  "processes.done": "Terminados ({n})",
+  "processes.empty": "Todavía no hay subagentes en este chat",
+  "processes.maximize": "Abrir conversación completa",
+  "processes.back": "Volver a procesos del chat",
+  "processes.failed": "No se pudieron cargar los procesos del chat",
+  "changes.reportedEmpty": "No hay cambios registrados en este chat",
   "panel.terminal": "Terminal",
   "panel.files": "Archivos",
   "panel.widget": "Widget",

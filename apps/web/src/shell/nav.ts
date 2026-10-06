@@ -5,7 +5,7 @@ import { createStore, useSlice } from "../data/createStore.ts";
 import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
-export type PanelKind = "browser" | "terminal" | "files" | "changes" | "widget" | "usage" | "agent";
+export type PanelKind = "browser" | "terminal" | "files" | "changes" | "widget" | "usage" | "agent" | "processes";
 
 export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
 
@@ -60,6 +60,8 @@ export type NavState = {
   browserTab: string | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
   panelAgent: string | undefined;
+  panelThread: string | undefined;
+  panelParent: string | undefined;
   mode: ApxMode;
   /** Show tool-call groups in transcripts (chat header wrench). */
   tools: boolean;
@@ -96,7 +98,7 @@ function initialMode(): ApxMode {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-const PANELS: readonly PanelKind[] = ["browser", "terminal", "files", "changes", "widget", "usage"];
+const PANELS: readonly PanelKind[] = ["browser", "terminal", "files", "changes", "widget", "usage", "processes"];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
 const VIEWS: readonly string[] = ["tasks", "resources"];
 
@@ -139,6 +141,8 @@ export const nav = createStore<NavState>({
   panelWide: false,
   browserTab: undefined,
   panelAgent: undefined,
+  panelThread: undefined,
+  panelParent: undefined,
   mode: initialMode(),
   tools: true,
   config: null,
@@ -171,6 +175,8 @@ type Place = Pick<
   | "panelWide"
   | "browserTab"
   | "panelAgent"
+  | "panelThread"
+  | "panelParent"
 >;
 
 const MAX_HISTORY = 50;
@@ -191,6 +197,8 @@ function placeOf(s: NavState): Place {
     panelWide: s.panelWide,
     browserTab: s.browserTab,
     panelAgent: s.panelAgent,
+    panelThread: s.panelThread,
+    panelParent: s.panelParent,
   };
 }
 
@@ -377,14 +385,20 @@ export const go = {
   agent(agentId: string) {
     nav.set({ panel: "agent", panelAgent: agentId });
   },
+  subthread(thread: string) {
+    nav.set((s) => ({ panel: "processes", panelThread: thread, panelParent: s.threadId, listInFront: false }));
+  },
+  processes() {
+    nav.set({ panel: "processes", panelThread: undefined, panelParent: undefined });
+  },
   panel(panel: PanelKind | null) {
-    nav.set({ panel });
+    nav.set({ panel, panelThread: undefined, panelParent: undefined });
   },
   togglePanelWide() {
     nav.set((s) => ({ panelWide: !s.panelWide }));
   },
   togglePanel(panel: PanelKind) {
-    nav.set((s) => ({ panel: s.panel === panel ? null : panel }));
+    nav.set((s) => ({ panel: s.panel === panel ? null : panel, panelThread: undefined, panelParent: undefined }));
   },
   browser(tab?: string) {
     nav.set((s) => ({

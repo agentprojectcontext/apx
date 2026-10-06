@@ -392,6 +392,15 @@ export const en = {
 
   // Side panel
   "panel.browser": "Browser",
+  "panel.processes": "Chat processes",
+  "panel.processes.hint": "This chat's subagents and commands",
+  "processes.active": "Active ({n})",
+  "processes.done": "Finished ({n})",
+  "processes.empty": "No subagents in this chat yet",
+  "processes.maximize": "Open conversation full size",
+  "processes.back": "Back to chat processes",
+  "processes.failed": "Could not load chat processes",
+  "changes.reportedEmpty": "No changes reported in this chat",
   "panel.terminal": "Terminal",
   "panel.files": "Files",
   "panel.widget": "Widget",

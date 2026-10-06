@@ -129,6 +129,30 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .$if(opts.limit !== null, (q) => q.limit(opts.limit ?? 300)),
       ).map(toThread);
     },
+    /** Every delegated descendant, independent of the global chat list's recency cap. */
+    descendants(root: string, includeArchived = false): Thread[] {
+      return all(
+        qb
+          .withRecursive("descendants", (db) =>
+            db
+              .selectFrom("threads")
+              .select("id")
+              .where("parent_id", "=", root)
+              .union(
+                db
+                  .selectFrom("threads")
+                  .innerJoin("descendants", "threads.parent_id", "descendants.id")
+                  .select("threads.id"),
+              ),
+          )
+          .selectFrom("threads")
+          .selectAll("threads")
+          .innerJoin("descendants", "threads.id", "descendants.id")
+          .where("threads.id", "!=", root)
+          .$if(!includeArchived, (q) => q.where("archived", "=", 0))
+          .orderBy("updated_at", "desc"),
+      ).map(toThread);
+    },
     children(parentId: string): string[] {
       return all(qb.selectFrom("threads").select("id").where("parent_id", "=", parentId)).map((r) => r.id);
     },

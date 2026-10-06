@@ -1,4 +1,4 @@
-import type { Job, TerminalInfo } from "@apx/protocol";
+import type { Job, TerminalInfo, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
@@ -18,16 +18,18 @@ const plain = (s: string) => s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*
  * The chat's terminals: "Agent" lists the commands the agent ran here (and the ones still running in the background)
  * with what they printed; each other tab is the owner's own shell in the chat's folder.
  */
-export function TerminalPanel({ ws }: { ws: Workspace }) {
+export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }) {
   const t = useT();
-  const threadId = ws.thread.id;
+  const threadId = thread.id;
+  const canOpen = Boolean(ws);
   const [terms, setTerms] = useState<TerminalInfo[]>([]);
   const [tab, setTab] = useState<string>("agent");
   const load = useCallback(async () => {
+    if (!canOpen) return [];
     const r = await client.call("terminal.list", { thread: threadId }).catch(() => ({ terminals: [] }));
     setTerms(r.terminals);
     return r.terminals;
-  }, [threadId]);
+  }, [threadId, canOpen]);
   useEffect(() => {
     void load();
     return watchEvents((ev) => {
@@ -35,6 +37,7 @@ export function TerminalPanel({ ws }: { ws: Workspace }) {
     });
   }, [load]);
   const open = async () => {
+    if (!canOpen) return;
     try {
       const term = await client.call("terminal.open", { thread: threadId, cols: 80, rows: 24 });
       await load();
@@ -77,21 +80,23 @@ export function TerminalPanel({ ws }: { ws: Workspace }) {
             />
           </span>
         ))}
-        <IconButton size="sm" label={t("terminal.new")} icon={<Icons.Plus size={14} />} onClick={() => void open()} />
+        {canOpen && (
+          <IconButton size="sm" label={t("terminal.new")} icon={<Icons.Plus size={14} />} onClick={() => void open()} />
+        )}
       </div>
       {current ? (
         <Suspense fallback={<Skeleton className="term__loading" />}>
           <TerminalView key={current.id} terminal={current} />
         </Suspense>
       ) : (
-        <AgentCommands threadId={threadId} onNew={() => void open()} />
+        <AgentCommands threadId={threadId} onNew={canOpen ? () => void open() : undefined} />
       )}
     </div>
   );
 }
 
 /** What the agent ran in this chat, newest first; a row unfolds into its output (live while it runs). */
-function AgentCommands({ threadId, onNew }: { threadId: string; onNew(): void }) {
+function AgentCommands({ threadId, onNew }: { threadId: string; onNew?: () => void }) {
   const t = useT();
   const [jobs, setJobs] = useState<Job[]>();
   const load = useCallback(async () => {
@@ -109,9 +114,11 @@ function AgentCommands({ threadId, onNew }: { threadId: string; onNew(): void })
     return (
       <EmptyState icon={<Icons.Terminal />} title={t("terminal.agentEmpty")}>
         {t("terminal.agentEmptyBody")}
-        <button type="button" className="term__link" onClick={onNew}>
-          {t("terminal.openOwn")}
-        </button>
+        {onNew && (
+          <button type="button" className="term__link" onClick={onNew}>
+            {t("terminal.openOwn")}
+          </button>
+        )}
       </EmptyState>
     );
   return (

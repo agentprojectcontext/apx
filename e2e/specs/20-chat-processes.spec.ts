@@ -1,0 +1,42 @@
+import type { Agent, Thread } from "../../packages/protocol/src/domain.ts";
+import { expect, open, rpc, test } from "./kit.ts";
+
+test("chat processes open A2A beside its parent, maximize and stay scoped to each chat", async ({ page }) => {
+  await rpc("setup.finish");
+  const { agents } = await rpc<{ agents: Agent[] }>("agents.list");
+  const agent = agents.find((a) => a.kind === "secretary");
+  if (!agent) throw new Error("Missing super-agent");
+  const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Source review" });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await open(page, `#thread=${root.id}`);
+  const mainChat = page.locator(".workspace > .chat");
+  const composer = mainChat.getByRole("textbox").last();
+  await composer.fill("start a worker to check the sources");
+  await composer.press("Enter");
+  const card = mainChat.locator(".apx-subthread").last();
+  await expect(card.getByText("Listo")).toBeVisible();
+  await card.getByRole("button", { name: /Abrir conversación con Researcher/ }).click();
+  const side = page.getByRole("complementary", { name: "Panel lateral" });
+  await expect(side.getByText("Last line of the report.")).toBeVisible();
+  await expect(mainChat).toHaveAttribute("aria-label", /Source review|start a worker/);
+  await expect(page).toHaveURL(new RegExp(`thread=${root.id}`));
+  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
+  await expect(side.getByText("Terminados (1)")).toBeVisible();
+  await side.locator(".processes__row").click();
+  await side.getByRole("button", { name: "Abrir conversación completa" }).click();
+  await expect(side).toBeHidden();
+  await expect(mainChat.getByText("Last line of the report.")).toBeVisible();
+  await expect(page).not.toHaveURL(new RegExp(`thread=${root.id}`));
+
+  const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: agent.id, title: "Other chat" });
+  await open(page, `#thread=${other.id}&panel=processes`);
+  await expect(side.getByText("Terminados (0)")).toBeVisible();
+  await expect(side.locator(".processes__row")).toHaveCount(0);
+  await side.getByRole("button", { name: "Cerrar panel" }).click();
+  await mainChat.getByRole("button", { name: "Terminal", exact: true }).click();
+  await expect(side.getByText("El agente no corrió comandos en este chat")).toBeVisible();
+  await expect(side.getByRole("button", { name: "Nueva terminal" })).toHaveCount(0);
+  await mainChat.getByRole("button", { name: "Cambios", exact: true }).click();
+  await expect(side.getByText("No hay cambios registrados en este chat")).toBeVisible();
+  await expect(mainChat.getByRole("button", { name: "Archivos", exact: true })).toHaveCount(0);
+});

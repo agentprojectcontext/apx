@@ -41,7 +41,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
       openLabel={t("subthread.open", { name })}
       moreLabel={t("subthread.more")}
       lessLabel={t("subthread.less")}
-      onOpen={() => go.thread(part.thread_id)}
+      onOpen={() => go.subthread(part.thread_id)}
     />
   );
 }

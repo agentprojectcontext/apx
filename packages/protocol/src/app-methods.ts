@@ -399,6 +399,8 @@ export const appMethods = {
     params: z
       .object({
         project_id: Id.optional(),
+        /** All delegated descendants of this chat, without the global list cap. */
+        root_thread: Id.optional(),
         include_subthreads: z.boolean().default(false),
         /** Archived threads too (they are left out by default). */
         include_archived: z.boolean().default(false),

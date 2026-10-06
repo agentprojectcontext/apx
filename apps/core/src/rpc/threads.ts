@@ -169,9 +169,16 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
-    "threads.list": ({ project_id, include_subthreads, include_archived, engine }) => ({
-      threads: store.threads.list({ project_id, include_subthreads, include_archived, engine }),
-    }),
+    "threads.list": ({ project_id, root_thread, include_subthreads, include_archived, engine }) => {
+      if (!root_thread)
+        return { threads: store.threads.list({ project_id, include_subthreads, include_archived, engine }) };
+      if (!store.threads.get(root_thread)) throw notFound(`thread ${root_thread}`);
+      return {
+        threads: store.threads
+          .descendants(root_thread, include_archived)
+          .filter((t) => (!project_id || t.project_id === project_id) && (!engine || t.engine === engine)),
+      };
+    },
     "threads.get": ({ thread }, ctx) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);

@@ -20,7 +20,6 @@ export const PANELS: PanelDef[] = [
     label: "panel.terminal",
     hint: "panel.terminal.hint",
     icon: (s) => <Icons.Terminal size={s} />,
-    folder: true,
   },
   {
     id: "files",
@@ -34,8 +33,8 @@ export const PANELS: PanelDef[] = [
     label: "panel.changes",
     hint: "panel.changes.hint",
     icon: (s) => <Icons.FileDiff size={s} />,
-    folder: true,
   },
+  { id: "processes", label: "panel.processes", hint: "panel.processes.hint", icon: (s) => <Icons.Users size={s} /> },
   { id: "widget", label: "panel.widget", hint: "panel.widget.hint", icon: (s) => <Icons.LayoutGrid size={s} /> },
   { id: "usage", label: "panel.usage", hint: "panel.usage.hint", icon: (s) => <Icons.Zap size={s} /> },
 ];

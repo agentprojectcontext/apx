@@ -3,6 +3,7 @@ import { EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
+import { ReportedChangesPanel } from "./ReportedChangesPanel.tsx";
 import type { Workspace } from "./workspace.ts";
 
 type Changes = Result<"files.changes">;
@@ -57,6 +58,7 @@ export function ChangesPanel({ ws }: { ws: Workspace }) {
           onClick={() => void load()}
         />
       </div>
+      <ReportedChangesPanel thread={ws.thread} embedded />
       {error ? (
         <p className="wchanges__error">{error}</p>
       ) : !changes ? (

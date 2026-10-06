@@ -83,6 +83,10 @@ notice when there is no text. Tools that touch core state call protocol methods 
   the child works with no more than its callers (`inherit`); if the caller stopped waiting, the result comes back as
   an `a2a_result` run. Limits live in `engine/limits.ts`; `engine/breaker.ts` pauses chains that run without the
   owner.
+- **Chat processes panel** (`apps/web/src/panel/ProcessesPanel.tsx`): `threads.list { root_thread }` retrieves
+  every delegated descendant without the global list cap. A2A cards open a read-only transcript beside the parent;
+  maximize opens the child as the main chat. Terminal command history and recorded edits remain available without
+  a project folder; opening an owner's shell and browsing files still need a folder.
 - **Terminal jobs** (`engine/jobs.ts`): the `shell` tool runs commands in the project's folder; background ones
   are `jobs` rows with an output file, and their end wakes the agent.
 - **Steer**: `threads.send` with `mode: "steer"` puts the owner's text into the running turn at its next step.
