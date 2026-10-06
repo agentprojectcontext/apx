@@ -1,8 +1,6 @@
 // The phone as a node (it lends its location and camera to the core) and its push registration. Both run while the
 // app is paired; the node link reconnects on its own.
-import Constants from "expo-constants";
 import * as Location from "expo-location";
-import * as Notifications from "expo-notifications";
 import type { Creds } from "./creds";
 import { handlePhoneRequest, PHONE_CAPS, type PhoneDeps } from "./phoneRequests";
 import { ApxClient, type ApxSocket } from "./protocol";
@@ -45,27 +43,4 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
     stopped = true;
     socket?.close();
   };
-}
-
-/**
- * Registers this phone's Expo push token with the core, so notices reach it while the app is closed. Without an EAS
- * project id there is no token: the owner can paste an ntfy address for this device in the panel instead.
- */
-export async function registerPush(creds: Creds): Promise<boolean> {
-  try {
-    const perm = await Notifications.requestPermissionsAsync();
-    if (!perm.granted) return false;
-    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
-    if (!projectId) return false;
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    const client = new ApxClient({
-      url: creds.url,
-      token: creds.token,
-      client: { name: "apx-mobile", version: "0.0.0" },
-    });
-    await client.call("devices.set_push", { push: { kind: "expo", token: data } });
-    return true;
-  } catch {
-    return false;
-  }
 }

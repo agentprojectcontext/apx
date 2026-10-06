@@ -1,6 +1,6 @@
 import type { Agent, Message as Msg, Part } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
-import type { ReactNode } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
@@ -10,12 +10,13 @@ import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
-import { InputPart } from "./parts/InputPart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { SurfacePart } from "./parts/SurfacePart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
+
+const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
 type ToolPart = Extract<Part, { type: "tool" }>;
 type SkillsPick = Extract<Part, { type: "skills" }>;
@@ -117,7 +118,11 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
     case "notice":
       return <NoticePart part={p} />;
     case "input":
-      return <InputPart part={p} />;
+      return (
+        <Suspense fallback={null}>
+          <InputPart part={p} />
+        </Suspense>
+      );
     case "changes":
       return <ChangesPart part={p} />;
     default:

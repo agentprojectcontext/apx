@@ -151,6 +151,8 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     [creds],
   );
   const sequence = useRef(0);
+  const [stopping, setStopping] = useState(false);
+  const stopPending = useRef(false);
   const { messages, setMessages, online, state, setState, error, setError, reload } = useThreadFeed(
     client,
     threadId,
@@ -189,6 +191,21 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, state, threadId, setMessages, setState, setError],
   );
+  const stop = useCallback(async () => {
+    if (stopPending.current) return;
+    stopPending.current = true;
+    setStopping(true);
+    try {
+      await client.call("threads.cancel", { thread: threadId });
+      await reload.current();
+      setError("");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      stopPending.current = false;
+      setStopping(false);
+    }
+  }, [client, threadId, reload, setError]);
   const respond = useCallback(
     async (input: string, answer: { decision?: "approve" | "deny"; text?: string }) => {
       await client.call("runs.respond", { input, ...answer });
@@ -196,5 +213,5 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, reload],
   );
-  return { messages, online, state, error, send, respond };
+  return { messages, online, state, error, send, respond, stop, stopping };
 }

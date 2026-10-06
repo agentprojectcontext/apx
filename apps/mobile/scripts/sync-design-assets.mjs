@@ -32,6 +32,13 @@ const names = [
   "Zap",
   "Check",
   "TriangleAlert",
+  "Bell",
+  "Square",
+  "Wrench",
+  "X",
+  "KeyRound",
+  "QrCode",
+  "Link",
 ];
 const icons = {};
 for (const name of names) {
@@ -69,3 +76,6 @@ writeFileSync(
   resolve(target, "engineMarks.ts"),
   `// Synced from packages/ui/src/engine-marks.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(shared, "src/engine-marks.ts"), "utf8")}`,
 );
+
+mkdirSync(resolve(mobile, "assets"), { recursive: true });
+writeFileSync(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));

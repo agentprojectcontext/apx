@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Creds } from "../creds";
+import { showLiveNotice } from "../notifications";
 import { ApxClient, type ApxSocket, type CoreEvent } from "../protocol";
 
 export type Agent = {
@@ -223,6 +224,9 @@ export function useWorkspace(creds: Creds) {
         socket.onEvent((frame) => {
           if (stopped || frame.stream !== "core") return;
           const event = frame.payload as CoreEvent;
+          if (event.type === "notification.updated") {
+            void showLiveNotice(event.notification, creds.device).catch((error) => setError(String(error)));
+          }
           if (event.type === "thread.updated") {
             setData((current) => ({
               ...current,
@@ -274,7 +278,7 @@ export function useWorkspace(creds: Creds) {
       if (retryTimer) clearTimeout(retryTimer);
       if (syncTimer) clearTimeout(syncTimer);
     };
-  }, [client, refresh]);
+  }, [client, refresh, creds.device]);
 
   const openThread = useCallback(
     async (threadId: string) => {

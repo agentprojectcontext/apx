@@ -1,12 +1,13 @@
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { type Creds, clearCreds, loadCreds } from "./creds";
 import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { parsePairingLink } from "./pairing";
-import { registerPush, startPhoneNode } from "./phone";
+import { startPhoneNode } from "./phone";
+import { ApxClient, ApxError } from "./protocol";
 import { theme } from "./ui/theme";
 import { WorkspaceScreen } from "./WorkspaceScreen";
 
@@ -18,7 +19,6 @@ export function App() {
   // Paired: the phone lends its location and camera to the core, and registers for push.
   useEffect(() => {
     if (!creds) return;
-    void registerPush(creds);
     return startPhoneNode(
       creds,
       (reason) =>
@@ -33,8 +33,31 @@ export function App() {
         ),
     );
   }, [creds]);
+  const unpair = useCallback(() => {
+    void clearCreds();
+    setCreds(null);
+  }, []);
   useEffect(() => {
-    void loadCreds().then((c) => setCreds(c ?? null));
+    void loadCreds().then(async (creds) => {
+      if (!creds) {
+        setCreds(null);
+        return;
+      }
+      try {
+        await new ApxClient({
+          url: creds.url,
+          token: creds.token,
+          client: { name: "apx-mobile", version: "2.0.2" },
+        }).call("system.ping", {});
+      } catch (error) {
+        if (error instanceof ApxError && error.code === "unauthorized") {
+          await clearCreds();
+          setCreds(null);
+          return;
+        }
+      }
+      setCreds(creds);
+    });
     // Opened from an apx://pair link (the QR scanned with the phone's own camera).
     void Linking.getInitialURL().then((u) => u && parsePairingLink(u) && setLink(u));
     const sub = Linking.addEventListener("url", ({ url }) => parsePairingLink(url) && setLink(url));
@@ -50,13 +73,7 @@ export function App() {
             <ActivityIndicator />
           </View>
         ) : creds && !link ? (
-          <WorkspaceScreen
-            creds={creds}
-            onUnpair={() => {
-              void clearCreds();
-              setCreds(null);
-            }}
-          />
+          <WorkspaceScreen creds={creds} onUnpair={unpair} />
         ) : (
           <PairScreen
             link={link}

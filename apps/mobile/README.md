@@ -33,3 +33,18 @@ the core on loopback; `apx pair` creates the one-time code. Network settings alw
 - **Shows the pinned widgets and apps** (Apps button): each opens full screen in a WebView with the panel's strict CSP
   (inline code only, no network, no navigation) and the phone's light or dark colors; a widget's `sendPrompt()` after
   a real touch goes to its thread, as in the panel.
+
+The unpaired screen shares the web gate's dark design, QR scan, manual address/code fields and notification status.
+Revoked credentials return to pairing on the next launch; an unreachable core keeps the existing pairing for offline use.
+
+## Native notifications
+
+Android creates a high-importance `default` channel before requesting notification permission. Unread
+`notification.updated` events produce native notifications while the live connection runs. A notification opens
+its conversation; duplicate updates of the same notice do not create additional alerts. Settings shows the delivery
+status and provides a local notification preview.
+
+Local permission does not guarantee delivery after the OS suspends or closes the app. Remote Expo push requires
+an EAS project ID, Android FCM configuration (`google-services.json` in the native build and FCM v1 credentials in
+EAS), and APNs credentials for iOS. Select the paired device as the destination in the core's interruption settings.
+Missing configuration is displayed explicitly; no permanent background service is started.

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import * as Notifications from "expo-notifications";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { ChatScreen } from "./ChatScreen";
 import type { Creds } from "./creds";
+import { useNotifications } from "./hooks/useNotifications";
 import type { Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { ChatsPage } from "./pages/ChatsPage";
@@ -9,6 +11,7 @@ import { InboxPage } from "./pages/InboxPage";
 import { MoreDetailPage, MorePage } from "./pages/MorePage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SessionsPage } from "./pages/SessionsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
@@ -26,11 +29,33 @@ const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
 
 export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
   const workspace = useWorkspace(creds);
+  useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<string>();
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
+  const [noticeThread, setNoticeThread] = useState<string>();
+  useEffect(() => {
+    const receive = (response: Notifications.NotificationResponse) => {
+      const id = response.notification.request.content.data?.thread_id;
+      if (typeof id === "string") setNoticeThread(id);
+      Notifications.clearLastNotificationResponse();
+    };
+    const subscription = Notifications.addNotificationResponseReceivedListener(receive);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) receive(response);
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    const found = workspace.data.threads.find((item) => item.id === noticeThread);
+    if (!found) return;
+    setThread(found);
+    setNoticeThread(undefined);
+    setSubpage(undefined);
+    setSurfaces(false);
+  }, [noticeThread, workspace.data.threads]);
   const openThread = async (item: Thread) => {
     setThread(item);
     void workspace.openThread(item.id).catch(() => undefined);
@@ -63,6 +88,8 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           run={workspace.runRoutine}
         />
       );
+    if (subpage === "settings")
+      return <SettingsPage creds={creds} back={() => setSubpage(undefined)} disconnect={onUnpair} />;
     if (subpage) return <MoreDetailPage id={subpage} data={workspace.data} back={() => setSubpage(undefined)} />;
     switch (tab) {
       case "chats":
