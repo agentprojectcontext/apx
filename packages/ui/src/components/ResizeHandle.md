@@ -9,6 +9,8 @@ The edge of a column you drag to change its width: the sidebar, the chat list, a
 - `width`, `min`, `max`: the column's width now and its limits (px).
 - `onResize(width)`: called while dragging; the caller keeps the width (and remembers it if it wants).
 - `onReset`: double click, back to the default.
+- `onDragChange(dragging)`: a drag starts or ends; cover anything that would swallow the pointer meanwhile (a native
+  view laid over the page).
 - `edge`: the side of the column it sits on (`right` by default).
 
 Place it inside the column (positioned) or over the line between two columns.

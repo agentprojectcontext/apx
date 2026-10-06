@@ -16,6 +16,8 @@ export const LAYOUT = {
   listWNarrow: 280,
   panelW: 420,
   panelWNarrow: 360,
+  /** What the owner may drag the side panel down to (up to whatever leaves the chat its minimum). */
+  panelMinW: 320,
   chatMinW: 360,
   /** Transcript + composer max width per Settings › Appearance (narrow · medium · wide). */
   transcriptW: { narrow: 640, medium: 760, wide: 980 },
@@ -49,6 +51,8 @@ export type Layout = {
   rail: boolean;
   listW: number;
   panelW: number;
+  /** How wide the owner may drag the side panel. */
+  panelMaxW: number;
   /** Chat header shows inline panel icons (true) or one dropdown (false). */
   wideHeader: boolean;
   /** One column at a time (phone width): the chat header gets a back button to the list. */
@@ -61,35 +65,34 @@ export function computeLayout(
   panelOpen: boolean,
   chatShown: boolean,
   transcript: keyof typeof LAYOUT.transcriptW = "medium",
-  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number; panelWide?: boolean } = {},
+  own: { sidebarW?: number; sidebarCollapsed?: boolean; listW?: number; panelW?: number; panelWide?: boolean } = {},
 ): Layout {
   const rail = Boolean(own.sidebarCollapsed) || width < BREAKPOINTS.sidebarFull;
   const compact = width < BREAKPOINTS.compact;
   const narrow = width < BREAKPOINTS.panelWide;
-  const hideList = (narrow || Boolean(own.panelWide)) && panelOpen && chatShown;
   const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
   const sidebarW = rail
     ? LAYOUT.sidebarRailW
     : own.sidebarW
       ? clamp(own.sidebarW, LAYOUT.sidebarMinW, LAYOUT.sidebarMaxW)
       : LAYOUT.sidebarW;
-  const listW = compact
-    ? width - sidebarW
-    : hideList
-      ? 0
-      : own.listW
-        ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW)
-        : width >= BREAKPOINTS.listWide
-          ? LAYOUT.listW
-          : LAYOUT.listWNarrow;
-  // Wide: half of what the list leaves (it hides), never under the usual width.
+  const panelMaxW = Math.max(LAYOUT.panelMinW, width - sidebarW - LAYOUT.chatMinW);
+  // Wide: half of what the list leaves (it hides), never under the usual width. A dragged width wins over both.
   const panelW = compact
     ? width - sidebarW
     : own.panelWide
       ? Math.max(LAYOUT.panelW, Math.min(Math.round((width - sidebarW) / 2), width - sidebarW - LAYOUT.chatMinW))
-      : narrow
-        ? LAYOUT.panelWNarrow
-        : LAYOUT.panelW;
+      : own.panelW
+        ? clamp(own.panelW, LAYOUT.panelMinW, panelMaxW)
+        : narrow
+          ? LAYOUT.panelWNarrow
+          : LAYOUT.panelW;
+  const ownListW = own.listW ? clamp(own.listW, LAYOUT.listMinW, LAYOUT.listMaxW) : 0;
+  const defaultListW = width >= BREAKPOINTS.listWide ? LAYOUT.listW : LAYOUT.listWNarrow;
+  // A panel dragged wide enough to squeeze the chat under its minimum folds the list away, like the wide toggle.
+  const crowded = width - sidebarW - panelW - (ownListW || defaultListW) < LAYOUT.chatMinW;
+  const hideList = (narrow || Boolean(own.panelWide) || (Boolean(own.panelW) && crowded)) && panelOpen && chatShown;
+  const listW = compact ? width - sidebarW : hideList ? 0 : ownListW || defaultListW;
   const chatW = width - sidebarW - listW - (panelOpen ? panelW : 0);
   return {
     rail,
@@ -97,6 +100,7 @@ export function computeLayout(
     transcriptW: LAYOUT.transcriptW[transcript],
     listW,
     panelW,
+    panelMaxW,
     wideHeader: !compact && chatW >= BREAKPOINTS.chatHeaderWide,
     compact,
   };

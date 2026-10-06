@@ -3,6 +3,7 @@ import { LiveBrowserCard } from "@apx/ui";
 import { hostPath } from "../../common/format.ts";
 import { useInView } from "../../common/useInView.ts";
 import { useScreenshot } from "../../common/useScreenshot.ts";
+import { browserOpen } from "../../data/actions.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
@@ -19,17 +20,22 @@ export function BrowserPart({ part, agent }: { part: Extract<Part, { type: "brow
   const url = tab?.url ?? part.url;
   const name = agent?.name ?? t("chat.theAgent");
   const host = hostPath(url);
-  const status =
-    part.state === "handoff"
+  // A tab that went away (its window, the app or the core closed it) says so whatever the agent was doing.
+  const status = !tab
+    ? t("browser.offline", { host })
+    : part.state === "handoff"
       ? (part.reason ?? t("browser.handoff", { name }))
       : part.state === "user"
         ? t("browser.youControl")
         : part.state === "agent"
           ? t("browser.agentBrowsing", { name, host })
-          : tab
-            ? t("browser.finished", { host })
-            : t("browser.tabClosed");
+          : t("browser.finished", { host });
   const open = () => go.browser(part.tab);
+  // A closed tab opens again on the same page.
+  const reopen = async () => {
+    const id = await browserOpen(url);
+    if (id) go.browser(id);
+  };
   return (
     <div ref={ref}>
       <LiveBrowserCard
@@ -37,12 +43,12 @@ export function BrowserPart({ part, agent }: { part: Extract<Part, { type: "brow
         url={url}
         title={tab?.title || part.title || hostPath(url)}
         status={status}
-        statusTone={part.state === "handoff" ? "warning" : "neutral"}
+        statusTone={tab && part.state === "handoff" ? "warning" : "neutral"}
         thumbnail={shot.src}
         liveLabel={t("browser.live")}
-        actionLabel={tab ? t("browser.openLive") : undefined}
-        onOpen={tab ? open : undefined}
-        onAction={open}
+        actionLabel={tab ? t("browser.openLive") : t("browser.reopen")}
+        onOpen={tab ? open : () => void reopen()}
+        onAction={tab ? open : () => void reopen()}
       />
     </div>
   );

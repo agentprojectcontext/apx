@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 import { cx } from "../cx";
 
 export interface MarkdownViewProps {
@@ -6,7 +6,11 @@ export interface MarkdownViewProps {
   source: string;
   size?: "sm" | "md";
   className?: string;
+  /** Wraps each link (a right-click menu, for instance); `link` is the ready `<a>`. */
+  renderLink?: LinkRenderer;
 }
+
+export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
 
 type Block =
   | { kind: "p"; text: string }
@@ -63,36 +67,37 @@ function parseBlocks(src: string): Block[] {
   return blocks;
 }
 
-function inline(text: string, keyBase: string): ReactNode[] {
+function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
+  const link = (href: string, key: string, body: ReactNode) => {
+    const a = (
+      <a key={key} href={href} target="_blank" rel="noopener noreferrer">
+        {body}
+      </a>
+    );
+    return wrap ? <Fragment key={key}>{wrap(href, a, key)}</Fragment> : a;
+  };
   for (const m of text.matchAll(INLINE)) {
     const at = m.index ?? 0;
     if (at > last) out.push(breaks(text.slice(last, at), `${keyBase}t${n}`));
     const tok = m[0];
     const key = `${keyBase}i${n++}`;
     if (m[1]) out.push(<code key={key}>{tok.slice(1, -1)}</code>);
-    else if (m[2]) out.push(<strong key={key}>{inline(tok.slice(2, -2), key)}</strong>);
+    else if (m[2]) out.push(<strong key={key}>{inline(tok.slice(2, -2), key, wrap)}</strong>);
     else if (m[3]) {
       const lm = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(tok);
       const href = lm?.[2] ?? "";
       out.push(
         SAFE_HREF.test(href) ? (
-          <a key={key} href={href} target="_blank" rel="noopener noreferrer">
-            {inline(lm?.[1] ?? "", key)}
-          </a>
+          link(href, key, inline(lm?.[1] ?? "", key, wrap))
         ) : (
           <Fragment key={key}>{lm?.[1] ?? tok}</Fragment>
         ),
       );
-    } else if (m[4] || m[5]) out.push(<em key={key}>{inline(tok.slice(1, -1), key)}</em>);
-    else
-      out.push(
-        <a key={key} href={tok} target="_blank" rel="noopener noreferrer">
-          {tok}
-        </a>,
-      );
+    } else if (m[4] || m[5]) out.push(<em key={key}>{inline(tok.slice(1, -1), key, wrap)}</em>);
+    else out.push(link(tok, key, tok));
     last = at + tok.length;
   }
   if (last < text.length) out.push(breaks(text.slice(last), `${keyBase}t${n}`));
@@ -116,13 +121,13 @@ function breaks(text: string, key: string): ReactNode {
 }
 
 /** Small, safe Markdown renderer for agent text (no raw HTML, http/mailto links only, new tab). */
-export function MarkdownView({ source, size = "md", className }: MarkdownViewProps) {
+export function MarkdownView({ source, size = "md", className, renderLink }: MarkdownViewProps) {
   const blocks = parseBlocks(source);
   return (
     <div className={cx("apx-md", `apx-md--${size}`, className)}>
       {blocks.map((b, i) => {
         const k = `b${i}`;
-        if (b.kind === "p") return <p key={k}>{inline(b.text, k)}</p>;
+        if (b.kind === "p") return <p key={k}>{inline(b.text, k, renderLink)}</p>;
         if (b.kind === "code")
           return (
             <pre key={k}>
@@ -131,14 +136,14 @@ export function MarkdownView({ source, size = "md", className }: MarkdownViewPro
           );
         if (b.kind === "h") {
           const Tag = b.level <= 2 ? "h3" : "h4";
-          return <Tag key={k}>{inline(b.text, k)}</Tag>;
+          return <Tag key={k}>{inline(b.text, k, renderLink)}</Tag>;
         }
         const List = b.kind;
         return (
           <List key={k}>
             {b.items.map((it, j) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: list items are positional
-              <li key={j}>{inline(it, `${k}l${j}`)}</li>
+              <li key={j}>{inline(it, `${k}l${j}`, renderLink)}</li>
             ))}
           </List>
         );

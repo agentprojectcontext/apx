@@ -8,6 +8,15 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   platform: process.platform,
   setBrowserBounds: (b: Bounds | null) => ipcRenderer.send("panel:browser-bounds", b),
   showBrowserTab: (tab: string) => ipcRenderer.send("panel:browser-tab", tab),
+  /** The browser in a window of its own (true) or back in the side panel (false). */
+  popOutBrowser: (open: boolean) => ipcRenderer.send("browser:popout", open === true),
+  browserPoppedOut: (): boolean => ipcRenderer.sendSync("browser:popout-state") === true,
+  onBrowserPopout: (listener: (open: boolean) => void) =>
+    ipcRenderer.on("browser:popout", (_e, open: unknown) => listener(open === true)),
+  installedBrowsers: (): Promise<unknown> => ipcRenderer.invoke("browser:installed"),
+  /** `browser` undefined = the system's default browser. */
+  openExternal: (url: string, browser?: string): Promise<unknown> =>
+    ipcRenderer.invoke("browser:open-external", String(url), typeof browser === "string" ? browser : undefined),
   openMain: (threadId?: string) =>
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
   onOpenThread: (listener: (threadId: string) => void) =>

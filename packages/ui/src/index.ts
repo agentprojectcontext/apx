@@ -45,7 +45,7 @@ export { IconButton, type IconButtonProps } from "./components/IconButton";
 export { Input, type InputProps } from "./components/Input";
 export { Kbd, type KbdProps } from "./components/Kbd";
 export { LiveBrowserCard, type LiveBrowserCardProps } from "./components/LiveBrowserCard";
-export { MarkdownView, type MarkdownViewProps } from "./components/MarkdownView";
+export { type LinkRenderer, MarkdownView, type MarkdownViewProps } from "./components/MarkdownView";
 export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail";
 export { Menu, type MenuEntry, type MenuProps } from "./components/Menu";
 export { Message, type MessageProps } from "./components/Message";

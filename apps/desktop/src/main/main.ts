@@ -3,10 +3,22 @@
 // panel reload never kills tabs.
 import fs from "node:fs";
 import path from "node:path";
-import { app, BaseWindow, dialog, ipcMain, Menu, Notification, WebContentsView } from "electron";
+import {
+  app,
+  BaseWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  Notification,
+  shell,
+  type WebContents,
+  WebContentsView,
+} from "electron";
 import { showAbout } from "./about.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
+import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
+import { type Bounds, createPopout } from "./browser/popout.ts";
 import { createConnector } from "./connector.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
@@ -17,7 +29,6 @@ const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
 const DIST = import.meta.dirname;
 
-type Bounds = { x: number; y: number; width: number; height: number };
 /** Past this, APX tells the owner how much it takes and what takes the most. */
 const MEMORY_LIMIT_MB = 4096;
 
@@ -89,30 +100,64 @@ app.whenReady().then(() => {
     },
   });
   win.contentView.addChildView(panel);
+  externalLinks(panel.webContents);
   let shown: WebContentsView | undefined;
   let slot: Bounds | null = null;
+  // The quick chat loads from wherever the panel did (the dev server or the core); so does the browser window.
+  let base = CORE_URL;
+
+  const popout = createPopout({
+    url: () => base,
+    preload: path.join(DIST, "panel-preload.cjs"),
+    partition: "persist:apx-ui",
+    changed: (open) => {
+      const pw = popout.panel();
+      if (open && pw) externalLinks(pw);
+      panel.webContents.send("browser:popout", open);
+      layout();
+    },
+    layout: () => layout(),
+  });
+  const unparent = (view: WebContentsView) => {
+    for (const w of [win, popout.window()])
+      if (w?.contentView.children.includes(view)) w.contentView.removeChildView(view);
+  };
+  // The tab is on screen in the browser window while it is open, else in the main window's slot.
+  const stage = () => {
+    const pw = popout.window();
+    return pw ? { w: pw, slot: popout.slot() } : { w: win, slot };
+  };
+  const onScreen = () => {
+    const s = stage().slot;
+    return Boolean(s && s.width > 0 && s.height > 0);
+  };
 
   const layout = () => {
     const { width, height } = win.getContentBounds();
     panel.setBounds({ x: 0, y: 0, width, height });
     if (!shown) return;
-    const visible = Boolean(slot && slot.width > 0 && slot.height > 0);
+    const { w, slot: at } = stage();
     // Hidden tabs sit behind the panel at a real size instead of setVisible(false): an invisible view stops
     // painting, and the agent still needs screenshots and layout of the page it is driving.
-    win.contentView.removeChildView(shown);
-    if (visible && slot) {
-      win.contentView.addChildView(shown);
-      shown.setBounds(slot);
+    unparent(shown);
+    if (at && onScreen()) {
+      w.contentView.addChildView(shown);
+      shown.setBounds(at);
     } else {
-      win.contentView.addChildView(shown, 0);
-      shown.setBounds({ x: 0, y: 0, width: Math.min(width, 1280), height });
+      const area = w.getContentBounds();
+      w.contentView.addChildView(shown, 0);
+      shown.setBounds({ x: 0, y: 0, width: Math.min(area.width, 1280), height: area.height });
     }
   };
   host.onShow = (view) => {
-    if (shown && shown !== view) win.contentView.removeChildView(shown);
+    if (shown && shown !== view) unparent(shown);
     shown = view;
     layout();
   };
+  host.on("changed", () => {
+    const active = host.active ? host.list().find((t) => t.tab === host.active) : undefined;
+    popout.setTitle(active?.title || "APX");
+  });
   host.onAttention = (message) => {
     openMain();
     if (Notification.isSupported()) new Notification({ title: "APX", body: message }).show();
@@ -121,16 +166,19 @@ app.whenReady().then(() => {
   layout();
 
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
-    if (e.sender !== panel.webContents) return;
-    slot =
+    const next =
       b && Number.isFinite(b.x)
         ? { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) }
         : null;
+    if (popout.isPanel(e.sender)) return popout.setSlot(next);
+    if (e.sender !== panel.webContents) return;
+    slot = next;
     layout();
   });
 
+  const ownBrowserPanel = (sender: WebContents) => sender === panel.webContents || popout.isPanel(sender);
   ipcMain.on("panel:browser-tab", (e, tab: unknown) => {
-    if (e.sender !== panel.webContents || typeof tab !== "string") return;
+    if (!ownBrowserPanel(e.sender) || typeof tab !== "string") return;
     try {
       host.select(tab);
     } catch {
@@ -138,8 +186,23 @@ app.whenReady().then(() => {
     }
   });
 
-  // The quick chat loads from wherever the panel did (the dev server or the core).
-  let base = CORE_URL;
+  // The browser in its own window (with its toolbar), or a page in one of the owner's own browsers.
+  ipcMain.on("browser:popout", (e, open: unknown) => {
+    if (!ownBrowserPanel(e.sender)) return;
+    if (open === false) return popout.close();
+    const active = host.active ? host.list().find((t) => t.tab === host.active) : undefined;
+    popout.open(active?.title || "APX", active?.tab);
+  });
+  ipcMain.on("browser:popout-state", (e) => {
+    e.returnValue = ownBrowserPanel(e.sender) && popout.window() != null;
+  });
+  ipcMain.handle("browser:installed", (e) =>
+    ownBrowserPanel(e.sender) ? installedBrowsers().map(({ id, name }) => ({ id, name })) : [],
+  );
+  ipcMain.handle("browser:open-external", (e, url: unknown, browser: unknown) =>
+    ownBrowserPanel(e.sender) ? openExternal(url, browser ?? undefined) : false,
+  );
+
   const quick = createQuick({
     url: () => base,
     preload: path.join(DIST, "panel-preload.cjs"),
@@ -154,7 +217,7 @@ app.whenReady().then(() => {
     coreUrl: CORE_URL,
     webUrl: WEB_URL,
     dist: DIST,
-    isOwnWindow: (sender) => sender === panel.webContents || quick.isQuick(sender),
+    isOwnWindow: (sender) => sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender),
     opened: (url, node) => {
       base = url;
       quick.start();
@@ -229,7 +292,7 @@ app.whenReady().then(() => {
       const fs = await import("node:fs");
       fs.mkdirSync(captureDir, { recursive: true });
       fs.writeFileSync(path.join(captureDir, "panel.png"), (await panel.webContents.capturePage()).toPNG());
-      if (shown && slot)
+      if (shown && onScreen())
         fs.writeFileSync(path.join(captureDir, "tab.png"), (await shown.webContents.capturePage()).toPNG());
       fs.writeFileSync(path.join(captureDir, "slot.json"), JSON.stringify({ slot, at: Date.now() }));
     });
@@ -241,6 +304,8 @@ app.whenReady().then(() => {
     owners.set(panel.webContents.getOSProcessId(), { kind: "panel" });
     const quickPid = quick.processId();
     if (quickPid) owners.set(quickPid, { kind: "quick" });
+    const popoutPid = popout.processId();
+    if (popoutPid) owners.set(popoutPid, { kind: "panel" });
     return memoryReport(app.getAppMetrics(), owners);
   };
   const memText = memoryText(app.getLocale());
@@ -260,7 +325,7 @@ app.whenReady().then(() => {
     },
   });
   const tick = setInterval(() => {
-    void host.closeIdle((view) => view === shown && Boolean(slot && slot.width > 0 && slot.height > 0));
+    void host.closeIdle((view) => view === shown && onScreen());
     watch.check();
   }, 60_000);
   tick.unref();
@@ -268,6 +333,14 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => app.quit());
+
+/** APX's own pages never open child windows (they would carry the panel's preload): web links go to the system. */
+function externalLinks(wc: WebContents): void {
+  wc.setWindowOpenHandler(({ url }) => {
+    if (isWebUrl(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+}
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
 function appMenu(openQuick: () => void, changeConnection: () => void): Menu {

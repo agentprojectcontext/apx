@@ -29,6 +29,16 @@ declare global {
       setBrowserBounds(bounds: { x: number; y: number; width: number; height: number } | null): void;
       /** Which tab the native browser view shows. */
       showBrowserTab?(tab: string): void;
+      /** Moves the browser to a window of its own (true) or back into the side panel (false). */
+      popOutBrowser?(open: boolean): void;
+      /** Whether the browser is in its own window right now. */
+      browserPoppedOut?(): boolean;
+      /** The main window hears when the browser window opens or closes. */
+      onBrowserPopout?(listener: (open: boolean) => void): void;
+      /** The browsers installed on this computer (Chrome, Safari, Firefox…). */
+      installedBrowsers?(): Promise<Array<{ id: string; name: string }>>;
+      /** Opens a web page in the system's default browser, or in an installed one by id. */
+      openExternal?(url: string, browser?: string): Promise<boolean>;
       /** From the quick window: bring the main window up, on this chat. */
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */

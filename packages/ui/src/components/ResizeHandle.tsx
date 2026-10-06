@@ -10,6 +10,8 @@ export interface ResizeHandleProps {
   onResize: (width: number) => void;
   /** Double click: back to the default width. */
   onReset?: () => void;
+  /** A drag starts (true) or ends (false): a caller can cover what would swallow the pointer (a native view). */
+  onDragChange?: (dragging: boolean) => void;
   /** Accessible name ("Resize the sidebar"). */
   label: string;
   /** Which side of the column it grows from: the handle sits on the column's right edge by default. */
@@ -27,6 +29,7 @@ export function ResizeHandle({
   max,
   onResize,
   onReset,
+  onDragChange,
   label,
   edge = "right",
   className,
@@ -37,6 +40,7 @@ export function ResizeHandle({
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     start.current = { x: e.clientX, w: width };
+    onDragChange?.(true);
   };
   const move = (e: PointerEvent<HTMLDivElement>) => {
     if (!start.current) return;
@@ -44,7 +48,9 @@ export function ResizeHandle({
     onResize(clamp(start.current.w + (edge === "right" ? dx : -dx)));
   };
   const up = () => {
+    if (!start.current) return;
     start.current = undefined;
+    onDragChange?.(false);
   };
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = e.key === "ArrowRight" ? 16 : e.key === "ArrowLeft" ? -16 : 0;

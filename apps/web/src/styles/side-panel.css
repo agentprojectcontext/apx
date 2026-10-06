@@ -1,5 +1,14 @@
 /* ── Side panel ────────────────────────────────────────────────────────────── */
+/* The desktop app's browser window: the browser panel alone, edge to edge. */
+.browserwin {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--apx-bg);
+}
 .sidepanel {
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;

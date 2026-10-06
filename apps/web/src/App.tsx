@@ -5,6 +5,8 @@ import { checkAccess, useGate } from "./data/pairing.ts";
 import { usePrefs } from "./data/prefs.ts";
 import { loadSetup, useSetup } from "./data/setup.ts";
 import { useLanguage } from "./i18n/index.ts";
+import { BrowserPanel } from "./panel/BrowserPanel.tsx";
+import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
 import { QuickChat } from "./quick/QuickChat.tsx";
 import { useNav } from "./shell/nav.ts";
 import { Shell } from "./shell/Shell.tsx";
@@ -65,8 +67,15 @@ function Panel() {
   const setup = useSetup((s) => s.open);
   useEffect(() => startLive(), []);
   useEffect(() => {
-    if (!QUICK) void loadSetup();
+    if (!QUICK && !IS_BROWSER_WINDOW) void loadSetup();
   }, []);
+  // The desktop app's browser window (?browser): only the browser panel.
+  if (IS_BROWSER_WINDOW)
+    return (
+      <div className="browserwin">
+        <BrowserPanel />
+      </div>
+    );
   return (
     <>
       {QUICK ? <QuickChat /> : <Shell />}

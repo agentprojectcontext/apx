@@ -1,10 +1,14 @@
-import { IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons, ResizeHandle } from "@apx/ui";
 import { lazy, type ReactNode, Suspense } from "react";
+import { setPrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { go, useNav } from "../shell/nav.ts";
+import { LAYOUT } from "../shell/layout.ts";
+import { go, nav, useNav } from "../shell/nav.ts";
+import { useShellLayout } from "../shell/useShellLayout.ts";
 import { AgentPanel } from "./AgentPanel.tsx";
 import { BrowserPanel } from "./BrowserPanel.tsx";
+import { coverNativeViews } from "./BrowserViewport.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
 import { WidgetPanel } from "./WidgetPanel.tsx";
@@ -28,10 +32,28 @@ export function SidePanel() {
   const ws = useWorkspace();
   const threadId = useNav((s) => s.threadId);
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
+  const layout = useShellLayout();
   if (!panel) return null;
   const folder = panelDef(panel).folder;
   return (
     <aside className="sidepanel" aria-label={t("panel.side")}>
+      {layout && !layout.compact && (
+        <ResizeHandle
+          edge="left"
+          className="sidepanel__resize"
+          width={layout.panelW}
+          min={LAYOUT.panelMinW}
+          max={layout.panelMaxW}
+          // A dragged width replaces the wide toggle: one width at a time.
+          onResize={(w) => {
+            if (nav.get().panelWide) nav.set({ panelWide: false });
+            setPrefs({ panelW: w });
+          }}
+          onReset={() => setPrefs({ panelW: 0 })}
+          onDragChange={coverNativeViews}
+          label={t("panel.resize")}
+        />
+      )}
       {panel === "browser" ? (
         <BrowserPanel />
       ) : panel === "processes" ? (
@@ -90,14 +112,22 @@ export function SidePanel() {
   );
 }
 
-/** 56px header: custom content (title or tab strip), optional actions, and close. */
-export function PanelHeader({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
+/** 56px header: custom content (title or tab strip), optional actions, and close (not in a window of its own). */
+export function PanelHeader({
+  children,
+  actions,
+  closable = true,
+}: {
+  children: ReactNode;
+  actions?: ReactNode;
+  closable?: boolean;
+}) {
   const t = useT();
   return (
     <header className="sidepanel__head">
       <div className="sidepanel__headmain">{children}</div>
       {actions}
-      <IconButton label={t("panel.close")} icon={<Icons.X size={16} />} onClick={() => go.panel(null)} />
+      {closable && <IconButton label={t("panel.close")} icon={<Icons.X size={16} />} onClick={() => go.panel(null)} />}
     </header>
   );
 }

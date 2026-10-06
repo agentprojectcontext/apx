@@ -12,6 +12,7 @@ import { PhoneDialog } from "./PhoneDialog.tsx";
 import { Sidebar } from "./Sidebar.tsx";
 import { Toasts } from "./Toasts.tsx";
 import { Topbar } from "./Topbar.tsx";
+import { ShellLayout } from "./useShellLayout.ts";
 import { useViewportWidth } from "./useViewportWidth.ts";
 
 // Loaded when first opened: the chat is what the panel opens on, the rest waits for its first visit.
@@ -52,23 +53,25 @@ export function Shell() {
       <div className="shell__body">
         <Sidebar rail={layout.rail} width={layout.sidebarW} />
         <main className="shell__main">
-          <Suspense fallback={null}>
-            {view === "app" ? (
-              <AppScreen />
-            ) : view === "project" ? (
-              <ProjectScreen layout={layout} />
-            ) : view === "tasks" ? (
-              <TasksScreen />
-            ) : view === "resources" ? (
-              <ResourcesScreen />
-            ) : view === "channel" ? (
-              <ChannelScreen />
-            ) : view === "engine" ? (
-              <ChatWorkspace layout={layout} list={<EngineSessions />} />
-            ) : (
-              <ChatWorkspace layout={layout} />
-            )}
-          </Suspense>
+          <ShellLayout.Provider value={layout}>
+            <Suspense fallback={null}>
+              {view === "app" ? (
+                <AppScreen />
+              ) : view === "project" ? (
+                <ProjectScreen layout={layout} />
+              ) : view === "tasks" ? (
+                <TasksScreen />
+              ) : view === "resources" ? (
+                <ResourcesScreen />
+              ) : view === "channel" ? (
+                <ChannelScreen />
+              ) : view === "engine" ? (
+                <ChatWorkspace layout={layout} list={<EngineSessions />} />
+              ) : (
+                <ChatWorkspace layout={layout} />
+              )}
+            </Suspense>
+          </ShellLayout.Provider>
         </main>
       </div>
       {config && (
