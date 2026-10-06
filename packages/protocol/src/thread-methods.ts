@@ -48,4 +48,16 @@ export const threadMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * A new chat with this one's history up to a message, what the agent saw of it too; the original stays as it is. At
+   * an agent's answer the copy ends with that whole answer; at an owner's message it ends just before it, and its words
+   * come back as `draft` to send (or change) in the new chat. Refused while a turn runs, in an engine session and in a
+   * chat of several agents.
+   */
+  "threads.fork": {
+    params: z.object({ thread: Id, message: Id, title: z.string().trim().max(200).optional() }).strict(),
+    result: z.object({ thread: Thread, draft: z.string().optional() }),
+    effect: true,
+    access: "human",
+  },
 } as const;

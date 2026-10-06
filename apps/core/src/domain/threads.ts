@@ -484,6 +484,19 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       bus.emit({ type: "message.deleted", thread_id: threadId, message_ids: gone.map((m) => m.id) });
       return [...new Set(gone.flatMap((m) => (m.run_id ? [m.run_id] : [])))];
     },
+    /** Copies messages into another thread (a fork), in order, with their own times; no live events. */
+    copyInto(threadId: string, messages: Message[]): void {
+      for (const m of messages)
+        repo.add({
+          thread_id: threadId,
+          author: m.author,
+          parts: m.parts,
+          ...opt("run_id", m.run_id),
+          ...opt("model", m.model),
+          at: m.created_at,
+          quiet: true,
+        });
+    },
     /** Stores the parts and announces only the one that changed. */
     setPart(message: Message, index: number): void {
       run(
@@ -500,7 +513,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
 }
 
 export function modelLogRepo({ one, all, run }: Sql) {
-  return {
+  const log = {
     /** The thread's log, oldest first; `limit` keeps the newest entries. */
     list(threadId: string, limit = 2000): LogEntry[] {
       const newest = qb
@@ -522,16 +535,34 @@ export function modelLogRepo({ one, all, run }: Sql) {
     },
     /** Forgets what these runs logged and everything logged after them, so the model never sees it again. */
     dropRuns(threadId: string, runIds: string[]): void {
-      if (!runIds.length) return;
-      const first = one(
+      const first = log.firstOf(threadId, runIds);
+      if (first === undefined) return;
+      run(qb.deleteFrom("model_log").where("thread_id", "=", threadId).where("seq", ">=", first));
+    },
+    /** The first seq these runs logged in the thread: where what they saw starts. */
+    firstOf(threadId: string, runIds: string[]): number | undefined {
+      if (!runIds.length) return undefined;
+      const r = one(
         qb
           .selectFrom("model_log")
           .select((eb) => eb.fn.min("seq").as("seq"))
           .where("thread_id", "=", threadId)
           .where("run_id", "in", runIds),
-      )?.seq;
-      if (first == null) return;
-      run(qb.deleteFrom("model_log").where("thread_id", "=", threadId).where("seq", ">=", Number(first)));
+      );
+      return r?.seq == null ? undefined : Number(r.seq);
+    },
+    /** Copies a thread's log below `before` into another, same seqs, so a copied compaction epoch still points right. */
+    copyInto(from: string, to: string, before = Number.POSITIVE_INFINITY): void {
+      const rows = all(
+        qb
+          .selectFrom("model_log")
+          .select(["seq", "run_id", "item"])
+          .where("thread_id", "=", from)
+          .$if(Number.isFinite(before), (q) => q.where("seq", "<", before))
+          .orderBy("seq"),
+      );
+      for (const r of rows)
+        run(qb.insertInto("model_log").values({ thread_id: to, seq: r.seq, item: r.item, run_id: r.run_id }));
     },
     /** Appends items in order; returns the seq of the first one. */
     append(threadId: string, runId: string | undefined, items: unknown[]): number {
@@ -552,4 +583,5 @@ export function modelLogRepo({ one, all, run }: Sql) {
       return base + 1;
     },
   };
+  return log;
 }

@@ -1,13 +1,18 @@
 // The owner's arrangement of chats (rename, pin, archive, work in the project's folder) and deleting one. Home is
 // where the super-agent lives: renamed and pinned, never archived or deleted. A task's chat belongs to its task.
+// Forking copies a chat up to a message into a new one.
 import fs from "node:fs";
 import path from "node:path";
+import type { Message } from "@apx/protocol";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
+import { previewOf } from "../domain/threads.ts";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { isInside } from "../paths.ts";
 import type { Handlers } from "./router.ts";
 import { codeFolder } from "./threads.ts";
+
+const textOf = (m: Message) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
 
 export function threadAdminHandlers(store: Store, home: string) {
   const isHome = (id: string, kind: string) => id === HOME_THREAD_ID || kind === "home";
@@ -47,6 +52,54 @@ export function threadAdminHandlers(store: Store, home: string) {
       // Only files under the home: a row never sends a delete elsewhere on disk.
       for (const file of owned) if (isInside(home, file)) fs.rmSync(file, { force: true });
       return { deleted: ids };
+    },
+    "threads.fork": ({ thread, message, title }) => {
+      const t = store.threads.get(thread);
+      if (!t) throw notFound(`thread ${thread}`);
+      if (t.engine) throw conflict("an engine session keeps its own history: it cannot be forked");
+      if (t.agent_ids.length !== 1) throw badRequest("a chat of several agents cannot be forked");
+      if (store.threads.busy([thread])) throw conflict("a turn is running in this chat: stop it first");
+      const list = store.messages.list(thread, 100_000);
+      const at = list.find((m) => m.id === message);
+      if (!at) throw notFound(`message ${message} in this chat`);
+      // An answer goes whole; the owner's message stays out and comes back as a draft.
+      const own = at.author.kind === "user";
+      const kept = list.filter((m) =>
+        own ? m.seq < at.seq : m.seq <= at.seq || (at.run_id !== undefined && m.run_id === at.run_id),
+      );
+      const keptRuns = new Set(kept.flatMap((m) => (m.run_id ? [m.run_id] : [])));
+      const firstOut = list.find((m) => !kept.includes(m));
+      // What the model saw ends where the first left-out turn starts, runs that wrote nothing too.
+      const outRuns = firstOut
+        ? store.runs
+            .list(thread, 100_000)
+            .filter((r) => !keptRuns.has(r.id) && r.started_at >= firstOut.created_at)
+            .map((r) => r.id)
+        : [];
+      const cut = store.modelLog.firstOf(thread, outRuns);
+      const context = store.threads.context(thread);
+      return store.tx(() => {
+        const fork = store.threads.create({
+          kind: t.kind === "code" || t.kind === "loose" ? t.kind : "agent",
+          title: title || t.title,
+          agent_ids: t.agent_ids,
+          project_id: t.project_id,
+          cwd: t.cwd,
+          write: t.write,
+        });
+        store.messages.copyInto(fork.id, kept);
+        store.modelLog.copyInto(thread, fork.id, cut);
+        store.threads.mergeContext(fork.id, {
+          titled: true,
+          model_choice: context.model_choice,
+          compaction:
+            context.compaction && (cut === undefined || context.compaction.upto < cut) ? context.compaction : undefined,
+        });
+        const last = kept.at(-1);
+        if (last) store.threads.settle(fork.id, last.created_at, previewOf(textOf(last)));
+        const draft = own ? textOf(at) : undefined;
+        return { thread: store.threads.get(fork.id) ?? fork, ...(draft ? { draft } : {}) };
+      });
     },
   } satisfies Partial<Handlers>;
 }

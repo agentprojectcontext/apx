@@ -68,3 +68,24 @@ export async function rewindThread(thread: string, message: string, text?: strin
     return false;
   }
 }
+
+/** Words handed to a new chat's composer (a fork from the owner's message), taken once when it opens. */
+const drafts = new Map<string, string>();
+export const takeDraft = (thread: string): string => {
+  const d = drafts.get(thread) ?? "";
+  drafts.delete(thread);
+  return d;
+};
+
+/** A new chat with this one's history up to `message` (its id), the owner's words ready when forked at them. */
+export async function forkThread(thread: string, message: string, title: string): Promise<string | undefined> {
+  try {
+    const r = await client.call("threads.fork", { thread, message, title });
+    if (r.draft) drafts.set(r.thread.id, r.draft);
+    data.set((s) => ({ threads: { ...s.threads, [r.thread.id]: r.thread } }));
+    return r.thread.id;
+  } catch (e) {
+    notify(t("error.fork", { error: errText(e) }));
+    return undefined;
+  }
+}

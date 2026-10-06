@@ -8,6 +8,7 @@ import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
+import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
@@ -116,6 +117,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 variant="bubble"
                 avatar={<AgentAvatar name={msg.author.name} size={24} />}
                 meta={<span className="transcript__person">{msg.author.name}</span>}
+                actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
                 <p className="transcript__usertext">{textOf(msg)}</p>
               </Message>
@@ -125,6 +127,7 @@ export function Transcript({ thread }: { thread: Thread }) {
               </SystemNote>
             ) : (
               <AgentTurn
+                thread={thread}
                 message={msg}
                 agent={agents[msg.author.id]}
                 showAvatar={multiAgent}

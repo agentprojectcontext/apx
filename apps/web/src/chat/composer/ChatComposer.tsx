@@ -9,6 +9,7 @@ import { isWorking } from "../../data/identity.ts";
 import { choiceLabel, splitRef, useModels } from "../../data/models.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
+import { takeDraft } from "../../data/threadAdmin.ts";
 import { useT } from "../../i18n/index.ts";
 import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
@@ -31,7 +32,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   const offline = useData((s) => s.connection === "offline");
   const engine = useEngineLabel(thread.engine);
   const runsById = useData((s) => s.runs);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => takeDraft(thread.id));
   const files = useRef<HTMLInputElement>(null);
   const images = useRef<HTMLInputElement>(null);
   const att = useAttachments(thread.id);

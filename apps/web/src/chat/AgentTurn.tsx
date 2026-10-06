@@ -1,4 +1,4 @@
-import type { Agent, Message as Msg, Part } from "@apx/protocol";
+import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import { lazy, type ReactNode, Suspense } from "react";
 import { blobOf } from "../data/identity.ts";
@@ -6,6 +6,8 @@ import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { linkMenu } from "./LinkMenu.tsx";
+import { MessageActions } from "./MessageActions.tsx";
 import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
@@ -24,8 +26,10 @@ type SkillsPick = Extract<Part, { type: "skills" }>;
 /**
  * One agent message: the skills picked for it and its tool calls folded into one group on top, then everything else
  * in the order it happened (what it said, sub-agent cards, widgets, approvals, its answer). The meta line closes it.
+ * Each bubble has its own controls (copy, fork, read aloud), shown on hover.
  */
 export function AgentTurn({
+  thread,
   message,
   agent,
   showAvatar,
@@ -33,13 +37,14 @@ export function AgentTurn({
   engine,
   actions,
 }: {
+  thread: Thread;
   message: Msg;
   agent?: Agent;
   showAvatar: boolean;
   showTools: boolean;
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
-  /** Extra controls on its meta line (ask again). */
+  /** Extra controls for the whole answer (ask again), with the last bubble's. */
   actions?: ReactNode;
 }) {
   const t = useT();
@@ -70,27 +75,37 @@ export function AgentTurn({
       agent={engine?.label ?? agent?.name}
       model={message.model && baseRef(message.model)}
       effort={effort && effortLabel(effort)}
-    >
-      {actions}
-    </MessageMeta>
+    />
   );
 
   return (
     <div className="turn">
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
-      {blocks.map(({ key, part }, i) => (
-        <Message
-          key={key}
-          from="agent"
-          variant={part.type === "text" ? "bubble" : "bare"}
-          avatar={i === 0 ? avatar : undefined}
-          grouped={i > 0}
-          meta={i === blocks.length - 1 ? meta : undefined}
-        >
-          {part.type === "text" ? <MarkdownView source={part.text} /> : renderCard(part, agent)}
-        </Message>
-      ))}
+      {blocks.map(({ key, part }, i) => {
+        const last = i === blocks.length - 1;
+        return (
+          <Message
+            key={key}
+            from="agent"
+            variant={part.type === "text" ? "bubble" : "bare"}
+            avatar={i === 0 ? avatar : undefined}
+            grouped={i > 0}
+            meta={last ? meta : undefined}
+            actions={
+              part.type === "text" ? (
+                <MessageActions thread={thread} message={message} text={part.text} speechKey={`${message.id}:${key}`}>
+                  {last && actions}
+                </MessageActions>
+              ) : last ? (
+                actions
+              ) : undefined
+            }
+          >
+            {part.type === "text" ? <MarkdownView source={part.text} renderLink={linkMenu} /> : renderCard(part, agent)}
+          </Message>
+        );
+      })}
     </div>
   );
 }

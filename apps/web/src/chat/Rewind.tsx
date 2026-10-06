@@ -6,6 +6,7 @@ import { type ReactNode, useState } from "react";
 import { isWorking } from "../data/identity.ts";
 import { rewindThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { MessageActions } from "./MessageActions.tsx";
 
 /** Whether this chat can go back: nothing running, not a channel's chat (delivered), not an engine session. */
 export function canRewind(thread: Thread): boolean {
@@ -65,7 +66,7 @@ function useConfirm() {
   return { ask, dialog };
 }
 
-/** The owner's message: a pencil on its meta line turns it into an editor that sends it again. */
+/** The owner's message: with its controls on hover, a pencil that turns it into an editor that sends it again. */
 export function UserMessage({
   thread,
   message,
@@ -98,16 +99,18 @@ export function UserMessage({
       // Editing, the field takes the bubble's place: an input on the ink bubble would read as part of it.
       variant={draft === undefined ? "bubble" : "bare"}
       className={cx(pending && "is-pending", draft !== undefined && "is-editing")}
-      meta={
-        draft === undefined && !pending && canRewind(thread) ? (
-          <span className="rewind__actions">
-            <IconButton
-              size="sm"
-              label={t("rewind.edit")}
-              icon={<Icons.Pencil size={13} />}
-              onClick={() => setDraft(text)}
-            />
-          </span>
+      actions={
+        draft === undefined ? (
+          <MessageActions thread={thread} message={message} text={text} speechKey={message.id} speak={false}>
+            {!pending && canRewind(thread) && (
+              <IconButton
+                size="sm"
+                label={t("rewind.edit")}
+                icon={<Icons.Pencil size={13} />}
+                onClick={() => setDraft(text)}
+              />
+            )}
+          </MessageActions>
         ) : undefined
       }
     >
@@ -156,7 +159,6 @@ export function Regenerate({ thread, message, messages }: { thread: Thread; mess
     <>
       <IconButton
         size="sm"
-        className="rewind__regen"
         label={t("rewind.regenerate")}
         icon={<Icons.RefreshCw size={13} />}
         onClick={() => ask(later(messages, from), () => rewindThread(thread.id, message.id))}

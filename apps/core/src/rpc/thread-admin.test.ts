@@ -125,3 +125,36 @@ test("delete refuses while a turn runs, and works once it ends", async () => {
   await env.settle(t.id);
   assert.deepEqual((await env.client.call("threads.delete", { thread: t.id })).deleted, [t.id]);
 });
+
+test("a fork copies the chat up to a message, and the agent there sees only that much", async () => {
+  const t = await chat("to fork");
+  const send = async (text: string) => {
+    await env.client.call("threads.send", { thread: t.id, text });
+    return (await env.settle(t.id)).messages;
+  };
+  await send("first question");
+  const all = await send("second question");
+  const firstAnswer = all.find((m) => m.author.kind === "agent");
+  const second = all.findLast((m) => m.author.kind === "user");
+  assert.ok(firstAnswer && second);
+
+  // At an answer: everything up to it, the original untouched.
+  const a = await env.client.call("threads.fork", { thread: t.id, message: firstAnswer.id, title: "Branch" });
+  assert.equal(a.thread.title, "Branch");
+  assert.equal(a.draft, undefined);
+  const copied = (await env.client.call("threads.get", { thread: a.thread.id })).messages;
+  assert.equal(copied.length, 2);
+  assert.equal((await env.client.call("threads.get", { thread: t.id })).messages.length, all.length);
+
+  // The fork's next turn sees the first exchange, not the second question.
+  await env.client.call("threads.send", { thread: a.thread.id, text: "follow-up" });
+  await env.settle(a.thread.id);
+  const seen = JSON.stringify(llm.calls.at(-1)?.messages);
+  assert.match(seen, /first question/);
+  assert.doesNotMatch(seen, /second question/);
+
+  // At the owner's message: up to just before it, its words handed back.
+  const b = await env.client.call("threads.fork", { thread: t.id, message: second.id });
+  assert.equal(b.draft, "second question");
+  assert.equal((await env.client.call("threads.get", { thread: b.thread.id })).messages.length, 2);
+});

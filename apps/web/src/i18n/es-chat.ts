@@ -75,4 +75,13 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "slash.skills": "Ver y administrar skills",
   "slash.skill": "Skill: se carga completa para este mensaje",
   "slash.effortRow": "Esfuerzo de razonamiento",
+  "msg.copy": "Copiar",
+  "msg.copied": "Copiado",
+  "msg.fork": "Bifurcar en un chat nuevo",
+  "msg.forkTitle": "{title} (bifurcación)",
+  "msg.readAloud": "Leer en voz alta",
+  "msg.stopReading": "Dejar de leer",
+  "msg.noVoice": "Sumá una voz en Configuración › Voces para leer en voz alta",
+  "error.fork": "No se pudo bifurcar el chat: {error}",
+  "error.readAloud": "No se pudo leer en voz alta: {error}",
 };

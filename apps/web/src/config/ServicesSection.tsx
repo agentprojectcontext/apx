@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
+import { refreshSpeech } from "../data/speech.ts";
 import { useT } from "../i18n/index.ts";
 import { LocalTranscription } from "./LocalTranscription.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
@@ -25,6 +26,8 @@ export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind;
       const r = await client.call("services.list", { kind });
       setServices(r.services);
       setDefaults(r.image_defaults);
+      // The chat's read-aloud buttons follow whether a voice is set up.
+      if (kind === "speech") void refreshSpeech();
     } catch (e) {
       setServices([]);
       notify(t("error.services", { error: errText(e) }));

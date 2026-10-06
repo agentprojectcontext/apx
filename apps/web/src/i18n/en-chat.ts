@@ -73,4 +73,13 @@ export const enChat = {
   "slash.skills": "See and manage skills",
   "slash.skill": "Skill: loaded whole for this message",
   "slash.effortRow": "Reasoning effort",
+  "msg.copy": "Copy",
+  "msg.copied": "Copied",
+  "msg.fork": "Fork into a new chat",
+  "msg.forkTitle": "{title} (fork)",
+  "msg.readAloud": "Read aloud",
+  "msg.stopReading": "Stop reading",
+  "msg.noVoice": "Add a voice in Settings › Voices to read aloud",
+  "error.fork": "Could not fork the chat: {error}",
+  "error.readAloud": "Could not read it aloud: {error}",
 };

@@ -347,17 +347,17 @@
   color: var(--apx-fg-muted);
 }
 
-/* Edit a message / ask again: shown on the row's hover (or keyboard focus), never in the way of reading. */
-.rewind__actions,
-.rewind__regen {
-  opacity: 0;
-  transition: opacity var(--apx-duration);
+/* A bubble's controls (Message `actions`): its time after them, and read aloud crossed out with no voice set up. */
+.msgactions__when {
+  margin-left: 4px;
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+  white-space: nowrap;
 }
-.transcript__row:hover .rewind__actions,
-.transcript__row:hover .rewind__regen,
-.rewind__actions:focus-within,
-.rewind__regen:focus-visible {
-  opacity: 1;
+.msgactions__off {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .rewind__edit {
   width: min(560px, 70vw);

@@ -10,6 +10,11 @@ export interface MessageProps {
   avatar?: ReactNode;
   /** Line under the bubble — MessageMeta, a timestamp. */
   meta?: ReactNode;
+  /**
+   * Controls for this one message (copy, fork, read aloud), shown on hover or keyboard focus: at the end of the meta
+   * line when there is one, else in a row that opens under the bubble and moves the next message down.
+   */
+  actions?: ReactNode;
   /** Reaction emoji pinned to the bubble's bottom corner. */
   reactions?: ReactNode;
   /** bubble = text; bare = no bubble, for media and cards that carry their own surface. */
@@ -25,20 +30,40 @@ export function Message({
   children,
   avatar,
   meta,
+  actions,
   reactions,
   variant = "bubble",
   grouped = false,
   className,
 }: MessageProps) {
   return (
-    <div className={cx("apx-msg", `apx-msg--${from}`, grouped && "is-grouped", className)}>
+    <div
+      className={cx(
+        "apx-msg",
+        `apx-msg--${from}`,
+        grouped && "is-grouped",
+        actions != null && "has-actions",
+        className,
+      )}
+    >
       {from === "agent" && avatar && <span className="apx-msg__avatar">{avatar}</span>}
       <div className="apx-msg__col">
         <div className={cx(variant === "bubble" ? "apx-msg__bubble" : "apx-msg__bare")}>
           {children}
           {reactions && <span className="apx-msg__reactions">{reactions}</span>}
         </div>
-        {meta && <div className="apx-msg__meta">{meta}</div>}
+        {meta ? (
+          <div className="apx-msg__meta">
+            {meta}
+            {actions != null && <div className="apx-msg__actions">{actions}</div>}
+          </div>
+        ) : (
+          actions != null && (
+            <div className="apx-msg__reveal">
+              <div className="apx-msg__actions">{actions}</div>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
