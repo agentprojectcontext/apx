@@ -787,3 +787,61 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A server's tools: each one a toggle; filled = any agent uses it without asking. */
+.resd__status.is-dot-idle .resd__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--apx-brand);
+}
+.mcptools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mcptools__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mcptools__head .resd__h3 {
+  margin: 0;
+}
+.mcptools__tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.mcptools__tool:hover:not(:disabled, .is-static) {
+  border-color: var(--apx-border-strong);
+  color: var(--apx-fg);
+}
+.mcptools__tool.is-on {
+  border-color: transparent;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.mcptools__tool.is-static {
+  cursor: default;
+  background: var(--apx-fill);
+  border-color: transparent;
+}
+.mcptools__tool:disabled {
+  cursor: progress;
+}
+.mcptools__sub {
+  margin: 8px 0 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+}

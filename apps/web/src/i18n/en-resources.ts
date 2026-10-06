@@ -1,13 +1,16 @@
 // UI strings, English: Resources (skills, MCP servers, integrations, variables, extensions).
 export const enResources = {
-  "res.approvedTools": "Approved tools",
-  "res.noApprovedTools": "No saved tool approvals",
-  "res.permissions": "Tool permissions",
-  "res.loadTools": "Load tools and permissions",
-  "res.allowAll": "Allow for all agents",
-  "res.approvalHelp":
-    "A tool allowed here asks no agent for permission. Server or tool changes require approval again.",
-
+  "res.toolsMode": "Tool permissions",
+  "res.toolsMode.ask": "Ask first",
+  "res.toolsMode.all": "All allowed",
+  "res.toolsMode.some": "Some",
+  "res.toolsAskHelp": "Each agent asks you before using a tool that changes something.",
+  "res.toolsAllHelp": "No agent asks for these tools. If the server or a tool changes, they ask again.",
+  "res.toolsPick": "Click a tool to allow it (green) or to make it ask again.",
+  "res.toolsGrants": "Allowed for one agent or chat",
+  "res.toolsLoading": "Loading tools…",
+  "res.toolsOff": "Approve and turn on the server to see its tools.",
+  "res.idleLong": "Ready: starts only when an agent uses it",
   "res.error": "Resources: {error}",
   "res.lead":
     "Skills, MCP servers, integrations and variables. They live globally or inside a project; each project inherits the global ones and can turn them off or override them without touching the original.",
@@ -82,7 +85,7 @@ export const enResources = {
   "res.varSet": "Stored",
   "res.varMissing": "No value stored: open Variables to set it",
   "res.tools": "Tools",
-  "res.toolsUnknown": "Test it to see its tools.",
+  "res.toolsUnknown": "Its tools could not be read. Test it to see the error.",
   "res.editProjectMcp": "It is saved in the project's .apc/mcps.json; a project's file does not use your variables.",
   "res.mcpRemoveProjectBody": "It comes out of the project's .apc/mcps.json; agents stop seeing its tools there.",
   "res.pairRemoveVar": "Remove",

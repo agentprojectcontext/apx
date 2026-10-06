@@ -102,17 +102,20 @@ export function approvalsRepo(q: Sql) {
     list(thread?: string): ToolApproval[] {
       return [...read(), ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread)];
     },
+    /** Without `agent`, the grant for every agent; one agent's grants are revoked by naming it. */
     revoke(key: string, thread?: string, agent?: string): void {
-      if (!thread) write(read().filter((g) => g.key !== key || (agent !== undefined && g.agent_id !== agent)));
+      if (!thread) write(read().filter((g) => g.key !== key || g.agent_id !== agent));
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.binding !== key)));
-      for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
+      if (!agent)
+        for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
     },
     endSession(thread: string): void {
       for (const [k, g] of sessions) if (g.thread_id === thread) sessions.delete(k);
     },
     revokeServer(server: string): void {
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.server !== server)));
-      for (const g of repo.list()) if (g.server === server) repo.revoke(g.key);
+      write(read().filter((g) => g.server !== server));
+      for (const [k, g] of sessions) if (g.server === server) sessions.delete(k);
     },
   };
   return repo;

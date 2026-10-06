@@ -3,7 +3,7 @@ import { expect, open, rpc, test, world } from "./kit.ts";
 
 const server = path.resolve("apps/core/src/mcp/fake-server.test-support.mjs");
 
-test("Resources approves reading tools permanently, distinguishes writes and revokes global server trust", async ({
+test("Resources lists a server's tools, allows all or some for every agent, and revokes server trust", async ({
   page,
 }) => {
   await rpc("setup.finish", {});
@@ -11,20 +11,15 @@ test("Resources approves reading tools permanently, distinguishes writes and rev
   await open(page, "#view=resources&resourcesTab=mcp");
   await page.getByRole("radio", { name: /^MCP/ }).click();
   await page.getByRole("button", { name: /^permissions/ }).click();
-  await page.getByRole("button", { name: "Cargar tools y permisos" }).click();
-  const reading = page.locator(".resd__toggles li").filter({ hasText: "echo" });
-  await reading.getByRole("button", { name: "Aceptar siempre" }).click();
-  await expect(reading.getByRole("button", { name: "Quitar aprobación" })).toBeVisible();
-  await expect(page.locator(".resd__toggles li").filter({ hasText: "token" })).toContainText(
-    "Solo aprobación durante sesión",
-  );
-  const group = page.locator(".apx-actions").filter({ hasText: "Tools aprobadas" });
-  await group.getByRole("button").first().click();
-  await group.getByRole("button", { name: "Actualizar", exact: true }).click();
-  await expect(group).toContainText("permissions");
-  await expect(group).toContainText("Todos los agentes y chats");
-  await group.getByRole("button", { name: "Quitar aprobación" }).click();
-  await expect(group).toContainText("Sin permisos guardados para tools");
+  const tools = page.locator(".mcptools");
+  await tools.getByRole("radio", { name: "Todas permitidas" }).click();
+  await expect(tools.getByRole("button", { name: "echo" })).toHaveAttribute("aria-pressed", "true");
+  await expect(tools.getByRole("button", { name: "token" })).toHaveAttribute("aria-pressed", "true");
+  await tools.getByRole("button", { name: "token" }).click();
+  await expect(tools.getByRole("button", { name: "token" })).toHaveAttribute("aria-pressed", "false");
+  await expect(tools.getByRole("radio", { name: "Algunas" })).toHaveAttribute("aria-checked", "true");
+  await tools.getByRole("radio", { name: "Preguntan" }).click();
+  await expect(tools.getByRole("button", { name: "echo" })).toHaveAttribute("aria-pressed", "false");
   await page.locator(".resd__row").getByRole("button", { name: "Quitar aprobación" }).click();
   await expect(page.locator(".resd__callout")).toBeVisible();
   await page.locator(".resd__callout").getByRole("button", { name: "Aprobar" }).click();
@@ -48,7 +43,7 @@ test("chat offers once, session and always; session lets later calls proceed wit
   await page.keyboard.press("Enter");
   const card = page.locator(".inputcard.is-pending");
   await expect(card.getByRole("button", { name: "Aceptar una vez" })).toBeVisible();
-  await expect(card.getByRole("button", { name: "Aceptar siempre" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Aceptar siempre para este agente" })).toBeVisible();
   await card.getByRole("button", { name: "Aceptar durante esta sesión" }).click();
   await expect(card).toBeHidden();
   await expect(page.locator(".inputline")).toContainText("Esta sesión");

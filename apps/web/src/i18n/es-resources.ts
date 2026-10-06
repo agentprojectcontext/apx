@@ -2,14 +2,18 @@
 import type { MessageKey } from "./en.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
-  "res.approvedTools": "Tools aprobadas",
-  "res.noApprovedTools": "Sin permisos guardados para tools",
-  "res.permissions": "Permisos de tools",
-  "res.loadTools": "Cargar tools y permisos",
-  "res.allowAll": "Permitir a todos los agentes",
-  "res.approvalHelp":
-    "Una tool permitida acá no pide permiso a ningún agente. Si el servidor o la tool cambian, hay que aprobarla de nuevo.",
-
+  "res.toolsMode": "Permisos de tools",
+  "res.toolsMode.ask": "Preguntan",
+  "res.toolsMode.all": "Todas permitidas",
+  "res.toolsMode.some": "Algunas",
+  "res.toolsAskHelp": "Cada agente te pide permiso antes de usar una tool que cambia algo.",
+  "res.toolsAllHelp":
+    "Ningún agente pide permiso para estas tools. Si el servidor o una tool cambian, se vuelve a preguntar.",
+  "res.toolsPick": "Tocá una tool para permitirla (verde) o para que vuelva a preguntar.",
+  "res.toolsGrants": "Permitidas para un agente o un chat",
+  "res.toolsLoading": "Cargando tools…",
+  "res.toolsOff": "Aprobá y activá el servidor para ver sus tools.",
+  "res.idleLong": "Listo: se inicia solo cuando un agente lo usa",
   "res.error": "Recursos: {error}",
   "res.lead":
     "Skills, MCP, integraciones y variables. Viven globales o dentro de un proyecto; cada proyecto hereda las globales y puede apagarlas o pisarlas sin tocar la original.",
@@ -84,7 +88,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.varSet": "Guardada",
   "res.varMissing": "Sin valor: abrí Variables para cargarlo",
   "res.tools": "Tools",
-  "res.toolsUnknown": "Probalo para ver sus tools.",
+  "res.toolsUnknown": "No se pudieron leer sus tools. Probalo para ver el error.",
   "res.editProjectMcp": "Se guarda en el .apc/mcps.json del proyecto; un archivo del proyecto no usa tus variables.",
   "res.mcpRemoveProjectBody": "Sale del .apc/mcps.json del proyecto; los agentes dejan de ver sus tools ahí.",
   "res.pairRemoveVar": "Quitar",

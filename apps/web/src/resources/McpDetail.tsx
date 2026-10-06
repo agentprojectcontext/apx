@@ -1,13 +1,13 @@
 import type { McpServerStatus } from "@apx/protocol";
-import { Badge, Button, Icons, Switch, Tag } from "@apx/ui";
+import { Badge, Button, Icons, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { listMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { STATUS_KEY } from "./labels.ts";
-import { McpPermissions } from "./McpPermissions.tsx";
+import { mcpDot, STATUS_KEY } from "./labels.ts";
+import { McpTools } from "./McpTools.tsx";
 
 type TestResult = { ok: boolean; ms: number; tools: string[]; error?: string | undefined };
 
@@ -35,6 +35,7 @@ export function McpDetail({
   const projects = useData((st) => st.projects);
   const [test, setTest] = useState<TestResult>();
   const [testing, setTesting] = useState(false);
+  const [tested, setTested] = useState(0);
   /** Every project gets it; one limited to a project (`only`) belongs to it. */
   const shared = s.scope === "global" && !s.only;
   const inherited = Boolean(projectId) && shared;
@@ -44,6 +45,7 @@ export function McpDetail({
     const r = await testMcp(s);
     setTesting(false);
     if (r) setTest(r);
+    setTested((n) => n + 1);
     await onChanged();
   };
   // biome-ignore lint/correctness/useExhaustiveDependencies: only a new request from the menu runs it
@@ -66,16 +68,50 @@ export function McpDetail({
           />
         )}
       </header>
-      <p className={`resd__status is-${s.off_here ? "off" : s.status}`}>
+      <p className={`resd__status is-${s.off_here ? "off" : s.status} is-dot-${mcpDot(s)}`}>
         <span className="resd__dot" />
         {s.off_here
           ? t("res.offHereLong", { name: projectName(projects, projectId) })
           : test?.ok
             ? t("res.connected", { n: test.tools.length, ms: test.ms })
-            : t(STATUS_KEY[s.status])}
+            : t(s.status === "off" ? "res.idleLong" : STATUS_KEY[s.status])}
         {!s.off_here && s.status === "ready" && !test && s.tools > 0 && ` · ${t("mcp.tools", { n: s.tools })}`}
       </p>
       {(test?.error || s.error) && <pre className="resd__error">{test?.error ?? s.error}</pre>}
+      <div className="resd__row">
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.FlaskConical size={14} />}
+          loading={testing}
+          disabled={s.status === "needs-approval"}
+          onClick={() => void run()}
+        >
+          {t("res.test")}
+        </Button>
+        {s.trusted && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, false).then(() => onChanged())
+            }
+          >
+            {t("mcp.revoke")}
+          </Button>
+        )}
+        {s.definition && (
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
+            {t("res.edit")}
+          </Button>
+        )}
+        {s.definition && (!shared || !projectId) && (
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={onRemove}>
+            {t("res.remove")}
+          </Button>
+        )}
+      </div>
+
       {inherited && (
         <p className="resd__note">{t("res.mcpInheritedNote", { name: projectName(projects, projectId) })}</p>
       )}
@@ -120,54 +156,15 @@ export function McpDetail({
         <p className="resd__muted">{t("res.noVars")}</p>
       )}
 
-      <h3 className="resd__h3">
-        {t("res.tools")} {tools.length > 0 && <span className="resd__count">{tools.length}</span>}
-      </h3>
-      {tools.length ? (
-        <div className="resd__chips">
-          {tools.map((name) => (
-            <Tag key={name}>{name}</Tag>
-          ))}
-        </div>
-      ) : (
-        <p className="resd__muted">{t("res.toolsUnknown")}</p>
-      )}
-
-      <McpPermissions server={s} projectId={projectId} />
-
-      <div className="resd__row">
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.FlaskConical size={14} />}
-          loading={testing}
-          disabled={s.status === "needs-approval"}
-          onClick={() => void run()}
-        >
-          {t("res.test")}
-        </Button>
-        {s.trusted && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              void trustMcp(s.scope === "project" ? s.project_id : undefined, s.name, false).then(() => onChanged())
-            }
-          >
-            {t("mcp.revoke")}
-          </Button>
-        )}
-        {s.definition && (
-          <Button size="sm" variant="ghost" leadingIcon={<Icons.Pencil size={14} />} onClick={onEdit}>
-            {t("res.edit")}
-          </Button>
-        )}
-        {s.definition && (!shared || !projectId) && (
-          <Button size="sm" variant="ghost" leadingIcon={<Icons.Trash2 size={14} />} onClick={onRemove}>
-            {t("res.remove")}
-          </Button>
-        )}
-      </div>
+      <McpTools
+        server={s}
+        projectId={projectId}
+        names={tools}
+        reload={tested}
+        onLoaded={() => {
+          if (s.status !== "ready") void onChanged();
+        }}
+      />
 
       {!projectId && shared && <AvailableIn server={s.name} onChanged={onChanged} />}
     </article>

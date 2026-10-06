@@ -5,7 +5,6 @@ import { projectName } from "../data/identity.ts";
 import { setMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ApprovedTools } from "./ApprovedTools.tsx";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
 import { McpDetail } from "./McpDetail.tsx";
 import { McpDialog } from "./McpDialog.tsx";
@@ -134,7 +133,6 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
     );
   return (
     <>
-      <ApprovedTools />
       <MasterDetail
         resizeKey="mcp"
         listLabel={t("res.tab.mcp")}
