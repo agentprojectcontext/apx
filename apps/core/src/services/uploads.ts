@@ -1,5 +1,5 @@
 // Files the owner attaches in the composer. Images are kept for models that can look at them; text files are read
-// into the turn (capped, as outside content); anything else is only named. Stored beside the media APX makes.
+// into the turn (capped, as outside content); other files can be copied into the turn work folder.
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,8 +15,16 @@ const IMAGES: Record<string, string> = {
 };
 /** Text the agent can read as is. */
 const TEXT = /^(text\/[a-z0-9.+-]+|application\/(json|xml|x-yaml|yaml|csv|x-ndjson|javascript|typescript|x-sh))$/;
-/** Files kept and named to the agent, without reading them (it is told it cannot). */
-const OTHER: Record<string, string> = { "application/pdf": "pdf" };
+/** Binary documents kept for download and inspection with tools in the work folder. */
+const OTHER: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/octet-stream": "bin",
+  "application/zip": "zip",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+};
 
 /** The first bytes of each image type. */
 function looksLike(mime: string, b: Buffer): boolean {

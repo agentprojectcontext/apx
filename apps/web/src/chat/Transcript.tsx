@@ -120,6 +120,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
                 <p className="transcript__usertext">{textOf(msg)}</p>
+                <UserFiles message={msg} />
               </Message>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">

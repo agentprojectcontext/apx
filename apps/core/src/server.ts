@@ -202,6 +202,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const attention = createAttention({ store, bus, ...(opts.clock ? { now: opts.clock } : {}) });
   const channels = createChannels({
     store,
+    home: config.home,
     secrets,
     bus,
     log,

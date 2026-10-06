@@ -11,6 +11,7 @@ import { MessageActions } from "./MessageActions.tsx";
 import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
+import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
@@ -128,6 +129,8 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       return <BrowserPart part={p} agent={agent} />;
     case "image":
       return <ImagePart part={p} />;
+    case "file":
+      return <FilePart part={p} />;
     case "audio":
       return <AudioPart part={p} />;
     case "notice":

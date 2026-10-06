@@ -1,3 +1,4 @@
+import { grammarSchema } from "./tool-schema.ts";
 // OpenAI-compatible chat completions: OpenAI, Gemini (OpenAI endpoint), OpenRouter, Groq, Ollama, LM Studio…
 import {
   type AssistantItem,
@@ -63,7 +64,15 @@ export const openaiChat: Transport = async (req) => {
     {
       model: req.model,
       messages: wire(req.messages),
-      ...(req.tools.length ? { tools: req.tools, tool_choice: "auto" } : {}),
+      ...(req.tools.length
+        ? {
+            tools: req.tools.map((tool) => ({
+              ...tool,
+              function: { ...tool.function, parameters: grammarSchema(tool.function.parameters) },
+            })),
+            tool_choice: "auto",
+          }
+        : {}),
       ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
     },
   );

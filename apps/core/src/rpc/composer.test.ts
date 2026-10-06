@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
@@ -128,4 +131,41 @@ test("only this chat's uploads attach: not another chat's, not media APX made, n
     env.client.call("media.upload", { name: "fake.png", mime: "image/png", data: b64("not a png") }),
     /fake\.png is not a PNG image/,
   );
+});
+
+test("a PDF is available byte-for-byte in the agent work folder, with a safe name", async () => {
+  const pdf = Buffer.from("%PDF-1.4\nreceipt\n%%EOF");
+  const { media } = await env.client.call("media.upload", {
+    name: "../../receipt.pdf",
+    mime: "application/pdf",
+    data: b64(pdf),
+    thread: "home",
+  });
+  await env.client.call("threads.send", { thread: "home", text: "read receipt", attachments: [media.id] });
+  await env.settle("home");
+  const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  const relative = /File in your work folder: ([^ ]+)\. Use/.exec(input)?.[1];
+  assert.ok(relative);
+  assert.match(relative, /^\.apx-attachments\/upload-[^/]+\/receipt\.pdf$/);
+  assert.deepEqual(fs.readFileSync(path.join(env.home, "work", relative)), pdf);
+});
+
+test("an attachment destination symlink cannot write outside the work folder", async (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "apx-attachment-outside-"));
+  const local = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  t.after(async () => {
+    await local.core.close();
+    local.cleanup();
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+  fs.mkdirSync(path.join(local.home, "work"), { recursive: true });
+  fs.symlinkSync(outside, path.join(local.home, "work", ".apx-attachments"), "dir");
+  const { media } = await local.client.call("media.upload", {
+    name: "receipt.pdf",
+    mime: "application/pdf",
+    data: b64("%PDF-1.4"),
+  });
+  await local.client.call("threads.send", { thread: "home", text: "read", attachments: [media.id] });
+  await local.settle("home");
+  assert.deepEqual(fs.readdirSync(outside), []);
 });

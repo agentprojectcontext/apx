@@ -12,6 +12,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
+import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
@@ -25,6 +26,7 @@ const HOUR_MS = 3600_000;
 
 export function createInbound(deps: {
   store: Store;
+  home: string;
   log: Log;
   call: InternalCall;
   services: Services;
@@ -71,18 +73,43 @@ export function createInbound(deps: {
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
-    // A silenced contact costs nothing: no transcription, no model call, no rate-limit notice to the owner.
+    if (!owner && !person.muted && overLimit(person.id, person.name)) return "ignored";
+    let text = m.voice && !(person.muted && !owner) ? await heard(m, thread.id) : m.text;
+    const attachments: string[] = [];
+    for (const file of m.files ?? []) {
+      try {
+        attachments.push(
+          saveUpload(deps.home, store, {
+            name: file.name,
+            mime: file.mime,
+            bytes: Buffer.from(file.data, "base64"),
+            thread: thread.id,
+          }).id,
+        );
+      } catch {
+        text += "\n[attachment could not be accepted: invalid type, contents or size]";
+      }
+    }
+    // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (!owner && person.muted) {
-      keepQuiet(thread.id, cfg.id, person, m.voice ? `${m.text ? `${m.text}\n` : ""}[voice note]` : m.text);
+      keepQuiet(thread.id, cfg.id, person, m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text, attachments);
       return "done";
     }
-    if (!owner && overLimit(person.id, person.name)) return "ignored";
-    const text = m.voice ? await heard(m, thread.id) : m.text;
-    if (owner && (await answerPending(thread.id, text, rowId, { channel: cfg.id, conversation: m.conversation })))
+    text = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
+    if (
+      owner &&
+      !m.files?.length &&
+      (await answerPending(thread.id, text, rowId, { channel: cfg.id, conversation: m.conversation }))
+    )
       return "done";
     await call(
       "threads.send",
-      { thread: thread.id, text, mode: owner ? cfg.concurrency : "queue" },
+      {
+        thread: thread.id,
+        text,
+        mode: owner ? cfg.concurrency : "queue",
+        ...(attachments.length ? { attachments } : {}),
+      },
       {
         actor: owner ? "human" : "agent",
         channel: {
@@ -219,15 +246,39 @@ export function createInbound(deps: {
    * A silenced contact's message: kept in their chat (and in what the agent will read if the owner unsilences them),
    * marked unread, never answered.
    */
-  function keepQuiet(threadId: string, channel: string, person: { id: string; name: string }, text: string): void {
+  function keepQuiet(
+    threadId: string,
+    channel: string,
+    person: { id: string; name: string },
+    text: string,
+    attachments: string[] = [],
+  ): void {
     store.tx(() => {
       store.messages.add({
         thread_id: threadId,
         author: { kind: "person", id: person.id, name: person.name, channel },
-        parts: [{ type: "text", text }],
+        parts: [
+          { type: "text", text },
+          ...attachments.flatMap((id) => {
+            const m = store.media.get(id);
+            if (!m) return [];
+            return [
+              m.kind === "image"
+                ? { type: "image" as const, media_id: id, mime: m.mime, alt: m.prompt ?? "image" }
+                : { type: "file" as const, media_id: id, mime: m.mime, name: m.prompt ?? id, bytes: m.bytes },
+            ];
+          }),
+        ],
       });
       store.modelLog.append(threadId, undefined, [
-        { role: "user", content: untrusted("channel_message", { from: person.name, channel, silenced: "yes" }, text) },
+        {
+          role: "user",
+          content: untrusted("channel_message", { from: person.name, channel, silenced: "yes" }, text),
+          images: attachments.flatMap((id) => {
+            const m = store.media.get(id);
+            return m?.kind === "image" ? [{ media_id: id, mime: m.mime }] : [];
+          }),
+        },
       ]);
       const t = store.threads.get(threadId);
       store.threads.patch(threadId, { preview: previewOf(text), unread: (t?.unread ?? 0) + 1 });

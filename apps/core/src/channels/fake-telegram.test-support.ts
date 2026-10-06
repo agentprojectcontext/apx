@@ -7,6 +7,8 @@ type Sent = { method: string; body: Record<string, unknown> };
 export async function fakeTelegram(token: string) {
   const updates: Array<{ update_id: number } & Record<string, unknown>> = [];
   const sent: Sent[] = [];
+  const files = new Map<string, { bytes: Buffer; mime: string }>();
+  const downloads: string[] = [];
   /** Answers to force on the next calls of a method, in order; null lets that call through normally. */
   const failures = new Map<string, Array<{ status: number; body: object } | null>>();
   let nextUpdate = 1;
@@ -22,8 +24,11 @@ export async function fakeTelegram(token: string) {
       const [, bot, method = ""] = (req.url ?? "").split("/");
       // A file download: /file/bot<token>/<path>.
       if (bot === "file") {
-        res.writeHead(200, { "content-type": "audio/ogg" });
-        return res.end(Buffer.from("OggS-fake-voice"));
+        const name = (req.url ?? "").split("/").at(-1) ?? "";
+        downloads.push(name);
+        const file = files.get(name);
+        res.writeHead(200, { "content-type": file?.mime ?? "audio/ogg" });
+        return res.end(file?.bytes ?? Buffer.from("OggS-fake-voice"));
       }
       const multipart = (req.headers["content-type"] ?? "").startsWith("multipart/");
       const body = (raw && !multipart ? JSON.parse(raw) : {}) as Record<string, unknown>;
@@ -35,7 +40,11 @@ export async function fakeTelegram(token: string) {
       const forced = failures.get(method)?.shift();
       if (forced) return reply(forced.status, forced.body);
       if (method === "getMe") return reply(200, { ok: true, result: { id: 1, username: "apx_test_bot" } });
-      if (method === "getFile") return reply(200, { ok: true, result: { file_path: "voice/1.oga" } });
+      if (method === "getFile")
+        return reply(200, {
+          ok: true,
+          result: { file_path: files.has(String(body.file_id)) ? `uploads/${body.file_id}` : "voice/1.oga" },
+        });
       if (multipart) {
         const caption = /name="caption"\r\n\r\n([\s\S]*?)\r\n--/.exec(raw)?.[1];
         const chat = /name="chat_id"\r\n\r\n([\s\S]*?)\r\n--/.exec(raw)?.[1];
@@ -72,6 +81,36 @@ export async function fakeTelegram(token: string) {
     url,
     sent,
     failures,
+    downloads,
+    attachment(
+      from: { id: number; name: string },
+      file: {
+        bytes: Buffer;
+        mime: string;
+        name?: string;
+        photo?: boolean;
+        caption?: string;
+        declaredSize?: number;
+      },
+    ) {
+      const update_id = nextUpdate++;
+      const file_id = `f${update_id}`;
+      files.set(file_id, file);
+      const item = { file_id, mime_type: file.mime, file_size: file.declaredSize ?? file.bytes.length };
+      updates.push({
+        update_id,
+        message: {
+          message_id: update_id,
+          chat: { id: from.id, type: "private" },
+          from: user(from.id, from.name),
+          ...(file.caption !== undefined ? { caption: file.caption } : {}),
+          ...(file.photo
+            ? { photo: [{ ...item, width: 10, height: 10 }] }
+            : { document: { ...item, file_name: file.name ?? "receipt.pdf" } }),
+        },
+      });
+      return update_id;
+    },
     message(from: { id: number; name: string }, text: string, chat: { id?: number; type?: string } = {}) {
       const update_id = nextUpdate++;
       updates.push({

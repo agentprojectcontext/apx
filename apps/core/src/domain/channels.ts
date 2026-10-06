@@ -20,6 +20,8 @@ export type Inbound = {
   private: boolean;
   /** A message in a server's room the owner listed: whether it called the bot (an @mention or a reply to it). */
   room?: { called: boolean } | undefined;
+  /** Downloaded attachments, persisted in the inbox before the platform confirms delivery. */
+  files?: Array<{ name: string; mime: string; data: string }> | undefined;
   /** A voice note or audio, to be transcribed before an agent reads it. */
   voice?: { mime: string; data: string } | undefined;
 };

@@ -1,9 +1,10 @@
 // Telegram through the Bot API: long polling with plain fetch, no library. Updates are handed to the manager (which
 // stores them) before the next poll confirms them to Telegram, so a crash never loses a message; a redelivery is
 // dropped by the inbox's unique key.
+import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
-import { neverSent, sleep } from "./net.ts";
+import { causeCode, neverSent, sleep } from "./net.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 import {
   type AdapterFactory,
@@ -32,10 +33,10 @@ type TgMessage = {
   from?: TgUser;
   text?: string;
   caption?: string;
-  photo?: unknown;
+  photo?: Array<TgFile & { width: number; height: number }>;
   voice?: TgFile;
   audio?: TgFile;
-  document?: unknown;
+  document?: TgFile & { file_name?: string };
   video?: unknown;
   sticker?: unknown;
 };
@@ -75,7 +76,6 @@ function nameOf(u: TgUser | undefined): string {
   return name ? `${name} (${handle})` : handle || "someone";
 }
 
-/** What a message without text was, so the agent can say it cannot read it yet. */
 /** Telegram's limit for a file's caption. */
 const CAPTION_MAX = 1024;
 
@@ -102,13 +102,13 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   /** Off once Telegram says it has no drafts (an older Bot API server): the answer then arrives whole, as before. */
   let drafts = true;
 
-  async function api<T>(method: string, body: object, timeoutMs = CALL_MS): Promise<T> {
+  async function api<T>(method: string, body: object, timeoutMs = CALL_MS, signal = ac.signal): Promise<T> {
     if (!token) throw new TgError(401, "no bot token");
     const res = await fetch(`${apiBase}/bot${token}/${method}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(timeoutMs)]),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
     });
     const j = (await res.json().catch(() => ({ ok: false, description: `HTTP ${res.status}` }))) as TgReply<T>;
     if (!j.ok)
@@ -129,13 +129,88 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     return { mime: v.mime_type ?? "audio/ogg", data: Buffer.from(await res.arrayBuffer()).toString("base64") };
   }
 
+  async function filesOf(
+    m: TgMessage,
+    signal = ac.signal,
+  ): Promise<Array<{ name: string; mime: string; data: string }>> {
+    const photo = [...(m.photo ?? [])].sort((a, b) => b.width * b.height - a.width * a.height)[0];
+    const f = photo ?? m.document;
+    if (!f) return [];
+    const limit = photo || f.mime_type?.startsWith("image/") ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
+    if ((f.file_size ?? 0) > limit) throw new Error("Attachment exceeds the upload size limit");
+    const info = await api<{ file_path?: string }>("getFile", { file_id: f.file_id }, CALL_MS, signal);
+    if (!info.file_path) throw new Error("Attachment is unavailable");
+    const res = await fetch(`${apiBase}/file/bot${token}/${info.file_path}`, {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(CALL_MS)]),
+    });
+    if (!res.ok || !res.body) throw new TgError(res.status, `Attachment download HTTP ${res.status}`);
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.length;
+        if (size > limit) throw new Error("Attachment exceeds the upload size limit");
+        chunks.push(value);
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+    return [
+      {
+        name: photo ? "photo.jpg" : (m.document?.file_name ?? "document"),
+        mime: photo ? "image/jpeg" : (f.mime_type ?? "application/octet-stream"),
+        data: Buffer.concat(chunks).toString("base64"),
+      },
+    ];
+  }
+
+  async function readFiles(m: TgMessage): ReturnType<typeof filesOf> {
+    const deadline = Date.now() + 90_000;
+    const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(90_000)]);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await filesOf(m, signal);
+      } catch (err) {
+        const retryable =
+          err instanceof TgError
+            ? err.code === 429 || err.code >= 500
+            : err instanceof TypeError || (err instanceof Error && ["TimeoutError", "AbortError"].includes(err.name));
+        if (!retryable || attempt >= 2 || signal.aborted) throw err;
+        const wait = err instanceof TgError && err.retryAfter ? err.retryAfter * 1000 : 250 * (attempt + 1);
+        if (!Number.isFinite(wait) || Date.now() + wait + CALL_MS > deadline) throw err;
+        await sleep(wait, signal);
+      }
+    }
+  }
+
+  function fileError(err: unknown): string {
+    if (err instanceof TgError) return `Telegram HTTP ${err.code}`;
+    if (err instanceof Error && err.message.startsWith("Attachment ")) return err.message;
+    if (err instanceof Error && ["TimeoutError", "AbortError"].includes(err.name)) return "download timed out";
+    const code = causeCode(err);
+    return code && /^[A-Z0-9_]+$/.test(code) ? `connection failed (${code})` : "connection or download failed";
+  }
+
   async function handle(u: TgUpdate, io: AdapterIO): Promise<void> {
     const m = u.message;
     if (m?.from) {
       const private_ = m.chat.type === "private";
-      // Only one-to-one chats are read; a voice note is fetched now, before Telegram is told it arrived.
+      // Downloads finish before the update is persisted and confirmed to Telegram.
       const voice = private_ ? await voiceOf(m).catch(() => undefined) : undefined;
-      const text = m.text ?? m.caption ?? (voice ? "" : mediaNote(m));
+      let files: Array<{ name: string; mime: string; data: string }> = [];
+      let failure = "";
+      if (private_ && (m.photo?.length || m.document)) {
+        try {
+          files = await readFiles(m);
+        } catch (err) {
+          failure = `[attachment could not be downloaded: ${fileError(err)}]`;
+        }
+      }
+      const words = m.text ?? m.caption ?? (voice || files.length ? "" : mediaNote(m));
+      const text = failure ? `${words ?? ""}\n${failure}`.trim() : words;
       if (text === undefined) return;
       io.receive({
         external_id: String(u.update_id),
@@ -144,6 +219,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         text,
         private: private_,
         ...(voice ? { voice } : {}),
+        ...(files.length ? { files } : {}),
       });
       return;
     }

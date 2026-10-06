@@ -141,7 +141,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   /** A message that arrived on a channel: the owner's own words, or a contact's (a third party's). */
-  function channelSend(threadId: string, agentId: string, text: string, mode: SendMode, ch: ChannelSender) {
+  function channelSend(
+    threadId: string,
+    agentId: string,
+    text: string,
+    mode: SendMode,
+    ch: ChannelSender,
+    files: Attachment[],
+  ) {
     const owner = ch.role === "owner";
     if (owner && mode === "interrupt") engine.interrupt(threadId);
     // Answers go back where this message came from, until the owner writes somewhere else.
@@ -156,6 +163,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       {
         agent_id: agentId,
         trigger: "channel",
+        attachments: files,
         origin: {
           kind: "channel",
           channel: ch.id,
@@ -189,9 +197,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     "threads.send": ({ thread, text, mode, attachments }, ctx) => {
       ownClientThread(thread, ctx);
       const { agent } = threadAgent(thread);
-      if (attachments?.length && (ctx.channel || ctx.actor === "agent"))
-        throw badRequest("only the owner attaches files, from the app");
-      if (ctx.channel) return channelSend(thread, agent.id, text, mode, ctx.channel);
+      if (attachments?.length && ctx.actor === "agent" && !ctx.channel)
+        throw badRequest("only the owner or a channel attaches files");
+      if (ctx.channel) {
+        const files = attachedFiles(store, thread, attachments ?? []);
+        if (files.some((f) => store.media.get(f.media_id)?.thread_id !== thread))
+          throw badRequest("channel attachments must belong to this chat");
+        return channelSend(thread, agent.id, text, mode, ctx.channel, files);
+      }
       if (mode === "interrupt") engine.interrupt(thread);
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data, and it
       // never steers a running turn.

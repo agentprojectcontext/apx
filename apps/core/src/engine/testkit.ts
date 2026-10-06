@@ -51,6 +51,8 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 export async function startCore(opts: {
   llm: Llm;
   home?: string;
+  /** Known port for browser fixtures whose origin must be allowed before the core starts. */
+  port?: number;
   harnesses?: Partial<Record<"native" | "claude" | "codex", Harness>>;
   extraTools?: Tool[];
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
@@ -71,18 +73,21 @@ export async function startCore(opts: {
     { id: "fake", transport: "openai-chat" as const, base_url: "http://fake.test", key: "env:NONE", models: [] },
     ...(opts.providers ?? []),
   ];
-  const core = await createCore(testConfig({ home, providers }), {
-    quiet: true,
-    llm: opts.llm,
-    ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
-    ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
-    ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
-    ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
-    ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
-    ...(opts.desktop ? { desktop: opts.desktop } : {}),
-    imessage: opts.imessage ?? null,
-    ...(opts.clock ? { clock: opts.clock } : {}),
-  });
+  const core = await createCore(
+    testConfig({ home, providers, ...(opts.port !== undefined ? { port: opts.port } : {}) }),
+    {
+      quiet: true,
+      llm: opts.llm,
+      ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
+      ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
+      ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
+      ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
+      ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
+      ...(opts.desktop ? { desktop: opts.desktop } : {}),
+      imessage: opts.imessage ?? null,
+      ...(opts.clock ? { clock: opts.clock } : {}),
+    },
+  );
   // Tests choose their model like an owner would: through the settings, never through code defaults.
   if (!core.store.settings.get("model_default"))
     core.store.settings.set("model_default", JSON.stringify({ model: "fake/fake-1", router: false }));

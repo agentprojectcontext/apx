@@ -51,7 +51,11 @@ gets the types. There is no other way into a handler.
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
 `model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, reply destination, depth,
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
-idempotency. `~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
+idempotency. Channel photos/documents enter through `threads.send` as persisted uploads; image references reach
+vision models and the panel shows attachments from both sides. Owner uploads are copied into an ignored
+`.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
+documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy.
+`~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
 

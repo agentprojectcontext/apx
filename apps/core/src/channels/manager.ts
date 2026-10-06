@@ -50,6 +50,7 @@ const RETRY_MS = [10_000, 30_000, 60_000, 120_000, 300_000];
 
 export function createChannels(deps: {
   store: Store;
+  home: string;
   secrets: Secrets;
   bus: Bus;
   log: Log;
@@ -137,6 +138,7 @@ export function createChannels(deps: {
   });
   const inbound = createInbound({
     store,
+    home: deps.home,
     log,
     call: deps.call,
     services: deps.services,

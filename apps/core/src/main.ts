@@ -1,8 +1,12 @@
 #!/usr/bin/env node
+import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
 import { legacyHome, loadConfig } from "./config.ts";
 import { moveLegacyHome } from "./home.ts";
 import { createCore } from "./server.ts";
 import { RESTART_CODE } from "./updates.ts";
+
+// See HISTORY.md#connection-attempt-timeout.
+setDefaultAutoSelectFamilyAttemptTimeout(Math.max(2000, getDefaultAutoSelectFamilyAttemptTimeout()));
 
 const config = loadConfig();
 if (moveLegacyHome({ home: config.home, legacy: legacyHome(), explicit: Boolean(process.env.APX_HOME) }) === "moved")

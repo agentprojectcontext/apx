@@ -6,6 +6,14 @@ The long *why* behind rules the code enforces: quirks, fixes and workarounds tha
 
 ## Runtime
 
+<a id="connection-attempt-timeout"></a>
+### Give dual-stack connections enough time
+**Rule:** the core entry point gives each address attempt at least two seconds, preserving longer configured values.
+**Why:** a short default address-attempt window can exhaust reachable Telegram addresses before a connection
+finishes on a slow network. Read-only attachment fetches also retry transient failures; outgoing sends retain
+their uncertainty policy and are never retried blindly.
+**Where:** `apps/core/src/main.ts`, `apps/core/src/channels/telegram.ts`.
+
 <a id="workspace-ts-stripping"></a>
 ### Workspace packages ship `.ts` and resolve through symlinks
 **Rule:** internal packages export `./src/*.ts` directly; keep them as pnpm workspace links.

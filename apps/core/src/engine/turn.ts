@@ -303,7 +303,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
     turn.audience.kind === "contact" && o.kind === "user"
       ? ownerInstruction(turn.audience.name, turn.input.text)
       : turn.input.text;
-  const files = attachmentsBlock(store, turn.input.attachments ?? []);
+  const files = attachmentsBlock(store, turn.input.attachments ?? [], sealed ? undefined : { home: deps.home, thread });
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   const input: ChatItem & { role: "user" } = {
     role: "user",
