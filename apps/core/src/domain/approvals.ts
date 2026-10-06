@@ -95,6 +95,7 @@ export function approvalsRepo(q: Sql) {
       const key = onceKey(thread, agent, tool, args, binding);
       const grants = onceRead();
       const found = grants.some((g) => g.key === key);
+      if (!found) return false;
       settings.set("tool_once_grants", JSON.stringify(grants.filter((g) => g.key !== key)));
       return found;
     },
