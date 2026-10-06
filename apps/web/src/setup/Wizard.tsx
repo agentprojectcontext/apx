@@ -1,5 +1,5 @@
 import type { ModelChoice, ProjectKind } from "@apx/protocol";
-import { AgentAvatar, Button, Icons } from "@apx/ui";
+import { AgentAvatar, Button, IconButton, Icons } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import logo from "../assets/logo.png";
 import { bootstrap } from "../data/actions.ts";
@@ -13,7 +13,7 @@ import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { type Draft, defaultDraft } from "./draft.ts";
 import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
@@ -36,6 +36,7 @@ type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" |
  */
 export function Wizard() {
   const t = useT();
+  const mode = useNav((s) => s.mode);
   const status = useSetup((s) => s.status);
   const agents = useData((s) => s.agents);
   const config = useModels((s) => s.config);
@@ -204,6 +205,12 @@ export function Wizard() {
             </button>
           ))}
         </nav>
+        <IconButton
+          size="sm"
+          label={mode === "dark" ? t("theme.light") : t("theme.dark")}
+          icon={mode === "dark" ? <Icons.Sun size={14} /> : <Icons.Moon size={14} />}
+          onClick={go.toggleMode}
+        />
         <button type="button" className="wiz__exit" onClick={closeSetup}>
           {t("setup.exit")}
         </button>
