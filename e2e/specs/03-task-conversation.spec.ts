@@ -115,6 +115,9 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await comment.pressSequentially("please review");
     await drawer.getByRole("button", { name: "Enviar", exact: true }).click();
     await expect(drawer.getByText("Review completed. @roby please check.", { exact: true })).toBeVisible();
+    // Mentions read as badges, in the owner's comment and in an agent's answer.
+    await expect(drawer.locator(".apx-msg--user .apx-mention", { hasText: "@builder" }).first()).toBeVisible();
+    await expect(drawer.locator(".apx-msg--agent .apx-mention", { hasText: "@roby" }).first()).toBeVisible();
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeVisible();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("review");
     // Each agent worked in its own chat for the task; the task itself only got their answers as comments.

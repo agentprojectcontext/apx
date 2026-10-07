@@ -1,5 +1,5 @@
 import type { Agent, Task } from "@apx/protocol";
-import { AgentAvatar, Composer, IconButton, Icons } from "@apx/ui";
+import { AgentAvatar, Composer, IconButton, Icons, withMentions } from "@apx/ui";
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { availableAgents } from "../common/pickers/agents.ts";
 import { blobOf } from "../data/identity.ts";
@@ -130,6 +130,7 @@ export function TaskComment({
     <div className="taskpanel__comment">
       <Composer
         className="taskpanel__composer"
+        highlight={withMentions}
         inputRef={input}
         inputLabel={t("tasks.comment")}
         placeholder={t("tasks.commentHint")}

@@ -1,5 +1,5 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
-import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote } from "@apx/ui";
+import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote, withMentions } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -241,7 +241,7 @@ function UserText({ text, sourceOf }: { text: string; sourceOf: (quote: string) 
         ) : (
           <blockquote className="transcript__quote">{body}</blockquote>
         ))}
-      {rest && <p className="transcript__usertext">{rest}</p>}
+      {rest && <p className="transcript__usertext">{withMentions(rest)}</p>}
     </>
   );
 }

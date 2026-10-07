@@ -1,5 +1,5 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
-import { Composer, EngineIcon, IconButton, Icons, Menu } from "@apx/ui";
+import { Composer, EngineIcon, IconButton, Icons, Menu, withMentions } from "@apx/ui";
 import { useMemo, useRef, useState } from "react";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
@@ -99,6 +99,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
         }}
       />
       <Composer
+        highlight={withMentions}
         placeholder={
           offline
             ? t("composer.offline")
