@@ -29,7 +29,7 @@ test("a new chat starts empty and keeps its own conversation", async ({ page }) 
   expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBeGreaterThan(count);
 });
 
-test("a message picks its skills by meaning: chips over the answer, a card per skill, a link to it", async ({
+test("a message is matched to skills by meaning: a recommended chip over the answer, its card, a link to it", async ({
   page,
 }) => {
   const { llm } = await world.info();
@@ -59,7 +59,8 @@ test("a message picks its skills by meaning: chips over the answer, a card per s
     const chip = page.getByRole("button", { name: "image-gen", exact: true });
     await expect(chip).toBeVisible();
     await chip.click();
-    await expect(page.getByText(/^Cargada: su texto completo/)).toBeVisible();
+    // A match by meaning is only recommended: its name and description enter, the agent decides (DECISIONS.md#d-051).
+    await expect(page.getByText(/^Recomendada: muy parecida al mensaje/)).toBeVisible();
     await expect(page.getByText("Generate an image from a prompt.").last()).toBeVisible();
     await page.getByRole("button", { name: "Abrir skill" }).click();
     await expect(page.getByText("Call the images service.")).toBeVisible();
