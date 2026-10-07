@@ -280,6 +280,22 @@ export interface TaskEntry {
   updated_at: string;
   /** Present on the detail (GET one). List rows carry `comment_count` instead. */
   comments?: TaskComment[];
+  /** Detail only: what is actually running, not what the column says. */
+  execution?: TaskExecution | null;
+  /** Tasks (same project) this one waits on, with their state (#59). */
+  depends_on?: TaskDependency[];
+  /** Derived: tasks that wait on this one. */
+  blocks?: { task_id: string; title: string; state: string; status?: string; reason?: string | null; condition?: string | null }[];
+  /** Waits that were lifted, with why. */
+  dependency_log?: (TaskDependency & { removed_at: string; removed_by: string | null; removed_reason: string | null })[];
+  open_dependencies?: number;
+  /** Structured questions on this card (#58). */
+  decisions?: TaskDecision[];
+  open_decisions?: number;
+  /** When the current blocked period began (derived from transitions). */
+  blocked_since?: string | null;
+  status_changed_at?: string | null;
+  status_changed_by?: string | null;
   comment_count?: number;
   subtask_count?: number;
   subtask_done?: number;
@@ -321,6 +337,58 @@ export interface TaskComment {
   text: string;
   /** Agent slugs this comment addressed, resolved when it was written. */
   mentions: string[];
+  /** Machine facts, e.g. the runtime session this comment reports on. */
+  meta?: { apc_session?: string; runtime?: string; runtime_phase?: string; coordinator?: string | null; error?: string };
+}
+
+export interface TaskDecision {
+  id: string;
+  question: string;
+  options: string[];
+  recommendation: string | null;
+  /** "owner" or an agent slug. */
+  responsible: string;
+  blocking: string | null;
+  can_continue: string | null;
+  asked_by: string | null;
+  asked_at: string;
+  state: "open" | "answered" | "withdrawn";
+  answer?: string;
+  choice?: number | null;
+  answered_by?: string | null;
+  answered_at?: string;
+  withdrawn_reason?: string | null;
+  /** The remote notice, as it actually went: never assumed delivered. */
+  notice: { at: string; channel: string | null; status: "sent" | "suppressed" | "failed" | "no_channel" | "unknown"; error?: string } | null;
+}
+
+export interface TaskDependency {
+  task_id: string;
+  title: string | null;
+  state: "open" | "done" | "dropped" | "missing";
+  status?: string | null;
+  /** The task it waits on is closed as done. Unblocks; does not approve. */
+  satisfied: boolean;
+  satisfied_at?: string | null;
+  reason: string | null;
+  owner: string | null;
+  condition: string | null;
+  since: string;
+  by: string | null;
+}
+
+/** Evidence of work on a task, apart from its column (core/tasks/execution.js). */
+export interface TaskExecution {
+  verdict: "working" | "not_verified" | "ended" | "idle" | "closed";
+  workflow: { status?: string; changed_at: string | null; changed_by: string | null };
+  agent_working: boolean;
+  runtime: {
+    state: "running" | "finished" | "failed" | "abandoned" | "none";
+    count: number;
+    session: { id: string; runtime: string | null; agent: string | null; started_at: string | null; finished_at: string | null; result?: string } | null;
+  };
+  last_activity: { at: string; by: string | null; kind: "comment" | "session_started" | "session_finished"; text: string | null } | null;
+  waiting_on: "owner_decision" | "owner_reply" | "owner" | "dependency" | "blocked" | null;
 }
 
 export interface OrgArea {

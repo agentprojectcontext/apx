@@ -6,6 +6,7 @@
 //
 // Pure orchestration over core/agent + core/engines + core/runtimes: no HTTP,
 // no message-log writes (the caller decides whether and where to persist).
+import { resolveRuntimeModel } from "#core/runtimes/model.js";
 import { callEngineWithFallback } from "../engine-call.js";
 import { readAgentMemory } from "../memory.js";
 import { buildAgentInstructionsBlock } from "../build-agent-system.js";
@@ -416,6 +417,11 @@ export async function replyAsRuntime({
   const carried = resumeSessionId ? "" : flattenHistory(history);
   const prompt = [carried, `From ${fromAddress}:\n\n${body}`].filter(Boolean).join("\n\n---\n\n");
 
+  // A standing pin from config (runtimes.<id>.model / effort) applies here too,
+  // resumed threads included; otherwise the CLI keeps its own default.
+  const pin = resolveRuntimeModel({ runtimeId: peer.runtime, adapter: rt, config });
+  if (pin.error) throw new Error(`${peer.runtime}: ${pin.error}`);
+
   const startedAt = Date.now();
   const r = await rt.run({
     system,
@@ -425,6 +431,8 @@ export async function replyAsRuntime({
     sessionKey: a2aSessionKey(fromAddress, peer.address),
     resumeSessionId,
     mode,
+    model: pin.model,
+    effort: pin.effort,
   });
 
   // A killed process can outlive its own SIGTERM, so "did we reach the

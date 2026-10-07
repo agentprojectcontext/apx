@@ -1,6 +1,7 @@
 // OpenAI Codex CLI runtime adapter.
 //   codex exec --sandbox workspace-write --skip-git-repo-check --json "<prompt>"
 //   codex exec resume <thread-id> --json "<prompt>"          continue that thread
+//   [-m <model>] [-c model_reasoning_effort="<effort>"]       only when APX was asked for one
 // System prompt is prepended to the prompt body since Codex doesn't have a
 // dedicated --system flag in `exec` mode.
 // Reference: https://github.com/openai/codex
@@ -36,16 +37,26 @@ export default {
   binary: "codex",
   versionFlag: "--version",
   sessions: "capture",
+  // Model and effort APX can pass (core/runtimes/model.js). Without them codex
+  // uses ~/.codex/config.toml — the documented `inherit` contract.
+  modelOptions: { model: true, effort: true },
+  nativeProviders: ["chatgpt-codex", "openai"],
 
-  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code" }) {
+  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code", model = null, effort = null }) {
     const fullPrompt = system ? `${system}\n\n---\n\n${prompt}` : prompt;
     // `exec resume` takes no --sandbox: it inherits the sandbox the thread was
     // opened with, and passing the flag is an error rather than a no-op. Which
     // means the FIRST turn decides what the thread may touch for its whole life.
     const sandbox = mode === "chat" ? "read-only" : "workspace-write";
+    // Both `exec` and `exec resume` take -m / -c, so a resumed thread can be
+    // pinned too — the sandbox is the only thing the first turn fixes.
+    const pin = [
+      ...(model ? ["-m", model] : []),
+      ...(effort ? ["-c", `model_reasoning_effort="${effort}"`] : []),
+    ];
     const args = resumeSessionId
-      ? ["exec", "resume", "--skip-git-repo-check", "--json", resumeSessionId, fullPrompt]
-      : ["exec", "--sandbox", sandbox, "--skip-git-repo-check", "--json", fullPrompt];
+      ? ["exec", "resume", "--skip-git-repo-check", "--json", ...pin, resumeSessionId, fullPrompt]
+      : ["exec", "--sandbox", sandbox, "--skip-git-repo-check", "--json", ...pin, fullPrompt];
 
     const r = await runProcess({ command: "codex", args, cwd, env, timeoutMs });
     const { threadId, text } = parseCodexEvents(r.stdout);

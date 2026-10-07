@@ -14,8 +14,12 @@
 //     sessions,                       "capture" when it can continue its own
 //                                     conversation; absent when every run
 //                                     starts cold
+//     modelOptions?,                  { model, effort } it can take from APX;
+//                                     absent = it takes neither (declared, not
+//                                     silently swallowed — core/runtimes/model.js)
+//     nativeProviders?,               APX providers whose models it can run
 //     async run({ system, prompt, cwd, env, timeoutMs,
-//                 sessionKey, resumeSessionId })
+//                 sessionKey, resumeSessionId, model, effort })
 //          → { exitCode, output, sessionId?, externalSessionPath?, raw? }
 //   }
 //

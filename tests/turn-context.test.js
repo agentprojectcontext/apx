@@ -144,15 +144,40 @@ test("the agent loop hands the model a folder's rules with the first result from
   const args = JSON.stringify({ project: String(entry.id), path: "social/reels/clip.txt" });
   const r = await runAgent({
     globalConfig: cfg, system: "sys",
-    prompt: `[mock:tool:read_file] [mock:args:${args}] leé el clip`,
+    prompt: `[mock:tool:read_file] [mock:args:${args}] [mock:lasttool] leé el clip`,
     toolSchemas: session.initialSchemas,
     makeToolHandlers: () => ({ read_file: async () => ({ content: "clip" }) }),
     toolHandlerCtx: { toolSession: session, globalConfig: cfg, projects },
+    maxIters: 4,
+  });
+  assert.match(r.text, /folder_rules/, "the rules rode along");
+  assert.match(r.text, /schedule, never publish/, "the model gets the full text of the rules");
+});
+
+// The trace is what gets persisted and replayed: if it cannot say which rules
+// were delivered, a reviewer cannot tell "never knew" from "knew and ignored".
+test("the trace names every rules file it delivered, even when the result is clipped", async () => {
+  const { createHash } = await import("node:crypto");
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const { createToolSession } = await import("#core/agent/tools/registry.js");
+  const session = createToolSession("web");
+  const args = JSON.stringify({ project: String(entry.id), path: "social/reels/clip.txt" });
+  const r = await runAgent({
+    globalConfig: cfg, system: "sys",
+    prompt: `[mock:tool:read_file] [mock:args:${args}] leé el clip`,
+    toolSchemas: session.initialSchemas,
+    // Big enough that the trace summarizer has to clip the result.
+    makeToolHandlers: () => ({ read_file: async () => ({ content: "x".repeat(5000) }) }),
+    toolHandlerCtx: { toolSession: session, globalConfig: cfg, projects },
     maxIters: 2,
   });
-  const call = r.trace.find((t) => t.tool === "read_file");
-  assert.ok(call.result.folder_rules, "the rules rode along");
-  assert.match(JSON.stringify(call.result.folder_rules), /schedule, never publish/);
+  const recorded = r.trace.find((t) => t.tool === "read_file").result.folder_rules;
+  assert.equal(recorded.length, 2);
+  const social = "Social rule: schedule, never publish on the spot.";
+  const sha = createHash("sha256").update(social).digest("hex").slice(0, 12);
+  assert.equal(recorded[0], `${path.join("social", "AGENTS.md")} · ${Buffer.byteLength(social)} bytes · sha256:${sha}`);
+  assert.match(recorded[1], new RegExp(`^${path.join("social", "reels", "AGENTS.md").replace(/[\\.]/g, "\\$&")} · \\d+ bytes · sha256:[0-9a-f]{12}$`));
+  assert.doesNotMatch(JSON.stringify(recorded), /nested|schedule, never publish/, "a pointer, not the text");
 });
 
 test("listing a server's tools through the registry fills the catalog", async () => {

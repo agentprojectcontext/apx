@@ -29,6 +29,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { addComment, getTask } from "#core/stores/tasks.js";
+import { _resetCascades, cascadeActive, cascadeKey, enterCascade, leaveCascade } from "#core/tasks/cascades.js";
 import { nowIso } from "#core/util/time.js";
 
 /** One comment can produce at most this many agent replies, cascade included. */
@@ -48,16 +49,9 @@ const HOUR_MS = 60 * 60 * 1000;
 // cascade running right now. In memory: about the next hour, like the spend
 // breaker's count.
 const taskTurns = new Map();
-// A count, not a set: an owner's cascade and an agent's can overlap on one
-// task, and the first to finish must not clear the guard for the other.
-const activeCascades = new Map();
-const enterCascade = (key) => activeCascades.set(key, (activeCascades.get(key) || 0) + 1);
-const leaveCascade = (key) => {
-  const n = (activeCascades.get(key) || 0) - 1;
-  if (n > 0) activeCascades.set(key, n);
-  else activeCascades.delete(key);
-};
-const taskKey = (p, taskId) => `${p.storagePath}|${taskId}`;
+// The running-cascade registry lives in cascades.js so the task detail can read
+// it without importing the turn engine.
+const taskKey = (p, taskId) => cascadeKey(p.storagePath, taskId);
 
 function turnsThisHour(key, now = Date.now()) {
   const kept = (taskTurns.get(key) || []).filter((t) => t > now - HOUR_MS);
@@ -68,7 +62,7 @@ function turnsThisHour(key, now = Date.now()) {
 /** Test seam. */
 export function _resetTaskTurnCaps() {
   taskTurns.clear();
-  activeCascades.clear();
+  _resetCascades();
 }
 
 /** Keep a reply readable in a side panel — see the "no huge deploy" rule below. */
@@ -146,6 +140,10 @@ function systemBlock({ me, others, taskTitle }) {
     "**Your final answer IS the comment** — it is posted on the task for you. Do not also post it with comment_task on this task, or it shows up twice.",
     `**Be short.** A comment lives in a side panel next to the task. Aim for a few lines and stay under ~${REPLY_CHAR_HINT} characters. If the detail is long, put the conclusion in the comment and the detail where it belongs (a file, a PR, the task's description).`,
     `**Handing work over:** the only way another agent gets a turn is writing their exact handle with an @ — ${roster}. Writing just their name does NOT reach them. Mention someone ONLY if they genuinely need to act; if you can close it yourself, cite nobody and the thread ends.`,
+    // Without this line the owner was unreachable from a task: the attention
+    // mechanism existed, no agent was told how to use it, and "NEEDS USER
+    // INPUT" in prose reached nobody (#58).
+    "**Need a decision?** Call comment_task with `decision` (question, options, recommendation; `responsible` = owner or the agent who owes it). Never write \"NEEDS USER INPUT\" in prose — nobody is notified by text.",
   ].join("\n");
 }
 
@@ -208,7 +206,9 @@ async function runRealTurn({
     // is looking: a cascade an agent started is unwatched, and the spend
     // breaker and the quota stop have to see it as such (quota.js
     // isUnwatchedTurn). One the owner started they are driving.
-    channelMeta: { unwatched, projectId: p.id ?? null },
+    // `task` is the return address a background runtime launched from this
+    // turn reports to (core/tasks/runtime-return.js). Context, not arguments.
+    channelMeta: { unwatched, projectId: p.id ?? null, task: { project_id: p.id ?? null, task_id: task.id, coordinator: slug } },
     // Same reasoning as the group: the channel picks the PROMPT, but one comment
     // can fan out into several of these runs, so the budget is the fan-out-aware
     // one.
@@ -247,7 +247,7 @@ async function runSuperAgentCommentTurn({
     // The web channel's prompt, for the same reason the project agents use it:
     // the reply is read in a panel, not spoken and not sent to Telegram.
     channel: CHANNELS.WEB,
-    channelMeta: { unwatched, projectId },
+    channelMeta: { unwatched, projectId, task: { project_id: projectId, task_id: task.id, coordinator: SUPERAGENT_ACTOR_ID } },
     contextNote: systemBlock({ me, others, taskTitle: task.title }),
     maxIters: groupToolIters(cfg),
     signal,
@@ -415,7 +415,7 @@ export function summonFromAgentComment({
   const want = [...new Set(mentions || [])].filter((m) => m && m !== author && m !== OWNER_ACTOR_ID);
   if (!want.length) return { summoned: [], skipped: null };
   const key = taskKey(p, taskId);
-  if (activeCascades.has(key)) return { summoned: [], skipped: "cascade_running" };
+  if (cascadeActive(key)) return { summoned: [], skipped: "cascade_running" };
   if (turnsThisHour(key) >= MAX_TASK_TURNS_PER_HOUR) return { summoned: [], skipped: "hourly_cap" };
   // Marked now, not when the run starts: two comments in the same tick must
   // not both see an idle thread.

@@ -384,7 +384,7 @@ async function main() {
     // Durable background-runtime callbacks: deliver any results whose spawning
     // daemon died before it could (crash, pull, or a task that restarted the
     // daemon). Runs once now to recover prior IOUs, then on an interval.
-    callbackReconciler = startCallbackReconciler({ plugins, log });
+    callbackReconciler = startCallbackReconciler({ plugins, log, projects, registries, config: cfg });
     // Turns the LAST daemon had to cut off. The drain on the way down gives the
     // work in flight ten seconds to finish and writes down whatever it still had
     // to cut; this finishes those, with their side-effect ledger pre-seeded so

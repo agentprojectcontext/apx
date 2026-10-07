@@ -63,19 +63,20 @@ function detectOverdueTasks(project, { now }) {
 /**
  * A task sitting in `blocked` long enough that nobody is coming back to it.
  *
- * Uses updated_at, not created_at: a task blocked this morning is a normal
- * working state, and flagging it would train the user to ignore the watcher.
+ * Measured from `blocked_since` (the transition into blocked), never from
+ * updated_at: a comment is activity, not progress, and must not reset the alert.
  */
 function detectBlockedTasks(project, { now, blocked_hours }) {
   const cutoff = new Date(Date.parse(now) - blocked_hours * 3_600_000).toISOString();
+  const since = (t) => t.blocked_since || t.created_at || "";
   return listTasks(project.storagePath, { state: "open", status: "blocked" })
-    .filter((t) => (t.updated_at || t.created_at || "") < cutoff)
+    .filter((t) => since(t) < cutoff)
     .map((t) =>
       signal(project, {
         type: "blocked_task",
         severity: "normal",
-        subject: `"${t.title}" has been blocked since ${(t.updated_at || t.created_at || "").slice(0, 10)}`,
-        payload: { task_id: t.id, title: t.title, since: t.updated_at || t.created_at },
+        subject: `"${t.title}" has been blocked since ${since(t).slice(0, 10)}`,
+        payload: { task_id: t.id, title: t.title, since: since(t) },
       }),
     );
 }

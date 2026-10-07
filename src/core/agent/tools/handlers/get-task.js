@@ -1,6 +1,8 @@
 import { listTasks } from "#core/stores/tasks.js";
 import { missingArg, projectMeta } from "../helpers.js";
 import { locateTask, subtaskRows } from "./_tasks.js";
+import { loadTaskSessions, taskExecution } from "#core/tasks/execution.js";
+import { resolveOwnerName } from "#core/identity/self.js";
 
 // Read ONE task in full. The half of the pair `list_tasks` cannot be.
 //
@@ -32,6 +34,11 @@ export default {
     },
   },
   makeHandler: ({ projects }) => async (args = {}) => {
+    const executionOf = async (t, p) => {
+      try {
+        return taskExecution(t, { storagePath: p.storagePath, sessions: await loadTaskSessions(t), ownerName: resolveOwnerName() });
+      } catch { return null; }
+    };
     const { task, project, comments = true } = args;
     if (!task) {
       return missingArg("get_task", "task", { required: ["task"], optional: ["project", "comments"] }, args);
@@ -73,7 +80,18 @@ export default {
         ...(t.done_at ? { done_at: t.done_at } : {}),
         ...(t.dropped_at ? { dropped_at: t.dropped_at } : {}),
         ...(subtasks.length ? { subtasks } : {}),
+        // Both directions of the wait, with the other side's state. A closed
+        // dependency unblocks the next step; it never approves it.
+        ...(t.depends_on?.length ? { depends_on: t.depends_on } : {}),
+        ...(t.blocks?.length ? { blocks: t.blocks } : {}),
+        ...(t.dependency_log?.length ? { dependency_log: t.dependency_log } : {}),
+        // Questions on this card. An answered one names its answer, so the
+        // same question is never asked twice.
+        ...(t.decisions?.length ? { decisions: t.decisions } : {}),
         comment_count: t.comment_count ?? (t.comments?.length || 0),
+        // What is actually running, not what the column says. A "running"
+        // card with nothing behind it comes back as verdict "not_verified".
+        execution: await executionOf(t, p),
         ...(comments === false
           ? {}
           : { comments: (t.comments || []).map((c) => ({ ts: c.ts, by: c.by, text: c.text })) }),

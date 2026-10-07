@@ -44,7 +44,7 @@ import {
   withImageDescription,
 } from "./vision-bridge.js";
 import { messagesForModel } from "./model-capabilities.js";
-import { attachDirectoryRules } from "./loop/directory-rules.js";
+import { attachDirectoryRules, folderRulesForTrace } from "./loop/directory-rules.js";
 import { createDelegationGuard } from "./loop/delegation-guard.js";
 import { secretWriteTarget } from "./loop/secret-guard.js";
 
@@ -1157,7 +1157,7 @@ export async function runAgent({
         id: traceId,
         tool: name,
         args,
-        result: summarizeForTrace(toolResult),
+        result: summarizeForTrace(folderRulesForTrace(toolResult)),
         ...(securityRisk ? { security_risk: securityRisk } : {}),
       };
       trace.push(traceItem);

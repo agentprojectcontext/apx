@@ -158,6 +158,65 @@ test("a task blocked long enough is a signal; freshly blocked is not", () => {
   assert.equal(all.signals.length, 2);
 });
 
+// Hand-written event log: the store stamps nowIso(), so "blocked 72h ago" can
+// only be built by writing the history it would have left.
+function writeTaskLog(events) {
+  const dir = path.join(STORE, "tasks");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.appendFileSync(path.join(dir, "2026-06.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n");
+}
+
+test("a comment on a blocked task does not restart the blocked clock (#56)", async () => {
+  const { addComment, resetTasksCache } = await import("#core/stores/tasks.js");
+  writeTaskLog([
+    { id: "t-stuck", ts: "2026-06-10T12:00:00Z", op: "create", title: "waiting on legal", status: "pending" },
+    { id: "t-stuck", ts: "2026-06-12T12:00:00Z", op: "update", patch: { status: "blocked" } },
+  ]);
+  resetTasksCache();
+  const opts = { ...only("blocked_task"), blocked_hours: 48 };
+  const before = detectSignals([PROJECT], opts);
+  assert.equal(before.signals.length, 1);
+  assert.equal(before.signals[0].payload.since, "2026-06-12T12:00:00Z");
+
+  // "¿hay novedades?" is conversation, not progress. The alert must survive it.
+  addComment(STORE, "t-stuck", { by: "owner", text: "any news?" });
+  const after = detectSignals([PROJECT], opts);
+  assert.equal(after.signals.length, 1);
+  assert.equal(after.signals[0].payload.since, "2026-06-12T12:00:00Z");
+});
+
+test("blocked_since follows the transitions: create-blocked, leave, re-enter, edits", async () => {
+  const { getTask, resetTasksCache } = await import("#core/stores/tasks.js");
+  writeTaskLog([
+    { id: "t-a", ts: "2026-06-01T00:00:00Z", op: "create", title: "a", status: "blocked" },
+    { id: "t-b", ts: "2026-06-01T00:00:00Z", op: "create", title: "b", status: "blocked" },
+    { id: "t-b", ts: "2026-06-05T00:00:00Z", op: "update", patch: { status: "running" } },
+    { id: "t-b", ts: "2026-06-14T00:00:00Z", op: "update", patch: { status: "blocked" } },
+    // Re-saving the same column, or editing text, is not a new blockage.
+    { id: "t-a", ts: "2026-06-13T00:00:00Z", op: "update", patch: { status: "blocked", title: "a2" } },
+    { id: "t-a", ts: "2026-06-14T00:00:00Z", op: "update", patch: { blocked_since: "2026-06-14T00:00:00Z" } },
+    { id: "t-c", ts: "2026-06-01T00:00:00Z", op: "create", title: "c", status: "pending" },
+  ]);
+  resetTasksCache();
+  assert.equal(getTask(STORE, "t-a").blocked_since, "2026-06-01T00:00:00Z");
+  assert.equal(getTask(STORE, "t-b").blocked_since, "2026-06-14T00:00:00Z");
+  assert.equal(getTask(STORE, "t-c").blocked_since, null);
+
+  const { signals } = detectSignals([PROJECT], { ...only("blocked_task"), blocked_hours: 48 });
+  assert.deepEqual(signals.map((s) => s.payload.task_id), ["t-a"]);
+});
+
+test("closing and reopening a blocked task starts a new blocked period", async () => {
+  const { getTask, resetTasksCache } = await import("#core/stores/tasks.js");
+  writeTaskLog([
+    { id: "t-r", ts: "2026-06-01T00:00:00Z", op: "create", title: "r", status: "blocked" },
+    { id: "t-r", ts: "2026-06-02T00:00:00Z", op: "done" },
+    { id: "t-r", ts: "2026-06-14T00:00:00Z", op: "reopen" },
+  ]);
+  resetTasksCache();
+  assert.equal(getTask(STORE, "t-r").blocked_since, "2026-06-14T00:00:00Z");
+});
+
 test("a commitment inside the lead window warns while there is still time", () => {
   createCommitment(STORE, { counterparty: "Ana", body: "the quote", due: "2026-06-16T12:00:00.000Z" });
   createCommitment(STORE, { counterparty: "Bruno", body: "the deck", due: "2026-07-01T12:00:00.000Z" });

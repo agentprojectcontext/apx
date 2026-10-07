@@ -26,6 +26,9 @@ export function createRuntimeSession({
   // is a record of nothing in particular — the 2026-09-20 sessions all said
   // "claude-code" and none of them said they had opened the wrong directory.
   cwd = "",
+  // The model APX asked the CLI for, as `model[@effort] (source)`. Empty when
+  // the CLI ran on its own default — which is then what the record says.
+  model = "",
 }) {
   const dir = path.join(storageRoot, "agents", agentSlug, "sessions");
   fs.mkdirSync(dir, { recursive: true });
@@ -45,6 +48,7 @@ export function createRuntimeSession({
     `result: \n` +
     `runtime: ${runtime}\n` +
     `cwd: ${cwd || projectRoot || ""}\n` +
+    `model: ${model}\n` +
     `external_session_path: \n` +
     `---\n\n` +
     `# ${sessionTitle}\n\n`;
@@ -121,37 +125,64 @@ export function listRuntimeSessions(storageRoot, opts = {}) {
       }
       const meta = readFrontmatter(text);
       if (!meta) continue;
-      out.push({
-        ...meta,
-        id: meta.id || file.replace(/\.md$/, ""),
-        agent: meta.agent || slug,
-        path: full,
-        // Derived rather than stored: a file written by an older APX has no
-        // `status` line, and a reader that branched on its absence would draw
-        // every historical session as "unknown".
-        done: !!meta.completed,
-        failed: /⚠️|error|failed/i.test(String(meta.status || meta.result || "")),
-        // STILL OPEN IS NOT STILL RUNNING.
-        //
-        // A record closes when the run ends, and nothing closes it when the run
-        // does not end — the daemon was killed mid-flight, the machine slept,
-        // the process died past the point that writes `completed`. The file
-        // then says "🔄 In progress" for ever, and a list that trusted it
-        // showed two sessions as running eleven and twenty-three days after
-        // they stopped (the owner, 2026-09-20: why do these two show as running when they
-        // already finished?).
-        //
-        // No registry can answer this across a restart, but arithmetic can: a
-        // run cannot outlive its own deadline, and the longest one APX hands
-        // out is the background hour. Past the window below the process is
-        // gone whatever the file says.
-        abandoned: isAbandonedSession(meta),
-        mtime: safeStatMtime(full),
-      });
+      out.push(sessionRow(meta, { full, slug, mtime: safeStatMtime(full) }));
     }
   }
   out.sort((a, b) => b.mtime - a.mtime);
   return typeof opts.limit === "number" ? out.slice(0, opts.limit) : out;
+}
+
+/** One session record as every reader returns it. */
+function sessionRow(meta, { full, slug, mtime }) {
+  return {
+    ...meta,
+    id: meta.id || path.basename(full, ".md"),
+    agent: meta.agent || slug,
+    path: full,
+    // Derived rather than stored: a file written by an older APX has no
+    // `status` line, and a reader that branched on its absence would draw
+    // every historical session as "unknown".
+    done: !!meta.completed,
+    failed: /⚠️|error|failed/i.test(String(meta.status || meta.result || "")),
+    // STILL OPEN IS NOT STILL RUNNING.
+    //
+    // A record closes when the run ends, and nothing closes it when the run
+    // does not end — the daemon was killed mid-flight, the machine slept,
+    // the process died past the point that writes `completed`. The file
+    // then says "🔄 In progress" for ever, and a list that trusted it
+    // showed two sessions as running eleven and twenty-three days after
+    // they stopped (the owner, 2026-09-20: why do these two show as running when they
+    // already finished?).
+    //
+    // No registry can answer this across a restart, but arithmetic can: a
+    // run cannot outlive its own deadline, and the longest one APX hands
+    // out is the background hour. Past the window below the process is
+    // gone whatever the file says.
+    abandoned: isAbandonedSession(meta),
+    mtime,
+  };
+}
+
+/**
+ * The head of ONE session file, by path, without blocking: for request paths
+ * (a task detail polled by the panel) that already know which sessions they
+ * need and must not scan every agent's history to find them.
+ */
+export async function readRuntimeSessionHead(filePath) {
+  let fh;
+  try {
+    fh = await fs.promises.open(filePath, "r");
+    const buf = Buffer.alloc(4096);
+    const { bytesRead } = await fh.read(buf, 0, 4096, 0);
+    const meta = readFrontmatter(buf.slice(0, bytesRead).toString("utf8"));
+    if (!meta) return null;
+    const st = await fh.stat();
+    return sessionRow(meta, { full: filePath, slug: path.basename(path.dirname(path.dirname(filePath))), mtime: st.mtimeMs });
+  } catch {
+    return null;
+  } finally {
+    await fh?.close().catch(() => {});
+  }
 }
 
 /** One session by id, with the body the runtime left in it. */

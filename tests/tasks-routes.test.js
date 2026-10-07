@@ -102,6 +102,64 @@ test("list rows carry a comment count, not the thread", async () => {
   assert.equal(row.comments, undefined);
 });
 
+// ── summary (#60) ────────────────────────────────────────────────────────────
+
+test("tasks-summary counts every column and what waits on the owner", async () => {
+  const before = await (await api("/projects/0/tasks-summary")).json();
+  const t = await newTask({ title: "pregunta", status: "running" });
+  await post(`/projects/0/tasks/${t.id}/comments`, { text: "@owner ¿avanzo?", by: "rocky" });
+  const s = await (await api("/projects/0/tasks-summary")).json();
+  assert.equal(s.open, before.open + 1);
+  assert.equal(s.status.running, (before.status.running || 0) + 1);
+  assert.equal(s.attention.awaits_owner, before.attention.awaits_owner + 1);
+  assert.equal(typeof s.attention.blocked_by_owner, "number");
+});
+
+test("the task detail carries its execution view, and a panel move is signed (#57)", async () => {
+  const t = await newTask({ title: "en curso sin nada" });
+  const moved = await post(`/projects/0/tasks/${t.id}/status`, { status: "running" });
+  assert.equal(moved.status, 200);
+  const detail = await (await api(`/projects/0/tasks/${t.id}`)).json();
+  assert.equal(detail.execution.verdict, "not_verified");
+  assert.equal(detail.execution.workflow.changed_by, "owner");
+  assert.equal(detail.status_changed_by, "owner");
+});
+
+test("dependency routes: add, refuse a cycle, lift with a reason (#59)", async () => {
+  const a = await newTask({ title: "dep A" });
+  const b = await newTask({ title: "dep B" });
+  const add = await post(`/projects/0/tasks/${b.id}/dependencies`, { on: a.id, reason: "audita v2" });
+  assert.equal(add.status, 201);
+  assert.equal((await add.json()).depends_on[0].task_id, a.id);
+  const cyc = await post(`/projects/0/tasks/${a.id}/dependencies`, { on: b.id });
+  assert.equal(cyc.status, 400);
+  const noReason = await api(`/projects/0/tasks/${b.id}/dependencies/${a.id}`, { method: "DELETE" });
+  assert.equal(noReason.status, 400);
+  const lift = await api(`/projects/0/tasks/${b.id}/dependencies/${a.id}?reason=${encodeURIComponent("ya no aplica")}`, { method: "DELETE" });
+  assert.equal(lift.status, 200);
+  const after = await lift.json();
+  assert.equal(after.depends_on.length, 0);
+  assert.equal(after.dependency_log[0].removed_reason, "ya no aplica");
+});
+
+test("decision routes: ask, answer once, refuse a second answer (#58)", async () => {
+  const t = await newTask({ title: "decidir" });
+  const ask = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "¿A o B?", options: ["A", "B"], by: "rocky" });
+  assert.equal(ask.status, 201);
+  const { decision } = await ask.json();
+  assert.equal(decision.state, "open");
+  const page = await (await api("/projects/0/tasks?state=open")).json();
+  assert.equal(page.data.find((r) => r.id === t.id).awaits_owner, true);
+
+  const ans = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/answer`, { answer: "B", choice: 1 });
+  assert.equal(ans.status, 200);
+  const body = await ans.json();
+  assert.equal(body.decision.state, "answered");
+  assert.equal(body.task.state, "open", "an answer does not close the task");
+  const again = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/answer`, { answer: "A" });
+  assert.equal(again.status, 400);
+});
+
 // ── subtasks ────────────────────────────────────────────────────────────────
 
 test("?parent selects children, and ?parent= selects the roots", async () => {

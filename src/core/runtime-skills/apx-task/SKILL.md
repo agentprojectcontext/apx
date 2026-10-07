@@ -28,6 +28,7 @@ apx task list --project acme --state done
 apx task list --project acme --tag urgent
 apx task list --project acme --due-before 2026-06-01
 apx task list --project acme --limit 5
+apx task summary --project acme              # counts per state/column — same numbers as the panel
 
 # Inspect / mutate
 apx task show t_abc123 --project acme
@@ -119,10 +120,47 @@ The whole lifecycle is tools. Nothing about a task needs a shell.
 |---|---|
 | note something down | `create_task` |
 | see what is pending | `list_tasks` (omit `project` for every project, in ONE call) |
+| "how is the project going", a status overview | `list_tasks({ summary: true })` — counts per state and column |
 | read what a task actually says | **`get_task`** |
 | change what it says | **`update_task`** |
 | move it, close it, drop it, reopen it | `complete_task` |
 | report what you found or did | `comment_task` |
+
+**An empty filtered list is not an empty project.** When filters match nothing,
+`list_tasks` answers `{ tasks: [], matched: 0, filters, project_counts | totals, note }`.
+Report "nothing matches <filters>", never "there are no tasks"; for an overview
+ask for `summary: true` instead of guessing a filter. `status` takes custom
+column ids too.
+
+**A decision you need is a decision, not a sentence.** Never end a report with
+"NEEDS USER INPUT" in prose. Call
+`comment_task({ task, decision: { question, options, recommendation, responsible, blocking, can_continue } })`.
+The card then shows the question, the owner is notified once (the result —
+sent, suppressed, failed, no channel — is recorded, never assumed), and the
+answer comes back to you as a comment naming the decision id. A correction
+another agent owes is a decision with `responsible: "<that agent>"`, not one
+for the owner. A decision addressed to you: `comment_task({ task,
+answers_decision: "<id>", text })`. An answer resolves THAT question only — it
+does not approve or close the task; check `decisions` in `get_task` before
+asking the same thing again.
+
+**Dependencies are data, not prose.** When you delegate work that unblocks
+another task, record it on the WAITING task:
+`update_task({ task: B, depends_on_add: [{ task: A, reason, owner, condition }] })`.
+Both sides then show it (`depends_on` on B, `blocks` on A). Same project only;
+cycles are refused. Lift one with `depends_on_remove: [{ task: A, reason }]` —
+the reason is required and kept. A done dependency means B is UNBLOCKED, not
+approved: you still verify A's delivery before B proceeds, and you never start
+work just because a card moved. CLI: `apx task depend B --on A --reason …`,
+`apx task undepend B --on A --reason …`.
+
+**The column is not proof of work.** `get_task` returns `execution`: a
+`verdict` (`working` only when a linked runtime session is open or an agent
+turn is on the thread now; `not_verified` when the column says running and
+nothing backs it; `ended`, `idle`, `closed`), the latest linked session, the
+last activity, `waiting_on` and who set the column. Report "not verified"
+rather than "it's being worked on", and never close or approve a task because
+a session exited 0.
 
 `list_tasks` rows are deliberately compact — no `description`, no `body`, no
 comments — so anything past the title is `get_task`. It returns the thread and
@@ -190,7 +228,7 @@ POST   /api/projects/:pid/tasks/:id/done         { by? }
 POST   /api/projects/:pid/tasks/:id/drop         { by? }
 POST   /api/projects/:pid/tasks/:id/reopen
 POST   /api/projects/:pid/tasks/:id/status       { status: pending|running|in_review|blocked }
-GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total, status:{…} }
+GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total, status:{…}, attention:{awaits_owner, blocked_by_owner} }
 ```
 
 ## Don't

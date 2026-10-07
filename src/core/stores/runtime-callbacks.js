@@ -22,6 +22,10 @@ import { readJson } from "#core/util/json-file.js";
 
 export const PENDING_CALLBACKS_DIR = path.join(APX_HOME, "pending-callbacks");
 
+/** IOU kind for a result owed to a TASK thread (core/tasks/runtime-return.js).
+ *  Not a channel: the other kind is keyed by the channel it delivers to. */
+export const TASK_RETURN_CALLBACK = "task";
+
 const SAFE_ID = /^[A-Za-z0-9._-]+$/;
 
 function fileFor(sessionId) {
@@ -38,6 +42,23 @@ export function writePendingCallback(entry) {
     if (!entry?.session_id || !SAFE_ID.test(String(entry.session_id))) return;
     fs.mkdirSync(PENDING_CALLBACKS_DIR, { recursive: true });
     fs.writeFileSync(fileFor(entry.session_id), JSON.stringify({ ...entry, created: nowIso() }, null, 2));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Merge fields into an outstanding IOU — how a multi-step delivery (task
+ * comment, then coordinator) records which steps already happened, so a retry
+ * after a crash resumes instead of repeating. No-op when the IOU is gone.
+ */
+export function updatePendingCallback(sessionId, patch) {
+  try {
+    if (!sessionId || !SAFE_ID.test(String(sessionId))) return;
+    const file = fileFor(sessionId);
+    const cur = readJson(file, null);
+    if (!cur) return;
+    fs.writeFileSync(file, JSON.stringify({ ...cur, ...patch }, null, 2));
   } catch {
     /* best-effort */
   }

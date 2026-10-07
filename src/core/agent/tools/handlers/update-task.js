@@ -1,10 +1,11 @@
-import { getTask, patchTask } from "#core/stores/tasks.js";
+import { addDependency, getTask, patchTask, removeDependency } from "#core/stores/tasks.js";
 import {
   TASK_CATEGORY_IDS, categoryIsLocatable, normalizeTaskLocation,
 } from "#core/constants/task-categories.js";
 import { TASK_PRIORITIES, TASK_REMINDER_FREQUENCIES } from "#core/constants/task-fields.js";
 import { missingArg, projectMeta } from "../helpers.js";
 import { locateTask } from "./_tasks.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
 // Edit a task that already exists. The missing verb.
 //
@@ -59,6 +60,9 @@ export default {
         "priority, reminder, category, place, or its parent. Only the fields you pass change; \"\" " +
         "clears one. This is how 'movelo al viernes', 'eso es de Ana', 'ponelo urgente' get done — " +
         "never by shelling out. NOT for board columns or closing: both are complete_task. " +
+        "Dependencies: when you delegate work that unblocks another task, record it with " +
+        "`depends_on_add` on the WAITING task (reason, owner, unblock condition) — not only in the " +
+        "description. A closed dependency unblocks; it never approves the waiting task. " +
         "Omit `project` to find the task wherever it is.",
       parameters: {
         type: "object",
@@ -87,13 +91,39 @@ export default {
             },
           },
           parent: { type: "string", description: "Id of the task this becomes a SUBTASK of." },
+          depends_on_add: {
+            type: "array",
+            description: "Tasks (same project) this one WAITS ON. Cycles are refused.",
+            items: {
+              type: "object",
+              required: ["task"],
+              properties: {
+                task:      { type: "string", description: "Id of the task this one waits on." },
+                reason:    { type: "string", description: "Why it waits." },
+                owner:     { type: "string", description: "Who unblocks it: agent slug or owner." },
+                condition: { type: "string", description: "What counts as unblocked, e.g. 'plan v2 corrected and verified by PM'." },
+              },
+            },
+          },
+          depends_on_remove: {
+            type: "array",
+            description: "Waits to lift. A reason is required for each.",
+            items: {
+              type: "object",
+              required: ["task", "reason"],
+              properties: { task: { type: "string" }, reason: { type: "string" } },
+            },
+          },
         },
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async (args = {}) => {
+  makeHandler: ({ projects, requirePermission, channelMeta = null }) => async (args = {}) => {
     const { task, project } = args;
     await requirePermission("update_task", { dangerous: true, args: { task } });
+    const by = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
+    const depAdds = Array.isArray(args.depends_on_add) ? args.depends_on_add : [];
+    const depRemoves = Array.isArray(args.depends_on_remove) ? args.depends_on_remove : [];
     if (!task) {
       return missingArg("update_task", "task", { required: ["task"], optional: ["project", ...EDITABLE] }, args);
     }
@@ -191,17 +221,34 @@ export default {
       }
     }
 
-    if (!Object.keys(patch).length) {
-      return { error: `nothing to update. Pass at least one of: ${EDITABLE.join(", ")}.` };
+    if (!Object.keys(patch).length && !depAdds.length && !depRemoves.length) {
+      return { error: `nothing to update. Pass at least one of: ${EDITABLE.join(", ")}, depends_on_add, depends_on_remove.` };
     }
 
     try {
-      const updated = patchTask(p.storagePath, current.id, patch);
+      // Dependencies first and all-or-nothing per item: one refused (a cycle,
+      // a target in another project) is reported, the rest still apply.
+      const depErrors = [];
+      for (const d of depAdds) {
+        try { addDependency(p.storagePath, current.id, { on: d?.task, reason: d?.reason, owner: d?.owner, condition: d?.condition, by }); }
+        catch (e) { depErrors.push(`${d?.task}: ${e.message}`); }
+      }
+      for (const d of depRemoves) {
+        try { removeDependency(p.storagePath, current.id, { on: d?.task, reason: d?.reason, by }); }
+        catch (e) { depErrors.push(`${d?.task}: ${e.message}`); }
+      }
+      if (depErrors.length && !Object.keys(patch).length && depErrors.length === depAdds.length + depRemoves.length) {
+        return { error: depErrors.join("; ") };
+      }
+      if (depErrors.length) notes.push(`Not applied: ${depErrors.join("; ")}.`);
+      const updated = Object.keys(patch).length
+        ? patchTask(p.storagePath, current.id, patch, { by })
+        : getTask(p.storagePath, current.id);
       if (!updated) return { error: `task not found: ${current.id}` };
       return {
         ok: true,
         project: projectMeta(projects, p),
-        changed: Object.keys(patch),
+        changed: [...Object.keys(patch), ...(depAdds.length || depRemoves.length ? ["depends_on"] : [])],
         task: {
           id: updated.id,
           title: updated.title,
@@ -211,6 +258,9 @@ export default {
           agent: updated.agent,
           priority: updated.priority,
           ...(updated.parent ? { parent: updated.parent } : {}),
+          ...(updated.depends_on?.length
+            ? { depends_on: updated.depends_on.map((d) => ({ task: d.task_id, title: d.title, state: d.state, satisfied: d.satisfied })) }
+            : {}),
         },
         ...(notes.length ? { note: notes.join(" ") } : {}),
       };

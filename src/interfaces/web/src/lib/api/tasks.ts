@@ -21,6 +21,8 @@ export interface TaskSummary {
   total: number;
   /** Keyed by whatever columns are in use, not only the four built-ins. */
   status: Record<string, number>;
+  /** What waits on the owner (open cards only). */
+  attention?: { awaits_owner: number; blocked_by_owner: number };
 }
 
 export const Tasks = {
@@ -81,6 +83,11 @@ export const Tasks = {
   drop:   (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/drop`),
   reopen: (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/reopen`),
   summary: (pid: string) => http.get<TaskSummary>(`/api/projects/${pid}/tasks-summary`),
+  /** Answer a decision on the card. Hands the answer back to whoever asked. */
+  answerDecision: (pid: string, id: string, did: string, answer: string, choice: number | null = null) =>
+    http.post<unknown>(`/api/projects/${pid}/tasks/${id}/decisions/${did}/answer`, { answer, choice }),
+  withdrawDecision: (pid: string, id: string, did: string, reason: string) =>
+    http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/decisions/${did}/withdraw`, { reason }),
 
   /**
    * "I looked at these."

@@ -63,6 +63,16 @@ export default {
         raw: { model, mock: true },
       };
     }
+    // `[mock:lasttool]` → once a tool has run, the last tool message comes back
+    // verbatim, so a test can assert what the model was handed, not the trace.
+    if (hasToolResult && /\[mock:lasttool\]/.test(userText)) {
+      const lastTool = [...messages].reverse().find((m) => m.role === "tool");
+      return {
+        text: String(lastTool?.content || ""),
+        usage: { input_tokens: userText.length, output_tokens: 0 },
+        raw: { model, mock: true },
+      };
+    }
     // `[mock:empty]` → a dud turn (no text, no tools) to exercise the loop's
     // empty-retry / never-end-silent guard.
     if (/\[mock:empty\]/.test(userText)) {

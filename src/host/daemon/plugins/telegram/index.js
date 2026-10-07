@@ -47,6 +47,7 @@ import {
 import { handleUpdate } from "#core/channels/telegram/dispatch.js";
 import { handleCallbackQuery, startAskFlow, maybeConsumeAskTextAnswer } from "#core/channels/telegram/ask-callbacks.js";
 import { sendMessage, sendChatAction, editMessageReplyMarkup, answerCallbackQuery, getUpdates } from "#core/channels/telegram/api.js";
+import { sendFormatted } from "#core/channels/telegram/format.js";
 import { sendPhoto, sendVoice, sendDocument, sendAudio } from "#core/channels/telegram/media.js";
 import { archiveOutboundMedia, outboundMediaMeta } from "#core/stores/media-archive.js";
 import { trackChannelTurn } from "../../channel-turn.js";
@@ -301,9 +302,11 @@ class ChannelPoller {
     return () => { stopped = true; };
   }
 
+  // Every outgoing text: markdown rendered as Telegram HTML, plain text left
+  // as is, and a plain resend if Telegram refuses the markup (core/channels/telegram/format.js).
   async _send({ chat_id, text, reply_markup, parse_mode }) {
     const { token, target } = this._resolve(chat_id);
-    return sendMessage(token, target, { text, reply_markup, parse_mode });
+    return sendFormatted(sendMessage, token, target, { text, reply_markup, parse_mode });
   }
 
   // Replace/clear the inline keyboard on a sent message. Best-effort: logged.

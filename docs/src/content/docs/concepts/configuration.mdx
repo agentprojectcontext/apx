@@ -117,6 +117,20 @@ where the proxy was set up to avoid.
 | `automatico` | APX decides automatically based on safety heuristics |
 | `permiso` | Only tools listed in `allowed_tools`; everything else asks |
 
+### External runtimes
+
+Optional. Without it every external runtime CLI uses its own configured model.
+
+```json
+"runtimes": {
+  "codex": { "model": "gpt-6-luna", "effort": "high" },
+  "claude-code": { "inherit_apx_model": true }
+}
+```
+
+`model` / `effort` pin a runtime; `inherit_apx_model` follows APX's selection only when its provider
+is native to that runtime. Details in [Agents → External runtimes and the model](/apx/docs/concepts/agents/#external-runtimes-and-the-model).
+
 ## The identity file — `~/.apx/identity.json`
 
 This file sets the assistant's user-facing name and personality:

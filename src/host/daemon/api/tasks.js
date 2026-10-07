@@ -30,7 +30,12 @@ import {
   reopenTask,
   setTaskStatus,
   countTasks,
+  addDependency,
+  removeDependency,
+  withdrawDecision,
 } from "#core/stores/tasks.js";
+import { requestDecision, resolveDecision } from "#core/tasks/decisions.js";
+import { summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { addComment } from "#core/stores/tasks.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 import {
@@ -41,7 +46,8 @@ import { resolveOwnerName } from "#core/identity/self.js";
 import { readTaskReads, decorateTaskUnread, markTasksRead } from "#core/stores/task-reads.js";
 import { readProjectConfig, writeProjectConfig } from "../project-config.js";
 import { mentionedAgents, runCommentMentions } from "#core/tasks/comment-turn.js";
-import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
+import { OWNER_ACTOR_ID, SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
+import { loadTaskSessions, taskExecution } from "#core/tasks/execution.js";
 import { pageEnvelope, asyncRoute } from "./shared.js";
 import { broadcastReadMarks } from "../events-ws.js";
 
@@ -223,13 +229,15 @@ export function register(api, { project, projects, config, plugins, registries }
     }
   });
 
-  api.get("/projects/:pid/tasks/:id", (req, res) => {
+  api.get("/projects/:pid/tasks/:id", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const task = getTask(p.storagePath, req.params.id);
     if (!task) return res.status(404).json({ error: "task not found" });
-    res.json(task);
-  });
+    // Evidence of work, separate from the column (core/tasks/execution.js).
+    const sessions = await loadTaskSessions(task);
+    res.json({ ...task, execution: taskExecution(task, { storagePath: p.storagePath, sessions, ownerName: resolveOwnerName() }) });
+  }));
 
   api.patch("/projects/:pid/tasks/:id", (req, res) => {
     const p = project(req, res);
@@ -238,7 +246,7 @@ export function register(api, { project, projects, config, plugins, registries }
     if (!patch || typeof patch !== "object") {
       return res.status(400).json({ error: "patch object required" });
     }
-    const updated = patchTask(p.storagePath, req.params.id, patch);
+    const updated = patchTask(p.storagePath, req.params.id, patch, { by: req.body?.by || OWNER_ACTOR_ID });
     if (!updated) return res.status(404).json({ error: "task not found" });
     res.json(updated);
   });
@@ -269,6 +277,36 @@ export function register(api, { project, projects, config, plugins, registries }
     res.json(updated);
   });
 
+  // Dependencies (#59): this task waits on another in the same project. The
+  // store refuses cycles and missing targets; lifting a wait needs a reason.
+  api.post("/projects/:pid/tasks/:id/dependencies", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { on, reason = null, owner = null, condition = null, by = OWNER_ACTOR_ID } = req.body || {};
+    if (!on) return res.status(400).json({ error: "on (task id) required" });
+    try {
+      const task = addDependency(p.storagePath, req.params.id, { on, reason, owner, condition, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.status(201).json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  api.delete("/projects/:pid/tasks/:id/dependencies/:on", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const reason = req.body?.reason ?? req.query?.reason;
+    const by = req.body?.by || OWNER_ACTOR_ID;
+    try {
+      const task = removeDependency(p.storagePath, req.params.id, { on: req.params.on, reason, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // Move an open task to a column. The valid set is the project's own columns
   // (core/tasks/columns.js) — not the four built-ins, which are only the default
   // catalog. `done` is not among them: closing a task is POST …/done, and a
@@ -276,13 +314,13 @@ export function register(api, { project, projects, config, plugins, registries }
   api.post("/projects/:pid/tasks/:id/status", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { status } = req.body || {};
+    const { status, by = OWNER_ACTOR_ID } = req.body || {};
     const columns = projectColumns(readConfig(), readProjectConfig(p.path));
     const statuses = columns.map((c) => c.id).filter((id) => id !== DONE_COLUMN);
     if (!statuses.includes(status)) {
       return res.status(400).json({ error: `status must be one of ${statuses.join(", ")}` });
     }
-    const updated = setTaskStatus(p.storagePath, req.params.id, status, { statuses });
+    const updated = setTaskStatus(p.storagePath, req.params.id, status, { statuses, by });
     if (!updated) return res.status(404).json({ error: "task not found" });
 
     // Column automation: dropping a card in a column that has one hands the task
@@ -312,6 +350,66 @@ export function register(api, { project, projects, config, plugins, registries }
     }
 
     res.json(updated);
+  });
+
+  // Decisions (#58): a structured question on the task. Answering hands the
+  // answer back to whoever asked, as a comment naming the decision — it never
+  // approves, closes or moves the task.
+  api.post("/projects/:pid/tasks/:id/decisions", asyncRoute(async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { by = OWNER_ACTOR_ID, ...fields } = req.body || {};
+    try {
+      const out = await requestDecision({
+        storagePath: p.storagePath, taskId: req.params.id, fields, by, plugins, config,
+        projectId: p.id ?? null, projectName: p.name || null,
+        canDecide: (slug) => slug === SUPERAGENT_ACTOR_ID || (() => {
+          try { return readAgents(p.path).some((a) => a.slug === slug); } catch { return false; }
+        })(),
+        summon: (mentions) => summonFromAgentComment({
+          p, taskId: getTask(p.storagePath, req.params.id)?.id || req.params.id, mentions, author: by,
+          projects, plugins, registries, config,
+        }),
+      });
+      if (!out) return res.status(404).json({ error: "task not found" });
+      res.status(201).json(out);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  }));
+
+  api.post("/projects/:pid/tasks/:id/decisions/:did/answer", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { answer, choice = null, by = OWNER_ACTOR_ID } = req.body || {};
+    try {
+      const out = resolveDecision({
+        storagePath: p.storagePath, taskId: req.params.id, decisionId: req.params.did, answer, choice, by,
+        handBack: (asker, author) => {
+          runCommentMentions({
+            p, taskId: getTask(p.storagePath, req.params.id).id, seed: [asker], author,
+            projects, plugins, registries, config,
+          }).catch(() => { /* the failure is written into the thread */ });
+        },
+      });
+      if (!out) return res.status(404).json({ error: "task not found" });
+      res.json(out);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  api.post("/projects/:pid/tasks/:id/decisions/:did/withdraw", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { reason, by = OWNER_ACTOR_ID } = req.body || {};
+    try {
+      const task = withdrawDecision(p.storagePath, req.params.id, req.params.did, { reason, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
   });
 
   // Add a comment. @-mentioning an agent hands it the task: it runs a REAL turn
@@ -354,6 +452,6 @@ export function register(api, { project, projects, config, plugins, registries }
   api.get("/projects/:pid/tasks-summary", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(countTasks(p.storagePath));
+    res.json(countTasks(p.storagePath, { owner_name: resolveOwnerName() }));
   });
 }

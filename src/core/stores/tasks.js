@@ -9,6 +9,12 @@
 //   create  — sets initial fields (title, description, body, tags, due, agent,
 //             source, meta, parent)
 //   comment — appends one comment to the task's thread (by, text)
+//   depend   — this task waits on another (target, reason, owner, condition)
+//   undepend — that wait is lifted, with the reason it no longer holds
+//   ask      — somebody needs a decision (question, options, who decides)
+//   decide   — the decision was answered (answer, by)
+//   withdraw — the question no longer applies (reason)
+//   decision_notice — what happened when the decider was notified remotely
 //   update — shallow-merge patch (`patch` field)
 //   done   — closes the task (`by` field optional)
 //   drop   — archives without "completed" semantics (`by` field optional)
@@ -21,6 +27,7 @@ import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/task-categories.js";
+import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
 import {
   activityAt,
   awaitsOwner,
@@ -132,6 +139,18 @@ export function resetTasksCache() {
   _events.clear();
 }
 
+const FOLD_OWNED = new Set([
+  "id", "state", "created_at", "blocked_since", "status_changed_at", "status_changed_by",
+  "comments", "depends_on", "dependency_log", "decisions",
+]);
+
+/** An @owner comment, or an open structured decision for the owner. One rule
+ *  for list rows AND countTasks, so the summary cannot undercount. */
+function ownerAwaited(task, aliases) {
+  return awaitsOwner(task, aliases)
+    || (task.state === "open" && (task.decisions || []).some((d) => d.state === "open" && d.responsible === OWNER_ACTOR_ID));
+}
+
 function projectState(events) {
   const tasks = new Map();
   for (const ev of events) {
@@ -145,6 +164,14 @@ function projectState(events) {
           updated_at: ev.ts,
           state: "open",
           status: readStatus(ev.status),
+          // When the CURRENT blocked period began. Derived from transitions,
+          // never written: a comment moves updated_at, and a watcher reading
+          // that clock was silenced by the owner asking "any news?".
+          blocked_since: readStatus(ev.status) === "blocked" ? ev.ts : null,
+          // Who put the card in its current column, and when — so a "running"
+          // nobody can explain can at least be traced to whoever set it.
+          status_changed_at: ev.ts,
+          status_changed_by: ev.created_by || null,
           title: ev.title || "",
           parent: ev.parent || null,
           // Every comment on this task, oldest first. Lives on the same event
@@ -173,15 +200,102 @@ function projectState(events) {
           category: normalizeTaskCategory(ev.category),
           location: normalizeTaskLocation(ev.location),
           meta: ev.meta && typeof ev.meta === "object" ? { ...ev.meta } : {},
+          // What this task waits on (other tasks in this project), and the
+          // waits that were lifted — kept, with why, so a removed dependency
+          // never just vanishes from the record.
+          depends_on: [],
+          dependency_log: [],
+          // Decisions somebody owes on this task — a structured question, not a
+          // marker buried in a report (core/tasks/decisions.js).
+          decisions: [],
         });
+        break;
+      }
+      case "ask": {
+        if (!existing || !ev.decision_id) break;
+        if (existing.decisions.some((d) => d.id === ev.decision_id)) break;
+        existing.decisions.push({
+          id: ev.decision_id,
+          question: ev.question || "",
+          options: Array.isArray(ev.options) ? [...ev.options] : [],
+          recommendation: ev.recommendation || null,
+          responsible: ev.responsible || OWNER_ACTOR_ID,
+          blocking: ev.blocking || null,
+          can_continue: ev.can_continue || null,
+          asked_by: ev.by || null,
+          asked_at: ev.ts,
+          state: "open",
+          notice: null,
+        });
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "decide":
+      case "withdraw": {
+        const d = existing?.decisions.find((x) => x.id === ev.decision_id);
+        if (!d || d.state !== "open") break;
+        if (ev.op === "decide") {
+          d.state = "answered";
+          d.answer = ev.answer || "";
+          d.choice = ev.choice ?? null;
+          d.answered_by = ev.by || null;
+          d.answered_at = ev.ts;
+        } else {
+          d.state = "withdrawn";
+          d.withdrawn_reason = ev.reason || null;
+          d.withdrawn_by = ev.by || null;
+          d.withdrawn_at = ev.ts;
+        }
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "decision_notice": {
+        const d = existing?.decisions.find((x) => x.id === ev.decision_id);
+        if (!d) break;
+        // Not activity on the task: a delivery receipt, so updated_at stays.
+        d.notice = { at: ev.ts, channel: ev.channel || null, status: ev.status || "unknown", ...(ev.error ? { error: ev.error } : {}) };
+        break;
+      }
+      case "depend": {
+        if (!existing || !ev.target) break;
+        if (existing.depends_on.some((d) => d.task_id === ev.target)) break;
+        existing.depends_on.push({
+          task_id: ev.target,
+          reason: ev.reason || null,
+          owner: ev.owner || null,
+          condition: ev.condition || null,
+          since: ev.ts,
+          by: ev.by || null,
+        });
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "undepend": {
+        if (!existing || !ev.target) break;
+        const gone = existing.depends_on.find((d) => d.task_id === ev.target);
+        if (!gone) break;
+        existing.depends_on = existing.depends_on.filter((d) => d.task_id !== ev.target);
+        existing.dependency_log.push({ ...gone, removed_at: ev.ts, removed_by: ev.by || null, removed_reason: ev.reason || null });
+        existing.updated_at = ev.ts;
         break;
       }
       case "update": {
         if (!existing) break;
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
-          if (k === "id" || k === "state" || k === "created_at") continue;
-          if (k === "status") existing[k] = readStatus(patch[k]);
+          // Derived or owned by their own events: a patch must not overwrite
+          // them, or one bad PATCH breaks the fold for the whole project.
+          if (FOLD_OWNED.has(k)) continue;
+          if (k === "status") {
+            const next = readStatus(patch[k]);
+            if (next === "blocked" && existing.status !== "blocked") existing.blocked_since = ev.ts;
+            else if (next !== "blocked") existing.blocked_since = null;
+            if (next !== existing.status) {
+              existing.status_changed_at = ev.ts;
+              existing.status_changed_by = ev.by || null;
+            }
+            existing[k] = next;
+          }
           else if (k === "category") existing[k] = normalizeTaskCategory(patch[k]);
           // A patch that clears the location must be able to say so, so null
           // survives here where an unknown key would just be copied.
@@ -214,6 +328,9 @@ function projectState(events) {
         if (!existing) break;
         existing.state = "open";
         existing.reopened_at = ev.ts;
+        // A reopened task that is still in the blocked column is blocked AGAIN,
+        // not blocked since before it was closed.
+        if (existing.status === "blocked") existing.blocked_since = ev.ts;
         existing.updated_at = ev.ts;
         break;
       }
@@ -230,6 +347,9 @@ function projectState(events) {
           // caller, because the roster it resolves against can change later and
           // a thread should keep saying who was actually pulled in that day.
           mentions: Array.isArray(ev.mentions) ? [...ev.mentions] : [],
+          // Machine-readable facts about the comment (a runtime session it
+          // reports on, its phase). Only present when the writer set some.
+          ...(ev.meta && typeof ev.meta === "object" ? { meta: { ...ev.meta } } : {}),
         });
         // A comment IS activity on the task — it moves updated_at, which is what
         // `--updated-since` and every "what moved?" view read.
@@ -321,11 +441,52 @@ function childIndex(tasks) {
  * with their full threads is a payload nobody on that screen reads, and the
  * phone pays for it twice.
  */
-function row(task, idx, aliases) {
+/**
+ * Who waits on whom, both directions, with the other side's state. Built once
+ * per fold like childIndex: "blocks" is derived, never stored, so the two
+ * directions cannot disagree.
+ */
+function dependencyIndex(tasks) {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const blocks = new Map();
+  for (const t of tasks) {
+    for (const d of t.depends_on || []) {
+      const list = blocks.get(d.task_id) || [];
+      list.push({ task_id: t.id, title: t.title, state: t.state, status: t.status, reason: d.reason, condition: d.condition });
+      blocks.set(d.task_id, list);
+    }
+  }
+  return { byId, blocks };
+}
+
+/**
+ * One dependency as a surface reads it. `satisfied` means the task it waits on
+ * is CLOSED as done — that unblocks the next step, it does not approve it: the
+ * coordinator still verifies the delivery. A dropped or missing target is not
+ * satisfied either; it is named so somebody decides whether the wait still holds.
+ */
+function dependencyView(d, deps) {
+  const target = deps?.byId.get(d.task_id) || null;
+  return {
+    ...d,
+    title: target?.title ?? null,
+    state: target?.state ?? "missing",
+    status: target?.status ?? null,
+    satisfied: target?.state === "done",
+    ...(target?.state === "done" ? { satisfied_at: target.done_at || null } : {}),
+  };
+}
+
+function row(task, idx, aliases, deps = null) {
   const kids = idx.get(task.id);
   const { comments, ...rest } = task;
+  const dependsOn = (task.depends_on || []).map((d) => dependencyView(d, deps));
   return {
     ...rest,
+    depends_on: dependsOn,
+    open_dependencies: dependsOn.filter((d) => !d.satisfied).length,
+    open_decisions: (task.decisions || []).filter((d) => d.state === "open").length,
+    blocks: deps?.blocks.get(task.id) || [],
     comment_count: comments.length,
     subtask_count: kids?.total || 0,
     subtask_done: kids?.done || 0,
@@ -335,7 +496,8 @@ function row(task, idx, aliases) {
     // whole event log to find out — or, more often, not asking at all and
     // showing "3 comentarios".
     activity_at: activityAt(task),
-    awaits_owner: awaitsOwner(task, aliases),
+    // A structured question for the owner counts the same as an @owner comment.
+    awaits_owner: ownerAwaited(task, aliases),
     blocked_by_owner: blockedByOwner(task),
     last_comment: commentPreview(task, aliases),
   };
@@ -371,8 +533,9 @@ export function listTasks(storagePath, opts = {}) {
   const events = readAllEvents(storagePath);
   const all = [...projectState(events).values()];
   const idx = childIndex(all);
+  const deps = dependencyIndex(all);
   const aliases = ownerAliasesFrom(opts.owner_name || null);
-  const tasks = all.map((t) => row(t, idx, aliases));
+  const tasks = all.map((t) => row(t, idx, aliases, deps));
 
   let out = tasks;
   if (opts.state && opts.state !== "all") {
@@ -469,9 +632,10 @@ export function getTask(storagePath, idOrPrefix) {
   const events = readAllEvents(storagePath);
   const tasks = projectState(events);
   const idx = childIndex([...tasks.values()]);
+  const deps = dependencyIndex([...tasks.values()]);
 
   // The detail keeps its thread — it is the one screen that reads it.
-  const full = (t) => ({ ...row(t, idx), comments: t.comments.map((c) => ({ ...c })) });
+  const full = (t) => ({ ...row(t, idx, undefined, deps), comments: t.comments.map((c) => ({ ...c })) });
 
   if (tasks.has(idOrPrefix)) return full(tasks.get(idOrPrefix));
   if (idOrPrefix.length < 3) return null;
@@ -481,7 +645,7 @@ export function getTask(storagePath, idOrPrefix) {
 }
 
 /** Patch a task. Returns the projected task; null if id not found. */
-export function patchTask(storagePath, idOrPrefix, patch) {
+export function patchTask(storagePath, idOrPrefix, patch, { by = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   if (!patch || typeof patch !== "object") return existing;
@@ -496,6 +660,7 @@ export function patchTask(storagePath, idOrPrefix, patch) {
     ts: nowIso(),
     op: "update",
     patch: normalized,
+    ...(by ? { by } : {}),
   });
   return getTask(storagePath, existing.id);
 }
@@ -504,7 +669,7 @@ export function patchTask(storagePath, idOrPrefix, patch) {
  * Move an open task to a column. `statuses` is the vocabulary to validate
  * against — omit it and the four built-ins apply.
  */
-export function setTaskStatus(storagePath, idOrPrefix, status, { statuses } = {}) {
+export function setTaskStatus(storagePath, idOrPrefix, status, { statuses, by = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   appendEvent(storagePath, {
@@ -512,6 +677,7 @@ export function setTaskStatus(storagePath, idOrPrefix, status, { statuses } = {}
     ts: nowIso(),
     op: "update",
     patch: { status: normalizeStatus(status, statuses) },
+    ...(by ? { by } : {}),
   });
   return getTask(storagePath, existing.id);
 }
@@ -550,7 +716,7 @@ export function dropTask(storagePath, idOrPrefix, by = null) {
  * roster lookup of its own, so a thread keeps saying who was actually pulled in
  * on the day it was written even after the project's agents change.
  */
-export function addComment(storagePath, idOrPrefix, { by = null, text = "", mentions = [] } = {}) {
+export function addComment(storagePath, idOrPrefix, { by = null, text = "", mentions = [], meta = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   const body = typeof text === "string" ? text.trim() : "";
@@ -563,8 +729,128 @@ export function addComment(storagePath, idOrPrefix, { by = null, text = "", ment
     by,
     text: body,
     mentions: Array.isArray(mentions) ? mentions.filter((m) => typeof m === "string") : [],
+    ...(meta && typeof meta === "object" ? { meta } : {}),
   });
   return getTask(storagePath, existing.id);
+}
+
+/**
+ * Make one task wait on another in the SAME project. Refuses (throws) a
+ * missing target, a self-dependency and anything that would close a cycle —
+ * a silent cycle is two tasks each waiting for the other forever.
+ * Returns the projected task, or null when the task itself does not exist.
+ */
+export function addDependency(storagePath, idOrPrefix, { on, reason = null, owner = null, condition = null, by = null } = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const target = getTask(storagePath, String(on || ""));
+  if (!target) throw new Error(`dependency target not found in this project: ${on}`);
+  if (target.id === existing.id) throw new Error("a task cannot depend on itself");
+  if (existing.depends_on.some((d) => d.task_id === target.id)) return existing;
+  // Would target (transitively) wait on this task already?
+  const all = projectState(readAllEvents(storagePath));
+  const seen = new Set();
+  const stack = [target.id];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (cur === existing.id) throw new Error(`that would make a cycle: ${target.id} already waits on ${existing.id}`);
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    for (const d of all.get(cur)?.depends_on || []) stack.push(d.task_id);
+  }
+  appendEvent(storagePath, {
+    id: existing.id, ts: nowIso(), op: "depend", target: target.id,
+    reason: reason || null, owner: owner || null, condition: condition || null, by,
+  });
+  return getTask(storagePath, existing.id);
+}
+
+/**
+ * Lift a wait. The reason is required: a dependency removed without one is a
+ * blockage that disappeared and nobody can say why.
+ */
+export function removeDependency(storagePath, idOrPrefix, { on, reason, by = null } = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (!why) throw new Error("removeDependency: reason required");
+  const target = existing.depends_on.find((d) => d.task_id === on || (String(on || "").length >= 3 && d.task_id.startsWith(on)));
+  if (!target) throw new Error(`${existing.id} does not depend on ${on}`);
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "undepend", target: target.task_id, reason: why, by });
+  return getTask(storagePath, existing.id);
+}
+
+/**
+ * Record a decision somebody owes. `responsible` is "owner" or an agent slug.
+ * Returns `{ task, decision }`, or null when the task does not exist.
+ */
+export function askDecision(storagePath, idOrPrefix, {
+  question, options = [], recommendation = null, responsible = OWNER_ACTOR_ID,
+  blocking = null, can_continue = null, by = null,
+} = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const q = typeof question === "string" ? question.trim() : "";
+  if (!q) throw new Error("askDecision: question required");
+  const decision_id = makeShortId("d");
+  appendEvent(storagePath, {
+    id: existing.id, ts: nowIso(), op: "ask", decision_id, question: q,
+    options: (Array.isArray(options) ? options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 8),
+    recommendation: recommendation || null,
+    // "Owner", "human", " owner " all mean the owner — the same spelling rule
+    // the assignee field uses, so the panel and the store agree on who decides.
+    responsible: normalizeTaskAssignee(String(responsible || "").replace(/^@/, "")) || OWNER_ACTOR_ID,
+    blocking: blocking || null,
+    can_continue: can_continue || null,
+    by,
+  });
+  const task = getTask(storagePath, existing.id);
+  return { task, decision: task.decisions.find((d) => d.id === decision_id) };
+}
+
+function openDecision(storagePath, idOrPrefix, decisionId) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return { existing: null };
+  const d = existing.decisions.find((x) => x.id === decisionId);
+  if (!d) throw new Error(`decision not found on ${existing.id}: ${decisionId}`);
+  if (d.state !== "open") throw new Error(`decision ${decisionId} is already ${d.state}`);
+  return { existing, decision: d };
+}
+
+/**
+ * Answer an open decision. Only its responsible party — or the owner, who can
+ * always decide — may answer. Answering changes neither state nor column: a
+ * resolved question is not an approved task.
+ */
+export function answerDecision(storagePath, idOrPrefix, decisionId, { answer, choice = null, by = null } = {}) {
+  const { existing, decision } = openDecision(storagePath, idOrPrefix, decisionId);
+  if (!existing) return null;
+  const text = typeof answer === "string" ? answer.trim() : "";
+  if (!text) throw new Error("answerDecision: answer required");
+  if (by !== OWNER_ACTOR_ID && by !== decision.responsible) {
+    throw new Error(`only ${decision.responsible} (or the owner) can answer decision ${decisionId}`);
+  }
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "decide", decision_id: decisionId, answer: text, choice, by });
+  const task = getTask(storagePath, existing.id);
+  return { task, decision: task.decisions.find((d) => d.id === decisionId) };
+}
+
+/** The question no longer applies. Reason required, like a lifted dependency. */
+export function withdrawDecision(storagePath, idOrPrefix, decisionId, { reason, by = null } = {}) {
+  const { existing } = openDecision(storagePath, idOrPrefix, decisionId);
+  if (!existing) return null;
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (!why) throw new Error("withdrawDecision: reason required");
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "withdraw", decision_id: decisionId, reason: why, by });
+  return getTask(storagePath, existing.id);
+}
+
+/** What happened when the decider was told remotely. One receipt per attempt. */
+export function recordDecisionNotice(storagePath, taskId, decisionId, { channel = null, status, error = null } = {}) {
+  appendEvent(storagePath, {
+    id: taskId, ts: nowIso(), op: "decision_notice", decision_id: decisionId,
+    channel, status, ...(error ? { error: String(error).slice(0, 300) } : {}),
+  });
 }
 
 /** Re-open a done/dropped task. */
@@ -579,11 +865,16 @@ export function reopenTask(storagePath, idOrPrefix) {
   return getTask(storagePath, existing.id);
 }
 
-/** Counts for status displays. */
-export function countTasks(storagePath) {
+/**
+ * Counts for status displays — the ONE aggregator behind the panel's summary
+ * route, `apx task summary` and the agent's `list_tasks {summary:true}`, so the
+ * three can never disagree about how many tasks a project has.
+ */
+export function countTasks(storagePath, { owner_name = null } = {}) {
   const tasks = [...projectState(readAllEvents(storagePath)).values()];
   const today = new Date().toISOString().slice(0, 10);
   const open = tasks.filter((t) => t.state === "open");
+  const aliases = ownerAliasesFrom(owner_name);
   // Every built-in, plus any configured column actually in use — a board with a
   // "qa" column whose summary never mentions qa is a summary of a different board.
   const byStatus = {};
@@ -596,5 +887,9 @@ export function countTasks(storagePath) {
     overdue: open.filter((t) => t.due && t.due < today).length,
     total: tasks.length,
     status: byStatus,
+    attention: {
+      awaits_owner: open.filter((t) => ownerAwaited(t, aliases)).length,
+      blocked_by_owner: open.filter((t) => blockedByOwner(t)).length,
+    },
   };
 }

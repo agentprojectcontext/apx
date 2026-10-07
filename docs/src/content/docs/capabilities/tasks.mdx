@@ -88,6 +88,19 @@ different questions: "what is blocked right now" is not "what is open".
 If a project's task log cannot be read, that project is skipped and a warning names it —
 one unreadable file never blanks out the whole view.
 
+A filtered list that matches nothing says which filters it applied (`(no tasks match
+status=pending …)`) — it never reads as "the project has no tasks".
+
+### `apx task summary`
+
+```bash
+apx task summary --project myapp     # open / done / dropped, one line per column, what waits on you
+apx task summary --project myapp --json
+```
+
+The same counts the panel and the agent see (`GET /api/projects/:pid/tasks-summary`, and
+`list_tasks` with `summary: true`): every built-in column plus any custom column in use.
+
 <Terminal command="apx task list --project myapp" caption="apx task list — open tasks with id, title, tags, due date, and agent">
 {`ID    STATE    DUE         TAGS                TITLE
 t-1a  open     2026-06-16  checkout,urgent     Wire Stripe webhooks before merge
@@ -245,6 +258,64 @@ A thread can run with nobody watching, so it has walls: one comment starts at mo
 (cascade included), a task that already has agents working on its thread does not get a second
 run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
 comments are not capped.
+
+### Decisions an agent needs
+
+When an agent needs a decision it asks it on the task, as a structured question: the question,
+the options, its recommendation and trade-off, who has to decide, what is blocked until then
+and what can go on meanwhile. The card shows **Waiting for your decision** and lets you answer
+with one click (an option) or a sentence; it also counts in the list and on the phone's
+attention view. If Telegram is set up you get **one** short notice — the task title and the
+question, nothing from the report — through the same interruption budget as every other
+unrequested message, and the card shows what actually happened to it (sent, held back, failed,
+or no channel). It is never repeated for the same decision.
+
+Your answer goes back to the agent that asked, as a comment naming that decision, so it knows
+exactly which blocker you resolved and does not ask again. Answering does **not** approve or
+close the task. A correction another agent owes is asked of that agent, not of you.
+
+### Dependencies between tasks
+
+A subtask is part of a bigger task; a **dependency** says one task cannot move until another
+delivers. They are different relations — "audit the corrected plan" waits on "correct the
+plan" without being part of it.
+
+```bash
+apx task depend t_audit --on t_fix --reason "audits the corrected version" \
+  --owner pm --condition "plan v2 corrected and verified"
+apx task undepend t_audit --on t_fix --reason "the fix was cancelled; audit v1"
+```
+
+Opening the waiting task shows what it waits on, with each one's state; opening the other one
+shows what it unblocks. Dependencies stay inside one project, a cycle is refused, and lifting
+one requires a reason that stays on the task. When the dependency is done the waiting task is
+**unblocked, not approved**: nothing moves on its own, and the coordinator still checks the
+delivery. A dropped dependency is flagged so somebody decides whether the wait still holds. Agents
+record these with `update_task` (`depends_on_add` / `depends_on_remove`) when they delegate.
+
+### Column versus execution
+
+A card's column (`running`, `blocked`…) is a workflow label someone set; it never certified
+that anything is alive. The task detail — in the panel, `apx task show` and the agent's
+`get_task` — adds an **execution** view built from evidence only: the runtime session linked
+to the task (start, end, result), whether an agent turn is on the thread right now, the last
+activity, what it is waiting on, and who set the column and when. A card that says running
+with nothing behind it reads **Execution not verified**, never "working"; a finished session
+is never shown as active. There are no progress percentages, and nothing here closes or
+approves a task — exit 0 is not a functional approval.
+
+### Delegations report back to the task
+
+An agent summoned on a task can hand the work to an external runtime (Claude Code, Codex…)
+in the background. The session is tied to that task: its launch is a comment on the thread,
+its result — or its failure, with the cause — is one more comment addressed to the agent that
+launched it, and that agent is summoned again to decide the next step. Nothing lands in a chat
+instead, and you do not have to ask "did it finish?".
+
+If the daemon restarts while the session runs, the result is still delivered when it ends,
+without posting it twice. A task deleted in the meantime is logged, not replaced by some
+other destination. The follow-up turn runs with the agent's own permissions and the thread's
+hourly cap — a result authorizes nothing new.
 
 ## Next
 

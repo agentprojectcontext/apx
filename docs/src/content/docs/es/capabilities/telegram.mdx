@@ -159,6 +159,14 @@ curl -X POST http://127.0.0.1:7430/telegram/send_voice \
   -d '{"audio":"/abs/path/note.ogg","duration":5,"channel":"default"}'
 ```
 
+### Formato
+
+Los mensajes se muestran renderizados, no como markdown crudo: `**negrita**`, `` `código` ``, links
+y títulos pasan a formato de Telegram, y los ítems `- ` pasan a viñetas. Un texto sin markdown se
+manda exactamente como está. Si Telegram rechaza el formato, el mismo mensaje se reenvía como texto
+plano limpio, así un problema de formato nunca cuesta una entrega. Vale para todo lo que manda el
+bot: respuestas, avisos de fin de runtime y resultados tardíos entregados después de un reinicio.
+
 ## Fijado de proyecto
 
 Cuando un canal tiene `project` configurado, cada mensaje entrante queda automáticamente con alcance de ese
