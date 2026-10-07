@@ -100,7 +100,8 @@ export function ChatComposer({
             <Text style={s.usageText}>{usage}</Text>
           </View>
         ) : null}
-        {!typed && !mainStops ? (
+        {/* The mic stays while the agent works: a voice note goes in like typed words. */}
+        {!typed ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(recording ? "stopRecording" : "voiceNote")}
