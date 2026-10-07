@@ -38,7 +38,9 @@ function detailOf(id: MoreId, data: Workspace): { text?: string; bad?: boolean }
       const active = data.routines.filter((routine) => routine.enabled).length;
       const failed = data.routines.filter((routine) => routine.enabled && routine.last?.state === "failed").length;
       const text = t("routinesActive", { n: active });
-      return failed ? { text: `${text} · ${t("routinesFailed", { n: failed })}`, bad: true } : { text };
+      return failed
+        ? { text: `${text} · ${failed === 1 ? t("routinesFailedOne") : t("routinesFailed", { n: failed })}`, bad: true }
+        : { text };
     }
     case "agents":
       return { text: String(data.agents.length) };

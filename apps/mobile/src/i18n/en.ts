@@ -133,6 +133,7 @@ export const en = {
   settings: "Settings",
   routinesActive: "{n} active",
   routinesFailed: "{n} failed",
+  routinesFailedOne: "1 failed",
   memoriesCount: "{n} notes",
   connectedTo: "Connected to {host}",
   nothingHere: "Nothing here yet.",
