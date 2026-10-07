@@ -49,7 +49,8 @@ after(() => {
   browser?.close();
   srv.closeAllConnections();
   srv.close();
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Chrome may still be writing its profile while it exits.
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", {
