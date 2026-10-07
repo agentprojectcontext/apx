@@ -1,9 +1,8 @@
 import { EmptyState, Icons } from "@apx/ui";
-import { DEFAULT_PID } from "../data/identity.ts";
+import { DEFAULT_PID, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
-import { teamOf } from "../project/ProjectOverview.tsx";
 import { AgentDetail } from "../project/team/AgentDetail.tsx";
 import { go, useNav } from "../shell/nav.ts";
 

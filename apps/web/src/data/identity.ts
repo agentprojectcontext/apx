@@ -93,3 +93,10 @@ export function projectEntries(projects: Project[]): ProjectEntry[] {
 export function findProject(projects: Project[], pid: string | undefined): ProjectEntry | undefined {
   return pid ? projectEntries(projects).find((p) => p.id === pid) : undefined;
 }
+
+/** The project's agents; the base space shows the super-agent and agents without a project. */
+export function teamOf(agents: Record<string, Agent>, pid: string): Agent[] {
+  return Object.values(agents)
+    .filter((a) => inProject(a, pid))
+    .sort((a, b) => Number(b.kind === "secretary") - Number(a.kind === "secretary") || a.name.localeCompare(b.name));
+}

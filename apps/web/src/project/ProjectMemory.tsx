@@ -13,11 +13,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { client } from "../data/client.ts";
-import { blobOf, type ProjectEntry } from "../data/identity.ts";
+import { blobOf, type ProjectEntry, teamOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { teamOf } from "./ProjectOverview.tsx";
 
 type Filter = "project" | "agents" | "global";
 

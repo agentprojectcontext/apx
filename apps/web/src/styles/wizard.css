@@ -1,0 +1,973 @@
+/* The setup screens (wizard, pairing, connect, about): loaded with them, not with the shell. */
+/* The first-run setup: the whole window, dark, its column centred (max 1180px) with the crew card on the right. */
+.wiz {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--apx-bg);
+  color: var(--apx-fg);
+}
+.wiz .is-green {
+  color: var(--apx-brand-soft-fg);
+}
+.wiz .is-muted {
+  color: var(--apx-fg-subtle);
+}
+.wiz .is-mono {
+  font-family: var(--apx-font-mono);
+}
+.wiz__head {
+  display: flex;
+  flex: none;
+  gap: 16px;
+  align-items: center;
+  height: 60px;
+  padding: 0 28px;
+  -webkit-app-region: drag;
+}
+.wiz__head button {
+  -webkit-app-region: no-drag;
+}
+.wiz__brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.wiz__steps {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  justify-content: center;
+  min-width: 0;
+  overflow-x: auto;
+}
+.wiz__step {
+  display: flex;
+  flex: 0 1 92px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-fg-subtle);
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+}
+.wiz__step:disabled {
+  cursor: default;
+}
+.wiz__step.is-on {
+  color: var(--apx-fg);
+}
+.wiz__bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--apx-fill-strong);
+}
+.wiz__step.is-done .wiz__bar {
+  background: var(--apx-brand);
+}
+.wiz__exit {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.wiz__scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+.wiz__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 48px;
+  align-items: start;
+  max-width: 1180px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 36px 32px 32px;
+  box-sizing: border-box;
+}
+.wiz__grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  max-width: 980px;
+}
+@media (max-width: 1040px) {
+  .wiz__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.wiz__main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.wiz__kicker {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--apx-brand-soft-fg);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.wiz__kicker > span {
+  width: 24px;
+  height: 1px;
+  background: currentColor;
+}
+.wiz__title {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.wiz__body {
+  max-width: 560px;
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.wiz__card {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+/* Welcome */
+/* The first screen stands in the middle of the window: hero, two choices and who waits, centered. */
+.wiz__welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  align-items: center;
+  text-align: center;
+}
+.wiz__pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  height: 30px;
+  padding: 0 6px 0 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  font-size: 13px;
+}
+.wiz__lock {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--apx-fill);
+}
+.wiz__hero {
+  margin: 0;
+  font-size: clamp(48px, 7vw, 76px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+.wiz__hero.is-done {
+  font-size: clamp(44px, 6vw, 64px);
+  line-height: 1;
+}
+.wiz__heroblob {
+  display: inline-flex;
+  margin: 0 4px;
+  vertical-align: middle;
+}
+.wiz__choices,
+.wiz__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 640px;
+}
+.wiz__options {
+  max-width: none;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.wiz__options.is-two {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.wiz__choice,
+.wiz__option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.wiz__choice:hover,
+.wiz__option:hover {
+  border-color: var(--apx-fg-subtle);
+}
+.wiz__choice.is-brand {
+  border-color: var(--apx-brand);
+}
+.wiz__option.is-on {
+  box-shadow: 0 0 0 1.5px var(--apx-fg);
+  border-color: transparent;
+}
+.wiz__choicetitle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+}
+.wiz__welcome .wiz__body {
+  max-width: 600px;
+}
+.wiz__welcome .wiz__choices {
+  width: 100%;
+  max-width: 720px;
+  text-align: left;
+}
+.wiz__choicebody {
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.wiz__waiting {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  height: 38px;
+  padding: 0 16px 0 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  font-size: 13px;
+}
+.wiz__waiting b {
+  font-weight: 500;
+}
+.wiz__waiting .is-mono {
+  color: var(--apx-fg-muted);
+  font-size: 12px;
+}
+.wiz__dots {
+  color: var(--apx-brand);
+  letter-spacing: 2px;
+  animation: wiz-dots 1.4s ease-in-out infinite;
+}
+@keyframes wiz-dots {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* Rows (import, toggles) */
+.wiz__rows {
+  overflow: hidden;
+}
+.wiz__row,
+.wiz__toggle,
+.wiz__default {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+}
+.wiz__row + .wiz__row {
+  border-top: 1px solid var(--apx-border);
+}
+.wiz__row.is-empty {
+  opacity: 0.5;
+}
+.wiz__rowicon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--apx-fill);
+}
+.wiz__rowmain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+/* The base project's name and kind, side by side in its card. */
+.wiz__basefields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 200px);
+  gap: 8px;
+  margin: 6px 0;
+}
+.wiz__rowname {
+  font-size: 14px;
+  font-weight: 500;
+}
+.wiz__rowname .is-muted {
+  margin-left: 4px;
+  font-weight: 400;
+}
+.wiz__rowbody {
+  color: var(--apx-fg-muted);
+  font-size: 12px;
+}
+/* Agent */
+.wiz__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.wiz__name {
+  max-width: 420px;
+}
+.wiz__name input,
+input.wiz__name {
+  height: 48px;
+  font-size: 18px;
+}
+.wiz__blobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+.wiz__blob {
+  display: grid;
+  place-items: center;
+  height: 54px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+.wiz__blob:hover {
+  background: var(--apx-fill);
+}
+.wiz__blob.is-on {
+  background: var(--apx-fill);
+  box-shadow: 0 0 0 2px var(--apx-brand);
+}
+/* Engines and channels */
+.wiz__engines {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+.wiz__engine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.wiz__engine.is-on {
+  border-color: var(--apx-brand);
+}
+.wiz__engine.is-soon {
+  opacity: 0.6;
+}
+.wiz__enginehead {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+.wiz__enginetitles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wiz__enginetitles b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.wiz__enginetitles b.is-mono {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.wiz__enginetitles span {
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.wiz__enginebody {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.wiz__keyrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.wiz__keyrow > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.wiz__pathrow input {
+  height: 46px;
+  font-family: var(--apx-font-mono);
+  font-size: 13px;
+}
+.wiz__hintline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.wiz__hintline.is-error {
+  color: var(--apx-danger);
+}
+.wiz__qr {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wiz__inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--apx-fg-muted);
+  font-size: 12px;
+}
+.wiz__chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+}
+.wiz__chainhead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.wiz__chainhead span {
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+.wiz__link {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 36px;
+  padding: 0 6px 0 10px;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  font-size: 13px;
+}
+.wiz__linkn {
+  width: 22px;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}
+.wiz__default {
+  color: var(--apx-fg-subtle);
+}
+/* Footer */
+.wiz__foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 6px;
+}
+.wiz__spacer {
+  flex: 1;
+}
+.wiz__back {
+  height: 46px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+.wiz__hint {
+  color: var(--apx-fg-subtle);
+  font-size: 13px;
+}
+.wiz__unset {
+  margin: 0;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-sans);
+  font-size: 13px;
+}
+/* The crew card */
+.wiz__preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+}
+.wiz__ptop {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0 20px;
+}
+.wiz__pempty {
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border: 1.5px dashed var(--apx-border-strong, var(--apx-border));
+  border-radius: 50%;
+  color: var(--apx-fg-subtle);
+}
+.wiz__pname {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.wiz__pnameempty {
+  width: 140px;
+  height: 28px;
+  border: 1.5px dashed var(--apx-border);
+  border-radius: 8px;
+}
+.wiz__ptag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+  font-size: 11px;
+}
+.wiz__ptag.is-ready {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.wiz__prow {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.wiz__pkey {
+  flex: none;
+  width: 84px;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.wiz__pval {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.wiz__pval.is-mono {
+  font-family: var(--apx-font-mono);
+}
+/* Done */
+.wiz__done {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.wiz__command {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-start;
+  height: 48px;
+  padding: 0 6px 0 18px;
+  border-radius: 999px;
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 13px;
+}
+.wiz__command button {
+  height: 36px;
+  margin-left: 12px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--apx-accent);
+  color: var(--apx-accent-fg);
+  font-family: var(--apx-font-sans);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+@media (max-width: 1040px) {
+  .wiz__preview {
+    display: none;
+  }
+}
+.wiz__takeover {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 640px;
+  padding: 16px;
+  font-size: 13px;
+}
+.wiz__takeover span {
+  color: var(--apx-fg-muted);
+  line-height: 1.5;
+}
+.wiz__takeover pre,
+.connect__install {
+  align-self: stretch;
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+}
+/* Pairing this device: the code and its button on one line. */
+.pair {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.pair__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.pair__code {
+  flex: 1 1 240px;
+}
+.pair__code input {
+  font-family: var(--apx-font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+/* The desktop app's first run: the address field sits under its segmented choice. */
+.connect .wiz__field {
+  margin-top: 14px;
+}
+.connect__via {
+  display: flex;
+}
+
+/* Desktop first run: the website's hero, then the question unrolls under it like a blind. */
+.wiz.is-connect .wiz__scroll {
+  overflow-x: hidden;
+}
+/* The intro places itself (top-anchored), so the choice lands near the middle once the headline rises. */
+.wiz__grid.connect:has(.connect__stage) {
+  align-content: start;
+}
+.connect__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 100%;
+}
+.connect__stage::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1600px;
+  height: 820px;
+  pointer-events: none;
+  background:
+    radial-gradient(560px 360px at 50% 42%, color-mix(in srgb, var(--apx-brand) 14%, transparent), transparent 70%),
+    radial-gradient(460px 280px at 32% 30%, rgba(139, 92, 246, 0.1), transparent 70%),
+    radial-gradient(460px 280px at 68% 34%, rgba(255, 122, 26, 0.08), transparent 70%);
+  transform: translateX(-50%);
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent);
+  transition: opacity 0.9s;
+}
+.connect__stage.is-ready::before {
+  opacity: 0.45;
+}
+.crew {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  align-items: center;
+  margin-top: 12vh;
+  text-align: center;
+  transition:
+    margin-top 0.9s cubic-bezier(0.7, 0, 0.2, 1),
+    gap 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact {
+  gap: 0;
+  margin-top: 4vh;
+}
+.crew__pill {
+  max-height: 40px;
+  animation: crew-fade 0.8s ease both;
+  transition:
+    opacity 0.4s,
+    max-height 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+/* Once the question shows, the headline alone stays on top: the choice sits near the middle of the window. */
+.crew.is-compact .crew__pill {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+.crew__title {
+  margin: 0;
+  font-size: clamp(56px, 9vw, 116px);
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  transition: font-size 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact .crew__title {
+  font-size: clamp(36px, 4.6vw, 54px);
+}
+.crew__row {
+  display: flex;
+  gap: 0.18em;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.crew__blob {
+  display: inline-flex;
+  width: 0.92em;
+  height: 0.92em;
+}
+.crew__blob .crew__face {
+  animation: crew-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.crew__ch {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(0.35em);
+  animation: crew-ch 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.crew__word {
+  display: inline-block;
+  padding-bottom: 0.08em;
+  color: var(--apx-brand);
+}
+/* The sheen only once the word turns: letters easing in under a text-clipped background would not show. */
+.crew__word.is-sheen {
+  color: transparent;
+  background: linear-gradient(95deg, var(--apx-fg) 10%, var(--apx-brand) 50%, var(--apx-fg) 90%);
+  background-clip: text;
+  background-size: 200% 100%;
+  animation: crew-sheen 6s linear infinite;
+}
+.crew__parade {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  max-height: 64px;
+  transition:
+    opacity 0.5s,
+    max-height 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact .crew__parade {
+  max-height: 0;
+  opacity: 0;
+}
+.crew__member {
+  opacity: 0;
+  animation: crew-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.connect__blind {
+  width: 100%;
+  max-width: 760px;
+  margin-top: 18px;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transform: translateY(-28px);
+  transition:
+    clip-path 1s cubic-bezier(0.7, 0, 0.2, 1) 0.25s,
+    transform 1s cubic-bezier(0.7, 0, 0.2, 1) 0.25s,
+    opacity 0.4s 0.25s;
+}
+.is-ready .connect__blind {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transform: none;
+}
+@keyframes crew-ch {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+@keyframes crew-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes crew-sheen {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes crew-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crew__ch,
+  .crew__member,
+  .crew__blob .crew__face,
+  .crew__pill {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none;
+  }
+  .crew,
+  .crew__title,
+  .crew__parade,
+  .connect__blind {
+    transition: none;
+  }
+}
+
+/* The desktop app's About window: the first run's hero, smaller, with the version and a crew at work. */
+.about .about__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.about .crew {
+  gap: 22px;
+  margin-top: 0;
+}
+.wiz.about .crew__title {
+  font-size: 56px;
+}
+.about__version img {
+  margin-right: 2px;
+}
+.about__status {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 100%;
+  height: 40px;
+  padding: 0 16px 0 6px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  color: var(--apx-fg-muted);
+  font-size: 14px;
+  background: var(--apx-fill);
+}
+.about__status b {
+  color: var(--apx-fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.about__what {
+  overflow: hidden;
+  font-family: var(--apx-font-mono);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.about__statusblob {
+  animation: crew-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.about__dots {
+  white-space: nowrap;
+}
+.about__dots i {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-left: 3px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+  animation: about-dot 1.2s infinite;
+}
+.about__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.about__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.about__foot {
+  margin: 26px 0 0;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+@keyframes about-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.pair__head {
+  justify-content: center;
+}
+.pair__version {
+  flex: none;
+  padding: 16px 24px;
+  color: var(--apx-fg-subtle);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  text-align: center;
+}
+.wiz__chain .chain__item {
+  flex-wrap: wrap;
+}

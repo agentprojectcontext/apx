@@ -5,12 +5,13 @@ import { checkAccess, useGate } from "./data/pairing.ts";
 import { usePrefs } from "./data/prefs.ts";
 import { loadSetup, useSetup } from "./data/setup.ts";
 import { useLanguage } from "./i18n/index.ts";
-import { BrowserPanel } from "./panel/BrowserPanel.tsx";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
-import { QuickChat } from "./quick/QuickChat.tsx";
 import { useNav } from "./shell/nav.ts";
 import { Shell } from "./shell/Shell.tsx";
 
+// The quick chat and the browser window are windows of their own: the main window never loads them.
+const QuickChat = lazy(() => import("./quick/QuickChat.tsx").then((m) => ({ default: m.QuickChat })));
+const BrowserPanel = lazy(() => import("./panel/BrowserPanel.tsx").then((m) => ({ default: m.BrowserPanel })));
 const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m.Wizard })));
 const PairScreen = lazy(() => import("./setup/PairScreen.tsx").then((m) => ({ default: m.PairScreen })));
 const ConnectScreen = lazy(() => import("./setup/ConnectScreen.tsx").then((m) => ({ default: m.ConnectScreen })));
@@ -73,12 +74,20 @@ function Panel() {
   if (IS_BROWSER_WINDOW)
     return (
       <div className="browserwin">
-        <BrowserPanel />
+        <Suspense fallback={null}>
+          <BrowserPanel />
+        </Suspense>
       </div>
     );
   return (
     <>
-      {QUICK ? <QuickChat /> : <Shell />}
+      {QUICK ? (
+        <Suspense fallback={null}>
+          <QuickChat />
+        </Suspense>
+      ) : (
+        <Shell />
+      )}
       {!QUICK && setup && (
         <Suspense fallback={null}>
           <Wizard />

@@ -1,3 +1,4 @@
+import "../styles/wizard.css";
 import type { ModelChoice, ProjectKind } from "@apx/protocol";
 import { AgentAvatar, Button, IconButton, Icons } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";

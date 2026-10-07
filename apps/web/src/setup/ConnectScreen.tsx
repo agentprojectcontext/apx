@@ -1,3 +1,4 @@
+import "../styles/wizard.css";
 import { Button, Icons, Input, SegmentedControl } from "@apx/ui";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import logo from "../assets/logo.png";

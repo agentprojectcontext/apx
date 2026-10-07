@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { lazy, Suspense, useEffect } from "react";
-import { applyDesktopPrefs } from "../config/DesktopSection.tsx";
+import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";

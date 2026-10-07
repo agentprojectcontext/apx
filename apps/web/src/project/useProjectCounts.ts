@@ -1,11 +1,10 @@
 // How many agents, chats, open tasks and routines a project has: the counts beside its tabs.
 import { useEffect, useMemo } from "react";
-import { DEFAULT_PID, inProject, isListed } from "../data/identity.ts";
+import { DEFAULT_PID, inProject, isListed, teamOf } from "../data/identity.ts";
 import { loadRoutines, useRoutines } from "../data/routines.ts";
 import { useData } from "../data/state.ts";
 import { loadTasks, tasksLoaded, useTasks } from "../data/tasks.ts";
 import type { ProjectTab } from "../shell/nav.ts";
-import { teamOf } from "./ProjectOverview.tsx";
 
 export function useProjectCounts(pid: string): Partial<Record<ProjectTab, number>> {
   const agents = useData((s) => s.agents);

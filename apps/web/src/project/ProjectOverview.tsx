@@ -1,8 +1,7 @@
-import type { Agent } from "@apx/protocol";
 import { AgentAvatar, EmptyState, Icons, ProjectTile, Spinner } from "@apx/ui";
 import { useMemo } from "react";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, inProject, isListed, isWorking, type ProjectEntry, threadAgent } from "../data/identity.ts";
+import { blobOf, inProject, isListed, isWorking, type ProjectEntry, teamOf, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -155,13 +154,6 @@ function Stat({ value, label, onClick }: { value: number; label: string; onClick
       <span className="overview__statl">{label}</span>
     </button>
   );
-}
-
-/** The project's agents; the base space shows the super-agent and agents without a project. */
-export function teamOf(agents: Record<string, Agent>, pid: string): Agent[] {
-  return Object.values(agents)
-    .filter((a) => inProject(a, pid))
-    .sort((a, b) => Number(b.kind === "secretary") - Number(a.kind === "secretary") || a.name.localeCompare(b.name));
 }
 
 function firstLine(s: string): string {

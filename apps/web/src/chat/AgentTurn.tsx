@@ -16,10 +16,11 @@ import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
-import { SurfacePart } from "./parts/SurfacePart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { runnableCode } from "./RunnableCode.tsx";
 
+// A widget's frame loads with the first message that has one, not with the chat.
+const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -130,7 +131,11 @@ function cardKey(p: Part, i: number): string {
 function renderCard(p: Part, agent: Agent | undefined): ReactNode {
   switch (p.type) {
     case "surface":
-      return <SurfacePart part={p} />;
+      return (
+        <Suspense fallback={null}>
+          <SurfacePart part={p} />
+        </Suspense>
+      );
     case "subthread":
       return <SubthreadPart part={p} from={agent} />;
     case "browser":

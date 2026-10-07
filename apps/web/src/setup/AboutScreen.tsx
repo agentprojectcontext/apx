@@ -1,3 +1,4 @@
+import "../styles/wizard.css";
 import { AgentAvatar } from "@apx/ui";
 import { useEffect, useState } from "react";
 import logo from "../assets/logo.png";

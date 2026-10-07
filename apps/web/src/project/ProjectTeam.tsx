@@ -3,13 +3,12 @@ import { AgentAvatar, Button, ContextMenu, EmptyState, IconButton, Icons, Menu, 
 import { useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
-import { blobOf, type ProjectEntry } from "../data/identity.ts";
+import { blobOf, type ProjectEntry, teamOf } from "../data/identity.ts";
 import { useOrg } from "../data/org.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
 import { go } from "../shell/nav.ts";
-import { teamOf } from "./ProjectOverview.tsx";
 import { AgentDetail } from "./team/AgentDetail.tsx";
 import { DeleteAgentDialog, NewAgentDialog } from "./team/AgentDialogs.tsx";
 import { AgentEditor } from "./team/AgentEditor.tsx";

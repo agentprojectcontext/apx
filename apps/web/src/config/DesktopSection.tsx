@@ -24,15 +24,6 @@ function accelerator(e: KeyboardEvent): string | undefined {
   return mods.length ? [...mods, key].join("+") : undefined;
 }
 
-/** Applies the desktop settings in the shell (no-op in a plain browser). */
-export async function applyDesktopPrefs(): Promise<void> {
-  if (!window.apxDesktop?.applyDesktopPrefs) return;
-  try {
-    const p = await client.call("desktop.get", {});
-    window.apxDesktop.applyDesktopPrefs({ shortcut: p.shortcut, launchAtLogin: p.launch_at_login });
-  } catch {}
-}
-
 /** Desktop: the quick chat's global shortcut and starting with the computer. */
 export function DesktopSection() {
   const t = useT();

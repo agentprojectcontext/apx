@@ -6,12 +6,10 @@ import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
-import { AgentPanel } from "./AgentPanel.tsx";
 import { BrowserPanel } from "./BrowserPanel.tsx";
 import { coverNativeViews } from "./BrowserViewport.tsx";
 import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
-import { WidgetPanel } from "./WidgetPanel.tsx";
 import { useWorkspace } from "./workspace.ts";
 
 // The folder's panels load when first opened, not with the chat.
@@ -20,6 +18,8 @@ const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default:
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
 const ProcessesPanel = lazy(() => import("./ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })));
 const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
+const WidgetPanel = lazy(() => import("./WidgetPanel.tsx").then((m) => ({ default: m.WidgetPanel })));
+const AgentPanel = lazy(() => import("./AgentPanel.tsx").then((m) => ({ default: m.AgentPanel })));
 const DocumentPanel = lazy(() => import("./DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
@@ -59,7 +59,9 @@ export function SidePanel() {
           <ProcessesPanel key={threadId} />
         </Suspense>
       ) : panel === "agent" ? (
-        <AgentPanel />
+        <Suspense fallback={null}>
+          <AgentPanel />
+        </Suspense>
       ) : panel === "changes" && thread ? (
         <Suspense fallback={null}>
           <ChangesPanel key={thread.id} thread={thread} ws={ws} />
@@ -82,7 +84,11 @@ export function SidePanel() {
               {t(panelDef(panel).label)}
             </span>
           </PanelHeader>
-          {panel === "widget" && <WidgetPanel />}
+          {panel === "widget" && (
+            <Suspense fallback={null}>
+              <WidgetPanel />
+            </Suspense>
+          )}
           {panel === "document" && (
             <Suspense fallback={null}>
               <DocumentPanel />
