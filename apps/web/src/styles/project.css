@@ -63,6 +63,19 @@
   gap: 4px;
   flex: none;
 }
+.project__kind {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-medium);
+  color: var(--apx-fg-muted);
+  cursor: pointer;
+}
+.project__kind:hover {
+  color: var(--apx-fg);
+}
 .project__path {
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-xs);
@@ -299,10 +312,6 @@
 .team__titles > :first-child {
   margin-right: auto;
 }
-.team__titles > .team__note {
-  order: 1;
-  flex-basis: 100%;
-}
 .team__title {
   font-size: 15px;
   font-weight: var(--apx-weight-semibold);
@@ -312,6 +321,8 @@
   color: var(--apx-fg-subtle);
 }
 .team__note {
+  order: 1;
+  flex-basis: 100%;
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
 }

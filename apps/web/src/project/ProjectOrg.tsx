@@ -6,6 +6,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { slugOf } from "../common/slug.ts";
 import { inProject, type ProjectEntry } from "../data/identity.ts";
 import { saveOrg, useOrg } from "../data/org.ts";
+import { updateBase, updateProject } from "../data/projects.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -22,6 +23,7 @@ export function ProjectOrg({ project, switcher }: { project: ProjectEntry; switc
   const team = useMemo(() => Object.values(agents).filter((a) => inProject(a, project.id)), [agents, project.id]);
   const agentCount = (n: number) => (n === 1 ? t("org.agents.one") : t("org.agents", { n }));
 
+  if (project.kind !== "company") return <NotCompany project={project} switcher={switcher} />;
   if (!org) return <Skeleton shape="block" height={200} />;
   const rolesOf = (slug: string | undefined) => org.roles.filter((r) => (slug ? r.area === slug : !r.area));
   const general = rolesOf(undefined);
@@ -305,5 +307,40 @@ function RoleDialog({
         </Field>
       </div>
     </Dialog>
+  );
+}
+
+/** Areas and roles belong to a company: any other kind gets the tab, empty, with the way to convert. */
+function NotCompany({ project, switcher }: { project: ProjectEntry; switcher?: ReactNode }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const convert = async () => {
+    setBusy(true);
+    if (project.isDefault) await updateBase({ kind: "company" });
+    else await updateProject({ project: project.id, kind: "company" });
+    setBusy(false);
+  };
+  return (
+    <div className="team org">
+      <div className="team__head">
+        <div className="team__titles">
+          {switcher ?? <div className="team__title">{t("project.tab.org")}</div>}
+          <div className="team__note">{t("org.note")}</div>
+        </div>
+      </div>
+      <EmptyState
+        variant="dashed"
+        size="lg"
+        icon={<Icons.Building2 />}
+        title={t("org.notCompany")}
+        action={
+          <Button size="sm" leadingIcon={<Icons.Building2 size={14} />} disabled={busy} onClick={() => void convert()}>
+            {t("org.makeCompany")}
+          </Button>
+        }
+      >
+        {t("org.notCompanyHint")}
+      </EmptyState>
+    </div>
   );
 }

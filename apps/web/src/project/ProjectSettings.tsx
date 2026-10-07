@@ -11,6 +11,13 @@ import { go } from "../shell/nav.ts";
 const KINDS: readonly ProjectKind[] = ["personal", "app", "company", "software", "other"];
 const NONE = "~none";
 
+/** A project's kind as its name ("Company"); a kind written by hand shows as it is. */
+export function kindLabel(t: T, kind: string | undefined): string {
+  if (!kind) return t("project.kind.unset");
+  const known = KINDS.find((k) => k === kind);
+  return known ? t(`project.kind.${known}`) : kind;
+}
+
 /** The kinds a project can take, as options (with "None"), shared with the setup's project step. */
 export const kindOptions = (t: T): SelectOption[] => [
   { value: NONE, label: t("project.kind.none") },

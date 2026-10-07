@@ -21,14 +21,13 @@ import { useTeamInfo } from "./team/useTeamInfo.tsx";
 // Who sits on top of the hierarchy, in order: an orchestrator, then a CEO, then any "lead".
 const LEADS = [/orchestr|orquest/i, /\bceo\b|chief executive/i, /\blead\b/i];
 
-/** The Agents tab: in a company, its areas and roles sit beside the agents as a second tab where the title was. */
+/** The Agents tab: the agents, and beside them the areas and roles (a company's; other kinds are asked to convert). */
 export function ProjectAgents({ project }: { project: ProjectEntry }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const [view, setView] = useState<"agents" | "org">("agents");
   const count = useMemo(() => teamOf(agents, project.id).length, [agents, project.id]);
   const areas = useOrg(project.id)?.areas.length ?? 0;
-  if (project.kind !== "company") return <ProjectTeam project={project} />;
   const switcher = (
     <Tabs
       variant="pill"

@@ -539,6 +539,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.kind.software.hint": "Una librería o un CLI que usan otros programas.",
   "project.kind.other": "Otro",
   "project.kind.other.hint": "Ninguna de las anteriores.",
+  "project.kind.unset": "Sin tipo",
+  "project.kind.change": "Cambiar el tipo de proyecto",
   "project.agentSettings": "Ajustes de los agentes",
   "project.tab.overview": "Resumen",
   "project.tab.chats": "Chats",

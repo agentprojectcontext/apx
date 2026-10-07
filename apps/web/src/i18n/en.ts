@@ -531,6 +531,8 @@ export const en = {
   "project.kind.software.hint": "A library or CLI other programs use.",
   "project.kind.other": "Other",
   "project.kind.other.hint": "None of the above.",
+  "project.kind.unset": "No type set",
+  "project.kind.change": "Change the project type",
   "project.agentSettings": "Agent settings",
   "project.tab.overview": "Overview",
   "project.tab.chats": "Chats",

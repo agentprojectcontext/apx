@@ -13,7 +13,7 @@ import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { FilesPane, NoFolder } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
-import { ProjectSettings } from "./ProjectSettings.tsx";
+import { kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { useProjectCounts } from "./useProjectCounts.ts";
 
@@ -66,6 +66,14 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
       <div className="project__titlerow">
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
+          <button
+            type="button"
+            className="project__kind"
+            title={t("project.kind.change")}
+            onClick={() => setSettings(true)}
+          >
+            {kindLabel(t, project.kind)}
+          </button>
           <div className="project__name">
             <h1>{project.name}</h1>
             {project.isDefault && (
