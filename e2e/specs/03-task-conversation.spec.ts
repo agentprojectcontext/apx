@@ -58,6 +58,14 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     const comment = drawer.getByRole("textbox", { name: "Comentario", exact: true });
     const description = drawer.getByRole("textbox", { name: "Descripción", exact: true });
     expect((await description.boundingBox())?.height).toBeGreaterThanOrEqual(180);
+    // The list moves aside for the open task instead of staying under it.
+    await expect
+      .poll(async () => {
+        const list = await page.locator(".tasks").boundingBox();
+        const panel = await drawer.boundingBox();
+        return list && panel ? list.x + list.width <= panel.x : false;
+      })
+      .toBe(true);
     // The description reads like editable text, not a disabled field.
     const colorOf = (el: Element) => getComputedStyle(el).color;
     expect(await description.evaluate(colorOf)).toBe(await drawer.locator(".drawer__title").evaluate(colorOf));

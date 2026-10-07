@@ -315,6 +315,20 @@
   font-weight: var(--apx-weight-semibold);
   overflow-wrap: anywhere;
 }
+/* The page under an open drawer makes room for it, so the list sits beside the detail; a narrow page keeps ~480px
+   of list and lets the drawer cover the rest. */
+@media (min-width: 768px) {
+  .page:has(.drawer),
+  .project__body:has(.drawer) {
+    padding-right: min(584px, max(0px, 100% - 480px));
+  }
+}
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .page,
+  .project__body {
+    transition: padding-right 0.2s ease;
+  }
+}
 @media (max-width: 767px) {
   .drawer {
     top: var(--shell-topbar-h);
