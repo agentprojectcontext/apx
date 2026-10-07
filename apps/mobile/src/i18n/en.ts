@@ -254,11 +254,9 @@ export const en = {
   actionsWorkingOne: "Working · 1 action",
   actionsWaitingOne: "Waiting · 1 action",
   about: "About",
-  aboutTagline: "Your crew, on your machine.",
   aboutBody:
     "An agent is a markdown file. Role, face, memory, skills: everything lives in .apc/, next to your code. No database, no lock-in. Read it, diff it, commit it.",
   aboutApc: "Built on APC, the Agent Project Context standard.",
-  drawnWith: "drawn with",
   thisApp: "This app",
   appVersion: "Version",
   appBuild: "Build",
@@ -279,6 +277,8 @@ export const en = {
   statusDown: "Down",
   statusOff: "Off",
   devBuild: "Development",
+  apxVersion: "APX version {version}",
+  joinDiscord: "Join us on Discord",
 } as const;
 
 export type Key = keyof typeof en;

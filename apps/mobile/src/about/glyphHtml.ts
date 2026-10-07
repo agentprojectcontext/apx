@@ -4,28 +4,28 @@ type Eyes = { color: string; eyes: Array<{ x: number; y: number; w: number; h: n
 
 /**
  * A self-contained page for the About portrait: an agent's face drawn with the text of its own markdown file, as on
- * the landing. It cycles through `scenes`, and a finger scatters the characters it passes over. No network, no
+ * the landing. It cycles through `scenes`, and a finger pushes the characters it passes over aside. No network, no
  * navigation: everything it draws is inlined.
  */
 export function glyphHtml({
   scenes,
   faces,
   eyes,
-  drawnWith,
+  caption,
   background,
 }: {
   scenes: Scene[];
   faces: Record<string, string>;
   eyes: Record<string, Eyes | undefined>;
-  /** "drawn with", before the file name. */
-  drawnWith: string;
+  /** The line under the portrait (the app and its version). */
+  caption: string;
   background: string;
 }): string {
   const data = JSON.stringify({
     scenes,
     faces: Object.fromEntries(scenes.map((s) => [s.key, faces[s.key]])),
     eyes: Object.fromEntries(scenes.map((s) => [s.key, eyes[s.key]])),
-    drawnWith,
+    caption,
   }).replace(/</g, "\\u003c");
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
@@ -75,24 +75,24 @@ function draw(t){
   requestAnimationFrame(draw);if(!G.cols)return;
   ctx.setTransform(G.dpr,0,0,G.dpr,0,0);ctx.clearRect(0,0,G.w,G.h);
   ctx.font='600 '+(G.cell+2)+'px ui-monospace,Menlo,monospace';ctx.textBaseline='top';ctx.textAlign='center';
-  var R2=70*70,k=.1;
+  var R2=42*42,k=.1;
   for(var y=0;y<G.rows;y++)for(var x=0;x<G.cols;x++){
     var c=G.cells[y*G.cols+x],px=x*G.cell+G.cell/2,py=y*G.lh;
     c.r+=(c.tr-c.r)*k;c.g+=(c.tg-c.g)*k;c.b+=(c.tb-c.b)*k;c.a+=(c.ta-c.a)*k;
     var g=c.ch,a=c.a,ox=0,oy=0;
     if(t>c.sw&&c.ch!==c.to){if(t-c.sw<280){g=RAND[(Math.random()*RAND.length)|0];a=Math.max(a,.5);}else{c.ch=c.to;g=c.to;}}
     var dx=px-G.mx,dy=py-G.my,d2=dx*dx+dy*dy;
-    if(d2<R2){var f=1-d2/R2;ox=dx*f*.45;oy=dy*f*.45;if(g!==' '){a=Math.min(1,a+f*.5);if(Math.random()<f*.25)g=RAND[(Math.random()*RAND.length)|0];}}
+    if(d2<R2){var f=1-d2/R2;ox=dx*f*.35;oy=dy*f*.35;if(g!==' '){a=Math.min(1,a+f*.5);if(Math.random()<f*.25)g=RAND[(Math.random()*RAND.length)|0];}}
     if(g===' '||a<.02)continue;
     ctx.fillStyle='rgba('+(c.r|0)+','+(c.g|0)+','+(c.b|0)+','+a.toFixed(2)+')';ctx.fillText(g,px+ox,py+oy);
   }
 }
-function show(){var s=D.scenes[i%D.scenes.length];tag.textContent=D.drawnWith+' '+s.file;target(s);i++;clearTimeout(timer);timer=setTimeout(show,5500);}
+function show(){var s=D.scenes[i%D.scenes.length];target(s);i++;clearTimeout(timer);timer=setTimeout(show,5500);}
 function point(e){var r=cv.getBoundingClientRect();G.mx=e.clientX-r.left;G.my=e.clientY-r.top;}
 function away(){G.mx=G.my=-1e4;}
 cv.addEventListener('pointerdown',point);cv.addEventListener('pointermove',point);
 cv.addEventListener('pointerup',away);cv.addEventListener('pointercancel',away);cv.addEventListener('pointerleave',away);
-size();show();requestAnimationFrame(draw);
+tag.textContent=D.caption;size();show();requestAnimationFrame(draw);
 addEventListener('resize',function(){size();target(D.scenes[(i+D.scenes.length-1)%D.scenes.length]);});
 </script></body></html>`;
 }

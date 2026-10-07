@@ -257,11 +257,9 @@ export const es: Record<Key, string> = {
   actionsWorkingOne: "Trabajando · 1 acción",
   actionsWaitingOne: "Esperando · 1 acción",
   about: "Acerca de",
-  aboutTagline: "Tu crew, en tu máquina.",
   aboutBody:
     "Un agente es un archivo markdown. Rol, cara, memoria, skills: todo vive en .apc/, al lado de tu código. Sin base de datos, sin lock-in. Leelo, comparalo, commitealo.",
   aboutApc: "Hecho sobre APC, el estándar Agent Project Context.",
-  drawnWith: "dibujado con",
   thisApp: "Esta app",
   appVersion: "Versión",
   appBuild: "Build",
@@ -282,4 +280,6 @@ export const es: Record<Key, string> = {
   statusDown: "Caído",
   statusOff: "Apagado",
   devBuild: "Desarrollo",
+  apxVersion: "APX versión {version}",
+  joinDiscord: "Unirse a Discord",
 };

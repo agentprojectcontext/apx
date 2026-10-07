@@ -147,3 +147,8 @@ writeFileSync(
   resolve(mobile, "src/about/faces.ts"),
   `// Generated from packages/ui/src/blobs/bodies by scripts/sync-design-assets.mjs.\nexport const faces: Record<string, string> = ${JSON.stringify(faces, null, 2)};\n`,
 );
+
+writeFileSync(
+  resolve(target, "channelMarks.ts"),
+  `// Synced from packages/ui/src/channel-marks.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(shared, "src/channel-marks.ts"), "utf8")}`,
+);
