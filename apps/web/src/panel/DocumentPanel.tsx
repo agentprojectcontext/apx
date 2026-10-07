@@ -1,5 +1,5 @@
 import { DOCUMENT_MAX_BYTES } from "@apx/protocol/client";
-import { Button, EmptyState, Icons, MarkdownView } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, MarkdownView } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { mediaUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
@@ -82,14 +82,23 @@ function DocumentBody({ part }: { part: DocumentPart }) {
     <section className="documentpanel__page" aria-label={part.document.title}>
       <header className="documentpanel__head">
         <h2>{part.document.title}</h2>
-        <span className="documentpanel__filename">{part.name}</span>
+        {/* Icons with tooltips: a narrow panel keeps the name on one line instead of breaking it per letter. */}
+        <span className="documentpanel__filename" title={part.name}>
+          {part.name}
+        </span>
         <div className="documentpanel__actions">
-          <Button size="sm" variant="ghost" onClick={() => setRaw((v) => !v)}>
-            {raw ? t("document.view") : t("document.source")}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => void download()}>
-            <Icons.Download size={14} /> {t("document.download")}
-          </Button>
+          <IconButton
+            size="sm"
+            label={raw ? t("document.view") : t("document.source")}
+            icon={raw ? <Icons.Eye size={14} /> : <Icons.Code size={14} />}
+            onClick={() => setRaw((v) => !v)}
+          />
+          <IconButton
+            size="sm"
+            label={t("document.download")}
+            icon={<Icons.Download size={14} />}
+            onClick={() => void download()}
+          />
         </div>
       </header>
       {downloadFailed && <p role="alert">{t("document.failed")}</p>}

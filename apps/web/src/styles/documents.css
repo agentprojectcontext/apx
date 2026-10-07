@@ -26,15 +26,18 @@
 }
 .documentpanel__filename {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   color: var(--apx-fg-muted);
   font-family: var(--apx-font-mono);
   font-size: 12px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .documentpanel__actions {
+  flex: none;
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 .documentpanel__select {
   width: 100%;
