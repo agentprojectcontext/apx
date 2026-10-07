@@ -1,39 +1,166 @@
-import { Alert, StyleSheet, Text, View } from "react-native";
+import Constants from "expo-constants";
+import { useEffect, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Creds } from "../creds";
+import { channelName } from "../hooks/chatSelectors";
 import { useNotifications } from "../hooks/useNotifications";
-import { t as translate } from "../i18n";
-import { Card, Muted, Page, PageHeader, RoundButton } from "../ui/components";
+import type { Workspace } from "../hooks/useWorkspace";
+import { t } from "../i18n";
+import type { NoticePrefs } from "../protocol";
+import { Icon } from "../ui/Icon";
+import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, type } from "../ui/kit";
 import { NotificationCard } from "../ui/NotificationCard";
-import { theme as t } from "../ui/theme";
+import { theme } from "../ui/theme";
 
-export function SettingsPage({ creds, back, disconnect }: { creds: Creds; back: () => void; disconnect: () => void }) {
+const QUIET: Array<[string, string]> = [
+  ["22:00", "07:00"],
+  ["23:00", "08:00"],
+  ["00:00", "09:00"],
+];
+const BUDGETS = [1, 3, 5, 10, 0];
+
+/** The few settings worth changing from a phone; the rest stay in the panel. */
+export function SettingsPage({
+  creds,
+  data,
+  host,
+  back,
+  disconnect,
+  load,
+  save,
+}: {
+  creds: Creds;
+  data: Workspace;
+  host: string;
+  back: () => void;
+  disconnect: () => void;
+  load: () => Promise<NoticePrefs>;
+  save: (prefs: NoticePrefs) => Promise<NoticePrefs>;
+}) {
   const notifications = useNotifications(creds);
+  const [prefs, setPrefs] = useState<NoticePrefs>();
+  useEffect(() => {
+    void load()
+      .then(setPrefs)
+      .catch(() => undefined);
+  }, [load]);
+  const change = (patch: Partial<NoticePrefs>) => {
+    if (!prefs) return;
+    const before = prefs;
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    save(next)
+      .then(setPrefs)
+      .catch((error) => {
+        setPrefs(before);
+        Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
+      });
+  };
+  const device = `device:${creds.device}`;
+  const channels = data.channels.filter((channel) => channel.enabled);
+  const quiet = prefs?.quiet_from && prefs.quiet_to ? `${prefs.quiet_from}–${prefs.quiet_to}` : undefined;
+  const radio = (on: boolean) =>
+    on ? <Icon name="Check" size={18} color={theme.fg} /> : <View style={{ width: 18 }} />;
   return (
-    <View style={s.root}>
-      <PageHeader title="Ajustes" back={back} />
-      <Page>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <SubHeader title={t("settings")} back={back} />
+      <Screen gap={12}>
         <NotificationCard status={notifications.status} enable={notifications.enable} />
-        <Card style={s.connection}>
-          <Text style={s.title}>{translate("serverAddress")}</Text>
-          <Muted>{creds.url}</Muted>
-          <RoundButton
-            label={translate("disconnect")}
-            secondary
-            onPress={() =>
-              Alert.alert(translate("disconnect"), "", [
-                { text: translate("back"), style: "cancel" },
-                { text: translate("disconnect"), style: "destructive", onPress: disconnect },
-              ])
-            }
+        {prefs ? (
+          <>
+            <Text style={s.label}>{t("setWhere")}</Text>
+            <ListGroup>
+              <ListRow
+                label={t("setThisPhone")}
+                sub={t(notifications.status.state === "push" ? "setThisPhoneSub" : "setThisPhoneOpen")}
+                leading={<IconTile icon="Smartphone" tone="brand" />}
+                trailing={radio(prefs.channel === device)}
+                chevron={false}
+                onPress={() => change({ channel: device })}
+              />
+              {channels.map((channel) => (
+                <ListRow
+                  key={channel.id}
+                  label={channel.label || channelName(channel.type)}
+                  sub={`${channelName(channel.type)} · ${data.agents.find((a) => a.id === channel.agent_id)?.name ?? channel.agent_id}`}
+                  leading={<IconTile icon="Send" tone="info" />}
+                  trailing={radio(prefs.channel === channel.id)}
+                  chevron={false}
+                  onPress={() => change({ channel: channel.id })}
+                />
+              ))}
+              <ListRow
+                label={t("setAuto")}
+                sub={t("setAutoSub")}
+                leading={<IconTile icon="Zap" />}
+                trailing={radio(!prefs.channel)}
+                chevron={false}
+                onPress={() => change({ channel: undefined })}
+              />
+            </ListGroup>
+            <Text style={s.label}>{t("setQuiet")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+              {quiet && !QUIET.some(([from, to]) => quiet === `${from}–${to}`) ? (
+                <Chip label={quiet} selected onPress={() => undefined} />
+              ) : null}
+              <Chip
+                label={t("setQuietOff")}
+                selected={!quiet}
+                onPress={() => change({ quiet_from: undefined, quiet_to: undefined })}
+              />
+              {QUIET.map(([from, to]) => (
+                <Chip
+                  key={from}
+                  label={`${from}–${to}`}
+                  selected={quiet === `${from}–${to}`}
+                  onPress={() => change({ quiet_from: from, quiet_to: to })}
+                />
+              ))}
+            </ScrollView>
+            <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setQuietHelp")}</Text>
+            <Text style={s.label}>{t("setBudget")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+              {BUDGETS.map((n) => (
+                <Chip
+                  key={n}
+                  label={n ? String(n) : t("setNoCap")}
+                  selected={prefs.budget_per_day === n}
+                  onPress={() => change({ budget_per_day: n })}
+                />
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
+        <Text style={s.label}>{t("setConnection")}</Text>
+        <ListGroup>
+          <ListRow
+            label={data.owner || t("you")}
+            sub={t("connectedTo", { host })}
+            leading={<OwnerAvatar name={data.owner} size={34} />}
+            chevron={false}
           />
-        </Card>
-      </Page>
+          <ListRow label={creds.url} leading={<IconTile icon="Link" />} chevron={false} />
+        </ListGroup>
+        <Button
+          label={t("disconnect")}
+          variant="secondary"
+          style={{ alignSelf: "stretch" }}
+          onPress={() =>
+            Alert.alert(t("disconnect"), "", [
+              { text: t("cancel"), style: "cancel" },
+              { text: t("disconnect"), style: "destructive", onPress: disconnect },
+            ])
+          }
+        />
+        <Text style={[type.small, { textAlign: "center" }]}>
+          {t("setVersion", { version: Constants.expoConfig?.version ?? "" })}
+        </Text>
+      </Screen>
     </View>
   );
 }
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  connection: { gap: 12, marginTop: 24 },
-  title: { color: t.fg, fontSize: 14, fontWeight: "600" },
-  error: { color: t.danger, fontSize: 12, marginTop: 10 },
+  label: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 4, paddingTop: 8 },
+  chips: { gap: 8 },
 });

@@ -133,7 +133,17 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
     if (subpage === "memory")
       return <MemoryPage data={workspace.data} back={() => setSubpage(undefined)} actions={memoryActions} />;
     if (subpage === "settings")
-      return <SettingsPage creds={creds} back={() => setSubpage(undefined)} disconnect={onUnpair} />;
+      return (
+        <SettingsPage
+          creds={creds}
+          data={workspace.data}
+          host={host}
+          back={() => setSubpage(undefined)}
+          disconnect={onUnpair}
+          load={workspace.noticePrefs}
+          save={workspace.setNoticePrefs}
+        />
+      );
     if (subpage && subpage !== "apps")
       return (
         <MoreDetailPage

@@ -6,6 +6,7 @@ export { ApxError, type ApxSocket } from "../../../packages/protocol/src/client.
 export type {
   CoreEvent,
   Message,
+  NoticePrefs,
   RoutineRun,
   Schedule,
   Surface,

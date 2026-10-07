@@ -1,8 +1,8 @@
 import { Alert, StyleSheet, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import { type NotificationStatus, notificationPreview } from "../notifications";
-import { Card, Muted, RoundButton } from "./components";
 import { Icon } from "./Icon";
+import { Button, Card, type } from "./kit";
 import { theme as t } from "./theme";
 
 export function NotificationCard({ status, enable }: { status: NotificationStatus; enable: () => Promise<void> }) {
@@ -10,11 +10,11 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
   return (
     <Card style={s.card}>
       <View style={s.heading}>
-        <Icon name="Bell" size={19} color={enabled ? t.brand : t.muted} />
+        <Icon name="Bell" size={18} color={enabled ? t.brand : t.fgMuted} />
         <Text style={s.title}>{translate("notifications")}</Text>
         {enabled ? <Icon name="Check" size={16} color={t.brand} /> : null}
       </View>
-      <Muted>
+      <Text style={type.muted}>
         {translate(
           status.state === "push"
             ? "pushActive"
@@ -26,36 +26,40 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
                   ? "notificationsChecking"
                   : "notificationsError",
         )}
-      </Muted>
-      {status.state === "local" ? <Muted>{translate("pushPending")}</Muted> : null}
-      {status.state === "push" ? <Muted>{translate("pushDestination")}</Muted> : null}
-      {enabled ? (
-        <RoundButton
-          label={translate("previewNotification")}
-          onPress={() =>
-            void notificationPreview().catch((error) => Alert.alert(translate("notifications"), String(error)))
-          }
-          secondary
-        />
-      ) : null}
+      </Text>
+      {status.state === "local" ? <Text style={type.meta}>{translate("pushPending")}</Text> : null}
       {status.state === "error" && status.detail ? (
         <Text selectable style={s.error}>
           {status.detail}
         </Text>
       ) : null}
-      {status.state === "denied" || status.state === "error" ? (
-        <RoundButton
-          label={translate(status.state === "denied" ? "openSettings" : "retry")}
-          onPress={() => void enable()}
-          secondary
-        />
-      ) : null}
+      <View style={s.actions}>
+        {enabled ? (
+          <Button
+            size="md"
+            variant="secondary"
+            label={translate("previewNotification")}
+            onPress={() =>
+              void notificationPreview().catch((error) => Alert.alert(translate("notifications"), String(error)))
+            }
+          />
+        ) : null}
+        {status.state === "denied" || status.state === "error" ? (
+          <Button
+            size="md"
+            label={translate(status.state === "denied" ? "openSettings" : "retry")}
+            onPress={() => void enable()}
+          />
+        ) : null}
+      </View>
     </Card>
   );
 }
+
 const s = StyleSheet.create({
-  card: { gap: 8, marginTop: 20 },
-  heading: { flexDirection: "row", alignItems: "center", gap: 9 },
-  title: { color: t.fg, fontSize: 14, fontWeight: "600", flex: 1 },
+  card: { gap: 8 },
+  heading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  title: { color: t.fg, fontSize: 15, fontWeight: "600", flex: 1 },
   error: { color: t.warning, fontSize: 12 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 2 },
 });

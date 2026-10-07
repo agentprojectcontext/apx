@@ -223,6 +223,20 @@ export const en = {
   delete: "Delete",
   couldNotSave: "Could not save",
   close: "Close",
+  setWhere: "Where notices go",
+  setThisPhone: "This phone",
+  setThisPhoneSub: "Push to this device",
+  setAuto: "Automatic",
+  setAutoSub: "The first channel that knows you",
+  setQuiet: "Quiet hours",
+  setQuietOff: "None",
+  setQuietHelp: "What APX would say unasked waits until they end; answers and questions still arrive, without sound.",
+  setBudget: "Unasked messages a day",
+  setNoCap: "No limit",
+  setConnection: "Connection",
+  setVersion: "APX for the phone · {version}",
+  couldNotChange: "Could not change it",
+  setThisPhoneOpen: "Only while the app is open (push is not set up)",
 } as const;
 
 export type Key = keyof typeof en;

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Creds } from "../creds";
 import { showLiveNotice } from "../notifications";
-import { ApxClient, type ApxSocket, type CoreEvent, type RoutineRun, type Schedule } from "../protocol";
+import {
+  ApxClient,
+  type ApxSocket,
+  type CoreEvent,
+  type NoticePrefs,
+  type RoutineRun,
+  type Schedule,
+} from "../protocol";
 
 export type Agent = {
   id: string;
@@ -415,6 +422,13 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  const noticePrefs = useCallback(async () => rpc<NoticePrefs>(client, "notices.get", {}), [client]);
+  /** Interruption settings are saved whole: the core fills anything left out with its default. */
+  const setNoticePrefs = useCallback(
+    async (prefs: NoticePrefs) => rpc<NoticePrefs>(client, "notices.set", prefs),
+    [client],
+  );
+
   const createSession = useCallback(
     async (engineId: string, projectId: string) => {
       const agent = data.agents.find((item) => item.kind === "secretary") ?? data.agents[0];
@@ -472,6 +486,8 @@ export function useWorkspace(creds: Creds) {
     memories,
     addMemory,
     removeMemory,
+    noticePrefs,
+    setNoticePrefs,
     createChat,
     createSession,
     resumeSession,
