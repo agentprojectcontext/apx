@@ -1,6 +1,8 @@
 import { Children, Fragment, isValidElement } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   type RefreshControlProps,
   ScrollView,
@@ -11,6 +13,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { t as tr } from "../../i18n";
 import { Icon, type IconName } from "../Icon";
 import { theme as t } from "../theme";
 import { IconButton, type } from "./primitives";
@@ -72,7 +75,7 @@ export function PageTitle({
 export function SubHeader({ title, back, right }: { title: string; back: () => void; right?: React.ReactNode }) {
   return (
     <View style={s.subHeader}>
-      <IconButton icon="ChevronLeft" label="Volver" size={22} onPress={back} />
+      <IconButton icon="ChevronLeft" label={tr("back")} size={22} onPress={back} />
       <Text accessibilityRole="header" numberOfLines={1} style={[type.title, { flex: 1 }]}>
         {title}
       </Text>
@@ -186,8 +189,8 @@ export function BottomSheet({
   const insets = useSafeAreaInsets();
   return (
     <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onClose}>
-      <View style={s.sheetRoot}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Cerrar" />
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.sheetRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={tr("close")} />
         <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 18 }]}>
           <View style={s.handle} />
           {title ? <Text style={s.sheetTitle}>{title}</Text> : null}
@@ -195,7 +198,7 @@ export function BottomSheet({
             {children}
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

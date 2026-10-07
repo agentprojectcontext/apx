@@ -104,6 +104,19 @@ export type Job = {
   started_at: string;
   ended_at?: string;
 };
+/** A note the office remembers: for everyone (global), one project, or one agent. */
+export type Memory = {
+  id: string;
+  scope: "global" | "project" | "agent";
+  project_id?: string;
+  agent_id?: string;
+  text: string;
+  source: "owner" | "agent";
+  author_agent?: string;
+  tainted: boolean;
+  updated_at: string;
+};
+export type MemoryQuery = { query?: string; scope?: Memory["scope"]; project?: string; limit?: number };
 export type Engine = { id: string; label: string; installed: boolean; logged_in: boolean; detail?: string };
 export type NativeSession = { id: string; title: string; cwd: string; updated_at: string };
 export type Workspace = {
@@ -377,6 +390,31 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  const memories = useCallback(
+    async (params: MemoryQuery) =>
+      (await rpc<{ memories: Memory[] }>(client, "memory.list", { limit: 100, ...params })).memories,
+    [client],
+  );
+  const addMemory = useCallback(
+    async (text: string, project?: string) => {
+      const memory = await rpc<Memory>(
+        client,
+        "memory.add",
+        project ? { text, scope: "project", project } : { text, scope: "global" },
+      );
+      setData((d) => ({ ...d, memories: (d.memories ?? 0) + 1 }));
+      return memory;
+    },
+    [client],
+  );
+  const removeMemory = useCallback(
+    async (id: string) => {
+      await rpc(client, "memory.remove", { id });
+      setData((d) => ({ ...d, memories: Math.max(0, (d.memories ?? 1) - 1) }));
+    },
+    [client],
+  );
+
   const createSession = useCallback(
     async (engineId: string, projectId: string) => {
       const agent = data.agents.find((item) => item.kind === "secretary") ?? data.agents[0];
@@ -431,6 +469,9 @@ export function useWorkspace(creds: Creds) {
     toggleRoutine,
     runRoutine,
     routineRuns,
+    memories,
+    addMemory,
+    removeMemory,
     createChat,
     createSession,
     resumeSession,

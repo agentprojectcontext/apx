@@ -11,6 +11,7 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import { ChatsPage } from "./pages/ChatsPage";
 import { InboxPage } from "./pages/InboxPage";
+import { MemoryPage } from "./pages/MemoryPage";
 import { MoreDetailPage } from "./pages/MoreDetailPage";
 import { type MoreId, MorePage } from "./pages/MorePage";
 import { RoutineDetailPage } from "./pages/RoutineDetailPage";
@@ -50,6 +51,10 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<MoreId>();
   const [routine, setRoutine] = useState<Routine>();
+  const memoryActions = useMemo(
+    () => ({ list: workspace.memories, add: workspace.addMemory, remove: workspace.removeMemory }),
+    [workspace.memories, workspace.addMemory, workspace.removeMemory],
+  );
   const routineActions = useMemo(
     () => ({ toggle: workspace.toggleRoutine, run: workspace.runRoutine, runs: workspace.routineRuns }),
     [workspace.toggleRoutine, workspace.runRoutine, workspace.routineRuns],
@@ -125,9 +130,11 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           actions={routineActions}
         />
       );
+    if (subpage === "memory")
+      return <MemoryPage data={workspace.data} back={() => setSubpage(undefined)} actions={memoryActions} />;
     if (subpage === "settings")
       return <SettingsPage creds={creds} back={() => setSubpage(undefined)} disconnect={onUnpair} />;
-    if (subpage && subpage !== "apps" && subpage !== "memory")
+    if (subpage && subpage !== "apps")
       return (
         <MoreDetailPage
           id={subpage}
