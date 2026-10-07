@@ -249,6 +249,9 @@ export const en = {
   noAgentForSession: "No agent can start a session.",
   yourAnswer: "Your answer…",
   rtCron: "cron {cron}",
+  actionsOne: "1 action",
+  actionsWorkingOne: "Working · 1 action",
+  actionsWaitingOne: "Waiting · 1 action",
 } as const;
 
 export type Key = keyof typeof en;

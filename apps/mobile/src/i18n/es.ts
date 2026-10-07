@@ -252,4 +252,7 @@ export const es: Record<Key, string> = {
   noAgentForSession: "No hay agente que pueda iniciar la sesión.",
   yourAnswer: "Tu respuesta…",
   rtCron: "cron {cron}",
+  actionsOne: "1 acción",
+  actionsWorkingOne: "Trabajando · 1 acción",
+  actionsWaitingOne: "Esperando · 1 acción",
 };

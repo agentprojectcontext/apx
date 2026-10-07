@@ -14,7 +14,19 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
   const [detail, setDetail] = useState<string>();
   const running = parts.some((part) => part.status === "running");
   const failed = parts.filter((part) => part.status === "error").length;
-  const title = translate(running ? (waiting ? "actionsWaiting" : "actionsWorking") : "actionsSummary", {
+  const one = parts.length === 1;
+  const key = running
+    ? waiting
+      ? one
+        ? "actionsWaitingOne"
+        : "actionsWaiting"
+      : one
+        ? "actionsWorkingOne"
+        : "actionsWorking"
+    : one
+      ? "actionsOne"
+      : "actionsSummary";
+  const title = translate(key, {
     n: String(parts.length),
   });
   return (
