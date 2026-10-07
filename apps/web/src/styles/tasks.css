@@ -280,14 +280,32 @@
 .taskpanel__body > * {
   flex-shrink: 0;
 }
+/* Space the panel has left over goes to what the task is about (1 part) and its conversation (2 parts), so the
+   comment box ends at the bottom edge; with more than fits, the whole panel scrolls and the box sticks there. */
 .taskpanel .taskdetail__desc {
+  flex: 1 0 auto;
   min-height: 180px;
   line-height: 1.5;
 }
-/* As tall as what was said (up to a limit, then it scrolls on its own); the comment box follows right under it. */
+.taskpanel__body > .taskpanel__tabs {
+  flex: 2 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+.taskpanel__tabs > .apx-tabs__panel:not([hidden]) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
 .taskpanel .taskdetail__chat {
-  max-height: clamp(240px, 50vh, 560px);
+  flex: 1 0 auto;
+  min-height: 160px;
+  max-height: none;
+  overflow: visible;
   border-top: 0;
+}
+.taskpanel .taskdetail__chat .chat__scroll {
+  overflow: visible;
 }
 .taskprops {
   display: grid;
