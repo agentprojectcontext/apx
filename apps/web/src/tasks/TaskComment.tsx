@@ -1,6 +1,6 @@
 import type { Agent, Task } from "@apx/protocol";
-import { AgentAvatar, Button, Textarea } from "@apx/ui";
-import { useEffect, useId, useRef, useState } from "react";
+import { AgentAvatar, Composer, IconButton, Icons } from "@apx/ui";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { availableAgents } from "../common/pickers/agents.ts";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -8,7 +8,24 @@ import { commentTask } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { insertMention, type Mention, mentionAt, mentionToken } from "./mentions.ts";
 
-export function TaskComment({ task, text, onChange }: { task: Task; text: string; onChange: (text: string) => void }) {
+/**
+ * The comment box under a task's conversation, like the chat's: Enter sends, Shift+Enter adds a line, @ picks an agent
+ * to ask. `focus` changes when a quote was put in, to bring the caret to the end.
+ */
+export function TaskComment({
+  task,
+  text,
+  onChange,
+  focus = 0,
+  onSent,
+}: {
+  task: Task;
+  text: string;
+  onChange: (text: string) => void;
+  focus?: number;
+  /** A comment went out: the panel shows its end, where the answer will come. */
+  onSent?: () => void;
+}) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -26,9 +43,22 @@ export function TaskComment({ task, text, onChange }: { task: Task; text: string
   useEffect(() => {
     if (mention) list.current?.children.item(selected)?.scrollIntoView({ block: "nearest" });
   }, [selected, mention]);
+  useEffect(() => {
+    const el = input.current;
+    if (!focus || !el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    el.scrollIntoView({ block: "nearest" });
+  }, [focus]);
+  const seen = useRef({ value: "", caret: -1 });
   const updateMention = (value: string, caret: number) => {
+    seen.current = { value, caret };
     setMention(mentionAt(value, caret));
     setActive(0);
+  };
+  /** The caret moved: a key that only closed the picker (Escape) leaves it closed. */
+  const follow = (value: string, caret: number) => {
+    if (seen.current.value !== value || seen.current.caret !== caret) updateMention(value, caret);
   };
   const pick = (agent: Agent) => {
     if (!mention) return;
@@ -44,79 +74,104 @@ export function TaskComment({ task, text, onChange }: { task: Task; text: string
     if (sending || !text.trim()) return;
     setSending(true);
     try {
-      if (await commentTask(task.id, text.trim())) onChange("");
+      if (await commentTask(task.id, text.trim())) {
+        onChange("");
+        onSent?.();
+      }
     } finally {
       setSending(false);
     }
   };
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (!mention || e.nativeEvent.isComposing) return false;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setMention(undefined);
+      return true;
+    }
+    if (choices.length && ["ArrowDown", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      setActive((selected + (e.key === "ArrowDown" ? 1 : -1) + choices.length) % choices.length);
+      return true;
+    }
+    const choice = choices[selected];
+    if (choice && ["Enter", "Tab"].includes(e.key) && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      pick(choice);
+      return true;
+    }
+    return false;
+  };
+  /** The @ button: an @ at the caret (after a space), with the picker open. */
+  const startMention = () => {
+    const el = input.current;
+    const caret = el?.selectionStart ?? text.length;
+    const before = text.slice(0, caret);
+    const at = `${before && !/\s$/.test(before) ? " " : ""}@`;
+    const next = before + at + text.slice(caret);
+    onChange(next);
+    updateMention(next, caret + at.length);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret + at.length, caret + at.length);
+    });
+  };
   return (
     <div className="taskpanel__comment">
-      <label className="taskpanel__commentlabel" htmlFor={`${listId}-input`}>
-        {t("tasks.comment")}
-      </label>
-      <div className="taskpanel__input">
-        {mention && (
-          <div className="taskmentions" ref={list} id={listId} role="listbox" aria-label={t("tasks.mentionAgents")}>
-            {choices.map((agent, i) => (
-              <button
-                type="button"
-                role="option"
-                id={`${listId}-${i}`}
-                key={agent.id}
-                aria-selected={i === selected}
-                className={`taskmentions__option${i === selected ? " is-active" : ""}`}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(agent)}
-              >
-                <AgentAvatar name={agent.name} blob={blobOf(agent)} size={20} animated={false} />
-                <span>{agent.name}</span>
-                <span className="taskmentions__slug">@{agent.slug ?? agent.id}</span>
-              </button>
-            ))}
-            {choices.length === 0 && <p className="taskmentions__empty">{t("tasks.mentionEmpty")}</p>}
-          </div>
-        )}
-        <Textarea
-          ref={input}
-          id={`${listId}-input`}
-          rows={2}
-          placeholder={t("tasks.commentHint")}
-          value={text}
-          disabled={sending}
-          aria-autocomplete="list"
-          aria-controls={mention ? listId : undefined}
-          aria-activedescendant={mention && choices.length ? `${listId}-${selected}` : undefined}
-          onChange={(e) => {
-            onChange(e.currentTarget.value);
-            updateMention(e.currentTarget.value, e.currentTarget.selectionStart);
-          }}
-          onClick={(e) => updateMention(text, e.currentTarget.selectionStart)}
-          onKeyUp={(e) => {
-            if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key))
-              updateMention(text, e.currentTarget.selectionStart);
-          }}
-          onBlur={() => setMention(undefined)}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
-            if (mention && e.key === "Escape") {
-              e.preventDefault();
-              setMention(undefined);
-            } else if (mention && choices.length && ["ArrowDown", "ArrowUp"].includes(e.key)) {
-              e.preventDefault();
-              setActive((selected + (e.key === "ArrowDown" ? 1 : -1) + choices.length) % choices.length);
-            } else if (mention && choices[selected] && ["Enter", "Tab"].includes(e.key) && !e.metaKey && !e.ctrlKey) {
-              e.preventDefault();
-              pick(choices[selected]);
-            } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              void send();
-            }
-          }}
-        />
-      </div>
-      <Button size="sm" disabled={sending || !text.trim()} onClick={() => void send()}>
-        {t("tasks.send")}
-      </Button>
+      <Composer
+        className="taskpanel__composer"
+        inputRef={input}
+        inputLabel={t("tasks.comment")}
+        placeholder={t("tasks.commentHint")}
+        labels={{ send: t("tasks.send") }}
+        value={text}
+        disabled={sending}
+        onValueChange={(value) => {
+          onChange(value);
+          updateMention(value, input.current?.selectionStart ?? value.length);
+        }}
+        onSubmit={() => void send()}
+        onInputKeyDown={onKey}
+        onInputSelect={(e) => follow(e.currentTarget.value, e.currentTarget.selectionStart)}
+        onInputBlur={() => setMention(undefined)}
+        inputAria={{
+          controls: listId,
+          expanded: Boolean(mention),
+          ...(mention && choices.length ? { activedescendant: `${listId}-${selected}` } : {}),
+        }}
+        toolbar={
+          <IconButton
+            size="sm"
+            label={t("tasks.mentionAgents")}
+            icon={<Icons.AtSign size={14} />}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={startMention}
+          />
+        }
+        popup={
+          mention && (
+            <div className="taskmentions" ref={list} id={listId} role="listbox" aria-label={t("tasks.mentionAgents")}>
+              {choices.map((agent, i) => (
+                <button
+                  type="button"
+                  role="option"
+                  id={`${listId}-${i}`}
+                  key={agent.id}
+                  aria-selected={i === selected}
+                  className={`taskmentions__option${i === selected ? " is-active" : ""}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(agent)}
+                >
+                  <AgentAvatar name={agent.name} blob={blobOf(agent)} size={20} animated={false} />
+                  <span>{agent.name}</span>
+                  <span className="taskmentions__slug">@{agent.slug ?? agent.id}</span>
+                </button>
+              ))}
+              {choices.length === 0 && <p className="taskmentions__empty">{t("tasks.mentionEmpty")}</p>}
+            </div>
+          )
+        }
+      />
     </div>
   );
 }

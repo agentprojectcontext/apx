@@ -13,6 +13,7 @@ import { AudioPart } from "./parts/AudioPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 
 const EMPTY: Msg[] = [];
@@ -108,7 +109,7 @@ export function Transcript({ thread }: { thread: Thread }) {
             {msg.author.kind === "user" ? (
               <UserMessage thread={thread} message={msg} messages={messages} text={textOf(msg)}>
                 <UserFiles message={msg} />
-                <p className="transcript__usertext">{textOf(msg)}</p>
+                <UserText text={textOf(msg)} />
               </UserMessage>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
@@ -121,7 +122,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
                 <UserFiles message={msg} />
-                <p className="transcript__usertext">{textOf(msg)}</p>
+                <UserText text={textOf(msg)} />
               </Message>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
@@ -195,4 +196,15 @@ function UserFiles({ message }: { message: Msg }) {
 function textOf(m: Msg): string {
   const text = m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
   return m.parts.some((p) => p.type === "audio") ? text.replace(/\[voice note\]\s*/g, "") : text;
+}
+
+/** The owner's (or a contact's) words as written; a leading "> " quote shows as the quote they answer. */
+function UserText({ text }: { text: string }) {
+  const { quote, rest } = splitQuote(text);
+  return (
+    <>
+      {quote && <blockquote className="transcript__quote">{quote}</blockquote>}
+      {rest && <p className="transcript__usertext">{rest}</p>}
+    </>
+  );
 }

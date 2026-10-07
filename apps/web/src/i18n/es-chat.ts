@@ -88,6 +88,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "msg.fork": "Bifurcar en un chat nuevo",
   "msg.forkTitle": "{title} (bifurcación)",
   "msg.readAloud": "Leer en voz alta",
+  "msg.quote": "Citar",
+  "msg.reply": "Responder",
   "msg.stopReading": "Dejar de leer",
   "msg.noVoice": "Sumá una voz en Configuración › Voces para leer en voz alta",
   "error.fork": "No se pudo bifurcar el chat: {error}",

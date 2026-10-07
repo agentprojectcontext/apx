@@ -86,6 +86,8 @@ export const enChat = {
   "msg.fork": "Fork into a new chat",
   "msg.forkTitle": "{title} (fork)",
   "msg.readAloud": "Read aloud",
+  "msg.quote": "Quote",
+  "msg.reply": "Reply",
   "msg.stopReading": "Stop reading",
   "msg.noVoice": "Add a voice in Settings › Voices to read aloud",
   "error.fork": "Could not fork the chat: {error}",

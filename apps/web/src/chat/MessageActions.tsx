@@ -1,13 +1,14 @@
-// The controls under one bubble: copy its words, fork the chat from it, read it aloud with the owner's voice.
+// The controls under one bubble: copy its words, quote or answer it (in a task), fork the chat from it, read it aloud.
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { IconButton, Icons, Spinner } from "@apx/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useContext, useEffect, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { notify } from "../data/notices.ts";
 import { speak, stopSpeaking, useSpeaking, useSpeechReady } from "../data/speech.ts";
 import { forkThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { QuoteContext } from "./quote.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -34,10 +35,29 @@ export function MessageActions({
   children?: ReactNode;
 }) {
   const t = useT();
+  const quote = useContext(QuoteContext);
   const pending = message.id.startsWith("local_");
   return (
     <>
       {text.trim() && <CopyButton text={text} />}
+      {quote && !pending && text.trim() && (
+        <>
+          <IconButton
+            size="sm"
+            label={t("msg.quote")}
+            icon={<Icons.Quote size={13} />}
+            onClick={() => quote(message, text, false)}
+          />
+          {message.author.kind === "agent" && (
+            <IconButton
+              size="sm"
+              label={t("msg.reply")}
+              icon={<Icons.Reply size={13} />}
+              onClick={() => quote(message, text, true)}
+            />
+          )}
+        </>
+      )}
       {!pending && canFork(thread) && (
         <IconButton
           size="sm"

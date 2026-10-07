@@ -83,17 +83,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await page.getByRole("option", { name: "En curso", exact: true }).click();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("doing");
 
-    // The comment belongs to the conversation: it sits under it, in its tab, and scrolls with it.
+    // The comment belongs to the conversation (in its tab, right under it) and stays at the panel's bottom edge.
     await expect(drawer.getByRole("tabpanel").getByRole("textbox", { name: "Comentario", exact: true })).toHaveCount(1);
-    const scrollTop = () => body.evaluate((el) => el.scrollTop);
-    await body.evaluate((el) => {
-      el.scrollTop = 0;
-    });
-    const top = (await comment.boundingBox())?.y ?? 0;
     await body.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
-    if ((await scrollTop()) > 0) expect((await comment.boundingBox())?.y).toBeLessThan(top);
+    const [box, view] = [await comment.boundingBox(), await body.boundingBox()];
+    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual((view?.y ?? 0) + (view?.height ?? 0) + 1);
     await comment.fill("@missing");
     await expect(drawer.getByText("Sin agentes coincidentes")).toBeVisible();
     await page.keyboard.press("Escape");
@@ -113,6 +109,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     const runs = (await env.settle(task.thread_id)).runs;
     expect(runs.map((r) => r.agent_id).reverse()).toEqual([builder.id, "roby"]);
     await expect(drawer.getByRole("button", { name: "Ver a Builder" })).toBeVisible();
+    // Answering a bubble quotes it and asks its agent again.
+    const answer = drawer.locator(".apx-msg--agent", { hasText: "Review completed. @roby please check." });
+    await answer.hover();
+    await answer.getByRole("button", { name: "Responder", exact: true }).click();
+    await expect(comment).toHaveValue("> Builder: Review completed. @roby please check.\n\n@builder ");
+    await expect(comment).toBeFocused();
+    await comment.fill("");
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.awaits_owner).toBe(true);
     expect(
       (await env.client.call("notifications.list", {})).notifications.some((n) => n.ref === task.id && !n.read_at),

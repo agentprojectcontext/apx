@@ -1,6 +1,7 @@
-import type { Task, TaskEvent } from "@apx/protocol";
+import type { Message, Task, TaskEvent } from "@apx/protocol";
 import { AgentAvatar, Badge, Button, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -13,6 +14,7 @@ import { useData } from "../data/state.ts";
 import { closeTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { historyLines } from "./history.ts";
+import { mentionToken } from "./mentions.ts";
 import { TaskComment } from "./TaskComment.tsx";
 import {
   DueField,
@@ -37,7 +39,39 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const [events, setEvents] = useState<TaskEvent[]>([]);
   const [tab, setTab] = useState("chat");
   const [text, setText] = useState("");
+  const [focus, setFocus] = useState(0);
   const body = useRef<HTMLDivElement>(null);
+  const chat = useRef<HTMLDivElement>(null);
+  const toEnd = () => requestAnimationFrame(() => body.current?.scrollTo({ top: body.current.scrollHeight }));
+  // The conversation grows inside the panel: while the owner is at its end, new answers stay in view.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the conversation's box is there again with its tab
+  useEffect(() => {
+    const el = body.current;
+    const inner = chat.current;
+    if (!el || !inner) return;
+    let atEnd = false;
+    const onScroll = () => {
+      atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    const grew = new ResizeObserver(() => atEnd && el.scrollTo({ top: el.scrollHeight }));
+    el.addEventListener("scroll", onScroll);
+    grew.observe(inner);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      grew.disconnect();
+    };
+  }, [tab]);
+  const agents = useData((s) => s.agents);
+  const owner = useOwnerName() || t("tasks.ev.owner");
+  // A bubble quoted (or answered) goes on top of the comment; an answer to an agent asks that agent again.
+  const quote = (m: Message, words: string, reply: boolean) => {
+    const agent = m.author.kind === "agent" ? agents[m.author.id] : undefined;
+    const author = m.author.kind === "user" ? owner : m.author.kind === "person" ? m.author.name : (agent?.name ?? "");
+    const ask = reply && agent ? `@${mentionToken(agent, Object.values(agents), task.project_id)} ` : "";
+    setText((draft) => `${quoteBlock(author, words)}\n\n${draft.trim() ? `${draft.trim()}\n` : ""}${ask}`);
+    setTab("chat");
+    setFocus((n) => n + 1);
+  };
   useEffect(() => {
     if (load == null) void loadThread(task.thread_id);
   }, [load, task.thread_id]);
@@ -62,18 +96,19 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
           value={tab}
           onValueChange={(value) => {
             setTab(value);
-            if (value === "chat")
-              requestAnimationFrame(() => body.current?.scrollTo({ top: body.current.scrollHeight }));
+            if (value === "chat") toEnd();
           }}
           items={[
             {
               value: "chat",
               label: t("tasks.tab.chat"),
               content: (
-                <>
-                  <div className="taskdetail__chat">{thread && load === "ready" && <Transcript thread={thread} />}</div>
-                  <TaskComment task={task} text={text} onChange={setText} />
-                </>
+                <QuoteContext.Provider value={quote}>
+                  <div className="taskdetail__chat" ref={chat}>
+                    {thread && load === "ready" && <Transcript thread={thread} />}
+                  </div>
+                  <TaskComment task={task} text={text} onChange={setText} focus={focus} onSent={toEnd} />
+                </QuoteContext.Provider>
               ),
             },
             {

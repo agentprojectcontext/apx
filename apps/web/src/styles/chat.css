@@ -97,6 +97,20 @@
 .transcript__usertext {
   white-space: pre-wrap;
 }
+/* What a reply answers: above its words, set back like a quote. */
+.transcript__quote {
+  margin: 0 0 6px;
+  padding-left: 8px;
+  border-left: 2px solid currentColor;
+  opacity: 0.7;
+  font-size: var(--apx-text-sm);
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
 .transcript__activity {
   display: flex;
   padding-top: 4px;
