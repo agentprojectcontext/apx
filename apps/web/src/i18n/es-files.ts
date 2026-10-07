@@ -19,6 +19,13 @@ export const esFiles: Partial<Record<MessageKey, string>> = {
   "files.repo": "Repositorio",
   "files.none": "Elegí un archivo",
   "files.noneBody": "Su texto aparece acá. El Markdown se lee como página, como fuente o las dos cosas.",
+  "files.keep": "Guardar en la carpeta del chat",
+  "files.kept": "Guardado como {path}.",
+  "files.scope": "Qué carpeta",
+  "files.scope.chat": "Carpeta del chat",
+  "files.scope.temp": "Temporales",
+  "files.tempNote":
+    "Los archivos temporales del agente. El sistema los borra después de unos días: guardá lo que necesites.",
   "files.workFolder": "Carpeta de trabajo de APX",
   "files.noFolder": "Sin carpeta en esta máquina",
   "files.noFolderBody": "Este proyecto no tiene carpeta en esta máquina; no hay nada para recorrer.",

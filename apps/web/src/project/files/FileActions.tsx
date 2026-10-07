@@ -1,7 +1,7 @@
 import type { FileEntry } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, type MenuEntry } from "@apx/ui";
 import { useState } from "react";
-import { type FileWhere, renameFile, revealFile, trashFile } from "../../data/files.ts";
+import { type FileWhere, keepFile, renameFile, revealFile, trashFile } from "../../data/files.ts";
 import { notify } from "../../data/notices.ts";
 import { type T, useT } from "../../i18n/index.ts";
 
@@ -18,7 +18,7 @@ const copy = async (text: string, t: T) => {
   }
 };
 
-/** The right-click menu of a file or folder: Finder, its paths, rename, trash. */
+/** The right-click menu of a file or folder: Finder, keeping a temp file, its paths, rename, trash. */
 export function fileMenu(
   target: FileTarget,
   o: { where: FileWhere; t: T; onRename(): void; onTrash(): void },
@@ -30,6 +30,15 @@ export function fileMenu(
       icon: <Icons.FolderOpen />,
       onSelect: () => void revealFile(o.where, target.entry.path),
     },
+    ...("thread" in o.where && o.where.scratch
+      ? [
+          {
+            label: t("files.keep"),
+            icon: <Icons.Pin />,
+            onSelect: () => void keepFile((o.where as { thread: string }).thread, target.entry.path),
+          },
+        ]
+      : []),
     { type: "separator" },
     { label: t("files.copyPath"), icon: <Icons.Copy />, onSelect: () => void copy(target.absolute, t) },
     { label: t("files.copyRelative"), icon: <Icons.Copy />, onSelect: () => void copy(target.entry.path, t) },

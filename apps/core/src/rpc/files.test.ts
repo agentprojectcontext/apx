@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { scratchRoot } from "../tools/shell.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 /** What Finder and the trash were asked to do. */
@@ -122,4 +123,29 @@ test("a chat browses the folder its agent works in: its project's, or else APX's
   assert.equal((await env.client.call("files.read", { thread: bare.id, path: "notes.md" })).text, "Draft.\n");
   await assert.rejects(env.client.call("files.read", { thread: bare.id, path: "../x" }), /outside the folder/);
   await assert.rejects(env.client.call("files.tree", {}), /a project or a chat/);
+});
+
+test("a chat's temp folder is browsed apart, and what the owner keeps is copied into the chat's folder", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const temp = await env.client.call("files.tree", { thread: t.id, scratch: true });
+  assert.equal(temp.root, fs.realpathSync(path.join(scratchRoot(env.home), t.id)));
+  fs.mkdirSync(path.join(temp.root, "out"));
+  fs.writeFileSync(path.join(temp.root, "out", "chart.csv"), "a,b\n");
+  fs.symlinkSync(outside, path.join(temp.root, "out", "escape"));
+  fs.writeFileSync(path.join(temp.root, "AGENTS.md"), "draft\n");
+  assert.equal(
+    (await env.client.call("files.read", { thread: t.id, scratch: true, path: "out/chart.csv" })).text,
+    "a,b\n",
+  );
+  const kept = await env.client.call("files.keep", { thread: t.id, path: "out" });
+  assert.equal(kept.path, "out");
+  assert.equal(fs.readFileSync(path.join(repo, "out", "chart.csv"), "utf8"), "a,b\n");
+  assert.ok(!fs.existsSync(path.join(repo, "out", "escape")), "a link is left behind");
+  // A taken name gets a number; the project's own file stays as it was.
+  assert.equal((await env.client.call("files.keep", { thread: t.id, path: "AGENTS.md" })).path, "AGENTS 2.md");
+  assert.equal(fs.readFileSync(path.join(repo, "AGENTS.md"), "utf8"), "# Acme\n");
+  await assert.rejects(env.client.call("files.keep", { thread: t.id, path: "../x" }), /outside the folder/);
+  await assert.rejects(env.client.call("files.tree", { project, scratch: true }), /a chat's/);
+  fs.rmSync(path.join(repo, "out"), { recursive: true });
+  fs.rmSync(path.join(repo, "AGENTS 2.md"));
 });

@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
-import { workDir } from "../tools/shell.ts";
+import { scratchDir, workDir } from "../tools/shell.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
 
@@ -48,11 +48,19 @@ export function threadFolder(store: Store, home: string, threadId: string): stri
   return workDir(store, home, t);
 }
 
-type Where = { project?: string | undefined; thread?: string | undefined };
+type Where = { project?: string | undefined; thread?: string | undefined; scratch?: boolean | undefined };
 
 export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
   /** The folder browsed: a project's, or a chat's (APX's work folder is made when first opened, as an agent would). */
-  const baseOf = ({ project, thread }: Where) => {
+  const baseOf = ({ project, thread, scratch }: Where) => {
+    if (thread && scratch) {
+      const t = store.threads.get(thread);
+      if (!t) throw notFound(`thread ${thread}`);
+      const dir = scratchDir(store, home, t);
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    }
+    if (scratch) throw badRequest("a temp folder is a chat's");
     if (thread) {
       const dir = threadFolder(store, home, thread);
       if (dir === path.join(home, "work")) fs.mkdirSync(dir, { recursive: true });
@@ -164,6 +172,25 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       if (fs.existsSync(next.abs)) throw badRequest(`${name} already exists there`);
       fs.renameSync(abs, next.abs);
       return { path: path.relative(root, next.abs).split(path.sep).join("/") };
+    },
+    "files.keep": ({ thread, path: rel }) => {
+      const from = locate({ thread, scratch: true }, rel);
+      if (!from.rel) throw badRequest("pick a file or folder inside the temp folder");
+      if (!fs.existsSync(from.abs)) throw notFound(`file ${rel}`);
+      const to = locate({ thread }, "");
+      const ext = path.extname(from.abs);
+      const stem = path.basename(from.abs, ext);
+      let name = path.basename(from.abs);
+      for (let i = 2; fs.existsSync(path.join(to.abs, name)); i++) name = `${stem} ${i}${ext}`;
+      const dest = locate({ thread }, name);
+      // Links are left behind: one planted in the temp folder must not carry somewhere else into the project.
+      fs.cpSync(from.abs, dest.abs, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+        filter: (src) => !fs.lstatSync(src).isSymbolicLink(),
+      });
+      return { path: dest.rel };
     },
     "files.trash": async ({ path: rel, ...where }) => {
       const { abs, rel: clean } = locate(where, rel);

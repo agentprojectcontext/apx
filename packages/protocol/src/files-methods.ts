@@ -25,8 +25,11 @@ export const ChangedFile = z.object({
 });
 export type ChangedFile = z.infer<typeof ChangedFile>;
 
-/** Whose folder: a project's, or the one a chat works in (its own, its project's, or its own in APX's work folder). */
-const Where = { project: Id.optional(), thread: Id.optional() };
+/**
+ * Whose folder: a project's, or the one a chat works in (a code session's own, its project's, or APX's work folder);
+ * with `scratch`, the chat's temp folder instead.
+ */
+const Where = { project: Id.optional(), thread: Id.optional(), scratch: z.boolean().optional() };
 
 export const filesMethods = {
   /**
@@ -109,6 +112,16 @@ export const filesMethods = {
           .refine((n) => !/[/\\]/.test(n) && n !== "." && n !== "..", "a name, not a path"),
       })
       .strict(),
+    result: z.object({ path: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Copies a file or folder of a chat's temp folder into the folder the chat works in, at its top, so it stays: the
+   * system clears temp folders on its own. A taken name gets a number. Returns where it went.
+   */
+  "files.keep": {
+    params: z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
     result: z.object({ path: z.string() }),
     effect: true,
     access: "human",

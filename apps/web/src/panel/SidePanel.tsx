@@ -12,7 +12,7 @@ import { panelDef } from "./panels.tsx";
 import { useWorkspace } from "./workspace.ts";
 
 // The folder's panels load when first opened, not with the chat.
-const FilesPane = lazy(() => import("../project/files/FilesPane.tsx").then((m) => ({ default: m.FilesPane })));
+const ChatFiles = lazy(() => import("./ChatFiles.tsx").then((m) => ({ default: m.ChatFiles })));
 const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
 const ProcessesPanel = lazy(() => import("./ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })));
@@ -104,10 +104,10 @@ export function SidePanel() {
           )}
           {thread && panel === "files" && (
             <Suspense fallback={null}>
-              {/* The folder the chat's agent works in; with no project, APX's work folder. */}
-              <FilesPane
+              {/* The folder the chat's agent works in (with no project, APX's work folder) and its temp folder. */}
+              <ChatFiles
                 key={thread.id}
-                where={{ thread: thread.id }}
+                thread={thread.id}
                 root={ws?.folder}
                 label={ws ? undefined : t("files.workFolder")}
                 stacked={!wide}

@@ -27,8 +27,8 @@ const KINDS: Record<string, MediaKind> = {
 /** What the viewer can show of a file, by its extension (as the core decides). */
 export const mediaKind = (path: string): MediaKind | undefined => KINDS[path.split(".").pop()?.toLowerCase() ?? ""];
 
-/** Whose folder a file is in: a project's, or the one a chat works in. */
-export type FileWhere = { project: string } | { thread: string };
+/** Whose folder a file is in: a project's, the one a chat works in, or (`scratch`) that chat's temp folder. */
+export type FileWhere = { project: string } | { thread: string; scratch?: boolean };
 
 /** An object URL for a previewable file (the caller revokes it) and its size. */
 export async function mediaOf(where: FileWhere, path: string): Promise<{ url: string; bytes: number }> {
@@ -63,5 +63,17 @@ export async function trashFile(where: FileWhere, path: string): Promise<boolean
   } catch (e) {
     notify(t("files.error", { error: errText(e) }));
     return false;
+  }
+}
+
+/** Copies a temp file into the chat's folder, where it stays; the copy's path, or undefined when the core refused. */
+export async function keepFile(thread: string, path: string): Promise<string | undefined> {
+  try {
+    const kept = (await client.call("files.keep", { thread, path })).path;
+    notify(t("files.kept", { path: kept }), "info");
+    return kept;
+  } catch (e) {
+    notify(t("files.error", { error: errText(e) }));
+    return undefined;
   }
 }

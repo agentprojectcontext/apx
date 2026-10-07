@@ -42,6 +42,18 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   await panel.getByRole("button", { name: "Archivos" }).click();
   await expect(panel.getByRole("button", { name: "src" })).toBeVisible();
 
+  // Temporales: the agent's temp folder; what the owner keeps is copied into the project.
+  const temp = await rpc<{ root: string }>("files.tree", { thread: chat.id, scratch: true });
+  fs.writeFileSync(path.join(temp.root, "draft.md"), "# Draft\n");
+  await panel.getByRole("radio", { name: "Temporales" }).click();
+  await expect(panel.getByText("El sistema los borra después de unos días")).toBeVisible();
+  await panel.getByRole("button", { name: "draft.md" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Guardar en la carpeta del chat" }).click();
+  await expect(page.getByText("Guardado como draft.md.")).toBeVisible();
+  expect(fs.readFileSync(path.join(repo, "draft.md"), "utf8")).toBe("# Draft\n");
+  await panel.getByRole("radio", { name: "Carpeta del chat" }).click();
+  await expect(panel.getByRole("button", { name: "draft.md" })).toBeVisible();
+
   // Terminal: the agent ran nothing yet; the owner's own shell runs in the folder.
   await page.goto(`/#thread=${chat.id}&panel=terminal`);
   await expect(panel.getByText("El agente no corrió comandos en este chat")).toBeVisible();
