@@ -70,7 +70,10 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
               value: "chat",
               label: t("tasks.tab.chat"),
               content: (
-                <div className="taskdetail__chat">{thread && load === "ready" && <Transcript thread={thread} />}</div>
+                <>
+                  <div className="taskdetail__chat">{thread && load === "ready" && <Transcript thread={thread} />}</div>
+                  <TaskComment task={task} text={text} onChange={setText} />
+                </>
               ),
             },
             {
@@ -82,7 +85,6 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
           ]}
         />
       </div>
-      {tab === "chat" && <TaskComment task={task} text={text} onChange={setText} />}
     </Drawer>
   );
 }

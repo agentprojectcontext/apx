@@ -83,11 +83,17 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await page.getByRole("option", { name: "En curso", exact: true }).click();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("doing");
 
-    const before = await comment.boundingBox();
+    // The comment belongs to the conversation: it sits under it, in its tab, and scrolls with it.
+    await expect(drawer.getByRole("tabpanel").getByRole("textbox", { name: "Comentario", exact: true })).toHaveCount(1);
+    const scrollTop = () => body.evaluate((el) => el.scrollTop);
+    await body.evaluate((el) => {
+      el.scrollTop = 0;
+    });
+    const top = (await comment.boundingBox())?.y ?? 0;
     await body.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
-    expect((await comment.boundingBox())?.y).toBe(before?.y);
+    if ((await scrollTop()) > 0) expect((await comment.boundingBox())?.y).toBeLessThan(top);
     await comment.fill("@missing");
     await expect(drawer.getByText("Sin agentes coincidentes")).toBeVisible();
     await page.keyboard.press("Escape");
