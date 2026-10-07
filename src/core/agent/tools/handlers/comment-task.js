@@ -1,5 +1,6 @@
 import { addComment, getTask } from "#core/stores/tasks.js";
 import { requestDecision, resolveDecision } from "#core/tasks/decisions.js";
+import { readAgents } from "#core/apc/parser.js";
 import { mentionedAgents, summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
@@ -15,6 +16,10 @@ import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 // under the walls in core/tasks/comment-turn.js summonFromAgentComment: no
 // second cascade on a thread that already has one running, and a ceiling of
 // turns per task per hour. The result says which happened.
+function rosterOf(p) {
+  try { return readAgents(p.path).map((a) => a.slug); } catch { return []; }
+}
+
 async function askOnTask({ projects, project, task, decision, channelMeta, globalConfig, plugins, registries }) {
   let p;
   try { p = resolveProject(projects, project); } catch (e) { return { error: e.message }; }
@@ -23,6 +28,7 @@ async function askOnTask({ projects, project, task, decision, channelMeta, globa
     const out = await requestDecision({
       storagePath: p.storagePath, taskId: task, by, plugins, config: globalConfig,
       projectId: p.id ?? null, projectName: p.name || null,
+      canDecide: (slug) => slug === SUPERAGENT_ACTOR_ID || rosterOf(p).includes(slug),
       fields: {
         question: decision.question,
         options: decision.options,

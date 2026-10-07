@@ -40,6 +40,9 @@ test("incompatible requests are specific errors, not silently dropped flags", ()
   assert.match(resolveRuntimeModel({ runtimeId: "aider", adapter: aider, model: "gpt-4o" }).error, /does not take a model/);
   assert.match(resolveRuntimeModel({ runtimeId: "claude-code", adapter: claude, model: "claude-opus-4-6", effort: "high" }).error, /does not take a reasoning effort/);
   assert.match(resolveRuntimeModel({ runtimeId: "codex", adapter: codex, effort: "turbo" }).error, /unknown effort/);
+  // A model id goes on a command line: something that reads as a flag is refused.
+  assert.match(resolveRuntimeModel({ runtimeId: "codex", adapter: codex, model: "--dangerously-bypass" }).error, /not a valid model id/);
+  assert.match(resolveRuntimeModel({ runtimeId: "codex", adapter: codex, model: "gpt 6" }).error, /not a valid model id/);
 });
 
 test("config pins a runtime; inherit_apx_model follows APX only for a native provider", () => {

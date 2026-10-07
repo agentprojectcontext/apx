@@ -111,10 +111,22 @@ test("update_task records dependencies when delegating, and reports a refused on
   assert.match(noReason.error, /reason required/);
 });
 
+test("a PATCH cannot overwrite fold-owned fields and break the project", async () => {
+  const { patchTask } = await import("#core/stores/tasks.js");
+  const a = createTask(STORE, { title: "a" });
+  const b = createTask(STORE, { title: "b" });
+  addDependency(STORE, b.id, { on: a.id });
+  patchTask(STORE, b.id, { depends_on: "x", decisions: null, comments: 5, dependency_log: {} });
+  const B = getTask(STORE, b.id);
+  assert.equal(B.depends_on[0].task_id, a.id);
+  assert.ok(Array.isArray(B.decisions));
+  assert.equal(listTasks(STORE).length, 2, "the list still folds");
+});
+
 test("the execution view names a pending dependency as what it waits on", () => {
   const a = createTask(STORE, { title: "a" });
   const b = createTask(STORE, { title: "b" });
   addDependency(STORE, b.id, { on: a.id });
-  const v = taskExecution(getTask(STORE, b.id), { storagePath: STORE, agentWorking: false, listSessions: () => [] });
+  const v = taskExecution(getTask(STORE, b.id), { storagePath: STORE, agentWorking: false, sessions: [] });
   assert.equal(v.waiting_on, "dependency");
 });

@@ -5,15 +5,16 @@
 // "running" after its session ended read exactly like one being worked. This
 // derives the execution view from evidence only:
 //
-//   · a runtime session linked to the task (its `task_ref`, or a comment that
-//     names it — core/tasks/runtime-return.js writes both)
+//   · a runtime session linked to the task: a comment that names it with its
+//     file (core/tasks/runtime-return.js writes `apc_session` + `session_path`),
+//     so a session that ran in ANOTHER project's storage is still found
 //   · an agent turn running on the thread right now (cascades.js)
 //   · the last thing that happened (comment, session start, session end)
 //
 // and says "not verified" when the column claims work and nothing proves it.
 // No progress percentages, no heartbeat-as-progress, and nothing here closes,
 // approves or moves a task: exit 0 is not a functional approval.
-import { listRuntimeSessions } from "#core/stores/runtime-sessions.js";
+import { readRuntimeSessionHead } from "#core/stores/runtime-sessions.js";
 import { isTaskCascadeRunning } from "#core/tasks/cascades.js";
 import { awaitsOwner, blockedByOwner, ownerAliasesFrom } from "#core/tasks/attention.js";
 import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
@@ -21,16 +22,16 @@ import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
 const RESULT_PREVIEW = 280;
 const TEXT_PREVIEW = 160;
 
-/** Sessions this task can point to, newest first. */
-export function linkedSessions(task, storagePath, list = listRuntimeSessions) {
-  const named = new Set(
-    (task?.comments || []).map((c) => c.meta?.apc_session).filter(Boolean),
-  );
-  let rows = [];
-  try { rows = list(storagePath); } catch { rows = []; }
-  return rows
-    .filter((s) => s.task_ref === task.id || named.has(s.id))
-    .sort((a, b) => String(b.started || "").localeCompare(String(a.started || "")));
+/**
+ * The sessions this task's comments name, read by path and without blocking —
+ * only those files, never a scan of every agent's history (this runs on a
+ * polled request path). Newest first.
+ */
+export async function loadTaskSessions(task, read = readRuntimeSessionHead) {
+  const paths = new Set();
+  for (const c of task?.comments || []) if (c.meta?.apc_session && c.meta?.session_path) paths.add(c.meta.session_path);
+  const rows = (await Promise.all([...paths].map((p) => read(p).catch(() => null)))).filter(Boolean);
+  return rows.sort((a, b) => String(b.started || "").localeCompare(String(a.started || "")));
 }
 
 function sessionState(s) {
@@ -77,12 +78,11 @@ function waitingOn(task, ownerName) {
  * @param {object} task         a full task (getTask), comments included
  * @param {object} opts
  * @param {string} opts.storagePath
+ * @param {object[]} [opts.sessions]     from loadTaskSessions(task)
  * @param {boolean} [opts.agentWorking]  override the live-cascade lookup (tests)
- * @param {Function} [opts.listSessions] injectable session reader (tests)
  * @param {string|null} [opts.ownerName]  identity.json owner_name, for @mentions
  */
-export function taskExecution(task, { storagePath, agentWorking, listSessions, ownerName = null } = {}) {
-  const sessions = linkedSessions(task, storagePath, listSessions);
+export function taskExecution(task, { storagePath, sessions = [], agentWorking, ownerName = null } = {}) {
   const latest = sessions[0] || null;
   const state = sessionState(latest);
   const working = agentWorking ?? isTaskCascadeRunning(storagePath, task.id);

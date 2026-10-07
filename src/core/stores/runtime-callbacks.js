@@ -22,6 +22,10 @@ import { readJson } from "#core/util/json-file.js";
 
 export const PENDING_CALLBACKS_DIR = path.join(APX_HOME, "pending-callbacks");
 
+/** IOU kind for a result owed to a TASK thread (core/tasks/runtime-return.js).
+ *  Not a channel: the other kind is keyed by the channel it delivers to. */
+export const TASK_RETURN_CALLBACK = "task";
+
 const SAFE_ID = /^[A-Za-z0-9._-]+$/;
 
 function fileFor(sessionId) {

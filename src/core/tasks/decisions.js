@@ -19,6 +19,8 @@
 import { addComment, answerDecision, askDecision, getTask, recordDecisionNotice } from "#core/stores/tasks.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
+import { CHANNELS } from "#core/constants/channels.js";
+import { normalizeTaskAssignee } from "#core/constants/task-fields.js";
 
 const QUESTION_PREVIEW = 300;
 
@@ -32,6 +34,17 @@ function questionComment(decision) {
   return lines.join("\n");
 }
 
+/** A loaded plugin is not a configured one: no bot token means nowhere to send. */
+function hasUsableChannel(telegram) {
+  if (typeof telegram.status !== "function") return true;
+  try {
+    const st = telegram.status();
+    return Array.isArray(st?.channels) ? st.channels.some((c) => c?.bot_token_present) : true;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Notify the owner about one open decision, at most once. Returns the receipt
  * that was recorded: { channel, status, error? }.
@@ -43,13 +56,14 @@ export async function notifyOwnerOfDecision({ storagePath, taskId, decision, plu
 
   const telegram = plugins?.get?.("telegram") || null;
   const record = (r) => { recordDecisionNotice(storagePath, task.id, decision.id, r); return r; };
-  if (!telegram) return record({ channel: null, status: "no_channel" });
+  if (!telegram || !hasUsableChannel(telegram)) return record({ channel: null, status: "no_channel" });
+  const TG = CHANNELS.TELEGRAM;
 
   const gate = canNudge(
-    { kind: "decision_request", project_id: projectId, severity: "normal", unsolicited: true, channel: "telegram" },
+    { kind: "decision_request", project_id: projectId, severity: "normal", unsolicited: true, channel: TG },
     config || {},
   );
-  if (!gate.allowed) return record({ channel: "telegram", status: "suppressed", error: gate.reason || null });
+  if (!gate.allowed) return record({ channel: TG, status: "suppressed", error: gate.reason || null });
 
   const where = projectName ? ` (${projectName})` : "";
   const text =
@@ -59,9 +73,9 @@ export async function notifyOwnerOfDecision({ storagePath, taskId, decision, plu
   try {
     await telegram.send({ text, meta: { nudge_kind: "decision_request" } });
     recordNudge(gate, { preview: text });
-    return record({ channel: "telegram", status: "sent" });
+    return record({ channel: TG, status: "sent" });
   } catch (e) {
-    return record({ channel: "telegram", status: "failed", error: e?.message || String(e) });
+    return record({ channel: TG, status: "failed", error: e?.message || String(e) });
   }
 }
 
@@ -74,8 +88,14 @@ export async function notifyOwnerOfDecision({ storagePath, taskId, decision, plu
  */
 export async function requestDecision({
   storagePath, taskId, fields, by, plugins = null, config = null, summon = null,
-  projectId = null, projectName = null,
+  projectId = null, projectName = null, canDecide = null,
 }) {
+  // An agent nobody can reach would be a decision nobody is told about and
+  // only the owner can answer: refuse it up front, with who IS reachable.
+  const who = normalizeTaskAssignee(String(fields?.responsible || "").replace(/^@/, "")) || OWNER_ACTOR_ID;
+  if (who !== OWNER_ACTOR_ID && canDecide && !canDecide(who)) {
+    throw new Error(`"${who}" is not an agent of this project; responsible must be "owner" or one of its agent slugs`);
+  }
   const out = askDecision(storagePath, taskId, { ...fields, by });
   if (!out) return null;
   const { decision } = out;

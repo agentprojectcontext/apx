@@ -139,6 +139,18 @@ export function resetTasksCache() {
   _events.clear();
 }
 
+const FOLD_OWNED = new Set([
+  "id", "state", "created_at", "blocked_since", "status_changed_at", "status_changed_by",
+  "comments", "depends_on", "dependency_log", "decisions",
+]);
+
+/** An @owner comment, or an open structured decision for the owner. One rule
+ *  for list rows AND countTasks, so the summary cannot undercount. */
+function ownerAwaited(task, aliases) {
+  return awaitsOwner(task, aliases)
+    || (task.state === "open" && (task.decisions || []).some((d) => d.state === "open" && d.responsible === OWNER_ACTOR_ID));
+}
+
 function projectState(events) {
   const tasks = new Map();
   for (const ev of events) {
@@ -271,8 +283,9 @@ function projectState(events) {
         if (!existing) break;
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
-          if (k === "id" || k === "state" || k === "created_at" || k === "blocked_since"
-            || k === "status_changed_at" || k === "status_changed_by") continue;
+          // Derived or owned by their own events: a patch must not overwrite
+          // them, or one bad PATCH breaks the fold for the whole project.
+          if (FOLD_OWNED.has(k)) continue;
           if (k === "status") {
             const next = readStatus(patch[k]);
             if (next === "blocked" && existing.status !== "blocked") existing.blocked_since = ev.ts;
@@ -484,8 +497,7 @@ function row(task, idx, aliases, deps = null) {
     // showing "3 comentarios".
     activity_at: activityAt(task),
     // A structured question for the owner counts the same as an @owner comment.
-    awaits_owner: awaitsOwner(task, aliases)
-      || (task.state === "open" && (task.decisions || []).some((d) => d.state === "open" && d.responsible === OWNER_ACTOR_ID)),
+    awaits_owner: ownerAwaited(task, aliases),
     blocked_by_owner: blockedByOwner(task),
     last_comment: commentPreview(task, aliases),
   };
@@ -785,7 +797,9 @@ export function askDecision(storagePath, idOrPrefix, {
     id: existing.id, ts: nowIso(), op: "ask", decision_id, question: q,
     options: (Array.isArray(options) ? options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 8),
     recommendation: recommendation || null,
-    responsible: responsible || OWNER_ACTOR_ID,
+    // "Owner", "human", " owner " all mean the owner — the same spelling rule
+    // the assignee field uses, so the panel and the store agree on who decides.
+    responsible: normalizeTaskAssignee(String(responsible || "").replace(/^@/, "")) || OWNER_ACTOR_ID,
     blocking: blocking || null,
     can_continue: can_continue || null,
     by,
@@ -874,7 +888,7 @@ export function countTasks(storagePath, { owner_name = null } = {}) {
     total: tasks.length,
     status: byStatus,
     attention: {
-      awaits_owner: open.filter((t) => awaitsOwner(t, aliases)).length,
+      awaits_owner: open.filter((t) => ownerAwaited(t, aliases)).length,
       blocked_by_owner: open.filter((t) => blockedByOwner(t)).length,
     },
   };

@@ -58,7 +58,7 @@ test("an owner decision raises attention on the card, notifies once, and records
   await notifyOwnerOfDecision({ storagePath: STORE, taskId: t.id, decision: out.decision, plugins: tg.plugins, config: {} });
   assert.equal(tg.sent.length, 1);
 
-  const v = taskExecution(getTask(STORE, t.id), { storagePath: STORE, agentWorking: false, listSessions: () => [] });
+  const v = taskExecution(getTask(STORE, t.id), { storagePath: STORE, agentWorking: false, sessions: [] });
   assert.equal(v.waiting_on, "owner_decision");
 });
 
@@ -66,10 +66,38 @@ test("no channel, or a failed send, is recorded as such — never as delivered",
   const a = createTask(STORE, { title: "a" });
   const r1 = await requestDecision({ storagePath: STORE, taskId: a.id, fields: ASK, by: "auditor", plugins: null, config: {} });
   assert.equal(r1.notice.status, "no_channel");
+  // Loaded but with no bot token configured is still "no channel", not a failure.
+  const unconfigured = { get: () => ({ status: () => ({ channels: [{ bot_token_present: false }] }), send: async () => assert.fail("no send") }) };
+  const c = createTask(STORE, { title: "c" });
+  const r3 = await requestDecision({ storagePath: STORE, taskId: c.id, fields: ASK, by: "auditor", plugins: unconfigured, config: {} });
+  assert.equal(r3.notice.status, "no_channel");
   const b = createTask(STORE, { title: "b" });
   const r2 = await requestDecision({ storagePath: STORE, taskId: b.id, fields: ASK, by: "auditor", plugins: fakeTelegram({ fail: true }).plugins, config: {} });
   assert.equal(r2.notice.status, "failed");
   assert.match(getTask(STORE, b.id).decisions[0].notice.error, /chat not found/);
+});
+
+test("the summary counts an owner decision the same way the list does", async () => {
+  const { countTasks, addComment } = await import("#core/stores/tasks.js");
+  const t = createTask(STORE, { title: "x" });
+  askDecision(STORE, t.id, { question: "¿A?", by: "pm" });
+  addComment(STORE, t.id, { by: "pm", text: "sigo con lo demás" });
+  assert.equal(listTasks(STORE).find((x) => x.id === t.id).awaits_owner, true);
+  assert.equal(countTasks(STORE).attention.awaits_owner, 1);
+});
+
+test("'Owner', 'human' and '@owner' all mean the owner; an unknown agent is refused", async () => {
+  for (const spelling of ["Owner", "human", "@owner", " owner "]) {
+    const t = createTask(STORE, { title: spelling });
+    const { decision } = askDecision(STORE, t.id, { question: "¿A?", responsible: spelling, by: "pm" });
+    assert.equal(decision.responsible, "owner", spelling);
+  }
+  const t = createTask(STORE, { title: "typo" });
+  await assert.rejects(
+    requestDecision({ storagePath: STORE, taskId: t.id, by: "auditor", fields: { question: "¿?", responsible: "pmm" }, canDecide: (s) => s === "pm" }),
+    /not an agent of this project/,
+  );
+  assert.equal(getTask(STORE, t.id).decisions.length, 0);
 });
 
 test("a correction another agent owes goes to that agent, not to the owner", async () => {
@@ -122,7 +150,9 @@ test("only the responsible party (or the owner) can answer; withdrawing needs a 
 
 test("comment_task asks and answers decisions from the agent side", async () => {
   const t = createTask(STORE, { title: "plan" });
-  const p = { id: 1, name: "acme", path: STORE, storagePath: STORE };
+  const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
+  const root = makeTempProject({ name: "acme", agents: [{ slug: "pm", role: "PM" }, { slug: "auditor", role: "Auditor" }] });
+  const p = { id: 1, name: "acme", path: root, storagePath: STORE };
   const projects = { list: () => [p], get: () => p };
   const asAuditor = commentTask.makeHandler({ projects, channelMeta: { agentSlug: "auditor" }, globalConfig: {}, plugins: null });
   const asked = await asAuditor({ task: t.id, project: "1", decision: { question: "¿PM corrige §3?", responsible: "pm" } });
@@ -134,4 +164,8 @@ test("comment_task asks and answers decisions from the agent side", async () => 
   assert.equal(answered.ok, true);
   assert.equal(answered.decision.state, "answered");
   assert.match(answered.note, /not approved/);
+
+  const typo = await asAuditor({ task: t.id, project: "1", decision: { question: "¿?", responsible: "pmm" } });
+  assert.match(typo.error, /not an agent of this project/);
+  cleanupTempProject(root);
 });

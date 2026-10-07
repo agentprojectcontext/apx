@@ -46,8 +46,8 @@ import { resolveOwnerName } from "#core/identity/self.js";
 import { readTaskReads, decorateTaskUnread, markTasksRead } from "#core/stores/task-reads.js";
 import { readProjectConfig, writeProjectConfig } from "../project-config.js";
 import { mentionedAgents, runCommentMentions } from "#core/tasks/comment-turn.js";
-import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
-import { taskExecution } from "#core/tasks/execution.js";
+import { OWNER_ACTOR_ID, SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
+import { loadTaskSessions, taskExecution } from "#core/tasks/execution.js";
 import { pageEnvelope, asyncRoute } from "./shared.js";
 import { broadcastReadMarks } from "../events-ws.js";
 
@@ -229,14 +229,15 @@ export function register(api, { project, projects, config, plugins, registries }
     }
   });
 
-  api.get("/projects/:pid/tasks/:id", (req, res) => {
+  api.get("/projects/:pid/tasks/:id", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const task = getTask(p.storagePath, req.params.id);
     if (!task) return res.status(404).json({ error: "task not found" });
     // Evidence of work, separate from the column (core/tasks/execution.js).
-    res.json({ ...task, execution: taskExecution(task, { storagePath: p.storagePath, ownerName: resolveOwnerName() }) });
-  });
+    const sessions = await loadTaskSessions(task);
+    res.json({ ...task, execution: taskExecution(task, { storagePath: p.storagePath, sessions, ownerName: resolveOwnerName() }) });
+  }));
 
   api.patch("/projects/:pid/tasks/:id", (req, res) => {
     const p = project(req, res);
@@ -362,6 +363,9 @@ export function register(api, { project, projects, config, plugins, registries }
       const out = await requestDecision({
         storagePath: p.storagePath, taskId: req.params.id, fields, by, plugins, config,
         projectId: p.id ?? null, projectName: p.name || null,
+        canDecide: (slug) => slug === SUPERAGENT_ACTOR_ID || (() => {
+          try { return readAgents(p.path).some((a) => a.slug === slug); } catch { return false; }
+        })(),
         summon: (mentions) => summonFromAgentComment({
           p, taskId: getTask(p.storagePath, req.params.id)?.id || req.params.id, mentions, author: by,
           projects, plugins, registries, config,

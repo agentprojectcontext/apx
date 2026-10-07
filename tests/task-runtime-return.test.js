@@ -197,6 +197,19 @@ test("after a restart the reconciler posts the result once and summons once", as
   assert.equal(listPendingCallbacks().length, 0);
 });
 
+test("the reconciler finds the project by storage path even when ids moved after a restart", async () => {
+  const { projects, p } = setup();
+  const t = createTask(p.storagePath, { title: "auditar" });
+  const sessionPath = finishedSession(fs.mkdtempSync(path.join(TMP_HOME, "sess-")), "ok");
+  writePendingCallback({
+    session_id: "s-moved", session_path: sessionPath, channel: "task",
+    project_id: 4242, storage_path: p.storagePath, task_id: t.id, coordinator: "roby", runtime: "codex",
+  });
+  await reconcilePendingCallbacks({ projects, plugins: null, config, summon: (a) => ({ summoned: a.mentions }) });
+  assert.deepEqual(phases(getTask(p.storagePath, t.id)), ["codex:done"]);
+  assert.equal(listPendingCallbacks().length, 0);
+});
+
 test("the reconciler drops a task return whose project is gone, without inventing a chat", async () => {
   const { projects } = setup();
   const sessionPath = finishedSession(fs.mkdtempSync(path.join(TMP_HOME, "sess-")));

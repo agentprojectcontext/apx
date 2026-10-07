@@ -8,7 +8,12 @@ import {
   readRuntimeSession,
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
-import { writePendingCallback, deletePendingCallback, updatePendingCallback } from "#core/stores/runtime-callbacks.js";
+import {
+  writePendingCallback,
+  deletePendingCallback,
+  updatePendingCallback,
+  TASK_RETURN_CALLBACK,
+} from "#core/stores/runtime-callbacks.js";
 import {
   deliverRuntimeResultToTask,
   postTaskRuntimeLaunch,
@@ -585,7 +590,7 @@ export default {
       try {
         const out = deliverRuntimeResultToTask({
           storagePath: target.storagePath, origin: taskOrigin, runtime, sessionId: session.id,
-          ok: !res.error, text: body, error: res.error, summon,
+          ok: !res.error, text: body, error: res.error, summon, sessionPath: session.path,
         });
         if (out.missing) log.error("task return: task no longer exists", { apc_session: session.id, task: taskOrigin.task_id });
         if (out.done) deletePendingCallback(session.id);
@@ -602,8 +607,11 @@ export default {
         writePendingCallback({
           session_id: session.id,
           session_path: session.path,
-          channel: "task",
+          channel: TASK_RETURN_CALLBACK,
+          // Ids are assigned per boot in registration order; the storage path
+          // is what still names the same project after a restart.
           project_id: taskOrigin.project_id,
+          storage_path: (projects.get?.(taskOrigin.project_id) || p).storagePath,
           task_id: taskOrigin.task_id,
           coordinator: taskOrigin.coordinator,
           runtime,
@@ -613,7 +621,7 @@ export default {
         try {
           postTaskRuntimeLaunch({
             storagePath: (projects.get?.(taskOrigin.project_id) || p).storagePath,
-            origin: taskOrigin, runtime, sessionId: session.id, cwd: runCwd,
+            origin: taskOrigin, runtime, sessionId: session.id, cwd: runCwd, sessionPath: session.path,
           });
         } catch (e) {
           log.error(`task launch comment failed: ${e.message}`, { apc_session: session.id });
@@ -686,7 +694,7 @@ export default {
         postTaskRuntimeResult({
           storagePath: (projects.get?.(taskOrigin.project_id) || p).storagePath,
           origin: taskOrigin, runtime, sessionId: session.id,
-          ok: !outcome.error, text: fgText, error: outcome.error, address: false,
+          ok: !outcome.error, text: fgText, error: outcome.error, address: false, sessionPath: session.path,
         });
       } catch (e) {
         log.error(`task result comment failed: ${e.message}`, { apc_session: session.id });

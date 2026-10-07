@@ -40,7 +40,7 @@ function hasPhase(task, sessionId, phases) {
 }
 
 /** "Started", on the task — the link between the card and the session. */
-export function postTaskRuntimeLaunch({ storagePath, origin, runtime, sessionId, cwd }) {
+export function postTaskRuntimeLaunch({ storagePath, origin, runtime, sessionId, cwd, sessionPath = null }) {
   const task = getTask(storagePath, origin.task_id);
   if (!task || hasPhase(task, sessionId, ["launched"])) return false;
   const by = origin.coordinator ? ` por @${origin.coordinator}` : "";
@@ -49,7 +49,9 @@ export function postTaskRuntimeLaunch({ storagePath, origin, runtime, sessionId,
     text: `🚀 Sesión de ${runtime} lanzada en segundo plano${by} (\`${sessionId}\`)${cwd ? `\n📁 ${cwd}` : ""}`,
     // Not a summon: the launcher is the one who wrote it down.
     mentions: [],
-    meta: { apc_session: sessionId, runtime, runtime_phase: "launched", coordinator: origin.coordinator },
+    // `session_path` is how the task finds the record again even when the run
+    // lived in another project's storage (core/tasks/execution.js).
+    meta: { apc_session: sessionId, session_path: sessionPath, runtime, runtime_phase: "launched", coordinator: origin.coordinator },
   });
   return true;
 }
@@ -58,7 +60,7 @@ export function postTaskRuntimeLaunch({ storagePath, origin, runtime, sessionId,
  * The result (or failure) as ONE comment on the task, addressed to the
  * coordinator. Returns `{ posted, duplicate, missing }`.
  */
-export function postTaskRuntimeResult({ storagePath, origin, runtime, sessionId, ok, text, error, address = true }) {
+export function postTaskRuntimeResult({ storagePath, origin, runtime, sessionId, ok, text, error, address = true, sessionPath = null }) {
   const task = getTask(storagePath, origin.task_id);
   if (!task) return { posted: false, duplicate: false, missing: true };
   if (hasPhase(task, sessionId, ["done", "failed"])) return { posted: false, duplicate: true, missing: false };
@@ -78,6 +80,7 @@ export function postTaskRuntimeResult({ storagePath, origin, runtime, sessionId,
     mentions: who ? [who] : [],
     meta: {
       apc_session: sessionId,
+      session_path: sessionPath,
       runtime,
       runtime_phase: ok ? "done" : "failed",
       coordinator: origin.coordinator,
@@ -95,10 +98,10 @@ export function postTaskRuntimeResult({ storagePath, origin, runtime, sessionId,
  *
  * @returns {{ done: boolean, missing?: boolean, state: object }}
  */
-export function deliverRuntimeResultToTask({ storagePath, origin, runtime, sessionId, ok, text, error, summon, progress = {} }) {
+export function deliverRuntimeResultToTask({ storagePath, origin, runtime, sessionId, ok, text, error, summon, progress = {}, sessionPath = null }) {
   const state = { ...progress };
   if (!state.result_posted_at) {
-    const r = postTaskRuntimeResult({ storagePath, origin, runtime, sessionId, ok, text, error });
+    const r = postTaskRuntimeResult({ storagePath, origin, runtime, sessionId, ok, text, error, sessionPath });
     if (r.missing) return { done: true, missing: true, state: { ...state, delivery_error: "task not found" } };
     state.result_posted_at = new Date().toISOString();
   }

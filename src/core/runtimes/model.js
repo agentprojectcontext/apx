@@ -70,6 +70,11 @@ export function resolveRuntimeModel({ runtimeId, adapter, model = null, effort =
           `(${native.length ? `a ${native.join("/")} model` : "it takes none from APX"}) or omit model.`,
       };
     }
+    // Goes onto a command line as a flag value: a runtime's model id never
+    // starts with "-" or carries spaces, so anything else is refused, not passed.
+    if (parts.model && !/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(parts.model)) {
+      return { model: null, effort: null, source, requested, error: `"${parts.model}" is not a valid model id.` };
+    }
     if (parts.model && !caps.model) {
       return { model: null, effort: null, source, requested, error: `${runtimeId} does not take a model from APX; configure it in the CLI itself or omit model.` };
     }

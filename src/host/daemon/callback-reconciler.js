@@ -19,7 +19,9 @@ import {
   deletePendingCallback,
   readSessionState,
   updatePendingCallback,
+  TASK_RETURN_CALLBACK,
 } from "#core/stores/runtime-callbacks.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import { deliverRuntimeResultToTask } from "#core/tasks/runtime-return.js";
 import { summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { readConfig } from "#core/config/index.js";
@@ -50,10 +52,22 @@ function deliverText(entry, state) {
  * happened. A project or task that no longer exists is logged and dropped; the
  * result is still on the session record and its room.
  */
+/** The project an IOU names — by storage path (stable across boots), id only as a fallback. */
+function projectForEntry(projects, entry) {
+  if (entry.storage_path) {
+    for (const e of projects?.list?.() || []) {
+      const p = projects.get(e.id);
+      if (p?.storagePath === entry.storage_path) return p;
+    }
+    return null;
+  }
+  return projects?.get?.(entry.project_id) || null;
+}
+
 function reconcileTaskEntry(entry, state, { projects, plugins, registries, config, log, now, summon }) {
-  const p = projects?.get?.(entry.project_id);
+  const p = projectForEntry(projects, entry);
   if (!p?.storagePath) {
-    log?.(`callback-reconciler: task return for ${entry.session_id} dropped — project ${entry.project_id} is gone`);
+    log?.(`callback-reconciler: task return for ${entry.session_id} dropped — project ${entry.storage_path || entry.project_id} is gone`);
     deletePendingCallback(entry.session_id);
     return;
   }
@@ -67,6 +81,7 @@ function reconcileTaskEntry(entry, state, { projects, plugins, registries, confi
     ok: !failed,
     text: failed ? "" : result,
     error: failed ? result.replace(/^failed:\s*/i, "") || "sin detalle" : null,
+    sessionPath: entry.session_path || null,
     summon: (mentions) => summon({
       p, taskId: entry.task_id, mentions, author: entry.runtime || "runtime",
       projects, plugins, registries, config,
@@ -96,7 +111,7 @@ export async function reconcilePendingCallbacks({
 
   for (const entry of pending) {
     try {
-      if (entry.channel !== "telegram" && entry.channel !== "task") continue;
+      if (entry.channel !== CHANNELS.TELEGRAM && entry.channel !== TASK_RETURN_CALLBACK) continue;
       const state = readSessionState(entry.session_path);
 
       if (!state.exists) {
@@ -117,7 +132,7 @@ export async function reconcilePendingCallbacks({
       const compAge = now - Date.parse(state.completed || "");
       if (Number.isFinite(compAge) && compAge < GRACE_MS) continue;
 
-      if (entry.channel === "task") {
+      if (entry.channel === TASK_RETURN_CALLBACK) {
         reconcileTaskEntry(entry, state, { projects, plugins, registries, config: config || readConfig(), log, now, summon });
         continue;
       }
