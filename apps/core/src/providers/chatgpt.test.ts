@@ -196,7 +196,16 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   });
   assert.equal(second.message.content, "Three tasks.");
   // The chat's id routes its calls to one prompt cache, and the cached part of the input is reported.
-  assert.equal(seen.filter((s) => s.url === "/codex/responses").at(-1)?.body.prompt_cache_key, "th_1");
+  const cached = seen.filter((s) => s.url === "/codex/responses").at(-1);
+  assert.match(
+    String(cached?.body.prompt_cache_key),
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.equal(
+    cached?.headers.session_id,
+    cached?.body.prompt_cache_key,
+    "the same id in the header, as Codex sends it",
+  );
   assert.deepEqual(second.usage, { input: 50, output: 5, cached: 40 });
   const input = seen.filter((s) => s.url === "/codex/responses").at(-1)?.body.input as Array<Record<string, unknown>>;
   assert.deepEqual(

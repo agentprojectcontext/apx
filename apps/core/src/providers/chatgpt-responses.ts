@@ -1,6 +1,7 @@
 // The ChatGPT plan's models through the Responses API it serves for Codex (chatgpt.com/backend-api/codex): streamed
 // only, `store: false`, the system prompt as `instructions`. Its encrypted reasoning rides on the assistant item and
 // goes back with the next round, to the same model only, so it keeps its plan across tool calls.
+import { createHash } from "node:crypto";
 import {
   type AssistantItem,
   type ChatItem,
@@ -83,20 +84,31 @@ export function toInput(messages: ChatItem[], model: string): { instructions: st
   return { instructions, input };
 }
 
+/** A chat's id as the UUID Codex would send for a conversation: the same chat, the same one. */
+export function sessionUuid(key: string): string {
+  const h = createHash("sha256").update(key).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((Number.parseInt(h[16] ?? "0", 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
 export const chatgptResponses: Transport = async (req) => {
   const { instructions, input } = toInput(req.messages, req.model);
   const { res, touch, done } = await post(
     req,
     `${req.baseUrl.replace(/\/$/, "")}/responses`,
-    { authorization: `Bearer ${req.key}`, accept: "text/event-stream", ...req.headers },
+    {
+      authorization: `Bearer ${req.key}`,
+      accept: "text/event-stream",
+      ...req.headers,
+      ...(req.cacheKey ? { session_id: sessionUuid(req.cacheKey) } : {}),
+    },
     {
       model: req.model,
       instructions,
       input,
       store: false,
       stream: true,
-      // Codex sends its conversation id here: calls with the same key reach the same prompt cache.
-      ...(req.cacheKey ? { prompt_cache_key: req.cacheKey } : {}),
+      // Codex sends its conversation id here and as the session_id header: the plan's prompt cache follows both.
+      ...(req.cacheKey ? { prompt_cache_key: sessionUuid(req.cacheKey) } : {}),
       include: ["reasoning.encrypted_content"],
       ...(req.effort ? { reasoning: { effort: req.effort, summary: "auto" } } : {}),
       ...(req.tools.length
