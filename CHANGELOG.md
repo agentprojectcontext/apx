@@ -1,3 +1,32 @@
+# [1.124.0](https://github.com/agentprojectcontext/apx/compare/v1.123.1...v1.124.0) (2026-10-07)
+
+
+### Bug Fixes
+
+* **tasks:** el agente convocado en una tarea sabe cómo pedirle una decisión al dueño ([0ec4d8d](https://github.com/agentprojectcontext/apx/commit/0ec4d8d2e449e388b744216cb3edaa291bb1f3e6)), closes [#58](https://github.com/agentprojectcontext/apx/issues/58) [#58](https://github.com/agentprojectcontext/apx/issues/58)
+* **tasks:** lo que encontró la revisión de [#54](https://github.com/agentprojectcontext/apx/issues/54)–[#60](https://github.com/agentprojectcontext/apx/issues/60) ([e709d95](https://github.com/agentprojectcontext/apx/commit/e709d957d419216eed77fbc9ff9b1cec862f8764)), closes [#55](https://github.com/agentprojectcontext/apx/issues/55) [#57](https://github.com/agentprojectcontext/apx/issues/57) [#58](https://github.com/agentprojectcontext/apx/issues/58) [#58](https://github.com/agentprojectcontext/apx/issues/58)
+* **tasks:** un comentario ya no reinicia el reloj de una tarea bloqueada ([4f79424](https://github.com/agentprojectcontext/apx/commit/4f794244e6c57142ed6a7f805ca9443353542465)), closes [#56](https://github.com/agentprojectcontext/apx/issues/56) [#56](https://github.com/agentprojectcontext/apx/issues/56)
+* **tasks:** una delegación en segundo plano desde un comentario vuelve a su tarea ([abbe196](https://github.com/agentprojectcontext/apx/commit/abbe196854b64a3ec5bf4a09e64e96a3523373dc)), closes [#55](https://github.com/agentprojectcontext/apx/issues/55)
+* **telegram:** el markdown se muestra con formato, no con asteriscos y backticks crudos ([af1e6e5](https://github.com/agentprojectcontext/apx/commit/af1e6e56d009d80e98de4a6070da2f8f93fdf1e8)), closes [#61](https://github.com/agentprojectcontext/apx/issues/61)
+* **web:** un reenvío no le pone el marcador de nombre a la lista, y lleva sus adjuntos ([9149f42](https://github.com/agentprojectcontext/apx/commit/9149f428e1f34f2cee5acf9a8609075679e509bf))
+
+
+### Features
+
+* **agent:** enhance folder rules tracing and mock tool handling ([4a47158](https://github.com/agentprojectcontext/apx/commit/4a47158cb94da423d7cc30822d0543f605d5a200))
+* **runtimes:** contrato explícito de modelo APX → runtime, con lo pedido y lo efectivo registrados ([2ed89ef](https://github.com/agentprojectcontext/apx/commit/2ed89ef48aee8a64c6a1ffaeca27429cdbb35329)), closes [#54](https://github.com/agentprojectcontext/apx/issues/54)
+* **tasks:** dependencias entre tareas con motivo, responsable y condición ([810437c](https://github.com/agentprojectcontext/apx/commit/810437cc8ff87412efaa2f19c639cd4f2db67708)), closes [#59](https://github.com/agentprojectcontext/apx/issues/59)
+* **tasks:** la tarea muestra su ejecución real, aparte de la columna ([61ae2ca](https://github.com/agentprojectcontext/apx/commit/61ae2cad29743aad745801d1cee8cfded87b53c7)), closes [#57](https://github.com/agentprojectcontext/apx/issues/57)
+* **tasks:** las decisiones pendientes son una pregunta en la tarea, con aviso verificable ([3bc291c](https://github.com/agentprojectcontext/apx/commit/3bc291cfe910971afef97ccb27066e05b43d493e)), closes [#58](https://github.com/agentprojectcontext/apx/issues/58)
+* **tasks:** resumen determinista del proyecto y lista vacía que dice qué filtró ([a4e1d7d](https://github.com/agentprojectcontext/apx/commit/a4e1d7d2730ec1176401c452141a2f8bcce1666d)), closes [#60](https://github.com/agentprojectcontext/apx/issues/60) [#60](https://github.com/agentprojectcontext/apx/issues/60)
+* **web:** cualquier mensaje se reenvía a otra sesión, de este u otro proyecto ([bf4f61b](https://github.com/agentprojectcontext/apx/commit/bf4f61be1ac6da1c2a474fea8f37528c73af27d4))
+* **web:** cualquier mensaje se reenvía a otra sesión, de este u otro proyecto ([#53](https://github.com/agentprojectcontext/apx/issues/53)) ([cb71014](https://github.com/agentprojectcontext/apx/commit/cb710140275e70c7d1d2082c2dde5d9679753686))
+
+
+### Performance Improvements
+
+* **inbox:** GET /api/inbox ya no bloquea el daemon re-parseando el ledger en cada pedido ([cc8c90c](https://github.com/agentprojectcontext/apx/commit/cc8c90c3b435afceb04c83d758629e521a01ec09))
+
 ## [1.123.1](https://github.com/agentprojectcontext/apx/compare/v1.123.0...v1.123.1) (2026-09-30)
 
 
