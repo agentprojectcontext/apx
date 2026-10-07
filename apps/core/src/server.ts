@@ -22,9 +22,9 @@ import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
-import { afterTaskTurn } from "./engine/office.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
+import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
@@ -256,7 +256,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       upkeep.afterRun(run);
       channels.afterRun(run);
       scheduler.afterRun(run);
-      afterTaskTurn(store, engine.admit, run);
+      afterWorkTurn(store, engine.admit, run);
     },
   });
   const scheduler = officeScheduler({

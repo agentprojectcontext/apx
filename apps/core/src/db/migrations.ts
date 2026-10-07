@@ -597,4 +597,11 @@ export const MIGRATIONS: readonly string[] = [
   `ALTER TABLE surfaces ADD COLUMN connect TEXT;`,
   `ALTER TABLE pending_inputs ADD COLUMN approval TEXT;
    ALTER TABLE pending_inputs ADD COLUMN approval_scope TEXT;`,
+  `
+  -- A task is worked in its agent's own chat (listed in the inbox) and reported back as comments: the chat names it.
+  -- The hourly pickup of assigned tasks only counts assignments from now on, never the ones already on the board.
+  ALTER TABLE threads ADD COLUMN task_id TEXT;
+  CREATE INDEX threads_task ON threads(task_id) WHERE task_id IS NOT NULL;
+  INSERT OR IGNORE INTO meta(key, value) VALUES ('setting:task_work_since', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+  `,
 ];

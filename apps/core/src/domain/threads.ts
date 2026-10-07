@@ -27,6 +27,7 @@ const toThread = (r: Selectable<ThreadsTable>): Thread => ({
   agent_ids: JSON.parse(r.agent_ids) as string[],
   ...opt("project_id", r.project_id),
   ...opt("parent_id", r.parent_id),
+  ...opt("task_id", r.task_id),
   ...opt("session", r.session),
   ...opt("cwd", r.cwd),
   ...opt("engine", r.engine),
@@ -177,6 +178,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       const r = one(qb.selectFrom("threads").selectAll().where("id", "=", id));
       return r ? toThread(r) : undefined;
     },
+    /** The chats a task is worked in, oldest first. */
+    byTask(taskId: string): Thread[] {
+      return all(qb.selectFrom("threads").selectAll().where("task_id", "=", taskId).orderBy("created_at")).map(
+        toThread,
+      );
+    },
     /** The thread of a channel conversation. */
     byConversation(channel: string, conversation: string): Thread | undefined {
       const r = one(
@@ -188,6 +195,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       t: Pick<Thread, "kind" | "title" | "agent_ids"> & {
         project_id?: string | undefined;
         parent_id?: string | undefined;
+        task_id?: string | undefined;
         session?: string | undefined;
         cwd?: string | undefined;
         write?: Thread["write"];
@@ -208,6 +216,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           agent_ids: JSON.stringify(t.agent_ids),
           project_id: t.project_id ?? null,
           parent_id: t.parent_id ?? null,
+          task_id: t.task_id ?? null,
           session: t.session ?? null,
           cwd: t.cwd ?? null,
           write_policy: t.write ?? null,

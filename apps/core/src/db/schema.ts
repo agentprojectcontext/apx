@@ -411,6 +411,7 @@ export interface ThreadsTable {
   custom_title: string | null;
   pinned: Generated<number>;
   archived: Generated<number>;
+  task_id: string | null;
 }
 
 export interface Database {

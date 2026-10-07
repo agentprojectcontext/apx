@@ -1,14 +1,12 @@
-// The office's moving parts that live in the engine: @mentions (in a task's conversation, an @agent answers there,
-// a few hops at most) and the task a turn works on, shown at the top of its input.
-import type { Task } from "@apx/protocol";
+// The office's moving parts that live in the engine: @mentions (an @agent named in a task is asked there, a few hops
+// at most; see task-work.ts) and the task a turn works on, shown at the top of its input.
+import type { Task, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
-import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
 import { untrusted } from "../tools/result.ts";
-import type { AdmitFn } from "./engine.ts";
 
 /** A mention starts a turn; a turn's mention another, but only this deep, so agents cannot ping-pong forever. */
 export const MAX_MENTION_DEPTH = 2;
@@ -47,50 +45,30 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
 }
 
 /**
- * The task a thread is the conversation of, as the turn reads it. Its title and description may come from an agent
- * (who may have read a web page), so unless the owner wrote the task they arrive as outside data.
+ * The task a chat works on, as each turn there reads it: what it is, where it stands, who worked it before, and how to
+ * keep it up to date. Its title and description may come from an agent (who may have read a web page), so unless the
+ * owner wrote the task they arrive as outside data.
  */
-export function taskBlock(store: Store, threadId: string): string | undefined {
-  const t = store.tasks.byThread(threadId);
+export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">): string | undefined {
+  const t = thread.task_id ? store.tasks.get(thread.task_id) : undefined;
   if (!t) return undefined;
-  const who = t.assignee ? (store.agents.get(t.assignee)?.name ?? t.assignee) : "nobody";
+  const name = (id: string) => store.agents.get(id)?.name ?? id;
+  const who = t.assignee ? name(t.assignee) : "nobody";
   const state = `${t.state === "open" ? t.status : t.state} · assigned to ${who}${t.awaits_owner ? " · waiting for the owner" : ""}${t.due_at ? ` · due ${t.due_at}` : ""}${t.person_name ? ` · ${t.owed_by === "person" ? `${t.person_name} owes it` : `owed to ${t.person_name}`}` : ""}`;
   const words = [t.title, t.description.slice(0, 2000)].filter(Boolean).join("\n");
+  const others = store.threads
+    .byTask(t.id)
+    .filter((c) => c.id !== thread.id)
+    .map((c) => name(c.agent_ids[0] ?? ""));
   return [
+    `Task ${t.id}:`,
     t.created_by === "owner" ? words : untrusted("task", { created_by: t.created_by }, words),
     state,
-    "This is the task's conversation: your answer is posted here. Use task_update / task_close to move or close it; task_comment only for another task.",
-    "Mention @owner when you need the owner's attention here; it goes to their tray. Mention @agent to ask a teammate here.",
+    others.length ? `Worked on before in their own chats by: ${[...new Set(others)].join(", ")}.` : "",
+    "This is your chat for this task. Your final answer is posted to the task as your comment: say in a few lines what you did, what is left or what blocks you.",
+    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done. Do not use task_comment on this task; it is for other tasks.",
+    "Mention @owner in your answer when you need the owner; mention @agent to ask a teammate (it answers in its own chat for this task).",
   ]
     .filter(Boolean)
     .join("\n");
-}
-
-/** After a turn in a task's conversation: the task moved, and the agents its answer @mentions answer next. */
-export function afterTaskTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
-  const thread = store.threads.get(run.thread_id);
-  const task = thread?.kind === "task" ? store.tasks.byThread(thread.id) : undefined;
-  if (!task || !thread) return;
-  store.tasks.touched(task.id, run.agent_id, "update");
-  if (run.state !== "completed") return;
-  const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
-  const text = (msg?.parts ?? []).map((p) => (p.type === "text" ? p.text : "")).join("\n");
-  taskCommentAttention(store, task, text, run.agent_id);
-  if (run.depth + 1 > MAX_MENTION_DEPTH) return;
-  const author = store.agents.get(run.agent_id);
-  for (const a of mentioned(store, text, task.project_id, run.agent_id))
-    admit({
-      thread_id: thread.id,
-      agent_id: a.id,
-      trigger: "a2a",
-      origin: {
-        kind: "agent",
-        id: run.agent_id,
-        name: author?.name ?? run.agent_id,
-        thread_id: thread.id,
-        run_id: run.id,
-      },
-      text,
-      depth: run.depth + 1,
-    });
 }

@@ -14,11 +14,14 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
   let taskId = "";
   const env = await startCore({
     port,
-    llm: scriptedLlm((_req, { system, afterTool }) => {
-      if (system.startsWith("You are Builder"))
-        return afterTool
-          ? say("Review completed. @roby please check.")
-          : callTool("review", "task_update", { task: taskId, status: "review" });
+    llm: scriptedLlm((_req, { system, afterTool, said }) => {
+      if (system.startsWith("You are Builder")) {
+        if (afterTool) return say("Review completed. @roby please check.");
+        // Assigned, Builder starts in its chat for the task; asked to review, it moves the task and says so.
+        return said.includes("please review")
+          ? callTool("review", "task_update", { task: taskId, status: "review" })
+          : say("On it.");
+      }
       return say("@owner please approve the review.");
     }),
   });
@@ -114,9 +117,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(drawer.getByText("Review completed. @roby please check.", { exact: true })).toBeVisible();
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeVisible();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("review");
-    const runs = (await env.settle(task.thread_id)).runs;
-    expect(runs.map((r) => r.agent_id).reverse()).toEqual([builder.id, "roby"]);
-    await expect(drawer.getByRole("button", { name: "Ver a Builder" })).toBeVisible();
+    // Each agent worked in its own chat for the task; the task itself only got their answers as comments.
+    await expect
+      .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
+      .toEqual([builder.id, "roby"]);
+    expect((await env.client.call("threads.get", { thread: task.thread_id })).runs).toHaveLength(0);
+    await expect(drawer.getByText("On it.", { exact: true })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "Ver a Builder" }).first()).toBeVisible();
     // Answering a bubble quotes it and asks its agent again.
     const answer = drawer.locator(".apx-msg--agent", { hasText: "Review completed. @roby please check." });
     await answer.hover();

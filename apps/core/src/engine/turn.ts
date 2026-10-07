@@ -328,7 +328,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
             roster: rosterChanged ? roster.text : undefined,
             memory: recalled.text,
             skills: picked?.block || undefined,
-            task: thread.kind === "task" ? taskBlock(store, thread.id) : undefined,
+            task: taskBlock(store, thread),
             extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
             waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
             timeZone: ownerTimeZone(store),

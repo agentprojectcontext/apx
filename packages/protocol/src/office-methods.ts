@@ -1,6 +1,6 @@
 // Methods behind the office: tasks and commitments, routines, the attention tray and extensions.
 import { z } from "zod";
-import { Id, Message, Nudge, Run } from "./domain.ts";
+import { Id, Message, Nudge, Run, Thread } from "./domain.ts";
 import {
   ActiveProfile,
   ApiClient,
@@ -41,7 +41,8 @@ export const officeMethods = {
   },
   "tasks.get": {
     params: z.object({ task: Id }).strict(),
-    result: z.object({ task: Task, events: z.array(TaskEvent) }),
+    /** `sessions`: the chats its agents worked it in, oldest first (one per agent that took it). */
+    result: z.object({ task: Task, events: z.array(TaskEvent), sessions: z.array(Thread) }),
     effect: false,
   },
   "tasks.create": {

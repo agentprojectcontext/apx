@@ -1,15 +1,14 @@
 // Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
-// what it creates goes to its thread's project. A comment that @mentions an agent runs a turn of it in the task's
-// conversation.
+// what it creates goes to its thread's project. Giving a task to an agent starts its work in that agent's chat for the
+// task, and a comment that @mentions an agent asks it there; their answers come back as comments (task-work.ts).
 import type { Author, Task } from "@apx/protocol";
-import { publicRun, type RunRecord } from "../domain/runs.ts";
+import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { columnsOf, dueOf, tagsOf } from "../domain/tasks.ts";
-import { previewOf } from "../domain/threads.ts";
 import type { Engine } from "../engine/engine.ts";
-import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "../engine/office.ts";
+import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -27,6 +26,18 @@ export function taskHandlers(store: Store, engine: Engine) {
     return { project };
   };
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
+  /** Who is asking for work: the owner, or an agent one hop further than the turn it calls from. */
+  const askerOf = (ctx: CallContext): Asker =>
+    ctx.agent
+      ? {
+          kind: "agent",
+          id: ctx.agent.id,
+          name: store.agents.get(ctx.agent.id)?.name ?? ctx.agent.id,
+          thread_id: ctx.agent.thread_id,
+          run_id: ctx.agent.run_id,
+          depth: (store.runs.get(ctx.agent.run_id)?.depth ?? 0) + 1,
+        }
+      : { kind: "owner" };
 
   /** A task the caller may see and change. */
   function visible(id: string, ctx: CallContext): Task {
@@ -77,7 +88,7 @@ export function taskHandlers(store: Store, engine: Engine) {
     },
     "tasks.get": ({ task }, ctx) => {
       const t = visible(task, ctx);
-      return { task: t, events: store.tasks.events(t.id) };
+      return { task: t, events: store.tasks.events(t.id), sessions: store.threads.byTask(t.id) };
     },
     "tasks.create": (p, ctx) => {
       checkStatus(p.status);
@@ -92,7 +103,7 @@ export function taskHandlers(store: Store, engine: Engine) {
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
-      return store.tx(() => {
+      const created = store.tx(() => {
         const thread = store.threads.create({ kind: "task", title: p.title, agent_ids: [agent], project_id: project });
         return store.tasks.create({
           title: p.title,
@@ -112,6 +123,8 @@ export function taskHandlers(store: Store, engine: Engine) {
           by: by(ctx),
         });
       });
+      if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
+      return created;
     },
     "tasks.update": ({ task, person, due_at, remind_at, project, tags, ...c }, ctx) => {
       const cur = visible(task, ctx);
@@ -127,7 +140,7 @@ export function taskHandlers(store: Store, engine: Engine) {
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
-      return store.tx(() => {
+      const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
         if (moving) store.threads.moveTo(cur.thread_id, target);
         return store.tasks.change(
@@ -146,6 +159,10 @@ export function taskHandlers(store: Store, engine: Engine) {
           by(ctx),
         ) as Task;
       });
+      // A new agent on it starts its work in its own chat for the task (the one before keeps its chat, listed there).
+      if (changed.assignee && changed.assignee !== cur.assignee)
+        startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
+      return changed;
     },
     "tasks.close": ({ task, state, note }, ctx) => {
       visible(task, ctx);
@@ -173,36 +190,12 @@ export function taskHandlers(store: Store, engine: Engine) {
     },
     "tasks.comment": ({ task, text }, ctx) => {
       const t = visible(task, ctx);
-      const owner = !ctx.agent;
-      const author: Author = owner ? { kind: "user" } : { kind: "agent", id: ctx.agent?.id ?? "" };
-      const authorName = ctx.agent ? (store.agents.get(ctx.agent.id)?.name ?? ctx.agent.id) : "owner";
+      const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
-        const message = store.messages.add({ thread_id: t.thread_id, author, parts: [{ type: "text", text }] });
-        store.threads.patch(t.thread_id, { preview: previewOf(text) });
-        taskCommentAttention(store, t, text, by(ctx));
-        store.tasks.touched(t.id, by(ctx));
+        const message = addComment(store, t, author, text, by(ctx));
         // An agent's comment arrives as another agent's words (untrusted); the owner's as the owner's. Turns started by
         // an agent's mention count as hops, a few at most.
-        const depth = ctx.agent ? (store.runs.get(ctx.agent.run_id)?.depth ?? 0) + 1 : 0;
-        if (depth > MAX_MENTION_DEPTH) return { message, runs: [] };
-        const runs: RunRecord[] = mentioned(store, text, t.project_id, ctx.agent?.id).map((a) =>
-          engine.admit({
-            thread_id: t.thread_id,
-            agent_id: a.id,
-            trigger: owner ? "user" : "a2a",
-            origin: owner
-              ? { kind: "user" }
-              : {
-                  kind: "agent",
-                  id: ctx.agent?.id ?? "",
-                  name: authorName,
-                  thread_id: ctx.agent?.thread_id ?? "",
-                  run_id: ctx.agent?.run_id ?? "",
-                },
-            text,
-            depth,
-          }),
-        );
+        const runs = askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text, askerOf(ctx));
         return { message, runs: runs.map(publicRun) };
       });
     },

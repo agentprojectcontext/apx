@@ -1,6 +1,7 @@
 // How the office's clock reaches the owner: a routine's news and the reminders the owner asked for go to the attention
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
+// The same clock picks up, hourly, assigned tasks whose work never started.
 import { ratedPresentation } from "./channels/notices.ts";
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
@@ -10,6 +11,7 @@ import type { Attention } from "./engine/attention.ts";
 import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
 import { createScheduler } from "./engine/routines.ts";
+import { PICKUP_EVERY_MS, pickUpTasks } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
 
 /** A reminder noticed this late goes only to the tray: a message about it now would be noise. */
@@ -32,12 +34,18 @@ export function officeScheduler(deps: {
     digest: (texts) => channelTexts(store).digest(texts),
     ...(deps.now ? { now: deps.now } : {}),
   });
+  let pickedAt = Number.NEGATIVE_INFINITY;
   const scheduler = createScheduler({
     store,
     admit: deps.admit,
     log: deps.log,
     ...(deps.now ? { now: deps.now } : {}),
     eachTick: (at) => {
+      // Assigned tasks that never started are picked up once an hour.
+      if (at.getTime() - pickedAt >= PICKUP_EVERY_MS) {
+        pickedAt = at.getTime();
+        pickUpTasks(store, deps.admit);
+      }
       const texts = channelTexts(store);
       const asked: Array<{ text: string; thread_id: string }> = [];
       for (const t of store.tasks.remindDue(at.toISOString())) {

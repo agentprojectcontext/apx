@@ -518,3 +518,15 @@ content is in the turn: `remember` (a note saved then stays tainted and reads as
 `task_close`, `commitment_settle`, `open_document`, `send_file` (only to the owner's chat; contacts and rooms never get
 it), `make_image`, `video_transcript` and `notify_owner`. Writing files, messaging contacts, typing in the browser,
 `forget`, `grant_tool`, the phone's location and widgets that connect out still ask then. AGENTS.md rule 10 follows.
+
+<a id="d-048"></a>
+## D-048 — 2026-10-07 — A task is worked in its agent's own chat; the task keeps only comments
+A turn used to run inside the task's conversation, so every tool call of the work landed among the comments.
+Now giving a task to an agent (creating it with one, or assigning it) starts the work in that agent's own chat for the
+task: a plain chat listed in the inbox, linked by `threads.task_id`, opening with the task's words (the owner's, or
+"work on this task" with the task as outside data when an agent wrote it). An @mention in a comment asks that agent in
+its chat for the task, and each finished turn there is posted back to the task as that agent's comment (with the
+@owner attention and the mention cascade, still two hops deep). Reassigning starts the new agent's chat; the old one
+stays listed on the task, and the new agent's [task] block says who worked it before. Once an hour the office clock
+picks up a few assigned tasks that never started, most pressing first, counting only assignments made since this
+began (`task_work_since`), so the board already assigned before it does not start on its own.
