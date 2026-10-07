@@ -84,7 +84,7 @@ export function MessageActions({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
   useEffect(() => {

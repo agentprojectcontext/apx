@@ -446,6 +446,9 @@ export const en = {
   "terminal.ended": "· ended",
   "terminal.openFailed": "The terminal could not open: {error}",
   "code.run": "Run in a terminal",
+  "code.openTerminal": "Open in the side panel",
+  "code.typeInPanel": "It asks for input: type it in the side panel",
+  "code.waitingInput": "Waiting for input",
   "terminal.agentEmpty": "The agent ran no commands in this chat",
   "terminal.agentEmptyBody":
     "When it runs one (in the foreground or the background) you will see it here with what it printed.",

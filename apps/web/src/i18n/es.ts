@@ -452,6 +452,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "terminal.ended": "· terminó",
   "terminal.openFailed": "No se pudo abrir la terminal: {error}",
   "code.run": "Ejecutar en una terminal",
+  "code.openTerminal": "Abrir en el panel lateral",
+  "code.typeInPanel": "Pide algo: escribilo en el panel lateral",
+  "code.waitingInput": "Esperando que escribas",
   "terminal.agentEmpty": "El agente no corrió comandos en este chat",
   "terminal.agentEmptyBody":
     "Cuando corra uno (en primer plano o en segundo plano) lo vas a ver acá con lo que mostró.",

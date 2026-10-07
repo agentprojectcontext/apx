@@ -6,13 +6,12 @@ import { watchEvents } from "../data/live.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
+import { plain } from "./terminalText.ts";
 
 // xterm.js loads with the first terminal opened, not with the panel.
 const TerminalView = lazy(() => import("./TerminalView.tsx"));
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-// biome-ignore lint/suspicious/noControlCharactersInRegex: terminal escape sequences start with ESC
-const plain = (s: string) => s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07/g, "");
 
 /**
  * The chat's terminals: "Agent" lists the commands the agent ran here (and the ones still running in the background)
