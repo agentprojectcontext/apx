@@ -84,6 +84,10 @@ test("only the owner speaks plainly; agents, widgets and results arrive as untru
     ),
     /<delegation_result from="Scout" sub_thread="th" state="failed" trust="untrusted">/,
   );
+  // An agent asked by another answers in place: its answer returns by itself, so it never delegates back.
+  const asked = frameInput({ kind: "agent", id: "roby", name: "Roby", thread_id: "home", run_id: "r" }, "check #54");
+  assert.match(asked, /<agent_message from="Roby" trust="untrusted">/);
+  assert.match(asked, /goes back to Roby on its own: answer here, never delegate back/);
 });
 
 test("untrusted text cannot close its envelope or pose as a note from APX", async () => {
