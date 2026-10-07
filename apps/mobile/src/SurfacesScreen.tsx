@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
+import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
 import { ApxClient, type Surface } from "./protocol";
@@ -15,10 +16,7 @@ type Summary = Omit<Surface, "html">;
 
 /** The owner's pinned widgets and apps; one opens full screen, live from the core. */
 export function SurfacesScreen({ creds, onBack }: { creds: Creds; onBack: () => void }) {
-  const client = useMemo(
-    () => new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-mobile", version: "2.0.2" } }),
-    [creds],
-  );
+  const client = useMemo(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }), [creds]);
   const [list, setList] = useState<Summary[]>();
   const [open, setOpen] = useState<Surface>();
   useEffect(() => {

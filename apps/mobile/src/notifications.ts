@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
+import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
 import { ApxClient } from "./protocol";
@@ -49,7 +50,7 @@ export async function configureNotifications(creds?: Creds, request = true): Pro
     const client = new ApxClient({
       url: creds.url,
       token: creds.token,
-      client: { name: "apx-mobile", version: "2.0.2" },
+      client: APP_CLIENT,
     });
     await client.call("devices.set_push", { push: { kind: "expo", token: data } });
     remoteDevice = creds.device;

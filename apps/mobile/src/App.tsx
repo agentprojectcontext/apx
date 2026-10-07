@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { APP_CLIENT } from "./appInfo";
 import { type Creds, clearCreds, loadCreds } from "./creds";
 import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
@@ -47,7 +48,7 @@ export function App() {
         await new ApxClient({
           url: creds.url,
           token: creds.token,
-          client: { name: "apx-mobile", version: "2.0.2" },
+          client: APP_CLIENT,
         }).call("system.ping", {});
       } catch (error) {
         if (error instanceof ApxError && error.code === "unauthorized") {

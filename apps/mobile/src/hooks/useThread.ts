@@ -9,6 +9,7 @@ type Usage = { context?: number; window?: number };
 const usageOf = (runs: Array<{ started_at: string; usage?: Usage }>) =>
   [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at)).find((run) => run.usage?.context)?.usage;
 
+import { APP_CLIENT } from "../appInfo";
 import { isWorking } from "./chatSelectors";
 
 function upsert(messages: Message[], message: Message): Message[] {
@@ -162,10 +163,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
 
 /** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
 export function useThread(creds: Creds, threadId: string, onUnpair: () => void) {
-  const client = useMemo(
-    () => new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-mobile", version: "2.0.2" } }),
-    [creds],
-  );
+  const client = useMemo(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }), [creds]);
   const sequence = useRef(0);
   const [stopping, setStopping] = useState(false);
   const stopPending = useRef(false);

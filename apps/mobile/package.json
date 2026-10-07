@@ -1,6 +1,6 @@
 {
   "name": "@apx/mobile",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "private": true,
   "description": "APX on the phone (Expo, iOS + Android): paired with a QR, talks to the owner's core with a key of its own.",
   "main": "index.ts",

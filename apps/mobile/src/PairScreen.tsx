@@ -134,7 +134,7 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
           <Text style={s.primaryText}>{t(busy ? "pairing" : "pair")}</Text>
         </Pressable>
       </ScrollView>
-      <Text style={s.version}>APX v{Constants.expoConfig?.version ?? "2.0.2"}</Text>
+      <Text style={s.version}>APX v{Constants.expoConfig?.version}</Text>
     </KeyboardAvoidingView>
   );
 }

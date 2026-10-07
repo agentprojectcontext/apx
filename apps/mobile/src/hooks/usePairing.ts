@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
+import { APP_CLIENT } from "../appInfo";
 import { type Creds, saveCreds } from "../creds";
 import { t } from "../i18n";
 import { firstReachable, parsePairingLink } from "../pairing";
@@ -22,7 +23,7 @@ export function usePairing(link: string | undefined, onPaired: (creds: Creds) =>
           setError(t("unreachable"));
           return;
         }
-        const client = new ApxClient({ url: reachable, client: { name: "apx-mobile", version: "2.0.2" } });
+        const client = new ApxClient({ url: reachable, client: APP_CLIENT });
         const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "other";
         const name = Platform.OS === "android" ? Platform.constants.Model : Platform.OS === "ios" ? "iPhone" : "Phone";
         const result = await client.call("devices.pair", { code: code.trim(), name, platform });

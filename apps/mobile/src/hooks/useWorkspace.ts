@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { APP_CLIENT } from "../appInfo";
 import type { Creds } from "../creds";
 import { t } from "../i18n";
 import { showLiveNotice } from "../notifications";
@@ -176,9 +177,7 @@ async function rpc<T>(client: ApxClient, method: string, params: Record<string, 
 }
 
 export function useWorkspace(creds: Creds) {
-  const [client] = useState(
-    () => new ApxClient({ url: creds.url, token: creds.token, client: { name: "apx-mobile", version: "2.0.2" } }),
-  );
+  const [client] = useState(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }));
   const [data, setData] = useState(emptyWorkspace);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(false);
