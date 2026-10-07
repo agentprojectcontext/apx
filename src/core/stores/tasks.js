@@ -149,6 +149,10 @@ function projectState(events) {
           // never written: a comment moves updated_at, and a watcher reading
           // that clock was silenced by the owner asking "any news?".
           blocked_since: readStatus(ev.status) === "blocked" ? ev.ts : null,
+          // Who put the card in its current column, and when — so a "running"
+          // nobody can explain can at least be traced to whoever set it.
+          status_changed_at: ev.ts,
+          status_changed_by: ev.created_by || null,
           title: ev.title || "",
           parent: ev.parent || null,
           // Every comment on this task, oldest first. Lives on the same event
@@ -184,11 +188,16 @@ function projectState(events) {
         if (!existing) break;
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
-          if (k === "id" || k === "state" || k === "created_at" || k === "blocked_since") continue;
+          if (k === "id" || k === "state" || k === "created_at" || k === "blocked_since"
+            || k === "status_changed_at" || k === "status_changed_by") continue;
           if (k === "status") {
             const next = readStatus(patch[k]);
             if (next === "blocked" && existing.status !== "blocked") existing.blocked_since = ev.ts;
             else if (next !== "blocked") existing.blocked_since = null;
+            if (next !== existing.status) {
+              existing.status_changed_at = ev.ts;
+              existing.status_changed_by = ev.by || null;
+            }
             existing[k] = next;
           }
           else if (k === "category") existing[k] = normalizeTaskCategory(patch[k]);
@@ -496,7 +505,7 @@ export function getTask(storagePath, idOrPrefix) {
 }
 
 /** Patch a task. Returns the projected task; null if id not found. */
-export function patchTask(storagePath, idOrPrefix, patch) {
+export function patchTask(storagePath, idOrPrefix, patch, { by = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   if (!patch || typeof patch !== "object") return existing;
@@ -511,6 +520,7 @@ export function patchTask(storagePath, idOrPrefix, patch) {
     ts: nowIso(),
     op: "update",
     patch: normalized,
+    ...(by ? { by } : {}),
   });
   return getTask(storagePath, existing.id);
 }
@@ -519,7 +529,7 @@ export function patchTask(storagePath, idOrPrefix, patch) {
  * Move an open task to a column. `statuses` is the vocabulary to validate
  * against — omit it and the four built-ins apply.
  */
-export function setTaskStatus(storagePath, idOrPrefix, status, { statuses } = {}) {
+export function setTaskStatus(storagePath, idOrPrefix, status, { statuses, by = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   appendEvent(storagePath, {
@@ -527,6 +537,7 @@ export function setTaskStatus(storagePath, idOrPrefix, status, { statuses } = {}
     ts: nowIso(),
     op: "update",
     patch: { status: normalizeStatus(status, statuses) },
+    ...(by ? { by } : {}),
   });
   return getTask(storagePath, existing.id);
 }

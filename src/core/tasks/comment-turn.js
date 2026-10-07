@@ -29,6 +29,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { emitMessageEvent } from "#core/events/bus.js";
 import { addComment, getTask } from "#core/stores/tasks.js";
+import { _resetCascades, cascadeActive, cascadeKey, enterCascade, leaveCascade } from "#core/tasks/cascades.js";
 import { nowIso } from "#core/util/time.js";
 
 /** One comment can produce at most this many agent replies, cascade included. */
@@ -48,16 +49,9 @@ const HOUR_MS = 60 * 60 * 1000;
 // cascade running right now. In memory: about the next hour, like the spend
 // breaker's count.
 const taskTurns = new Map();
-// A count, not a set: an owner's cascade and an agent's can overlap on one
-// task, and the first to finish must not clear the guard for the other.
-const activeCascades = new Map();
-const enterCascade = (key) => activeCascades.set(key, (activeCascades.get(key) || 0) + 1);
-const leaveCascade = (key) => {
-  const n = (activeCascades.get(key) || 0) - 1;
-  if (n > 0) activeCascades.set(key, n);
-  else activeCascades.delete(key);
-};
-const taskKey = (p, taskId) => `${p.storagePath}|${taskId}`;
+// The running-cascade registry lives in cascades.js so the task detail can read
+// it without importing the turn engine.
+const taskKey = (p, taskId) => cascadeKey(p.storagePath, taskId);
 
 function turnsThisHour(key, now = Date.now()) {
   const kept = (taskTurns.get(key) || []).filter((t) => t > now - HOUR_MS);
@@ -68,7 +62,7 @@ function turnsThisHour(key, now = Date.now()) {
 /** Test seam. */
 export function _resetTaskTurnCaps() {
   taskTurns.clear();
-  activeCascades.clear();
+  _resetCascades();
 }
 
 /** Keep a reply readable in a side panel — see the "no huge deploy" rule below. */
@@ -417,7 +411,7 @@ export function summonFromAgentComment({
   const want = [...new Set(mentions || [])].filter((m) => m && m !== author && m !== OWNER_ACTOR_ID);
   if (!want.length) return { summoned: [], skipped: null };
   const key = taskKey(p, taskId);
-  if (activeCascades.has(key)) return { summoned: [], skipped: "cascade_running" };
+  if (cascadeActive(key)) return { summoned: [], skipped: "cascade_running" };
   if (turnsThisHour(key) >= MAX_TASK_TURNS_PER_HOUR) return { summoned: [], skipped: "hourly_cap" };
   // Marked now, not when the run starts: two comments in the same tick must
   // not both see an idle thread.

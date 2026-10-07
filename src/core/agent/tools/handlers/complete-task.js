@@ -2,6 +2,7 @@ import { doneTask, dropTask, reopenTask, setTaskStatus } from "#core/stores/task
 import { readConfig } from "#core/config/index.js";
 import { DONE_COLUMN, readColumnCatalog } from "#core/tasks/columns.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
 // Close or move a task. The sibling of create_task: the super-agent could add
 // and list tasks but not finish one, so a "mark it done" turned into a shelled
@@ -30,8 +31,11 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async (args = {}) => {
+  makeHandler: ({ projects, requirePermission, channelMeta = null }) => async (args = {}) => {
     const { project, task, action, status, by } = args;
+    // Who moved the card: the calling agent from context (the model cannot sign
+    // as someone else), else the super-agent's loop.
+    const mover = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
     await requirePermission("complete_task", { dangerous: true, args: { task, action } });
     // `task`, not `id` — and the error says so, because list_tasks and
     // create_task both hand back `id` and a model that copies it straight back
@@ -68,7 +72,7 @@ export default {
         if (!columns.includes(String(status))) {
           return { error: `unknown status "${status}". This install has: ${columns.join(", ")}.` };
         }
-        result = setTaskStatus(p.storagePath, task, status, { statuses: columns });
+        result = setTaskStatus(p.storagePath, task, status, { statuses: columns, by: mover });
       } else return { error: `unknown action "${action}" (use done|drop|reopen|status)` };
       if (!result) return { error: `task not found: ${task}` };
       return {

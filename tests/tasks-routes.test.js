@@ -115,6 +115,16 @@ test("tasks-summary counts every column and what waits on the owner", async () =
   assert.equal(typeof s.attention.blocked_by_owner, "number");
 });
 
+test("the task detail carries its execution view, and a panel move is signed (#57)", async () => {
+  const t = await newTask({ title: "en curso sin nada" });
+  const moved = await post(`/projects/0/tasks/${t.id}/status`, { status: "running" });
+  assert.equal(moved.status, 200);
+  const detail = await (await api(`/projects/0/tasks/${t.id}`)).json();
+  assert.equal(detail.execution.verdict, "not_verified");
+  assert.equal(detail.execution.workflow.changed_by, "owner");
+  assert.equal(detail.status_changed_by, "owner");
+});
+
 // ── subtasks ────────────────────────────────────────────────────────────────
 
 test("?parent selects children, and ?parent= selects the roots", async () => {

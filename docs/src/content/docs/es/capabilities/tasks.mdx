@@ -261,6 +261,17 @@ cuatro respuestas (cascada incluida), una tarea que ya tiene agentes trabajando 
 una segunda, y los agentes que se pasan una tarea de un lado a otro tienen como mucho ocho turnos
 por hora en ella. Tus propios comentarios no tienen tope.
 
+### Columna versus ejecución
+
+La columna de una tarjeta (`running`, `blocked`…) es una etiqueta de workflow que alguien
+puso; nunca certificó que algo esté vivo. El detalle de la tarea —en el panel, `apx task show`
+y el `get_task` del agente— suma una vista de **ejecución** hecha sólo con evidencia: la sesión
+de runtime vinculada (inicio, fin, resultado), si hay un turno de agente en el hilo ahora, la
+última actividad, qué espera y quién puso la columna y cuándo. Una tarjeta que dice en curso sin
+nada detrás se lee **Ejecución no verificada**, nunca "trabajando"; una sesión terminada nunca se
+muestra como activa. No hay porcentajes de progreso, y nada de esto cierra ni aprueba una tarea:
+exit 0 no es una aprobación funcional.
+
 ### Las delegaciones vuelven a la tarea
 
 Un agente convocado en una tarea puede pasarle el trabajo a un runtime externo (Claude Code,

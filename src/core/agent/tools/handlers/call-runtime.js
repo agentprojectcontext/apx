@@ -223,7 +223,12 @@ export default {
     // must not be SIGTERM'd at the 5-min foreground default.
     const effectiveTimeoutS = Number(timeout_s) || (runInBackground ? 3600 : 300);
 
-    const p = slug ? resolveProjectForAgent(projects, project, slug) : resolveProject(projects, project);
+    // Launched from a task with no project named: the task's project, not the
+    // default workspace — that is where the task looks for its sessions.
+    const originProject = !slug && !project && taskOrigin ? projects.get?.(taskOrigin.project_id) : null;
+    const p = slug
+      ? resolveProjectForAgent(projects, project, slug)
+      : originProject || resolveProject(projects, project);
     const agent = slug ? readAgents(p.path).find((a) => a.slug === slug) : null;
     if (slug && !agent) {
       const directory = projects.list().map((entry) => ({
@@ -289,6 +294,9 @@ export default {
       runtime,
       cwd: runCwd,
       title: `Runtime: ${runtime}${agent ? ` (${agent.slug})` : ""}`,
+      // The task this run belongs to, so the task's execution view can find it
+      // from the session side too (core/tasks/execution.js).
+      ...(taskOrigin ? { taskRef: taskOrigin.task_id } : {}),
     });
 
     const resume = buildResumePreamble(resume_session_id);

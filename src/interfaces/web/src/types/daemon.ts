@@ -280,6 +280,12 @@ export interface TaskEntry {
   updated_at: string;
   /** Present on the detail (GET one). List rows carry `comment_count` instead. */
   comments?: TaskComment[];
+  /** Detail only: what is actually running, not what the column says. */
+  execution?: TaskExecution | null;
+  /** When the current blocked period began (derived from transitions). */
+  blocked_since?: string | null;
+  status_changed_at?: string | null;
+  status_changed_by?: string | null;
   comment_count?: number;
   subtask_count?: number;
   subtask_done?: number;
@@ -321,6 +327,22 @@ export interface TaskComment {
   text: string;
   /** Agent slugs this comment addressed, resolved when it was written. */
   mentions: string[];
+  /** Machine facts, e.g. the runtime session this comment reports on. */
+  meta?: { apc_session?: string; runtime?: string; runtime_phase?: string; coordinator?: string | null; error?: string };
+}
+
+/** Evidence of work on a task, apart from its column (core/tasks/execution.js). */
+export interface TaskExecution {
+  verdict: "working" | "not_verified" | "ended" | "idle" | "closed";
+  workflow: { status?: string; changed_at: string | null; changed_by: string | null };
+  agent_working: boolean;
+  runtime: {
+    state: "running" | "finished" | "failed" | "abandoned" | "none";
+    count: number;
+    session: { id: string; runtime: string | null; agent: string | null; started_at: string | null; finished_at: string | null; result?: string } | null;
+  };
+  last_activity: { at: string; by: string | null; kind: "comment" | "session_started" | "session_finished"; text: string | null } | null;
+  waiting_on: "owner_reply" | "owner" | "blocked" | null;
 }
 
 export interface OrgArea {

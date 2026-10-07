@@ -259,6 +259,17 @@ A thread can run with nobody watching, so it has walls: one comment starts at mo
 run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
 comments are not capped.
 
+### Column versus execution
+
+A card's column (`running`, `blocked`…) is a workflow label someone set; it never certified
+that anything is alive. The task detail — in the panel, `apx task show` and the agent's
+`get_task` — adds an **execution** view built from evidence only: the runtime session linked
+to the task (start, end, result), whether an agent turn is on the thread right now, the last
+activity, what it is waiting on, and who set the column and when. A card that says running
+with nothing behind it reads **Execution not verified**, never "working"; a finished session
+is never shown as active. There are no progress percentages, and nothing here closes or
+approves a task — exit 0 is not a functional approval.
+
 ### Delegations report back to the task
 
 An agent summoned on a task can hand the work to an external runtime (Claude Code, Codex…)

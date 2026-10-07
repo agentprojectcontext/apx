@@ -1,6 +1,8 @@
 import { listTasks } from "#core/stores/tasks.js";
 import { missingArg, projectMeta } from "../helpers.js";
 import { locateTask, subtaskRows } from "./_tasks.js";
+import { taskExecution } from "#core/tasks/execution.js";
+import { resolveOwnerName } from "#core/identity/self.js";
 
 // Read ONE task in full. The half of the pair `list_tasks` cannot be.
 //
@@ -32,6 +34,9 @@ export default {
     },
   },
   makeHandler: ({ projects }) => async (args = {}) => {
+    const executionOf = (t, p) => {
+      try { return taskExecution(t, { storagePath: p.storagePath, ownerName: resolveOwnerName() }); } catch { return null; }
+    };
     const { task, project, comments = true } = args;
     if (!task) {
       return missingArg("get_task", "task", { required: ["task"], optional: ["project", "comments"] }, args);
@@ -74,6 +79,9 @@ export default {
         ...(t.dropped_at ? { dropped_at: t.dropped_at } : {}),
         ...(subtasks.length ? { subtasks } : {}),
         comment_count: t.comment_count ?? (t.comments?.length || 0),
+        // What is actually running, not what the column says. A "running"
+        // card with nothing behind it comes back as verdict "not_verified".
+        execution: executionOf(t, p),
         ...(comments === false
           ? {}
           : { comments: (t.comments || []).map((c) => ({ ts: c.ts, by: c.by, text: c.text })) }),

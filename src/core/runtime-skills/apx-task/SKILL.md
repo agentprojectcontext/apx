@@ -132,6 +132,14 @@ Report "nothing matches <filters>", never "there are no tasks"; for an overview
 ask for `summary: true` instead of guessing a filter. `status` takes custom
 column ids too.
 
+**The column is not proof of work.** `get_task` returns `execution`: a
+`verdict` (`working` only when a linked runtime session is open or an agent
+turn is on the thread now; `not_verified` when the column says running and
+nothing backs it; `ended`, `idle`, `closed`), the latest linked session, the
+last activity, `waiting_on` and who set the column. Report "not verified"
+rather than "it's being worked on", and never close or approve a task because
+a session exited 0.
+
 `list_tasks` rows are deliberately compact — no `description`, no `body`, no
 comments — so anything past the title is `get_task`. It returns the thread and
 the subtasks with it, and finds the task without a `project` when you do not

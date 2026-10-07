@@ -42,6 +42,7 @@ import { readTaskReads, decorateTaskUnread, markTasksRead } from "#core/stores/t
 import { readProjectConfig, writeProjectConfig } from "../project-config.js";
 import { mentionedAgents, runCommentMentions } from "#core/tasks/comment-turn.js";
 import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
+import { taskExecution } from "#core/tasks/execution.js";
 import { pageEnvelope, asyncRoute } from "./shared.js";
 import { broadcastReadMarks } from "../events-ws.js";
 
@@ -228,7 +229,8 @@ export function register(api, { project, projects, config, plugins, registries }
     if (!p) return;
     const task = getTask(p.storagePath, req.params.id);
     if (!task) return res.status(404).json({ error: "task not found" });
-    res.json(task);
+    // Evidence of work, separate from the column (core/tasks/execution.js).
+    res.json({ ...task, execution: taskExecution(task, { storagePath: p.storagePath, ownerName: resolveOwnerName() }) });
   });
 
   api.patch("/projects/:pid/tasks/:id", (req, res) => {
@@ -238,7 +240,7 @@ export function register(api, { project, projects, config, plugins, registries }
     if (!patch || typeof patch !== "object") {
       return res.status(400).json({ error: "patch object required" });
     }
-    const updated = patchTask(p.storagePath, req.params.id, patch);
+    const updated = patchTask(p.storagePath, req.params.id, patch, { by: req.body?.by || OWNER_ACTOR_ID });
     if (!updated) return res.status(404).json({ error: "task not found" });
     res.json(updated);
   });
@@ -276,13 +278,13 @@ export function register(api, { project, projects, config, plugins, registries }
   api.post("/projects/:pid/tasks/:id/status", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { status } = req.body || {};
+    const { status, by = OWNER_ACTOR_ID } = req.body || {};
     const columns = projectColumns(readConfig(), readProjectConfig(p.path));
     const statuses = columns.map((c) => c.id).filter((id) => id !== DONE_COLUMN);
     if (!statuses.includes(status)) {
       return res.status(400).json({ error: `status must be one of ${statuses.join(", ")}` });
     }
-    const updated = setTaskStatus(p.storagePath, req.params.id, status, { statuses });
+    const updated = setTaskStatus(p.storagePath, req.params.id, status, { statuses, by });
     if (!updated) return res.status(404).json({ error: "task not found" });
 
     // Column automation: dropping a card in a column that has one hands the task

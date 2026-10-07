@@ -110,6 +110,8 @@ function renderDetail(t) {
     updated_at: shortTs(t.updated_at),
     done_at: t.done_at ? shortTs(t.done_at) : undefined,
     dropped_at: t.dropped_at ? shortTs(t.dropped_at) : undefined,
+    // Evidence of work, apart from the column: same view the panel draws.
+    execution: t.execution || undefined,
   }, null, 2));
 }
 
