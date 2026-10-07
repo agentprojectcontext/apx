@@ -4,7 +4,7 @@ import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models"
 import { type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
-import { isWorking, threadContext } from "./hooks/chatSelectors";
+import { engineName, isWorking, threadContext } from "./hooks/chatSelectors";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
@@ -132,7 +132,7 @@ export function ChatScreen({
         busy={working}
         stopping={live.stopping}
         agentName={name}
-        model={choiceText(effective, [], t("router"))}
+        model={engine ? engineName(engine) : choiceText(effective, [], t("router"))}
         usage={usageText(live.usage)}
       />
       {sheet === "model" ? (

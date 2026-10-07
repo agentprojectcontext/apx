@@ -85,7 +85,10 @@ function noticeItem(
     notice,
   };
   if (notice.kind === "routine") {
-    const routine = data.routines.find((item) => item.name === notice.title);
+    // The notice points at the run; the name only helps when that run is no longer the routine's last.
+    const routine =
+      data.routines.find((item) => item.last?.run_id === notice.ref) ??
+      data.routines.find((item) => item.name === notice.title);
     const failed = notice.level === "error";
     return {
       ...base,

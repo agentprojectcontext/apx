@@ -33,7 +33,7 @@ export function scheduleText(s: Schedule, language: Lang = lang, now = new Date(
     }
     case "cron": {
       const w = weeklyOf(s.cron);
-      if (!w) return `cron ${s.cron}`;
+      if (!w) return tr("rtCron", { cron: s.cron });
       const key = w.days.join(",");
       const days =
         w.days.length === 7

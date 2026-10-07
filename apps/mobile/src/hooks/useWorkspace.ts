@@ -215,15 +215,16 @@ export function useWorkspace(creds: Creds) {
         get<{ channels: Channel[] }>("channels.list", {}),
         get<{ total: number }>("memory.settings", {}),
       ]);
-    let sessions: Workspace["sessions"] = {};
+    // Each engine's sessions, or undefined where the list did not load (it keeps the one it had).
+    let native: Array<[string, NativeSession[] | undefined]> | undefined;
     if (engines?.engines) {
       const installed = engines.engines.filter((engine) => engine.installed && ["claude", "codex"].includes(engine.id));
-      const native = await Promise.all(
+      const lists = await Promise.all(
         installed.map((engine) =>
           get<{ sessions: NativeSession[] }>("sessions.native", { engine: engine.id, limit: 100 }),
         ),
       );
-      sessions = Object.fromEntries(installed.map((engine, i) => [engine.id, native[i]?.sessions ?? []]));
+      native = installed.map((engine, i) => [engine.id, lists[i]?.sessions]);
     }
     setData((d) => ({
       ...d,
@@ -235,7 +236,9 @@ export function useWorkspace(creds: Creds) {
       inputs: pending?.inputs ?? d.inputs,
       routines: routines?.routines ?? d.routines,
       engines: engines?.engines ?? d.engines,
-      sessions,
+      sessions: native
+        ? Object.fromEntries(native.map(([id, list]) => [id, list ?? d.sessions[id] ?? []]))
+        : d.sessions,
       jobs: jobs ?? d.jobs,
       owner: owner?.name ?? d.owner,
       channels: channels?.channels ?? d.channels,

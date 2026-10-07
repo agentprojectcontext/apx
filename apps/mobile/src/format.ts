@@ -73,6 +73,8 @@ export function ahead(iso?: string, now = new Date(), language: Lang = lang): st
   if (!at) return "";
   const tr = translator(language);
   const ms = at.getTime() - now.getTime();
+  // Already past (a run that is late, a one-off that ran): say when, not "in 1 min".
+  if (ms < -MINUTE) return ago(iso, now, language);
   if (ms < MINUTE) return tr("inMinutes", { n: 1 });
   if (ms < HOUR) return tr("inMinutes", { n: Math.ceil(ms / MINUTE) });
   if (ms < 6 * HOUR) return tr("inHours", { n: Math.round(ms / HOUR) });

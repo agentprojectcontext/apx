@@ -99,10 +99,8 @@ function EngineCard({
     .filter((thread) => thread.engine === engine.id && !thread.archived)
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     .slice(0, 5);
-  // Sessions started outside APX that it has no chat for yet.
-  const native = (data.sessions[engine.id] ?? [])
-    .filter((item) => !threads.some((th) => th.title === item.title))
-    .slice(0, 3);
+  // Sessions started outside APX (sessions.native already leaves out the ones APX resumed).
+  const native = (data.sessions[engine.id] ?? []).slice(0, 3);
   const status = engine.logged_in ? "engineConnected" : engine.installed ? "engineSignedOut" : "engineMissing";
   return (
     <View style={s.card}>

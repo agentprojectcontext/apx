@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Creds } from "../creds";
 import { channelName } from "../hooks/chatSelectors";
@@ -39,20 +39,30 @@ export function SettingsPage({
 }) {
   const notifications = useNotifications(creds);
   const [prefs, setPrefs] = useState<NoticePrefs>();
+  const saved = useRef<NoticePrefs>(undefined);
+  const request = useRef(0);
   useEffect(() => {
     void load()
-      .then(setPrefs)
+      .then((result) => {
+        saved.current = result;
+        setPrefs(result);
+      })
       .catch(() => undefined);
   }, [load]);
   const change = (patch: Partial<NoticePrefs>) => {
     if (!prefs) return;
-    const before = prefs;
+    const before = saved.current ?? prefs;
     const next = { ...prefs, ...patch };
+    // Quick taps: only the newest answer is shown, and a failure goes back to what the core last confirmed.
+    const mine = ++request.current;
     setPrefs(next);
     save(next)
-      .then(setPrefs)
+      .then((result) => {
+        saved.current = result;
+        if (mine === request.current) setPrefs(result);
+      })
       .catch((error) => {
-        setPrefs(before);
+        if (mine === request.current) setPrefs(before);
         Alert.alert(t("couldNotChange"), error instanceof Error ? error.message : String(error));
       });
   };

@@ -72,13 +72,14 @@ test("a question opens its chat to answer and shows its options", () => {
 });
 
 test("read notices leave; a failed routine offers to run it again", () => {
-  const routine = { id: "r1", name: "backup-db" } as Routine;
+  const routine = { id: "r1", name: "backup-db", last: { run_id: "run-9" } } as Routine;
+  const renamed = { id: "r2", name: "old-name" } as Routine;
   const items = inboxItems(
     data({
-      routines: [routine],
+      routines: [renamed, routine],
       notices: [
         notice("old", { read_at: "2026-10-07T10:30:00Z" }),
-        notice("fail", { kind: "routine", level: "error", title: "backup-db", thread_id: "t1" }),
+        notice("fail", { kind: "routine", level: "error", title: "old-name", ref: "run-9", thread_id: "t1" }),
       ],
     }),
   );

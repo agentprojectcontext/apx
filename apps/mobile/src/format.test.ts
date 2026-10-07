@@ -31,6 +31,7 @@ test("relative times count back and forward in the owner's language", () => {
   assert.equal(ago(now.toISOString(), now, "es"), "Recién");
   assert.equal(ahead(new Date(now.getTime() + 12 * 60_000).toISOString(), now, "es"), "en 12 min");
   assert.equal(ahead(at(1, 8), now, "es"), "Mañana 08:00");
+  assert.equal(ahead(new Date(now.getTime() - 3 * 3_600_000).toISOString(), now, "es"), "hace 3 h");
   assert.equal(elapsed(new Date(now.getTime() - 41 * 60_000).toISOString(), now, "es"), "41 min");
   assert.equal(elapsed(new Date(now.getTime() - 65 * 60_000).toISOString(), now, "es"), "1 h 5 min");
 });
