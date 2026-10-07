@@ -31,6 +31,9 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.equal(a.match(/^- Delegating:/gm)?.length, 1);
   assert.match(a, /give what you already found and ask only for what is missing/);
   assert.doesNotMatch(a, /^- Other agents:|^- Do your own assigned task|^- Work you hand/m);
+  // A claim without a tool is false; a turn that needs no tool (a greeting, a known fact) is not.
+  assert.match(a, /An answer that says something was done when no tool did it is false/);
+  assert.doesNotMatch(a, /A turn with no tool call did nothing/);
 });
 
 test("history keeps whole runs, prunes old tool output and stays within budget", () => {
