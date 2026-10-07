@@ -318,14 +318,12 @@ export function useWorkspace(creds: Creds) {
 
   const readNotice = useCallback(
     async (notice: Notice) => {
-      if (notice.kind !== "input") {
-        await rpc(client, "notifications.read", { ids: [notice.id] }).catch(() => undefined);
-        setData((d) => ({
-          ...d,
-          unread: Math.max(0, d.unread - (notice.read_at ? 0 : 1)),
-          notices: d.notices.map((n) => (n.id === notice.id ? { ...n, read_at: new Date().toISOString() } : n)),
-        }));
-      }
+      await rpc(client, "notifications.read", { ids: [notice.id] }).catch(() => undefined);
+      setData((d) => ({
+        ...d,
+        unread: Math.max(0, d.unread - (notice.read_at ? 0 : 1)),
+        notices: d.notices.map((n) => (n.id === notice.id ? { ...n, read_at: new Date().toISOString() } : n)),
+      }));
     },
     [client],
   );

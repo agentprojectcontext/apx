@@ -1,5 +1,8 @@
 import { Platform } from "react-native";
 import { tokens } from "./tokens";
+import type { Tone } from "./tone";
+
+export type { Tone };
 
 /** The panel's minimal dark tokens (generated from packages/ui), under the short names the app's styles use. */
 export const theme = {
@@ -15,8 +18,6 @@ export const theme = {
   space5: 20,
   space6: 24,
 } as const;
-
-export type Tone = "neutral" | "brand" | "violet" | "info" | "warning" | "danger";
 
 /** A tone's soft background and its text color, as the panel's tags and tinted tiles use them. */
 export const toneColors: Record<Tone, { bg: string; fg: string; solid: string }> = {

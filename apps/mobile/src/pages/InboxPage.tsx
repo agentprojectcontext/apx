@@ -1,146 +1,136 @@
-import { StyleSheet, Text, View } from "react-native";
-import type { Notice, Thread, Workspace } from "../hooks/useWorkspace";
-import { AgentAvatar, Badge, Card, EmptyState, Muted, Page, PageHeader, RoundButton } from "../ui/components";
-import { theme as t } from "../ui/theme";
+import { useState } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import { listWhen } from "../format";
+import type { InboxAction, InboxItem } from "../hooks/inboxItems";
+import type { Notice, Workspace } from "../hooks/useWorkspace";
+import { t } from "../i18n";
+import { Icon } from "../ui/Icon";
+import { AgentAvatar, Button, Card, EmptyState, PageTitle, Screen, Tag, type } from "../ui/kit";
+import { theme } from "../ui/theme";
 
 export function InboxPage({
   data,
+  items,
   open,
   read,
   respond,
+  rerun,
 }: {
   data: Workspace;
-  open: (thread: Thread) => void;
-  read: (notice: Notice) => void;
+  items: InboxItem[];
+  open: (threadId: string) => void;
+  read: (notice: Notice) => Promise<void>;
   respond: (input: string, response: { decision?: "approve" | "deny" }) => Promise<void>;
+  rerun: (routine: string) => Promise<void>;
 }) {
-  const notices = data.notices.filter(
-    (notice) =>
-      notice.kind === "input" ||
-      notice.kind === "task" ||
-      notice.kind === "due" ||
-      notice.kind === "channel" ||
-      notice.kind === "agent",
-  );
+  const act = async (item: InboxItem, action: InboxAction) => {
+    if (action.kind === "approve") await respond(action.input, { decision: "approve" });
+    if (action.kind === "rerun") await rerun(action.routine);
+    if (item.notice) await read(item.notice);
+    if (action.kind === "open" && action.thread) open(action.thread);
+  };
+  const subtitle =
+    items.length === 0
+      ? t("inboxNothing")
+      : items.length === 1
+        ? t("inboxOneWaiting")
+        : t("inboxWaiting", { n: items.length });
   return (
-    <View style={s.root}>
-      <PageHeader title="Bandeja" subtitle={`${data.unread} cosas esperan tu respuesta`} />
-      <Page>
-        {notices.length ? (
-          notices.map((notice) => (
-            <NoticeCard key={notice.id} notice={notice} data={data} open={open} read={read} respond={respond} />
-          ))
-        ) : (
-          <EmptyState title="Bandeja al día" body="Cuando algo necesite tu atención, aparecerá acá." />
-        )}
-      </Page>
-    </View>
+    <Screen>
+      <PageTitle title={t("navInbox")} subtitle={subtitle} />
+      {items.length ? (
+        items.map((item) => <InboxCard key={item.id} item={item} data={data} act={act} />)
+      ) : (
+        <EmptyState title={t("inboxEmpty")} body={t("inboxEmptyBody")} />
+      )}
+    </Screen>
   );
 }
-function NoticeCard({
-  notice,
+
+function InboxCard({
+  item,
   data,
-  open,
-  read,
-  respond,
+  act,
 }: {
-  notice: Notice;
+  item: InboxItem;
   data: Workspace;
-  open: (thread: Thread) => void;
-  read: (notice: Notice) => void;
-  respond: (input: string, response: { decision?: "approve" | "deny" }) => Promise<void>;
+  act: (item: InboxItem, action: InboxAction) => Promise<void>;
 }) {
-  const input = data.inputs.find((item) => item.id === notice.ref || item.thread_id === notice.thread_id);
-  const thread = data.threads.find((item) => item.id === notice.thread_id);
-  const agent = thread && data.agents.find((item) => item.id === thread.agent_ids[0]);
-  const title =
-    notice.kind === "input"
-      ? "Aprobación"
-      : notice.kind === "task"
-        ? "Tarea"
-        : notice.kind === "due"
-          ? "Vencimiento"
-          : notice.kind === "channel"
-            ? "Canal"
-            : "Aviso";
-  const tone =
-    notice.level === "error"
-      ? "danger"
-      : notice.level === "warning"
-        ? "warning"
-        : notice.kind === "input"
-          ? "violet"
-          : "neutral";
+  const [busy, setBusy] = useState<"primary" | "secondary">();
+  const agent = data.agents.find((a) => a.id === item.agentId);
+  const press = (which: "primary" | "secondary") => {
+    setBusy(which);
+    act(item, item[which].action)
+      .catch((error) => Alert.alert(t(item.label), error instanceof Error ? error.message : String(error)))
+      .finally(() => setBusy(undefined));
+  };
   return (
     <Card style={s.card}>
-      <View style={s.meta}>
-        <Badge tone={tone}>{title}</Badge>
-        <Muted numberOfLines={1}>{thread?.project_id ?? thread?.title ?? "APX"}</Muted>
-        <Muted style={{ marginLeft: "auto" }}>{time(notice.created_at)}</Muted>
+      <View style={s.top}>
+        <Tag tone={item.tone}>{t(item.label)}</Tag>
+        <Text numberOfLines={1} style={[type.meta, { flex: 1 }]}>
+          {item.context}
+        </Text>
+        <Text style={type.meta}>{listWhen(item.at)}</Text>
       </View>
-      <View style={s.message}>
-        <AgentAvatar name={agent?.name ?? "APX"} blob={agent?.blob} size={30} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>{notice.title}</Text>
-          {notice.body ? <Muted>{notice.body}</Muted> : null}
+      <View style={s.body}>
+        {agent && !item.icon ? (
+          <AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={32} />
+        ) : (
+          <View style={s.iconCircle}>
+            <Icon name={item.icon ?? "Bell"} size={16} color={theme.fgMuted} />
+          </View>
+        )}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.title}>{item.title}</Text>
+          {item.body ? (
+            <Text numberOfLines={4} style={type.muted}>
+              {item.body}
+            </Text>
+          ) : null}
         </View>
       </View>
-      {input?.kind === "confirm" ? (
-        <View style={s.actions}>
-          <RoundButton label="Aprobar" onPress={() => void respond(input.id, { decision: "approve" })} />
-          <RoundButton
-            label="Ver"
-            secondary
-            onPress={() => {
-              read(notice);
-              if (thread) open(thread);
-            }}
-          />
-        </View>
-      ) : input ? (
-        <View style={s.actions}>
-          <RoundButton
-            label="Responder"
-            onPress={() => {
-              read(notice);
-              if (thread) open(thread);
-            }}
-          />
-          <RoundButton
-            label="Ver tarea"
-            secondary
-            onPress={() => {
-              read(notice);
-              if (thread) open(thread);
-            }}
-          />
-        </View>
-      ) : (
-        <View style={s.actions}>
-          <RoundButton
-            label="Ver"
-            secondary
-            onPress={() => {
-              read(notice);
-              if (thread) open(thread);
-            }}
-          />
-        </View>
-      )}
+      {item.quote ? <Text style={s.quote}>{item.quote}</Text> : null}
+      <View style={s.actions}>
+        <Button
+          label={t(item.primary.label)}
+          busy={busy === "primary"}
+          disabled={busy === "secondary"}
+          onPress={() => press("primary")}
+        />
+        <Button
+          label={t(item.secondary.label)}
+          variant="secondary"
+          busy={busy === "secondary"}
+          disabled={busy === "primary"}
+          onPress={() => press("secondary")}
+        />
+      </View>
     </Card>
   );
 }
-function time(value: string) {
-  const d = new Date(value);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(d);
-}
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  card: { marginTop: 10, gap: 11, padding: 13 },
-  meta: { flexDirection: "row", alignItems: "center", gap: 8 },
-  message: { flexDirection: "row", gap: 10, alignItems: "center" },
-  title: { color: t.fg, fontSize: 14, fontWeight: "500", marginBottom: 2 },
-  actions: { flexDirection: "row", gap: 8, paddingTop: 1 },
+  card: { gap: 10 },
+  top: { flexDirection: "row", alignItems: "center", gap: 8 },
+  body: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.fill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: { color: theme.fg, fontSize: 15, fontWeight: "500" },
+  quote: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radiusMd,
+    backgroundColor: theme.fill,
+    color: theme.fg,
+    fontSize: 14,
+    overflow: "hidden",
+  },
+  actions: { flexDirection: "row", gap: 8 },
 });

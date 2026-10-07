@@ -1,9 +1,10 @@
 import * as Notifications from "expo-notifications";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
 import type { Creds } from "./creds";
+import { inboxItems } from "./hooks/inboxItems";
 import { useNotifications } from "./hooks/useNotifications";
 import type { Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -32,6 +33,7 @@ const TABS: Array<NavItem<Tab>> = [
 export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
   const workspace = useWorkspace(creds);
   const insets = useSafeAreaInsets();
+  const inbox = useMemo(() => inboxItems(workspace.data), [workspace.data]);
   useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
@@ -62,6 +64,14 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   const openThread = async (item: Thread) => {
     setThread(item);
     void workspace.openThread(item.id).catch(() => undefined);
+  };
+  const openById = (id: string) => {
+    const found = workspace.data.threads.find((item) => item.id === id);
+    if (found) return void openThread(found);
+    void workspace
+      .openThread(id)
+      .then((result) => setThread(result.thread as Thread))
+      .catch(() => undefined);
   };
   const newChat = () => setPicker("new");
   const content = () => {
@@ -108,7 +118,14 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
         );
       case "inbox":
         return (
-          <InboxPage data={workspace.data} open={openThread} read={workspace.readNotice} respond={workspace.respond} />
+          <InboxPage
+            data={workspace.data}
+            items={inbox}
+            open={openById}
+            read={workspace.readNotice}
+            respond={workspace.respond}
+            rerun={workspace.runRoutine}
+          />
         );
       case "tasks":
         return (
@@ -138,7 +155,7 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
       <View style={[s.content, (thread || surfaces) && { paddingBottom: insets.bottom }]}>{content()}</View>
       {!thread && !surfaces ? (
         <BottomNav
-          items={TABS.map((item) => (item.id === "inbox" ? { ...item, badge: workspace.data.unread } : item))}
+          items={TABS.map((item) => (item.id === "inbox" ? { ...item, badge: inbox.length } : item))}
           value={tab}
           onChange={(id) => {
             setTab(id);
