@@ -2,7 +2,6 @@ import { Children, Fragment, isValidElement } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   type RefreshControlProps,
   ScrollView,
@@ -206,7 +205,7 @@ export function BottomSheet({
   const insets = useSafeAreaInsets();
   return (
     <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.sheetRoot}>
+      <KeyboardAvoidingView behavior="padding" style={s.sheetRoot}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={tr("close")} />
         <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 18 }]}>
           <View style={s.handle} />
