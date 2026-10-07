@@ -19,7 +19,8 @@ test("the base project is renamed and made a company, with areas and roles its a
   await expect(page.locator('.sidebar [data-project-id="~default"]')).toContainText("N");
 
   // A company shows its areas and roles.
-  await page.locator(".project__tabs").getByRole("tab", { name: "Áreas y roles" }).click();
+  await page.locator(".project__tabs").getByRole("tab", { name: "Agentes" }).click();
+  await page.locator(".team__tabs").getByRole("tab", { name: "Áreas y roles" }).click();
   await page.getByRole("button", { name: "Agregar un área" }).click();
   const area = page.getByRole("dialog", { name: "Nueva área" });
   await area.getByLabel("Nombre").fill("Finanzas");
@@ -36,7 +37,7 @@ test("the base project is renamed and made a company, with areas and roles its a
   expect(org.roles).toEqual([{ slug: "chief-financial-officer", name: "Chief Financial Officer", area: "finanzas" }]);
 
   // An agent takes the role, and with it its area.
-  await page.locator(".project__tabs").getByRole("tab", { name: "Agentes" }).click();
+  await page.locator(".team__tabs").getByRole("tab", { name: "Agentes" }).click();
   await page.locator(".teamcanvas__node", { hasText: "Scout" }).click({ button: "right" });
   await page.getByRole("menuitem", { name: "Editar" }).click();
   const editor = page.getByRole("dialog", { name: /^Editar a / });
@@ -67,7 +68,7 @@ test("importing the executive team into the base project sets the company up in 
 
   // The CEO leads its team under the super-agent; the project is a company with the team's areas.
   await expect(page.locator('.apx-agentnode__name:text-is("Chief Financial Officer")')).toBeVisible();
-  const tab = page.locator(".project__tabs").getByRole("tab", { name: "Áreas y roles" });
+  const tab = page.locator(".team__tabs").getByRole("tab", { name: "Áreas y roles" });
   await tab.click();
   await expect(page.locator(".org__area", { hasText: "Finance" })).toContainText("Chief Financial Officer");
   expect((await rpc<{ agent: { parent?: string } }>("agents.get", { agent: "cfo" })).agent.parent).toBe("ceo");

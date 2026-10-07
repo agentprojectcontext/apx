@@ -1,6 +1,6 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Button, ContextMenu, EmptyState, IconButton, Icons, Menu, SegmentedControl } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { AgentAvatar, Button, ContextMenu, EmptyState, IconButton, Icons, Menu, SegmentedControl, Tabs } from "@apx/ui";
+import { type ReactNode, useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry, teamOf } from "../data/identity.ts";
@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
 import { go } from "../shell/nav.ts";
+import { ProjectOrg } from "./ProjectOrg.tsx";
 import { AgentDetail } from "./team/AgentDetail.tsx";
 import { DeleteAgentDialog, NewAgentDialog } from "./team/AgentDialogs.tsx";
 import { AgentEditor } from "./team/AgentEditor.tsx";
@@ -20,8 +21,34 @@ import { useTeamInfo } from "./team/useTeamInfo.tsx";
 // Who sits on top of the hierarchy, in order: an orchestrator, then a CEO, then any "lead".
 const LEADS = [/orchestr|orquest/i, /\bceo\b|chief executive/i, /\blead\b/i];
 
+/** The Agents tab: in a company, its areas and roles sit beside the agents as a second tab where the title was. */
+export function ProjectAgents({ project }: { project: ProjectEntry }) {
+  const t = useT();
+  const agents = useData((s) => s.agents);
+  const [view, setView] = useState<"agents" | "org">("agents");
+  const count = useMemo(() => teamOf(agents, project.id).length, [agents, project.id]);
+  if (project.kind !== "company") return <ProjectTeam project={project} />;
+  const switcher = (
+    <Tabs
+      variant="pill"
+      className="team__tabs"
+      value={view}
+      onValueChange={(v) => setView(v === "org" ? "org" : "agents")}
+      items={[
+        { value: "agents", label: t("overview.agents"), count },
+        { value: "org", label: t("project.tab.org") },
+      ]}
+    />
+  );
+  return view === "org" ? (
+    <ProjectOrg project={project} switcher={switcher} />
+  ) : (
+    <ProjectTeam project={project} switcher={switcher} />
+  );
+}
+
 /** Team: the project's agents as an org chart (lead on top) or a list; import, details and models. */
-export function ProjectTeam({ project }: { project: ProjectEntry }) {
+function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: ReactNode }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const [mode, setMode] = useState("tree");
@@ -52,9 +79,11 @@ export function ProjectTeam({ project }: { project: ProjectEntry }) {
     <div className="team">
       <div className="team__head">
         <div className="team__titles">
-          <div className="team__title">
-            {t("overview.agents")} <span className="team__count">{team.length}</span>
-          </div>
+          {switcher ?? (
+            <div className="team__title">
+              {t("overview.agents")} <span className="team__count">{team.length}</span>
+            </div>
+          )}
           <div className="team__note">
             {project.isDefault ? (
               t("team.globalNote")

@@ -12,10 +12,9 @@ import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts"
 import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { FilesPane, NoFolder } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
-import { ProjectOrg } from "./ProjectOrg.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { ProjectSettings } from "./ProjectSettings.tsx";
-import { ProjectTeam } from "./ProjectTeam.tsx";
+import { ProjectAgents } from "./ProjectTeam.tsx";
 import { useProjectCounts } from "./useProjectCounts.ts";
 
 /** A project: header (tile, name, path, New chat) + underline tabs. SPEC §2.9. */
@@ -94,7 +93,7 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
         className="project__tabs"
         value={tab}
         onValueChange={(v) => go.projectTab(v as ProjectTab)}
-        items={PROJECT_TABS.filter((x) => x.id !== "org" || project.kind === "company").map((x) => ({
+        items={PROJECT_TABS.map((x) => ({
           value: x.id,
           label: t(x.label),
           count: counts[x.id],
@@ -112,9 +111,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "chats":
       return <ChatWorkspace layout={layout} />;
     case "team":
-      return <ProjectTeam project={project} />;
-    case "org":
-      return <ProjectOrg project={project} />;
+      return <ProjectAgents project={project} />;
     case "tasks":
       return <ProjectTasks projectId={project.id} />;
     case "routines":

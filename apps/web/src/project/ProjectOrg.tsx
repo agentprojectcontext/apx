@@ -2,7 +2,7 @@
 // and a role from here (the agent editor offers them); the agents of the project read them in their prompt.
 import type { Organization } from "@apx/protocol";
 import { Button, Card, Dialog, EmptyState, Field, IconButton, Icons, Input, Select, Skeleton, Textarea } from "@apx/ui";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { slugOf } from "../common/slug.ts";
 import { inProject, type ProjectEntry } from "../data/identity.ts";
 import { saveOrg, useOrg } from "../data/org.ts";
@@ -13,7 +13,7 @@ type Area = Organization["areas"][number];
 type Role = Organization["roles"][number];
 const GENERAL = "~general";
 
-export function ProjectOrg({ project }: { project: ProjectEntry }) {
+export function ProjectOrg({ project, switcher }: { project: ProjectEntry; switcher?: ReactNode }) {
   const t = useT();
   const org = useOrg(project.id);
   const agents = useData((s) => s.agents);
@@ -46,7 +46,7 @@ export function ProjectOrg({ project }: { project: ProjectEntry }) {
     <div className="team org">
       <div className="team__head">
         <div className="team__titles">
-          <div className="team__title">{t("project.tab.org")}</div>
+          {switcher ?? <div className="team__title">{t("project.tab.org")}</div>}
           <div className="team__note">{t("org.note")}</div>
         </div>
         <Button size="sm" variant="secondary" leadingIcon={<Icons.Plus size={14} />} onClick={() => setRole({})}>
