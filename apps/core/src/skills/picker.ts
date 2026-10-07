@@ -103,9 +103,7 @@ export function skillsBlock(
   named: Array<{ name: string; description: string; strong?: boolean }>,
 ): string {
   if (!loaded.length && !named.length) return "";
-  const lines = [
-    "A skill is a capability you HAVE: it is installed here and its body says how to use it. These matched this message.",
-  ];
+  const lines = ["A skill is a capability you HAVE: it is installed here and its body says how to use it."];
   for (const s of loaded) {
     const body =
       s.body.length > PICK.bodyCap ? `${s.body.slice(0, PICK.bodyCap)}\n\n…(cut; load_skill gives the rest)` : s.body;
@@ -114,8 +112,9 @@ export function skillsBlock(
   const strong = named.filter((s) => s.strong);
   const rest = named.filter((s) => !s.strong);
   const list = (group: typeof named) => group.map((s) => `- ${s.name}: ${s.description.replace(/\s+/g, " ").trim()}`);
-  if (strong.length) lines.push("", "Very close to this message; most likely what it needs:", ...list(strong));
-  if (rest.length) lines.push("", "Installed and matching this message:", ...list(rest));
+  if (named.length) lines.push("", "These resemble this message by meaning.");
+  if (strong.length) lines.push("Very close to it, most likely what it needs:", ...list(strong));
+  if (rest.length) lines.push(strong.length ? "Also close:" : "Close to it:", ...list(rest));
   if (named.length) {
     lines.push(
       "Judge each against the message: if it asks for what a skill does, call load_skill with its name BEFORE answering; if it is about something else, ignore it. Never say you cannot do something a skill here covers without reading it first.",

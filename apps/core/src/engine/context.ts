@@ -246,7 +246,7 @@ export function turnInput(opts: {
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
-    opts.skills ? `[skills matched for this message]\n${opts.skills}` : "",
+    opts.skills ? `[skills for this message]\n${opts.skills}` : "",
     opts.task ? `[task]\n${opts.task}` : "",
     opts.extension ? `[extension context]\n${opts.extension}` : "",
     opts.waiting ? `[waiting]\n${opts.waiting}` : "",

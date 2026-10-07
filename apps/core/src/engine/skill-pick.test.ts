@@ -76,7 +76,9 @@ test("a message that matches a skill gets it named for the agent to load, and th
   await env.client.call("threads.send", { thread: t.id, text: "creame una imagen de un gato" });
   const { messages } = await env.settle(t.id);
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
-  assert.match(input, /\[skills matched for this message\]/);
+  assert.match(input, /\[skills for this message\]/);
+  assert.match(input, /These resemble this message by meaning\.\nVery close to it, most likely what it needs:/);
+  assert.doesNotMatch(input, /matched/, "a resemblance is never called a match");
   assert.match(input, /- image-gen: Generate an image from a prompt\./);
   assert.match(input, /call load_skill/);
   assert.doesNotMatch(input, /Loaded:|Call the images service/, "a match by meaning never puts the body in");
@@ -101,7 +103,7 @@ test("a short message, or the picker turned off, adds nothing", async () => {
   assert.equal(skillsPart(messages), undefined);
   const last = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(last, /un gato/);
-  assert.doesNotMatch(last, /skills matched/);
+  assert.doesNotMatch(last, /\[skills for this message\]/);
 });
 
 test("a skill named with /name goes in whole, picker or not; an unknown name is just text", async () => {
