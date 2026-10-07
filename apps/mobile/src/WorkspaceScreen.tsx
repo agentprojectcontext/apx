@@ -1,11 +1,13 @@
 import * as Notifications from "expo-notifications";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
 import type { Creds } from "./creds";
 import { useNotifications } from "./hooks/useNotifications";
 import type { Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
+import { t } from "./i18n";
 import { ChatsPage } from "./pages/ChatsPage";
 import { InboxPage } from "./pages/InboxPage";
 import { MoreDetailPage, MorePage } from "./pages/MorePage";
@@ -15,20 +17,21 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
-import { Icon, type IconName } from "./ui/Icon";
-import { theme as t } from "./ui/theme";
+import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
+import { theme } from "./ui/theme";
 
 type Tab = "chats" | "inbox" | "tasks" | "sessions" | "more";
-const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
-  { id: "chats", label: "Chats", icon: "MessageCircle" },
-  { id: "inbox", label: "Bandeja", icon: "Inbox" },
-  { id: "tasks", label: "Tareas", icon: "ListChecks" },
-  { id: "sessions", label: "Sesiones", icon: "Terminal" },
-  { id: "more", label: "Más", icon: "LayoutGrid" },
+const TABS: Array<NavItem<Tab>> = [
+  { id: "chats", label: t("navChats"), icon: "MessageCircle" },
+  { id: "inbox", label: t("navInbox"), icon: "Inbox" },
+  { id: "tasks", label: t("navTasks"), icon: "ListChecks" },
+  { id: "sessions", label: t("navSessions"), icon: "Terminal" },
+  { id: "more", label: t("navMore"), icon: "LayoutGrid" },
 ];
 
 export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
   const workspace = useWorkspace(creds);
+  const insets = useSafeAreaInsets();
   useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
@@ -117,38 +120,22 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   if (workspace.loading && workspace.data.threads.length === 0)
     return (
       <View style={s.loading}>
-        <ActivityIndicator color={t.brand} />
+        <ActivityIndicator color={theme.brand} />
         {workspace.error ? <Text style={s.error}>{workspace.error}</Text> : null}
       </View>
     );
   return (
     <View style={s.root}>
-      <View style={s.content}>{content()}</View>
+      <View style={[s.content, (thread || surfaces) && { paddingBottom: insets.bottom }]}>{content()}</View>
       {!thread && !surfaces ? (
-        <View style={s.tabs}>
-          {TABS.map((item) => (
-            <Pressable
-              key={item.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === item.id }}
-              onPress={() => {
-                setTab(item.id);
-                setSubpage(undefined);
-              }}
-              style={s.tab}
-            >
-              <View style={[s.tabIconWrap, tab === item.id && s.activeIconWrap]}>
-                <Icon name={item.icon} size={21} color={tab === item.id ? t.fg : t.muted} />
-                {item.id === "inbox" && workspace.data.unread > 0 ? (
-                  <View style={s.badge}>
-                    <Text style={s.badgeText}>{workspace.data.unread > 9 ? "9+" : workspace.data.unread}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={[s.tabLabel, tab === item.id && s.activeTab]}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <BottomNav
+          items={TABS.map((item) => (item.id === "inbox" ? { ...item, badge: workspace.data.unread } : item))}
+          value={tab}
+          onChange={(id) => {
+            setTab(id);
+            setSubpage(undefined);
+          }}
+        />
       ) : null}
       {picker ? (
         <ChatPicker
@@ -166,43 +153,8 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   );
 }
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
+  root: { flex: 1, backgroundColor: theme.bg },
   content: { flex: 1 },
-  loading: { flex: 1, gap: 12, alignItems: "center", justifyContent: "center", backgroundColor: t.bg },
-  error: { color: t.danger, paddingHorizontal: 24, textAlign: "center" },
-  tabs: {
-    height: 68,
-    flexDirection: "row",
-    paddingTop: 5,
-    paddingBottom: 2,
-    backgroundColor: t.sidebar,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border,
-  },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2 },
-  tabIconWrap: {
-    width: 60,
-    height: 32,
-    borderRadius: 999,
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  activeIconWrap: { backgroundColor: t.fillHover },
-  tabIcon: { color: t.muted, fontSize: 19, fontWeight: "500" },
-  tabLabel: { color: t.muted, fontSize: 11 },
-  activeTab: { color: t.fg, fontWeight: "600" },
-  badge: {
-    position: "absolute",
-    top: -1,
-    right: 10,
-    minWidth: 15,
-    height: 15,
-    borderRadius: 9,
-    paddingHorizontal: 3,
-    backgroundColor: t.danger,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: { color: "white", fontSize: 9, fontWeight: "700" },
+  loading: { flex: 1, gap: 12, alignItems: "center", justifyContent: "center", backgroundColor: theme.bg },
+  error: { color: theme.danger, paddingHorizontal: 24, textAlign: "center" },
 });

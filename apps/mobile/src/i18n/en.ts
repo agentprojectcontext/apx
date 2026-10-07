@@ -65,6 +65,11 @@ export const en = {
   inHours: "in {n} h",
   minutes: "{n} min",
   hoursMinutes: "{h} h {m} min",
+  navChats: "Chats",
+  navInbox: "Inbox",
+  navTasks: "Tasks",
+  navSessions: "Sessions",
+  navMore: "More",
 } as const;
 
 export type Key = keyof typeof en;

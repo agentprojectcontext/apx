@@ -67,4 +67,9 @@ export const es: Record<Key, string> = {
   inHours: "en {n} h",
   minutes: "{n} min",
   hoursMinutes: "{h} h {m} min",
+  navChats: "Chats",
+  navInbox: "Bandeja",
+  navTasks: "Tareas",
+  navSessions: "Sesiones",
+  navMore: "Más",
 };

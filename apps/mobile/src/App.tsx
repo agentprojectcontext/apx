@@ -65,7 +65,7 @@ export function App() {
   }, []);
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
+      <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: theme.bg }}>
         <StatusBar style="light" />
         <PhotoModal ask={photo} />
         {creds === undefined ? (
@@ -75,13 +75,15 @@ export function App() {
         ) : creds && !link ? (
           <WorkspaceScreen creds={creds} onUnpair={unpair} />
         ) : (
-          <PairScreen
-            link={link}
-            onPaired={(c) => {
-              setLink(undefined);
-              setCreds(c);
-            }}
-          />
+          <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+            <PairScreen
+              link={link}
+              onPaired={(c) => {
+                setLink(undefined);
+                setCreds(c);
+              }}
+            />
+          </SafeAreaView>
         )}
       </SafeAreaView>
     </SafeAreaProvider>
