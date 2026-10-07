@@ -251,7 +251,8 @@ export const discordAdapter = ((
           : err;
       });
       loop = run(io);
-      return { account: me.username ? `@${me.username}` : config.label };
+      // Running once the gateway says READY: a message sent before that would find no one listening.
+      return { account: me.username ? `@${me.username}` : config.label, waiting: true };
     },
     async stop() {
       ac.abort();

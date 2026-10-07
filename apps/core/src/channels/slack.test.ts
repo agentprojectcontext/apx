@@ -40,6 +40,22 @@ const until = async (check: () => boolean | Promise<boolean>, what: string, ms =
 };
 const texts = (user: { id: string }) => sl.messagesTo(sl.dm(user.id)).map((m) => String(m.body.text ?? ""));
 
+/**
+ * Pairs the owner once (their first message gets a code, which the owner approves); every test that writes as the
+ * owner starts here, so one that fails does not take the others down with it. Returns the first message's envelope.
+ */
+let pairing: Promise<string> | undefined;
+const pairOwner = () => {
+  pairing ??= (async () => {
+    const envelope = sl.message(OWNER, "hola");
+    await until(() => texts(OWNER).length >= 1, "pairing message");
+    const code = /(\d{6})/.exec(texts(OWNER)[0] ?? "")?.[1] ?? "";
+    await env.client.call("pairing.respond", { code, decision: "owner" });
+    return envelope;
+  })();
+  return pairing;
+};
+
 before(async () => {
   sl = await fakeSlack(TOKENS);
   env = await startCore({
@@ -67,13 +83,12 @@ test("tokens and formatting: both tokens from one secret; Markdown becomes mrkdw
 });
 
 test("the app runs as its bot; the owner pairs with a code and their words reach Home, acknowledged", async () => {
+  // Written as soon as the channel says it runs: "running" means its socket is there to receive it.
+  const env1 = await pairOwner();
   const info = (await env.client.call("channels.list", {})).channels[0];
   assert.equal(info?.account, "@apx · Northwind");
-  const env1 = sl.message(OWNER, "hola");
-  await until(() => texts(OWNER).length === 1, "pairing message");
+  assert.equal(texts(OWNER).length, 1, "one pairing message");
   assert.ok(sl.acked.includes(env1), "the envelope is acknowledged once stored");
-  const code = /(\d{6})/.exec(texts(OWNER)[0] ?? "")?.[1] ?? "";
-  await env.client.call("pairing.respond", { code, decision: "owner" });
 
   sl.message(OWNER, "what is up");
   await until(() => texts(OWNER).some((t) => t.includes("you said: what is up")), "owner reply");
@@ -83,6 +98,7 @@ test("the app runs as its bot; the owner pairs with a code and their words reach
 });
 
 test("channels, edits and the app's own messages are ignored", async () => {
+  await pairOwner();
   const calls = llm.calls.length;
   sl.message(OWNER, "in a channel", { channel: true });
   sl.message(OWNER, "edited", { subtype: "message_changed" });
@@ -91,6 +107,7 @@ test("channels, edits and the app's own messages are ignored", async () => {
 });
 
 test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
+  await pairOwner();
   sl.message(OWNER, "launch the probe");
   await until(() => sl.messagesTo(sl.dm(OWNER.id)).some((m) => m.body.blocks), "buttons");
   const ask = sl.messagesTo(sl.dm(OWNER.id)).find((m) => m.body.blocks);
@@ -106,6 +123,7 @@ test("a confirmation comes with buttons; the owner's press approves it and the b
 });
 
 test("Slack asking to reconnect opens a new socket; a rate-limited send is retried", async () => {
+  await pairOwner();
   const opens = sl.opens();
   sl.disconnect();
   await until(() => sl.opens() > opens && sl.connections() === 1, "reconnected", 8000);

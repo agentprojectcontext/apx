@@ -74,8 +74,8 @@ export type AdapterIO = {
 export interface ChannelAdapter {
   readonly caps: AdapterCaps;
   /**
-   * Starts receiving; resolves with the account it runs as (a bot's @name) once connected, or `waiting` when linking
-   * goes on in the background (a QR to scan) and its state comes through `io`.
+   * Starts receiving; resolves with the account it runs as (a bot's @name) once connected, or `waiting` when linking or
+   * connecting goes on in the background (a QR to scan, a socket's handshake) and `io.status` says when it runs.
    */
   start(io: AdapterIO): Promise<{ account?: string; waiting?: boolean }>;
   stop(): Promise<void>;

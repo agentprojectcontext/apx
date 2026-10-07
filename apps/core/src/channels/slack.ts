@@ -244,7 +244,8 @@ export const slackAdapter = ((config, secret, apiBase = "https://slack.com/api")
           : err;
       });
       loop = run(io);
-      return { account: me.user ? `@${me.user}${me.team ? ` · ${me.team}` : ""}` : config.label };
+      // Running once the socket says hello: a message pushed before that would find no one listening.
+      return { account: me.user ? `@${me.user}${me.team ? ` · ${me.team}` : ""}` : config.label, waiting: true };
     },
     async stop() {
       ac.abort();
