@@ -14,6 +14,8 @@ The chat input. Enter sends, Shift+Enter adds a line, Ctrl/⌘+Enter sends with 
 - `popup` floats over the box, anchored to its top (a "/" command menu). `onInputKeyDown` sees each key in the
   field first and returns true when it handled it (arrows and Enter inside the popup); `inputAria` wires the field to
   the popup's list (`aria-controls` while expanded, `aria-activedescendant`).
+- `inputRef` reaches the field (focus, caret); `inputLabel` names it when the placeholder is only a hint;
+  `onInputSelect` follows the caret (an @mention picker), `onInputBlur` closes such a picker.
 - `labels` overrides the icon buttons' accessible names (`attach`, `stop`, `send`, `voice`; English by default).
 
 ```tsx

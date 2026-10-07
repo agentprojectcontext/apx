@@ -93,8 +93,10 @@ import {
   Plus,
   Power,
   QrCode,
+  Quote,
   RefreshCw,
   Repeat,
+  Reply,
   RotateCcw,
   Search,
   Send,
@@ -128,6 +130,8 @@ import {
 } from "lucide-react";
 
 export const Icons = {
+  Quote,
+  Reply,
   Archive,
   ArchiveRestore,
   CheckCheck,

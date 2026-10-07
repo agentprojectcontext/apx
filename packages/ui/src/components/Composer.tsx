@@ -1,5 +1,5 @@
 import { ArrowUp, Mic, Plus, Square } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useState } from "react";
+import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useState } from "react";
 import { cx } from "../cx";
 
 /** Accessible names of the icon buttons; English by default. */
@@ -44,6 +44,13 @@ export interface ComposerProps {
   onStop?: () => void;
   disabled?: boolean;
   className?: string;
+  /** The field itself (focus it, read or move its caret). */
+  inputRef?: Ref<HTMLTextAreaElement>;
+  /** The field's accessible name when the placeholder is a hint, not a name. */
+  inputLabel?: string;
+  /** The caret or selection moved (typing, a click, the arrows): an @mention picker follows it. */
+  onInputSelect?: (e: SyntheticEvent<HTMLTextAreaElement>) => void;
+  onInputBlur?: () => void;
 }
 
 /**
@@ -70,6 +77,10 @@ export function Composer({
   onStop,
   disabled,
   className,
+  inputRef,
+  inputLabel,
+  onInputSelect,
+  onInputBlur,
 }: ComposerProps) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const [inner, setInner] = useState(defaultValue);
@@ -137,13 +148,16 @@ export function Composer({
       <div className="apx-composer__row">
         {!boxed && attach}
         <textarea
+          ref={inputRef}
           className="apx-composer__input"
           rows={boxed ? 2 : 1}
-          aria-label={placeholder}
+          aria-label={inputLabel ?? placeholder}
           placeholder={placeholder}
           value={text}
           onChange={(e) => set(e.target.value)}
           onKeyDown={onKey}
+          onSelect={onInputSelect}
+          onBlur={onInputBlur}
           disabled={disabled}
           aria-autocomplete={inputAria ? "list" : undefined}
           aria-controls={inputAria?.expanded ? inputAria.controls : undefined}
