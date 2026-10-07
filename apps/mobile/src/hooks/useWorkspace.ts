@@ -124,6 +124,7 @@ export type Memory = {
   updated_at: string;
 };
 export type MemoryQuery = { query?: string; scope?: Memory["scope"]; project?: string; limit?: number };
+export type FileEntry = { name: string; path: string; kind: "dir" | "file"; bytes?: number };
 export type Engine = { id: string; label: string; installed: boolean; logged_in: boolean; detail?: string };
 export type NativeSession = { id: string; title: string; cwd: string; updated_at: string };
 export type Workspace = {
@@ -422,6 +423,25 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  const fileTree = useCallback(
+    async (project: string, dir: string) =>
+      rpc<{ entries: FileEntry[]; truncated: boolean }>(client, "files.tree", { project, dir }),
+    [client],
+  );
+  const readFile = useCallback(
+    async (project: string, path: string) =>
+      rpc<{ path: string; bytes: number; binary: boolean; truncated: boolean; text?: string }>(client, "files.read", {
+        project,
+        path,
+      }),
+    [client],
+  );
+  const fileMedia = useCallback(
+    async (project: string, path: string) =>
+      rpc<{ mime: string; data: string; bytes: number }>(client, "files.media", { project, path }),
+    [client],
+  );
+
   const noticePrefs = useCallback(async () => rpc<NoticePrefs>(client, "notices.get", {}), [client]);
   /** Interruption settings are saved whole: the core fills anything left out with its default. */
   const setNoticePrefs = useCallback(
@@ -488,6 +508,9 @@ export function useWorkspace(creds: Creds) {
     removeMemory,
     noticePrefs,
     setNoticePrefs,
+    fileTree,
+    readFile,
+    fileMedia,
     createChat,
     createSession,
     resumeSession,

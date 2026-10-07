@@ -10,6 +10,7 @@ import type { Routine, Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import { ChatsPage } from "./pages/ChatsPage";
+import { FilesPage } from "./pages/FilesPage";
 import { InboxPage } from "./pages/InboxPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { MoreDetailPage } from "./pages/MoreDetailPage";
@@ -51,6 +52,10 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<MoreId>();
   const [routine, setRoutine] = useState<Routine>();
+  const fileActions = useMemo(
+    () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
+    [workspace.fileTree, workspace.readFile, workspace.fileMedia],
+  );
   const memoryActions = useMemo(
     () => ({ list: workspace.memories, add: workspace.addMemory, remove: workspace.removeMemory }),
     [workspace.memories, workspace.addMemory, workspace.removeMemory],
@@ -130,6 +135,8 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           actions={routineActions}
         />
       );
+    if (subpage === "files")
+      return <FilesPage data={workspace.data} back={() => setSubpage(undefined)} actions={fileActions} />;
     if (subpage === "memory")
       return <MemoryPage data={workspace.data} back={() => setSubpage(undefined)} actions={memoryActions} />;
     if (subpage === "settings")

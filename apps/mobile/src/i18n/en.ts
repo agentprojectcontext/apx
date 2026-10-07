@@ -137,7 +137,6 @@ export const en = {
   connectedTo: "Connected to {host}",
   nothingHere: "Nothing here yet.",
   channelsHow: "Connect Telegram, WhatsApp, Discord or Slack from APX on your computer.",
-  filesHow: "Your projects' files open in APX on your computer.",
   agent: "Agent",
   filesChanged: "{n} files changed",
   couldNotAnswer: "Could not answer",
@@ -237,6 +236,13 @@ export const en = {
   setVersion: "APX for the phone · {version}",
   couldNotChange: "Could not change it",
   setThisPhoneOpen: "Only while the app is open (push is not set up)",
+  filesPickProject: "Pick a project",
+  filesEmptyDir: "This folder is empty.",
+  filesBinary: "This file is not text; open it on your computer.",
+  filesTruncated: "Showing the first 256 KB.",
+  filesMore: "The folder has more; showing the first ones.",
+  filesNoProjects: "No project with a folder on your computer yet.",
+  couldNotOpen: "Could not open it",
 } as const;
 
 export type Key = keyof typeof en;

@@ -13,7 +13,7 @@ export function MoreDetailPage({
   back,
   chatWith,
 }: {
-  id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory">;
+  id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory" | "files">;
   data: Workspace;
   back: () => void;
   chatWith: (agent: Agent) => void;
@@ -70,7 +70,7 @@ export function MoreDetailPage({
       ) : (
         <EmptyState title={t("channels")} body={t("channelsHow")} icon="Send" />
       );
-    return <EmptyState title={t("files")} body={t("filesHow")} icon="FileText" />;
+    return null;
   };
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
