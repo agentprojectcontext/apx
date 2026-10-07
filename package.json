@@ -1,6 +1,7 @@
 {
   "name": "apx-v2",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@11.11.0",
   "engines": {
