@@ -65,7 +65,8 @@ export const enChat = {
   "usage.state.canceled": "Canceled",
   "skills.trace.title": "Skills picked by meaning for this message ({engine})",
   "skills.trace.loaded": "Loaded: its whole text went into this turn's context",
-  "skills.trace.strong": "Recommended: very close to the message; its name and description went in and the agent decides whether to load it",
+  "skills.trace.strong":
+    "Recommended: very close to the message; its name and description went in and the agent decides whether to load it",
   "skills.trace.hinted": "Suggested: only its name and description went in; the agent loads it if needed",
   "skills.trace.considered": "Considered: it resembled the message but not enough to go in",
   "skills.trace.sim": "Similarity {sim}",
