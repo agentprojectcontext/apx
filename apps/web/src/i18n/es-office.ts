@@ -66,6 +66,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.outcome.kept": "Cumplido",
   "tasks.outcome.missed": "Incumplido",
   "tasks.outcome.dropped": "Liberado",
+  "tasks.dropped": "Descartada",
   "tasks.ev.owner": "Usuario",
   "tasks.ev.kept": "{name} lo marcó cumplido",
   "tasks.ev.missed": "{name} lo marcó incumplido",

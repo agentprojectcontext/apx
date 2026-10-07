@@ -64,6 +64,7 @@ export const enOffice = {
   "tasks.outcome.kept": "Kept",
   "tasks.outcome.missed": "Missed",
   "tasks.outcome.dropped": "Released",
+  "tasks.dropped": "Dropped",
   "tasks.ev.owner": "User",
   "tasks.ev.kept": "{name} marked it kept",
   "tasks.ev.missed": "{name} marked it missed",

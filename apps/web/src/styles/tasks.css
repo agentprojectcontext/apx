@@ -129,6 +129,27 @@
 .taskrow__glyph.is-closed {
   border-color: transparent;
 }
+/* Closed: done with a green check; dropped with a cross, its title struck through and said in words. */
+.taskrow__glyph.is-closed {
+  color: var(--apx-brand);
+}
+.taskrow.is-dropped .taskrow__glyph {
+  color: var(--apx-fg-subtle);
+}
+.taskrow.is-dropped .taskrow__name {
+  color: var(--apx-fg-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--apx-fg-subtle);
+}
+.taskrow__closed {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+  font-weight: var(--apx-weight-medium);
+}
 .taskrow__main {
   display: flex;
   flex-direction: column;

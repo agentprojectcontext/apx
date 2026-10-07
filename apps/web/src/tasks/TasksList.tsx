@@ -16,7 +16,7 @@ import { useLongPressDrag } from "../common/useLongPressDrag.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
 import { kindLabel, PriorityDot } from "./TaskFields.tsx";
 import { NewTask } from "./TaskForms.tsx";
@@ -35,6 +35,12 @@ const GROUP_LABEL: Record<GroupId, MessageKey> = {
   blocked: "tasks.group.blocked",
   closed: "tasks.group.closed",
 };
+
+/** How a closed task ended, when a check alone does not say it: dropped, or a commitment's outcome. */
+function closedLabel(task: Task, t: T): string | undefined {
+  if (task.kind === "commitment" && task.outcome) return t(`tasks.outcome.${task.outcome}`);
+  return task.state === "dropped" ? t("tasks.dropped") : undefined;
+}
 
 /** What puts a task in each group of the list. */
 export function GroupsHelp() {
@@ -232,7 +238,7 @@ function TaskRow(props: {
       <ContextMenu items={taskMenu(task, { t, columns, agents: Object.values(agents), onOpen: props.onOpen })}>
         <button
           type="button"
-          className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}`}
+          className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}${task.state === "dropped" ? " is-dropped" : ""}`}
           aria-current={props.selected || undefined}
           onClick={props.onOpen}
           {...props.drag}
@@ -244,13 +250,20 @@ function TaskRow(props: {
             {props.running && props.group === "doing" ? (
               <Spinner size={12} />
             ) : props.group === "closed" ? (
-              <Icons.Check size={12} />
+              task.state === "dropped" ? (
+                <Icons.X size={12} />
+              ) : (
+                <Icons.Check size={12} />
+              )
             ) : null}
           </span>
           <span className="taskrow__main">
             <span className="taskrow__title">
-              {task.priority !== "normal" && <PriorityDot priority={task.priority} />}
-              {task.title}
+              {task.priority !== "normal" && task.state === "open" && <PriorityDot priority={task.priority} />}
+              <span className="taskrow__name">{task.title}</span>
+              {task.state !== "open" && closedLabel(task, t) && (
+                <span className={`taskrow__closed is-${task.state}`}>{closedLabel(task, t)}</span>
+              )}
               {task.kind !== "task" && (
                 <span className={`taskrow__commit is-${task.kind}`}>
                   {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}
