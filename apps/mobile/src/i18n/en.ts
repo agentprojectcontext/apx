@@ -70,6 +70,18 @@ export const en = {
   navTasks: "Tasks",
   navSessions: "Sessions",
   navMore: "More",
+  defaultProject: "Default",
+  groupOf: "Group · {n} agents",
+  inApp: "Web",
+  searchChats: "Search chats",
+  workingNow: "Working now · {n}",
+  waitsForYou: "Waits for you",
+  working: "Working",
+  all: "All",
+  noChats: "No chats here",
+  noChatsBody: "Try another filter or start a conversation.",
+  noMessagesYet: "No messages yet.",
+  newChat: "New chat",
 } as const;
 
 export type Key = keyof typeof en;

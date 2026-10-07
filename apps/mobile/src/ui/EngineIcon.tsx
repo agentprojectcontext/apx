@@ -20,7 +20,7 @@ export function EngineIcon({ engine, size = 34 }: { engine: "claude" | "codex"; 
       <Defs>
         <LinearGradient id={gradient} gradientUnits="userSpaceOnUse" x1={12} x2={12} y1={3} y2={21}>
           <Stop stopColor={mark.from} />
-          <Stop offset=".5" stopColor={mark.via} />
+          <Stop offset="0.5" stopColor={mark.via} />
           <Stop offset="1" stopColor={mark.to} />
         </LinearGradient>
       </Defs>

@@ -96,7 +96,16 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
     if (subpage) return <MoreDetailPage id={subpage} data={workspace.data} back={() => setSubpage(undefined)} />;
     switch (tab) {
       case "chats":
-        return <ChatsPage data={workspace.data} open={openThread} create={newChat} />;
+        return (
+          <ChatsPage
+            data={workspace.data}
+            online={workspace.online}
+            open={openThread}
+            create={newChat}
+            account={() => setTab("more")}
+            refresh={workspace.refresh}
+          />
+        );
       case "inbox":
         return (
           <InboxPage data={workspace.data} open={openThread} read={workspace.readNotice} respond={workspace.respond} />

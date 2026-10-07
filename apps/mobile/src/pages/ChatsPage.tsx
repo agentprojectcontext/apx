@@ -1,255 +1,245 @@
-import { useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { activeThreads, isWorking, listedThreads } from "../hooks/chatSelectors";
-import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
-import { AgentAvatar, Badge, EmptyState, IconButton, Muted, Page, PageHeader, RoundButton } from "../ui/components";
+import { useMemo, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { elapsed, listWhen } from "../format";
+import { isWorking, listedThreads, threadContext, workingNow } from "../hooks/chatSelectors";
+import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
+import { t } from "../i18n";
+import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
-import { theme as t } from "../ui/theme";
+import {
+  AgentAvatar,
+  AgentPair,
+  Chip,
+  CountBadge,
+  EmptyState,
+  Fab,
+  IconButton,
+  OwnerAvatar,
+  Spinner,
+  type,
+} from "../ui/kit";
+import { theme } from "../ui/theme";
 
 export function ChatsPage({
   data,
+  online,
   open,
   create,
+  account,
+  refresh,
 }: {
   data: Workspace;
+  online: boolean;
   open: (thread: Thread) => void;
   create: () => void;
+  account: () => void;
+  refresh: () => Promise<void>;
 }) {
-  const [query, setQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const searchInput = useRef<TextInput>(null);
+  const [query, setQuery] = useState<string>();
   const [project, setProject] = useState("all");
-  const busy = useMemo(
-    () => new Set(data.threads.filter((thread) => isWorking(thread.state)).map((thread) => thread.id)),
-    [data.threads],
-  );
-  const filtered = listedThreads(data.threads).filter((thread) => {
-    const matchesProject =
-      project === "all" || (project === "default" ? !thread.project_id : thread.project_id === project);
-    const matchesQuery = `${thread.title} ${thread.preview}`.toLowerCase().includes(query.toLowerCase());
-    return matchesProject && matchesQuery;
+  const [refreshing, setRefreshing] = useState(false);
+  const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
+  const rows = listedThreads(data.threads).filter((thread) => {
+    const inProject = project === "all" || (project === "default" ? !thread.project_id : thread.project_id === project);
+    const words = query?.trim().toLowerCase();
+    return inProject && (!words || `${thread.title} ${thread.preview}`.toLowerCase().includes(words));
   });
-  const working = activeThreads(data.threads);
+  const projects = data.projects.filter((item) => item.registered !== false);
   return (
     <View style={s.root}>
-      <PageHeader
-        title="Chats"
-        right={
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <IconButton
-              icon="Search"
-              label="Buscar chats"
-              onPress={() => {
-                setSearching((value) => !value);
-                setTimeout(() => searchInput.current?.focus(), 100);
-              }}
-            />
-            <Text style={s.profile}>MD</Text>
-          </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 96 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={theme.fgMuted}
+            colors={[theme.fg]}
+            progressBackgroundColor={theme.surfaceRaised}
+            onRefresh={() => {
+              setRefreshing(true);
+              void refresh().finally(() => setRefreshing(false));
+            }}
+          />
         }
-      />
-      <Page>
-        {searching ? (
-          <View style={s.searchRow}>
-            <Icon name="Search" size={18} />
+      >
+        <View style={s.header}>
+          <Text accessibilityRole="header" style={[type.largeTitle, { flex: 1 }]}>
+            {t("navChats")}
+          </Text>
+          <IconButton
+            icon="Search"
+            label={t("searchChats")}
+            onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
+          />
+          <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
+            <OwnerAvatar name={data.owner} online={online} />
+          </Pressable>
+        </View>
+        {query !== undefined ? (
+          <View style={s.search}>
+            <Icon name="Search" size={16} color={theme.fgSubtle} />
             <TextInput
-              ref={searchInput}
+              autoFocus
               value={query}
               onChangeText={setQuery}
-              placeholder="Buscar chats"
-              placeholderTextColor={t.subtle}
-              style={s.search}
+              placeholder={t("searchChats")}
+              placeholderTextColor={theme.fgSubtle}
+              returnKeyType="search"
+              style={s.searchInput}
             />
-            <Muted>{data.threads.length}</Muted>
+            <IconButton
+              icon="X"
+              label={t("back")}
+              size={16}
+              color={theme.fgMuted}
+              onPress={() => setQuery(undefined)}
+            />
           </View>
         ) : null}
         {working.length > 0 ? (
-          <View style={s.section}>
-            <Muted>Trabajando ahora · {working.length}</Muted>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontal}>
-              {working.map((thread) => (
-                <ThreadChip key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />
+          <>
+            <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
+              {working.map(({ thread, job }) => (
+                <WorkChip key={thread.id} thread={thread} job={job} agents={data.agents} onPress={() => open(thread)} />
               ))}
             </ScrollView>
-          </View>
+          </>
         ) : null}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={s.projects}
-        >
-          <Pressable onPress={() => setProject("all")} style={[s.projectPill, project === "all" && s.selected]}>
-            <Text style={[s.projectText, project === "all" && s.selectedText]}>Todos</Text>
-          </Pressable>
-          <Pressable onPress={() => setProject("default")} style={[s.projectPill, project === "default" && s.selected]}>
-            <Text style={[s.projectText, project === "default" && s.selectedText]}>Default</Text>
-          </Pressable>
-          {data.projects
-            .filter((item) => item.registered !== false)
-            .map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => setProject(item.id)}
-                style={[s.projectPill, project === item.id && s.selected]}
-              >
-                <Text style={[s.projectText, project === item.id && s.selectedText]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </Pressable>
-            ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
+          <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
+          {projects.map((item) => (
+            <Chip key={item.id} label={item.name} selected={project === item.id} onPress={() => setProject(item.id)} />
+          ))}
         </ScrollView>
-        {filtered.length ? (
-          filtered.map((thread) => (
-            <ThreadRow
-              key={thread.id}
-              thread={thread}
-              data={data}
-              busy={busy.has(thread.id)}
-              onPress={() => open(thread)}
-            />
-          ))
+        {rows.length ? (
+          rows.map((thread) => <ChatRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />)
         ) : (
-          <EmptyState title="No hay chats" body="Probá otro filtro o empezá una conversación." />
+          <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
         )}
-      </Page>
-      <View style={s.fab}>
-        <RoundButton icon="SquarePen" label="Nuevo chat" onPress={create} />
-      </View>
+      </ScrollView>
+      <Fab icon="SquarePen" label={t("newChat")} onPress={create} />
     </View>
   );
 }
 
-function ThreadChip({ thread, data, onPress }: { thread: Thread; data: Workspace; onPress: () => void }) {
-  const agent = findAgent(thread, data.agents);
-  return (
-    <Pressable onPress={onPress} style={s.workChip}>
-      <AgentAvatar name={agent?.name ?? thread.title} blob={agent?.blob} id={agent?.id ?? thread.agent_ids[0]} />
-      <View style={{ flex: 1 }}>
-        <Text style={s.rowTitle} numberOfLines={1}>
-          {thread.title}
-        </Text>
-        <Muted numberOfLines={1}>
-          {thread.state === "input-required" ? "Espera tu respuesta" : "Trabajando ahora"}
-        </Muted>
-      </View>
-    </Pressable>
-  );
+const agentOf = (id: string | undefined, agents: Agent[]) => agents.find((agent) => agent.id === id);
+
+/** A conversation's face: the outside engine's mark, two agents for a group, or its agent. */
+function ThreadAvatar({ thread, agents, size }: { thread: Thread; agents: Agent[]; size: number }) {
+  if (thread.engine === "claude" || thread.engine === "codex") return <EngineIcon engine={thread.engine} size={size} />;
+  const [a, b] = thread.agent_ids.map((id) => agentOf(id, agents) ?? { id, name: id });
+  if (a && b) return <AgentPair first={a} second={b} size={size + 4} />;
+  return <AgentAvatar name={a?.name ?? thread.title} blob={a?.blob} id={a?.id} size={size} />;
 }
-function ThreadRow({
+
+function WorkChip({
   thread,
-  data,
-  busy,
+  job,
+  agents,
   onPress,
 }: {
   thread: Thread;
-  data: Workspace;
-  busy: boolean;
+  job?: Job;
+  agents: Agent[];
   onPress: () => void;
 }) {
-  const agent = findAgent(thread, data.agents);
-  const project = data.projects.find((item) => item.id === thread.project_id);
+  const who = agentOf(job?.agent_id ?? thread.agent_ids[0], agents)?.name ?? thread.title;
+  const waiting = thread.state === "input-required";
   return (
-    <Pressable onPress={onPress} style={s.threadRow}>
-      <AgentAvatar
-        name={agent?.name ?? thread.title}
-        blob={agent?.blob}
-        id={agent?.id ?? thread.agent_ids[0]}
-        size={36}
-      />
-      <View style={s.copy}>
-        <View style={s.top}>
-          <Text style={s.rowTitle} numberOfLines={1}>
-            {thread.title}
-          </Text>
-          {busy ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <ActivityIndicator size="small" color={t.brand} />
-              <Muted>Trabajando</Muted>
-            </View>
-          ) : (
-            <Muted>{thread.state === "input-required" ? "Te necesita" : time(thread.updated_at)}</Muted>
-          )}
-        </View>
-        <Text style={s.preview} numberOfLines={1}>
-          {thread.preview || "Todavía no hay mensajes."}
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [s.work, pressed && { opacity: 0.85 }]}
+    >
+      <ThreadAvatar thread={thread} agents={agents} size={32} />
+      <View style={{ maxWidth: 160 }}>
+        <Text numberOfLines={1} style={s.workTitle}>
+          {job?.title || thread.title}
         </Text>
-        <Muted numberOfLines={1}>
-          {project?.name ?? "Default"} · {thread.engine ?? "Web"}
-        </Muted>
+        <Text numberOfLines={1} style={type.small}>
+          {who} · {waiting ? t("waitsForYou") : elapsed(job?.started_at ?? thread.updated_at)}
+        </Text>
       </View>
-      {thread.unread > 0 ? <Badge tone="brand">{String(thread.unread)}</Badge> : null}
+      {waiting ? <Icon name="Bell" size={14} color={theme.warning} /> : <Spinner size={14} />}
     </Pressable>
   );
 }
-function findAgent(thread: Thread, agents: Agent[]) {
-  return agents.find((agent) => agent.id === thread.agent_ids[0]);
+
+function ChatRow({ thread, data, onPress }: { thread: Thread; data: Workspace; onPress: () => void }) {
+  const unread = thread.unread > 0;
+  const busy = isWorking(thread.state);
+  const waiting = thread.state === "input-required";
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
+    >
+      <View style={s.avatar}>
+        <ThreadAvatar thread={thread} agents={data.agents} size={44} />
+      </View>
+      <View style={s.copy}>
+        <View style={s.line}>
+          <Text numberOfLines={1} style={[s.title, unread && { fontWeight: "600" }]}>
+            {thread.title}
+          </Text>
+          {busy ? <Spinner size={12} /> : null}
+          <Text style={[type.meta, unread && { color: theme.brand }, waiting && { color: theme.warning }]}>
+            {busy ? t("working") : waiting ? t("waitsForYou") : listWhen(thread.updated_at)}
+          </Text>
+        </View>
+        <View style={s.line}>
+          <Text numberOfLines={1} style={[s.preview, unread && { color: theme.fg }]}>
+            {thread.preview || t("noMessagesYet")}
+          </Text>
+          {unread ? <CountBadge count={thread.unread} /> : null}
+        </View>
+        <Text numberOfLines={1} style={type.small}>
+          {threadContext(thread, data)}
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
-function time(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ""
-    : new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(date);
-}
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
+  root: { flex: 1, backgroundColor: theme.bg },
+  header: { height: 60, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 20, paddingRight: 8 },
+  account: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   search: {
-    flex: 1,
-    color: t.fg,
-    height: 38,
-    borderRadius: 20,
-    backgroundColor: t.fill,
-    paddingHorizontal: 14,
-    fontSize: 14,
-  },
-  section: { paddingTop: 8, paddingBottom: 12, borderBottomWidth: 1, borderColor: t.border },
-  horizontal: { flexDirection: "row", gap: 8, paddingTop: 9 },
-  workChip: {
-    width: 200,
-    minHeight: 62,
+    height: 40,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingLeft: 14,
+    borderRadius: 999,
+    backgroundColor: theme.fill,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
-    padding: 10,
-    borderRadius: 28,
-    backgroundColor: t.surface,
+    gap: 8,
   },
-  projects: { flexDirection: "row", gap: 7, paddingVertical: 10 },
-  projectPill: {
-    borderRadius: 99,
-    borderWidth: 1,
-    borderColor: t.borderStrong,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    maxWidth: 130,
-  },
-  selected: { backgroundColor: t.accent, borderColor: t.accent },
-  projectText: { color: t.muted, fontSize: 12 },
-  selectedText: { color: t.accentFg },
-  threadRow: {
-    minHeight: 76,
+  searchInput: { flex: 1, color: theme.fg, fontSize: 15, paddingVertical: 0 },
+  workingLabel: { paddingTop: 4, paddingHorizontal: 20, paddingBottom: 8 },
+  strip: { gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  work: {
+    height: 52,
+    paddingLeft: 8,
+    paddingRight: 14,
+    borderRadius: 999,
+    backgroundColor: theme.fill,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 2,
+    gap: 10,
   },
-  copy: { flex: 1, minWidth: 0, gap: 3 },
-  top: { flexDirection: "row", alignItems: "center", gap: 8 },
-  rowTitle: { color: t.fg, fontSize: 15, fontWeight: "500", flex: 1 },
-  preview: { color: t.fg, fontSize: 13 },
-  fab: { position: "absolute", right: 20, bottom: 16 },
-  profile: {
-    color: t.violet,
-    backgroundColor: t.violetSoft,
-    width: 34,
-    height: 34,
-    textAlign: "center",
-    textAlignVertical: "center",
-    borderRadius: 18,
-    overflow: "hidden",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  workTitle: { color: theme.fg, fontSize: 13, fontWeight: "500" },
+  chips: { gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
+  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 10, paddingHorizontal: 20 },
+  avatar: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  copy: { flex: 1, minWidth: 0, gap: 2 },
+  line: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
+  preview: { flex: 1, color: theme.fgMuted, fontSize: 13 },
 });

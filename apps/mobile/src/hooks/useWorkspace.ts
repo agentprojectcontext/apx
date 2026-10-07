@@ -30,6 +30,7 @@ export type Thread = {
   archived?: boolean;
   pinned?: boolean;
   engine?: string;
+  channel?: { id: string; conversation: string };
   state: string;
   preview: string;
   unread: number;
@@ -87,6 +88,20 @@ export type Routine = {
   next_run_at?: string;
   last_run_at?: string;
 };
+/** A channel (Telegram bot, WhatsApp line…) as the phone lists it. */
+export type Channel = { id: string; type: string; label: string; enabled: boolean; agent_id: string };
+/** One running or finished piece of work, as jobs.list gives it. */
+export type Job = {
+  id: string;
+  kind: "agent" | "terminal";
+  title: string;
+  state: string;
+  thread_id: string;
+  parent_thread_id?: string;
+  agent_id?: string;
+  started_at: string;
+  ended_at?: string;
+};
 export type Engine = { id: string; label: string; installed: boolean; logged_in: boolean; detail?: string };
 export type NativeSession = { id: string; title: string; cwd: string; updated_at: string };
 export type Workspace = {
@@ -100,7 +115,8 @@ export type Workspace = {
   routines: Routine[];
   engines: Engine[];
   sessions: Record<string, NativeSession[]>;
-  jobs: { running: Array<{ thread_id?: string; title?: string; trigger?: string }> };
+  jobs: { running: Job[] };
+  channels: Channel[];
   /** The owner's name as set in APX ("" until loaded or when unset). */
   owner: string;
 };
@@ -117,6 +133,7 @@ export const emptyWorkspace: Workspace = {
   engines: [],
   sessions: {},
   jobs: { running: [] },
+  channels: [],
   owner: "",
 };
 
@@ -156,19 +173,21 @@ export function useWorkspace(creds: Creds) {
   const loadSecondary = useCallback(async () => {
     const get = <T>(method: string, params?: Record<string, unknown>) =>
       rpc<T>(client, method, params).catch(() => undefined);
-    const [projects, agents, open, done, dropped, inbox, pending, routines, engines, jobs, owner] = await Promise.all([
-      get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
-      get<{ agents: Agent[] }>("agents.list", {}),
-      get<{ tasks: Task[] }>("tasks.list", { state: "open", limit: 200 }),
-      get<{ tasks: Task[] }>("tasks.list", { state: "done", limit: 25 }),
-      get<{ tasks: Task[] }>("tasks.list", { state: "dropped", limit: 25 }),
-      get<{ notifications: Notice[]; unread: number }>("notifications.list", { limit: 100 }),
-      get<{ inputs: PendingInput[] }>("runs.pending", {}),
-      get<{ routines: Routine[] }>("routines.list", {}),
-      get<{ engines: Engine[] }>("engines.status", {}),
-      get<Workspace["jobs"]>("jobs.list", { finished: 12 }),
-      get<{ name: string }>("owner.get", {}),
-    ]);
+    const [projects, agents, open, done, dropped, inbox, pending, routines, engines, jobs, owner, channels] =
+      await Promise.all([
+        get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
+        get<{ agents: Agent[] }>("agents.list", {}),
+        get<{ tasks: Task[] }>("tasks.list", { state: "open", limit: 200 }),
+        get<{ tasks: Task[] }>("tasks.list", { state: "done", limit: 25 }),
+        get<{ tasks: Task[] }>("tasks.list", { state: "dropped", limit: 25 }),
+        get<{ notifications: Notice[]; unread: number }>("notifications.list", { limit: 100 }),
+        get<{ inputs: PendingInput[] }>("runs.pending", {}),
+        get<{ routines: Routine[] }>("routines.list", {}),
+        get<{ engines: Engine[] }>("engines.status", {}),
+        get<Workspace["jobs"]>("jobs.list", { finished: 12 }),
+        get<{ name: string }>("owner.get", {}),
+        get<{ channels: Channel[] }>("channels.list", {}),
+      ]);
     let sessions: Workspace["sessions"] = {};
     if (engines?.engines) {
       const installed = engines.engines.filter((engine) => engine.installed && ["claude", "codex"].includes(engine.id));
@@ -192,6 +211,7 @@ export function useWorkspace(creds: Creds) {
       sessions,
       jobs: jobs ?? d.jobs,
       owner: owner?.name ?? d.owner,
+      channels: channels?.channels ?? d.channels,
     }));
   }, [client]);
 
