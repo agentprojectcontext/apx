@@ -10,11 +10,11 @@
     "ios": {
       "bundleIdentifier": "dev.apx.mobile",
       "supportsTablet": true,
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "package": "dev.apx.mobile",
-      "versionCode": 3
+      "versionCode": 4
     },
     "plugins": [
       [
@@ -31,7 +31,8 @@
         }
       ],
       "expo-notifications",
-      "./plugins/with-ios-scenes.js"
+      "./plugins/with-ios-scenes.js",
+      "./plugins/with-android-cleartext.js"
     ]
   }
 }
