@@ -1,6 +1,8 @@
 // MCP servers: listing, the owner's approval of a project's server, and the owner's own servers.
+
+import { ErrorCode } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { badRequest, CallError, notFound } from "../errors.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
@@ -14,8 +16,14 @@ export function mcpHandlers(mcp: Mcp, store: Store) {
     "mcp.tools": async ({ scope, server, project }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw notFound(`MCP server ${server}`);
-      const tools = await mcp.toolPermissions(d);
-      return { tools: tools.map(({ name, key, permanent, approved }) => ({ name, key, permanent, approved })) };
+      try {
+        const tools = await mcp.toolPermissions(d);
+        return { tools: tools.map(({ name, key, permanent, approved }) => ({ name, key, permanent, approved })) };
+      } catch (e) {
+        // A server that does not start is an answer to "what are its tools", not a failed call.
+        if (e instanceof CallError && e.shape.code === ErrorCode.Unavailable) return { tools: [], error: e.message };
+        throw e;
+      }
     },
     "mcp.describe": async ({ scope, server, project }) => {
       const d = mcp.find(scope, server, project);

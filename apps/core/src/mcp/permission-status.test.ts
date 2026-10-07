@@ -43,3 +43,18 @@ test("permission status reports only current owner-wide grants without starting 
     env.cleanup();
   }
 });
+
+test("a server that does not start answers its tools with why, not as a failed call", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const target = { scope: "global" as const, server: "missing" };
+  try {
+    await env.client.call("mcp.set", { name: target.server, server: { command: "apx-no-such-command" } });
+    const { tools, error } = await env.client.call("mcp.tools", target);
+    assert.deepEqual(tools, []);
+    assert.match(error ?? "", /ENOENT/);
+    await assert.rejects(env.client.call("mcp.approveTool", { ...target, tool: "echo" }), /ENOENT/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

@@ -43,6 +43,7 @@ export function McpTools({
   const agents = useData((st) => st.agents);
   const threads = useData((st) => st.threads);
   const [tools, setTools] = useState<Permission[]>();
+  const [failed, setFailed] = useState<string>();
   const [grants, setGrants] = useState<ToolApproval[]>([]);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,7 +52,10 @@ export function McpTools({
 
   const read = async () => {
     const [list, all] = await Promise.all([mcpPermissions(s, project), listApprovals()]);
-    if (list) setTools(list);
+    if (list) {
+      setTools(list.error ? undefined : list.tools);
+      setFailed(list.error);
+    }
     setGrants((all ?? []).filter(ofServer(s)).filter((g) => g.agent_id || g.thread_id));
   };
   // biome-ignore lint/correctness/useExhaustiveDependencies: read again for another server or after a test
@@ -139,7 +143,13 @@ export function McpTools({
           )}
         </div>
       ) : (
-        <p className="resd__muted">{busy ? t("res.toolsLoading") : t(usable ? "res.toolsUnknown" : "res.toolsOff")}</p>
+        <p className="resd__muted">
+          {busy
+            ? t("res.toolsLoading")
+            : failed
+              ? t("res.toolsFailed", { error: failed })
+              : t(usable ? "res.toolsUnknown" : "res.toolsOff")}
+        </p>
       )}
       {grants.length > 0 && (
         <>

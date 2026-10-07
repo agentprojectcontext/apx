@@ -73,15 +73,17 @@ export const setInheritance = (project: string, kind: "skills" | "mcp", on: bool
 export const listApprovals = () => attempt(async () => (await client.call("tools.approvals", {})).approvals);
 export const revokeApproval = (key: string, thread?: string, agent?: string) =>
   attempt(() => client.call("tools.revoke", { key, ...(thread ? { thread } : {}), ...(agent ? { agent } : {}) }));
+/** Its tools and their permissions, or why the server did not start (`error`). */
 export const mcpPermissions = (s: McpServerStatus, project?: string) =>
-  attempt(async () => (await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) })).tools);
+  attempt(() => client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) }));
 export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>
   attempt(() => client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) }));
 
 /** Uses the same current contracts as individual toggles; a failure stops the batch and shows a notice. */
 export const setMcpToolMode = (s: McpServerStatus, mode: "ask" | "all", project?: string) =>
   attempt(async () => {
-    const { tools } = await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) });
+    const { tools, error } = await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) });
+    if (error) throw new Error(error);
     for (const tool of tools) {
       if (mode === "all" && !tool.approved)
         await client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool: tool.name, ...scoped(project) });

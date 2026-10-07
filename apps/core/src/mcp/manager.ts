@@ -6,7 +6,7 @@ import type { Thread } from "@apx/protocol";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
-import { errorMessage } from "../errors.ts";
+import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
@@ -280,13 +280,13 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       return out;
     },
     async toolPermissions(d: McpDef) {
-      if (!d.enabled || !config.trusted(d)) throw new Error("approve and enable this server before listing tools");
+      if (!d.enabled || !config.trusted(d)) throw badRequest("approve and enable this server before listing tools");
       const c = ensure(d);
       await c.ready;
-      if (!c.client) throw new Error(c.error ?? "MCP server is not connected");
+      if (!c.client) throw unavailable(c.error ?? "MCP server is not connected");
       const current = this.find(d.scope, d.name, d.values_of ?? d.project_id ?? d.only);
       if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
-        throw new Error("MCP server definition changed");
+        throw conflict("MCP server definition changed");
       return c.tools.map((t) => ({
         ...mcpApproval(d, t),
         name: t.name,

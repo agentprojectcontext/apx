@@ -14,6 +14,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.toolsGrants": "Permitidas para un agente o un chat",
   "res.toolsLoading": "Cargando tools…",
   "res.toolsOff": "Aprobá y activá el servidor para ver sus tools.",
+  "res.toolsFailed": "El servidor no arrancó: {error}",
   "res.idleLong": "Listo: se inicia solo cuando un agente lo usa",
   "res.error": "Recursos: {error}",
   "res.lead":

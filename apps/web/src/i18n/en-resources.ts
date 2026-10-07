@@ -11,6 +11,7 @@ export const enResources = {
   "res.toolsGrants": "Allowed for one agent or chat",
   "res.toolsLoading": "Loading tools…",
   "res.toolsOff": "Approve and turn on the server to see its tools.",
+  "res.toolsFailed": "The server did not start: {error}",
   "res.idleLong": "Ready: starts only when an agent uses it",
   "res.error": "Resources: {error}",
   "res.lead":

@@ -128,6 +128,8 @@ export const resourceMethods = {
     params: McpTarget,
     result: z.object({
       tools: z.array(z.object({ name: z.string(), key: z.string(), permanent: z.boolean(), approved: z.boolean() })),
+      /** Why the server did not start, so it has no tools to show. */
+      error: z.string().optional(),
     }),
     effect: true,
     access: "human",
