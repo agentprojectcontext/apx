@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models";
 import { type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import type { Creds } from "./creds";
@@ -37,6 +38,7 @@ export function ChatScreen({
   onNewChat: () => void;
 }) {
   const live = useThread(creds, base.id, onUnpair);
+  const insets = useSafeAreaInsets();
   const thread = (live.thread as Thread | undefined) ?? base;
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
   const name = thread.engine ? thread.title : (agent?.name ?? thread.title);
@@ -66,7 +68,12 @@ export function ChatScreen({
         ? t("waitsForYourAnswer")
         : threadContext(thread, data);
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={s.root}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      // The screen starts below the status bar; the keyboard is measured from the top of the device.
+      keyboardVerticalOffset={insets.top}
+    >
       <View style={s.header}>
         <IconButton icon="ChevronLeft" label={t("back")} size={22} onPress={onBack} />
         <Pressable accessibilityRole="button" accessibilityLabel={name} onPress={onSwitch} style={s.who}>
