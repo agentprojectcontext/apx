@@ -38,6 +38,14 @@ export function channelHandlers(store: Store, channels: Channels) {
         throw badRequest(errorMessage(err));
       }
     },
+    // Open to agents like channels.message: their way to post in a public room for the owner.
+    "channels.post": ({ room, text, files }, ctx) => {
+      try {
+        return channels.postInRoom(room, text, { by: ctx.agent?.id, files });
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     "channels.open": ({ person, channel }) => {
       if (!store.persons.get(person)) throw notFound(`person ${person}`);
       try {

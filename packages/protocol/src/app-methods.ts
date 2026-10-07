@@ -730,6 +730,27 @@ export const appMethods = {
     }),
     effect: true,
   },
+  /**
+   * An agent posts in a public room for the owner (a Discord server's channel the owner listed: "post the summary in
+   * #help"): kept in the room's chat and sent with no pings to everyone. `room` is its name, with or without "#".
+   * Never offered to a contact's own turn.
+   */
+  "channels.post": {
+    params: z
+      .object({
+        room: z.string().trim().min(1).max(80),
+        text: z.string().trim().min(1).max(4000),
+        /** Files to send with it (media ids): images as images, anything else as a document. */
+        files: z.array(Id).max(5).optional(),
+      })
+      .strict(),
+    result: z.object({
+      thread: Id,
+      channel: z.string(),
+      recent: z.array(z.object({ from: z.enum(["them", "you", "owner"]), text: z.string() })),
+    }),
+    effect: true,
+  },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
   "channels.outbox": {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),

@@ -1,5 +1,6 @@
 // message_contact: the owner's agent writes to one of the owner's contacts on a channel ("tell Alex on WhatsApp…"),
-// or to the owner there ("send me the quote"), with files if asked, as v1's send_whatsapp and send_file did.
+// or to the owner there ("send me the quote"), or posts in a public room ("#help"), with files if asked, as v1's
+// send_whatsapp and send_file did.
 // Contacts' own turns never get it (see CONTACT_TOOLS in turn.ts): a contact cannot make the agent write to someone.
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -97,7 +98,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        "Send a message on WhatsApp, Telegram or Discord, through APX's own channels, when the owner asks: to one of their contacts ('tell Alex…', 'answer her on WhatsApp'), or to the owner with to=\"me\" ('send me the quote on WhatsApp'). `to`: the contact's name or id, or \"me\". `channel`: whatsapp, telegram or discord (default: the one they talked on last). `files`: paths in the folder you work in (images go as images, anything else as a document, 20 MB at most). Plain text as a person types it, no markdown; it goes out at once and cannot be taken back. Write it in first person as the owner's assistant and never add what the owner did not say. The result shows the end of that chat: read it before telling the owner it went. Never use a phone or a browser to send a message.",
+        "Send a message on WhatsApp, Telegram or Discord, through APX's own channels, when the owner asks: to one of their contacts ('tell Alex…', 'answer her on WhatsApp'), to the owner with to=\"me\" ('send me the quote on WhatsApp'), or in a public room of a server with to=\"#room-name\" ('post it in #help'; the rooms are listed with the agents in the turn context). `to`: the contact's name or id, \"me\", or \"#room\". `channel`: whatsapp, telegram or discord (default: the one they talked on last; ignored for a room). `files`: paths in the folder you work in (images go as images, anything else as a document, 20 MB at most). Plain text as a person types it, no markdown; it goes out at once and cannot be taken back. Write it in first person as the owner's assistant and never add what the owner did not say. The result shows the end of that chat: read it before telling the owner it went. Never use a phone or a browser to send a message.",
       args: z.object({
         to: z.string().trim().min(1).max(120),
         text: z.string().trim().min(1).max(4000),
@@ -110,16 +111,20 @@ export function messageTools(store: Store, home: string): Tool[] {
       deadlineMs: 15_000,
       title: (a) => `Wrote to ${String(a.to ?? "a contact")}`,
       async run(a, ctx) {
-        const who = resolve(a.to);
+        const room = a.to.trim().startsWith("#");
+        const who = room ? { id: a.to, name: a.to.trim() } : resolve(a.to);
         if ("problem" in who) return `not sent: ${who.problem}`;
         const files = a.files?.length ? attach(ctx, a.files) : { ids: [] };
         if ("problem" in files) return `not sent: ${files.problem}`;
-        const r = await ctx.call("channels.message", {
-          person: who.id,
-          text: a.text,
-          ...(a.channel ? { channel: a.channel } : {}),
-          ...(files.ids.length ? { files: files.ids } : {}),
-        });
+        const withFiles = files.ids.length ? { files: files.ids } : {};
+        const r = room
+          ? await ctx.call("channels.post", { room: a.to, text: a.text, ...withFiles })
+          : await ctx.call("channels.message", {
+              person: who.id,
+              text: a.text,
+              ...(a.channel ? { channel: a.channel } : {}),
+              ...withFiles,
+            });
         const tail = r.recent.map((m) => `${m.from}: ${m.text}`).join("\n");
         const with_ = files.ids.length ? ` with ${files.ids.length} file${files.ids.length > 1 ? "s" : ""}` : "";
         return `sent to ${who.name} on ${r.channel}${with_} (queued for delivery).${tail ? `\nThe chat before it:\n${untrusted("contact_chat", { with: who.name }, tail)}` : ""}`;

@@ -26,6 +26,7 @@ import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
 import { inputPresentation } from "./notices.ts";
+import { createPoster, type Posted } from "./post.ts";
 import { createRooms, quietMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import {
@@ -144,6 +145,7 @@ export function createChannels(deps: {
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
   });
+  const { post, recentOf } = createPoster(store, delivery);
   const inbound = createInbound({
     store,
     home: deps.home,
@@ -622,62 +624,40 @@ export function createChannels(deps: {
     text: string,
     /** `by`: the agent writing; none: the owner themselves. `files`: media ids sent with it. */
     o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
-  ): { thread: string; channel: string; recent: Array<{ from: "them" | "you" | "owner"; text: string }> } {
-    const files = (o.files ?? []).map((id) => {
-      const m = store.media.get(id);
-      if (!m) throw new Error(`no file ${id}`);
-      return m;
-    });
+  ): Posted {
     const { pick, owner, thread } = chatWith(personId, o.channel);
-    const before = store.messages.list(thread.id, 6);
-    const sent = store.tx(() => {
-      const m = store.messages.add({
-        thread_id: thread.id,
-        author: o.by ? { kind: "agent", id: o.by } : { kind: "user", direct: true },
-        parts: [
-          { type: "text", text },
-          ...files.map((f) =>
-            f.kind === "image"
-              ? ({ type: "image", media_id: f.id, mime: f.mime, alt: f.prompt ?? "image" } as const)
-              : ({ type: "file", media_id: f.id, name: f.prompt ?? f.id, mime: f.mime, bytes: f.bytes } as const),
-          ),
-        ],
-      });
-      // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
-      if (!owner) store.modelLog.append(thread.id, undefined, [{ role: "assistant", content: text }]);
-      store.threads.patch(thread.id, { preview: previewOf(text) });
-      return m;
-    });
-    delivery.enqueue({
-      channel: pick.cfg.id,
-      conversation: pick.conversation,
-      thread_id: thread.id,
-      message_id: sent.id,
-      kind: "reply",
-      body: {
-        text,
-        ...(files.length
-          ? {
-              media: files.map((f) => ({
-                id: f.id,
-                kind: f.kind,
-                mime: f.mime,
-                ...(f.kind === "file" && f.prompt ? { name: f.prompt } : {}),
-              })),
-            }
-          : {}),
-      },
-    });
-    const recent = before.flatMap((m) => {
-      const said = m.parts
-        .flatMap((p) => (p.type === "text" ? [p.text] : []))
-        .join("\n")
-        .trim();
-      if (!said) return [];
-      const from = m.author.kind === "person" ? "them" : m.author.kind === "user" ? "owner" : "you";
-      return [{ from, text: said.slice(0, 300) } as const];
-    });
+    // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
+    const recent = recentOf(thread.id);
+    post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner });
     return { thread: thread.id, channel: pick.cfg.label, recent };
+  }
+
+  /**
+   * An agent posts in a public room (a Discord server's channel the owner listed) for the owner: kept in the room's
+   * chat, sent with no pings to everyone. `room` is its name, with or without "#".
+   */
+  function postInRoom(
+    room: string,
+    text: string,
+    o: { by?: string | undefined; files?: string[] | undefined },
+  ): Posted {
+    const wanted = room.trim().replace(/^#/, "").toLowerCase();
+    const all = configs().flatMap((cfg) =>
+      cfg.enabled ? (cfg.rooms?.rooms ?? []).map((r) => ({ cfg, room: r, name: r.name || r.id })) : [],
+    );
+    const found = all.filter((r) => r.name.toLowerCase() === wanted || r.room.id === wanted);
+    const named = found.length ? found : all.filter((r) => r.name.toLowerCase().includes(wanted));
+    if (named.length !== 1)
+      throw new Error(
+        `${named.length ? `"${room}" matches several rooms` : `no room "${room}"`}. Rooms: ${
+          (named.length ? named : all).map((r) => `#${r.name} (${r.cfg.label})`).join(", ") || "none"
+        }`,
+      );
+    const { cfg, room: r } = named[0] as (typeof named)[number];
+    const thread = rooms.thread(cfg, r);
+    const recent = recentOf(thread.id);
+    post(thread, cfg.id, r.id, quietMentions(text), { ...o, logged: false });
+    return { thread: thread.id, channel: cfg.label, recent };
   }
 
   /**
@@ -733,6 +713,7 @@ export function createChannels(deps: {
     notifyOwner,
     sendAsOwner,
     messageContact,
+    postInRoom,
     /** A person's chat on a channel, made (empty) when they have none yet. */
     openChat: (personId: string, channel: string) => chatWith(personId, channel).thread,
     approved: inbound.approved,

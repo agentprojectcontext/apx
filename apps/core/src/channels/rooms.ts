@@ -221,6 +221,7 @@ export function createRooms(deps: {
   }
 
   return {
+    thread: roomThread,
     /** A message in a room: kept, and answered when the room's mode and limits allow. Resolves once it is handled. */
     handle(cfg: ChannelConfig, m: Inbound, rowId: string): Promise<"done" | "ignored"> {
       const settings = cfg.rooms;

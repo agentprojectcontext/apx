@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
 import { calledByName, roomDecision } from "./rooms.ts";
@@ -12,7 +12,12 @@ const ANA = { id: "222", name: "Ana" };
 const BEN = { id: "333", name: "Ben" };
 const ROOMS = { general: "8001", help: "8002", logs: "8003", ideas: "8004" };
 
-const llm = scriptedLlm((_req, { system, said }) => {
+const llm = scriptedLlm((req, { system, said, afterTool }) => {
+  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
+  if (said.includes("post the release note"))
+    return callTool("p1", "message_contact", { to: "#logs", text: "v2.1 is out @everyone" });
+  if (said.includes("post in a room that is not there"))
+    return callTool("p2", "message_contact", { to: "#nowhere", text: "hi" });
   // The useful rooms' judge: only a real question is worth an answer.
   if (system.startsWith("You decide whether an assistant bot"))
     return say(said.includes("how do I install") ? '{"reply": true, "reason": "a question"}' : '{"reply": false}');
@@ -196,6 +201,22 @@ test("owner only: in rooms only the owner gets answers", async () => {
   assert.match(String(call?.messages.at(-1)?.content), /<room_message from="[^"]*" owner="yes"/);
   assert.equal(call?.tools?.length ?? 0, 0, "the owner too gets a sealed turn in a public room");
   await set(false);
+});
+
+test("the owner's agent knows the rooms and posts in one when asked, even a read room, with no pings", async () => {
+  await env.client.call("threads.send", { thread: "home", text: "post in a room that is not there" });
+  await env.settle("home");
+  const turn = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("not there"));
+  assert.match(String(turn?.messages.at(-1)?.content), /Public rooms: #general \(Discord\), #help \(Discord\), #logs/);
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no room "#nowhere"\. Rooms: #general/);
+
+  // Before anything from outside is in the chat: a room's talk in context makes the next send ask first.
+  await env.client.call("threads.send", { thread: "home", text: "post the release note in logs" });
+  await env.settle("home");
+  await until(() => posts(ROOMS.logs).length === 1, "posted in #logs");
+  assert.equal(posts(ROOMS.logs)[0]?.content, "v2.1 is out @\u200beveryone");
+  assert.ok(kept(ROOMS.logs).includes("v2.1 is out @\u200beveryone"), "kept in the room's chat");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to #logs on Discord/);
 });
 
 test("names are whole words in any script; the decision follows the room's mode", () => {

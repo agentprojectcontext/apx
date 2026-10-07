@@ -4,7 +4,7 @@
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 
 import { createHash } from "node:crypto";
-import type { Organization, Thread } from "@apx/protocol";
+import type { ChannelInfo, Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { LogEntry } from "../domain/threads.ts";
@@ -133,7 +133,7 @@ export function systemPrompt(
     DOCUMENT_GUIDANCE,
     "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
     "- For interactive visuals (charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
-    "- To write to one of your owner's contacts on WhatsApp, Telegram or Discord, use message_contact: APX sends it on its own channel. Never drive a phone or a browser to send it.",
+    "- To write to one of your owner's contacts on WhatsApp, Telegram or Discord, or to post in a public room (a Discord server's #channel), use message_contact: APX sends it on its own channel. The channels and rooms it runs are listed in the turn context with the agents. Never drive a phone or a browser to read or send there.",
     BROWSING,
     "- Other agents: delegate with their id. Who is available is listed in the turn context when it changes; list_agents finds the rest.",
     "- Do your own assigned task directly with your tools. Never delegate to yourself. Routine searches, duplicate checks, reading a file and individual tool calls are steps of your task, not reasons to start a worker. Being asked by another agent does not require another delegation.",
@@ -147,14 +147,35 @@ export function systemPrompt(
     .join("\n");
 }
 
-/** Agents this agent may delegate to from this thread: global ones and the thread's project team. */
-export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: Thread): { text: string; hash: string } {
+/** The owner's channels an agent can write on, and the public rooms it can read and post in. */
+export function channelsLine(channels: Array<Pick<ChannelInfo, "type" | "label" | "enabled" | "rooms">>): string {
+  const on = channels.filter((c) => c.enabled);
+  if (!on.length) return "";
+  const rooms = on.flatMap((c) => (c.rooms?.rooms ?? []).map((r) => `#${r.name || r.id} (${c.label})`));
+  return [
+    `Channels APX runs for your owner (write with message_contact): ${on.map((c) => `${c.label} (${c.type})`).join(", ")}.`,
+    rooms.length
+      ? `Public rooms: ${rooms.join(", ")}. Read one with read_chat("#name"); post in it with message_contact to "#name".`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Agents this agent may delegate to from this thread (global ones and the thread's project team), and its channels. */
+export function rosterBlock(
+  agent: AgentRecord,
+  roster: AgentRecord[],
+  thread: Thread,
+  channels = "",
+): { text: string; hash: string } {
   const inScope = roster.filter((a) => a.id !== agent.id && (!a.project_id || a.project_id === thread.project_id));
   const hidden = roster.length - inScope.length - 1;
   const lines = inScope.map((a) => `- ${a.name} (id: ${a.id})${a.role ? `: ${a.role}` : ""}`);
   const text = [
     lines.length ? `Agents you can delegate to:\n${lines.join("\n")}` : "No other agents are available here.",
     hidden > 0 ? `${hidden} more agents live in other projects; find them with list_agents.` : "",
+    channels,
   ]
     .filter(Boolean)
     .join("\n");
