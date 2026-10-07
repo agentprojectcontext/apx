@@ -37,6 +37,17 @@ the core on loopback; `apx pair` creates the one-time code. Network settings alw
 The unpaired screen shares the web gate's dark design, QR scan, manual address/code fields and notification status.
 Revoked credentials return to pairing on the next launch; an unreachable core keeps the existing pairing for offline use.
 
+## Design and UI kit
+
+The screens follow the APX Mobile design (the panel's minimal look, dark mode). Colors and radii come from
+`packages/ui/src/styles/tokens.css` through `npm run sync:design`, which writes `src/ui/tokens.ts` along with the
+icons, blob eyes, engine marks and the panel's routine slot logic (`src/routines/slots.ts`, `cron.ts`); never edit
+those files by hand. Screens are built from `src/ui/kit` (buttons, chips, tags, cards, list groups, the switch,
+segmented control, spinner, headers, bottom sheet, tab bar), so a style changes in one place. Every word on screen
+goes through `src/i18n` (English, Spanish).
+
+Metro watches files only outside CI mode: start it without `CI=1`, or saved changes never reach the phone.
+
 ## Native notifications
 
 Android creates a high-importance `default` channel before requesting notification permission. Unread
