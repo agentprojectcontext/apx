@@ -32,7 +32,10 @@ import {
   countTasks,
   addDependency,
   removeDependency,
+  withdrawDecision,
 } from "#core/stores/tasks.js";
+import { requestDecision, resolveDecision } from "#core/tasks/decisions.js";
+import { summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { addComment } from "#core/stores/tasks.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 import {
@@ -346,6 +349,63 @@ export function register(api, { project, projects, config, plugins, registries }
     }
 
     res.json(updated);
+  });
+
+  // Decisions (#58): a structured question on the task. Answering hands the
+  // answer back to whoever asked, as a comment naming the decision — it never
+  // approves, closes or moves the task.
+  api.post("/projects/:pid/tasks/:id/decisions", asyncRoute(async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { by = OWNER_ACTOR_ID, ...fields } = req.body || {};
+    try {
+      const out = await requestDecision({
+        storagePath: p.storagePath, taskId: req.params.id, fields, by, plugins, config,
+        projectId: p.id ?? null, projectName: p.name || null,
+        summon: (mentions) => summonFromAgentComment({
+          p, taskId: getTask(p.storagePath, req.params.id)?.id || req.params.id, mentions, author: by,
+          projects, plugins, registries, config,
+        }),
+      });
+      if (!out) return res.status(404).json({ error: "task not found" });
+      res.status(201).json(out);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  }));
+
+  api.post("/projects/:pid/tasks/:id/decisions/:did/answer", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { answer, choice = null, by = OWNER_ACTOR_ID } = req.body || {};
+    try {
+      const out = resolveDecision({
+        storagePath: p.storagePath, taskId: req.params.id, decisionId: req.params.did, answer, choice, by,
+        handBack: (asker, author) => {
+          runCommentMentions({
+            p, taskId: getTask(p.storagePath, req.params.id).id, seed: [asker], author,
+            projects, plugins, registries, config,
+          }).catch(() => { /* the failure is written into the thread */ });
+        },
+      });
+      if (!out) return res.status(404).json({ error: "task not found" });
+      res.json(out);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  api.post("/projects/:pid/tasks/:id/decisions/:did/withdraw", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { reason, by = OWNER_ACTOR_ID } = req.body || {};
+    try {
+      const task = withdrawDecision(p.storagePath, req.params.id, req.params.did, { reason, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
   });
 
   // Add a comment. @-mentioning an agent hands it the task: it runs a REAL turn

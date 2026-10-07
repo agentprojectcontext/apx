@@ -264,6 +264,7 @@ const PUSH_PATHS = [
   "src/host/daemon/callback-reconciler.js", // late runtime results
   "src/core/routines/delivery.js",          // routine deliver_to (send_telegram is suppressed, so the gate moved here)
   "src/host/daemon/plugins/discord/index.js", // what the bot did in a public room — nobody wrote to the owner
+  "src/core/tasks/decisions.js",            // "a decision is waiting on you" — unsolicited, once per decision
 ];
 
 test("every audited outbound push path imports the gate", () => {

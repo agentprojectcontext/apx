@@ -83,6 +83,9 @@ export default {
         ...(t.depends_on?.length ? { depends_on: t.depends_on } : {}),
         ...(t.blocks?.length ? { blocks: t.blocks } : {}),
         ...(t.dependency_log?.length ? { dependency_log: t.dependency_log } : {}),
+        // Questions on this card. An answered one names its answer, so the
+        // same question is never asked twice.
+        ...(t.decisions?.length ? { decisions: t.decisions } : {}),
         comment_count: t.comment_count ?? (t.comments?.length || 0),
         // What is actually running, not what the column says. A "running"
         // card with nothing behind it comes back as verdict "not_verified".

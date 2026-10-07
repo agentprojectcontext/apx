@@ -132,6 +132,18 @@ Report "nothing matches <filters>", never "there are no tasks"; for an overview
 ask for `summary: true` instead of guessing a filter. `status` takes custom
 column ids too.
 
+**A decision you need is a decision, not a sentence.** Never end a report with
+"NEEDS USER INPUT" in prose. Call
+`comment_task({ task, decision: { question, options, recommendation, responsible, blocking, can_continue } })`.
+The card then shows the question, the owner is notified once (the result —
+sent, suppressed, failed, no channel — is recorded, never assumed), and the
+answer comes back to you as a comment naming the decision id. A correction
+another agent owes is a decision with `responsible: "<that agent>"`, not one
+for the owner. A decision addressed to you: `comment_task({ task,
+answers_decision: "<id>", text })`. An answer resolves THAT question only — it
+does not approve or close the task; check `decisions` in `get_task` before
+asking the same thing again.
+
 **Dependencies are data, not prose.** When you delegate work that unblocks
 another task, record it on the WAITING task:
 `update_task({ task: B, depends_on_add: [{ task: A, reason, owner, condition }] })`.

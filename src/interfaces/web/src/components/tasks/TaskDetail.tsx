@@ -11,6 +11,7 @@ import { TaskComments } from "./TaskComments";
 import { TaskSubtasks } from "./TaskSubtasks";
 import { TaskExecution } from "./TaskExecution";
 import { TaskDependencies } from "./TaskDependencies";
+import { TaskDecisions } from "./TaskDecisions";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint } from "./taskStatus";
@@ -261,6 +262,7 @@ export function TaskDetail({
           </div>
         )}
 
+        <TaskDecisions pid={pid} task={task} onChanged={() => { void mutate(); onChanged(); }} />
         <TaskExecution execution={task.execution} />
         <TaskDependencies task={task} onOpenTask={onOpenTask} />
 

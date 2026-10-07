@@ -11,6 +11,10 @@
 //   comment — appends one comment to the task's thread (by, text)
 //   depend   — this task waits on another (target, reason, owner, condition)
 //   undepend — that wait is lifted, with the reason it no longer holds
+//   ask      — somebody needs a decision (question, options, who decides)
+//   decide   — the decision was answered (answer, by)
+//   withdraw — the question no longer applies (reason)
+//   decision_notice — what happened when the decider was notified remotely
 //   update — shallow-merge patch (`patch` field)
 //   done   — closes the task (`by` field optional)
 //   drop   — archives without "completed" semantics (`by` field optional)
@@ -23,6 +27,7 @@ import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/task-categories.js";
+import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
 import {
   activityAt,
   awaitsOwner,
@@ -188,7 +193,55 @@ function projectState(events) {
           // never just vanishes from the record.
           depends_on: [],
           dependency_log: [],
+          // Decisions somebody owes on this task — a structured question, not a
+          // marker buried in a report (core/tasks/decisions.js).
+          decisions: [],
         });
+        break;
+      }
+      case "ask": {
+        if (!existing || !ev.decision_id) break;
+        if (existing.decisions.some((d) => d.id === ev.decision_id)) break;
+        existing.decisions.push({
+          id: ev.decision_id,
+          question: ev.question || "",
+          options: Array.isArray(ev.options) ? [...ev.options] : [],
+          recommendation: ev.recommendation || null,
+          responsible: ev.responsible || OWNER_ACTOR_ID,
+          blocking: ev.blocking || null,
+          can_continue: ev.can_continue || null,
+          asked_by: ev.by || null,
+          asked_at: ev.ts,
+          state: "open",
+          notice: null,
+        });
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "decide":
+      case "withdraw": {
+        const d = existing?.decisions.find((x) => x.id === ev.decision_id);
+        if (!d || d.state !== "open") break;
+        if (ev.op === "decide") {
+          d.state = "answered";
+          d.answer = ev.answer || "";
+          d.choice = ev.choice ?? null;
+          d.answered_by = ev.by || null;
+          d.answered_at = ev.ts;
+        } else {
+          d.state = "withdrawn";
+          d.withdrawn_reason = ev.reason || null;
+          d.withdrawn_by = ev.by || null;
+          d.withdrawn_at = ev.ts;
+        }
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "decision_notice": {
+        const d = existing?.decisions.find((x) => x.id === ev.decision_id);
+        if (!d) break;
+        // Not activity on the task: a delivery receipt, so updated_at stays.
+        d.notice = { at: ev.ts, channel: ev.channel || null, status: ev.status || "unknown", ...(ev.error ? { error: ev.error } : {}) };
         break;
       }
       case "depend": {
@@ -419,6 +472,7 @@ function row(task, idx, aliases, deps = null) {
     ...rest,
     depends_on: dependsOn,
     open_dependencies: dependsOn.filter((d) => !d.satisfied).length,
+    open_decisions: (task.decisions || []).filter((d) => d.state === "open").length,
     blocks: deps?.blocks.get(task.id) || [],
     comment_count: comments.length,
     subtask_count: kids?.total || 0,
@@ -429,7 +483,9 @@ function row(task, idx, aliases, deps = null) {
     // whole event log to find out — or, more often, not asking at all and
     // showing "3 comentarios".
     activity_at: activityAt(task),
-    awaits_owner: awaitsOwner(task, aliases),
+    // A structured question for the owner counts the same as an @owner comment.
+    awaits_owner: awaitsOwner(task, aliases)
+      || (task.state === "open" && (task.decisions || []).some((d) => d.state === "open" && d.responsible === OWNER_ACTOR_ID)),
     blocked_by_owner: blockedByOwner(task),
     last_comment: commentPreview(task, aliases),
   };
@@ -710,6 +766,77 @@ export function removeDependency(storagePath, idOrPrefix, { on, reason, by = nul
   if (!target) throw new Error(`${existing.id} does not depend on ${on}`);
   appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "undepend", target: target.task_id, reason: why, by });
   return getTask(storagePath, existing.id);
+}
+
+/**
+ * Record a decision somebody owes. `responsible` is "owner" or an agent slug.
+ * Returns `{ task, decision }`, or null when the task does not exist.
+ */
+export function askDecision(storagePath, idOrPrefix, {
+  question, options = [], recommendation = null, responsible = OWNER_ACTOR_ID,
+  blocking = null, can_continue = null, by = null,
+} = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const q = typeof question === "string" ? question.trim() : "";
+  if (!q) throw new Error("askDecision: question required");
+  const decision_id = makeShortId("d");
+  appendEvent(storagePath, {
+    id: existing.id, ts: nowIso(), op: "ask", decision_id, question: q,
+    options: (Array.isArray(options) ? options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 8),
+    recommendation: recommendation || null,
+    responsible: responsible || OWNER_ACTOR_ID,
+    blocking: blocking || null,
+    can_continue: can_continue || null,
+    by,
+  });
+  const task = getTask(storagePath, existing.id);
+  return { task, decision: task.decisions.find((d) => d.id === decision_id) };
+}
+
+function openDecision(storagePath, idOrPrefix, decisionId) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return { existing: null };
+  const d = existing.decisions.find((x) => x.id === decisionId);
+  if (!d) throw new Error(`decision not found on ${existing.id}: ${decisionId}`);
+  if (d.state !== "open") throw new Error(`decision ${decisionId} is already ${d.state}`);
+  return { existing, decision: d };
+}
+
+/**
+ * Answer an open decision. Only its responsible party — or the owner, who can
+ * always decide — may answer. Answering changes neither state nor column: a
+ * resolved question is not an approved task.
+ */
+export function answerDecision(storagePath, idOrPrefix, decisionId, { answer, choice = null, by = null } = {}) {
+  const { existing, decision } = openDecision(storagePath, idOrPrefix, decisionId);
+  if (!existing) return null;
+  const text = typeof answer === "string" ? answer.trim() : "";
+  if (!text) throw new Error("answerDecision: answer required");
+  if (by !== OWNER_ACTOR_ID && by !== decision.responsible) {
+    throw new Error(`only ${decision.responsible} (or the owner) can answer decision ${decisionId}`);
+  }
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "decide", decision_id: decisionId, answer: text, choice, by });
+  const task = getTask(storagePath, existing.id);
+  return { task, decision: task.decisions.find((d) => d.id === decisionId) };
+}
+
+/** The question no longer applies. Reason required, like a lifted dependency. */
+export function withdrawDecision(storagePath, idOrPrefix, decisionId, { reason, by = null } = {}) {
+  const { existing } = openDecision(storagePath, idOrPrefix, decisionId);
+  if (!existing) return null;
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (!why) throw new Error("withdrawDecision: reason required");
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "withdraw", decision_id: decisionId, reason: why, by });
+  return getTask(storagePath, existing.id);
+}
+
+/** What happened when the decider was told remotely. One receipt per attempt. */
+export function recordDecisionNotice(storagePath, taskId, decisionId, { channel = null, status, error = null } = {}) {
+  appendEvent(storagePath, {
+    id: taskId, ts: nowIso(), op: "decision_notice", decision_id: decisionId,
+    channel, status, ...(error ? { error: String(error).slice(0, 300) } : {}),
+  });
 }
 
 /** Re-open a done/dropped task. */

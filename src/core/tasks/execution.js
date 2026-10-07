@@ -16,6 +16,7 @@
 import { listRuntimeSessions } from "#core/stores/runtime-sessions.js";
 import { isTaskCascadeRunning } from "#core/tasks/cascades.js";
 import { awaitsOwner, blockedByOwner, ownerAliasesFrom } from "#core/tasks/attention.js";
+import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
 
 const RESULT_PREVIEW = 280;
 const TEXT_PREVIEW = 160;
@@ -62,6 +63,7 @@ function lastActivity(task, session) {
 
 function waitingOn(task, ownerName) {
   if (task.state !== "open") return null;
+  if ((task.decisions || []).some((d) => d.state === "open" && d.responsible === OWNER_ACTOR_ID)) return "owner_decision";
   if (awaitsOwner(task, ownerAliasesFrom(ownerName))) return "owner_reply";
   if (blockedByOwner(task)) return "owner";
   if (task.open_dependencies) return "dependency";

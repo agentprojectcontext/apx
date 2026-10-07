@@ -259,6 +259,21 @@ A thread can run with nobody watching, so it has walls: one comment starts at mo
 run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
 comments are not capped.
 
+### Decisions an agent needs
+
+When an agent needs a decision it asks it on the task, as a structured question: the question,
+the options, its recommendation and trade-off, who has to decide, what is blocked until then
+and what can go on meanwhile. The card shows **Waiting for your decision** and lets you answer
+with one click (an option) or a sentence; it also counts in the list and on the phone's
+attention view. If Telegram is set up you get **one** short notice — the task title and the
+question, nothing from the report — through the same interruption budget as every other
+unrequested message, and the card shows what actually happened to it (sent, held back, failed,
+or no channel). It is never repeated for the same decision.
+
+Your answer goes back to the agent that asked, as a comment naming that decision, so it knows
+exactly which blocker you resolved and does not ask again. Answering does **not** approve or
+close the task. A correction another agent owes is asked of that agent, not of you.
+
 ### Dependencies between tasks
 
 A subtask is part of a bigger task; a **dependency** says one task cannot move until another

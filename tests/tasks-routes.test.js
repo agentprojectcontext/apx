@@ -142,6 +142,24 @@ test("dependency routes: add, refuse a cycle, lift with a reason (#59)", async (
   assert.equal(after.dependency_log[0].removed_reason, "ya no aplica");
 });
 
+test("decision routes: ask, answer once, refuse a second answer (#58)", async () => {
+  const t = await newTask({ title: "decidir" });
+  const ask = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "¿A o B?", options: ["A", "B"], by: "rocky" });
+  assert.equal(ask.status, 201);
+  const { decision } = await ask.json();
+  assert.equal(decision.state, "open");
+  const page = await (await api("/projects/0/tasks?state=open")).json();
+  assert.equal(page.data.find((r) => r.id === t.id).awaits_owner, true);
+
+  const ans = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/answer`, { answer: "B", choice: 1 });
+  assert.equal(ans.status, 200);
+  const body = await ans.json();
+  assert.equal(body.decision.state, "answered");
+  assert.equal(body.task.state, "open", "an answer does not close the task");
+  const again = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/answer`, { answer: "A" });
+  assert.equal(again.status, 400);
+});
+
 // ── subtasks ────────────────────────────────────────────────────────────────
 
 test("?parent selects children, and ?parent= selects the roots", async () => {

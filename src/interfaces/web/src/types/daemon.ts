@@ -289,6 +289,9 @@ export interface TaskEntry {
   /** Waits that were lifted, with why. */
   dependency_log?: (TaskDependency & { removed_at: string; removed_by: string | null; removed_reason: string | null })[];
   open_dependencies?: number;
+  /** Structured questions on this card (#58). */
+  decisions?: TaskDecision[];
+  open_decisions?: number;
   /** When the current blocked period began (derived from transitions). */
   blocked_since?: string | null;
   status_changed_at?: string | null;
@@ -338,6 +341,27 @@ export interface TaskComment {
   meta?: { apc_session?: string; runtime?: string; runtime_phase?: string; coordinator?: string | null; error?: string };
 }
 
+export interface TaskDecision {
+  id: string;
+  question: string;
+  options: string[];
+  recommendation: string | null;
+  /** "owner" or an agent slug. */
+  responsible: string;
+  blocking: string | null;
+  can_continue: string | null;
+  asked_by: string | null;
+  asked_at: string;
+  state: "open" | "answered" | "withdrawn";
+  answer?: string;
+  choice?: number | null;
+  answered_by?: string | null;
+  answered_at?: string;
+  withdrawn_reason?: string | null;
+  /** The remote notice, as it actually went: never assumed delivered. */
+  notice: { at: string; channel: string | null; status: "sent" | "suppressed" | "failed" | "no_channel" | "unknown"; error?: string } | null;
+}
+
 export interface TaskDependency {
   task_id: string;
   title: string | null;
@@ -364,7 +388,7 @@ export interface TaskExecution {
     session: { id: string; runtime: string | null; agent: string | null; started_at: string | null; finished_at: string | null; result?: string } | null;
   };
   last_activity: { at: string; by: string | null; kind: "comment" | "session_started" | "session_finished"; text: string | null } | null;
-  waiting_on: "owner_reply" | "owner" | "dependency" | "blocked" | null;
+  waiting_on: "owner_decision" | "owner_reply" | "owner" | "dependency" | "blocked" | null;
 }
 
 export interface OrgArea {
